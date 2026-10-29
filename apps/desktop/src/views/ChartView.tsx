@@ -10,7 +10,7 @@ export function ChartView({ mint }: { mint: string }) {
     <div className="window">
       <ModeChrome title={`Chart · ${sym}`}>
         <span className="mono dim">{mint}</span>
-        {pos && <span className={`num ${pos.pnlPct >= 0 ? "pos" : "neg"}`} style={{ marginLeft: "auto" }}>{fmtPnlPct(pos.pnlPct)}</span>}
+        {pos && <span className={`num ${pos.pnl_pct >= 0 ? "pos" : "neg"}`} style={{ marginLeft: "auto" }}>{fmtPnlPct(pos.pnl_pct)}</span>}
       </ModeChrome>
       <div style={{ display: "flex", minHeight: 0 }}><PriceChart mint={mint} /></div>
       <div />

@@ -14,9 +14,9 @@ Dependencies: **UX** = design tokens and specs; **BE** = backend API/WS and cont
 ## Week 2 — wire to the backend (still Practice)
 | Day | Work | Depends on |
 |---|---|---|
-| D6 | Contracts: BE schema → codegen TS (`packages/contracts`) + Rust (`model.rs`) | BE: schema |
-| D7 | `source::backend`: WS client, reconnect/backoff, token in OS keychain | BE: WS endpoint + auth |
-| D8 | Approve/skip/sell → BE commands; idempotency keys; error surfaces | BE: command API |
+| D6 | ~~Contracts~~ **Done early (v1.1.1):** wire types imported, Rust mirror + contract tests, Transport trait, resync, server clock, If-Match/409/428, practice.reset, account.*. Remaining: codegen instead of a hand mirror | BE: schema answers Q1–Q18 |
+| D7 | Real `Transport`: Broadcast marks/clock + SSE events (Last-Event-ID) + REST, reconnect/backoff (logic exists in `sync.rs`), token in OS keychain | BE: WS/SSE endpoints + auth |
+| D8 | Approve/skip/sell/strategy/reset → BE REST (idempotency keys, If-Match and error surfaces already wired against the mock) | BE: sell job schema (Q7) |
 | D9 | **Unsigned Linux packaging** (deb + AppImage) + performance pass (RSS/CPU targets) | — |
 | D10 | Hardening, CSP for the backend origin, QA (incl. **W-NOFOCUS** below on a Windows VM), demo | UX + BE review; Windows test machine |
 

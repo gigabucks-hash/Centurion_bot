@@ -16,6 +16,10 @@ fn main() {
             "set_settings",
             "focus_main_for_signal",
             "hide_approval_popup",
+            "set_strategy_paused",
+            "reset_practice",
+            "get_coin_timeline",
+            "get_exit_reason_stats",
         ]),
     ))
     .expect("failed to run tauri-build");

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { core, EVT, runtime, type ActivityEvent, type Position, type Settings, type Signal } from "../api";
+import { core, EVT, runtime, type Account, type ActivityView, type ConflictView, type PickView, type PositionView, type Settings, type StrategyView, type SyncStatus } from "../api";
 import { useTerm } from "../state/store";
 
 /** Hydrate from a snapshot, then apply pushed deltas. Every window runs this independently. */
@@ -10,13 +10,16 @@ export function useCoreEvents() {
     const st = useTerm.getState();
     (async () => {
       const subs = await Promise.all([
-        core.on<Signal>(EVT.signalNew, st.upsertSignal),
-        core.on<Signal>(EVT.signalUpdate, st.upsertSignal),
-        core.on<ActivityEvent>(EVT.activity, st.pushActivity),
-        core.on<Position[]>(EVT.positions, st.setPositions),
+        core.on<PickView>(EVT.signalNew, st.upsertSignal),
+        core.on<PickView>(EVT.signalUpdate, st.upsertSignal),
+        core.on<ActivityView>(EVT.activity, st.pushActivity),
+        core.on<PositionView[]>(EVT.positions, st.setPositions),
         core.on<boolean>(EVT.connection, st.setConnected),
         core.on<Settings>(EVT.settings, st.setSettings),
-        core.on<number>(EVT.account, st.setCash),
+        core.on<Account>(EVT.account, st.setAccount),
+        core.on<SyncStatus>(EVT.sync, st.setSync),
+        core.on<StrategyView[]>(EVT.strategies, st.setStrategies),
+        core.on<ConflictView>(EVT.conflict, st.setConflict),
       ]);
       if (disposed) return subs.forEach((u) => u());
       unsubs.push(...subs);

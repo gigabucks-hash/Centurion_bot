@@ -1,7 +1,1 @@
-{
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "viewer",
-  "description": "Detached chart / activity windows: read-only. Cannot approve, skip or sell.",
-  "windows": ["chart-*", "activity"],
-  "permissions": ["core:default", "core:window:allow-start-dragging", "allow-get-snapshot", "allow-get-candles"]
-}
+{"$schema": "../gen/schemas/desktop-schema.json", "identifier": "viewer", "description": "Detached chart / activity windows: read-only. Cannot approve, skip or sell.", "windows": ["chart-*", "activity"], "permissions": ["core:default", "core:window:allow-start-dragging", "allow-get-snapshot", "allow-get-candles", "allow-get-coin-timeline"]}

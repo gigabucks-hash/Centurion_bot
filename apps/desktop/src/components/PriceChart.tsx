@@ -8,7 +8,7 @@ import {
   type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { core, EVT, type Tick } from "../api";
+import { core, EVT, type TickView } from "../api";
 import { useTerm } from "../state/store";
 import { safeLocale } from "./format";
 
@@ -79,13 +79,15 @@ export function PriceChart({ mint }: { mint: string | null }) {
     (async () => {
       const candles = await core.candles(mint);
       if (disposed) return;
-      const data = candles.map((c) => ({ ...c, time: c.time as UTCTimestamp }));
+      // Decimal strings → numbers for the chart only (display; never used for amounts).
+      const data = candles.map((c) => ({ time: c.time as UTCTimestamp, open: Number(c.open), high: Number(c.high), low: Number(c.low), close: Number(c.close) }));
       series.setData(data);
       last = data[data.length - 1] ?? null;
       chartRef.current?.timeScale().scrollToRealTime();
-      unsub = await core.on<Tick[]>(EVT.ticks, (batch) => {
-        for (const t of batch) {
-          if (t.mint !== mint) continue;
+      unsub = await core.on<TickView[]>(EVT.ticks, (batch) => {
+        for (const tv of batch) {
+          if (tv.mint !== mint) continue;
+          const t = { time: tv.time, price: Number(tv.price_sol) };
           const b = (t.time - (t.time % BUCKET_SEC)) as UTCTimestamp;
           if (last && last.time === b) {
             last = { ...last, high: Math.max(last.high, t.price), low: Math.min(last.low, t.price), close: t.price };

@@ -1,35 +1,50 @@
 import { create } from "zustand";
-import type { ActivityEvent, Mode, Position, Settings, Signal, Snapshot } from "../api";
+import type { Account, ActivityView, ConflictView, Mode, PickView, PositionView, Settings, Snapshot, StrategyView, SyncStatus } from "../api";
 
 const MAX_FEED = 500;
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
   density: "compact",
-  approvalPopup: false,
-  shortcuts: { focusTerminal: "CommandOrControl+Shift+H", openApprovals: "CommandOrControl+Shift+A" },
+  approval_popup: false,
+  shortcuts: { focus_terminal: "CommandOrControl+Shift+H", open_approvals: "CommandOrControl+Shift+A" },
+};
+
+const EMPTY_ACCOUNT: Account = {
+  cash_lamports: null, equity_lamports: null, unrealized_pnl_lamports: null, drawdown_pct: null,
+  as_of_seq: null, epoch: null, workspace_rev: null, notice: null, deleted: false,
 };
 
 interface TermState {
   ready: boolean;
   mode: Mode;
   source: Snapshot["source"];
+  contractsVersion: string;
   connected: boolean;
-  paperCashSol: number;
-  signals: Signal[];
-  positions: Position[];
-  activity: ActivityEvent[];
+  account: Account;
+  sync: SyncStatus | null;
+  /** server_now − local_now (ms), measured in Rust from every `server_now`. */
+  skewMs: number;
+  signals: PickView[];
+  positions: PositionView[];
+  activity: ActivityView[];
+  strategies: StrategyView[];
   settings: Settings;
+  /** Last 409 on a write: conflict toast (auto-dismiss) — the data is already refreshed. */
+  conflict: ConflictView | null;
   cursorMint: string | null;
   selectedIds: Set<string>;
   lastError: string | null;
   reportError: (e: unknown) => void;
   hydrate: (s: Snapshot) => void;
-  upsertSignal: (s: Signal) => void;
-  pushActivity: (e: ActivityEvent) => void;
-  setPositions: (p: Position[]) => void;
+  upsertSignal: (s: PickView) => void;
+  pushActivity: (e: ActivityView) => void;
+  setPositions: (p: PositionView[]) => void;
   setConnected: (c: boolean) => void;
-  setCash: (c: number) => void;
+  setAccount: (a: Account) => void;
+  setSync: (s: SyncStatus) => void;
+  setStrategies: (s: StrategyView[]) => void;
+  setConflict: (c: ConflictView | null) => void;
   setSettings: (s: Settings) => void;
   setCursor: (mint: string | null) => void;
   toggleSelected: (id: string) => void;
@@ -40,12 +55,17 @@ export const useTerm = create<TermState>((set) => ({
   ready: false,
   mode: "practice",
   source: "mock",
+  contractsVersion: "",
   connected: false,
-  paperCashSol: 0,
+  account: EMPTY_ACCOUNT,
+  sync: null,
+  skewMs: 0,
   signals: [],
   positions: [],
   activity: [],
+  strategies: [],
   settings: DEFAULT_SETTINGS,
+  conflict: null,
   cursorMint: null,
   selectedIds: new Set(),
   lastError: null,
@@ -55,11 +75,15 @@ export const useTerm = create<TermState>((set) => ({
       ready: true,
       mode: s.mode,
       source: s.source,
+      contractsVersion: s.contracts_version,
       connected: s.connected,
-      paperCashSol: s.paperCashSol,
+      account: s.account,
+      sync: s.sync,
+      skewMs: s.sync.skew_ms,
       signals: s.signals,
       positions: s.positions,
       activity: s.activity.slice(0, MAX_FEED),
+      strategies: s.strategies,
       settings: s.settings,
       cursorMint: pendingSorted(s.signals)[0]?.mint ?? null,
     }),
@@ -68,7 +92,7 @@ export const useTerm = create<TermState>((set) => ({
       const i = st.signals.findIndex((x) => x.id === sig.id);
       const signals = i >= 0 ? st.signals.map((x, j) => (j === i ? sig : x)) : [sig, ...st.signals].slice(0, 200);
       let selectedIds = st.selectedIds;
-      if (sig.stage !== "pending" && selectedIds.has(sig.id)) {
+      if (sig.status !== "pending" && selectedIds.has(sig.id)) {
         selectedIds = new Set(selectedIds);
         selectedIds.delete(sig.id);
       }
@@ -78,7 +102,10 @@ export const useTerm = create<TermState>((set) => ({
     set((st) => (st.activity.some((x) => x.id === e.id) ? st : { activity: [e, ...st.activity].slice(0, MAX_FEED) })),
   setPositions: (positions) => set({ positions }),
   setConnected: (connected) => set({ connected }),
-  setCash: (paperCashSol) => set({ paperCashSol }),
+  setAccount: (account) => set({ account }),
+  setSync: (sync) => set({ sync, skewMs: sync.skew_ms }),
+  setStrategies: (strategies) => set({ strategies }),
+  setConflict: (conflict) => set({ conflict }),
   setSettings: (settings) => set({ settings }),
   setCursor: (cursorMint) => set({ cursorMint }),
   toggleSelected: (id) =>
@@ -91,6 +118,9 @@ export const useTerm = create<TermState>((set) => ({
   clearSelected: () => set({ selectedIds: new Set() }),
 }));
 
+/** Server-clock "now" (C6 closed): local clock + skew measured from `server_now`. */
+export const serverNow = () => Date.now() + useTerm.getState().skewMs;
+
 /** UX default sort: soonest to expire first. */
-export const pendingSorted = (s: Signal[]) =>
-  s.filter((x) => x.stage === "pending").sort((a, b) => a.expiresAt - b.expiresAt);
+export const pendingSorted = (s: PickView[]) =>
+  s.filter((x) => x.status === "pending").sort((a, b) => a.expires_at_ms - b.expires_at_ms);

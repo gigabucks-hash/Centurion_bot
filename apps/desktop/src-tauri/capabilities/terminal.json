@@ -20,6 +20,10 @@
     "allow-open-approval-window",
     "allow-set-settings",
     "allow-focus-main-for-signal",
-    "allow-hide-approval-popup"
+    "allow-hide-approval-popup",
+    "allow-set-strategy-paused",
+    "allow-reset-practice",
+    "allow-get-coin-timeline",
+    "allow-get-exit-reason-stats"
   ]
 }

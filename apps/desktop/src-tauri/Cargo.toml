@@ -1,7 +1,7 @@
 [package]
 name = "sentra"
 version = "0.1.0"
-description = "Sentra desktop trading terminal (prototype, mock data only)"
+description = "Sentra desktop trading terminal (prototype, mock backend only)"
 edition = "2021"
 rust-version = "1.80"
 license = "UNLICENSED"
@@ -20,9 +20,12 @@ tauri-plugin-notification = "2"
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["time", "sync", "macros"] }
+tokio = { version = "1", features = ["time", "sync", "macros", "rt"] }
 thiserror = "2"
 log = "0.4"
+# Wire contract v1: decimal strings parsed for internal math/display only (never f64 on the wire).
+rust_decimal = { version = "1", default-features = false, features = ["std"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 
 # Planned (Week 2): OS keychain for the backend session token. Off by default in the prototype.
 keyring = { version = "3", optional = true, features = ["apple-native", "windows-native", "sync-secret-service"] }

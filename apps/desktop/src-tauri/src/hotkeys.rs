@@ -4,7 +4,7 @@
 //! approval queue) — they never approve, skip or sell.
 
 use crate::error::{AppError, AppResult};
-use crate::model::ShortcutConfig;
+use crate::view::ShortcutConfig;
 use crate::state::AppState;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, Runtime};

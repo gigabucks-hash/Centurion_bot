@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import type { Signal } from "../api";
-import { fmtMmSs, fmtPrice, fmtUsd, shortMint } from "./format";
+import type { PickView } from "../api";
+import { serverNow } from "../state/store";
+import { fmtMmSs, fmtPriceDec, fmtSol, fmtUsd, shortMint } from "./format";
 
 interface Props {
-  signals: Signal[]; // already pending + sorted soonest-expiry first
+  signals: PickView[]; // already pending + sorted soonest-expiry first
   cursorMint: string | null;
   selectedIds?: Set<string>;
   compactActions?: boolean;
@@ -11,15 +12,16 @@ interface Props {
   /** Keyboard focus landed on a row (roving tabindex) — moves the cursor, no quick-look. */
   onFocusRow?: (mint: string) => void;
   onToggleSelect?: (id: string) => void;
-  onApprove: (s: Signal) => void;
-  onSkip: (s: Signal) => void;
+  onApprove: (s: PickView) => void;
+  onSkip: (s: PickView) => void;
   onOpenChart?: (mint: string) => void;
 }
 
-function useNow(ms = 500) {
-  const [now, setNow] = useState(Date.now());
+/** Ticking *server-clock* now: countdowns use `expires_at − (local_now + skew)` (contract §2). */
+export function useServerNow(ms = 500) {
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), ms);
+    const t = setInterval(() => setNow(serverNow()), ms);
     return () => clearInterval(t);
   }, [ms]);
   return now;
@@ -28,14 +30,15 @@ function useNow(ms = 500) {
 const URGENT_MS = 2 * 60_000; // UX: < 2 min → red + icon
 
 export function SignalQueue(p: Props) {
-  const now = useNow();
-  if (!p.signals.length) return <div className="empty">Tidak ada pick pending. Menunggu mock engine…</div>;
+  const now = useServerNow();
+  if (!p.signals.length) return <div className="empty">Tidak ada pick pending. Menunggu backend (mock)…</div>;
   return (
     <div role="list">
       {p.signals.map((s) => {
-        const left = Math.max(0, s.expiresAt - now);
-        const pct = (left / Math.max(1, s.expiresAt - s.createdAt)) * 100;
+        const left = Math.max(0, s.expires_at_ms - now);
+        const pct = (left / Math.max(1, s.expires_at_ms - s.created_at_ms)) * 100;
         const urgent = left < URGENT_MS;
+        const fit = s.score != null && s.score_threshold != null;
         return (
           <div
             key={s.id}
@@ -62,18 +65,20 @@ export function SignalQueue(p: Props) {
               {/* symbol/name are untrusted token metadata: rendered as plain text only */}
               <strong>{s.symbol}</strong>
               <span className="mono dim">{shortMint(s.mint)}</span>
-              <span className="chip">Pick · first buy</span>
-              <span className={`num ${s.score >= s.passMark ? "pos" : "neg"}`} style={{ marginLeft: "auto" }}>
-                {s.score}/{s.passMark}
-              </span>
+              <span className="chip">{s.first_buy ? "Pick · first buy" : "Pick"}</span>
+              {fit && (
+                <span className={`num ${s.score! >= s.score_threshold! ? "pos" : "neg"}`} style={{ marginLeft: "auto" }} title="score / score_threshold">
+                  {s.score}/{s.score_threshold}
+                </span>
+              )}
             </div>
             <div className="row meta num">
-              <span>px {fmtPrice(s.priceUsd)}</span>
-              <span>mc {fmtUsd(s.marketCapUsd)}</span>
-              <span>liq {fmtUsd(s.liquidityUsd)}</span>
-              <span>{s.ageMinutes}m</span>
+              <span>{fmtSol(s.amount_lamports, 2)} SOL</span>
+              <span>px {fmtPriceDec(s.price_sol)} SOL</span>
+              <span>liq {s.liquidity_usd != null ? fmtUsd(s.liquidity_usd) : "—"}</span>
+              {s.guard_verdict && <span>guard {s.guard_verdict}</span>}
             </div>
-            <div className="meta">{s.strategy} · {s.reasons.join(" · ")}</div>
+            <div className="meta">{s.strategy} · {s.reasons.join(" · ") || s.summary}</div>
             <div className={`bar ${urgent ? "urgent" : ""}`}><i style={{ width: `${pct}%` }} /></div>
             <div className="actions">
               <button className="success" onClick={(e) => { e.stopPropagation(); p.onApprove(s); }}>Approve<kbd>A</kbd></button>
@@ -83,7 +88,7 @@ export function SignalQueue(p: Props) {
                   ⧉ Chart<kbd>↵</kbd>
                 </button>
               )}
-              <span className={`num ${urgent ? "neg" : "dim"}`} style={{ marginLeft: "auto" }} aria-label="Sisa waktu">
+              <span className={`num ${urgent ? "neg" : "dim"}`} style={{ marginLeft: "auto" }} aria-label="Sisa waktu (jam server)">
                 {urgent ? "⏱ " : ""}{fmtMmSs(left)}
               </span>
             </div>

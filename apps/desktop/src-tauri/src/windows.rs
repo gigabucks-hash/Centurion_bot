@@ -116,7 +116,7 @@ pub fn hide_approval_popup_later<R: Runtime>(app: &AppHandle<R>, ms: u64) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
-        let empty = !app.state::<AppState>().engine.lock().unwrap().signals.iter().any(|s| s.stage == crate::model::Stage::Pending);
+        let empty = !app.state::<AppState>().engine.lock().unwrap().signals.iter().any(|s| s.status == crate::model::ProposalStatus::Pending);
         if empty {
             hide_approval_popup(&app);
         }

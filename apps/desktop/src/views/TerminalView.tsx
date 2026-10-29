@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { core, EVT, runtime, type Position, type SellQuote, type Signal } from "../api";
+import { core, EVT, runtime, type PickView, type PositionView, type SellQuote } from "../api";
 import { ApproveConfirm } from "../components/ApproveConfirm";
 import { MockTtlBadge } from "../components/MockTtlBadge";
 import { popupSupported, POPUP_DISABLED_REASON } from "../components/platform";
@@ -10,7 +10,9 @@ import { PositionsSummary, PositionsTable } from "../components/PositionsTable";
 import { PriceChart } from "../components/PriceChart";
 import { SellConfirm } from "../components/SellConfirm";
 import { SettingsDialog } from "../components/SettingsDialog";
-import { SignalQueue } from "../components/SignalQueue";
+import { SignalQueue, useServerNow } from "../components/SignalQueue";
+import { ConflictToast } from "../components/ConflictToast";
+import { fmtSol } from "../components/format";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { pendingSorted, useTerm } from "../state/store";
 
@@ -18,11 +20,12 @@ export function TerminalView() {
   const st = useTerm();
   const [quote, setQuote] = useState<SellQuote | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [realApprove, setRealApprove] = useState<Signal | null>(null);
+  const [realApprove, setRealApprove] = useState<PickView | null>(null);
   // Quick-look (C2 decided): which kind of row it shows; content stays live from the store.
   const [ql, setQl] = useState<{ kind: "signal" | "position"; mint: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const pending = useMemo(() => pendingSorted(st.signals), [st.signals]);
+  const now = useServerNow(1000);
 
   const run = useCallback(async (fn: () => Promise<unknown>) => {
     try {
@@ -33,8 +36,8 @@ export function TerminalView() {
     }
   }, []);
 
-  const cursorSig: Signal | undefined = pending.find((s) => s.mint === st.cursorMint) ?? pending[0];
-  const cursorPos: Position | undefined = st.positions.find((p) => p.mint === st.cursorMint) ?? st.positions[0];
+  const cursorSig: PickView | undefined = pending.find((s) => s.mint === st.cursorMint) ?? pending[0];
+  const cursorPos: PositionView | undefined = st.positions.find((p) => p.mint === st.cursorMint) ?? st.positions[0];
   const chartMint = st.cursorMint ?? cursorSig?.mint ?? null;
   const chartSym = st.signals.find((s) => s.mint === chartMint)?.symbol ?? st.positions.find((p) => p.mint === chartMint)?.symbol;
 
@@ -57,26 +60,26 @@ export function TerminalView() {
     if (ql?.kind === "signal" && cursorSig && cursorSig.mint !== ql.mint) setQl({ kind: "signal", mint: cursorSig.mint });
   }, [cursorSig, ql]);
 
-  const approve = (s?: Signal) => s && (st.mode === "real" ? setRealApprove(s) : run(() => core.approveSignal(s.id)));
+  const approve = (s?: PickView) => s && (st.mode === "real" ? setRealApprove(s) : run(() => core.approveSignal(s.id)));
 
   // Popup hand-off ("Buka untuk approve ↗"): Rust focused this window; open the pick here.
   useEffect(() => {
     let un: (() => void) | undefined;
     core.on<string>(EVT.focusSignal, (id) => {
-      const s = useTerm.getState().signals.find((x) => x.id === id && x.stage === "pending");
+      const s = useTerm.getState().signals.find((x) => x.id === id && x.status === "pending");
       if (!s) return;
       useTerm.getState().setCursor(s.mint);
       if (useTerm.getState().mode === "real") setRealApprove(s);
     }).then((u) => (un = u));
     return () => un?.();
   }, []);
-  const skip = (s?: Signal) => s && run(() => core.skipSignal(s.id));
+  const skip = (s?: PickView) => s && run(() => core.skipSignal(s.id));
   const approveSelected = () => {
     if (st.mode !== "practice") return setErr("Batch approve hanya untuk PRACTICE");
     const ids = [...st.selectedIds].filter((id) => pending.some((s) => s.id === id));
     if (ids.length) run(async () => { await core.approveMany(ids); st.clearSelected(); });
   };
-  const sell = (p?: Position, pct = 100) => p && run(async () => setQuote(await core.requestSell(p.mint, pct)));
+  const sell = (p?: PositionView, pct = 100) => p && run(async () => setQuote(await core.requestSell(p.key, pct)));
   const move = (d: number) => {
     if (!pending.length) return;
     const i = Math.max(0, pending.findIndex((s) => s.mint === st.cursorMint));
@@ -129,7 +132,7 @@ export function TerminalView() {
     <div className="window">
       <ModeChrome title="Terminal">
         <span className="chip">src: {st.source}</span>
-        <span className="muted num">Cash {st.paperCashSol.toFixed(3)} SOL</span>
+        <span className="muted num" title={`epoch ${st.account.epoch ?? "—"} · as_of_seq ${st.account.as_of_seq ?? "—"}`}>Cash {fmtSol(st.account.cash_lamports, 3)} · Equity {fmtSol(st.account.equity_lamports, 3)} SOL</span>
         <span style={{ marginLeft: "auto" }} className="dim">
           <kbd>J/K</kbd> nav <kbd>A</kbd> approve <kbd>S</kbd> skip <kbd>X</kbd> pilih <kbd>⇧A</kbd> approve terpilih <kbd>⇧X</kbd> sell <kbd>Space</kbd> quick-look <kbd>↵</kbd> chart <kbd>L</kbd> feed <kbd>P</kbd> popup
         </span>
@@ -170,16 +173,23 @@ export function TerminalView() {
         <section className="panel area-positions">
           <header>Positions (paper) <PositionsSummary positions={st.positions} /></header>
           <div className="body">
-            <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onFocusRow={st.setCursor} onSell={(p) => sell(p)} />
+            <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onFocusRow={st.setCursor} onSell={(p) => sell(p)} now={now} />
           </div>
         </section>
       </div>
       <div className="statusbar">
-        <span className={st.connected ? "pos" : "neg"}>● {st.connected ? "engine online" : "offline"}</span>
-        <span className="dim">runtime: {runtime} · density: {st.settings.density} · popup: {!popupSupported ? "n/a (OS)" : st.settings.approvalPopup ? "on" : "off"}</span>
-        <span className="dim">global: focus {sc.focusTerminal}{sc.openApprovals ? ` · approvals ${sc.openApprovals}` : ""}</span>
+        <span className={st.connected ? "pos" : "neg"}>● {st.connected ? "backend (mock) online" : "offline"}</span>
+        {st.sync && (
+          <span className="dim num" title="watermark = seq resume cursor · gap = seq lompat (re-fetch via /events) · skew = server_now − jam lokal">
+            contracts {st.contractsVersion} · seq {st.sync.watermark} · gap {st.sync.gaps_seen} · resync {st.sync.resyncs} (+{st.sync.recovered}) · dup {st.sync.duplicates} · skew {st.sync.skew_ms > 0 ? "+" : ""}{(st.sync.skew_ms / 1000).toFixed(1)}s
+          </span>
+        )}
+        <span className="dim">runtime: {runtime} · density: {st.settings.density} · popup: {!popupSupported ? "n/a (OS)" : st.settings.approval_popup ? "on" : "off"}</span>
+        <span className="dim">global: focus {sc.focus_terminal}{sc.open_approvals ? ` · approvals ${sc.open_approvals}` : ""}</span>
         {(err ?? st.lastError) && <span className="neg" style={{ marginLeft: "auto" }}>{err ?? st.lastError}</span>}
       </div>
+      {st.account.notice && <div className="account-banner" role="alert">{st.account.notice}</div>}
+      <ConflictToast />
       {qlTarget && <QuickLook target={qlTarget} onClose={() => setQl(null)} />}
       {realApprove && (
         <ApproveConfirm
@@ -197,7 +207,7 @@ export function TerminalView() {
           quote={quote}
           mode={st.mode}
           onCancel={() => setQuote(null)}
-          onPct={(pct) => sell(st.positions.find((p) => p.mint === quote.mint), pct)}
+          onPct={(pct) => sell(st.positions.find((p) => p.key === quote.position_key), pct)}
           onConfirm={() => {
             const n = quote.nonce;
             setQuote(null);

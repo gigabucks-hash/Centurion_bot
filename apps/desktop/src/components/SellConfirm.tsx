@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Mode, SellQuote } from "../api";
 import { useHotkeys } from "../hooks/useHotkeys";
+import { fmtSol } from "./format";
 import { HoldButton } from "./HoldButton";
 
 const HOLD_MS: Record<Mode, number> = { practice: 1200, real: 2500 }; // = --motion-holdPractice / --motion-holdReal
@@ -14,11 +15,11 @@ export function SellConfirm({ quote, mode, onConfirm, onCancel, onPct }: {
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const [left, setLeft] = useState(quote.ttlMs);
+  const [left, setLeft] = useState(quote.ttl_ms);
   useEffect(() => {
     const started = Date.now();
     const t = setInterval(() => {
-      const l = quote.ttlMs - (Date.now() - started);
+      const l = quote.ttl_ms - (Date.now() - started);
       setLeft(l);
       if (l <= 0) onCancel();
     }, 200);
@@ -31,7 +32,7 @@ export function SellConfirm({ quote, mode, onConfirm, onCancel, onPct }: {
         <h3>Konfirmasi Sell ({mode === "practice" ? "PRACTICE · paper" : "REAL SOL"})</h3>
         <div>
           Jual <b className="num">{quote.pct}%</b> <span className="mono">{quote.symbol}</span> ≈{" "}
-          <span className="num">{quote.estSolOut.toFixed(4)} SOL</span>
+          <span className="num">{fmtSol(quote.est_sol_out_lamports)} SOL</span>
         </div>
         {onPct && (
           <div className="pct-chips" role="group" aria-label="Ukuran jual">

@@ -1,15 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { core, type Signal } from "../api";
+import { core, type PickView, type ProposalExpiredReason } from "../api";
 import { fmtMmSs } from "../components/format";
 import { MockTtlBadge } from "../components/MockTtlBadge";
 import { useHotkeys } from "../hooks/useHotkeys";
-import { pendingSorted, useTerm } from "../state/store";
+import { fmtSol } from "../components/format";
+import { pendingSorted, serverNow, useTerm } from "../state/store";
 
 const LOCK_MS = 600; // UX: anti mis-click — buttons locked each time the item changes/appears
 const EXPIRED_NOTICE_MS = 3000;
-const TRADE_SOL = "0,25";
 
-const expiredText = (r: string | null) => (r === "strategy_deleted" ? "Expired · strategi dihapus" : "Expired · waktu habis");
+const EXPIRED_TEXT: Partial<Record<ProposalExpiredReason, string>> = {
+  strategy_deleted: "Expired · strategi dihapus",
+  strategy_archived: "Expired · strategi diarsipkan",
+  guard_failed: "Expired · guard gagal",
+  price_moved: "Expired · harga bergerak",
+  practice_reset: "Expired · practice direset",
+  account_deleted: "Expired · akun dihapus",
+};
+const expiredText = (r: ProposalExpiredReason | null) => (r && EXPIRED_TEXT[r]) || "Expired · waktu habis";
 
 /**
  * Opt-in always-on-top approval popup (UX DESKTOP_COMPACT_AND_POPUP §4, WF-13). 360×232.
@@ -26,11 +34,11 @@ export function ApprovalView() {
   const [active, setActive] = useState(() => document.hasFocus());
   const [locked, setLocked] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   const expiredAt = useRef<Record<string, number>>({});
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000); // per-second, no smooth animation
+    const t = setInterval(() => setNow(serverNow()), 1000); // per-second, server clock (skew-corrected)
     const on = () => setActive(true);
     const off = () => setActive(false);
     window.addEventListener("focus", on);
@@ -39,11 +47,11 @@ export function ApprovalView() {
   }, []);
 
   // Current item: keep showing a just-expired item for 3 s, else soonest-expiring pending.
-  const shown: Signal | undefined = (() => {
+  const shown: PickView | undefined = (() => {
     const c = signals.find((s) => s.id === curId);
-    if (c?.stage === "pending") return c;
-    if (c?.stage === "expired") {
-      const t0 = (expiredAt.current[c.id] ??= Date.now());
+    if (c?.status === "pending") return c;
+    if (c?.status === "expired") {
+      const t0 = (expiredAt.current[c.id] ??= now);
       if (now - t0 < EXPIRED_NOTICE_MS) return c;
     }
     return pending[0];
@@ -58,7 +66,7 @@ export function ApprovalView() {
   }, [shown?.id]);
 
   const others = pending.filter((s) => s.id !== shown?.id);
-  const isPending = shown?.stage === "pending";
+  const isPending = shown?.status === "pending";
   const can = isPending && !locked;
   const act = (fn: () => Promise<void>) => fn().then(() => setErr(null), (e) => setErr(String(e)));
   const approve = () => {
@@ -74,8 +82,8 @@ export function ApprovalView() {
   };
   useHotkeys({ j: () => move(1), k: () => move(-1), a: approve, s: skip, escape: () => act(() => core.hideApprovalPopup()) }, active);
 
-  const left = shown ? shown.expiresAt - now : 0;
-  const total = shown ? Math.max(1, shown.expiresAt - shown.createdAt) : 1;
+  const left = shown ? shown.expires_at_ms - now : 0;
+  const total = shown ? Math.max(1, shown.expires_at_ms - shown.created_at_ms) : 1;
   return (
     <div className="popup" role="dialog" aria-modal="false" aria-labelledby="popup-title" data-active={active || undefined}>
       <div className="mode-strip" aria-hidden />
@@ -92,10 +100,10 @@ export function ApprovalView() {
             {isPending ? (
               <span className={`num ${left < 120_000 ? "neg" : "muted"}`} style={{ marginLeft: "auto" }}>⏱ {fmtMmSs(left)}</span>
             ) : (
-              <span className="muted" style={{ marginLeft: "auto" }}>{expiredText(shown.expiredReason)}</span>
+              <span className="muted" style={{ marginLeft: "auto" }}>{shown.status === "expired" ? expiredText(shown.expired_reason) : shown.status === "rejected" ? "Skipped" : "Approved"}</span>
             )}
           </div>
-          <div className="meta">{shown.strategy} · {TRADE_SOL} SOL · fit {shown.score}/{shown.passMark}</div>
+          <div className="meta">{shown.strategy} · {fmtSol(shown.amount_lamports, 2)} SOL{shown.score != null ? ` · fit ${shown.score}/${shown.score_threshold}` : ""}</div>
           <div className="timerbar" aria-hidden><i style={{ width: `${isPending ? Math.max(0, Math.min(100, (left / total) * 100)) : 0}%` }} /></div>
           <div className="popup-actions">
             <button disabled={!can} onClick={skip}>Skip <kbd>S</kbd></button>
@@ -107,7 +115,7 @@ export function ApprovalView() {
           </div>
           <div className="popup-foot">
             <div className="row">
-              <span className="dim">{others.length ? <>+{others.length} lagi: ${others[0].symbol} · <span className="num">{fmtMmSs(others[0].expiresAt - now)}</span></> : "Tidak ada pick lain"}</span>
+              <span className="dim">{others.length ? <>+{others.length} lagi: ${others[0].symbol} · <span className="num">{fmtMmSs(others[0].expires_at_ms - now)}</span></> : "Tidak ada pick lain"}</span>
               <span className="dim" style={{ marginLeft: "auto" }}>J/K</span>
             </div>
             <div className="dim">{err ? <span className="neg">{err}</span> : active ? "Shortcut aktif · Esc sembunyikan" : "Klik popup untuk mengaktifkan shortcut"}</div>

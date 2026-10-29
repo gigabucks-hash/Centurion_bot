@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-exit-reason-stats"
+description = "Enables the get_exit_reason_stats command without any pre-configured scope."
+commands.allow = ["get_exit_reason_stats"]
+
+[[permission]]
+identifier = "deny-get-exit-reason-stats"
+description = "Denies the get_exit_reason_stats command without any pre-configured scope."
+commands.deny = ["get_exit_reason_stats"]
