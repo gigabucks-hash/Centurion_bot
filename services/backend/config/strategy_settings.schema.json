@@ -1,0 +1,395 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://solbot.local/schemas/strategy-settings.v1.json",
+  "title": "Strategy settings v1",
+  "description": "Mirrors public.strategy_settings_valid() in supabase/migrations/0001_init.sql. Cross-field rules (tradeSol<=budgetSol, min<=max pairs) are enforced by the API and the DB function.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "budgetSol": {
+      "type": "number",
+      "minimum": 0.001,
+      "maximum": 100000,
+      "description": "Total budget in SOL (UI unit; API converts to lamports)"
+    },
+    "tradeSol": {
+      "type": "number",
+      "minimum": 0.001,
+      "maximum": 1000,
+      "description": "SOL per coin, <= budgetSol"
+    },
+    "maxOpen": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20
+    },
+    "maxPoolSharePct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "askFirst": {
+      "type": "boolean",
+      "description": "Legacy alias; prefer approvalMode"
+    },
+    "codeOnly": {
+      "type": "boolean"
+    },
+    "lossStopPct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "practiceStopPct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "skipTwinCoins": {
+      "type": "boolean"
+    },
+    "streams": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "bonding",
+          "graduated"
+        ]
+      }
+    },
+    "minAgeMinutes": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 525600
+    },
+    "maxAgeMinutes": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 525600
+    },
+    "minGraduatedSeconds": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 86400
+    },
+    "minMarketCapUsd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000000000000.0
+    },
+    "maxMarketCapUsd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000000000000.0
+    },
+    "minLiquidityUsd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000000000000.0
+    },
+    "minVolume24hUsd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000000000000.0
+    },
+    "minHolders": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000000.0
+    },
+    "minBuyers1h": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000000.0
+    },
+    "minBuySellRatio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "maxTop10Percent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "minLpBurnPct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "minTurnover1h": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "maxTurnover1h": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "minMove1hPct": {
+      "type": "number",
+      "minimum": -100,
+      "maximum": 100000
+    },
+    "maxMove1hPct": {
+      "type": "number",
+      "minimum": -100,
+      "maximum": 100000
+    },
+    "sweetMove1hLowPct": {
+      "type": "number",
+      "minimum": -100,
+      "maximum": 100000
+    },
+    "sweetMove1hHighPct": {
+      "type": "number",
+      "minimum": -100,
+      "maximum": 100000
+    },
+    "maxDrawdownPct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "hourCrashLimit": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 99
+    },
+    "mustHave": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "liquidity",
+          "volume",
+          "marketCap",
+          "age",
+          "top10",
+          "maxAge",
+          "lpBurn"
+        ]
+      }
+    },
+    "passMark": {
+      "type": "number",
+      "minimum": 50,
+      "maximum": 125
+    },
+    "recheckMovePct": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "rules": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Screener RuleSet (config/screener.example.json format)"
+    },
+    "shield": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "maxDevPercent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "maxBundlersPercent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "maxSnipersPercent": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "dipPct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 50
+    },
+    "entryDelayMinutes": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 60
+    },
+    "entryMaxUpPct": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "breakout": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "activeTrading": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "rebuy": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "tradingDays": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 6
+      }
+    },
+    "tradingHours": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "exitPlan": {
+      "enum": [
+        "clip",
+        "stake",
+        "flip",
+        "ladder",
+        "trailingTp",
+        "trail",
+        "scaleOut",
+        "scalp",
+        "take30",
+        "stall",
+        "stepLock",
+        "tighten",
+        "doubling"
+      ]
+    },
+    "exits": {
+      "type": "object",
+      "properties": {
+        "takeProfits": {
+          "type": "array",
+          "maxItems": 8
+        },
+        "stopLosses": {
+          "type": "array",
+          "maxItems": 8
+        }
+      }
+    },
+    "takeProfits": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": [
+          "gainPct",
+          "sellPct"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "gainPct": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 100000
+          },
+          "sellPct": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 100
+          },
+          "pullbackPct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      }
+    },
+    "stopLossPct": {
+      "type": "number",
+      "description": "0 = off, else 5\u201349",
+      "anyOf": [
+        {
+          "const": 0
+        },
+        {
+          "minimum": 5,
+          "maximum": 49
+        }
+      ]
+    },
+    "noTradeSeconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 5,
+      "maximum": 3600
+    },
+    "drain": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "approvalMode": {
+      "enum": [
+        "off",
+        "ask_first_buy",
+        "ask_every_buy"
+      ],
+      "default": "ask_first_buy",
+      "description": "ask_first_buy: first buy of the strategy/portfolio and first buy of each coin need approval"
+    },
+    "sellFloors": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "description": "Deterministic code floors; compiled into exit-plan rules floor_pnl / floor_liquidity in Phase 2",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "maxLossPct": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 99,
+          "description": "Sell all when PnL <= -maxLossPct (portfolio default 35)"
+        },
+        "liquidityDropPct": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 99,
+          "description": "Sell all when pool liquidity falls by this % from entry (default 80)"
+        }
+      }
+    }
+  }
+}

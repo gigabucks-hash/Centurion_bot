@@ -1,0 +1,18 @@
+[package]
+name = "db"
+description = "Repository traits + in-memory store; Postgres/Supabase schema lives in supabase/migrations"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+common.workspace = true
+async-trait.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true
