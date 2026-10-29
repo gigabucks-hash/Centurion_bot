@@ -30,7 +30,7 @@
   },
   "authSiwsStatement": "Sign in to Centurion Trade",
   "@authSiwsStatement": {
-    "description": "DISPLAY copy only. The signed SIWS statement is server-defined (strict message): Backend must change it too, else verify fails"
+    "description": "VERBATIM signed SIWS statement (server statement_version bumped, Rev 4.8): never translate, must equal the server string exactly"
   },
   "builderApprovalModeRealNote": "Real SOL: “Off” is not available in the MVP.",
   "@builderApprovalModeRealNote": {
@@ -1366,9 +1366,13 @@
   "@killSwitchReasonPolicyMismatch": {
     "description": "kill_switch_reason=policy_mismatch (Backend final Phase 7, auto trips only; lower-case: used mid-sentence)"
   },
+  "killSwitchReasonProviderError": "a provider or signer problem · only exits run",
+  "@killSwitchReasonProviderError": {
+    "description": "kill_switch_reason=provider_error (Backend final Phase 7, auto trips only; lower-case: used mid-sentence)"
+  },
   "killSwitchReenableAction": "Re-enable Real trading",
   "@killSwitchReenableAction": {
-    "description": "resume after Stop (real.buys.resumed) or clear an auto trip (real.kill_switch.cleared); step-up rules per Backend. No delay copy: clear_requested was dropped"
+    "description": "resume after Stop (real.buys.resumed, immediate) or clear an auto trip (real.kill_switch.cleared); no delay copy"
   },
   "killSwitchReenableResumeNote": "Strategies stay paused. Resume them one by one.",
   "@killSwitchReenableResumeNote": {
@@ -1394,9 +1398,41 @@
   "@killSwitchSellAllBody": {
     "description": "kill_switch.sell_all.body"
   },
+  "killSwitchSellAllFailureRow": "{symbol}: {reason_code}. Still open; exit plan keeps running.",
+  "@killSwitchSellAllFailureRow": {
+    "description": "one per failures[] item; symbol resolved from mint (untrusted); reason_code → order.fail_reason.<lower> (unknown → .unknown)",
+    "placeholders": {
+      "reason_code": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
   "killSwitchSellAllHold": "Hold 2.5 s to sell all",
   "@killSwitchSellAllHold": {
     "description": "kill_switch.sell_all.hold"
+  },
+  "killSwitchSellAllInProgress": "{requested_count,plural,one{Selling {requested_count} position…} other{Selling {requested_count} positions…}}",
+  "@killSwitchSellAllInProgress": {
+    "description": "after real.sell_all.requested until real.sell_all.completed (same sell_all_id); button disabled",
+    "placeholders": {
+      "requested_count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "killSwitchSellAllRateLimited": "Sell all was just requested. Try again in {retry_after_s,plural,one{{retry_after_s} second} other{{retry_after_s} seconds}}.",
+  "@killSwitchSellAllRateLimited": {
+    "description": "429 RATE_LIMITED on sell all (~1 per 60 s); retry_after_s = error.retry_after_s / Retry-After, counts down",
+    "placeholders": {
+      "retry_after_s": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
   },
   "killSwitchSellAllTitle": "{count,plural,one{Sell {count} Real position now?} other{Sell {count} Real positions now?}}",
   "@killSwitchSellAllTitle": {
@@ -2045,7 +2081,7 @@
   "@notifRealBuysPausedTitle": {
     "description": "N-43 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
-  "notifRealBuysResumedBody": "{actor_type, select, user {By you on {device_label}.} other {By the system.}} Strategies stay paused until you resume them.",
+  "notifRealBuysResumedBody": "New buys run again now · {actor_type, select, user {by you on {device_label}} other {by the system}}",
   "@notifRealBuysResumedBody": {
     "description": "N-44",
     "placeholders": {
@@ -2061,7 +2097,7 @@
   "@notifRealBuysResumedTitle": {
     "description": "N-44 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
-  "notifRealDepositDetectedBody": "+{amount_lamports} · balance {balance_lamports} of {cap_lamports}",
+  "notifRealDepositDetectedBody": "+{amount_lamports} · balance {balance_lamports}",
   "@notifRealDepositDetectedBody": {
     "description": "N-39",
     "placeholders": {
@@ -2070,9 +2106,6 @@
       },
       "balance_lamports": {
         "type": "String"
-      },
-      "cap_lamports": {
-        "type": "String"
       }
     }
   },
@@ -2080,15 +2113,20 @@
   "@notifRealDepositDetectedTitle": {
     "description": "N-39 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
-  "notifRealKillSwitchClearedBody": "Real trading can run again. Strategies stay paused until you resume them.",
+  "notifRealKillSwitchClearedBody": "{signer_state, select, revoked {Bot authority is still revoked. Grant trading authority again to resume.} other {Real trading can run again. Strategies stay paused until you resume them.}}",
   "@notifRealKillSwitchClearedBody": {
-    "description": "N-31"
+    "description": "N-31",
+    "placeholders": {
+      "signer_state": {
+        "type": "String"
+      }
+    }
   },
   "notifRealKillSwitchClearedTitle": "[REAL SOL] Automatic stop cleared",
   "@notifRealKillSwitchClearedTitle": {
     "description": "N-31 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
-  "notifRealKillSwitchTrippedBody": "Stopped automatically: {reason, select, policy_mismatch {wallet rules don’t match} loss_velocity {losses grew too fast} other {a safety rule triggered}}. New buys are blocked.",
+  "notifRealKillSwitchTrippedBody": "{reason, select, policy_mismatch {Stopped automatically: wallet rules don’t match. New buys are blocked.} loss_velocity {Stopped automatically: losses grew too fast. New buys are blocked.} provider_error {Stopped automatically: provider/signer problem · only exits run.} other {Stopped automatically: a safety rule triggered. New buys are blocked.}}",
   "@notifRealKillSwitchTrippedBody": {
     "description": "N-29",
     "placeholders": {
@@ -2168,11 +2206,15 @@
   "@notifRealPolicyMismatchTitle": {
     "description": "N-26 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
-  "notifRealSellAllCompletedBody": "{sold_count,plural,one{{sold_count} sold} other{{sold_count} sold}}{failed_count,plural,one{ · {failed_count} failed and is still open} other{ · {failed_count} failed and are still open} =0{}}",
+  "notifRealSellAllCompletedBody": "{sold_count,plural,one{{sold_count} of {requested_count} sold} other{{sold_count} of {requested_count} sold}}{failed_count,plural,one{ · {failed_count} failed: still open, its exit plan keeps running} other{ · {failed_count} failed: still open, their exit plans keep running} =0{}}",
   "@notifRealSellAllCompletedBody": {
     "description": "N-46",
     "placeholders": {
       "failed_count": {
+        "type": "int",
+        "format": "decimalPattern"
+      },
+      "requested_count": {
         "type": "int",
         "format": "decimalPattern"
       },
@@ -2192,20 +2234,20 @@
       }
     }
   },
-  "notifRealSellAllCompletedTotal": "Total out: {amount_lamports}",
+  "notifRealSellAllCompletedTotal": "Total out: {amount_out_lamports}",
   "@notifRealSellAllCompletedTotal": {
-    "description": "N-46 extra line, only when amount_lamports is not null (formatLamports)",
+    "description": "N-46 extra line, only when amount_out_lamports is not null (formatLamports)",
     "placeholders": {
-      "amount_lamports": {
+      "amount_out_lamports": {
         "type": "String"
       }
     }
   },
-  "notifRealSellAllRequestedBody": "{count,plural,one{Selling {count} position at market.} other{Selling {count} positions at market.}} Guards still apply.",
+  "notifRealSellAllRequestedBody": "{requested_count,plural,one{Selling {requested_count} position at market.} other{Selling {requested_count} positions at market.}} Guards still apply.",
   "@notifRealSellAllRequestedBody": {
     "description": "N-45",
     "placeholders": {
-      "count": {
+      "requested_count": {
         "type": "int",
         "format": "decimalPattern"
       }
@@ -2704,6 +2746,10 @@
   "@queuePickKindGuardChange": {
     "description": "queue.pick.kind.guard_change"
   },
+  "queuePickKindSellPosition": "Sell",
+  "@queuePickKindSellPosition": {
+    "description": "ProposalKind sell_position (contracts 1.1.5)"
+  },
   "queuePickReviewChange": "Review change",
   "@queuePickReviewChange": {
     "description": "queue.pick.review_change"
@@ -2788,7 +2834,8 @@
     "description": "queue.tab.with_count",
     "placeholders": {
       "count": {
-        "type": "String"
+        "type": "int",
+        "format": "decimalPattern"
       },
       "label": {
         "type": "String"
@@ -3630,25 +3677,29 @@
   "@tokenProgramToken2022": {
     "description": "chip when token_program = Token-2022 program id (isToken2022); do not translate"
   },
+  "walletAuthorizeRegrant": "Grant trading authority again",
+  "@walletAuthorizeRegrant": {
+    "description": "CTA when signer_state=revoked (e.g. after policy_mismatch the signer stays revoked until re-granted)"
+  },
   "walletLimitsSettingCapLamports": "Total cap",
   "@walletLimitsSettingCapLamports": {
-    "description": "real.limit.* setting=cap_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue"
+    "description": "real.limit.* setting=cap_lamports (confirmed by Backend, Rev 4.8); from/to via formatLimitValue"
   },
-  "walletLimitsSettingDailyLamports": "Max per 24 h",
+  "walletLimitsSettingDailyLamports": "Max per rolling 24 h",
   "@walletLimitsSettingDailyLamports": {
-    "description": "real.limit.* setting=daily_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue"
+    "description": "real.limit.* setting=daily_lamports (confirmed by Backend, Rev 4.8); from/to via formatLimitValue"
   },
   "walletLimitsSettingMaxPositions": "Max open positions",
   "@walletLimitsSettingMaxPositions": {
-    "description": "real.limit.* setting=max_positions (PROPOSED key name, confirm with Backend); from/to via formatLimitValue"
+    "description": "real.limit.* setting=max_positions (confirmed by Backend, Rev 4.8); from/to via formatLimitValue"
   },
   "walletLimitsSettingMaxSlippageBps": "Max slippage",
   "@walletLimitsSettingMaxSlippageBps": {
-    "description": "real.limit.* setting=max_slippage_bps (PROPOSED key name, confirm with Backend); from/to via formatLimitValue"
+    "description": "real.limit.* setting=max_slippage_bps (confirmed by Backend, Rev 4.8); from/to via formatLimitValue"
   },
   "walletLimitsSettingPerTradeLamports": "Max per trade",
   "@walletLimitsSettingPerTradeLamports": {
-    "description": "real.limit.* setting=per_trade_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue"
+    "description": "real.limit.* setting=per_trade_lamports (confirmed by Backend, Rev 4.8); from/to via formatLimitValue"
   },
   "walletOwnerAddBackup": "Add backup wallet…",
   "@walletOwnerAddBackup": {
@@ -3694,8 +3745,36 @@
   "@walletOwnerTypeLast4": {
     "description": "wallet.owner.type_last4"
   },
-  "walletWithdrawFailReasonUnknown": "Unknown error",
+  "walletWithdrawFailReasonDestinationNotOwned": "the destination isn’t your main wallet",
+  "@walletWithdrawFailReasonDestinationNotOwned": {
+    "description": "real.withdraw.failed reason_code=destination_not_owned (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42"
+  },
+  "walletWithdrawFailReasonInsufficientBalance": "not enough balance",
+  "@walletWithdrawFailReasonInsufficientBalance": {
+    "description": "real.withdraw.failed reason_code=insufficient_balance (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42"
+  },
+  "walletWithdrawFailReasonOther": "something went wrong",
+  "@walletWithdrawFailReasonOther": {
+    "description": "real.withdraw.failed reason_code=other (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42"
+  },
+  "walletWithdrawFailReasonProviderError": "wallet provider error",
+  "@walletWithdrawFailReasonProviderError": {
+    "description": "real.withdraw.failed reason_code=provider_error (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42"
+  },
+  "walletWithdrawFailReasonTxExpired": "it wasn’t sent in time",
+  "@walletWithdrawFailReasonTxExpired": {
+    "description": "real.withdraw.failed reason_code=tx_expired (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42"
+  },
+  "walletWithdrawFailReasonUnknown": "unknown error",
   "@walletWithdrawFailReasonUnknown": {
-    "description": "N-42 {reason_code} when the code has no error.code.* copy"
+    "description": "fallback for a reason_code outside the enum"
+  },
+  "walletWithdrawFailReasonUserRejected": "you rejected the signature",
+  "@walletWithdrawFailReasonUserRejected": {
+    "description": "real.withdraw.failed reason_code=user_rejected (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42"
+  },
+  "walletWithdrawFailReasonWithdrawSimulationFailed": "the safety simulation failed",
+  "@walletWithdrawFailReasonWithdrawSimulationFailed": {
+    "description": "real.withdraw.failed reason_code=withdraw_simulation_failed (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42"
   }
 }

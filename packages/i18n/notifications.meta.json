@@ -18,7 +18,7 @@
     "pct": "N-08: formatPct unsigned (copy adds '+'); N-09/N-15: pnlPct signed",
     "pct_sold": "formatPct unsigned",
     "price": "formatUsd",
-    "reason": "N-07: expire_reason.<r>.detail · N-29: select policy_mismatch|loss_velocity|other (raw enum, unknown → other) · N-24: select kill_switch|expiry|user",
+    "reason": "N-07: expire_reason.<r>.detail · N-29: select policy_mismatch|loss_velocity|provider_error|other (raw enum, unknown → other) · N-24: select kill_switch|expiry|user",
     "reason_code": "order.fail_reason.<lower>",
     "stop_type": "exit_reason.<rule>",
     "cooldown_until": "formatTime",
@@ -39,7 +39,11 @@
     "version": "plain integer",
     "actor_type": "select user|rule|system",
     "scope": "select global|workspace|strategy",
-    "reason_code@N-42": "errors.map codes[code].key, unknown → wallet.withdraw.fail_reason.unknown",
+    "reason_code@N-42": "wallet.withdraw.fail_reason.<code> (enum), unknown → wallet.withdraw.fail_reason.unknown",
+    "requested_count": "int (plural)",
+    "amount_out_lamports": "formatLamports (nullable → line hidden)",
+    "signer_state": "select active|revoked",
+    "failures": "[{position_id, mint, reason_code}] → kill_switch.sell_all.failure_row (in-app only)",
     "sold_count": "int (plural)",
     "failed_count": "int (plural; =0 → no failure clause)"
   },
@@ -73,13 +77,28 @@
       "N-28": "final; new limit applies on activates_at and stays until changed (no auto-revert)",
       "manual_stop": "real.buys.paused / real.buys.resumed (exit plans keep running)",
       "auto_trip": "real.kill_switch.tripped / cleared only",
-      "sell_all": "confirm dialog + 2.5 s hold, no Phantom step-up; guards (simulation, slippage cap) still apply"
+      "sell_all": "confirm dialog + 2.5 s hold, no Phantom step-up; guards (simulation, slippage cap) still apply; failed positions stay open with exit plans running",
+      "buys_resumed": "immediate (no delay)"
     },
     "enums": {
       "kill_switch_reason": [
         "policy_mismatch",
         "loss_velocity",
+        "provider_error",
         "other"
+      ],
+      "withdraw_fail_reason": [
+        "withdraw_simulation_failed",
+        "insufficient_balance",
+        "destination_not_owned",
+        "tx_expired",
+        "provider_error",
+        "user_rejected",
+        "other"
+      ],
+      "signer_state": [
+        "active",
+        "revoked"
       ],
       "actor_type": [
         "user",
@@ -97,7 +116,12 @@
         "user"
       ]
     },
-    "flattening": "wire actor{actor_type,user_id} / device{device_id,device_label} → flat ICU vars actor_type, device_label (confirm with Backend)",
+    "flattening": "flat wire fields actor_type, user_id, device_id, device_label (confirmed by Backend, Rev 4.8)",
+    "defaults": {
+      "provider_error": "exits only (buys blocked, exit plans keep running)",
+      "policy_mismatch": "signer stays revoked until re-granted (wallet.authorize.regrant)",
+      "sell_all_rate_limit": "~1 per 60 s → 429 RATE_LIMITED + retry_after_s → kill_switch.sell_all.rate_limited"
+    },
     "activity_only": {
       "real.order.*": "Activity feed only, no push",
       "real.presign.denied": "Activity feed only, no push"

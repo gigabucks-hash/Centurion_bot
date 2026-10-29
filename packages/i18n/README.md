@@ -1,11 +1,11 @@
-# @sentra/i18n · v0.4.7 (UX Rev 4.7, Centurion Trade, contracts 1.1.5 spec pre-merge, 29 Okt 2026 WIB)
+# @sentra/i18n · v0.4.8 (UX Rev 4.8, Centurion Trade, contracts 1.1.5, 29 Okt 2026 WIB)
 
 Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/build_locales.py` (EN = source, ID = locale). Perubahan copy → minta UX, lalu publish ulang ke folder ini.
 
 | File | Isi | Konsumen |
 |---|---|---|
-| `en.json`, `id.json` | 672 key, nested, ICU MessageFormat (plural/select) | Web (next-intl), Desktop |
-| `arb/app_en.arb`, `arb/app_id.arb` | key lowerCamel (`notif.pick_pending.title` → `notifPickPendingTitle`), placeholder bertipe dari AST ICU (`int` untuk plural, `String` lainnya). **Plural tanpa `#`**: `#` diganti `{count}` (dll.) + metadata `int`/`decimalPattern`. Lolos `flutter gen-l10n` + `dart analyze` 0 issue + `test/flutter/l10n_plural_test.dart` | Flutter |
+| `en.json`, `id.json` | 685 key, nested, ICU MessageFormat (plural/select) | Web (next-intl), Desktop |
+| `arb/app_en.arb`, `arb/app_id.arb` | key lowerCamel (`notif.pick_pending.title` → `notifPickPendingTitle`), placeholder bertipe dari AST ICU (`int` untuk plural dan `*_count`, `String` lainnya). **Plural tanpa `#`**: `#` diganti `{count}` (dll.) + metadata `int`/`decimalPattern`. Lolos `flutter gen-l10n` + `dart analyze` 0 issue + `test/flutter/l10n_plural_test.dart` | Flutter |
 | `format.mjs` | formatter angka/waktu terikat locale UI | Web, Desktop (Flutter: port 1:1) |
 | `notifications.map.json` | N-01..N-22 + RESERVED Real N-23..N-46 (`reserved`, `channels`, `payload`) → wire `type`, kondisi, key title/body, `vars` (wire), `computed` (dihitung di device), aksi push + `token` per mode | push worker, Flutter/Web notif handler |
 | `notifications.meta.json` | aturan push (Real open-only, token hanya Practice `buy_pick`, fail closed) + formatter per var + `silent_events` (`proposal.updated`, 0.4.6) | idem |
@@ -23,7 +23,7 @@ Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/
 - **Countdown**: `skew = skewFrom(server_now)` dari setiap respons REST / envelope stream / heartbeat `clock`; `formatCountdown(remainingMs(expires_at, skew))`. Jangan pernah menghitung TTL lokal.
 - **Quote (0.4.6)**: field quote `ApprovalWire` boleh null → `formatLamportsOrDash` / `formatBps` / `formatRawQty(min_out_raw, decimals)`; null = "—" + `common.value.unavailable`. Kesegaran = `quoteState(q, skew, {mode})`; Real dengan `blocksApprove` → hold/Approve nonaktif + `review.quote.refresh`. `proposal.updated` senyap (lihat `notifications.meta.json`).
 - **Mcap (0.4.6)**: `formatMcapUsd(mcap_usd)` utama, `formatMcapSol(market_cap_lamports)` sekunder, tooltip `mcap.as_of` + `mcap.usd_indicative`.
-- **Brand (0.4.7)**: nama produk dari `app.name` (Centurion Trade); nama paket/key/skema `sentra://` tetap.
+- **Brand (0.4.7)**: nama produk dari `app.name` (Centurion Trade); nama paket `@sentra/*` dan nama key tetap; skema deep link `centurion://` (0.4.8).
 - **Real notif (0.4.7, reserved)**: hanya stream Real, tidak pernah actionable; lamports → `formatLamports`, waktu ISO → `formatDateTime`, `address_short` = `formatAddressShort(address)` (bukan var wire).
 - **Manual sell**: UI persen, wire `fraction_bps` (`pctToFractionBps(50)` → 5000; `formatFractionBps(bps, locale)` untuk teks %).
 - **Error**: `errors.map.json` → `codes[code].key` (fallback `error.code.internal`); field error = placeholder.
@@ -31,7 +31,7 @@ Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/
 - Push data-only dirender **di device** dari `notif.<key>.title|body` (lihat `notifications.map.json`). Real SOL: aksi push hanya `open`; token + approve/skip hanya Practice `buy_pick`. Event/`v` tak dikenal atau `mode` hilang → fail closed (generik "Buka app").
 
 ## Changelog
-Lihat [`CHANGELOG.md`](CHANGELOG.md) (0.4.0–0.4.7, BREAKING ditandai).
+Lihat [`CHANGELOG.md`](CHANGELOG.md) (0.4.0–0.4.8, BREAKING ditandai).
 
 ### Migrasi key Desktop (0.4.4)
 | Lama (`apps/desktop` local.ts) | Baru (`@sentra/i18n`) | Catatan |

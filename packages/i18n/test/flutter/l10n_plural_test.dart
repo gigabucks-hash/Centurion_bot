@@ -93,13 +93,13 @@ void main() {
   });
   test('Rev 4.7: brand, Real notif plurals (=0 empty branch), selects, sell preview', () {
     expect(en.appName, 'Centurion Trade');
-    expect(id.authSiwsStatement, 'Masuk ke Centurion Trade');
+    expect(id.authSiwsStatement, 'Sign in to Centurion Trade'); // verbatim signed statement (0.4.8)
     expect(en.screenerNotTradeableDetail, contains('Centurion Trade only trades SOL pairs'));
     expect(en.notifRealSellAllCompletedTitle(0), '[REAL SOL] Sell all done');
     expect(id.notifRealSellAllCompletedTitle(2), '[REAL SOL] Jual semua: 2 gagal');
-    expect(en.notifRealSellAllCompletedBody(0, 3), '3 sold');
-    expect(en.notifRealSellAllCompletedBody(1, 2), '2 sold · 1 failed and is still open');
-    expect(id.notifRealSellAllCompletedBody(2, 1), '1 terjual · 2 gagal, masih terbuka');
+    expect(en.notifRealSellAllCompletedBody(0, 3, 3), '3 of 3 sold');
+    expect(en.notifRealSellAllCompletedBody(1, 3, 2), '2 of 3 sold · 1 failed: still open, its exit plan keeps running');
+    expect(id.notifRealSellAllCompletedBody(2, 3, 1), '1 dari 3 terjual · 2 gagal: tetap terbuka, exit plan tetap jalan');
     expect(id.notifRealKillSwitchTrippedBody('loss_velocity'), startsWith('Dihentikan otomatis: kerugian naik terlalu cepat'));
     expect(en.notifRealKillSwitchTrippedBody('new_reason_x'), contains('a safety rule triggered'));
     expect(id.notifRealBuysPausedTitle, '[REAL SOL] Pembelian baru dihentikan');
@@ -109,5 +109,17 @@ void main() {
     expect(id.expireReasonKillSwitchBadge, 'Real dihentikan');
     expect(id.closePreviewValid(9), 'Preview berlaku 9 dtk');
     expect(id.killSwitchOptionSellAll(3), 'Jual juga 3 posisi sekarang');
+  });
+  test('Rev 4.8: Backend final Phase 7 payloads', () {
+    expect(id.notifRealKillSwitchTrippedBody('provider_error'), 'Dihentikan otomatis: masalah provider/signer · hanya exit yang berjalan.');
+    expect(en.notifRealKillSwitchTrippedBody('policy_mismatch'), startsWith('Stopped automatically: wallet rules'));
+    expect(id.notifRealKillSwitchClearedBody('revoked'), contains('Berikan izin trading lagi'));
+    expect(id.walletAuthorizeRegrant, 'Berikan izin trading lagi');
+    expect(id.killSwitchSellAllRateLimited(42), 'Jual semua baru saja diminta. Coba lagi dalam 42 detik.');
+    expect(en.killSwitchSellAllInProgress(2), 'Selling 2 positions…');
+    expect(id.walletLimitsSettingDailyLamports, 'Maks. per 24 jam bergulir');
+    expect(id.walletWithdrawFailReasonTxExpired, 'tidak terkirim tepat waktu');
+    expect(id.notifRealDepositDetectedBody('0,5 SOL', '1,2 SOL'), '+0,5 SOL · saldo 1,2 SOL');
+    expect(en.notifRealSellAllCompletedTotal('0.90 SOL'), 'Total out: 0.90 SOL');
   });
 }

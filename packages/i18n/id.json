@@ -12,7 +12,7 @@
   },
   "auth": {
     "siws": {
-      "statement": "Masuk ke Centurion Trade"
+      "statement": "Sign in to Centurion Trade"
     }
   },
   "builder": {
@@ -415,7 +415,8 @@
     "reason": {
       "loss_velocity": "kerugian naik terlalu cepat",
       "other": "aturan keamanan terpicu",
-      "policy_mismatch": "aturan wallet tidak cocok"
+      "policy_mismatch": "aturan wallet tidak cocok",
+      "provider_error": "masalah provider/signer · hanya exit yang berjalan"
     },
     "reenable": {
       "action": "Aktifkan lagi trading Real",
@@ -429,7 +430,10 @@
     },
     "sell_all": {
       "body": "Jual di harga pasar sekarang. Cek keamanan tetap berlaku: simulasi dan batas slippage.",
+      "failure_row": "{symbol}: {reason_code}. Tetap terbuka; exit plan tetap jalan.",
       "hold": "Tahan 2,5 dtk untuk jual semua",
+      "in_progress": "{requested_count, plural, other {Menjual # posisi…}}",
+      "rate_limited": "Jual semua baru saja diminta. Coba lagi dalam {retry_after_s, plural, other {# detik}}.",
       "title": "{count, plural, other {Jual # posisi Real sekarang?}}"
     },
     "status": {
@@ -606,23 +610,23 @@
           "title": "[REAL SOL] Pembelian baru dihentikan"
         },
         "resumed": {
-          "body": "{actor_type, select, user {Olehmu di {device_label}.} other {Oleh sistem.}} Strategi tetap dijeda sampai kamu melanjutkannya.",
+          "body": "Pembelian baru jalan lagi sekarang · {actor_type, select, user {olehmu di {device_label}} other {oleh sistem}}",
           "title": "[REAL SOL] Pembelian baru dilanjutkan"
         }
       },
       "deposit": {
         "detected": {
-          "body": "+{amount_lamports} · saldo {balance_lamports} dari {cap_lamports}",
+          "body": "+{amount_lamports} · saldo {balance_lamports}",
           "title": "[REAL SOL] Deposit masuk"
         }
       },
       "kill_switch": {
         "cleared": {
-          "body": "Trading Real bisa jalan lagi. Strategi tetap dijeda sampai kamu melanjutkannya.",
+          "body": "{signer_state, select, revoked {Izin bot masih dicabut. Berikan izin trading lagi untuk lanjut.} other {Trading Real bisa jalan lagi. Strategi tetap dijeda sampai kamu melanjutkannya.}}",
           "title": "[REAL SOL] Henti otomatis dicabut"
         },
         "tripped": {
-          "body": "Dihentikan otomatis: {reason, select, policy_mismatch {aturan wallet tidak cocok} loss_velocity {kerugian naik terlalu cepat} other {aturan keamanan terpicu}}. Buy baru diblokir.",
+          "body": "{reason, select, policy_mismatch {Dihentikan otomatis: aturan wallet tidak cocok. Buy baru diblokir.} loss_velocity {Dihentikan otomatis: kerugian naik terlalu cepat. Buy baru diblokir.} provider_error {Dihentikan otomatis: masalah provider/signer · hanya exit yang berjalan.} other {Dihentikan otomatis: aturan keamanan terpicu. Buy baru diblokir.}}",
           "title": "[REAL SOL] Trading Real dihentikan otomatis"
         }
       },
@@ -648,12 +652,12 @@
       },
       "sell_all": {
         "completed": {
-          "body": "{sold_count, plural, other {# terjual}}{failed_count, plural, =0 {} other { · # gagal, masih terbuka}}",
+          "body": "{sold_count, plural, other {# dari {requested_count} terjual}}{failed_count, plural, =0 {} other { · # gagal: tetap terbuka, exit plan tetap jalan}}",
           "title": "[REAL SOL] {failed_count, plural, =0 {Jual semua selesai} other {Jual semua: # gagal}}",
-          "total": "Total keluar: {amount_lamports}"
+          "total": "Total keluar: {amount_out_lamports}"
         },
         "requested": {
-          "body": "{count, plural, other {Menjual # posisi di harga pasar.}} Guard tetap berlaku.",
+          "body": "{requested_count, plural, other {Menjual # posisi di harga pasar.}} Guard tetap berlaku.",
           "title": "[REAL SOL] Menjual semua posisi"
         }
       },
@@ -782,7 +786,8 @@
       "kind": {
         "buy": "Buy",
         "first_buy": "Buy pertama",
-        "guard_change": "Melonggarkan guard"
+        "guard_change": "Melonggarkan guard",
+        "sell_position": "Jual"
       },
       "review_change": "Tinjau perubahan",
       "skip": "Lewati"
@@ -1073,10 +1078,13 @@
     }
   },
   "wallet": {
+    "authorize": {
+      "regrant": "Berikan izin trading lagi"
+    },
     "limits": {
       "setting": {
         "cap_lamports": "Batas total",
-        "daily_lamports": "Maks. 24 jam",
+        "daily_lamports": "Maks. per 24 jam bergulir",
         "max_positions": "Maks. posisi terbuka",
         "max_slippage_bps": "Slippage maks.",
         "per_trade_lamports": "Maks. per trade"
@@ -1095,7 +1103,14 @@
     },
     "withdraw": {
       "fail_reason": {
-        "unknown": "Error tak dikenal"
+        "destination_not_owned": "tujuan bukan wallet utamamu",
+        "insufficient_balance": "saldo tidak cukup",
+        "other": "terjadi kesalahan",
+        "provider_error": "gangguan provider wallet",
+        "tx_expired": "tidak terkirim tepat waktu",
+        "unknown": "error tak dikenal",
+        "user_rejected": "kamu menolak tanda tangan",
+        "withdraw_simulation_failed": "simulasi keamanan gagal"
       }
     }
   }

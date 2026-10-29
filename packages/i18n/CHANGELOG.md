@@ -2,6 +2,36 @@
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
+## 0.4.8 · 29 Okt 2026 (UX Rev 4.8) · diverifikasi ke contracts 1.1.5 (working tree Backend, belum di-commit)
+685 key (+13). Tidak ada key dihapus/di-rename. **Placeholder berubah (reserved Phase 7, belum ada konsumen):**
+`notif.real.sell_all.requested.body` `{count}` → `{requested_count}`; `notif.real.sell_all.completed.total` `{amount_lamports}` → `{amount_out_lamports}`.
+
+### Diverifikasi ke contracts 1.1.5
+- `CONTRACTS_VERSION` 1.1.5 ada di working tree `packages/contracts` (`src/wire/events.ts`, belum di-commit Backend). Build sekarang mengecek:
+  19/19 event `ReservedPhase7Payloads` = N-id kita; setiap var copy dan field `payload` ada di interface (termasuk `Phase7Actor`/`Phase7Device`);
+  enum `KillSwitchReason`, `WithdrawFailReason`, `RealLimitSetting`, `McapSource`, `KillSwitchScope` = key. Quote fields 12/12 (tidak ada lagi
+  yang *pending*), `expire_reason` 8/8 (`kill_switch` sudah di contracts).
+- **Mismatch diperbaiki:** `real.deposit.detected` tidak punya `cap_lamports` → N-39 body jadi "+{amount_lamports} · saldo {balance_lamports}".
+- 1.1.5 baru: `ProposalKind` `sell_position` → `queue.pick.kind.sell_position`; sell quote (`expected_out_lamports`, `min_out_lamports`;
+  `total_max_lamports` = network fee) → `close.preview.*`; 409 `QUOTE_MISSING_OR_STALE` `reason: missing|stale|mismatch`, `quote_id`,
+  `expected_quote_id` → `errors.map.json` `details` + `reason_values`.
+
+### Ditambahkan / diubah (payload final Backend)
+- `kill_switch.reason.provider_error` + cabang N-29 "Dihentikan otomatis: masalah provider/signer · hanya exit yang berjalan." (default: exit saja).
+- N-45 `{requested_count}`; N-46 `{sold_count} dari {requested_count}` + kegagalan "tetap terbuka, exit plan tetap jalan"; baris total
+  `{amount_out_lamports}` (hanya bila tidak null); `kill_switch.sell_all.failure_row` per `failures[]`.
+- Sell all ~1/60 dtk: `kill_switch.sell_all.in_progress` (`{requested_count}`), `kill_switch.sell_all.rate_limited` (`{retry_after_s}` = wire, "Coba lagi dalam # detik").
+- N-31 `kill_switch.cleared`: select `{signer_state}` (`revoked` → CTA `wallet.authorize.regrant` "Berikan izin trading lagi").
+- N-44 `buys.resumed` langsung ("jalan lagi sekarang"). Field datar `actor_type/user_id/device_id/device_label` dikonfirmasi.
+- `wallet.limits.setting.*` dikonfirmasi; `daily_lamports` "Maks. per 24 jam bergulir".
+- `wallet.withdraw.fail_reason.{withdraw_simulation_failed,insufficient_balance,destination_not_owned,tx_expired,provider_error,user_rejected,other}`;
+  `unknown` tetap fallback (sekarang huruf kecil, dipakai di tengah kalimat).
+- `auth.siws.statement`: ID = EN verbatim "Sign in to Centurion Trade" (statement yang ditandatangani, `statement_version` server naik).
+- Skema deep link sekarang `centurion://` (keputusan lead); catatan "skema `sentra://` tetap" di 0.4.7 **tidak berlaku lagi**. `@sentra/*` tetap.
+- `format.mjs`: `quoteState(..., {kind: buy|sell|close_preview})`, `REQUIRED_SELL_QUOTE_FIELDS`, `REQUIRED_CLOSE_PREVIEW_FIELDS`,
+  `totalMaxCheck(..., {side})`, `withdrawFailReasonKey`, `killSwitchReasonSelect` (null → other). Tes 10/10.
+- ARB: placeholder `*_count` polos sekarang bertipe `int` (`requested_count`).
+
 ## 0.4.7 · 29 Okt 2026 (UX Rev 4.7) · aligned to Backend's 1.1.5 spec, pre-merge
 672 key (+134). Tidak ada key dihapus/di-rename → **tidak ada breaking change**. contracts 1.1.5 **belum** masuk repo
 (`CONTRACTS_VERSION` masih 1.1.4): field 1.1.5 (`quote_id`, `est_ata_rent_lamports`, `expire_reason=kill_switch`, `mcap_source`,

@@ -248,11 +248,19 @@
         "real"
       ],
       "details": [
+        "reason",
         "missing",
         "quote_ts",
         "quote_expires_at",
+        "quote_id",
+        "expected_quote_id",
         "current"
       ],
+      "reason_values": {
+        "missing": "review.quote.missing",
+        "stale": "review.quote.stale",
+        "mismatch": "render current as Updated (review.quote.updated_inline) + reset hold"
+      },
       "on_current": "error.current (ApprovalWire) present → render it as Updated (review.quote.updated_inline), no error toast; also sent when expected_quote_id mismatches (1.1.5)"
     },
     "REPLAY_UNAVAILABLE": {

@@ -415,7 +415,8 @@
     "reason": {
       "loss_velocity": "losses grew too fast",
       "other": "a safety rule triggered",
-      "policy_mismatch": "wallet rules don’t match"
+      "policy_mismatch": "wallet rules don’t match",
+      "provider_error": "a provider or signer problem · only exits run"
     },
     "reenable": {
       "action": "Re-enable Real trading",
@@ -429,7 +430,10 @@
     },
     "sell_all": {
       "body": "Sells at market now. Safety checks still apply: simulation and your slippage cap.",
+      "failure_row": "{symbol}: {reason_code}. Still open; exit plan keeps running.",
       "hold": "Hold 2.5 s to sell all",
+      "in_progress": "{requested_count, plural, one {Selling # position…} other {Selling # positions…}}",
+      "rate_limited": "Sell all was just requested. Try again in {retry_after_s, plural, one {# second} other {# seconds}}.",
       "title": "{count, plural, one {Sell # Real position now?} other {Sell # Real positions now?}}"
     },
     "status": {
@@ -606,23 +610,23 @@
           "title": "[REAL SOL] New buys stopped"
         },
         "resumed": {
-          "body": "{actor_type, select, user {By you on {device_label}.} other {By the system.}} Strategies stay paused until you resume them.",
+          "body": "New buys run again now · {actor_type, select, user {by you on {device_label}} other {by the system}}",
           "title": "[REAL SOL] New buys resumed"
         }
       },
       "deposit": {
         "detected": {
-          "body": "+{amount_lamports} · balance {balance_lamports} of {cap_lamports}",
+          "body": "+{amount_lamports} · balance {balance_lamports}",
           "title": "[REAL SOL] Deposit received"
         }
       },
       "kill_switch": {
         "cleared": {
-          "body": "Real trading can run again. Strategies stay paused until you resume them.",
+          "body": "{signer_state, select, revoked {Bot authority is still revoked. Grant trading authority again to resume.} other {Real trading can run again. Strategies stay paused until you resume them.}}",
           "title": "[REAL SOL] Automatic stop cleared"
         },
         "tripped": {
-          "body": "Stopped automatically: {reason, select, policy_mismatch {wallet rules don’t match} loss_velocity {losses grew too fast} other {a safety rule triggered}}. New buys are blocked.",
+          "body": "{reason, select, policy_mismatch {Stopped automatically: wallet rules don’t match. New buys are blocked.} loss_velocity {Stopped automatically: losses grew too fast. New buys are blocked.} provider_error {Stopped automatically: provider/signer problem · only exits run.} other {Stopped automatically: a safety rule triggered. New buys are blocked.}}",
           "title": "[REAL SOL] Real trading stopped automatically"
         }
       },
@@ -648,12 +652,12 @@
       },
       "sell_all": {
         "completed": {
-          "body": "{sold_count, plural, one {# sold} other {# sold}}{failed_count, plural, =0 {} one { · # failed and is still open} other { · # failed and are still open}}",
+          "body": "{sold_count, plural, one {# of {requested_count} sold} other {# of {requested_count} sold}}{failed_count, plural, =0 {} one { · # failed: still open, its exit plan keeps running} other { · # failed: still open, their exit plans keep running}}",
           "title": "[REAL SOL] {failed_count, plural, =0 {Sell all done} other {Sell all: # failed}}",
-          "total": "Total out: {amount_lamports}"
+          "total": "Total out: {amount_out_lamports}"
         },
         "requested": {
-          "body": "{count, plural, one {Selling # position at market.} other {Selling # positions at market.}} Guards still apply.",
+          "body": "{requested_count, plural, one {Selling # position at market.} other {Selling # positions at market.}} Guards still apply.",
           "title": "[REAL SOL] Selling all positions"
         }
       },
@@ -782,7 +786,8 @@
       "kind": {
         "buy": "Buy",
         "first_buy": "First buy",
-        "guard_change": "Loosens guard"
+        "guard_change": "Loosens guard",
+        "sell_position": "Sell"
       },
       "review_change": "Review change",
       "skip": "Skip"
@@ -1073,10 +1078,13 @@
     }
   },
   "wallet": {
+    "authorize": {
+      "regrant": "Grant trading authority again"
+    },
     "limits": {
       "setting": {
         "cap_lamports": "Total cap",
-        "daily_lamports": "Max per 24 h",
+        "daily_lamports": "Max per rolling 24 h",
         "max_positions": "Max open positions",
         "max_slippage_bps": "Max slippage",
         "per_trade_lamports": "Max per trade"
@@ -1095,7 +1103,14 @@
     },
     "withdraw": {
       "fail_reason": {
-        "unknown": "Unknown error"
+        "destination_not_owned": "the destination isn’t your main wallet",
+        "insufficient_balance": "not enough balance",
+        "other": "something went wrong",
+        "provider_error": "wallet provider error",
+        "tx_expired": "it wasn’t sent in time",
+        "unknown": "unknown error",
+        "user_rejected": "you rejected the signature",
+        "withdraw_simulation_failed": "the safety simulation failed"
       }
     }
   }

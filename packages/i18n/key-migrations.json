@@ -250,6 +250,7 @@
         "screener.not_tradeable.detail",
         "login.telegram.consent"
       ],
+      "doc_names_reconciled_note": "see 0.4.7",
       "doc_names_reconciled": {
         "killswitch.*": "kill_switch.*",
         "positions.sell.preview_valid": "close.preview.valid",
@@ -257,6 +258,58 @@
         "notif.real.<event>": "notif.real.<event>.title|body",
         "coin.mcap_source.*": "coin.mcap_source.{curve,pool,unavailable}"
       }
+    },
+    {
+      "version": "0.4.8",
+      "renamed": [],
+      "removed": [],
+      "placeholder_renamed": [
+        {
+          "key": "notif.real.sell_all.requested.body",
+          "from": "count",
+          "to": "requested_count"
+        },
+        {
+          "key": "notif.real.sell_all.completed.total",
+          "from": "amount_lamports",
+          "to": "amount_out_lamports"
+        }
+      ],
+      "copy_changed": [
+        {
+          "key": "auth.siws.statement",
+          "note": "ID = verbatim EN 'Sign in to Centurion Trade' (signed statement, never translated)"
+        },
+        {
+          "key": "wallet.limits.setting.daily_lamports",
+          "note": "rolling 24 h"
+        },
+        {
+          "key": "wallet.withdraw.fail_reason.unknown",
+          "note": "lower-case, mid-sentence"
+        },
+        {
+          "key": "notif.real.kill_switch.tripped.body",
+          "note": "+provider_error branch; whole sentence per branch"
+        },
+        {
+          "key": "notif.real.kill_switch.cleared.body",
+          "note": "signer_state select"
+        },
+        {
+          "key": "notif.real.buys.resumed.body",
+          "note": "immediate"
+        },
+        {
+          "key": "notif.real.sell_all.completed.body",
+          "note": "requested_count; failed stay open + exit plans keep running"
+        },
+        {
+          "key": "kill_switch.reenable.action",
+          "note": "description only"
+        }
+      ],
+      "description_changed": []
     }
   ]
 }

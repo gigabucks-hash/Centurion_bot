@@ -104,17 +104,26 @@ export function formatRawQty(raw, decimals, loc) {
  *  token account is needed, so "0" counts as present. */
 export const REQUIRED_QUOTE_FIELDS = ['quote_id', 'est_network_fee_lamports', 'est_ata_rent_lamports', 'min_out_raw',
   'total_max_lamports', 'quote_expires_at'];
+/** 1.1.5 sell quotes (kind sell_position) carry expected_out_lamports / min_out_lamports
+ *  instead of min_out_raw + ATA rent.
+ *  ClosePreview (POST …/close/preview) has no quote_id. */
+export const REQUIRED_SELL_QUOTE_FIELDS = ['quote_id', 'est_network_fee_lamports', 'expected_out_lamports',
+  'min_out_lamports', 'total_max_lamports', 'quote_expires_at'];
+export const REQUIRED_CLOSE_PREVIEW_FIELDS = REQUIRED_SELL_QUOTE_FIELDS.filter((f) => f !== 'quote_id');
+const requiredFor = (kind) => kind === 'sell' ? REQUIRED_SELL_QUOTE_FIELDS
+  : kind === 'close_preview' ? REQUIRED_CLOSE_PREVIEW_FIELDS : REQUIRED_QUOTE_FIELDS;
 /** Quote freshness from server time (skew), never the device clock alone.
  *  state: 'missing' (no quote_expires_at) | 'fresh' (server now < quote_expires_at) | 'stale'.
- *  complete: every REQUIRED_QUOTE_FIELDS value present (Real only; review.quote.loading while false).
+ *  complete: every required field for `kind` (buy | sell | close_preview) present
+ *  (Real only; review.quote.loading while false).
  *  blocksApprove: Real only (409 QUOTE_MISSING_OR_STALE); Practice is never blocked and ignores quote_id.
  *  ageS → review.quote.updated_ago {seconds}; expiresInS → review.quote.expires_in {seconds}. */
-export function quoteState(q, skewMs = 0, { mode = 'practice', localNowMs = Date.now() } = {}) {
+export function quoteState(q, skewMs = 0, { mode = 'practice', kind = 'buy', localNowMs = Date.now() } = {}) {
   const serverNow = localNowMs + skewMs;
   const ts = missing(q?.quote_ts) ? null : Date.parse(q.quote_ts);
   const exp = missing(q?.quote_expires_at) ? null : Date.parse(q.quote_expires_at);
   const ageS = ts === null ? null : Math.max(0, Math.floor((serverNow - ts) / 1000));
-  const complete = REQUIRED_QUOTE_FIELDS.every((f) => !missing(q?.[f]));
+  const complete = requiredFor(kind).every((f) => !missing(q?.[f]));
   const real = mode === 'real';
   if (exp === null) return { state: 'missing', ageS, expiresInS: null, complete, blocksApprove: real };
   const fresh = serverNow < exp;
@@ -137,8 +146,10 @@ export const showAtaRent = (v) => !missing(v) && BigInt(v) > 0n;
 /** total_max_lamports = amount_lamports + est_network_fee_lamports + est_ata_rent_lamports
  *  (swap fee is taken from SOL in; priority fee is inside the network fee, never added twice).
  *  matches=false → log + still show the server total. */
-export function totalMaxCheck(q, amountLamports) {
-  const parts = [amountLamports, q?.est_network_fee_lamports, q?.est_ata_rent_lamports ?? '0'];
+export function totalMaxCheck(q, amountLamports, { side = 'buy' } = {}) {
+  // 1.1.5: sell total_max_lamports = est_network_fee_lamports only (swap fee comes out of SOL out)
+  const parts = side === 'sell' ? [q?.est_network_fee_lamports]
+    : [amountLamports, q?.est_network_fee_lamports, q?.est_ata_rent_lamports ?? '0'];
   if (parts.some(missing) || missing(q?.total_max_lamports)) return null;
   const expected = parts.reduce((a, v) => a + BigInt(v), 0n);
   return { expected: expected.toString(), matches: expected === BigInt(q.total_max_lamports) };
@@ -191,4 +202,12 @@ export function mcapView(c, loc) {
       : formatMcapSol(c.market_cap_lamports, loc),
     sourceKey: src ? `coin.mcap_source.${src}` : null, tooltipKeys };
 }
+// ---- Phase 7 enum → key helpers (contracts 1.1.5 reserved types). Unknown or null values fall back, never raw text.
+export const WITHDRAW_FAIL_REASONS = ['withdraw_simulation_failed', 'insufficient_balance', 'destination_not_owned',
+  'tx_expired', 'provider_error', 'user_rejected', 'other'];
+export const withdrawFailReasonKey = (code) =>
+  `wallet.withdraw.fail_reason.${WITHDRAW_FAIL_REASONS.includes(code) ? code : 'unknown'}`;
+export const KILL_SWITCH_REASONS = ['policy_mismatch', 'loss_velocity', 'provider_error', 'other'];
+/** Value for the N-29 {reason} select (reason is nullable on the wire). */
+export const killSwitchReasonSelect = (reason) => KILL_SWITCH_REASONS.includes(reason) ? reason : 'other';
 

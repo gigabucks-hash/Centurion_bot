@@ -34,7 +34,7 @@ test('manual sell: percent UI ↔ fraction_bps wire', () => {
 import {
   DASH, formatLamportsOrDash, formatBps, formatRawQty, quoteState, formatMcapUsd, formatMcapSol, formatRelativeSeconds,
   quoteChanged, networkFeeParts, showAtaRent, totalMaxCheck, isToken2022, formatAddressShort, formatCountdownHms,
-  formatLimitValue, formatIdShort, mcapView,
+  formatLimitValue, formatIdShort, mcapView, withdrawFailReasonKey, killSwitchReasonSelect,
 } from './format.mjs';
 test('quote fields: missing → em dash, lamports strings via BigInt, bps → %', () => {
   for (const m of [null, undefined, '']) {
@@ -101,5 +101,19 @@ test('1.1.5 mcapView: indicative note depends on mcap_source', () => {
   assert.equal(u.primary, DASH); assert.deepEqual(u.tooltipKeys, ['common.value.unavailable']);
   assert.equal(mcapView({ ...c, mcap_source: 'curve' }, 'en').primary, '$1.2M');
   assert.equal(mcapView({ ...c, mcap_source: 'curve' }, 'en').secondary, `8.4K${NB}SOL`);
+});
+test('1.1.5 sell quotes, close preview, Phase 7 enum helpers', () => {
+  const now = Date.parse('2026-10-29T08:42:10.000Z');
+  const sell = { quote_id: '7', est_network_fee_lamports: '105000', expected_out_lamports: '900000000',
+    min_out_lamports: '882000000', total_max_lamports: '105000', quote_expires_at: '2026-10-29T08:42:20.000Z' };
+  assert.equal(quoteState(sell, 0, { mode: 'real', kind: 'sell', localNowMs: now }).blocksApprove, false);
+  assert.equal(quoteState(sell, 0, { mode: 'real', localNowMs: now }).complete, false); // buy rules need min_out_raw
+  const { quote_id: _q, ...preview } = sell;
+  assert.equal(quoteState(preview, 0, { mode: 'real', kind: 'close_preview', localNowMs: now }).complete, true);
+  assert.deepEqual(totalMaxCheck(sell, null, { side: 'sell' }), { expected: '105000', matches: true });
+  assert.equal(withdrawFailReasonKey('tx_expired'), 'wallet.withdraw.fail_reason.tx_expired');
+  assert.equal(withdrawFailReasonKey('weird'), 'wallet.withdraw.fail_reason.unknown');
+  assert.equal(killSwitchReasonSelect(null), 'other');
+  assert.equal(killSwitchReasonSelect('provider_error'), 'provider_error');
 });
 

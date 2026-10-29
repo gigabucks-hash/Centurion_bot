@@ -712,15 +712,18 @@
     "when": "mode=real only (fail closed in practice)",
     "title_key": "notif.real.kill_switch.cleared.title",
     "body_key": "notif.real.kill_switch.cleared.body",
-    "vars": [],
+    "vars": [
+      "signer_state"
+    ],
     "payload": [
-      "at",
       "scope",
       "target_id",
+      "reason",
       "actor_type",
       "user_id",
       "device_id",
-      "device_label"
+      "device_label",
+      "at"
     ],
     "computed": [],
     "push": true,
@@ -843,11 +846,12 @@
     "body_key": "notif.real.deposit.detected.body",
     "vars": [
       "amount_lamports",
-      "balance_lamports",
-      "cap_lamports"
+      "balance_lamports"
     ],
     "payload": [
-      "tx_signature"
+      "tx_signature",
+      "slot",
+      "at"
     ],
     "computed": [],
     "push": true,
@@ -1045,9 +1049,10 @@
     "title_key": "notif.real.sell_all.requested.title",
     "body_key": "notif.real.sell_all.requested.body",
     "vars": [
-      "count"
+      "requested_count"
     ],
     "payload": [
+      "sell_all_id",
       "actor_type",
       "user_id",
       "device_id",
@@ -1080,11 +1085,14 @@
     "body_key": "notif.real.sell_all.completed.body",
     "vars": [
       "failed_count",
-      "sold_count"
+      "sold_count",
+      "requested_count"
     ],
     "payload": [
-      "amount_lamports",
-      "at"
+      "sell_all_id",
+      "amount_out_lamports",
+      "failures",
+      "completed_at"
     ],
     "computed": [],
     "push": true,
@@ -1107,9 +1115,16 @@
     "extra_lines": [
       {
         "key": "notif.real.sell_all.completed.total",
-        "when": "amount_lamports != null",
+        "when": "amount_out_lamports != null",
         "vars": [
-          "amount_lamports"
+          "amount_out_lamports"
+        ]
+      },
+      {
+        "key": "kill_switch.sell_all.failure_row",
+        "when": "in-app detail, one per failures[] item",
+        "vars": [
+          "failures"
         ]
       }
     ]
