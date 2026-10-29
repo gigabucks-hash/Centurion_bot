@@ -69,6 +69,59 @@ class Strategy {
 
 enum PositionState { open, closed }
 
+/// One take-profit rung of an exit plan (SPEC §6 ladder).
+class TpRung {
+  const TpRung({required this.gainPct, required this.sellPct, this.filledAt});
+  final double gainPct;
+
+  /// Share of the ORIGINAL size sold at this rung.
+  final double sellPct;
+  final DateTime? filledAt;
+  bool get filled => filledAt != null;
+  TpRung fill(DateTime at) => TpRung(gainPct: gainPct, sellPct: sellPct, filledAt: at);
+}
+
+/// Exit plan as data (blueprint: "plan sebagai data").
+class ExitPlanState {
+  const ExitPlanState({
+    required this.name,
+    required this.stopLossPct,
+    required this.trailPct,
+    required this.rungs,
+    this.trailArmed = false,
+    this.timeStopAt,
+  });
+  final String name;
+
+  /// Negative, relative to entry (e.g. −35).
+  final double stopLossPct;
+
+  /// Trailing distance from the high, armed after the first TP.
+  final double trailPct;
+  final bool trailArmed;
+  final List<TpRung> rungs;
+  final DateTime? timeStopAt;
+
+  TpRung? get nextRung {
+    for (final r in rungs) {
+      if (!r.filled) return r;
+    }
+    return null;
+  }
+
+  int get filledCount => rungs.where((r) => r.filled).length;
+  double get maxGainPct => rungs.isEmpty ? 100 : rungs.last.gainPct;
+
+  ExitPlanState copyWith({List<TpRung>? rungs, bool? trailArmed}) => ExitPlanState(
+        name: name,
+        stopLossPct: stopLossPct,
+        trailPct: trailPct,
+        rungs: rungs ?? this.rungs,
+        trailArmed: trailArmed ?? this.trailArmed,
+        timeStopAt: timeStopAt,
+      );
+}
+
 class Position {
   const Position({
     required this.id,
@@ -85,6 +138,9 @@ class Position {
     this.solOut,
     this.closedAt,
     this.exitReason,
+    this.soldPct = 0,
+    this.exitPlan,
+    this.feeBps = 125,
   });
 
   /// `ck.N` style key: coin key + index of the position for that coin.
@@ -96,20 +152,43 @@ class Position {
   final String mint;
   final TradeMode mode;
   final PositionState state;
+
+  /// Original cost in SOL.
   final double solIn;
   final double entryPriceUsd;
   final double markPriceUsd;
   final double peakPriceUsd;
   final DateTime openedAt;
+
+  /// Cumulative proceeds of all (partial) sells.
   final double? solOut;
   final DateTime? closedAt;
   final String? exitReason;
 
-  double get changePct => (markPriceUsd / entryPriceUsd - 1) * 100;
+  /// Share of the original size already sold (0–100).
+  final double soldPct;
+  final ExitPlanState? exitPlan;
+  final int feeBps;
 
-  /// PnL in SOL: realized for closed positions, mark-to-market for open.
+  bool get isOpen => state == PositionState.open;
+  double get remainingFraction => ((100 - soldPct) / 100).clamp(0.0, 1.0);
+
+  /// Current size at cost, e.g. "0,24 SOL".
+  double get sizeSol => solIn * remainingFraction;
+  double get changePct => (markPriceUsd / entryPriceUsd - 1) * 100;
+  double get fromPeakPct => (1 - markPriceUsd / peakPriceUsd) * 100;
+  Duration holdAt(DateTime now) => (closedAt ?? now).difference(openedAt);
+
+  /// PnL in SOL: realized proceeds + mark-to-market of the remainder − cost.
   double get pnlSol =>
-      state == PositionState.closed ? (solOut ?? 0) - solIn : solIn * changePct / 100;
+      (solOut ?? 0) + (isOpen ? solIn * remainingFraction * markPriceUsd / entryPriceUsd : 0) - solIn;
+
+  /// PnL % of cost basis.
+  double get pnlPct => pnlSol / solIn * 100;
+
+  /// Estimated SOL received for selling [pct]% of the CURRENT remainder, after fees.
+  double estimateSellSol(double pct) =>
+      solIn * remainingFraction * (pct / 100) * (markPriceUsd / entryPriceUsd) * (1 - feeBps / 10000);
 
   Position copyWith({
     double? markPriceUsd,
@@ -118,6 +197,8 @@ class Position {
     double? solOut,
     DateTime? closedAt,
     String? exitReason,
+    double? soldPct,
+    ExitPlanState? exitPlan,
   }) {
     return Position(
       id: id,
@@ -134,9 +215,14 @@ class Position {
       solOut: solOut ?? this.solOut,
       closedAt: closedAt ?? this.closedAt,
       exitReason: exitReason ?? this.exitReason,
+      soldPct: soldPct ?? this.soldPct,
+      exitPlan: exitPlan ?? this.exitPlan,
+      feeBps: feeBps,
     );
   }
 }
+
+enum EquityRange { d1, d7, d30, all }
 
 enum ActivityKind { found, passed, armed, expired, blocked, bought, sold, proposal, skipped, approved, paused, resumed }
 

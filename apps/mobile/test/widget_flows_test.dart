@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solbot_mobile/app/app.dart';
 import 'package:solbot_mobile/core/approval_guard.dart';
+import 'package:solbot_mobile/core/theme/solbot_theme.dart';
+import 'package:solbot_mobile/core/widgets/common.dart';
 import 'package:solbot_mobile/data/mock/mock_backend.dart';
+import 'package:solbot_mobile/data/models/models.dart';
 import 'package:solbot_mobile/data/providers.dart';
 
 Widget _app(MockBackend b, String location) => ProviderScope(
@@ -103,5 +106,80 @@ void main() {
     expect(tester.widget<Switch>(toggle).value, isFalse);
     expect(find.text('Strategi dijeda'), findsNWidgets(2));
     b.dispose();
+  });
+
+  testWidgets('Real SOL pick: swipe fully disabled; Practice pick swipeable', (tester) async {
+    await _phone(tester);
+    final now = DateTime.now();
+    final b = MockBackend()
+      ..debugAddApproval(Approval(
+        id: 'apv_real1',
+        kind: ApprovalKind.buyPick,
+        status: ApprovalStatus.pending,
+        title: 'Buy REALX',
+        detail: 'Graduated Momentum · fit 80/70',
+        createdAt: now,
+        expiresAt: now.add(const Duration(minutes: 10)),
+        token: 'tok_real1',
+        strategyId: 'stg_grad',
+        amountSol: 0.1,
+        mode: TradeMode.real,
+        pickType: PickType.buy,
+      ));
+    await tester.pumpWidget(_app(b, '/approvals'));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('swipe_apv_seed1')), findsOneWidget, reason: 'Practice pick swipeable');
+    final realCard = find.byKey(const Key('approve_apv_real1'));
+    expect(find.byKey(const Key('approve_apv_real1'), skipOffstage: false), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('approve_apv_real1'), skipOffstage: false));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('swipe_apv_real1')), findsNothing);
+    expect(find.ancestor(of: realCard, matching: find.byType(Dismissible)), findsNothing);
+    // A full-width fling both ways does nothing.
+    // Fling on a point inside the Real card (the Approve button row).
+    final card = realCard;
+    await tester.fling(card, const Offset(400, 0), 2000);
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.fling(card, const Offset(-400, 0), 2000);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(b.debugApprovals.firstWhere((a) => a.id == 'apv_real1').status, ApprovalStatus.pending);
+    await tester.pump(const Duration(seconds: 6));
+    expect(b.debugApprovals.firstWhere((a) => a.id == 'apv_real1').status, ApprovalStatus.pending);
+    b.dispose();
+  });
+
+  testWidgets('guard hold Practice is 1,2 s', (tester) async {
+    await _phone(tester);
+    final b = MockBackend();
+    await tester.pumpWidget(_app(b, '/approvals/apv_seed2/review'));
+    await tester.pump();
+    expect(tester.widget<HoldToConfirmButton>(find.byKey(const Key('holdConfirm'))).hold,
+        const Duration(milliseconds: 1200));
+    expect(AppMotion.holdPracticeBase, const Duration(milliseconds: 1200));
+    b.dispose();
+  });
+
+  testWidgets('guard hold Real 2,5 s: a 1,3 s hold does not decide', (tester) async {
+    await _phone(tester);
+    final b2 = MockBackend();
+    await tester.pumpWidget(_app(b2, '/approvals/apv_seed4/review'));
+    await tester.pump();
+    expect(tester.widget<HoldToConfirmButton>(find.byKey(const Key('holdConfirm'))).hold,
+        const Duration(milliseconds: 2500));
+    expect(AppMotion.holdRealBase, const Duration(milliseconds: 2500));
+    // Practice-length hold on Real does not decide.
+    await tester.enterText(find.byKey(const Key('typedConfirm')), 'Graduated Momentum');
+    await tester.pump();
+    final hold = find.byKey(const Key('holdConfirm'));
+    await tester.ensureVisible(hold);
+    final g = await tester.startGesture(tester.getCenter(hold));
+    for (var i = 0; i < 13; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await g.up();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(b2.debugApprovals.firstWhere((a) => a.id == 'apv_seed4').status, ApprovalStatus.pending);
+    await tester.pump(const Duration(seconds: 3));
+    b2.dispose();
   });
 }

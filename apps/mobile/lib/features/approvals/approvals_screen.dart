@@ -216,7 +216,7 @@ class ApprovalCard extends ConsumerWidget {
             const SizedBox(height: AppSpace.s1),
             Text(a.detail, style: text.bodyMedium!.copyWith(color: cs.onSurfaceVariant)),
             if (a.amountSol != null)
-              Text('Size ${fmtSol(a.amountSol!, unit: true)}', style: numStyle(13, color: cs.onSurfaceVariant)),
+              Text('Size ${fmtSol(a.amountSol!, unit: true)}', style: AppText.num(13, color: cs.onSurfaceVariant)),
             if (expired) ...[
               const SizedBox(height: AppSpace.s2),
               Text('${expireReasonLabel(a.expireReason ?? ExpireReason.timedOut)} · Tidak bisa di-approve',
@@ -240,10 +240,7 @@ class ApprovalCard extends ConsumerWidget {
                 Expanded(
                   child: FilledButton(
                     key: Key('approve_${a.id}'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: a.mode == TradeMode.real ? t.real : t.profit,
-                      foregroundColor: a.mode == TradeMode.real ? t.onReal : AppColorsDark.textOnAccent,
-                    ),
+                    style: a.mode == TradeMode.real ? AppButtons.real(context) : AppButtons.success(context),
                     onPressed: busy ? null : () => approveItem(context, ref, a),
                     child: busy
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
@@ -328,7 +325,7 @@ class _GuardChangeCard extends StatelessWidget {
             const SizedBox(height: AppSpace.s1),
             Text(a.title, style: text.bodyMedium),
             for (final e in a.diff.entries)
-              Text('${e.key}  ${e.value.first} → ${e.value.last}', style: numStyle(13)),
+              Text('${e.key}  ${e.value.first} → ${e.value.last}', style: AppText.num(13)),
             const SizedBox(height: AppSpace.s2),
             Text('Tidak bisa di-swipe · Review ›',
                 style: text.labelLarge!.copyWith(color: t.warning, fontWeight: FontWeight.w700)),

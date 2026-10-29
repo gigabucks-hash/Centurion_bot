@@ -1,44 +1,49 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:solbot_mobile/core/notifications/notification_catalog.dart';
 import 'package:solbot_mobile/core/push/push_payload.dart';
 
 void main() {
-  test('parses a valid approval payload', () {
-    final p = ApprovalPush.tryParse({
+  test('parses a valid N-01 Practice pick payload', () {
+    final p = PushMessage.tryParse({
       'v': '1',
-      'type': 'approval',
+      'event': 'N-01',
       'approval_id': 'apv_0012',
-      'kind': 'buyPick',
       'mode': 'practice',
       'token': 'tok_abc',
       'exp': '1793260000',
+      'coin': r'$KEPL',
+      'sol': '0.25',
     });
     expect(p, isNotNull);
-    expect(p!.route, '/approvals/apv_0012');
-    expect(p.inlineActions, [PushAction.skip, PushAction.approve]);
+    expect(p!.event, NotifEvent.n01PickPending);
+    expect(p.route, '/approvals/apv_0012');
+    expect(p.vars, {'coin': r'$KEPL', 'sol': '0.25'});
+    expect(p.tokenValidAt(DateTime.utc(2026, 10, 29)), isTrue);
+    expect(p.tokenValidAt(DateTime.utc(2027, 1, 1)), isFalse);
   });
 
-  test('guard change and Real SOL picks never get inline approve', () {
-    final g = ApprovalPush.tryParse({
-      'v': '1', 'type': 'approval', 'approval_id': 'a', 'kind': 'guardChange', 'mode': 'practice', 'token': 't', 'exp': '1',
-    })!;
-    expect(g.inlineActions, [PushAction.open]);
+  test('routes: guard review, positions, modeless banner', () {
+    final g = PushMessage.tryParse({'v': '1', 'event': 'N-10', 'mode': 'real', 'approval_id': 'a'})!;
     expect(g.route, '/approvals/a/review');
-    expect(g.isExpired(DateTime.utc(2026)), isTrue);
-    final r = ApprovalPush.tryParse({
-      'v': '1', 'type': 'approval', 'approval_id': 'b', 'kind': 'buyPick', 'mode': 'real', 'token': 't', 'exp': '1',
-    })!;
-    expect(r.inlineActions, [PushAction.open]);
-    expect(r.titlePrefix, '[REAL SOL]');
+    final tp = PushMessage.tryParse({'v': '1', 'event': 'N-08', 'mode': 'practice', 'position_id': 'ck1.0'})!;
+    expect(tp.route, '/positions/ck1.0');
+    final err = PushMessage.tryParse({'v': '1', 'event': 'N-16'})!;
+    expect(err.mode, isNull);
+    expect(err.route, isNull);
   });
 
-  test('missing mode fails closed', () {
-    expect(
-        ApprovalPush.tryParse({'v': '1', 'type': 'approval', 'approval_id': 'a', 'kind': 'buyPick', 'token': 't', 'exp': '1'}),
-        isNull);
+  test('missing or unknown mode fails closed for mode-bound events', () {
+    expect(PushMessage.tryParse({'v': '1', 'event': 'N-01', 'approval_id': 'a', 'token': 't', 'exp': '1'}), isNull);
+    expect(PushMessage.tryParse({'v': '1', 'event': 'N-01', 'mode': 'REAL', 'approval_id': 'a'}), isNull);
+    // Real-only events refuse a Practice mode.
+    expect(PushMessage.tryParse({'v': '1', 'event': 'N-11', 'mode': 'practice'}), isNull);
   });
 
   test('rejects malformed payloads', () {
-    expect(ApprovalPush.tryParse({'type': 'approval'}), isNull);
-    expect(ApprovalPush.tryParse({'v': '2', 'type': 'approval', 'approval_id': 'a', 'token': 't', 'exp': '1'}), isNull);
+    expect(PushMessage.tryParse({'event': 'N-01'}), isNull);
+    expect(PushMessage.tryParse({'v': '2', 'event': 'N-01', 'mode': 'practice', 'approval_id': 'a'}), isNull);
+    expect(PushMessage.tryParse({'v': '1', 'event': 'N-99', 'mode': 'practice'}), isNull);
+    // A pick without approval id cannot be acted on.
+    expect(PushMessage.tryParse({'v': '1', 'event': 'N-02', 'mode': 'practice'}), isNull);
   });
 }

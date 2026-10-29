@@ -149,7 +149,7 @@ class StrategiesScreen extends ConsumerWidget {
                 // SPEC: toggle row is fully tappable, 48dp, with a status label.
                 MergeSemantics(
                   child: ListTile(
-                    minTileHeight: AppSize.tapMin,
+                    minTileHeight: AppDensity.tapMin,
                     enabled: !busy,
                     onTap: busy ? null : () => _onToggle(context, ref, s, !running),
                     leading: StatusChip(running),

@@ -1,0 +1,1772 @@
+{
+  "@@locale": "en",
+  "builderApprovalModeRealNote": "Real SOL: “Off” is not available in the MVP.",
+  "@builderApprovalModeRealNote": {
+    "description": "builder.approval_mode.real_note"
+  },
+  "builderDiffTagNeutral": "neutral",
+  "@builderDiffTagNeutral": {
+    "description": "builder.diff.tag.neutral"
+  },
+  "builderDiffTagNew": "new",
+  "@builderDiffTagNew": {
+    "description": "builder.diff.tag.new"
+  },
+  "builderDiffTagStrengthens": "tightens",
+  "@builderDiffTagStrengthens": {
+    "description": "builder.diff.tag.strengthens"
+  },
+  "builderDiffTagWeakens": "loosens",
+  "@builderDiffTagWeakens": {
+    "description": "builder.diff.tag.weakens"
+  },
+  "builderDiffTitle": "Changes vs rev {rev}",
+  "@builderDiffTitle": {
+    "description": "builder.diff.title",
+    "placeholders": {
+      "rev": {
+        "type": "String"
+      }
+    }
+  },
+  "builderExitColGain": "Gain %",
+  "@builderExitColGain": {
+    "description": "builder.exit.col.gain"
+  },
+  "builderExitColPullback": "Pullback %",
+  "@builderExitColPullback": {
+    "description": "builder.exit.col.pullback"
+  },
+  "builderExitColSell": "Sell % of position",
+  "@builderExitColSell": {
+    "description": "builder.exit.col.sell"
+  },
+  "builderExitDrain": "Drain: drop",
+  "@builderExitDrain": {
+    "description": "builder.exit.drain"
+  },
+  "builderExitHardSl": "Hard stop loss from entry",
+  "@builderExitHardSl": {
+    "description": "builder.exit.hard_sl"
+  },
+  "builderExitLadderAdd": "Add rung",
+  "@builderExitLadderAdd": {
+    "description": "builder.exit.ladder.add"
+  },
+  "builderExitLadderTitle": "Take-profit ladder (up to 8 rungs)",
+  "@builderExitLadderTitle": {
+    "description": "builder.exit.ladder.title"
+  },
+  "builderExitLadderTotal": "Total sold: {pct}",
+  "@builderExitLadderTotal": {
+    "description": "builder.exit.ladder.total",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "builderExitNoTrade": "No-trade exit",
+  "@builderExitNoTrade": {
+    "description": "builder.exit.no_trade"
+  },
+  "builderExitTimeStop": "Time stop",
+  "@builderExitTimeStop": {
+    "description": "builder.exit.time_stop"
+  },
+  "builderExitTrailing": "Trailing stop from high",
+  "@builderExitTrailing": {
+    "description": "builder.exit.trailing"
+  },
+  "builderGuardsPresetBalanced": "Balanced",
+  "@builderGuardsPresetBalanced": {
+    "description": "builder.guards.preset.balanced"
+  },
+  "builderGuardsPresetLoose": "Loose",
+  "@builderGuardsPresetLoose": {
+    "description": "builder.guards.preset.loose"
+  },
+  "builderGuardsPresetStrict": "Strict",
+  "@builderGuardsPresetStrict": {
+    "description": "builder.guards.preset.strict"
+  },
+  "builderGuardsWeakeningInline": "Loosens the guard (was {from}). Needs approval.",
+  "@builderGuardsWeakeningInline": {
+    "description": "builder.guards.weakening_inline",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      }
+    }
+  },
+  "builderPublish": "Review & publish",
+  "@builderPublish": {
+    "description": "builder.publish"
+  },
+  "builderStepEntry": "Entry",
+  "@builderStepEntry": {
+    "description": "builder.step.entry"
+  },
+  "builderStepExit": "Exit plan",
+  "@builderStepExit": {
+    "description": "builder.step.exit"
+  },
+  "builderStepGuards": "Guards",
+  "@builderStepGuards": {
+    "description": "builder.step.guards"
+  },
+  "builderStepProgress": "Step {current} of {total} · {name}",
+  "@builderStepProgress": {
+    "description": "builder.step.progress",
+    "placeholders": {
+      "current": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "builderStepReview": "Review & sim",
+  "@builderStepReview": {
+    "description": "builder.step.review"
+  },
+  "builderStepScreener": "Screener",
+  "@builderStepScreener": {
+    "description": "builder.step.screener"
+  },
+  "builderStepValid": "Valid",
+  "@builderStepValid": {
+    "description": "builder.step.valid"
+  },
+  "builderStepWeakened": "{count, plural, one {# setting loosened} other {# settings loosened}}",
+  "@builderStepWeakened": {
+    "description": "builder.step.weakened",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "builderTitleEdit": "Edit strategy · {name}",
+  "@builderTitleEdit": {
+    "description": "builder.title.edit",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "builderTitleNew": "New strategy",
+  "@builderTitleNew": {
+    "description": "builder.title.new"
+  },
+  "builderValidationRange": "Must be between {min} and {max}",
+  "@builderValidationRange": {
+    "description": "builder.validation.range",
+    "placeholders": {
+      "max": {
+        "type": "String"
+      },
+      "min": {
+        "type": "String"
+      }
+    }
+  },
+  "coinTrailSnapshotNote": "Values and thresholds as read at that moment (rev {rev}).",
+  "@coinTrailSnapshotNote": {
+    "description": "coin_trail.snapshot_note",
+    "placeholders": {
+      "rev": {
+        "type": "String"
+      }
+    }
+  },
+  "coinTrailStepBuy": "Buy",
+  "@coinTrailStepBuy": {
+    "description": "coin_trail.step.buy"
+  },
+  "coinTrailStepClosed": "Closed",
+  "@coinTrailStepClosed": {
+    "description": "coin_trail.step.closed"
+  },
+  "coinTrailStepEntry": "Entry",
+  "@coinTrailStepEntry": {
+    "description": "coin_trail.step.entry"
+  },
+  "coinTrailStepGuard": "Guard",
+  "@coinTrailStepGuard": {
+    "description": "coin_trail.step.guard"
+  },
+  "coinTrailStepScreen": "Screen",
+  "@coinTrailStepScreen": {
+    "description": "coin_trail.step.screen"
+  },
+  "coinTrailStepTp": "Take profit",
+  "@coinTrailStepTp": {
+    "description": "coin_trail.step.tp"
+  },
+  "coinTrailStepTrail": "Trailing stop",
+  "@coinTrailStepTrail": {
+    "description": "coin_trail.step.trail"
+  },
+  "coinTrailTitle": "Coin trail · {coin} ({strategy})",
+  "@coinTrailTitle": {
+    "description": "coin_trail.title",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "strategy": {
+        "type": "String"
+      }
+    }
+  },
+  "commonActionApprove": "Approve",
+  "@commonActionApprove": {
+    "description": "common.action.approve"
+  },
+  "commonActionBack": "Back",
+  "@commonActionBack": {
+    "description": "common.action.back"
+  },
+  "commonActionCancel": "Cancel",
+  "@commonActionCancel": {
+    "description": "common.action.cancel"
+  },
+  "commonActionNext": "Next",
+  "@commonActionNext": {
+    "description": "common.action.next"
+  },
+  "commonActionRetry": "Try again",
+  "@commonActionRetry": {
+    "description": "common.action.retry"
+  },
+  "commonActionReview": "Review",
+  "@commonActionReview": {
+    "description": "common.action.review"
+  },
+  "commonActionSaveDraft": "Save draft",
+  "@commonActionSaveDraft": {
+    "description": "common.action.save_draft"
+  },
+  "commonActionSkip": "Skip",
+  "@commonActionSkip": {
+    "description": "common.action.skip"
+  },
+  "commonActionUndo": "Undo",
+  "@commonActionUndo": {
+    "description": "common.action.undo"
+  },
+  "commonActionView": "View",
+  "@commonActionView": {
+    "description": "common.action.view"
+  },
+  "commonDurationHours": "{count, plural, one {# hour} other {# hours}}",
+  "@commonDurationHours": {
+    "description": "common.duration.hours",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonDurationMinutes": "{count, plural, one {# min} other {# min}}",
+  "@commonDurationMinutes": {
+    "description": "common.duration.minutes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonDurationSeconds": "{count, plural, one {# s} other {# s}}",
+  "@commonDurationSeconds": {
+    "description": "common.duration.seconds",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonPnlDown": "Down {amount}",
+  "@commonPnlDown": {
+    "description": "screen-reader label",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "commonPnlFlat": "No change",
+  "@commonPnlFlat": {
+    "description": "common.pnl.flat"
+  },
+  "commonPnlUp": "Up {amount}",
+  "@commonPnlUp": {
+    "description": "screen-reader label; amount = formatted SOL with sign",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "commonStateSavedAt": "Draft saved · {time}",
+  "@commonStateSavedAt": {
+    "description": "time = formatted local time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "commonStateSaving": "Saving…",
+  "@commonStateSaving": {
+    "description": "common.state.saving"
+  },
+  "commonTimerLeft": "{time} left",
+  "@commonTimerLeft": {
+    "description": "time = mm:ss from expires_at",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "conflictActionDiscard": "Discard my edits",
+  "@conflictActionDiscard": {
+    "description": "conflict.action.discard"
+  },
+  "conflictActionMerge": "Reload & keep my edits",
+  "@conflictActionMerge": {
+    "description": "conflict.action.merge"
+  },
+  "conflictActionReview": "Review changes",
+  "@conflictActionReview": {
+    "description": "conflict.action.review"
+  },
+  "conflictBannerBody": "{actor} saved rev {theirs} at {time}. Your edits are based on rev {base} and have not been saved.",
+  "@conflictBannerBody": {
+    "description": "conflict.banner.body",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "base": {
+        "type": "String"
+      },
+      "theirs": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "conflictBannerConflicts": "{count, plural, =0 {No overlapping fields — your edits can be merged.} one {# field changed on both sides.} other {# fields changed on both sides.}}",
+  "@conflictBannerConflicts": {
+    "description": "conflict.banner.conflicts",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "conflictBannerTitle": "This strategy changed while you were editing",
+  "@conflictBannerTitle": {
+    "description": "conflict.banner.title"
+  },
+  "conflictDiffColBase": "Your base (rev {rev})",
+  "@conflictDiffColBase": {
+    "description": "conflict.diff.col.base",
+    "placeholders": {
+      "rev": {
+        "type": "String"
+      }
+    }
+  },
+  "conflictDiffColMine": "Your edit",
+  "@conflictDiffColMine": {
+    "description": "conflict.diff.col.mine"
+  },
+  "conflictDiffColTheirs": "Saved (rev {rev})",
+  "@conflictDiffColTheirs": {
+    "description": "conflict.diff.col.theirs",
+    "placeholders": {
+      "rev": {
+        "type": "String"
+      }
+    }
+  },
+  "conflictDiffPick": "Keep {side, select, mine {mine} theirs {saved} other {base}}",
+  "@conflictDiffPick": {
+    "description": "conflict.diff.pick",
+    "placeholders": {
+      "side": {
+        "type": "String"
+      }
+    }
+  },
+  "conflictDiscardConfirm": "Discard {count, plural, one {# edit} other {# edits}}? This can’t be undone.",
+  "@conflictDiscardConfirm": {
+    "description": "conflict.discard.confirm",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "conflictRealGuardReconfirm": "A guard change on a Real SOL strategy must be confirmed again after merging.",
+  "@conflictRealGuardReconfirm": {
+    "description": "conflict.real_guard.reconfirm"
+  },
+  "conflictStateMerged": "Merged onto rev {rev}. Review, then publish.",
+  "@conflictStateMerged": {
+    "description": "conflict.state.merged",
+    "placeholders": {
+      "rev": {
+        "type": "String"
+      }
+    }
+  },
+  "conflictStateOffline": "Can’t check for newer versions while offline. Your draft is kept locally.",
+  "@conflictStateOffline": {
+    "description": "conflict.state.offline"
+  },
+  "dashboardFeedFilterAll": "All",
+  "@dashboardFeedFilterAll": {
+    "description": "dashboard.feed.filter.all"
+  },
+  "dashboardFeedFilterBuys": "Buys",
+  "@dashboardFeedFilterBuys": {
+    "description": "dashboard.feed.filter.buys"
+  },
+  "dashboardFeedFilterGuard": "Guard",
+  "@dashboardFeedFilterGuard": {
+    "description": "dashboard.feed.filter.guard"
+  },
+  "dashboardFeedFilterProposals": "Proposals",
+  "@dashboardFeedFilterProposals": {
+    "description": "dashboard.feed.filter.proposals"
+  },
+  "dashboardFeedFilterSells": "Sells",
+  "@dashboardFeedFilterSells": {
+    "description": "dashboard.feed.filter.sells"
+  },
+  "dashboardFeedTitle": "Activity feed",
+  "@dashboardFeedTitle": {
+    "description": "dashboard.feed.title"
+  },
+  "dashboardKpiAwaiting": "Awaiting approval",
+  "@dashboardKpiAwaiting": {
+    "description": "dashboard.kpi.awaiting"
+  },
+  "dashboardKpiCash": "Cash",
+  "@dashboardKpiCash": {
+    "description": "dashboard.kpi.cash"
+  },
+  "dashboardKpiExpiringSoon": "{count, plural, one {# expires in under 2 min} other {# expire in under 2 min}}",
+  "@dashboardKpiExpiringSoon": {
+    "description": "dashboard.kpi.expiring_soon",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dashboardKpiOpenPositions": "Open positions",
+  "@dashboardKpiOpenPositions": {
+    "description": "dashboard.kpi.open_positions"
+  },
+  "dashboardKpiRealizedPnl": "Realized PnL",
+  "@dashboardKpiRealizedPnl": {
+    "description": "dashboard.kpi.realized_pnl"
+  },
+  "dashboardStrategiesColApproval": "Approval",
+  "@dashboardStrategiesColApproval": {
+    "description": "dashboard.strategies.col.approval"
+  },
+  "dashboardStrategiesColAvgHold": "Avg hold",
+  "@dashboardStrategiesColAvgHold": {
+    "description": "dashboard.strategies.col.avg_hold"
+  },
+  "dashboardStrategiesColMaxDd": "Max DD",
+  "@dashboardStrategiesColMaxDd": {
+    "description": "dashboard.strategies.col.max_dd"
+  },
+  "dashboardStrategiesColName": "Name",
+  "@dashboardStrategiesColName": {
+    "description": "dashboard.strategies.col.name"
+  },
+  "dashboardStrategiesColPnl": "PnL",
+  "@dashboardStrategiesColPnl": {
+    "description": "dashboard.strategies.col.pnl"
+  },
+  "dashboardStrategiesColStatus": "Status",
+  "@dashboardStrategiesColStatus": {
+    "description": "dashboard.strategies.col.status"
+  },
+  "dashboardStrategiesColWinRate": "Win rate",
+  "@dashboardStrategiesColWinRate": {
+    "description": "dashboard.strategies.col.win_rate"
+  },
+  "dashboardStrategiesNew": "New strategy",
+  "@dashboardStrategiesNew": {
+    "description": "dashboard.strategies.new"
+  },
+  "dashboardStrategiesTitle": "Strategies",
+  "@dashboardStrategiesTitle": {
+    "description": "dashboard.strategies.title"
+  },
+  "dashboardSubtitlePractice": "Practice workspace · start {start} · live updates",
+  "@dashboardSubtitlePractice": {
+    "description": "start = formatted paper SOL",
+    "placeholders": {
+      "start": {
+        "type": "String"
+      }
+    }
+  },
+  "dashboardTitle": "Team overview",
+  "@dashboardTitle": {
+    "description": "dashboard.title"
+  },
+  "feedActorEntry": "Entry",
+  "@feedActorEntry": {
+    "description": "feed.actor.entry"
+  },
+  "feedActorExecutor": "Executor",
+  "@feedActorExecutor": {
+    "description": "feed.actor.executor"
+  },
+  "feedActorExit": "Exit",
+  "@feedActorExit": {
+    "description": "feed.actor.exit"
+  },
+  "feedActorGuard": "Guard",
+  "@feedActorGuard": {
+    "description": "feed.actor.guard"
+  },
+  "feedActorScreener": "Screener",
+  "@feedActorScreener": {
+    "description": "feed.actor.screener"
+  },
+  "feedActorSystem": "System",
+  "@feedActorSystem": {
+    "description": "feed.actor.system"
+  },
+  "feedActorYou": "You",
+  "@feedActorYou": {
+    "description": "feed.actor.you"
+  },
+  "feedEventBlocked": "Blocked {coin}",
+  "@feedEventBlocked": {
+    "description": "feed.event.blocked",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      }
+    }
+  },
+  "feedEventBought": "Bought {coin} · {sol}",
+  "@feedEventBought": {
+    "description": "feed.event.bought",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "sol": {
+        "type": "String"
+      }
+    }
+  },
+  "feedEventExpired": "Proposal for {coin} expired",
+  "@feedEventExpired": {
+    "description": "feed.event.expired",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      }
+    }
+  },
+  "feedEventPassed": "Passed {coin} · fit {score}/{pass}",
+  "@feedEventPassed": {
+    "description": "feed.event.passed",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "pass": {
+        "type": "String"
+      },
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "feedEventSkipped": "Skipped pick {coin}",
+  "@feedEventSkipped": {
+    "description": "feed.event.skipped",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      }
+    }
+  },
+  "feedEventSold": "Sold {coin} · {pnl}",
+  "@feedEventSold": {
+    "description": "feed.event.sold",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "pnl": {
+        "type": "String"
+      }
+    }
+  },
+  "guardWeakenAfterAudit": "Recorded in the audit log (who, when, device, diff)",
+  "@guardWeakenAfterAudit": {
+    "description": "guard.weaken.after.audit"
+  },
+  "guardWeakenAfterAutoRevert": "Mandatory auto-revert after 24 hours unless you confirm again",
+  "@guardWeakenAfterAutoRevert": {
+    "description": "guard.weaken.after.auto_revert"
+  },
+  "guardWeakenAfterCooldown": "Mandatory 10-minute cooldown before it applies (can be cancelled)",
+  "@guardWeakenAfterCooldown": {
+    "description": "guard.weaken.after.cooldown"
+  },
+  "guardWeakenAfterNotify": "All devices and email are notified",
+  "@guardWeakenAfterNotify": {
+    "description": "guard.weaken.after.notify"
+  },
+  "guardWeakenCancel": "Cancel (Esc)",
+  "@guardWeakenCancel": {
+    "description": "guard.weaken.cancel"
+  },
+  "guardWeakenChanges": "Changes (before → after)",
+  "@guardWeakenChanges": {
+    "description": "guard.weaken.changes"
+  },
+  "guardWeakenDirectionLooser": "looser",
+  "@guardWeakenDirectionLooser": {
+    "description": "guard.weaken.direction.looser"
+  },
+  "guardWeakenDirectionOff": "turned off",
+  "@guardWeakenDirectionOff": {
+    "description": "guard.weaken.direction.off"
+  },
+  "guardWeakenHoldPractice": "Hold 1.2 s to loosen",
+  "@guardWeakenHoldPractice": {
+    "description": "guard.weaken.hold.practice"
+  },
+  "guardWeakenHoldReal": "Hold 2.5 s to loosen",
+  "@guardWeakenHoldReal": {
+    "description": "guard.weaken.hold.real"
+  },
+  "guardWeakenMatch": "{matched} of {total} characters match",
+  "@guardWeakenMatch": {
+    "description": "guard.weaken.match",
+    "placeholders": {
+      "matched": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "guardWeakenRiskLevel": "Risk level: {level, select, low {Low} medium {Medium} high {High} other {Critical}}",
+  "@guardWeakenRiskLevel": {
+    "description": "guard.weaken.risk.level",
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "guardWeakenRiskTitle": "Risk impact (7-day replay on our paper data)",
+  "@guardWeakenRiskTitle": {
+    "description": "guard.weaken.risk.title"
+  },
+  "guardWeakenTitlePractice": "You’re about to loosen a guard",
+  "@guardWeakenTitlePractice": {
+    "description": "guard.weaken.title.practice"
+  },
+  "guardWeakenTitleReal": "You’re about to LOOSEN a guard on a Real SOL strategy",
+  "@guardWeakenTitleReal": {
+    "description": "guard.weaken.title.real"
+  },
+  "guardWeakenTypeName": "Type the strategy name to confirm",
+  "@guardWeakenTypeName": {
+    "description": "guard.weaken.type_name"
+  },
+  "loginButtonApple": "Continue with Apple",
+  "@loginButtonApple": {
+    "description": "Use the Apple system-localized title when available"
+  },
+  "loginButtonEmail": "Send 6-digit code",
+  "@loginButtonEmail": {
+    "description": "login.button.email"
+  },
+  "loginButtonGoogle": "Continue with Google",
+  "@loginButtonGoogle": {
+    "description": "Google: localization permitted"
+  },
+  "loginButtonTelegram": "Log in with Telegram",
+  "@loginButtonTelegram": {
+    "description": "login.button.telegram"
+  },
+  "loginButtonWallet": "Connect Solana wallet",
+  "@loginButtonWallet": {
+    "description": "login.button.wallet"
+  },
+  "loginEmailLabel": "Email",
+  "@loginEmailLabel": {
+    "description": "login.email.label"
+  },
+  "loginOr": "or",
+  "@loginOr": {
+    "description": "login.or"
+  },
+  "loginOtpLocked": "Too many attempts. Try again in {minutes} min.",
+  "@loginOtpLocked": {
+    "description": "login.otp.locked",
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "loginOtpResendIn": "Resend in {time}",
+  "@loginOtpResendIn": {
+    "description": "login.otp.resend_in",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "loginOtpSentTo": "Sent to {email}",
+  "@loginOtpSentTo": {
+    "description": "login.otp.sent_to",
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "loginOtpTitle": "Enter the code",
+  "@loginOtpTitle": {
+    "description": "login.otp.title"
+  },
+  "loginOtpWrong": "{remaining, plural, one {Wrong code. # attempt left.} other {Wrong code. # attempts left.}}",
+  "@loginOtpWrong": {
+    "description": "login.otp.wrong",
+    "placeholders": {
+      "remaining": {
+        "type": "int"
+      }
+    }
+  },
+  "loginPracticeDefault": "New accounts always start in PRACTICE mode.",
+  "@loginPracticeDefault": {
+    "description": "login.practice_default"
+  },
+  "loginSubtitle": "One account, many sign-in methods. You can link more later.",
+  "@loginSubtitle": {
+    "description": "login.subtitle"
+  },
+  "loginTelegramExpired": "This link expired. Request a new one.",
+  "@loginTelegramExpired": {
+    "description": "login.telegram.expired"
+  },
+  "loginTelegramReopen": "Open Telegram again",
+  "@loginTelegramReopen": {
+    "description": "login.telegram.reopen"
+  },
+  "loginTelegramTitle": "Continue in Telegram",
+  "@loginTelegramTitle": {
+    "description": "login.telegram.title"
+  },
+  "loginTelegramWaiting": "Waiting for confirmation…",
+  "@loginTelegramWaiting": {
+    "description": "login.telegram.waiting"
+  },
+  "loginTerms": "By continuing you agree to the Terms and Privacy Policy.",
+  "@loginTerms": {
+    "description": "login.terms"
+  },
+  "loginTitle": "Sign in or create an account",
+  "@loginTitle": {
+    "description": "login.title"
+  },
+  "loginWalletRejected": "Signature was declined. Nothing was signed.",
+  "@loginWalletRejected": {
+    "description": "login.wallet.rejected"
+  },
+  "loginWalletSignNote": "You’ll sign a message, not a transaction. No fee.",
+  "@loginWalletSignNote": {
+    "description": "login.wallet.sign_note"
+  },
+  "loginWalletSignTitle": "Sign to sign in",
+  "@loginWalletSignTitle": {
+    "description": "login.wallet.sign_title"
+  },
+  "modePracticeBanner": "Practice · paper SOL, no real SOL moves",
+  "@modePracticeBanner": {
+    "description": "mode.practice.banner"
+  },
+  "modePracticeBannerShort": "Practice · paper SOL",
+  "@modePracticeBannerShort": {
+    "description": "mode.practice.banner_short"
+  },
+  "modePracticeLabel": "PRACTICE",
+  "@modePracticeLabel": {
+    "description": "do not translate mode labels"
+  },
+  "modeRealBanner": "Real SOL · wallet connected, orders use real SOL",
+  "@modeRealBanner": {
+    "description": "mode.real.banner"
+  },
+  "modeRealBannerShort": "Real SOL · real money",
+  "@modeRealBannerShort": {
+    "description": "mode.real.banner_short"
+  },
+  "modeRealLabel": "REAL SOL",
+  "@modeRealLabel": {
+    "description": "do not translate"
+  },
+  "modeSwitchToRealHold": "Hold to switch to Real SOL",
+  "@modeSwitchToRealHold": {
+    "description": "mode.switch.to_real.hold"
+  },
+  "modeSwitchToRealRequirements": "Requires a connected trading wallet and 2FA.",
+  "@modeSwitchToRealRequirements": {
+    "description": "mode.switch.to_real.requirements"
+  },
+  "modeSwitchToRealTitle": "Switch to Real SOL?",
+  "@modeSwitchToRealTitle": {
+    "description": "mode.switch.to_real.title"
+  },
+  "modeSwitchToastPractice": "Back to Practice",
+  "@modeSwitchToastPractice": {
+    "description": "mode.switch.toast_practice"
+  },
+  "navActivity": "Activity",
+  "@navActivity": {
+    "description": "nav.activity"
+  },
+  "navApprovals": "Approvals",
+  "@navApprovals": {
+    "description": "nav.approvals"
+  },
+  "navCoins": "Coins",
+  "@navCoins": {
+    "description": "nav.coins"
+  },
+  "navDashboard": "Dashboard",
+  "@navDashboard": {
+    "description": "nav.dashboard"
+  },
+  "navHome": "Home",
+  "@navHome": {
+    "description": "nav.home"
+  },
+  "navMore": "More",
+  "@navMore": {
+    "description": "nav.more"
+  },
+  "navPositions": "Positions",
+  "@navPositions": {
+    "description": "nav.positions"
+  },
+  "navSearchPlaceholder": "Search coin or strategy",
+  "@navSearchPlaceholder": {
+    "description": "nav.search.placeholder"
+  },
+  "navSettings": "Settings",
+  "@navSettings": {
+    "description": "nav.settings"
+  },
+  "navStrategies": "Strategies",
+  "@navStrategies": {
+    "description": "nav.strategies"
+  },
+  "notifActionApprove": "Approve",
+  "@notifActionApprove": {
+    "description": "Practice only, valid approval token"
+  },
+  "notifActionCancelChange": "Cancel change",
+  "@notifActionCancelChange": {
+    "description": "notif.action.cancel_change"
+  },
+  "notifActionOpenPick": "Open pick",
+  "@notifActionOpenPick": {
+    "description": "Real SOL: replaces Approve"
+  },
+  "notifActionSkip": "Skip",
+  "@notifActionSkip": {
+    "description": "notif.action.skip"
+  },
+  "notifApprovedBody": "Order is being placed",
+  "@notifApprovedBody": {
+    "description": "notif.approved.body"
+  },
+  "notifApprovedTitle": "Approved: {coin}",
+  "@notifApprovedTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      }
+    }
+  },
+  "notifExpiredBody": "{reason}",
+  "@notifExpiredBody": {
+    "description": "notif.expired.body",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "notifExpiredTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} expired",
+  "@notifExpiredTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "notifFailedBody": "{reason}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}",
+  "@notifFailedBody": {
+    "description": "notif.failed.body",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "notifFailedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy {coin} failed",
+  "@notifFailedTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "notifFilledBody": "{sol} at {price} · exit plan armed",
+  "@notifFilledBody": {
+    "description": "notif.filled.body",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "sol": {
+        "type": "String"
+      }
+    }
+  },
+  "notifFilledTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {coin}",
+  "@notifFilledTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "notifFirstBuyBody": "This strategy hasn’t bought yet. Review before it starts · {sol}",
+  "@notifFirstBuyBody": {
+    "description": "notif.first_buy.body",
+    "placeholders": {
+      "sol": {
+        "type": "String"
+      }
+    }
+  },
+  "notifFirstBuyTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {coin}",
+  "@notifFirstBuyTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      },
+      "strategy": {
+        "type": "String"
+      }
+    }
+  },
+  "notifGroupedBody": "Open the queue to review",
+  "@notifGroupedBody": {
+    "description": "notif.grouped.body"
+  },
+  "notifGroupedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {count, plural, one {# pick awaits approval} other {# picks await approval}}",
+  "@notifGroupedTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "notifGuardActiveBody": "Auto-reverts {time}",
+  "@notifGuardActiveBody": {
+    "description": "notif.guard_active.body",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "notifGuardActiveTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} guard is now looser",
+  "@notifGuardActiveTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      },
+      "strategy": {
+        "type": "String"
+      }
+    }
+  },
+  "notifGuardCooldownBody": "{strategy}: effective {time}. Cancel if this wasn’t you.",
+  "@notifGuardCooldownBody": {
+    "description": "notif.guard_cooldown.body",
+    "placeholders": {
+      "strategy": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "notifGuardCooldownTitle": "[REAL SOL] Guard loosens in 10 min",
+  "@notifGuardCooldownTitle": {
+    "description": "mode = real | practice (select); labels never translated"
+  },
+  "notifGuardRequestedBody": "{strategy}: {setting} {from} → {to} loosens a guard",
+  "@notifGuardRequestedBody": {
+    "description": "notif.guard_requested.body",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "setting": {
+        "type": "String"
+      },
+      "strategy": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "notifGuardRequestedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change pending",
+  "@notifGuardRequestedTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "notifGuardRevertedBody": "{setting} back to {from}",
+  "@notifGuardRevertedBody": {
+    "description": "notif.guard_reverted.body",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "setting": {
+        "type": "String"
+      }
+    }
+  },
+  "notifGuardRevertedTitle": "[REAL SOL] {strategy} guard restored",
+  "@notifGuardRevertedTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "strategy": {
+        "type": "String"
+      }
+    }
+  },
+  "notifLossStopBody": "Down {pct} from peak. Re-arm needs approval.",
+  "@notifLossStopBody": {
+    "description": "notif.loss_stop.body",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "notifLossStopTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} paused",
+  "@notifLossStopTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      },
+      "strategy": {
+        "type": "String"
+      }
+    }
+  },
+  "notifModePracticeBody": "Orders use paper SOL",
+  "@notifModePracticeBody": {
+    "description": "notif.mode_practice.body"
+  },
+  "notifModePracticeTitle": "Back to PRACTICE",
+  "@notifModePracticeTitle": {
+    "description": "mode = real | practice (select); labels never translated"
+  },
+  "notifModeRealBody": "Next orders use real SOL",
+  "@notifModeRealBody": {
+    "description": "notif.mode_real.body"
+  },
+  "notifModeRealTitle": "Now in REAL SOL",
+  "@notifModeRealTitle": {
+    "description": "mode = real | practice (select); labels never translated"
+  },
+  "notifOfflineBody": "Data may be delayed. Retrying…",
+  "@notifOfflineBody": {
+    "description": "notif.offline.body"
+  },
+  "notifOfflineTitle": "Lost connection to server",
+  "@notifOfflineTitle": {
+    "description": "mode = real | practice (select); labels never translated"
+  },
+  "notifPickPendingBody": "{strategy} · {sol} · {time} left",
+  "@notifPickPendingBody": {
+    "description": "notif.pick_pending.body",
+    "placeholders": {
+      "sol": {
+        "type": "String"
+      },
+      "strategy": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "notifPickPendingTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} awaits approval",
+  "@notifPickPendingTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "notifSkippedBody": "Reason: {reason}",
+  "@notifSkippedBody": {
+    "description": "notif.skipped.body",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "notifSkippedTitle": "Skipped: {coin}",
+  "@notifSkippedTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      }
+    }
+  },
+  "notifSlHitBody": "{stop_type} · {pnl} ({pct})",
+  "@notifSlHitBody": {
+    "description": "notif.sl_hit.body",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      },
+      "pnl": {
+        "type": "String"
+      },
+      "stop_type": {
+        "type": "String"
+      }
+    }
+  },
+  "notifSlHitTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {coin}",
+  "@notifSlHitTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "notifTokenInvalidBody": "Open the app to continue",
+  "@notifTokenInvalidBody": {
+    "description": "notif.token_invalid.body"
+  },
+  "notifTokenInvalidTitle": "Notification action expired",
+  "@notifTokenInvalidTitle": {
+    "description": "mode = real | practice (select); labels never translated"
+  },
+  "notifTpHitBody": "Sold {pct_sold} at +{pct} · {pnl}",
+  "@notifTpHitBody": {
+    "description": "notif.tp_hit.body",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      },
+      "pct_sold": {
+        "type": "String"
+      },
+      "pnl": {
+        "type": "String"
+      }
+    }
+  },
+  "notifTpHitTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {coin}",
+  "@notifTpHitTitle": {
+    "description": "mode = real | practice (select); labels never translated",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsEquityHwm": "High-water mark",
+  "@positionsEquityHwm": {
+    "description": "positions.equity.hwm"
+  },
+  "positionsEquityTitle": "Equity · {range}",
+  "@positionsEquityTitle": {
+    "description": "positions.equity.title",
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsNextAction": "Next: {rung} at {gain} (sell {pct})",
+  "@positionsNextAction": {
+    "description": "positions.next_action",
+    "placeholders": {
+      "gain": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      },
+      "rung": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsOpenCount": "{count, plural, one {# open} other {# open}}",
+  "@positionsOpenCount": {
+    "description": "positions.open_count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "positionsSellEstimate": "Estimated proceeds",
+  "@positionsSellEstimate": {
+    "description": "positions.sell.estimate"
+  },
+  "positionsSellHoldPractice": "Hold 1.2 s to sell {pct}",
+  "@positionsSellHoldPractice": {
+    "description": "Practice, all platforms; no single-press confirm",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsSellHoldReal": "Hold 2.5 s to sell {pct}",
+  "@positionsSellHoldReal": {
+    "description": "Real SOL, all platforms (+ biometric on mobile)",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsSellHoldReleased": "Released early — nothing was sold",
+  "@positionsSellHoldReleased": {
+    "description": "positions.sell.hold.released"
+  },
+  "positionsSellNeverFromNotification": "Selling is never available from a notification or popup.",
+  "@positionsSellNeverFromNotification": {
+    "description": "positions.sell.never_from_notification"
+  },
+  "positionsSellPlanCancelled": "Exit plan cancelled (100%)",
+  "@positionsSellPlanCancelled": {
+    "description": "positions.sell.plan_cancelled"
+  },
+  "positionsSellRemainingPlan": "Remaining position keeps its exit plan",
+  "@positionsSellRemainingPlan": {
+    "description": "positions.sell.remaining_plan"
+  },
+  "positionsSellTitle": "Sell {coin}",
+  "@positionsSellTitle": {
+    "description": "positions.sell.title",
+    "placeholders": {
+      "coin": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsTitle": "Positions",
+  "@positionsTitle": {
+    "description": "positions.title"
+  },
+  "queueBatchApprove": "{count, plural, one {Approve # pick} other {Approve # picks}}",
+  "@queueBatchApprove": {
+    "description": "queue.batch.approve",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueBatchSelected": "{count, plural, one {# selected} other {# selected}}",
+  "@queueBatchSelected": {
+    "description": "queue.batch.selected",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueBatchTotal": "Total {sol}",
+  "@queueBatchTotal": {
+    "description": "queue.batch.total",
+    "placeholders": {
+      "sol": {
+        "type": "String"
+      }
+    }
+  },
+  "queueExpiredReasonGuardFailed": "Guard failed while waiting: {reason}",
+  "@queueExpiredReasonGuardFailed": {
+    "description": "queue.expired.reason.guard_failed",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "queueExpiredReasonPriceRan": "Price ran {pct} past the entry limit",
+  "@queueExpiredReasonPriceRan": {
+    "description": "queue.expired.reason.price_ran",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "queueExpiredReasonStrategyArchived": "Strategy was archived",
+  "@queueExpiredReasonStrategyArchived": {
+    "description": "queue.expired.reason.strategy_archived"
+  },
+  "queueExpiredReasonStrategyDeleted": "Strategy was deleted",
+  "@queueExpiredReasonStrategyDeleted": {
+    "description": "queue.expired.reason.strategy_deleted"
+  },
+  "queueExpiredReasonTimedOut": "Approval window ended",
+  "@queueExpiredReasonTimedOut": {
+    "description": "queue.expired.reason.timed_out"
+  },
+  "queueGuardReject": "Reject change",
+  "@queueGuardReject": {
+    "description": "guard change rows use Reject, not Skip"
+  },
+  "queuePickApprove": "Approve",
+  "@queuePickApprove": {
+    "description": "queue.pick.approve"
+  },
+  "queuePickCannotApprove": "Can’t be approved",
+  "@queuePickCannotApprove": {
+    "description": "queue.pick.cannot_approve"
+  },
+  "queuePickExpiresIn": "Expires in {time}",
+  "@queuePickExpiresIn": {
+    "description": "queue.pick.expires_in",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "queuePickKindBuy": "Buy",
+  "@queuePickKindBuy": {
+    "description": "queue.pick.kind.buy"
+  },
+  "queuePickKindFirstBuy": "First buy",
+  "@queuePickKindFirstBuy": {
+    "description": "queue.pick.kind.first_buy"
+  },
+  "queuePickKindGuardChange": "Loosens guard",
+  "@queuePickKindGuardChange": {
+    "description": "queue.pick.kind.guard_change"
+  },
+  "queuePickReviewChange": "Review change",
+  "@queuePickReviewChange": {
+    "description": "queue.pick.review_change"
+  },
+  "queuePickSkip": "Skip",
+  "@queuePickSkip": {
+    "description": "queue.pick.skip"
+  },
+  "queueRealApproveButton": "Approve with Real SOL",
+  "@queueRealApproveButton": {
+    "description": "queue.real.approve_button"
+  },
+  "queueRealBatchConfirmTitle": "{count, plural, one {Approve # buy with REAL SOL?} other {Approve # buys with REAL SOL?}}",
+  "@queueRealBatchConfirmTitle": {
+    "description": "queue.real.batch_confirm.title",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "queueRealHold": "Hold to approve {sol}",
+  "@queueRealHold": {
+    "description": "queue.real.hold",
+    "placeholders": {
+      "sol": {
+        "type": "String"
+      }
+    }
+  },
+  "queueSkipReasonAlreadyPumped": "Already pumped",
+  "@queueSkipReasonAlreadyPumped": {
+    "description": "queue.skip_reason.already_pumped"
+  },
+  "queueSkipReasonOther": "Other…",
+  "@queueSkipReasonOther": {
+    "description": "queue.skip_reason.other"
+  },
+  "queueSkipReasonSuspiciousDev": "Suspicious dev",
+  "@queueSkipReasonSuspiciousDev": {
+    "description": "queue.skip_reason.suspicious_dev"
+  },
+  "queueSkipReasonThinLiquidity": "Thin liquidity",
+  "@queueSkipReasonThinLiquidity": {
+    "description": "queue.skip_reason.thin_liquidity"
+  },
+  "queueSwipeDisabledReal": "Swipe is off in Real SOL. Use the buttons.",
+  "@queueSwipeDisabledReal": {
+    "description": "queue.swipe.disabled_real"
+  },
+  "queueSwipeHint": "Swipe right to approve · left to skip",
+  "@queueSwipeHint": {
+    "description": "queue.swipe.hint"
+  },
+  "queueTabApproved": "Approved",
+  "@queueTabApproved": {
+    "description": "queue.tab.approved"
+  },
+  "queueTabExpired": "Expired",
+  "@queueTabExpired": {
+    "description": "queue.tab.expired"
+  },
+  "queueTabPending": "Pending",
+  "@queueTabPending": {
+    "description": "queue.tab.pending"
+  },
+  "queueTabSkipped": "Skipped",
+  "@queueTabSkipped": {
+    "description": "queue.tab.skipped"
+  },
+  "queueTabWithCount": "{label} · {count}",
+  "@queueTabWithCount": {
+    "description": "queue.tab.with_count",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "queueTitle": "Approval queue",
+  "@queueTitle": {
+    "description": "queue.title"
+  },
+  "queueWhyFirstBuy": "Approval mode is “Ask: first buy”. This is the strategy’s first buy.",
+  "@queueWhyFirstBuy": {
+    "description": "queue.why.first_buy"
+  },
+  "queueWhyTitle": "Why does this need approval?",
+  "@queueWhyTitle": {
+    "description": "queue.why.title"
+  },
+  "settingsAppearanceDensityComfortable": "Comfortable",
+  "@settingsAppearanceDensityComfortable": {
+    "description": "settings.appearance.density.comfortable"
+  },
+  "settingsAppearanceDensityCompact": "Compact",
+  "@settingsAppearanceDensityCompact": {
+    "description": "settings.appearance.density.compact"
+  },
+  "settingsAppearanceDensityLabel": "Density",
+  "@settingsAppearanceDensityLabel": {
+    "description": "settings.appearance.density.label"
+  },
+  "settingsAppearanceThemeDark": "Dark",
+  "@settingsAppearanceThemeDark": {
+    "description": "settings.appearance.theme.dark"
+  },
+  "settingsAppearanceThemeLabel": "Theme",
+  "@settingsAppearanceThemeLabel": {
+    "description": "settings.appearance.theme.label"
+  },
+  "settingsAppearanceThemeLight": "Light",
+  "@settingsAppearanceThemeLight": {
+    "description": "settings.appearance.theme.light"
+  },
+  "settingsAppearanceThemeSystem": "Match system",
+  "@settingsAppearanceThemeSystem": {
+    "description": "settings.appearance.theme.system"
+  },
+  "settingsLanguageLabel": "Language",
+  "@settingsLanguageLabel": {
+    "description": "settings.language.label"
+  },
+  "settingsLanguageNumberFormat": "Numbers follow the language: {example}",
+  "@settingsLanguageNumberFormat": {
+    "description": "settings.language.number_format",
+    "placeholders": {
+      "example": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsLoginLastMethodLock": "This is your only sign-in method. Link another before unlinking.",
+  "@settingsLoginLastMethodLock": {
+    "description": "settings.login.last_method_lock"
+  },
+  "settingsLoginLink": "Link",
+  "@settingsLoginLink": {
+    "description": "settings.login.link"
+  },
+  "settingsLoginLinked": "Linked",
+  "@settingsLoginLinked": {
+    "description": "settings.login.linked"
+  },
+  "settingsLoginReauth": "Confirm it’s you to continue",
+  "@settingsLoginReauth": {
+    "description": "settings.login.reauth"
+  },
+  "settingsLoginUnlink": "Unlink",
+  "@settingsLoginUnlink": {
+    "description": "settings.login.unlink"
+  },
+  "settingsLoginWalletNote": "Sign-in wallet only proves identity. It can’t trade.",
+  "@settingsLoginWalletNote": {
+    "description": "settings.login.wallet_note"
+  },
+  "settingsModeDefaultApproval": "Default approval mode",
+  "@settingsModeDefaultApproval": {
+    "description": "settings.mode.default_approval"
+  },
+  "settingsModeDefaultNewStrategy": "New strategies start in",
+  "@settingsModeDefaultNewStrategy": {
+    "description": "settings.mode.default_new_strategy"
+  },
+  "settingsNotifDesktopPopup": "Desktop always-on-top popup",
+  "@settingsNotifDesktopPopup": {
+    "description": "settings.notif.desktop_popup"
+  },
+  "settingsNotifEmail": "Email",
+  "@settingsNotifEmail": {
+    "description": "settings.notif.email"
+  },
+  "settingsNotifPracticeActions": "Allow Approve from notifications (Practice only)",
+  "@settingsNotifPracticeActions": {
+    "description": "settings.notif.practice_actions"
+  },
+  "settingsNotifPush": "Push notifications",
+  "@settingsNotifPush": {
+    "description": "settings.notif.push"
+  },
+  "settingsSectionAppearance": "Appearance",
+  "@settingsSectionAppearance": {
+    "description": "settings.section.appearance"
+  },
+  "settingsSectionLanguage": "Language",
+  "@settingsSectionLanguage": {
+    "description": "settings.section.language"
+  },
+  "settingsSectionLoginMethods": "Sign-in methods",
+  "@settingsSectionLoginMethods": {
+    "description": "settings.section.login_methods"
+  },
+  "settingsSectionModeDefaults": "Mode & defaults",
+  "@settingsSectionModeDefaults": {
+    "description": "settings.section.mode_defaults"
+  },
+  "settingsSectionNotifications": "Notifications",
+  "@settingsSectionNotifications": {
+    "description": "settings.section.notifications"
+  },
+  "settingsSectionProfile": "Profile",
+  "@settingsSectionProfile": {
+    "description": "settings.section.profile"
+  },
+  "settingsSectionSecurity": "Security",
+  "@settingsSectionSecurity": {
+    "description": "settings.section.security"
+  },
+  "settingsSectionTradingWallet": "Trading wallet",
+  "@settingsSectionTradingWallet": {
+    "description": "settings.section.trading_wallet"
+  },
+  "settingsSecurity2fa": "Two-factor authentication",
+  "@settingsSecurity2fa": {
+    "description": "settings.security.2fa"
+  },
+  "settingsSecurityAudit": "Audit log",
+  "@settingsSecurityAudit": {
+    "description": "settings.security.audit"
+  },
+  "settingsSecuritySessions": "Sessions & devices",
+  "@settingsSecuritySessions": {
+    "description": "settings.security.sessions"
+  },
+  "settingsSecuritySignOutDevice": "Sign out",
+  "@settingsSecuritySignOutDevice": {
+    "description": "settings.security.sign_out_device"
+  },
+  "settingsSecurityThisDevice": "This device",
+  "@settingsSecurityThisDevice": {
+    "description": "settings.security.this_device"
+  },
+  "settingsWalletNotConnected": "Not connected. Real SOL stays off.",
+  "@settingsWalletNotConnected": {
+    "description": "settings.wallet.not_connected"
+  },
+  "settingsWalletSeparateNote": "Separate from your sign-in wallet. Withdrawals need 2FA, email approval, and an allow-listed address.",
+  "@settingsWalletSeparateNote": {
+    "description": "settings.wallet.separate_note"
+  },
+  "settingsWalletTitle": "Trading wallet (Real SOL)",
+  "@settingsWalletTitle": {
+    "description": "settings.wallet.title"
+  },
+  "shortcutA": "Approve focused item",
+  "@shortcutA": {
+    "description": "shortcut.a"
+  },
+  "shortcutEnter": "Pop out chart",
+  "@shortcutEnter": {
+    "description": "shortcut.enter"
+  },
+  "shortcutEsc": "Close / cancel",
+  "@shortcutEsc": {
+    "description": "shortcut.esc"
+  },
+  "shortcutJk": "Next / previous",
+  "@shortcutJk": {
+    "description": "shortcut.jk"
+  },
+  "shortcutS": "Skip (with reason)",
+  "@shortcutS": {
+    "description": "shortcut.s"
+  },
+  "shortcutShiftA": "Approve selected",
+  "@shortcutShiftA": {
+    "description": "shortcut.shift_a"
+  },
+  "shortcutShiftX": "Sell focused position",
+  "@shortcutShiftX": {
+    "description": "shortcut.shift_x"
+  },
+  "shortcutSpace": "Details / quick look",
+  "@shortcutSpace": {
+    "description": "shortcut.space"
+  },
+  "shortcutX": "Select / deselect",
+  "@shortcutX": {
+    "description": "shortcut.x"
+  },
+  "strategyApprovalModeAskEveryBuy": "Ask: every buy",
+  "@strategyApprovalModeAskEveryBuy": {
+    "description": "strategy.approval_mode.ask_every_buy"
+  },
+  "strategyApprovalModeAskFirstBuy": "Ask: first buy",
+  "@strategyApprovalModeAskFirstBuy": {
+    "description": "strategy.approval_mode.ask_first_buy"
+  },
+  "strategyApprovalModeOff": "Off (auto)",
+  "@strategyApprovalModeOff": {
+    "description": "strategy.approval_mode.off"
+  },
+  "strategyStatusDraft": "Draft",
+  "@strategyStatusDraft": {
+    "description": "strategy.status.draft"
+  },
+  "strategyStatusPaused": "Paused",
+  "@strategyStatusPaused": {
+    "description": "strategy.status.paused"
+  },
+  "strategyStatusRunning": "Running",
+  "@strategyStatusRunning": {
+    "description": "strategy.status.running"
+  },
+  "tableMobileCollapse": "Hide details",
+  "@tableMobileCollapse": {
+    "description": "table.mobile.collapse"
+  },
+  "tableMobileExpand": "Show details",
+  "@tableMobileExpand": {
+    "description": "table.mobile.expand"
+  },
+  "tableMobileScrollHint": "Scroll for more columns",
+  "@tableMobileScrollHint": {
+    "description": "table.mobile.scroll_hint"
+  }
+}

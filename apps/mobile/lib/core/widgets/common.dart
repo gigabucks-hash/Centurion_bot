@@ -20,7 +20,7 @@ class PnlText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       pct ? fmtPct(value) : fmtPnl(value, unit: unit),
-      style: numStyle(size, w: FontWeight.w600, color: context.pnlColor(value)),
+      style: AppText.num(size, weight: FontWeight.w600, color: context.pnlColor(value, epsilon: pct ? 0.05 : 0.0005)),
     );
   }
 }
@@ -85,7 +85,7 @@ class TagChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpace.s2, vertical: AppSpace.s0_5),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.s2, vertical: AppSpace.sHalf),
       decoration: BoxDecoration(
         color: container ?? color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.full),
@@ -164,7 +164,7 @@ class _ExpiryCountdownState extends State<ExpiryCountdown> {
       Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(urgent ? Icons.timer_outlined : Icons.schedule, size: 14, color: c),
         const SizedBox(width: 4),
-        Text(fmtCountdown(left), style: numStyle(13, color: c)),
+        Text(fmtCountdown(left), style: AppText.num(13, color: c)),
       ]),
       if (widget.showBar) ...[
         const SizedBox(height: 4),
@@ -230,7 +230,7 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton> with SingleTi
         child: AnimatedBuilder(
           animation: _c,
           builder: (_, __) => Container(
-            height: AppSize.controlLg,
+            height: AppDensity.comfortable.controlLg,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.sm),
               border: Border.all(color: widget.enabled ? widget.color : cs.outlineVariant),

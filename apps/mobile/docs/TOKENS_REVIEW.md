@@ -1,5 +1,46 @@
 # Review `app_tokens.dart`: design tokens Flutter dari UX UI Designer
 
+> **Update 29 Okt 2026, migrasi ke `@sentra/design-tokens` 0.2.1.** Kolom **Status v0.2.1** di tabel bawah adalah status terbaru; kolom "Status di app (v0)" dipertahankan sebagai riwayat.
+
+## Migrasi ke `/workspace/sentra/packages/design-tokens` (v0.2.1)
+- **Pendekatan: vendoring (salinan verbatim), bukan dependency.** Paket itu bukan paket Dart (tidak ada `pubspec.yaml`; isinya `tokens.json` + `scripts/build.py` yang menghasilkan `tokens/app_tokens.dart`), jadi tidak bisa dipakai lewat `path:` dependency. File disalin **tanpa perubahan apa pun** (header ignore v0 juga dihapus) ke `app/lib/core/theme/app_tokens.dart`.
+  - md5 sumber = salinan = `454ec83ccbf71257a7a18c3d3fdb5443` (sama dengan `/workspace/ux-solbot/tokens/app_tokens.dart`). Tidak ada file di `/workspace/sentra` atau `/workspace/ux-solbot` yang diubah.
+  - Update berikutnya: `cp /workspace/sentra/packages/design-tokens/tokens/app_tokens.dart app/lib/core/theme/` lalu `flutter analyze && flutter test`. Setelah pindah ke monorepo (D3–4) ini bisa jadi langkah build/CI (salin + cek md5).
+- **Breaking rename yang diterapkan:** `context.trade` → `context.tradeColors`, `numStyle()` → `AppText.num()` (`w:` → `weight:`), `AppSpace.s0_5` → `AppSpace.sHalf`, `AppSize.tapMin` → `AppDensity.tapMin`, `AppSize.controlLg` → `AppDensity.comfortable.controlLg`, `AppMotion.holdPractice/holdReal` → `holdPracticeBase/holdRealBase`. Tombol Approve sekarang memakai `AppButtons.success/real`.
+- **Adapter menyusut:** `solbot_theme.dart` dari 50 baris (berisi patch) menjadi 33 baris. Isinya hanya *app chrome* yang memang bukan token (NavigationBar, SnackBar floating, AppBar) + helper `pnlColor` (T-15). Patch lama untuk `titleSmall/labelMedium`, `outlinedButtonTheme`, fallback `tradeColors`, dan `pnl(neutral:)` sudah dihapus karena tersedia di upstream.
+- **Font:** `google_fonts ^9.0.0` untuk MVP (Inter + JetBrains Mono, sesuai header file token). Bundling `.ttf` lokal dijadwalkan D8–9 (Kam 5 – Jum 6 Nov 2026), sebelum build store (lihat ARCHITECTURE.md §9). Di test, `allowRuntimeFetching = false` (`test/flutter_test_config.dart`), sehingga muncul 4 log "unable to load font" yang tidak berbahaya. Log itu hilang setelah font dibundel.
+
+### Status 14 temuan terhadap v0.2.1
+| ID | Status v0.2.1 | Bukti |
+|---|---|---|
+| T-01 | **Sebagian.** Nama family konsisten (`AppFonts.sans='Inter'`, `mono='JetBrains Mono'`), fallback ada, dimuat via google_fonts. **Open:** `.ttf` belum dibundel (milestone D8–9) | `AppFonts`, `AppText.num` → `GoogleFonts.jetBrainsMono`; test `fontFamily startsWith 'Inter'/'JetBrainsMono'` |
+| T-02 | **Resolved.** `copyWith` untuk 17 field | test copyWith |
+| T-03 | **Resolved.** Dark `borderStrong` #6B7995: 3,68:1 di `bgRaised`, 3,24:1 di `bgOverlay`. `textTertiary` #919CB2: 5,13:1 di `bgOverlay`. Light outline #7D879B: 3,61:1. `outlineVariant` diberi komentar "decorative only" dan contrast-report mendokumentasikan pengecualiannya | dihitung ulang (WCAG), `contrast-report.md` |
+| T-04 | **Resolved.** 15 slot M3 + letterSpacing (labelSmall 0,4) + varian compact; mapping ada di README upstream | `AppText.theme` |
+| T-05 | **Resolved.** `const` diemit; analyze bersih **tanpa** `ignore_for_file`. Masih ada 4 baris >120 kolom (lihat T-16) | `flutter analyze` |
+| T-06 | **Resolved.** `context.tradeColors` null-safe (fallback sesuai brightness) | `extension TradeColorsX` |
+| T-07 | **Resolved.** `neutral` + `infoContainer` ada di `TradeColors`, `pnl(num)` → neutral untuk 0 | test pnl neutral |
+| T-08 | **Resolved.** `AppElevation.e0–e4`, `surfaceTint` transparan, `shadow` diset | test surfaceTint |
+| T-09 | **Resolved.** `tertiaryContainer`=info, `inverse*`, `scrim`, `shadow` | `_darkScheme/_lightScheme` |
+| T-10 | **Resolved.** `AppButtons.success/danger/real/secondary/ghost` + outlined/text/input theme dengan `tapMin` | dipakai di Approvals & Sell sheet |
+| T-11 | **Sebagian.** `sHalf` + `AppText.num` resolved. **Open (tugas Flutter, bukan UX):** rename app ke `sentra_mobile`/`com.sentra.app`, milestone D3–4 | – |
+| T-12 | **Resolved.** `useMaterial3` dihapus | grep |
+| T-13 | **Resolved.** `AppMotion.of(context)` membaca `disableAnimations`; durasi hold tetap | `AppMotion` |
+| T-14 | **Resolved.** `lerp(ThemeExtension<TradeColors>? other, …)` + `is!` check | test lerp |
+
+### Temuan baru
+| ID | P | Temuan | Saran | Status |
+|---|---|---|---|---|
+| T-15 | P2 | `TradeColors.pnl(num)` menganggap netral hanya jika **tepat 0**, padahal format menampilkan `±0` untuk \|v\| < 0,0005 SOL (dan `±0%` untuk \|v\| < 0,05%). Akibatnya nilai seperti 0,0002 tampil "±0" tetapi berwarna hijau, sehingga warna dan teks bertentangan (SPEC §1). | Tambahkan `pnl(num v, {double epsilon})` atau ekspor konstanta `AppFormat.zeroEpsilon` agar warna dan format memakai ambang yang sama. | **Open (UX).** Workaround app: `context.pnlColor(v, epsilon:)` di `solbot_theme.dart` |
+| T-16 | P3 | Masih ada 4 baris >120 kolom setelah `dart format` (header comment + `AppText.num`), sehingga diff review agak sulit. | Pecah comment header. Format manual tidak perlu. | Open (kosmetik) |
+| T-17 | P3 | Header file menyebut `assets/google_fonts/` untuk bundling, tetapi README tidak menyebut nama file yang dicari google_fonts (`Inter-Regular.ttf`, `Inter-Medium.ttf`, `Inter-SemiBold.ttf`, `JetBrainsMono-Medium.ttf`, `JetBrainsMono-SemiBold.ttf`). | Tambahkan daftar file ke README token. | Open. Akan dicek saat D8–9 |
+
+**Token issue yang masih open:** T-01 (bundling font, milestone Flutter D8–9), T-11 (rename app D3–4, tugas Flutter), T-15 (ambang netral PnL, UX), T-16, T-17 (kosmetik/doc).
+
+---
+
+## Riwayat: review v0 (sebelum migrasi)
+
 - **Sumber:** `/workspace/ux-solbot/tokens/app_tokens.dart` (md5 `80d9f74ffa658329e3e1100fe7748f95`, **tidak diubah**)
 - **Salinan di app:** `app/lib/core/theme/app_tokens.dart`, isinya verbatim. Yang ditambahkan hanya header dan `// ignore_for_file: prefer_const_constructors`.
 - **Adapter:** `app/lib/core/theme/solbot_theme.dart`. Semua patch ada di sini, jadi file generate bisa langsung diganti waktu ada drop token baru.
@@ -20,7 +61,7 @@
 ## Temuan & saran perbaikan
 Prioritas: **P1** = perbaiki sebelum dipakai prod, **P2** = sebaiknya, **P3** = kosmetik.
 
-| ID | P | Temuan | Saran (di `build_tokens.py`) | Status di app |
+| ID | P | Temuan | Saran (di `build_tokens.py`) | Status di app (v0) |
 |---|---|---|---|---|
 | T-01 | P1 | **Font tidak dibundel, nama family tidak konsisten.** Dart memakai `'Inter'` dan `'JetBrainsMono'`, sedangkan `tokens.json` menulis `"JetBrains Mono"`. `fontFamilyFallback` tidak ada, jadi fallback stack di tokens.json (SF Pro, Roboto, …) hilang. Akibatnya angka **tidak tabular-mono** di device (terlihat di screenshot). | Tetapkan satu nama family (mis. `JetBrainsMono`), tambahkan `fontFamilyFallback: ['SF Pro Text','Roboto']` / `['SF Mono','Roboto Mono','monospace']`, dan dokumentasikan blok `fonts:` pubspec (Inter 400/500/600, JetBrains Mono 500/600) di README. | Belum dibundel (tidak ada aset font di repo). Masih open dependency ke UX |
 | T-02 | P1 | `TradeColors.copyWith() => this` tanpa parameter, sehingga override per-widget/per-mode tidak mungkin dilakukan dan kontrak `ThemeExtension` jadi tidak berguna. | Generate `copyWith({Color? profit, … })` untuk semua 15 field. | Tidak dipatch (tidak dipakai). Menunggu regen |

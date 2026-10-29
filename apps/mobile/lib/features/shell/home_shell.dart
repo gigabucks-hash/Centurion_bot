@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/notifications/local_notifier.dart';
 import '../../core/widgets/common.dart';
 import '../../data/providers.dart';
 
@@ -13,6 +14,7 @@ class HomeShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(pushPipelineProvider); // mock FCM → local notifications
     final pending = ref.watch(pendingCountProvider);
     final mode = ref.watch(workspaceModeProvider);
     return Scaffold(

@@ -106,7 +106,7 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
                 margin: const EdgeInsets.only(bottom: AppSpace.s2),
                 child: ListTile(
                   title: Text(e.key),
-                  subtitle: Text('${e.value.first}  →  ${e.value.last}', style: numStyle(14, color: t.loss)),
+                  subtitle: Text('${e.value.first}  →  ${e.value.last}', style: AppText.num(14, color: t.loss)),
                   trailing: Text('▼ longgar', style: text.labelLarge!.copyWith(color: t.warning)),
                 ),
               ),
@@ -117,7 +117,7 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
                 child: Row(children: [
                   Text(r.key, style: text.bodyMedium!.copyWith(color: cs.onSurfaceVariant)),
                   const Spacer(),
-                  Text(r.value, style: numStyle(14, w: FontWeight.w700, color: t.loss)),
+                  Text(r.value, style: AppText.num(14, weight: FontWeight.w700, color: t.loss)),
                 ]),
               ),
             if (approval.riskLevel != null) ...[
@@ -129,7 +129,7 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
               TextField(
                 key: const Key('typedConfirm'),
                 controller: _typed,
-                style: numStyle(15),
+                style: AppText.num(15),
                 decoration: InputDecoration(hintText: name),
               ),
               const SizedBox(height: AppSpace.s1),
@@ -144,7 +144,7 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
             HoldToConfirmButton(
               key: const Key('holdConfirm'),
               label: real ? 'Tahan untuk melemahkan · biometrik' : 'Tahan untuk melemahkan',
-              hold: real ? AppMotion.holdReal : AppMotion.holdPractice,
+              hold: real ? AppMotion.holdRealBase : AppMotion.holdPracticeBase,
               color: real ? t.real : t.warning,
               enabled: canAct && typedOk,
               onConfirmed: () => _decide(approval, approve: true),

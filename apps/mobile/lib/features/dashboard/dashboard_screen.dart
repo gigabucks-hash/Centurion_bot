@@ -43,21 +43,21 @@ class DashboardScreen extends ConsumerWidget {
                 crossAxisSpacing: AppSpace.s3,
                 childAspectRatio: 1.9,
                 children: [
-                  _Kpi(label: 'Cash', child: Text(fmtSol(s.cashSol), style: numStyle(22))),
+                  _Kpi(label: 'Cash', child: Text(fmtSol(s.cashSol), style: AppText.num(22))),
                   _Kpi(
                       label: 'Realized PnL',
                       child: PnlText(s.realizedPnlSol, size: 22, key: const Key('realizedPnl'))),
                   _Kpi(
                     label: 'Open',
                     onTap: () => context.go('/positions'),
-                    child: Text('${s.openPositions} / $maxOpen', style: numStyle(22)),
+                    child: Text('${s.openPositions} / $maxOpen', style: AppText.num(22)),
                   ),
                   _Kpi(
                     label: 'Approvals',
                     onTap: () => context.go('/approvals'),
                     child: Text('$pending',
                         key: const Key('pendingKpi'),
-                        style: numStyle(22, color: pending > 0 ? t.warning : null)),
+                        style: AppText.num(22, color: pending > 0 ? t.warning : null)),
                   ),
                 ],
               ),

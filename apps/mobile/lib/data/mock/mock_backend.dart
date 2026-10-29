@@ -10,7 +10,7 @@ import '../repositories/repositories.dart';
 /// (e.g. approving a buy pick creates a position and an activity event).
 /// Call [start] for a periodic tick (UI demo) or [tick] manually (tests).
 class MockBackend
-    implements PortfolioRepository, ActivityRepository, StrategyRepository, ApprovalRepository {
+    implements PortfolioRepository, ActivityRepository, StrategyRepository, ApprovalRepository, PushSource {
   MockBackend({int seed = 7, DateTime Function()? clock})
       : _rng = Random(seed),
         _clock = clock ?? DateTime.now {
@@ -20,6 +20,7 @@ class MockBackend
   final Random _rng;
   final DateTime Function() _clock;
   final _changes = StreamController<void>.broadcast();
+  final _pushes = StreamController<Map<String, String>>.broadcast();
   Timer? _timer;
   int _seq = 0;
 
@@ -39,6 +40,7 @@ class MockBackend
   void dispose() {
     _timer?.cancel();
     _changes.close();
+    _pushes.close();
   }
 
   /// Advance the simulation by one step: move marks, maybe close a position,
@@ -47,23 +49,9 @@ class MockBackend
     final now = _clock();
     for (var i = 0; i < _positions.length; i++) {
       final p = _positions[i];
-      if (p.state != PositionState.open) continue;
+      if (!p.isOpen) continue;
       final drift = 1 + (_rng.nextDouble() - 0.47) * 0.08;
-      final mark = p.markPriceUsd * drift;
-      var next = p.copyWith(markPriceUsd: mark, peakPriceUsd: max(p.peakPriceUsd, mark));
-      final fromPeak = (1 - mark / next.peakPriceUsd) * 100;
-      if (fromPeak >= 15 || next.changePct >= 60) {
-        final reason = fromPeak >= 15 ? 'Trailing stop: 15% below the high' : 'Took profit at +60%';
-        next = next.copyWith(
-          state: PositionState.closed,
-          solOut: p.solIn * mark / p.entryPriceUsd * 0.9875, // 125 bps fee
-          closedAt: now,
-          exitReason: reason,
-        );
-        _emitEvent(ActivityKind.sold, Actor.exit, '${p.symbol}: $reason',
-            strategyId: p.strategyId, symbol: p.symbol, pnlSol: next.pnlSol);
-      }
-      _positions[i] = next;
+      _positions[i] = _runExitPlan(p, p.markPriceUsd * drift, now);
     }
     for (var i = 0; i < _approvals.length; i++) {
       final a = _approvals[i];
@@ -90,6 +78,84 @@ class MockBackend
           });
         return List.unmodifiable(list);
       });
+
+  @override
+  Future<List<PnlPoint>> equityHistory(EquityRange range) async {
+    final now = _clock();
+    final (count, step) = switch (range) {
+      EquityRange.d1 => (24, const Duration(hours: 1)),
+      EquityRange.d7 => (7 * 8, const Duration(hours: 3)),
+      EquityRange.d30 => (30, const Duration(days: 1)),
+      EquityRange.all => (60, const Duration(days: 1)),
+    };
+    // Deterministic random walk ending at current equity.
+    final r = Random(range.index + 11);
+    final end = _summary().equitySol;
+    final pts = <double>[end];
+    for (var i = 1; i < count; i++) {
+      pts.add(pts.last - (r.nextDouble() - 0.46) * 0.06);
+    }
+    final ordered = pts.reversed.toList();
+    return [
+      for (var i = 0; i < ordered.length; i++)
+        PnlPoint(now.subtract(step * (ordered.length - 1 - i)), ordered[i]),
+    ];
+  }
+
+  @override
+  Future<double> sellPosition(String positionId, {required double pct}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    final i = _positions.indexWhere((p) => p.id == positionId);
+    if (i < 0) throw StateError('Unknown position $positionId');
+    final p = _positions[i];
+    if (!p.isOpen) throw ConflictException('Position already closed');
+    final share = pct.clamp(1, 100).toDouble();
+    final proceeds = p.estimateSellSol(share);
+    final soldNow = (100 - p.soldPct) * share / 100;
+    final full = share >= 100;
+    _positions[i] = p.copyWith(
+      solOut: (p.solOut ?? 0) + proceeds,
+      soldPct: full ? 100 : p.soldPct + soldNow,
+      state: full ? PositionState.closed : null,
+      closedAt: full ? _clock() : null,
+      exitReason: full ? 'You sold 100% manually' : null,
+    );
+    _emitEvent(ActivityKind.sold, Actor.you, '${p.symbol}: you sold ${share.round()}%',
+        strategyId: p.strategyId, symbol: p.symbol, pnlSol: proceeds - p.solIn * soldNow / 100);
+    _notify();
+    return proceeds;
+  }
+
+  @override
+  Stream<Map<String, String>> watchPushPayloads() => _pushes.stream;
+
+  /// Test hook: synchronous snapshot (avoids awaiting streams in fake-async widget tests).
+  List<Position> get debugPositions => List.unmodifiable(_positions);
+  List<Approval> get debugApprovals => List.unmodifiable(_approvals);
+
+  /// Test hooks: inject fixtures (e.g. Real SOL items, which the Practice seed has none of).
+  void debugAddPosition(Position p) {
+    _positions.add(p);
+    _notify();
+  }
+
+  void debugAddApproval(Approval a) {
+    _approvals.add(a);
+    _notify();
+  }
+
+  /// Test hook: move a position's mark to [changePct] vs entry and run the
+  /// exit plan once (TP rungs → stop loss → trailing → time stop).
+  void debugSetChange(String positionId, double changePct) {
+    final i = _positions.indexWhere((p) => p.id == positionId);
+    final p = _positions[i];
+    _positions[i] = _runExitPlan(p, p.entryPriceUsd * (1 + changePct / 100), _clock());
+    _notify();
+  }
+
+  void _push(Map<String, String> data) {
+    if (!_pushes.isClosed) _pushes.add({'v': '1', ...data});
+  }
 
   @override
   Stream<List<ActivityEvent>> watchFeed({String? strategyId}) => _watch(() => List.unmodifiable(
@@ -189,20 +255,110 @@ class MockBackend
     if (_events.length > 500) _events.removeAt(0);
   }
 
+  static ExitPlanState planFor(String name, DateTime openedAt) => switch (name) {
+        'scalp' => ExitPlanState(
+            name: 'Quick scalp',
+            stopLossPct: -15,
+            trailPct: 10,
+            rungs: const [TpRung(gainPct: 20, sellPct: 50), TpRung(gainPct: 45, sellPct: 50)],
+            timeStopAt: openedAt.add(const Duration(minutes: 5)),
+          ),
+        _ => ExitPlanState(
+            name: 'Ladder 3-rung',
+            stopLossPct: -35,
+            trailPct: 20,
+            rungs: const [
+              TpRung(gainPct: 50, sellPct: 33),
+              TpRung(gainPct: 100, sellPct: 33),
+              TpRung(gainPct: 200, sellPct: 34),
+            ],
+            timeStopAt: openedAt.add(const Duration(minutes: 30)),
+          ),
+      };
+
+  /// Applies mark → TP rungs → trailing → stop loss, in that order.
+  Position _runExitPlan(Position p, double mark, DateTime now) {
+    var next = p.copyWith(markPriceUsd: mark, peakPriceUsd: max(p.peakPriceUsd, mark));
+    final plan = next.exitPlan;
+    if (plan == null) return next;
+    final mode = p.mode == TradeMode.real ? 'real' : 'practice';
+    // Take-profit rungs.
+    final rungs = [...plan.rungs];
+    for (var r = 0; r < rungs.length; r++) {
+      final rung = rungs[r];
+      if (rung.filled || next.changePct < rung.gainPct) continue;
+      final sellOfOriginal = min(rung.sellPct, 100 - next.soldPct);
+      final proceeds = p.solIn * sellOfOriginal / 100 * mark / p.entryPriceUsd * (1 - p.feeBps / 10000);
+      rungs[r] = rung.fill(now);
+      next = next.copyWith(
+        solOut: (next.solOut ?? 0) + proceeds,
+        soldPct: next.soldPct + sellOfOriginal,
+        exitPlan: plan.copyWith(rungs: rungs, trailArmed: true),
+      );
+      final msg = 'Took profit: ${sellOfOriginal.round()}% at +${rung.gainPct.round()}%';
+      _emitEvent(ActivityKind.sold, Actor.exit, '${p.symbol}: $msg',
+          strategyId: p.strategyId, symbol: p.symbol, pnlSol: proceeds - p.solIn * sellOfOriginal / 100);
+      _push({
+        'event': 'N-08', 'mode': mode, 'position_id': p.id, 'coin': '\$${p.symbol}',
+        'pct_sold': '${sellOfOriginal.round()}', 'pct': '${rung.gainPct.round()}',
+        'pnl': (proceeds - p.solIn * sellOfOriginal / 100).toStringAsFixed(4),
+      });
+    }
+    String? stop;
+    final armed = next.exitPlan!.trailArmed;
+    if (next.soldPct >= 100) {
+      stop = 'Exit plan complete';
+    } else if (next.changePct <= plan.stopLossPct) {
+      stop = 'Stop loss ${plan.stopLossPct.round()}%';
+    } else if (armed && next.fromPeakPct >= plan.trailPct) {
+      stop = 'Trailing stop: ${plan.trailPct.round()}% below the high';
+    } else if (plan.timeStopAt != null && !now.isBefore(plan.timeStopAt!) && next.exitPlan!.filledCount == 0) {
+      stop = 'Time stop: no TP by ${plan.timeStopAt!.difference(p.openedAt).inMinutes} min';
+    }
+    if (stop != null) {
+      final rest = 100 - next.soldPct;
+      final proceeds = p.solIn * rest / 100 * mark / p.entryPriceUsd * (1 - p.feeBps / 10000);
+      next = next.copyWith(
+        state: PositionState.closed,
+        solOut: (next.solOut ?? 0) + proceeds,
+        soldPct: 100,
+        closedAt: now,
+        exitReason: stop,
+      );
+      _emitEvent(ActivityKind.sold, Actor.exit, '${p.symbol}: $stop',
+          strategyId: p.strategyId, symbol: p.symbol, pnlSol: next.pnlSol);
+      if (rest > 0) {
+        _push({
+          'event': 'N-09', 'mode': mode, 'position_id': p.id, 'coin': '\$${p.symbol}',
+          'stop_type': stop, 'pnl': next.pnlSol.toStringAsFixed(4), 'pct': next.pnlPct.toStringAsFixed(1),
+        });
+      }
+    }
+    return next;
+  }
+
   PortfolioSummary _summary() {
-    final realized = _positions
-        .where((p) => p.state == PositionState.closed)
-        .fold<double>(0, (s, p) => s + p.pnlSol);
-    final open = _positions.where((p) => p.state == PositionState.open);
-    final unrealized = open.fold<double>(0, (s, p) => s + p.pnlSol);
-    final locked = open.fold<double>(0, (s, p) => s + p.solIn);
+    var cost = 0.0, proceeds = 0.0, remainderValue = 0.0, remainderCost = 0.0, soldCost = 0.0;
+    var open = 0;
+    for (final p in _positions) {
+      cost += p.solIn;
+      proceeds += p.solOut ?? 0;
+      if (p.isOpen) {
+        open++;
+        remainderValue += p.sizeSol * p.markPriceUsd / p.entryPriceUsd;
+        remainderCost += p.sizeSol;
+        soldCost += p.solIn - p.sizeSol;
+      } else {
+        soldCost += p.solIn;
+      }
+    }
     return PortfolioSummary(
       mode: TradeMode.practice,
-      cashSol: startSol + realized - locked,
+      cashSol: startSol - cost + proceeds,
       startSol: startSol,
-      realizedPnlSol: realized,
-      unrealizedPnlSol: unrealized,
-      openPositions: open.length,
+      realizedPnlSol: proceeds - soldCost,
+      unrealizedPnlSol: remainderValue - remainderCost,
+      openPositions: open,
       history: List.unmodifiable(_history),
     );
   }
@@ -224,17 +380,32 @@ class MockBackend
         strategyId: s.id, symbol: sym);
     _emitEvent(ActivityKind.proposal, Actor.entry, '$sym waiting for your approval',
         strategyId: s.id, symbol: sym);
+    final id = _id('apv_');
+    final pickType = _rng.nextBool() ? PickType.firstBuy : PickType.buy;
+    final token = 'tok_${_fakeMint().substring(0, 16)}';
+    final exp = now.add(const Duration(minutes: 10));
+    _push({
+      'event': pickType == PickType.firstBuy ? 'N-01' : 'N-02',
+      'mode': s.mode == TradeMode.real ? 'real' : 'practice',
+      'approval_id': id,
+      'token': token,
+      'exp': '${exp.millisecondsSinceEpoch ~/ 1000}',
+      'coin': '\$$sym',
+      'strategy': s.name,
+      'sol': '${s.tradeSol}',
+      'reason': 'fit $score/70',
+    });
     _approvals.add(Approval(
-      id: _id('apv_'),
+      id: id,
       kind: ApprovalKind.buyPick,
       status: ApprovalStatus.pending,
       title: 'Buy $sym',
       detail: '${s.name} · fit $score/70 · guard ${6 + _rng.nextInt(3)}/8 · mcap \$${(40 + _rng.nextInt(400))}k',
-      pickType: _rng.nextBool() ? PickType.firstBuy : PickType.buy,
+      pickType: pickType,
       mode: s.mode,
       createdAt: now,
-      expiresAt: now.add(const Duration(minutes: 10)),
-      token: 'tok_${_fakeMint().substring(0, 16)}',
+      expiresAt: exp,
+      token: token,
       strategyId: s.id,
       amountSol: s.tradeSol,
     ));
@@ -246,8 +417,17 @@ class MockBackend
       case ApprovalKind.buyPick:
         if (approve) {
           final price = 0.0001 + _rng.nextDouble() * 0.001;
+          final stg = _strategies.where((s) => s.id == a.strategyId).firstOrNull;
+          final opened = _clock();
+          final pid = '${_id('ck')}.0';
+          _push({
+            'event': 'N-04', 'mode': a.mode == TradeMode.real ? 'real' : 'practice', 'position_id': pid,
+            'coin': '\$$sym', 'sol': '${a.amountSol ?? 0.25}', 'price': price.toStringAsPrecision(3),
+            'exit_plan': stg == null ? 'ladder' : planFor(stg.exitPlan, opened).name,
+          });
           _positions.add(Position(
-            id: '${_id('ck')}.0',
+            id: pid,
+            exitPlan: planFor(stg?.exitPlan ?? 'ladder', opened),
             strategyId: a.strategyId!,
             symbol: sym,
             mint: _fakeMint(),
@@ -257,7 +437,7 @@ class MockBackend
             entryPriceUsd: price,
             markPriceUsd: price,
             peakPriceUsd: price,
-            openedAt: _clock(),
+            openedAt: opened,
           ));
           _emitEvent(ActivityKind.bought, Actor.executor, 'Bought $sym for ${a.amountSol} SOL',
               strategyId: a.strategyId, symbol: sym);
@@ -322,21 +502,43 @@ class MockBackend
           realizedPnlSol: 0,
           approvalMode: ApprovalMode.askEveryBuy),
     ]);
-    for (var i = 0; i < 4; i++) {
+    // Seeds mirror wireframe 12: one with TP1 filled + trail armed, one red
+    // near SL, one green before TP1, one fresh scalp.
+    const seeds = [
+      // symbol, strategy, plan, solIn, change%, peak%, minutesAgo, tp1Filled
+      ('GLOW', 'stg_pullback', 'ladder', 0.36, 68.0, 74.0, 26, true),
+      ('MOTH', 'stg_pullback', 'ladder', 0.25, -9.5, 4.0, 19, false),
+      ('TUSK', 'stg_newpairs', 'scalp', 0.20, 12.0, 14.0, 2, false),
+      ('ORBI', 'stg_pullback', 'ladder', 0.25, 31.0, 33.0, 8, false),
+    ];
+    for (var i = 0; i < seeds.length; i++) {
+      final (sym, stg, plan, solIn, chg, peak, ago, tp1) = seeds[i];
       final price = 0.0002 + _rng.nextDouble() * 0.0008;
-      final mark = price * (0.85 + _rng.nextDouble() * 0.4);
+      final opened = now.subtract(Duration(minutes: ago));
+      var ep = planFor(plan, opened);
+      var soldPct = 0.0;
+      double? solOut;
+      if (tp1) {
+        final r0 = ep.rungs.first;
+        ep = ep.copyWith(rungs: [r0.fill(opened.add(const Duration(minutes: 9))), ...ep.rungs.skip(1)], trailArmed: true);
+        soldPct = r0.sellPct;
+        solOut = solIn * r0.sellPct / 100 * (1 + r0.gainPct / 100) * 0.9875;
+      }
       _positions.add(Position(
         id: 'ck${100 + i}.0',
-        strategyId: i.isEven ? 'stg_pullback' : 'stg_newpairs',
-        symbol: _symbols[i],
+        strategyId: stg,
+        symbol: sym,
         mint: _fakeMint(),
         mode: TradeMode.practice,
         state: PositionState.open,
-        solIn: 0.25,
+        solIn: solIn,
         entryPriceUsd: price,
-        markPriceUsd: mark,
-        peakPriceUsd: max(price, mark),
-        openedAt: now.subtract(Duration(minutes: 5 + i * 7)),
+        markPriceUsd: price * (1 + chg / 100),
+        peakPriceUsd: price * (1 + peak / 100),
+        openedAt: opened,
+        exitPlan: ep,
+        soldPct: soldPct,
+        solOut: solOut,
       ));
     }
     _positions.add(Position(

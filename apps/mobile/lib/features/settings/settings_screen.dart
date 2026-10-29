@@ -29,6 +29,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.go('/positions'),
         ),
+        ListTile(
+          key: const Key('moreNotifications'),
+          leading: const Icon(Icons.notifications_outlined),
+          title: const Text('Notifikasi'),
+          subtitle: const Text('Bahasa ID/EN, notifikasi diterima, katalog 17 event'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.go('/more/notifications'),
+        ),
         const _Header('Notifications'),
         SwitchListTile(
           title: const Text('Buy picks waiting for approval'),
