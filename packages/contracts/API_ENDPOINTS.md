@@ -123,8 +123,27 @@ match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `fro
 
 ## 4. Endpoints
 
-### 4.1 Auth (Supabase Auth + Edge Functions; public unless noted)
+### 4.1 Auth (public unless noted)
+
+**MVP (Boss, 2026-10-29): private single-owner app, wallet login only (SIWS / Phantom).** Implemented by the API
+(`services/backend/api/src/routes_auth.ts`, migration `0011_siws_sessions.sql`):
+
 | Method | Path | Notes |
+|---|---|---|
+| POST | `/v1/auth/siws/nonce` | Body `{address, domain, uri?, chain_id?: "solana:mainnet"}` -> `200 {data: {nonce, message, issued_at, expires_at}}`. `domain` must be in `AUTH_SIWS_DOMAINS` and equal the `Origin` host when one is sent; `uri` https on that domain (default `https://{domain}`). 32-char alnum nonce, **5 min, single-use, bound to domain + address** (`siws_nonces`). `OWNER_WALLETS` set and address not in it -> `403 FORBIDDEN_ROLE {reason: "wallet_not_allowed"}`. Limits 10/min/IP, 5/min/address -> `429 RATE_LIMITED {retry_after_s, limit, window_s}` + `Retry-After`. `AUTH_SIWS_DOMAINS` empty -> `503 UNAVAILABLE`. |
+| POST | `/v1/auth/siws/verify` | Body `{address, message (exactly as returned), signature (base58, 64-byte ed25519), client?: web\|mobile\|desktop}`. Strict parse (any extra/changed line -> `401 SIWS_NONCE_INVALID {reason: "message"}`), expiry check, allowlist check, `consume_siws_nonce(nonce, address, domain)` (atomic; then a bad signature still burns it), ed25519 verify over the exact UTF-8 bytes with the address as public key (`401 SIWS_SIGNATURE_INVALID`), `siws_login(address)` (find/create user + `auth_identities(provider='siws')`). -> `200 {data: Session}`. Limits 10/min/IP, 5/min/address. Verification only: the server never holds keys or signs anything. |
+| POST | `/v1/auth/session/refresh` | Body `{refresh_token}` -> `200 {data: Session}` with a NEW refresh token (rotation; same `session_id`). A rotated token presented again revokes the whole session family -> `401 UNAUTHENTICATED {reason: "refresh_reused"}`; revoked/expired/unknown -> `401 {reason: refresh_revoked\|refresh_expired\|refresh_invalid}`. Wallet no longer in `OWNER_WALLETS` -> family revoked, `403 FORBIDDEN_ROLE`. 30/min/IP. |
+| POST | `/v1/auth/session/logout` | Body `{refresh_token}` -> `200 {data: {revoked: true}}` always (revokes the family if it exists). |
+
+`Session = {access_token, token_type: "bearer", expires_in, expires_at, refresh_token ("srt_..."), refresh_expires_in,
+session_id, user_id, address}`. Access token: HS256 with the API's JWT secret, `exp` = `AUTH_ACCESS_TTL_S` (default
+900 s, 60-3600), claims `{iss: "sentra-api", sub, aud, role: "authenticated", app_scopes: ["read","trade"],
+sentra_client, session_id, amr: ["siws"], wallet}`; never `trade:real`. Refresh token: opaque, `AUTH_REFRESH_TTL_S`
+(default 30 d), stored as sha256 only (`auth_refresh_tokens`). Email OTP and Telegram are **dropped from the MVP**:
+their routes answer `404` while `AUTH_EMAIL_OTP_ENABLED` / `AUTH_TELEGRAM_OIDC_ENABLED` are false (default) and
+have no implementation; the rows below are kept as the earlier design.
+
+| Method | Path | Notes (earlier design) |
 |---|---|---|
 | POST | `/auth/siws/nonce` | body `{address, domain, uri, chain_id: "solana:mainnet"}` -> `{nonce, message, issued_at, expires_at}`. Nonce 16-64 alnum, **5 min TTL, single-use, bound to domain + address** (`siws_nonces`). Rate limit 10/min/IP, 5/min/address. |
 | POST | `/auth/siws/verify` | `{address, message, signature (base58 ed25519)}`. Steps: parse SIWS message (domain, address, uri, version 1, chain, nonce, issued-at, expiration); domain must equal the request Origin host allow-list; `consume_siws_nonce(nonce, address, domain)` atomically; verify ed25519 over the exact message bytes; upsert `auth_identities(provider='siws', subject=address)`; mint Supabase session. Errors `SIWS_NONCE_INVALID`, `SIWS_SIGNATURE_INVALID`. |

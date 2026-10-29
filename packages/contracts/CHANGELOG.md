@@ -1,5 +1,13 @@
 # Contracts changelog
 
+## Unreleased: wallet login (backend, additive; no wire-type change)
+
+Private single-owner MVP: SIWS (Phantom) is the only login. New REST routes `POST /v1/auth/siws/nonce`,
+`/v1/auth/siws/verify`, `/v1/auth/session/refresh`, `/v1/auth/session/logout` (API_ENDPOINTS 4.1), optional
+`OWNER_WALLETS` allowlist, short-lived access tokens + rotating refresh tokens with reuse detection (migration
+`0011_siws_sessions.sql`), per-IP / per-address rate limits (`429 RATE_LIMITED` + `Retry-After`). No new error
+codes. Email OTP and Telegram login are dropped (flags default off, routes 404).
+
 ## 1.1.4 (2026-10-29)
 
 Additive. `CONTRACTS_VERSION` = `1.1.4` (`healthz.contracts_version` too); per-event `version` stays `1`;

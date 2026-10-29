@@ -14,6 +14,7 @@ import { streamEvents } from "./sse.ts";
 import { registerStrategies } from "./routes_strategies.ts";
 import { registerReads } from "./routes_reads.ts";
 import { registerAccount } from "./routes_account.ts";
+import { registerAuth } from "./routes_auth.ts";
 
 export const CONTRACTS_VERSION = "1.1.4";
 /** 1.1.3: closed enum, only with decision=reject (default user_declined, applied in SQL). */
@@ -330,6 +331,7 @@ export function buildRouter(d: Deps): Router {
   registerStrategies(r, d);
   registerReads(r, d);
   registerAccount(r, d);
+  registerAuth(r, d);
 
   // removed in 1.1.2 (moved under the workspace)
   r.add("GET", "/v1/events/stream", async () => {

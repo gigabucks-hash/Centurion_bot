@@ -53,7 +53,7 @@ export interface Harness {
   stop(): Promise<void>;
 }
 
-export async function startHarness(): Promise<Harness> {
+export async function startHarness(env: Record<string, string> = {}): Promise<Harness> {
   const url = resetDatabase();
   const cfg = loadConfig({
     TRADING_MODE: "paper",
@@ -63,6 +63,7 @@ export async function startHarness(): Promise<Harness> {
     SSE_CLOCK_MS: "100",
     SSE_HEARTBEAT_MS: "1000",
     SSE_MEMBER_CHECK_MS: "100",
+    ...env,
   });
   const db = createPool(cfg.databaseUrl);
   const marks = new MarkHub(cfg.databaseUrl, cfg.marksChannel);

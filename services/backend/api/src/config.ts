@@ -17,6 +17,32 @@ export interface Config {
   accountDeletionGraceDays: number;
   /** SSE: how often each stream re-checks workspace membership (ms). */
   sseMemberCheckMs: number;
+  /** SIWS: domains (host[:port]) allowed in the signed message. Empty = SIWS login disabled. */
+  siwsDomains: string[];
+  /** Optional owner allowlist (base58 addresses). Empty = any wallet may sign in. */
+  ownerWallets: string[];
+  /** Session lifetimes: access token (short-lived) and rotating refresh token. */
+  accessTtlS: number;
+  refreshTtlS: number;
+  /** Take the client IP from the first X-Forwarded-For hop (only behind a trusted proxy). */
+  trustProxy: boolean;
+  /** Dropped from the MVP; routes answer 404 while off (default). No implementation behind them. */
+  emailOtpEnabled: boolean;
+  telegramOidcEnabled: boolean;
+}
+
+function flag(env: NodeJS.ProcessEnv, k: string): boolean {
+  const v = (env[k] ?? "").trim().toLowerCase();
+  if (v === "" || v === "false" || v === "0") return false;
+  if (v === "true" || v === "1") return true;
+  throw new ConfigError(`${k} must be true or false`);
+}
+
+const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+function list(env: NodeJS.ProcessEnv, k: string, re: RegExp): string[] {
+  const xs = (env[k] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  for (const x of xs) if (!re.test(x)) throw new ConfigError(`${k}: invalid entry ${JSON.stringify(x.slice(0, 64))}`);
+  return xs;
 }
 
 export class ConfigError extends Error {}
@@ -57,5 +83,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     marksChannel,
     accountDeletionGraceDays: int(env, "ACCOUNT_DELETION_GRACE_DAYS", 7, 7, 30),
     sseMemberCheckMs: int(env, "SSE_MEMBER_CHECK_MS", 30_000, 50, 600_000),
+    siwsDomains: list(env, "AUTH_SIWS_DOMAINS", /^[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?$/),
+    ownerWallets: list(env, "OWNER_WALLETS", B58),
+    accessTtlS: int(env, "AUTH_ACCESS_TTL_S", 900, 60, 3600),
+    refreshTtlS: int(env, "AUTH_REFRESH_TTL_S", 30 * 86_400, 3600, 90 * 86_400),
+    trustProxy: flag(env, "TRUST_PROXY"),
+    emailOtpEnabled: flag(env, "AUTH_EMAIL_OTP_ENABLED"),
+    telegramOidcEnabled: flag(env, "AUTH_TELEGRAM_OIDC_ENABLED"),
   };
 }
