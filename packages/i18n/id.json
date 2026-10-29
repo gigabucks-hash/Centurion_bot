@@ -397,8 +397,8 @@
       "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} kedaluwarsa"
     },
     "failed": {
-      "body": "{reason}. {mode, select, real {Biaya jaringan mungkin terpakai.} other {Tidak ada SOL terpakai.}}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy {coin} gagal"
+      "body": "{reason_code} · {amount_lamports}. {mode, select, real {Biaya jaringan mungkin terpakai.} other {Tidak ada SOL terpakai.}}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {side, select, sell {Jual} other {Beli}} {symbol} gagal"
     },
     "filled": {
       "body": "{sol} di {price} · exit plan aktif",
@@ -473,6 +473,16 @@
       "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Take profit {coin}"
     }
   },
+  "order": {
+    "fail_reason": {
+      "guard_failed": "Cek guard gagal tepat sebelum order",
+      "insufficient_practice_balance": "Saldo paper SOL tidak cukup",
+      "pool_stale": "Data pool sudah usang; order tidak dikirim",
+      "slippage_exceeded": "Harga bergerak melebihi batas slippage",
+      "unknown": "Order tidak bisa diselesaikan",
+      "unsupported_quote_mint": "Koin ini tidak punya pair SOL, jadi tidak bisa ditradingkan"
+    }
+  },
   "positions": {
     "equity": {
       "hwm": "High-water mark",
@@ -543,6 +553,12 @@
     "why": {
       "first_buy": "Mode approval “Tanya: buy pertama”. Ini buy pertama strategi ini.",
       "title": "Kenapa butuh approval?"
+    }
+  },
+  "screener": {
+    "not_tradeable": {
+      "badge": "Tidak bisa ditradingkan",
+      "detail": "Koin ini tidak punya pair quote SOL. Sentra hanya trading pair SOL, jadi tidak bisa di-approve."
     }
   },
   "settings": {

@@ -397,8 +397,8 @@
       "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} expired"
     },
     "failed": {
-      "body": "{reason}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy {coin} failed"
+      "body": "{reason_code} · {amount_lamports}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {side, select, sell {Sell} other {Buy}} {symbol} failed"
     },
     "filled": {
       "body": "{sol} at {price} · exit plan armed",
@@ -473,6 +473,16 @@
       "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {coin}"
     }
   },
+  "order": {
+    "fail_reason": {
+      "guard_failed": "A guard check failed right before the order",
+      "insufficient_practice_balance": "Not enough paper SOL",
+      "pool_stale": "Pool data was out of date; the order was not sent",
+      "slippage_exceeded": "Price moved more than your slippage limit",
+      "unknown": "The order couldn’t be completed",
+      "unsupported_quote_mint": "This coin has no SOL pair, so it can’t be traded"
+    }
+  },
   "positions": {
     "equity": {
       "hwm": "High-water mark",
@@ -543,6 +553,12 @@
     "why": {
       "first_buy": "Approval mode is “Ask: first buy”. This is the strategy’s first buy.",
       "title": "Why does this need approval?"
+    }
+  },
+  "screener": {
+    "not_tradeable": {
+      "badge": "Not tradeable",
+      "detail": "No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved."
     }
   },
   "settings": {

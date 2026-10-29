@@ -77,13 +77,17 @@
     }
   },
   "N-05": {
-    "type": "— (no wire type in v1.1)",
-    "when": "proposed: order.failed {reason}",
+    "type": "order.failed",
+    "when": "contracts 1.1.2 · reason_code → order.fail_reason.<code lower> (unknown → .unknown) as {reason_code}; amount_lamports → formatLamports; mint = deep link only",
     "title_key": "notif.failed.title",
     "body_key": "notif.failed.body",
     "vars": [
-      "coin",
-      "reason"
+      "symbol",
+      "amount_lamports",
+      "reason_code",
+      "mint",
+      "side",
+      "mode"
     ],
     "push": true,
     "actions": {
@@ -242,7 +246,7 @@
     }
   },
   "N-14": {
-    "type": "— (client; Real disabled until Phase 7)",
+    "type": "— (client-only, confirmed Rev 4.1; Real disabled until Phase 7)",
     "when": "mode switch to Real",
     "title_key": "notif.mode_real.title",
     "body_key": "notif.mode_real.body",
@@ -251,8 +255,8 @@
     "actions": {}
   },
   "N-14b": {
-    "type": "— (client)",
-    "when": "mode switch to Practice",
+    "type": "— (client-only)",
+    "when": "mode switch to Practice; related server event: practice.reset (N-20)",
     "title_key": "notif.mode_practice.title",
     "body_key": "notif.mode_practice.body",
     "vars": [],

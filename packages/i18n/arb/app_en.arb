@@ -1290,26 +1290,32 @@
       }
     }
   },
-  "notifFailedBody": "{reason}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}",
+  "notifFailedBody": "{reason_code} · {amount_lamports}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}",
   "@notifFailedBody": {
     "description": "N-05",
     "placeholders": {
+      "amount_lamports": {
+        "type": "String"
+      },
       "mode": {
         "type": "String"
       },
-      "reason": {
+      "reason_code": {
         "type": "String"
       }
     }
   },
-  "notifFailedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy {coin} failed",
+  "notifFailedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {side, select, sell {Sell} other {Buy}} {symbol} failed",
   "@notifFailedTitle": {
     "description": "N-05; placeholders = push vars (snake_case)",
     "placeholders": {
-      "coin": {
+      "mode": {
         "type": "String"
       },
-      "mode": {
+      "side": {
+        "type": "String"
+      },
+      "symbol": {
         "type": "String"
       }
     }
@@ -1649,6 +1655,30 @@
       }
     }
   },
+  "orderFailReasonGuardFailed": "A guard check failed right before the order",
+  "@orderFailReasonGuardFailed": {
+    "description": "order.failed reason_code=GUARD_FAILED"
+  },
+  "orderFailReasonInsufficientPracticeBalance": "Not enough paper SOL",
+  "@orderFailReasonInsufficientPracticeBalance": {
+    "description": "order.failed reason_code=INSUFFICIENT_PRACTICE_BALANCE"
+  },
+  "orderFailReasonPoolStale": "Pool data was out of date; the order was not sent",
+  "@orderFailReasonPoolStale": {
+    "description": "order.failed reason_code=POOL_STALE"
+  },
+  "orderFailReasonSlippageExceeded": "Price moved more than your slippage limit",
+  "@orderFailReasonSlippageExceeded": {
+    "description": "order.failed reason_code=SLIPPAGE_EXCEEDED"
+  },
+  "orderFailReasonUnknown": "The order couldn’t be completed",
+  "@orderFailReasonUnknown": {
+    "description": "order.failed reason_code=UNKNOWN; fallback for any unknown reason_code"
+  },
+  "orderFailReasonUnsupportedQuoteMint": "This coin has no SOL pair, so it can’t be traded",
+  "@orderFailReasonUnsupportedQuoteMint": {
+    "description": "order.failed reason_code=UNSUPPORTED_QUOTE_MINT"
+  },
   "positionsEquityHwm": "High-water mark",
   "@positionsEquityHwm": {
     "description": "positions.equity.hwm"
@@ -1891,6 +1921,14 @@
   "@queueWhyTitle": {
     "description": "queue.why.title"
   },
+  "screenerNotTradeableBadge": "Not tradeable",
+  "@screenerNotTradeableBadge": {
+    "description": "neutral chip (text.tertiary on surface.sunken), not loss/error red"
+  },
+  "screenerNotTradeableDetail": "No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved.",
+  "@screenerNotTradeableDetail": {
+    "description": "shown instead of Approve/Skip; reason_code UNSUPPORTED_QUOTE_MINT"
+  },
   "settingsAppearanceDensityComfortable": "Comfortable",
   "@settingsAppearanceDensityComfortable": {
     "description": "settings.appearance.density.comfortable"
@@ -1949,7 +1987,7 @@
   },
   "settingsDeleteGrace": "Grace period: {count, plural, one {# day} other {# days}}",
   "@settingsDeleteGrace": {
-    "description": "grace_days from GET /me/deletion (server-side ACCOUNT_DELETION_GRACE_DAYS, default 7, range 1–30 per contracts 1.1.1); read-only, client cannot choose",
+    "description": "grace_days from GET /me/deletion (server-side ACCOUNT_DELETION_GRACE_DAYS, default 7, range 7–30 per Apex Rev 4.1); read-only, client cannot choose",
     "placeholders": {
       "count": {
         "type": "int"
