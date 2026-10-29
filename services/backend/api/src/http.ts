@@ -19,6 +19,7 @@ interface Route {
   re: RegExp;
   keys: string[];
   handler: Handler;
+  pattern: string;
 }
 
 export class Router {
@@ -33,10 +34,10 @@ export class Router {
         }) +
         "\\/?$",
     );
-    this.routes.push({ method, re, keys, handler });
+    this.routes.push({ method, re, keys, handler, pattern });
     return this;
   }
-  match(method: string, path: string): { handler: Handler; params: Record<string, string> } | "method" | undefined {
+  match(method: string, path: string): { handler: Handler; params: Record<string, string>; pattern: string } | "method" | undefined {
     let pathMatched = false;
     for (const r of this.routes) {
       const m = r.re.exec(path);
@@ -45,7 +46,7 @@ export class Router {
       if (r.method !== method) continue;
       const params: Record<string, string> = {};
       r.keys.forEach((k, i) => (params[k] = decodeURIComponent(m[i + 1] ?? "")));
-      return { handler: r.handler, params };
+      return { handler: r.handler, params, pattern: r.pattern };
     }
     return pathMatched ? "method" : undefined;
   }

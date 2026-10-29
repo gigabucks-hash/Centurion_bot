@@ -34,6 +34,11 @@ export interface Config {
   supabaseUrl: string;
   supabaseServiceRoleKey: string;
   telegramOidcEnabled: boolean;
+  /** Write-route limits per minute (per IP, per user, per user-or-IP and route) and the counter store. */
+  rateLimitWriteIpPerMin: number;
+  rateLimitWriteUserPerMin: number;
+  rateLimitWriteRoutePerMin: number;
+  rateLimitStore: "memory" | "postgres";
 }
 
 function flag(env: NodeJS.ProcessEnv, k: string): boolean {
@@ -56,6 +61,12 @@ function userCreate(env: NodeJS.ProcessEnv): Pick<Config, "userCreate" | "supaba
     throw new ConfigError("AUTH_USER_CREATE=direct is for local tests only (NODE_ENV=production)");
   }
   return { userCreate: mode, supabaseUrl: url, supabaseServiceRoleKey: key };
+}
+
+function store(env: NodeJS.ProcessEnv): "memory" | "postgres" {
+  const s = (env.RATE_LIMIT_STORE ?? "memory").trim();
+  if (s !== "memory" && s !== "postgres") throw new ConfigError("RATE_LIMIT_STORE must be memory or postgres");
+  return s;
 }
 
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -111,5 +122,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     emailOtpEnabled: flag(env, "AUTH_EMAIL_OTP_ENABLED"),
     ...userCreate(env),
     telegramOidcEnabled: flag(env, "AUTH_TELEGRAM_OIDC_ENABLED"),
+    rateLimitWriteIpPerMin: int(env, "RATE_LIMIT_WRITE_IP_PER_MIN", 300, 1, 100_000),
+    rateLimitWriteUserPerMin: int(env, "RATE_LIMIT_WRITE_USER_PER_MIN", 120, 1, 100_000),
+    rateLimitWriteRoutePerMin: int(env, "RATE_LIMIT_WRITE_ROUTE_PER_MIN", 60, 1, 100_000),
+    rateLimitStore: store(env),
   };
 }

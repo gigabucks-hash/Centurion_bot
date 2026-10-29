@@ -9,7 +9,7 @@ import { Router, readJson, send, type Ctx } from "./http.ts";
 import type { Deps } from "./deps.ts";
 import { signJwt } from "./jwt.ts";
 import { adminCreateWalletUser } from "./supabase_admin.ts";
-import { RateLimiter, clientIp } from "./ratelimit.ts";
+import { RateLimiter, clientIp, type Limiter } from "./ratelimit.ts";
 import { SIWS_CHAIN, buildMessage, hostOf, isAddress, newNonce, parseMessage, verifySignature } from "./siws.ts";
 
 const NONCE_TTL_MS = 5 * 60_000;
@@ -17,7 +17,7 @@ const CLIENTS = new Set(["web", "mobile", "desktop"]);
 const sha = (s: string) => createHash("sha256").update(s, "utf8").digest();
 const iso = (ms: number) => new Date(ms).toISOString();
 
-export function registerAuth(r: Router, d: Deps, rl: RateLimiter = new RateLimiter()): void {
+export function registerAuth(r: Router, d: Deps, rl: Limiter = d.limiter ?? new RateLimiter()): void {
   const cfg = d.cfg;
   const ip = (ctx: Ctx) => clientIp(ctx.req, cfg.trustProxy);
 
@@ -67,11 +67,11 @@ export function registerAuth(r: Router, d: Deps, rl: RateLimiter = new RateLimit
   // ---- SIWS nonce ---------------------------------------------------------------------------------
   r.add("POST", "/v1/auth/siws/nonce", async (ctx) => {
     enabled();
-    rl.hit(`siws.nonce:ip:${ip(ctx)}`, 10, 60);
+    await rl.hit(`siws.nonce:ip:${ip(ctx)}`, 10, 60);
     const b = await readJson(ctx);
     if (!isAddress(b.address)) throw new ApiError("VALIDATION_FAILED", { field: "address" });
     const address = b.address;
-    rl.hit(`siws.nonce:addr:${address}`, 5, 60);
+    await rl.hit(`siws.nonce:addr:${address}`, 5, 60);
     const domain = checkDomain(ctx, b.domain);
     const chain = b.chain_id ?? SIWS_CHAIN;
     if (chain !== SIWS_CHAIN) throw new ApiError("VALIDATION_FAILED", { field: "chain_id", allowed: [SIWS_CHAIN] });
@@ -96,7 +96,7 @@ export function registerAuth(r: Router, d: Deps, rl: RateLimiter = new RateLimit
   // ---- SIWS verify --------------------------------------------------------------------------------
   r.add("POST", "/v1/auth/siws/verify", async (ctx) => {
     enabled();
-    rl.hit(`siws.verify:ip:${ip(ctx)}`, 10, 60);
+    await rl.hit(`siws.verify:ip:${ip(ctx)}`, 10, 60);
     const b = await readJson(ctx);
     if (!isAddress(b.address)) throw new ApiError("VALIDATION_FAILED", { field: "address" });
     if (typeof b.message !== "string") throw new ApiError("VALIDATION_FAILED", { field: "message" });
@@ -104,7 +104,7 @@ export function registerAuth(r: Router, d: Deps, rl: RateLimiter = new RateLimit
     const client = b.client ?? "web";
     if (typeof client !== "string" || !CLIENTS.has(client)) throw new ApiError("VALIDATION_FAILED", { field: "client", allowed: [...CLIENTS] });
     const address = b.address;
-    rl.hit(`siws.verify:addr:${address}`, 5, 60);
+    await rl.hit(`siws.verify:addr:${address}`, 5, 60);
     const f = parseMessage(b.message);
     if (!f || f.address !== address || f.chain_id !== SIWS_CHAIN || hostOf(f.uri) !== f.domain) {
       throw new ApiError("SIWS_NONCE_INVALID", { reason: "message" });
@@ -138,7 +138,7 @@ export function registerAuth(r: Router, d: Deps, rl: RateLimiter = new RateLimit
 
   // ---- refresh (rotation) -------------------------------------------------------------------------
   r.add("POST", "/v1/auth/session/refresh", async (ctx) => {
-    rl.hit(`session.refresh:ip:${ip(ctx)}`, 30, 60);
+    await rl.hit(`session.refresh:ip:${ip(ctx)}`, 30, 60);
     const b = await readJson(ctx);
     if (typeof b.refresh_token !== "string" || !/^srt_[A-Za-z0-9_-]{43}$/.test(b.refresh_token)) {
       throw new ApiError("UNAUTHENTICATED", { reason: "refresh_invalid" });
@@ -159,7 +159,7 @@ export function registerAuth(r: Router, d: Deps, rl: RateLimiter = new RateLimit
   });
 
   r.add("POST", "/v1/auth/session/logout", async (ctx) => {
-    rl.hit(`session.logout:ip:${ip(ctx)}`, 30, 60);
+    await rl.hit(`session.logout:ip:${ip(ctx)}`, 30, 60);
     const b = await readJson(ctx);
     if (typeof b.refresh_token === "string" && b.refresh_token.length <= 64) {
       await asService(d.db, (c) => c.query("select public.revoke_refresh_family($1, 'logout')", [sha(b.refresh_token as string)]));

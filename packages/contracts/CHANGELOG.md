@@ -2,6 +2,10 @@
 
 ## Unreleased: wallet login (backend, additive; no wire-type change)
 
+- SIWS verify returns `workspace_id`; the first login creates the owner's workspace (idempotent); users are created
+  via the Supabase admin API in production.
+- Rate limits on every write route (per IP, per user, per route), optional Postgres-backed counters (API_ENDPOINTS 2.3).
+
 Private single-owner MVP: SIWS (Phantom) is the only login. New REST routes `POST /v1/auth/siws/nonce`,
 `/v1/auth/siws/verify`, `/v1/auth/session/refresh`, `/v1/auth/session/logout` (API_ENDPOINTS 4.1), optional
 `OWNER_WALLETS` allowlist, short-lived access tokens + rotating refresh tokens with reuse detection (migration

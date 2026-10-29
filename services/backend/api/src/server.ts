@@ -1,17 +1,43 @@
 import { createServer, type Server } from "node:http";
 import { ApiError } from "./errors.ts";
-import { makeCtx, sendError } from "./http.ts";
+import { makeCtx, sendError, type Ctx } from "./http.ts";
 import { buildRouter, type Deps } from "./routes.ts";
+import { bearer, verifyJwt } from "./jwt.ts";
+import { PgRateLimiter, RateLimiter, clientIp, type Limiter } from "./ratelimit.ts";
+
+const WRITES = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/** Verified token subject for rate-limit keys only (an invalid token just means "no user key"). */
+function subjectOf(ctx: Ctx, d: Deps): string | null {
+  try {
+    return verifyJwt(bearer(ctx.req.headers.authorization), d.cfg.jwtSecret, d.cfg.jwtAudience).sub;
+  } catch {
+    return null;
+  }
+}
+
+/** Every write: per IP, per user, and per (user or IP) + route pattern. */
+async function limitWrite(ctx: Ctx, d: Deps, l: Limiter, method: string, pattern: string): Promise<void> {
+  const ip = clientIp(ctx.req, d.cfg.trustProxy);
+  const sub = subjectOf(ctx, d);
+  await l.hit(`w:ip:${ip}`, d.cfg.rateLimitWriteIpPerMin, 60);
+  if (sub) await l.hit(`w:user:${sub}`, d.cfg.rateLimitWriteUserPerMin, 60);
+  await l.hit(`w:route:${method} ${pattern}:${sub ?? ip}`, d.cfg.rateLimitWriteRoutePerMin, 60);
+}
 
 export function createApiServer(d: Deps): Server {
-  const router = buildRouter(d);
+  const limiter = d.limiter ?? (d.cfg.rateLimitStore === "postgres" ? new PgRateLimiter(d.db) : new RateLimiter());
+  const deps: Deps = { ...d, limiter };
+  const router = buildRouter(deps);
   return createServer(async (req, res) => {
     const ctx = makeCtx(req, res);
     try {
-      const m = router.match(req.method ?? "GET", ctx.url.pathname);
+      const method = req.method ?? "GET";
+      const m = router.match(method, ctx.url.pathname);
       if (m === undefined) throw new ApiError("NOT_FOUND");
       if (m === "method") throw new ApiError("VALIDATION_FAILED", { reason: `method ${req.method} not allowed` });
       ctx.params = m.params;
+      if (WRITES.has(method)) await limitWrite(ctx, deps, limiter, method, m.pattern);
       await m.handler(ctx);
     } catch (e) {
       if (e instanceof ApiError) {

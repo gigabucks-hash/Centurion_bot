@@ -116,6 +116,16 @@ Service-only (API / workers, never clients): `issue_approval_token`, `request_ac
 `cancel_account_deletion`, `finalize_account_deletion`, `unlink_identity`, `complete_order_fill`, `fail_order`,
 `revoke_device_token`, `expire_proposal`. These take an explicit `p_user` because the API has already verified it.
 
+## 2.3 Rate limits (all write routes)
+
+Every `POST`/`PUT`/`PATCH`/`DELETE` counts against three fixed 60 s windows: per client IP
+(`RATE_LIMIT_WRITE_IP_PER_MIN`, default 300), per verified user (`RATE_LIMIT_WRITE_USER_PER_MIN`, 120) and per
+user-or-IP + route pattern (`RATE_LIMIT_WRITE_ROUTE_PER_MIN`, 60). Over any of them -> `429 RATE_LIMITED
+{retry_after_s, limit, window_s}` + `Retry-After` (seconds). Reads are not write-limited. The client IP is the socket
+address, or the first `X-Forwarded-For` hop only with `TRUST_PROXY=true`. `RATE_LIMIT_STORE=postgres` keeps the
+counters in `rate_limit_counters` (`rate_limit_hit`, service role only) so limits hold across API instances;
+`memory` (default) is per instance. Auth routes add their own limits (4.1).
+
 ## 3. Pagination and filters
 Lists: keyset `?cursor=&limit<=100` (default 50), newest first by `(created_at, id)`; `next_cursor` is opaque (base64url of the microsecond timestamp + id), `null` on the last page; a malformed cursor or one from another list -> `400 CURSOR_INVALID`. Implemented for positions, strategies, strategy revisions (by `rev`), coins (by last pick), picks, fills, guard-changes, audit-log (also `before_id`), practice resets, devices and approvals (`status=pending` pages soonest `expires_at` first; other filters newest `created_at` first). Events: seq cursors
 (`after_seq`, `before_seq`; int64 **strings**, as are `next_after_seq`, `next_before_seq`, `safe_seq`). Common filters, parsed by one function and reused by stats so numbers
