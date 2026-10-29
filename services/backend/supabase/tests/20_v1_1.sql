@@ -24,6 +24,12 @@ begin
   raise exception 'EXPECTED FAILURE DID NOT HAPPEN: %', label;
 end $$;
 
+-- act as a signed-in user (JWT sub + sentra_client claim), or as the service (no JWT)
+create or replace function pg_temp.as_user(u text, client text default 'web') returns void language sql as $$
+  select set_config('request.jwt.claim.sub', coalesce(u, ''), false),
+         set_config('request.jwt.claims', case when u is null then '' else json_build_object('sub', u, 'sentra_client', client)::text end, false);
+$$;
+
 -- ---------------- 1. rev + 409 conflict contract ----------------
 insert into public.strategies (id, workspace_id, name, status, settings) values
   ('20000000-0000-0000-0000-0000000000f1', '10000000-0000-0000-0000-00000000000a', 'C1', 'running', '{"peak_trail_pct":15}');
@@ -32,8 +38,10 @@ declare r jsonb; d jsonb; base int; ch uuid;
 begin
   base := (select rev from public.strategies where id = '20000000-0000-0000-0000-0000000000f1');
   -- user A (mobile) edits at base
-  r := public.update_strategy('20000000-0000-0000-0000-0000000000f1', base, '{"peak_trail_pct":20}', null, null,
-                              '00000000-0000-0000-0000-00000000000a', 'mobile', 'iPhone15,2');
+  perform pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'mobile');
+  r := public.update_strategy('20000000-0000-0000-0000-0000000000f1', base, '{"peak_trail_pct":20}', null, null, 'iPhone15,2');
+  assert (select changed_by from public.strategy_revisions where strategy_id = '20000000-0000-0000-0000-0000000000f1' and rev = base + 1)
+         = '00000000-0000-0000-0000-00000000000a', 'actor from JWT';
   assert (r->>'rev')::int = base + 1, 'rev bumped';
   assert r ? 'server_now', 'server_now';
   assert exists (select 1 from public.events where strategy_id = '20000000-0000-0000-0000-0000000000f1'
@@ -58,15 +66,20 @@ begin
   insert into public.confirmation_challenges (user_id, action, target, payload_hash, challenge)
   values ('00000000-0000-0000-0000-00000000000a', 'guard.weaken', 'strategy:c1', digest('d', 'sha256'), gen_random_bytes(32))
   returning id into ch;
-  r := public.update_strategy('20000000-0000-0000-0000-0000000000f1', base, '{"peak_trail_pct":40}', null, null,
-                              '00000000-0000-0000-0000-00000000000a', 'web', null, ch);
-  assert r->>'error' = 'CONFIRMATION_RESTART_REQUIRED', 'restart required';
-  assert (r->>'current_rev')::int = base + 2, 'restart body has current_rev';
+  perform pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'web');
+  r := public.update_strategy('20000000-0000-0000-0000-0000000000f1', base, '{"peak_trail_pct":40}', null, null, null, ch);
+  assert r->'error'->>'code' = 'CONFIRMATION_RESTART_REQUIRED' and r->'error' ? 'message' and r->'error' ? 'current_rev' and r->'error' ? 'server_now', format('restart required body is an object: %s', r);
+  assert (r->'error'->>'current_rev')::int = base + 2, 'restart body has current_rev';
   assert (select used_at is not null from public.confirmation_challenges where id = ch), 'challenge burned';
   assert (select settings->>'peak_trail_pct' from public.strategies where id = '20000000-0000-0000-0000-0000000000f1') = '20', 'not applied';
   -- null removes a key
   r := public.update_strategy('20000000-0000-0000-0000-0000000000f1', base + 2, '{"peak_trail_pct":null}');
   assert not (r->'settings' ? 'peak_trail_pct'), 'null removes key';
+  -- user B (not a member of ws A) cannot write it
+  perform pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'web');
+  perform pg_temp.expect_code(format($q$select public.update_strategy('20000000-0000-0000-0000-0000000000f1', %s, '{}')$q$, base + 3),
+                              'FORBIDDEN_ROLE', 'non-member write');
+  perform pg_temp.as_user(null);
 end $$;
 select pg_temp.expect_code($$select public.set_strategy_status('20000000-0000-0000-0000-0000000000f1', 'archived', 99)$$,
                            'STRATEGY_REV_CONFLICT', 'stale status');
@@ -105,7 +118,8 @@ declare r jsonb; d jsonb; ep int; n_open int;
 begin
   ep := (select practice_epoch from public.workspaces where id = '10000000-0000-0000-0000-00000000000a');
   n_open := (select count(*) from public.positions where workspace_id = '10000000-0000-0000-0000-00000000000a' and status = 'open');
-  r := public.reset_practice('10000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000a', 'web');
+  perform pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'web');
+  r := public.reset_practice('10000000-0000-0000-0000-00000000000a');
   assert (r->>'epoch')::int = ep + 1, 'epoch bumped';
   assert r->>'starting_balance_lamports' = '30000000000', '30 SOL as lamport string';
   assert (r->'archived'->>'closed_open_positions')::int = n_open, 'open positions closed';
@@ -118,6 +132,8 @@ begin
   assert exists (select 1 from public.practice_resets where workspace_id = '10000000-0000-0000-0000-00000000000a'), 'reset history';
   d := pg_temp.expect_code($q$select public.reset_practice('10000000-0000-0000-0000-00000000000a')$q$, 'RESET_COOLDOWN', 'second reset within 24 h')::jsonb;
   assert (d->>'next_allowed_at')::timestamptz > now() + interval '23 hours', 'next_allowed_at';
+  assert exists (select 1 from public.audit_log where action = 'practice.reset' and actor_user = '00000000-0000-0000-0000-00000000000a' and actor_via = 'web'), 'reset audited with JWT actor/via';
+  perform pg_temp.as_user(null);
 end $$;
 
 -- ---------------- 4. account deletion ----------------
@@ -185,20 +201,22 @@ end $$;
 do $$
 declare r jsonb;
 begin
-  r := public.register_device('ios-install-0001', 'ios', 'apns', repeat('a', 64), '1.2.0', 'id-ID', '00000000-0000-0000-0000-00000000000a');
+  perform pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'mobile');
+  r := public.register_device('ios-install-0001', 'ios', 'apns', repeat('a', 64), '1.2.0', 'id-ID');
   assert (select count(*) from public.device_tokens where device_id = 'ios-install-0001' and revoked_at is null) = 1, 'registered';
-  r := public.register_device('ios-install-0001', 'ios', 'apns', repeat('b', 64), '1.2.1', 'en-US', '00000000-0000-0000-0000-00000000000a');
+  r := public.register_device('ios-install-0001', 'ios', 'apns', repeat('b', 64), '1.2.1', 'en-US');
   assert (select count(*) from public.device_tokens where device_id = 'ios-install-0001' and revoked_at is null) = 1, 'rotation keeps one row';
   assert (select token from public.device_tokens where device_id = 'ios-install-0001') = repeat('b', 64), 'rotated token';
   -- same token now registered by user B -> moves to B
-  r := public.register_device('ios-install-0002', 'ios', 'apns', repeat('b', 64), '1.2.1', 'en-US', '00000000-0000-0000-0000-00000000000b');
+  perform pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'mobile');
+  r := public.register_device('ios-install-0002', 'ios', 'apns', repeat('b', 64), '1.2.1', 'en-US');
   assert (select count(*) from public.device_tokens where token = repeat('b', 64) and revoked_at is null) = 1, 'token unique';
   assert (select user_id from public.device_tokens where token = repeat('b', 64) and revoked_at is null) = '00000000-0000-0000-0000-00000000000b', 'moved to B';
-  perform pg_temp.expect_code($q$select public.register_device('x', 'ios', 'apns', 'tok', '1.0.0', 'id-ID', '00000000-0000-0000-0000-00000000000a')$q$,
+  perform pg_temp.expect_code($q$select public.register_device('x', 'ios', 'apns', 'tok', '1.0.0', 'id-ID')$q$,
                               'DEVICE_TOKEN_INVALID', 'bad device id');
-  perform pg_temp.expect_code($q$select public.register_device('desk-install-01', 'symbian', 'fcm', repeat('c', 64), '1.0.0', 'id-ID', '00000000-0000-0000-0000-00000000000a')$q$,
+  perform pg_temp.expect_code($q$select public.register_device('desk-install-01', 'symbian', 'fcm', repeat('c', 64), '1.0.0', 'id-ID')$q$,
                               'DEVICE_TOKEN_INVALID', 'bad platform');
-  assert public.revoke_device('ios-install-0002', '00000000-0000-0000-0000-00000000000b'), 'revoked';
+  assert public.revoke_device('ios-install-0002'), 'revoked';
   assert (select revoked_at is not null from public.device_tokens where device_id = 'ios-install-0002'), 'revoked_at';
 end $$;
 

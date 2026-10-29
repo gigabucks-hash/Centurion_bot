@@ -21,6 +21,7 @@ pub struct Stats {
     pub passed: u64,
     pub bought: u64,
     pub trades: u64,
+    pub order_failed: u64,
 }
 
 pub struct Pipeline {
@@ -32,6 +33,8 @@ pub struct Pipeline {
     pub repo: Arc<dyn Repo>,
     pub executor: Arc<dyn Executor>,
     pub demo_buy_sol: f64,
+    /// Workspace practice epoch stamped on position/fill payloads (the DB stamps rows itself).
+    pub practice_epoch: i32,
     pub stats: Stats,
 }
 
@@ -41,7 +44,34 @@ pub enum PipelineError {
     Db(#[from] db::DbError),
 }
 
+fn server_now() -> String {
+    chrono::Utc::now()
+        .format("%Y-%m-%dT%H:%M:%S%.3fZ")
+        .to_string()
+}
+
 impl Pipeline {
+    async fn order_failed(
+        &mut self,
+        ck: &CoinKey,
+        c: &NewCoin,
+        p: papersim::OrderFailed,
+    ) -> Result<(), PipelineError> {
+        self.stats.order_failed += 1;
+        let e = self
+            .event(
+                ck,
+                &c.mint,
+                c.ts + 3,
+                EventKind::OrderFailed,
+                Actor::Executor,
+                serde_json::to_value(&p).unwrap_or_default(),
+            )
+            .with_untrusted_symbol(&c.name, &c.symbol);
+        self.repo.append_event(&e).await?;
+        Ok(())
+    }
+
     fn event(
         &self,
         ck: &CoinKey,
@@ -82,6 +112,9 @@ impl Pipeline {
             name: c.name.clone(),
             symbol: c.symbol.clone(),
             uri: c.uri.clone(),
+            quote_mint: c.quote_mint.clone(),
+            decimals: c.decimals,
+            token_program: c.token_program.clone(),
         };
         self.repo.upsert_coin(&snap).await?;
         let found = self
@@ -91,7 +124,7 @@ impl Pipeline {
                 c.ts,
                 EventKind::CoinDetected,
                 Actor::Ingest,
-                json!({ "mint": c.mint.to_string(), "venue": c.venue, "launchpad": c.launchpad, "creator": c.creator.as_ref().map(|m| m.to_string()) }),
+                json!({ "mint": c.mint.to_string(), "venue": c.venue, "launchpad": c.launchpad, "creator": c.creator.as_ref().map(|m| m.to_string()), "quote_mint": c.quote_mint, "decimals": c.decimals, "token_program": c.token_program }),
             )
             .with_untrusted_symbol(&c.name, &c.symbol);
         self.repo.append_event(&found).await?;
@@ -119,13 +152,17 @@ impl Pipeline {
             pick.stage = PickStage::Rejected;
             self.repo.upsert_pick(&pick).await?;
             let failed: Vec<_> = sr.failed_hard().map(|c| c.reason.clone()).collect();
+            let rejected_by = match &sr.skip_reason {
+                Some(code) => Some(code.clone()),
+                None => failed.first().cloned(),
+            };
             let e = self.event(
                 &ck,
                 &c.mint,
                 c.ts + 1,
                 EventKind::ScreenerScored,
                 Actor::Screener,
-                json!({ "mint": c.mint.to_string(), "passed": false, "summary": sr.summary(), "rejected_by": failed.first(), "failed": failed, "result": sr }),
+                json!({ "mint": c.mint.to_string(), "passed": false, "tradeable": sr.tradeable, "skip_reason": sr.skip_reason, "quote_mint": sr.quote_mint, "summary": sr.summary(), "rejected_by": rejected_by, "failed": failed, "result": sr }),
             );
             self.repo.append_event(&e).await?;
             tracing::debug!(mint = %c.mint, summary = %sr.summary(), "rejected");
@@ -179,16 +216,53 @@ impl Pipeline {
 
         // 3) optional paper demo buy (Phase 2: entry state machine + approvals decide instead)
         if self.demo_buy_sol > 0.0 {
-            if let Some(pool) = c.pool {
-                let order = Order {
-                    side: Side::Buy,
-                    amount_in: self.demo_buy_sol,
-                    max_slippage_bps: 1_500,
-                };
+            let order = Order {
+                side: Side::Buy,
+                amount_in: self.demo_buy_sol,
+                max_slippage_bps: 1_500,
+            };
+            let order_id = format!("{}:buy:0", ck.0);
+            let Some(decimals) = c.decimals else {
+                // decimals come from the mint account only; never assumed
+                let p = papersim::order_failed(
+                    &order_id,
+                    None,
+                    &c.mint.to_string(),
+                    &order,
+                    0,
+                    common::ErrorCode::PoolStale,
+                    "mint decimals unknown (mint account not read)".into(),
+                    c.pool.as_ref(),
+                    c.quote_mint.as_deref(),
+                    server_now(),
+                );
+                self.order_failed(&ck, &c, p).await?;
+                self.repo.upsert_pick(&pick).await?;
+                return Ok(());
+            };
+            let Some(pool) = c.pool else {
+                // no usable pool (non-SOL quote, or not fetched / stale): report, never convert
+                let code = papersim::no_pool_reason(c.quote_mint.as_deref());
+                let p = papersim::order_failed(
+                    &order_id,
+                    None,
+                    &c.mint.to_string(),
+                    &order,
+                    decimals,
+                    code,
+                    "no SOL pool state for this coin".into(),
+                    None,
+                    c.quote_mint.as_deref(),
+                    server_now(),
+                );
+                self.order_failed(&ck, &c, p).await?;
+                self.repo.upsert_pick(&pick).await?;
+                return Ok(());
+            };
+            {
                 match self.executor.execute(&order, &pool).await {
                     Ok(f) => {
-                        // pump-style tokens use 6 decimals; real decimals come from the mint (week 2)
-                        let w = match f.to_wire(6) {
+                        let w = match f.to_wire(decimals) {
                             Ok(w) => w,
                             Err(e) => {
                                 tracing::warn!(mint = %c.mint, error = %e, "fill not representable on the wire");
@@ -221,11 +295,24 @@ impl Pipeline {
                             c.ts + 3,
                             EventKind::PositionOpened,
                             Actor::Executor,
-                            json!({ "position_key": pk.0, "mint": c.mint.to_string(), "fill": w, "first_buy": true }),
+                            json!({ "position_key": pk.0, "rev": 1, "practice_epoch": self.practice_epoch, "mint": c.mint.to_string(), "decimals": decimals, "token_program": c.token_program, "fill": w, "first_buy": true }),
                         );
                         self.repo.append_event(&e).await?;
                     }
-                    Err(err) => tracing::info!(mint = %c.mint, error = %err, "paper buy rejected"),
+                    Err(err) => {
+                        tracing::info!(mint = %c.mint, error = %err, "paper buy rejected");
+                        let p = papersim::order_failed_from(
+                            &order_id,
+                            None,
+                            &c.mint.to_string(),
+                            &order,
+                            decimals,
+                            &pool,
+                            &err,
+                            server_now(),
+                        );
+                        self.order_failed(&ck, &c, p).await?;
+                    }
                 }
             }
         }
@@ -262,6 +349,7 @@ mod tests {
             repo: repo.clone(),
             executor: Arc::new(PaperExecutor::default()),
             demo_buy_sol: 0.25,
+            practice_epoch: 0,
             stats: Stats::default(),
         };
         let (tx, mut rx) = mpsc::channel(64);
@@ -281,7 +369,8 @@ mod tests {
                 blocked: 2,
                 passed: 1,
                 bought: 1,
-                trades: 1
+                trades: 1,
+                order_failed: 0
             }
         );
         let fills = repo.fills().await;
@@ -294,7 +383,151 @@ mod tests {
             let v = serde_json::to_value(&e).expect("ser");
             common::units::assert_wire_numbers(&v);
             assert_eq!(v["mode"], "practice");
-            assert!(v["seq"].is_i64());
+            assert!(
+                v["seq"].as_str().is_some_and(|s| s.parse::<i64>().is_ok()),
+                "seq is an int64 string"
+            );
         }
+    }
+
+    fn pipeline(repo: Arc<MemoryRepo>) -> Pipeline {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+        let rules = RuleSet::from_json(
+            &std::fs::read_to_string(format!("{root}/config/screener.example.json"))
+                .expect("rules"),
+        )
+        .expect("valid");
+        Pipeline {
+            workspace_id: "ws".into(),
+            strategy_id: "s".into(),
+            rules,
+            guard_cfg: GuardConfig::default(),
+            guard_src: Arc::new(StubDataSource::default()),
+            repo,
+            executor: Arc::new(PaperExecutor::default()),
+            demo_buy_sol: 0.25,
+            practice_epoch: 0,
+            stats: Stats::default(),
+        }
+    }
+
+    /// The fixture coin that passes screener + guard and gets the demo buy.
+    fn passing_coin() -> NewCoin {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+        let line = std::fs::read_to_string(format!("{root}/fixtures/sample_stream.jsonl"))
+            .expect("fixture")
+            .lines()
+            .find(|l| {
+                l.contains("MASi45ub7Qe4ZE36UT5G6cU4ud8Fhhe4deS4F3cw9KTA") && l.contains("new_coin")
+            })
+            .expect("line")
+            .to_string();
+        match serde_json::from_str::<IngestEvent>(&line).expect("event") {
+            IngestEvent::NewCoin(c) => *c,
+            _ => panic!("not a coin"),
+        }
+    }
+
+    async fn events_of(repo: &MemoryRepo, kind: &str) -> Vec<serde_json::Value> {
+        repo.all_events()
+            .await
+            .into_iter()
+            .map(|e| serde_json::to_value(&e).expect("ser"))
+            .filter(|v| v["type"] == kind)
+            .collect()
+    }
+
+    const PUMP_QUOTE: &str = "pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn";
+
+    #[tokio::test]
+    async fn non_sol_quote_is_flagged_by_screener_and_never_filled() {
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        let mut c = passing_coin();
+        c.quote_mint = Some(PUMP_QUOTE.into());
+        p.process(IngestEvent::NewCoin(Box::new(c)))
+            .await
+            .expect("process");
+        assert_eq!(p.stats.rejected, 1);
+        assert_eq!(p.stats.bought, 0);
+        assert!(repo.fills().await.is_empty());
+        let s = events_of(&repo, "screener.scored").await;
+        assert_eq!(s.len(), 1);
+        let pl = &s[0]["payload"];
+        assert_eq!(pl["tradeable"], false);
+        assert_eq!(pl["skip_reason"], "UNSUPPORTED_QUOTE_MINT");
+        assert_eq!(pl["rejected_by"], "UNSUPPORTED_QUOTE_MINT");
+        assert_eq!(pl["quote_mint"], PUMP_QUOTE);
+        assert_eq!(pl["result"]["tradeable"], false);
+        let d = events_of(&repo, "coin.detected").await;
+        assert_eq!(d[0]["payload"]["quote_mint"], PUMP_QUOTE);
+    }
+
+    #[tokio::test]
+    async fn rejected_paper_fill_emits_order_failed() {
+        // (1) no pool at all -> POOL_STALE
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        let mut c = passing_coin();
+        c.pool = None;
+        p.process(IngestEvent::NewCoin(Box::new(c)))
+            .await
+            .expect("process");
+        let f = events_of(&repo, "order.failed").await;
+        assert_eq!(f.len(), 1);
+        let pl = &f[0]["payload"];
+        assert_eq!(pl["reason_code"], "POOL_STALE");
+        assert_eq!(pl["side"], "buy");
+        assert_eq!(pl["amount_lamports"], "250000000");
+        assert_eq!(pl["mode"], "practice");
+        assert!(pl["server_now"].is_string());
+        assert!(
+            f[0]["untrusted"]["symbol"].is_string(),
+            "symbol travels as untrusted"
+        );
+        common::units::assert_wire_numbers(&f[0]);
+        assert_eq!(p.stats.order_failed, 1);
+
+        // (2) a pool quoted in another mint reaching the executor -> papersim rejects it
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        let mut c = passing_coin();
+        if let Some(pool) = c.pool.as_mut() {
+            pool.quote = common::QuoteAsset::parse(PUMP_QUOTE).expect("q");
+        }
+        p.process(IngestEvent::NewCoin(Box::new(c)))
+            .await
+            .expect("process");
+        assert!(repo.fills().await.is_empty());
+        let f = events_of(&repo, "order.failed").await;
+        assert_eq!(f[0]["payload"]["reason_code"], "UNSUPPORTED_QUOTE_MINT");
+        assert_eq!(f[0]["payload"]["quote_mint"], PUMP_QUOTE);
+
+        // (3) decimals unknown (mint account not read) -> never assume 6: POOL_STALE, no fill
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        let mut c = passing_coin();
+        c.decimals = None;
+        p.process(IngestEvent::NewCoin(Box::new(c)))
+            .await
+            .expect("process");
+        assert!(repo.fills().await.is_empty());
+        let f = events_of(&repo, "order.failed").await;
+        assert_eq!(f[0]["payload"]["reason_code"], "POOL_STALE");
+    }
+
+    #[tokio::test]
+    async fn coin_detected_carries_decimals_and_token_program() {
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        p.process(IngestEvent::NewCoin(Box::new(passing_coin())))
+            .await
+            .expect("process");
+        let d = events_of(&repo, "coin.detected").await;
+        assert_eq!(d[0]["payload"]["decimals"], 6);
+        assert_eq!(
+            d[0]["payload"]["token_program"],
+            "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        );
     }
 }

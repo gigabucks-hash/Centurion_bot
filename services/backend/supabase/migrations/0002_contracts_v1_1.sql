@@ -116,14 +116,21 @@ $$;
 -- The only write path for strategies (REST PATCH and Flutter RPC). Optimistic: p_expected_rev required.
 -- p_challenge_id: confirmation challenge already issued for this write (Real guard weakening). A stale
 -- write burns it and returns CONFIRMATION_RESTART_REQUIRED: the full confirmation must be redone.
+-- Channel label for audit/revisions: JWT claim for user sessions, 'system' for service/worker calls.
+create or replace function public.request_via()
+returns text language sql stable as $$
+  select case when auth.uid() is null then 'system' else public.request_client()::text end
+$$;
+
+-- Clients send only: p_strategy, p_expected_rev, p_patch, p_name?, p_status?, p_device? (free-form device
+-- label, metadata only), p_challenge_id? (Real confirmation). Actor = auth.uid(); via = request_via().
 create or replace function public.update_strategy(
   p_strategy uuid, p_expected_rev integer, p_patch jsonb default null, p_name text default null,
-  p_status public.strategy_status default null, p_actor uuid default null, p_via text default 'api',
-  p_device text default null, p_challenge_id uuid default null)
+  p_status public.strategy_status default null, p_device text default null, p_challenge_id uuid default null)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   s public.strategies;
-  v_actor uuid := coalesce(auth.uid(), p_actor);
+  v_actor uuid := auth.uid();
   v_settings jsonb;
 begin
   if p_expected_rev is null then
@@ -144,10 +151,12 @@ begin
   if s.rev <> p_expected_rev then
     if p_challenge_id is not null then
       -- burn the challenge and RETURN (not raise): raising would roll the burn back.
-      -- The API maps {"error":"CONFIRMATION_RESTART_REQUIRED"} to HTTP 409 with the same body as a conflict.
+      -- Returned shape = the REST error body: {"error":{"code","message",...conflict details,"server_now"}} -> HTTP 409.
       update public.confirmation_challenges set used_at = coalesce(used_at, now()) where id = p_challenge_id;
-      return jsonb_build_object('error', 'CONFIRMATION_RESTART_REQUIRED', 'server_now', now())
-             || public.strategy_conflict_detail(s, p_expected_rev);
+      return jsonb_build_object('error', jsonb_build_object(
+               'code', 'CONFIRMATION_RESTART_REQUIRED',
+               'message', 'Resource changed under a Real SOL confirmation; the full confirmation must be redone',
+               'server_now', now()) || public.strategy_conflict_detail(s, p_expected_rev));
     end if;
     raise exception using errcode = 'P0409', message = 'STRATEGY_REV_CONFLICT',
       detail = public.strategy_conflict_detail(s, p_expected_rev)::text;
@@ -162,7 +171,7 @@ begin
     v_settings := (v_settings || p_patch) - array(select k from jsonb_each(p_patch) e(k, v) where v = 'null'::jsonb);
   end if;
   perform set_config('sentra.actor', coalesce(v_actor::text, ''), true);
-  perform set_config('sentra.via', coalesce(p_via, ''), true);
+  perform set_config('sentra.via', public.request_via(), true);
   perform set_config('sentra.device', coalesce(p_device, ''), true);
   update public.strategies
      set settings = v_settings, name = coalesce(p_name, name), status = coalesce(p_status, status)
@@ -186,7 +195,7 @@ end $$;
 create or replace function public.set_strategy_status(p_strategy uuid, p_status text, p_expected_rev integer)
 returns jsonb language sql security definer set search_path = public as $$
   select public.update_strategy(p_strategy, p_expected_rev, null, null, p_status::public.strategy_status,
-                                null, 'mobile', null, null)
+                                null, null)
 $$;
 
 -- direct UPDATE from clients would bypass expected_rev: writes go through update_strategy only
@@ -258,17 +267,17 @@ create trigger identities_wallet_role_guard before insert or update of subject, 
 -- 3. Practice reset: archive history by epoch, restore 30 SOL, at most once per 24 h
 -- ---------------------------------------------------------------------------
 alter table public.workspaces add column practice_epoch integer not null default 0 check (practice_epoch >= 0);
-alter table public.workspaces alter column paper_start_lamports set default 30000000000;
-alter table public.positions add column epoch integer not null default 0;
+alter table public.workspaces alter column practice_start_lamports set default 30000000000;
+alter table public.positions add column practice_epoch integer not null default 0;
 alter table public.positions add column archived_at timestamptz;
-alter table public.fills add column epoch integer not null default 0;
-alter table public.portfolio_snapshots add column epoch integer not null default 0;
-create index positions_epoch_idx on public.positions (workspace_id, epoch);
+alter table public.fills add column practice_epoch integer not null default 0;
+alter table public.portfolio_snapshots add column practice_epoch integer not null default 0;
+create index positions_epoch_idx on public.positions (workspace_id, practice_epoch);
 
 create or replace function public.stamp_practice_epoch()
 returns trigger language plpgsql as $$
 begin
-  select practice_epoch into new.epoch from public.workspaces where id = new.workspace_id;
+  select practice_epoch into new.practice_epoch from public.workspaces where id = new.workspace_id;
   return new;
 end $$;
 create trigger positions_epoch before insert on public.positions for each row execute function public.stamp_practice_epoch();
@@ -291,16 +300,17 @@ create index practice_resets_ws_idx on public.practice_resets (workspace_id, cre
 create or replace view public.workspace_equity_latest with (security_invoker = true) as
   select distinct on (s.workspace_id) s.*
     from public.portfolio_snapshots s
-    join public.workspaces w on w.id = s.workspace_id and s.epoch = w.practice_epoch
+    join public.workspaces w on w.id = s.workspace_id and s.practice_epoch = w.practice_epoch
    order by s.workspace_id, s.ts desc, s.id desc;
 create or replace view public.portfolio_latest with (security_invoker = true) as
   select * from public.workspace_equity_latest;
 
-create or replace function public.reset_practice(p_workspace uuid, p_actor uuid default null, p_via text default 'api')
+-- One signature: reset_practice(p_workspace). Actor = auth.uid() (NULL = worker/system).
+create or replace function public.reset_practice(p_workspace uuid)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   w public.workspaces;
-  v_actor uuid := coalesce(auth.uid(), p_actor);
+  v_actor uuid := auth.uid();
   last_at timestamptz;
   t timestamptz := clock_timestamp();
   n_open integer; n_pos integer; n_fills integer; n_snaps integer; n_exp integer := 0;
@@ -338,8 +348,8 @@ begin
   get diagnostics n_open = row_count;
   update public.positions set archived_at = t where workspace_id = p_workspace and archived_at is null;
   get diagnostics n_pos = row_count;
-  select count(*) into n_fills from public.fills where workspace_id = p_workspace and epoch = w.practice_epoch;
-  select count(*) into n_snaps from public.portfolio_snapshots where workspace_id = p_workspace and epoch = w.practice_epoch;
+  select count(*) into n_fills from public.fills where workspace_id = p_workspace and practice_epoch = w.practice_epoch;
+  select count(*) into n_snaps from public.portfolio_snapshots where workspace_id = p_workspace and practice_epoch = w.practice_epoch;
 
   update public.workspaces set practice_epoch = practice_epoch + 1 where id = p_workspace;
   update public.strategies set first_buy_at = null where workspace_id = p_workspace and first_buy_at is not null;
@@ -348,26 +358,26 @@ begin
   insert into public.portfolio_snapshots (workspace_id, ts, cash_lamports, positions_cost_lamports,
       positions_value_lamports, equity_lamports, peak_equity_lamports, drawdown_bps, realized_pnl_lamports,
       unrealized_pnl_lamports, open_positions, as_of_seq)
-  values (p_workspace, t, w.paper_start_lamports, 0, 0, w.paper_start_lamports, w.paper_start_lamports, 0, 0, 0, 0,
+  values (p_workspace, t, w.practice_start_lamports, 0, 0, w.practice_start_lamports, w.practice_start_lamports, 0, 0, 0, 0,
           coalesce((select max(seq) from public.events), 0));
 
   archived := jsonb_build_object('positions', n_pos, 'closed_open_positions', n_open, 'fills', n_fills,
                                  'snapshots', n_snaps, 'expired_proposals', n_exp);
   insert into public.practice_resets (workspace_id, from_epoch, to_epoch, starting_lamports, actor_user, archived, created_at)
-  values (p_workspace, w.practice_epoch, w.practice_epoch + 1, w.paper_start_lamports, v_actor, archived, t);
+  values (p_workspace, w.practice_epoch, w.practice_epoch + 1, w.practice_start_lamports, v_actor, archived, t);
 
   insert into public.events (id, workspace_id, ts, type, actor, payload)
   values (p_workspace::text || ':' || (extract(epoch from t) * 1000)::bigint || ':practice.reset',
           p_workspace, t, 'practice.reset', (case when v_actor is null then 'system' else 'user' end)::public.event_actor,
           jsonb_build_object('epoch', w.practice_epoch + 1, 'previous_epoch', w.practice_epoch,
-                             'starting_balance_lamports', w.paper_start_lamports::text, 'archived', archived,
+                             'starting_balance_lamports', w.practice_start_lamports::text, 'archived', archived,
                              'next_allowed_at', to_char(next_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
                              'at', to_char(t at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')));
   insert into public.audit_log (workspace_id, actor_user, actor_kind, actor_via, action, target_type, target, before, after)
   values (p_workspace, v_actor, (case when v_actor is null then 'system' else 'user' end)::public.event_actor,
-          p_via, 'practice.reset', 'workspace', p_workspace::text,
+          public.request_via(), 'practice.reset', 'workspace', p_workspace::text,
           jsonb_build_object('epoch', w.practice_epoch), jsonb_build_object('epoch', w.practice_epoch + 1) || archived);
-  return jsonb_build_object('epoch', w.practice_epoch + 1, 'starting_balance_lamports', w.paper_start_lamports::text,
+  return jsonb_build_object('epoch', w.practice_epoch + 1, 'starting_balance_lamports', w.practice_start_lamports::text,
                             'archived', archived, 'next_allowed_at', next_at, 'server_now', t);
 end $$;
 
@@ -502,7 +512,7 @@ begin
    where id = p_user and deletion_state = 'pending_deletion' and deletion_scheduled_for > t
   returning * into u;
   if not found then
-    raise exception using errcode = 'P0409', message = 'VALIDATION_FAILED', detail = '{"hint":"no cancellable deletion"}';
+    raise exception using errcode = 'P0422', message = 'VALIDATION_FAILED', detail = '{"hint":"no cancellable deletion"}';
   end if;
   perform public.emit_user_event(p_user, 'account.deletion_cancelled', '{}');
   insert into public.audit_log (actor_user, actor_kind, actor_via, action, target_type, target)
@@ -522,7 +532,7 @@ declare
 begin
   select * into u from public.users where id = p_user for update;
   if not found or u.deletion_state <> 'pending_deletion' or u.deletion_scheduled_for > t then
-    raise exception using errcode = 'P0409', message = 'VALIDATION_FAILED', detail = '{"hint":"not due"}';
+    raise exception using errcode = 'P0422', message = 'VALIDATION_FAILED', detail = '{"hint":"not due"}';
   end if;
   perform set_config('sentra.account_deletion', 'on', true);
   perform set_config('sentra.audit_anonymize', 'on', true);
@@ -597,10 +607,10 @@ create trigger device_tokens_bump_rev before update on public.device_tokens for 
 -- user (shared device, re-login) moves to the caller.
 create or replace function public.register_device(
   p_device_id text, p_platform text, p_provider text, p_token text, p_app_version text,
-  p_locale text default 'id-ID', p_user uuid default null)
+  p_locale text default 'id-ID')
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare
-  v_user uuid := coalesce(auth.uid(), p_user);
+  v_user uuid := auth.uid();
   h bytea := digest(p_token, 'sha256');
   d public.device_tokens;
 begin
@@ -621,15 +631,23 @@ exception when check_violation then
   raise exception using errcode = 'P0422', message = 'DEVICE_TOKEN_INVALID';
 end $$;
 
-create or replace function public.revoke_device(p_device_id text, p_user uuid default null)
+create or replace function public.revoke_device(p_device_id text)
 returns boolean language plpgsql security definer set search_path = public as $$
 declare n integer;
 begin
   update public.device_tokens set revoked_at = now()
-   where user_id = coalesce(auth.uid(), p_user) and device_id = p_device_id and revoked_at is null;
+   where user_id = auth.uid() and device_id = p_device_id and revoked_at is null;
   get diagnostics n = row_count;
   return n > 0;
 end $$;
+
+-- Push worker: revoke a token the provider rejected (FCM UNREGISTERED / APNs 410). Service only.
+create or replace function public.revoke_device_token(p_token_sha256 bytea)
+returns boolean language sql security definer set search_path = public as $$
+  with u as (update public.device_tokens set revoked_at = now()
+              where token_sha256 = p_token_sha256 and revoked_at is null returning 1)
+  select exists (select 1 from u)
+$$;
 
 -- ---------------------------------------------------------------------------
 -- RLS + privileges for the new objects
@@ -659,15 +677,15 @@ begin
     'finalize_account_deletion(uuid)', 'finalize_due_account_deletions()',
     'request_account_deletion(uuid, timestamptz, integer, text, inet)', 'cancel_account_deletion(uuid, text)',
     'unlink_identity(uuid, uuid, timestamptz, text, inet)', 'emit_user_event(uuid, text, jsonb)',
-    'strategy_conflict_detail(public.strategies, integer)'] loop
+    'strategy_conflict_detail(public.strategies, integer)', 'revoke_device_token(bytea)'] loop
     execute format('revoke execute on function public.%s from public, anon, authenticated', f);
     execute format('grant execute on function public.%s to service_role', f);
   end loop;
   -- client-callable (auth.uid() + role checks inside)
   foreach f in array array[
-    'update_strategy(uuid, integer, jsonb, text, public.strategy_status, uuid, text, text, uuid)',
-    'set_strategy_status(uuid, text, integer)', 'reset_practice(uuid, uuid, text)',
-    'register_device(text, text, text, text, text, text, uuid)', 'revoke_device(text, uuid)'] loop
+    'update_strategy(uuid, integer, jsonb, text, public.strategy_status, text, uuid)',
+    'set_strategy_status(uuid, text, integer)', 'reset_practice(uuid)',
+    'register_device(text, text, text, text, text, text)', 'revoke_device(text)'] loop
     execute format('revoke execute on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated, service_role', f);
   end loop;

@@ -11,21 +11,21 @@ Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS type
    with `next_after_seq`, `has_more`, `safe_seq`.
 2. **Realtime transport, is TradeEvent close?** Supabase Realtime `postgres_changes` on `public.events`
    (RLS) + private Broadcast `marks:<ws>:<mode>` for mark price + `clock` heartbeat (15 s); SSE
-   `/v1/events/stream` with `Last-Event-ID` for non-Supabase clients. Your TradeEvent is close: rename to
+   `/v1/workspaces/{ws}/events/stream?mode=&include=marks,clock` (1.1.2) with `Last-Event-ID` for non-Supabase clients. Your TradeEvent is close: rename to
    the envelope `{id, seq, type, version, workspace_id, strategy_id, ck, mint, ts, actor, mode, payload,
-   untrusted, server_now}`. `seq` is monotonic but not gapless; persist only REST/SSE/clock watermarks.
-3. **Units.** Lamports and raw token amounts are integer strings; prices/pcts/scores decimal strings;
-   bps/counts/ms integers. No floats anywhere on the wire (enforced by a Rust end-to-end test).
+   untrusted, server_now}`. `seq` is an int64 **string** (1.1.2), monotonic but not gapless; persist only REST/SSE/clock watermarks.
+3. **Units (v1.1+).** Lamports, raw token amounts and int64 ids (seq) are integer strings; prices are decimal strings;
+   pct/ratio/bps/usd/score are JSON numbers; counts/ms/rev integers (see EVENTS_SCHEMA section 1).
 4. **Funnel.** Precomputed hourly in `strategy_funnel_hourly` from events (detected, screened,
    guard_passed, picked, proposed, approved, opened, closed); `GET .../strategies/{id}/funnel?window=`
    with `1h|24h (default)|7d|30d|all`.
 5. **Exit stats server-side with same filters?** Yes: `GET .../stats/exit-reasons` -> SQL `exit_stats()`, using the
    same filter parser as `/positions` (`mode`, `strategy_id`, `window`/`from`/`to`), so numbers match.
 6. **Approval endpoint.** `POST .../approvals/{id}/decision` with `Idempotency-Key` header +
-   `{decision, token, expected_version, client}`. Server owns `expires_at` (pick 10 min, guard change
+   `{decision, token}` + `If-Match: "<rev>"` (or `expected_rev`); the channel comes from the JWT (1.1.2). Server owns `expires_at` (pick 10 min, guard change
    24 h, team action 1 h; configurable per workspace). Replays return the stored result
    (`replayed: true`); conflicts are `409 VERSION_CONFLICT` / `APPROVAL_ALREADY_DECIDED` /
-   `APPROVAL_EXPIRED` / `STRATEGY_REV_CONFLICT` / `IDEMPOTENCY_KEY_REUSED`.
+   `APPROVAL_EXPIRED` / `STRATEGY_REV_CONFLICT` / `422 IDEMPOTENCY_KEY_REUSED`.
 7. **Single source of truth for cash/equity/drawdown.** `portfolio_snapshots` (written by the worker on
    every fill and every 60 s) and the `portfolio_latest` view; the `portfolio.snapshot` event carries the
    same row incl. `as_of_seq`. Drawdown is integer `drawdown_bps` plus `drawdown_pct` ("8.40").
@@ -36,7 +36,7 @@ Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS type
   returns `503 REPLAY_UNAVAILABLE` when off, and the UI falls back to the estimate. Measured replay:
   50k samples in 172–180 ms CPU (release) plus about 125 ms DB fetch, so under 2 s.
 - **Expiry:** the worker expires proposals; archive/delete expires them in the same transaction
-  (`retire_strategy`). The `proposal.expired` payload is `{proposal_id, kind, version, reason, at}`.
+  (`retire_strategy`). The `proposal.expired` payload is `{proposal_id, kind, rev, reason, at}` (1.1.2: `rev`).
 - **TTLs and clock:** the server owns TTLs (10 min / 24 h). `server_now` is on every REST body plus the
   `X-Server-Now` header, and on every stream payload. Render countdowns with skew correction.
 - **Amounts:** lamport strings.
@@ -118,7 +118,7 @@ Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS type
    `changed_by`, `changed_at`; base via `GET .../revisions/{rev}`), `428 PRECONDITION_REQUIRED`, and
    `409 CONFIRMATION_RESTART_REQUIRED` (re-run the whole Real confirmation).
 3. Approvals: `POST .../approvals/{id}/decision` (not `/decisions`) with `Idempotency-Key`, `token`,
-   `expected_version`; skip = `decision: "reject"`; undo-skip stays client-side (send after the 5 s window);
+   `If-Match: "<rev>"` (1.1.2; `expected_version` is gone); skip = `decision: "reject"`; undo-skip stays client-side (send after the 5 s window);
    cancel a cooldown with `POST .../guard-changes/{id}/cancel`.
 4. Settings model: nested camelCase `StrategySettings` (`sizing.budgetSol`, ...) -> flat snake_case keys from
    `services/backend/config/strategy_settings.schema.json`; SOL as lamport strings (`bankroll_lamports`,
@@ -134,3 +134,14 @@ Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS type
 8. New flows: practice reset (`POST .../practice/reset`, 429 `RESET_COOLDOWN` with `next_allowed_at`,
    `practice.reset` event -> drop cached positions/equity), account deletion (`/me/deletion`), devices
    (`PUT /devices/{device_id}` with `platform: "web"`, `provider: "webpush"`), Telegram OIDC (flag off).
+
+## v1.1.2 changes for `apps/web`
+- `seq`/`next_after_seq`/`safe_seq`/`as_of_seq` are strings: compare with `BigInt`.
+- SSE: `/v1/workspaces/{ws}/events/stream?mode=practice&include=marks,clock`.
+- Errors: details are inside `error` (`error.current_rev`, `error.current`, ...); `error` is always an object.
+- Manual sell: `POST .../positions/{id}/close` with `If-Match: "<position rev>"`, `Idempotency-Key`,
+  `{fraction_bps}`; follow `order.*`/`position.*` events. `sell_pct` is gone.
+- Exit stats rows: `{exit_reason, count, pnl_lamports, avg_pnl_pct, win_rate_pct, avg_hold_s}`.
+- Settings: `exit.stopLossPct` maps to `stop_loss_pct` (from entry); trailing maps to `peak_trail_pct`.
+- Coins/positions carry `decimals` and `token_program`; never assume 6. `practice_epoch` is on workspace,
+  portfolio, positions and fills.

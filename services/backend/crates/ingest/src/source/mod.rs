@@ -39,6 +39,15 @@ pub struct NewCoin {
     /// Pre-computed guard input (replay fixtures only).
     #[serde(default)]
     pub guard: Option<GuardInput>,
+    /// Quote mint of the curve / pool (wSOL mint for SOL). `None` = the source does not know.
+    #[serde(default)]
+    pub quote_mint: Option<String>,
+    /// Mint decimals, read from the mint account. `None` = not read yet (never assumed).
+    #[serde(default)]
+    pub decimals: Option<u8>,
+    /// Owning token program of the mint (SPL Token or Token-2022).
+    #[serde(default)]
+    pub token_program: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

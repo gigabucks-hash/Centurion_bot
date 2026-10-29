@@ -335,3 +335,29 @@ fn walk(v: &serde_json::Value, key: &str) {
         _ => {}
     }
 }
+
+/// serde for `Option<i64>` as an integer string ("123"); also reads a JSON number (older producers).
+pub mod int64_string_opt {
+    use serde::{de, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(v: &Option<i64>, s: S) -> Result<S::Ok, S::Error> {
+        match v {
+            Some(n) => s.serialize_str(&n.to_string()),
+            None => s.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<i64>, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Raw {
+            S(String),
+            N(i64),
+        }
+        match Option::<Raw>::deserialize(d)? {
+            None => Ok(None),
+            Some(Raw::N(n)) => Ok(Some(n)),
+            Some(Raw::S(s)) => s.parse::<i64>().map(Some).map_err(de::Error::custom),
+        }
+    }
+}

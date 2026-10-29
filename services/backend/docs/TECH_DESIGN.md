@@ -226,4 +226,5 @@ Resolved in v1.1 (Apex, 2026-10-29): own vocabulary (CHANGELOG rename table); pe
 JSON numbers, lamports and prices are strings; snake_case everywhere; Flutter owns the Dart error
 generator; practice 30 SOL, reset any time, once per 24 h, history archived.
 
-Still open (Boss): Yellowstone provider; Telegram OIDC security-review sign-off. Deletion grace resolved (Apex): default 7 days, server-side 1–30.
+Still open (Boss): Yellowstone provider; Telegram OIDC security-review sign-off.
+Deletion grace: the 7–30 day range was Apex's decision as lead; the server currently allows 1–30 (default 7), pending Apex's final decision.

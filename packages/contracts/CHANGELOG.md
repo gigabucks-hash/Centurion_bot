@@ -1,10 +1,91 @@
 # Contracts changelog
 
+## 1.1.2 (2026-10-29)
+
+Breaking-but-early corrections from the Flutter (16 items) and Desktop (Q1–Q18) reviews. No producer has shipped
+these payloads yet, so per-event `version` stays `1`. `CONTRACTS_VERSION` = `1.1.2`, `ERROR_CODES_VERSION` = `4`.
+Migrations 0001/0002 were edited in place (never applied outside local test DBs); new objects are in 0003.
+
+### Breaking
+- **seq is an int64 integer string** on the wire: envelope `seq`, `after_seq`, `before_seq`, `next_after_seq`,
+  `next_before_seq`, `safe_seq`, `as_of_seq`, `job_id`, and the SSE `id`. Rust accepts a JSON number on input.
+- **SSE moved** to `GET /v1/workspaces/{ws}/events/stream?mode=` with optional `include=marks,clock`
+  (`event: mark` / `event: clock` frames, same shapes as Broadcast). `/v1/events/stream` is removed.
+- **Approvals use `rev`** (column, payloads, responses). `expected_version` is gone everywhere; send
+  `If-Match: "<rev>"` or `expected_rev` (`p_expected_rev`). Required for every channel, including push.
+- **Actor and channel come from the JWT**: removed `p_actor`, `p_via`, `p_client`, `p_user` from every
+  client RPC (`decide_approval`, `update_strategy`, `reset_practice`, `register_device`, `revoke_device`).
+  `via` = claim `sentra_client` (`web|mobile|desktop|mcp`) or `push` for push-minted tokens. `p_device` stays.
+- `reset_practice(p_workspace uuid)` is the only signature (REST `POST /v1/workspaces/{ws}/practice/reset`).
+  The old "reset as a team_action proposal" text is deleted everywhere.
+- **Errors are always objects**: `{error: {code, message, ...details, server_now}, server_now}`; conflict
+  details moved inside `error`. `CONFIRMATION_RESTART_REQUIRED` is returned by SQL in that exact shape.
+- `IDEMPOTENCY_KEY_REUSED` is HTTP **422** (same key + different body); same key + same body replays the
+  original response with `replayed: true`.
+- **Exit stats** (`exit_stats()` and `/stats/exit-reasons`): one shape
+  `{exit_reason, count, pnl_lamports (string), avg_pnl_pct, win_rate_pct (0-100), avg_hold_s}`. Uses
+  `exit_reason`, not `reason`.
+- Push data: every FCM `data` value is a string (`v`, `seq`, `version` integer strings; `actions`, `vars`
+  JSON strings). `vars.sol` -> `vars.amount_lamports` (integer string); `vars.mm_ss` dropped (countdown =
+  `exp - server_now`). Push carries `version` = approval rev.
+- No `paper` on the wire: `workspaces.paper_start_lamports` -> `practice_start_lamports`;
+  healthz `{mode: "practice", real_enabled: false, ...}`; `MODE_NOT_ALLOWED` message uses practice|real.
+  (`TRADING_MODE=paper` env and the `papersim` crate keep their internal names.)
+- `epoch` columns on positions/fills/portfolio_snapshots renamed `practice_epoch`.
+- `sell_pct` is gone everywhere; manual close uses `fraction_bps`.
+
+### Added
+- **Coin facts (Q1):** `coin.detected` and coins carry `decimals` (integer, read from the mint account;
+  never assumed 6), `token_program`, `quote_mint`. Ingest reads the mint account read-only
+  (`getAccountInfo`); coins whose decimals are unknown are never filled (`order.failed POOL_STALE`).
+- **Quote gate (screener-result extension, no new event):** `ScreenerResult` / `screener.scored` gain
+  `tradeable`, `skip_reason`, `quote_mint`. Pool state is built from the pump.fun bonding-curve account
+  (read-only RPC); a non-SOL quote is `tradeable: false, skip_reason: UNSUPPORTED_QUOTE_MINT` and papersim
+  rejects it; prices are never converted. `PoolState.quote` / `quote_mint` on coin and pool wire types.
+- **Manual close (Q7, Q9/Q16, Q12):** `POST /v1/workspaces/{ws}/positions/{id}/close` / RPC
+  `close_position(p_position_id, p_expected_rev, p_idempotency_key, p_fraction_bps default 10000)`, practice
+  only, If-Match on the position `rev`. Response `{position, order, order_id, fill|null, job_id, status,
+  replayed, server_now}`. Wire types `OrderWire`, `JobWire`, `ClosePositionRequest/Response`. Events
+  `order.submitted`, `order.filled`, then `fill.simulated` + `position.updated|closed (exit_reason manual)`.
+  New codes `POSITION_ALREADY_CLOSED` (409), `INVALID_FRACTION` (422).
+- **`order.failed` (N-05):** `{order_id, proposal_id, mint, side, amount_lamports, reason_code, detail, mode,
+  server_now, ...}` with `reason_code` from errors.json (`SLIPPAGE_EXCEEDED`, `INSUFFICIENT_PRACTICE_BALANCE`,
+  `GUARD_FAILED`, `UNSUPPORTED_QUOTE_MINT`, `POOL_STALE`, ...). Emitted by papersim on every rejected simulated
+  fill and by `fail_order()`. New codes `UNSUPPORTED_QUOTE_MINT`, `SLIPPAGE_EXCEEDED`,
+  `INSUFFICIENT_PRACTICE_BALANCE`, `GUARD_FAILED`, `POOL_STALE`.
+- **Positions carry `rev`** (+1 on every change) and `cost_basis_lamports`; `position.opened|updated|closed`
+  carry `rev`, `position_id`, `practice_epoch`. `position.updated` carries `qty_raw`, `cost_basis_lamports`,
+  `avg_entry_price_sol`, `unrealized_pnl_lamports`, `rev` (Q3).
+- **`practice_epoch` (Q18)** on workspace and portfolio responses, `portfolio.snapshot`, position and fill payloads.
+- `proposal.created` carries `mint`, `symbol` (untrusted text), `price_sol`, `amount_lamports`, `kind`,
+  `expires_at`, `rev` (Q8).
+- `plan_state` has a concrete schema: `PlanState` with a discriminated `PlanStep` union (Q6). No `unknown`
+  remains in the TS wire types (`JsonValue` instead).
+- `FillWire` matches the example: `id`, `practice_epoch`, required `mid_price_sol` (decimal string),
+  `price_impact_bps`, `created_at` (Q2).
+- `proposal.expired` reasons `practice_reset` (from `reset_practice`) and `account_deleted` (from account
+  finalization) are now SQL-tested end to end; canonical reason strings are documented.
+- errors.json v4: every code has `kind` (`error|notice|skip`), `sqlstate` (`P0` + HTTP status: P04xx for 4xx,
+  P0500/P0503 for 5xx) and `messages.en` / `messages.id`. It is the single registry, including
+  `system.notice` codes (`PRACTICE_CASH_INSUFFICIENT`, renamed from the desktop's `PAPER_CASH_INSUFFICIENT`,
+  `JOB_DEAD_LETTERED`, `SOURCE_DEGRADED`). Generators emit `sqlstate()`, `kind()`, `message_en/id()`;
+  `scripts/check_error_codes.py` fails CI if a SQL raise disagrees with errors.json.
+- Settings: `stop_loss_pct` restored (hard stop from **entry**, the meaning of v1.0 `stopLossPct`; 0 or 5-49),
+  separate from `peak_trail_pct` (trail from **peak**). `exit_rules.loss_guards[]` items are defined:
+  `{at_loss_pct 1-99, sell_portion_pct 0.01-100}` (schema, SQL CHECK, TS `LossGuard`) (Q14).
+
+### Removed
+- `TELEGRAM_AUTH_INVALID` (the Login Widget HMAC path is retired; use `AUTH_TG_*`).
+
+### Fixed
+- The v1.0 -> v1.1 table mapped `stopLossPct` -> `peak_trail_pct`. v1.0 `stopLossPct` was a fixed stop from
+  entry (Web: "Hard stop loss from entry"), so it maps to `stop_loss_pct`; `peak_trail_pct` is a separate key.
+
 ## 1.1.1 (2026-10-29)
 
 ### Changed
 - Account deletion grace period: default 7 days, **server-side** setting `ACCOUNT_DELETION_GRACE_DAYS`, allowed
-  range **1–30 days** (was 7–30). `POST /me/deletion` no longer accepts `grace_days` from the client; the
+  range **1–30 days** (was 7–30, Apex's decision as lead; the 1–30 range is pending Apex's final decision). `POST /me/deletion` no longer accepts `grace_days` from the client; the
   value is reported in `GET /me/deletion` and `account.deletion_scheduled {scheduled_for, grace_days}`. Cancel is
   allowed at any time until `scheduled_for`; afterwards credentials are hard-deleted and personal data anonymized,
   `audit_log` is retained (actor ip / user agent / device nulled).
@@ -99,7 +180,7 @@ Breaking pre-release corrections. No producer had shipped v1.0 payloads, so per-
 | `gainPct` | `at_gain_pct` |
 | `sellPct` | `sell_portion_pct` |
 | `pullbackPct` | `giveback_pct` |
-| `stopLossPct` | `peak_trail_pct` |
+| `stopLossPct` | `stop_loss_pct` (fixed stop from entry; corrected in 1.1.2, was wrongly `peak_trail_pct`) |
 | `noTradeSeconds` | `idle_exit_seconds` |
 | `drain` | `sell_pressure_exit` |
 | `sellFloors` | `sell_floors` |

@@ -91,7 +91,7 @@ update public.positions set status = 'closed', closed_at = opened_at + interval 
  where position_key = 'abc123.0';
 do $$ declare r record; begin
   select * into r from public.exit_stats('10000000-0000-0000-0000-00000000000a');
-  assert r.reason = 'profit_target' and r.count = 1 and r.wins = 1 and r.total_pnl_lamports = 50000000 and r.avg_hold_seconds = 90,
+  assert r.exit_reason = 'profit_target' and r.count = 1 and r.win_rate_pct = 100 and r.pnl_lamports = '50000000' and r.avg_hold_s = 90,
     format('exit_stats wrong: %s', r);
 end $$;
 
@@ -112,12 +112,12 @@ do $$ begin
   assert (select equity_lamports from public.workspace_equity_latest where workspace_id = '10000000-0000-0000-0000-00000000000a') = 29950000000;
 end $$;
 
--- ---------------- approvals: version, transitions, retire_strategy, timeout ----------------
-select pg_temp.expect_error($$update public.approvals set status = 'approved', decision = 'approve', decided_at = now() where id = '30000000-0000-0000-0000-00000000000a'$$, 'stale version');
-update public.approvals set status = 'approved', decision = 'approve', decided_at = now(), version = version + 1,
+-- ---------------- approvals: rev, transitions, retire_strategy, timeout ----------------
+select pg_temp.expect_error($$update public.approvals set status = 'approved', decision = 'approve', decided_at = now() where id = '30000000-0000-0000-0000-00000000000a'$$, 'stale rev');
+update public.approvals set status = 'approved', decision = 'approve', decided_at = now(), rev = rev + 1,
        decided_by = '00000000-0000-0000-0000-00000000000a' where id = '30000000-0000-0000-0000-00000000000a';
-select pg_temp.expect_error($$update public.approvals set status = 'rejected', decision = 'reject', version = version + 1 where id = '30000000-0000-0000-0000-00000000000a'$$, 'approved -> rejected');
-select pg_temp.expect_error($$update public.approvals set expires_at = now() + interval '9 days', version = version + 1 where id = '30000000-0000-0000-0000-00000000000b'$$, 'client-moved expires_at');
+select pg_temp.expect_error($$update public.approvals set status = 'rejected', decision = 'reject', rev = rev + 1 where id = '30000000-0000-0000-0000-00000000000a'$$, 'approved -> rejected');
+select pg_temp.expect_error($$update public.approvals set expires_at = now() + interval '9 days', rev = rev + 1 where id = '30000000-0000-0000-0000-00000000000b'$$, 'client-moved expires_at');
 
 -- delete A2: both of its open proposals expire atomically + events emitted
 do $$ declare n int; begin
@@ -200,23 +200,23 @@ select pg_temp.expect_error($$insert into public.events (id, workspace_id, ts, k
 select pg_temp.expect_error($$insert into public.strategies (workspace_id, name) values ('10000000-0000-0000-0000-00000000000b','steal')$$, 'insert into other ws');
 select pg_temp.expect_error($$select public.claim_job('x', array['entry.arm'])$$, 'client claim_job');
 select pg_temp.expect_error($$select public.retire_strategy('20000000-0000-0000-0000-00000000000a','delete',null)$$, 'client retire_strategy');
-select pg_temp.expect_error($$update public.approvals set status = 'rejected', version = version + 1 where id = '30000000-0000-0000-0000-00000000000b'$$, 'client decides approval directly');
+select pg_temp.expect_error($$update public.approvals set status = 'rejected', rev = rev + 1 where id = '30000000-0000-0000-0000-00000000000b'$$, 'client decides approval directly');
 select pg_temp.expect_error($$delete from public.strategies$$, 'client hard delete strategy');
 select pg_temp.expect_error($$select * from public.siws_nonces$$, 'client reads nonces');
 select pg_temp.expect_error($$select * from public.email_otps$$, 'client reads otp hashes');
 select pg_temp.expect_error($$select * from public.approval_tokens$$, 'client reads token hashes');
 select pg_temp.expect_error($$select public.issue_approval_token('30000000-0000-0000-0000-00000000000e','00000000-0000-0000-0000-00000000000a','web')$$, 'client mints token');
 -- decide_approval (same path as REST + Flutter RPC)
-select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e','apt_wrong','approve',1,'web')$$, 'bad token');
-select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e',(select token from tok),'approve',7,'web')$$, 'stale expected_rev');
+select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e','apt_wrong','approve',1)$$, 'bad token');
+select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e',(select token from tok),'approve',7)$$, 'stale expected_rev');
 do $$ declare r jsonb; r2 jsonb; begin
-  r := public.decide_approval('30000000-0000-0000-0000-00000000000e', (select token from tok), 'approve', 1, 'mobile', 'idem-key-0001');
-  assert r ->> 'status' = 'approved' and (r ->> 'version')::int = 2 and not (r ->> 'replayed')::boolean and r ? 'server_now', format('decide %s', r);
-  r2 := public.decide_approval('30000000-0000-0000-0000-00000000000e', (select token from tok), 'approve', 1, 'mobile');
-  assert (r2 ->> 'replayed')::boolean and (r2 ->> 'version')::int = 2, format('replay %s', r2);
+  r := public.decide_approval('30000000-0000-0000-0000-00000000000e', (select token from tok), 'approve', 1, 'idem-key-0001');
+  assert r ->> 'status' = 'approved' and (r ->> 'rev')::int = 2 and not (r ->> 'replayed')::boolean and r ? 'server_now', format('decide %s', r);
+  r2 := public.decide_approval('30000000-0000-0000-0000-00000000000e', (select token from tok), 'approve', 1);
+  assert (r2 ->> 'replayed')::boolean and (r2 ->> 'rev')::int = 2, format('replay %s', r2);
   assert (select count(*) from public.events where type = 'proposal.approved') = 1, 'one approved event only';
 end $$;
-select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e',(select token from tok),'reject',2,'mobile')$$, 'conflicting decision same token');
+select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e',(select token from tok),'reject',2)$$, 'conflicting decision same token');
 -- mode gate: practice visible, nothing real can exist
 do $$ begin assert public.mode_visible('practice') and not public.mode_visible('real'), 'real needs trade:real'; end $$;
 

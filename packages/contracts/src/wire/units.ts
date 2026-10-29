@@ -6,6 +6,8 @@ export type RawQty = string & { readonly __brand?: "RawQty" };
 export type DecimalString = string & { readonly __brand?: "Decimal" };
 /** Percent as decimal string, e.g. "-35" or "12.5". */
 export type PctString = string & { readonly __brand?: "Pct" };
+/** int64 as a base-10 integer string (seq, job ids). JS numbers lose precision above 2^53. */
+export type Int64String = string & { readonly __brand?: "Int64" };
 /** RFC 3339 UTC timestamp with ms, e.g. "2026-10-29T08:42:00.123Z". */
 export type IsoTs = string;
 export type Uuid = string;

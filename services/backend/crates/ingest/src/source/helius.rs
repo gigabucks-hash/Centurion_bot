@@ -29,6 +29,9 @@ use tokio_tungstenite::tungstenite::Message;
 use super::yellowstone::PUMP_FUN_PROGRAM;
 use super::{IngestEvent, NewCoin, SourceError, StreamSource, TradeTick};
 use crate::config::Secret;
+use crate::curve::{
+    fetch_mint, get_account_info_request, AccountFetcher, CurveCache, CurveError, TradeReserves,
+};
 
 pub const DEFAULT_WS_BASE: &str = "wss://mainnet.helius-rpc.com/";
 pub const DEFAULT_RPC_BASE: &str = "https://mainnet.helius-rpc.com/";
@@ -43,6 +46,119 @@ pub struct HeliusSource {
     pub program: String,
     /// Call `getTransaction` for each created coin.
     pub enrich: bool,
+    /// Bonding-curve accounts (pool state + quote mint), refreshed from trades and `getAccountInfo`.
+    pub curves: tokio::sync::Mutex<CurveCache>,
+}
+
+pub const CURVE_CACHE_CAPACITY: usize = 20_000;
+pub const CURVE_CACHE_TTL_MS: i64 = 30_000;
+/// ~60 s of slots: beyond this the cached reserves are re-read even if trades kept arriving.
+pub const CURVE_CACHE_MAX_SLOT_LAG: u64 = 150;
+
+/// Read-only `getAccountInfo` over HTTPS RPC.
+pub struct RpcAccountFetcher {
+    pub url: String,
+    pub http: reqwest::Client,
+}
+
+#[async_trait]
+impl AccountFetcher for RpcAccountFetcher {
+    async fn get_account_info(&self, pubkey: &str) -> Result<String, CurveError> {
+        let r = self
+            .http
+            .post(&self.url)
+            .json(&get_account_info_request(1, pubkey))
+            .timeout(Duration::from_secs(5))
+            .send()
+            .await
+            .map_err(|e| CurveError::Rpc(e.without_url().to_string()))?;
+        r.text()
+            .await
+            .map_err(|e| CurveError::Rpc(e.without_url().to_string()))
+    }
+}
+
+/// Attach curve state to a mapped event: quote mint + SOL pool on create, refreshed pool on trades.
+/// Non-SOL curves get `quote_mint` set and **no pool** (paper mode never converts prices).
+pub async fn attach_curve(
+    cache: &mut CurveCache,
+    fetcher: &dyn AccountFetcher,
+    ev: &CurveEvent,
+    slot: u64,
+    ie: IngestEvent,
+    now: TsMs,
+) -> IngestEvent {
+    cache.on_slot(slot);
+    match (ev, ie) {
+        (
+            CurveEvent::Created {
+                mint,
+                bonding_curve,
+                ..
+            },
+            IngestEvent::NewCoin(mut c),
+        ) => {
+            match cache.get_or_fetch(bonding_curve, mint, fetcher, now).await {
+                Ok(curve) => {
+                    c.quote_mint = curve.quote_mint();
+                    c.pool = curve.pool_state().ok();
+                    if let Err(why) = curve.pool_state() {
+                        tracing::debug!(%mint, ?why, "curve not tradeable in paper mode");
+                    }
+                }
+                Err(e) => tracing::warn!(%mint, error = %e, "bonding curve unavailable"),
+            }
+            match fetch_mint(fetcher, mint).await {
+                Ok(m) => {
+                    c.decimals = Some(m.decimals);
+                    c.token_program = Some(m.token_program);
+                }
+                Err(e) => {
+                    // decimals unknown: never assumed; the coin cannot be filled until they are read
+                    tracing::warn!(%mint, error = %e, "mint account unavailable");
+                    c.pool = None;
+                }
+            }
+            IngestEvent::NewCoin(c)
+        }
+        (
+            CurveEvent::Trade {
+                mint,
+                virtual_sol_reserves,
+                virtual_token_reserves,
+                real_sol_reserves,
+                real_token_reserves,
+                ..
+            },
+            IngestEvent::Trade(mut t),
+        ) => {
+            let applied = cache.apply_trade(
+                mint,
+                TradeReserves {
+                    slot,
+                    virtual_token_reserves: *virtual_token_reserves,
+                    virtual_quote_reserves: *virtual_sol_reserves,
+                    real_token_reserves: *real_token_reserves,
+                    real_quote_reserves: *real_sol_reserves,
+                },
+                now,
+            );
+            let curve = match (applied, cache.curve_for_mint(mint).map(str::to_string)) {
+                (true, Some(pk)) => cache.fresh(&pk, now).cloned(),
+                // missed frames / evicted / stale: re-read the account
+                (false, Some(pk)) => cache.get_or_fetch(&pk, mint, fetcher, now).await.ok(),
+                // curve never seen (coin created before we connected): no pool until a create or lookup
+                (_, None) => None,
+            };
+            t.pool = curve.and_then(|c| c.pool_state().ok());
+            IngestEvent::Trade(t)
+        }
+        (CurveEvent::Completed { mint, .. }, ie) => {
+            cache.mark_complete(mint);
+            ie
+        }
+        (_, ie) => ie,
+    }
 }
 
 impl HeliusSource {
@@ -53,6 +169,11 @@ impl HeliusSource {
             api_key,
             program: PUMP_FUN_PROGRAM.into(),
             enrich: true,
+            curves: tokio::sync::Mutex::new(CurveCache::new(
+                CURVE_CACHE_CAPACITY,
+                CURVE_CACHE_TTL_MS,
+                CURVE_CACHE_MAX_SLOT_LAG,
+            )),
         }
     }
     fn ws_url(&self) -> String {
@@ -118,8 +239,11 @@ pub enum CurveEvent {
         is_buy: bool,
         user: String,
         timestamp: i64,
+        /// Post-trade reserves, in the curve's **quote** units (lamports only for SOL curves).
         virtual_sol_reserves: u64,
         virtual_token_reserves: u64,
+        real_sol_reserves: Option<u64>,
+        real_token_reserves: Option<u64>,
     },
     Completed {
         user: String,
@@ -212,6 +336,8 @@ pub fn decode_event(data: &[u8]) -> Option<CurveEvent> {
             timestamp: r.i64()?,
             virtual_sol_reserves: r.u64()?,
             virtual_token_reserves: r.u64()?,
+            real_sol_reserves: if r.remaining() >= 16 { r.u64() } else { None },
+            real_token_reserves: if r.remaining() >= 8 { r.u64() } else { None },
         });
     }
     if disc == event_discriminator("CompleteEvent") {
@@ -238,6 +364,8 @@ pub fn to_ingest(ev: CurveEvent, now_ms: TsMs) -> Option<IngestEvent> {
             timestamp,
             ..
         } => Some(IngestEvent::NewCoin(Box::new(NewCoin {
+            decimals: None,
+            token_program: None,
             mint: Mint::parse(&mint).ok()?,
             venue: Venue::Curve,
             launchpad: Launchpad::PumpFun,
@@ -252,6 +380,7 @@ pub fn to_ingest(ev: CurveEvent, now_ms: TsMs) -> Option<IngestEvent> {
             pool: None,
             metrics: None,
             guard: None,
+            quote_mint: None,
         }))),
         CurveEvent::Trade {
             mint,
@@ -444,6 +573,7 @@ impl HeliusSource {
         tx: &mpsc::Sender<IngestEvent>,
         shutdown: &mut watch::Receiver<bool>,
         http: &reqwest::Client,
+        fetcher: &dyn AccountFetcher,
     ) -> Exit {
         let (mut ws, _) = match tokio_tungstenite::connect_async(self.ws_url()).await {
             Ok(c) => c,
@@ -473,7 +603,11 @@ impl HeliusSource {
                                 CurveEvent::Created { mint, .. } => Some(mint.clone()),
                                 _ => None,
                             };
-                            if let Some(ie) = to_ingest(ev, now_ms()) {
+                            if let Some(ie) = to_ingest(ev.clone(), now_ms()) {
+                                let ie = {
+                                    let mut cache = self.curves.lock().await;
+                                    attach_curve(&mut cache, fetcher, &ev, batch.slot, ie, now_ms()).await
+                                };
                                 if tx.send(ie).await.is_err() { return Exit::Downstream; }
                             }
                             if let (true, Some(m)) = (self.enrich, created_mint) {
@@ -506,9 +640,13 @@ impl StreamSource for HeliusSource {
         let http = reqwest::Client::builder()
             .build()
             .map_err(|e| SourceError::Decode(e.without_url().to_string()))?;
+        let fetcher = RpcAccountFetcher {
+            url: self.rpc_url(),
+            http: http.clone(),
+        };
         let mut attempt = 0u32;
         loop {
-            match self.session(&tx, &mut shutdown, &http).await {
+            match self.session(&tx, &mut shutdown, &http, &fetcher).await {
                 Exit::Shutdown => return Ok(()),
                 Exit::Downstream => return Err(SourceError::ChannelClosed),
                 Exit::Reconnect(why) => {
@@ -704,6 +842,136 @@ mod tests {
         let mut huge = event_discriminator("CreateEvent").to_vec();
         huge.extend_from_slice(&u32::MAX.to_le_bytes());
         assert!(decode_event(&huge).is_none());
+    }
+
+    struct CurveFixtures;
+    #[async_trait]
+    impl AccountFetcher for CurveFixtures {
+        async fn get_account_info(&self, pk: &str) -> Result<String, CurveError> {
+            let name = match pk {
+                "BDtQDnH38Y3ab97yP9WFSjwZTPawjvTsuGZH779j2efN" => "curve_non_sol_quote",
+                "Eyp21gEasyUn85yrySC13DoXBSRG5sw8vexe7eLcMSoF" => "curve_sol_quote",
+                "McWZrfqAAJXKzjKXDANWaVp52o7xBAfQCzjQHLhinBW" => "mint_non_sol_quote",
+                "Co68LzYNQArj5fmRmh4o2TVeEVx6FfaLiyRgDAjtpump" => "mint_sol_quote",
+                _ => return Err(CurveError::NotFound),
+            };
+            Ok(mainnet(&format!("{name}.{CAPTURE}.json")))
+        }
+    }
+
+    #[tokio::test]
+    async fn mainnet_create_gets_quote_mint_and_no_pool_for_non_sol_curve() {
+        let b = parse_logs_notification(&mainnet(&format!("logs_create.{CAPTURE}.json")))
+            .expect("batch");
+        let mut cache = CurveCache::new(16, 30_000, 150);
+        let ev = b.events[0].clone();
+        let ie = to_ingest(ev.clone(), 0).expect("ingest");
+        let IngestEvent::NewCoin(c) =
+            attach_curve(&mut cache, &CurveFixtures, &ev, b.slot, ie, 0).await
+        else {
+            panic!("coin")
+        };
+        assert_eq!(
+            c.quote_mint.as_deref(),
+            Some("pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn")
+        );
+        assert!(c.pool.is_none(), "non-SOL curve never becomes a SOL pool");
+        assert_eq!(c.decimals, Some(6), "decimals from the mint account");
+        assert_eq!(
+            c.token_program.as_deref(),
+            Some(crate::curve::TOKEN_2022_PROGRAM)
+        );
+        assert_eq!(
+            cache.curve_for_mint("McWZrfqAAJXKzjKXDANWaVp52o7xBAfQCzjQHLhinBW"),
+            Some("BDtQDnH38Y3ab97yP9WFSjwZTPawjvTsuGZH779j2efN")
+        );
+    }
+
+    #[tokio::test]
+    async fn mainnet_trade_uses_cached_sol_curve_or_falls_back() {
+        let b = parse_logs_notification(&mainnet(&format!("logs_trade.{CAPTURE}.json")))
+            .expect("batch");
+        let ev = b.events[0].clone();
+        let mut cache = CurveCache::new(16, 30_000, 150_000);
+        // unknown curve: no pool, no guessing
+        let IngestEvent::Trade(t) = attach_curve(
+            &mut cache,
+            &CurveFixtures,
+            &ev,
+            b.slot,
+            to_ingest(ev.clone(), 0).expect("i"),
+            0,
+        )
+        .await
+        else {
+            panic!("trade")
+        };
+        assert!(t.pool.is_none());
+        // curve learned (e.g. from its create / a lookup) at a later slot than this frame:
+        // the older trade is not applied and the cached account state is used instead
+        cache
+            .get_or_fetch(
+                "Eyp21gEasyUn85yrySC13DoXBSRG5sw8vexe7eLcMSoF",
+                "Co68LzYNQArj5fmRmh4o2TVeEVx6FfaLiyRgDAjtpump",
+                &CurveFixtures,
+                1,
+            )
+            .await
+            .expect("fetch");
+        let IngestEvent::Trade(t) = attach_curve(
+            &mut cache,
+            &CurveFixtures,
+            &ev,
+            b.slot,
+            to_ingest(ev.clone(), 0).expect("i"),
+            2,
+        )
+        .await
+        else {
+            panic!("trade")
+        };
+        let p = t.pool.expect("SOL curve pool");
+        assert!((p.sol_reserve - 0.095_584_963).abs() < 1e-12);
+        assert_eq!(cache.stats.trade_updates, 0);
+        // a newer frame applies its post-trade reserves without an RPC round trip
+        let fetches = cache.stats.fetches;
+        let IngestEvent::Trade(t) = attach_curve(
+            &mut cache,
+            &CurveFixtures,
+            &ev,
+            462_834_800,
+            to_ingest(ev.clone(), 0).expect("i"),
+            3,
+        )
+        .await
+        else {
+            panic!("trade")
+        };
+        assert_eq!(cache.stats.trade_updates, 1);
+        assert_eq!(cache.stats.fetches, fetches);
+        let p = t.pool.expect("pool");
+        assert!(
+            (p.sol_reserve - 0.478_284_115).abs() < 1e-12,
+            "event reserves applied"
+        );
+    }
+
+    #[test]
+    fn mainnet_trade_real_reserves_decoded() {
+        let b = parse_logs_notification(&mainnet(&format!("logs_trade.{CAPTURE}.json")))
+            .expect("batch");
+        let CurveEvent::Trade {
+            real_sol_reserves,
+            real_token_reserves,
+            virtual_sol_reserves,
+            ..
+        } = b.events[0]
+        else {
+            panic!("trade")
+        };
+        assert_eq!(virtual_sol_reserves, 478_284_115);
+        assert_eq!(real_sol_reserves, Some(87_204_603));
+        assert_eq!(real_token_reserves, Some(741_310_141_347_695));
     }
 
     #[test]

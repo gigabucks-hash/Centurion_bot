@@ -16,7 +16,7 @@ pub enum ApprovalKind {
     BuyPick,
     /// Strategy settings change; `weakening` marks guard/screener loosening.
     GuardChange,
-    /// sell_all, stop_all, resume_all, reset_paper (payload.action).
+    /// sell_all, stop_all, resume_all (payload.action). Practice reset is a direct action, never a proposal.
     TeamAction,
 }
 

@@ -55,6 +55,7 @@ mod tests {
         let pool = PoolState {
             sol_reserve: 30.0,
             token_reserve: 1e9,
+            quote: common::QuoteAsset::Sol,
         };
         let f = ex
             .execute(

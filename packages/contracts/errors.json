@@ -1,287 +1,623 @@
 {
-  "version": 2,
+  "version": 4,
+  "sqlstate_rule": "P0 + HTTP status (P0401..P0429, P0500/P0503). SQL raises MESSAGE = code, DETAIL = JSON.",
   "codes": [
     {
       "code": "UNAUTHENTICATED",
+      "kind": "error",
       "http": 401,
+      "sqlstate": "P0401",
       "retryable": false,
-      "message": "Missing or invalid credentials"
+      "messages": {
+        "en": "Missing or invalid credentials",
+        "id": "Kredensial tidak ada atau tidak valid"
+      }
     },
     {
       "code": "FORBIDDEN_SCOPE",
+      "kind": "error",
       "http": 403,
+      "sqlstate": "P0403",
       "retryable": false,
-      "message": "Token lacks the required scope (read/trade)"
+      "messages": {
+        "en": "Token lacks the required scope (read/trade)",
+        "id": "Token tidak memiliki cakupan yang diperlukan (read/trade)"
+      }
     },
     {
       "code": "FORBIDDEN_ROLE",
+      "kind": "error",
       "http": 403,
+      "sqlstate": "P0403",
       "retryable": false,
-      "message": "Workspace role does not allow this action"
+      "messages": {
+        "en": "Workspace role does not allow this action",
+        "id": "Peran di workspace tidak mengizinkan tindakan ini"
+      }
     },
     {
       "code": "APPROVAL_REQUIRES_APP",
+      "kind": "error",
       "http": 403,
+      "sqlstate": "P0403",
       "retryable": false,
-      "message": "This decision must be made in a first-party app, not via MCP"
+      "messages": {
+        "en": "This decision must be made in a first-party app, not via MCP",
+        "id": "Keputusan ini harus dibuat di aplikasi resmi, bukan lewat MCP"
+      }
     },
     {
       "code": "NOT_FOUND",
+      "kind": "error",
       "http": 404,
+      "sqlstate": "P0404",
       "retryable": false,
-      "message": "Resource not found or not visible"
+      "messages": {
+        "en": "Resource not found or not visible",
+        "id": "Data tidak ditemukan atau tidak dapat diakses"
+      }
     },
     {
       "code": "VALIDATION_FAILED",
+      "kind": "error",
       "http": 422,
+      "sqlstate": "P0422",
       "retryable": false,
-      "message": "Request or settings failed validation"
+      "messages": {
+        "en": "Request or settings failed validation",
+        "id": "Permintaan atau pengaturan gagal divalidasi"
+      }
     },
     {
       "code": "SETTINGS_SCHEMA_INVALID",
+      "kind": "error",
       "http": 422,
+      "sqlstate": "P0422",
       "retryable": false,
-      "message": "Strategy settings do not match the JSON Schema"
+      "messages": {
+        "en": "Strategy settings do not match the JSON Schema",
+        "id": "Pengaturan strategi tidak sesuai skema"
+      }
     },
     {
       "code": "VERSION_CONFLICT",
+      "kind": "error",
       "http": 409,
+      "sqlstate": "P0409",
       "retryable": false,
-      "message": "Stale version; refetch and retry"
+      "messages": {
+        "en": "Stale rev; refetch and retry",
+        "id": "Data sudah berubah; muat ulang lalu coba lagi"
+      }
     },
     {
       "code": "STRATEGY_REV_CONFLICT",
+      "kind": "error",
       "http": 409,
+      "sqlstate": "P0409",
       "retryable": false,
-      "message": "Strategy rev changed since this was based on it"
+      "messages": {
+        "en": "Strategy rev changed since this was based on it",
+        "id": "Strategi sudah berubah sejak usulan ini dibuat"
+      }
     },
     {
       "code": "IDEMPOTENCY_KEY_REUSED",
-      "http": 409,
+      "kind": "error",
+      "http": 422,
+      "sqlstate": "P0422",
       "retryable": false,
-      "message": "Idempotency-Key reused with a different request body"
+      "messages": {
+        "en": "Idempotency-Key reused with a different request body",
+        "id": "Idempotency-Key dipakai ulang dengan isi permintaan yang berbeda"
+      }
     },
     {
       "code": "APPROVAL_ALREADY_DECIDED",
+      "kind": "error",
       "http": 409,
+      "sqlstate": "P0409",
       "retryable": false,
-      "message": "Approval already decided differently"
+      "messages": {
+        "en": "Approval already decided",
+        "id": "Usulan ini sudah diputuskan"
+      }
     },
     {
       "code": "APPROVAL_EXPIRED",
+      "kind": "error",
       "http": 409,
+      "sqlstate": "P0409",
       "retryable": false,
-      "message": "Approval expired; see reason"
+      "messages": {
+        "en": "Approval expired; see reason",
+        "id": "Usulan sudah kedaluwarsa; lihat alasannya"
+      }
     },
     {
       "code": "APPROVAL_TOKEN_INVALID",
+      "kind": "error",
       "http": 403,
+      "sqlstate": "P0403",
       "retryable": false,
-      "message": "Decision token is invalid for this approval"
+      "messages": {
+        "en": "Decision token is invalid for this approval",
+        "id": "Token keputusan tidak berlaku untuk usulan ini"
+      }
     },
     {
       "code": "STRATEGY_RETIRED",
+      "kind": "error",
       "http": 409,
+      "sqlstate": "P0409",
       "retryable": false,
-      "message": "Strategy is archived or deleted"
+      "messages": {
+        "en": "Strategy is archived or deleted",
+        "id": "Strategi sudah diarsipkan atau dihapus"
+      }
     },
     {
       "code": "LAST_LOGIN_METHOD",
+      "kind": "error",
       "http": 422,
+      "sqlstate": "P0422",
       "retryable": false,
-      "message": "The last login method cannot be unlinked"
+      "messages": {
+        "en": "The last login method cannot be unlinked",
+        "id": "Metode login terakhir tidak dapat dilepas"
+      }
     },
     {
       "code": "SIWS_NONCE_INVALID",
+      "kind": "error",
       "http": 401,
+      "sqlstate": "P0401",
       "retryable": false,
-      "message": "SIWS nonce unknown, used or expired"
+      "messages": {
+        "en": "SIWS nonce unknown, used or expired",
+        "id": "Nonce SIWS tidak dikenal, sudah dipakai, atau kedaluwarsa"
+      }
     },
     {
       "code": "SIWS_SIGNATURE_INVALID",
+      "kind": "error",
       "http": 401,
+      "sqlstate": "P0401",
       "retryable": false,
-      "message": "SIWS signature does not verify"
-    },
-    {
-      "code": "TELEGRAM_AUTH_INVALID",
-      "http": 401,
-      "retryable": false,
-      "message": "Legacy Telegram widget payload invalid (superseded by AUTH_TG_INVALID)"
+      "messages": {
+        "en": "SIWS signature does not verify",
+        "id": "Tanda tangan SIWS tidak valid"
+      }
     },
     {
       "code": "OTP_INVALID",
+      "kind": "error",
       "http": 401,
+      "sqlstate": "P0401",
       "retryable": false,
-      "message": "Email code is wrong or expired"
+      "messages": {
+        "en": "Email code is wrong or expired",
+        "id": "Kode email salah atau kedaluwarsa"
+      }
     },
     {
       "code": "OTP_LOCKED",
+      "kind": "error",
       "http": 429,
+      "sqlstate": "P0429",
       "retryable": true,
-      "message": "Too many attempts; locked for 15 minutes"
+      "messages": {
+        "en": "Too many attempts; locked for 15 minutes",
+        "id": "Terlalu banyak percobaan; dikunci selama 15 menit"
+      }
     },
     {
       "code": "TWO_FACTOR_REQUIRED",
+      "kind": "error",
       "http": 403,
+      "sqlstate": "P0403",
       "retryable": false,
-      "message": "Second factor required for this action"
+      "messages": {
+        "en": "Second factor required for this action",
+        "id": "Tindakan ini memerlukan faktor kedua"
+      }
     },
     {
       "code": "CURSOR_INVALID",
+      "kind": "error",
       "http": 400,
+      "sqlstate": "P0400",
       "retryable": false,
-      "message": "Malformed pagination cursor"
+      "messages": {
+        "en": "Malformed pagination cursor",
+        "id": "Kursor halaman tidak valid"
+      }
     },
     {
       "code": "CURSOR_EXPIRED",
+      "kind": "error",
       "http": 410,
+      "sqlstate": "P0410",
       "retryable": false,
-      "message": "Cursor older than retention; resync from snapshot"
+      "messages": {
+        "en": "Cursor older than retention; resync from snapshot",
+        "id": "Kursor melewati masa simpan; sinkronkan ulang dari snapshot"
+      }
     },
     {
       "code": "REPLAY_WINDOW_EXCEEDED",
+      "kind": "error",
       "http": 422,
+      "sqlstate": "P0422",
       "retryable": false,
-      "message": "Replay window exceeds the 7 day limit"
+      "messages": {
+        "en": "Replay window exceeds the 7 day limit",
+        "id": "Rentang replay melebihi batas 7 hari"
+      }
     },
     {
       "code": "MODE_NOT_ALLOWED",
+      "kind": "error",
       "http": 403,
+      "sqlstate": "P0403",
       "retryable": false,
-      "message": "Only paper mode is allowed"
+      "messages": {
+        "en": "Only practice mode is allowed; real mode is not enabled",
+        "id": "Hanya mode practice yang diizinkan; mode real belum aktif"
+      }
     },
     {
       "code": "REAL_SOL_DISABLED",
+      "kind": "error",
       "http": 403,
+      "sqlstate": "P0403",
       "retryable": false,
-      "message": "Real SOL execution is disabled until Phase 7 approval"
+      "messages": {
+        "en": "Real SOL execution is disabled until Phase 7 approval",
+        "id": "Eksekusi Real SOL dinonaktifkan sampai Fase 7 disetujui"
+      }
     },
     {
       "code": "GUARD_COOLDOWN_ACTIVE",
+      "kind": "error",
       "http": 409,
+      "sqlstate": "P0409",
       "retryable": true,
-      "message": "Guard change is in its cooldown window"
+      "messages": {
+        "en": "Guard change is in its cooldown window",
+        "id": "Perubahan guard masih dalam masa jeda"
+      }
     },
     {
       "code": "CONFIRMATION_REQUIRED",
+      "kind": "error",
       "http": 428,
+      "sqlstate": "P0428",
       "retryable": false,
-      "message": "This action needs a proof-of-confirmation (WebAuthn + typed name + hold)"
+      "messages": {
+        "en": "This action needs a proof-of-confirmation (WebAuthn + typed name + hold)",
+        "id": "Tindakan ini perlu konfirmasi (WebAuthn + ketik nama + tahan)"
+      }
     },
     {
       "code": "CONFIRMATION_INVALID",
+      "kind": "error",
       "http": 403,
+      "sqlstate": "P0403",
       "retryable": false,
-      "message": "Confirmation challenge unknown, used, expired or bound to another change"
+      "messages": {
+        "en": "Confirmation challenge unknown, used, expired or bound to another change",
+        "id": "Konfirmasi tidak dikenal, sudah dipakai, kedaluwarsa, atau untuk perubahan lain"
+      }
     },
     {
       "code": "WEBAUTHN_INVALID",
+      "kind": "error",
       "http": 403,
+      "sqlstate": "P0403",
       "retryable": false,
-      "message": "WebAuthn assertion failed verification"
+      "messages": {
+        "en": "WebAuthn assertion failed verification",
+        "id": "Verifikasi WebAuthn gagal"
+      }
     },
     {
       "code": "TYPED_CONFIRMATION_MISMATCH",
+      "kind": "error",
       "http": 422,
+      "sqlstate": "P0422",
       "retryable": false,
-      "message": "Typed confirmation does not match the strategy name"
+      "messages": {
+        "en": "Typed confirmation does not match the strategy name",
+        "id": "Teks konfirmasi tidak sama dengan nama strategi"
+      }
     },
     {
       "code": "HOLD_TOO_SHORT",
+      "kind": "error",
       "http": 422,
+      "sqlstate": "P0422",
       "retryable": false,
-      "message": "Hold-to-confirm duration below the required minimum"
+      "messages": {
+        "en": "Hold-to-confirm duration below the required minimum",
+        "id": "Durasi tahan-untuk-konfirmasi kurang dari batas minimum"
+      }
     },
     {
       "code": "REPLAY_UNAVAILABLE",
+      "kind": "error",
       "http": 503,
+      "sqlstate": "P0503",
       "retryable": true,
-      "message": "Full replay disabled or over its 2 s budget; use the static estimate"
+      "messages": {
+        "en": "Full replay disabled or over its 2 s budget; use the static estimate",
+        "id": "Replay penuh tidak tersedia atau melebihi 2 detik; gunakan estimasi statis"
+      }
     },
     {
       "code": "PRECONDITION_REQUIRED",
+      "kind": "error",
       "http": 428,
+      "sqlstate": "P0428",
       "retryable": false,
-      "message": "Write needs If-Match: <rev> or expected_rev / expected_version"
+      "messages": {
+        "en": "Write needs If-Match: <rev> or expected_rev",
+        "id": "Penulisan butuh If-Match: <rev> atau expected_rev"
+      }
     },
     {
       "code": "CONFIRMATION_RESTART_REQUIRED",
+      "kind": "error",
       "http": 409,
+      "sqlstate": "P0409",
       "retryable": false,
-      "message": "Resource changed under a Real SOL confirmation; the full confirmation must be redone"
+      "messages": {
+        "en": "Resource changed under a Real SOL confirmation; the full confirmation must be redone",
+        "id": "Data berubah saat konfirmasi Real SOL; ulangi konfirmasi dari awal"
+      }
     },
     {
       "code": "REAUTH_REQUIRED",
+      "kind": "error",
       "http": 401,
+      "sqlstate": "P0401",
       "retryable": false,
-      "message": "Re-authenticate (within the last 5 minutes) to continue"
+      "messages": {
+        "en": "Re-authenticate (within the last 5 minutes) to continue",
+        "id": "Login ulang (dalam 5 menit terakhir) untuk melanjutkan"
+      }
     },
     {
       "code": "WALLET_ROLE_CONFLICT",
+      "kind": "error",
       "http": 409,
+      "sqlstate": "P0409",
       "retryable": false,
-      "message": "A login wallet cannot be a trading wallet (and vice versa)"
+      "messages": {
+        "en": "A login wallet cannot be a trading wallet (and vice versa)",
+        "id": "Dompet login tidak boleh menjadi dompet trading (dan sebaliknya)"
+      }
     },
     {
       "code": "RESET_COOLDOWN",
+      "kind": "error",
       "http": 429,
+      "sqlstate": "P0429",
       "retryable": true,
-      "message": "Practice reset allowed once per 24 h; see details.next_allowed_at"
+      "messages": {
+        "en": "Practice reset allowed once per 24 h; see details.next_allowed_at",
+        "id": "Reset practice hanya sekali per 24 jam; lihat details.next_allowed_at"
+      }
     },
     {
       "code": "ACCOUNT_DELETION_PENDING",
+      "kind": "error",
       "http": 409,
+      "sqlstate": "P0409",
       "retryable": false,
-      "message": "Account deletion already scheduled"
+      "messages": {
+        "en": "Account deletion already scheduled",
+        "id": "Penghapusan akun sudah dijadwalkan"
+      }
     },
     {
       "code": "ACCOUNT_DELETION_BLOCKED",
+      "kind": "error",
       "http": 409,
+      "sqlstate": "P0409",
       "retryable": false,
-      "message": "Close Real SOL positions and withdraw the trading wallet first"
+      "messages": {
+        "en": "Close Real SOL positions and withdraw the trading wallet first",
+        "id": "Tutup posisi Real SOL dan tarik dompet trading terlebih dahulu"
+      }
     },
     {
       "code": "DEVICE_TOKEN_INVALID",
+      "kind": "error",
       "http": 422,
+      "sqlstate": "P0422",
       "retryable": false,
-      "message": "Device registration payload invalid"
+      "messages": {
+        "en": "Device registration payload invalid",
+        "id": "Data pendaftaran perangkat tidak valid"
+      }
     },
     {
       "code": "AUTH_TG_INVALID",
+      "kind": "error",
       "http": 401,
+      "sqlstate": "P0401",
       "retryable": false,
-      "message": "Telegram id_token failed verification (signature, iss, aud, exp, iat or nonce)"
+      "messages": {
+        "en": "Telegram id_token failed verification (signature, iss, aud, exp, iat or nonce)",
+        "id": "Verifikasi id_token Telegram gagal"
+      }
     },
     {
       "code": "AUTH_TG_REPLAY",
+      "kind": "error",
       "http": 401,
+      "sqlstate": "P0401",
       "retryable": false,
-      "message": "Telegram nonce or id_token already used"
+      "messages": {
+        "en": "Telegram nonce or id_token already used",
+        "id": "Nonce atau id_token Telegram sudah pernah dipakai"
+      }
     },
     {
       "code": "AUTH_TG_NO_PROFILE",
+      "kind": "error",
       "http": 422,
+      "sqlstate": "P0422",
       "retryable": false,
-      "message": "Telegram id_token lacks the profile claims (id); request the profile scope"
+      "messages": {
+        "en": "Telegram id_token lacks the profile claims (id); request the profile scope",
+        "id": "id_token Telegram tidak memuat data profil; minta scope profile"
+      }
+    },
+    {
+      "code": "UNSUPPORTED_QUOTE_MINT",
+      "kind": "skip",
+      "http": 422,
+      "sqlstate": "P0422",
+      "retryable": false,
+      "messages": {
+        "en": "Pool is quoted in a mint other than SOL; practice mode simulates SOL-quoted pools only (prices are never converted)",
+        "id": "Pool memakai token kuotasi selain SOL; mode practice hanya mendukung pool SOL"
+      }
+    },
+    {
+      "code": "SLIPPAGE_EXCEEDED",
+      "kind": "error",
+      "http": 409,
+      "sqlstate": "P0409",
+      "retryable": true,
+      "messages": {
+        "en": "Simulated fill slipped past the order's max slippage",
+        "id": "Simulasi fill melewati batas slippage order"
+      }
+    },
+    {
+      "code": "INSUFFICIENT_PRACTICE_BALANCE",
+      "kind": "error",
+      "http": 422,
+      "sqlstate": "P0422",
+      "retryable": false,
+      "messages": {
+        "en": "Practice balance too low for this order",
+        "id": "Saldo practice tidak cukup untuk order ini"
+      }
+    },
+    {
+      "code": "GUARD_FAILED",
+      "kind": "error",
+      "http": 422,
+      "sqlstate": "P0422",
+      "retryable": false,
+      "messages": {
+        "en": "Guard checks failed when the order was about to fill",
+        "id": "Pemeriksaan guard gagal saat order akan dieksekusi"
+      }
+    },
+    {
+      "code": "POOL_STALE",
+      "kind": "error",
+      "http": 503,
+      "sqlstate": "P0503",
+      "retryable": true,
+      "messages": {
+        "en": "Pool state missing, empty or older than the freshness limit; retried after refresh",
+        "id": "Data pool tidak ada, kosong, atau terlalu lama; dicoba lagi setelah diperbarui"
+      }
+    },
+    {
+      "code": "POSITION_ALREADY_CLOSED",
+      "kind": "error",
+      "http": 409,
+      "sqlstate": "P0409",
+      "retryable": false,
+      "messages": {
+        "en": "Position is already closed",
+        "id": "Posisi sudah ditutup"
+      }
+    },
+    {
+      "code": "INVALID_FRACTION",
+      "kind": "error",
+      "http": 422,
+      "sqlstate": "P0422",
+      "retryable": false,
+      "messages": {
+        "en": "fraction_bps must be an integer from 1 to 10000",
+        "id": "Porsi penjualan harus 1 sampai 10000 bps"
+      }
+    },
+    {
+      "code": "PRACTICE_CASH_INSUFFICIENT",
+      "kind": "notice",
+      "http": 422,
+      "sqlstate": "P0422",
+      "retryable": false,
+      "messages": {
+        "en": "Practice cash is too low for the next entry; entries pause until cash recovers or you reset practice",
+        "id": "Saldo practice tidak cukup untuk entry berikutnya; entry dijeda sampai saldo pulih atau practice direset"
+      }
+    },
+    {
+      "code": "JOB_DEAD_LETTERED",
+      "kind": "notice",
+      "http": 500,
+      "sqlstate": "P0500",
+      "retryable": false,
+      "messages": {
+        "en": "A background job failed after all retries; support has been notified",
+        "id": "Tugas latar belakang gagal setelah semua percobaan; tim support sudah diberi tahu"
+      }
+    },
+    {
+      "code": "SOURCE_DEGRADED",
+      "kind": "notice",
+      "http": 503,
+      "sqlstate": "P0503",
+      "retryable": true,
+      "messages": {
+        "en": "A market data source is degraded; new picks may be delayed",
+        "id": "Sumber data pasar sedang terganggu; pick baru mungkin tertunda"
+      }
     },
     {
       "code": "RATE_LIMITED",
+      "kind": "error",
       "http": 429,
+      "sqlstate": "P0429",
       "retryable": true,
-      "message": "Rate limit exceeded"
+      "messages": {
+        "en": "Rate limit exceeded",
+        "id": "Batas permintaan terlampaui"
+      }
     },
     {
       "code": "UNAVAILABLE",
+      "kind": "error",
       "http": 503,
+      "sqlstate": "P0503",
       "retryable": true,
-      "message": "Dependency temporarily unavailable"
+      "messages": {
+        "en": "Dependency temporarily unavailable",
+        "id": "Layanan pendukung sedang tidak tersedia"
+      }
     },
     {
       "code": "INTERNAL",
+      "kind": "error",
       "http": 500,
+      "sqlstate": "P0500",
       "retryable": true,
-      "message": "Unexpected server error"
+      "messages": {
+        "en": "Unexpected server error",
+        "id": "Terjadi kesalahan server"
+      }
     }
-  ]
+  ],
+  "kind_rule": "error = API/RPC error body; notice = system.notice payload code; skip = screener skip_reason (may also be an order.failed reason_code). One registry for every code."
 }

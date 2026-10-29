@@ -7,9 +7,11 @@
 //! signer (MPC/KMS) under policy, not hold keys.
 
 mod executor;
+mod failure;
 mod model;
 
 pub use executor::{ExecError, Executor, PaperExecutor};
+pub use failure::{no_pool_reason, order_failed, order_failed_from, OrderFailed};
 pub use model::{simulate, Fill, FillWire, Order, PoolState, Side, SimConfig, SimError};
 
 #[cfg(feature = "live-execution")]

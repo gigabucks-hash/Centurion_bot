@@ -9,7 +9,7 @@
 //! 5. **Slippage guard**: compare actual output with the quote taken at decision time
 //!    (step 2+3 on the pre-latency pool); reject if worse than `max_slippage_bps`.
 //! 6. **Network cost**: base fee + priority fee (`cu_limit * cu_price`) in SOL.
-use common::LAMPORTS_PER_SOL;
+use common::{QuoteAsset, LAMPORTS_PER_SOL};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -18,6 +18,9 @@ pub struct PoolState {
     pub sol_reserve: f64,
     /// Token side reserve, UI units.
     pub token_reserve: f64,
+    /// Quote asset. Only SOL is simulated; anything else is rejected, never converted.
+    #[serde(default)]
+    pub quote: QuoteAsset,
 }
 
 impl PoolState {
@@ -32,6 +35,7 @@ impl PoolState {
             PoolState {
                 sol_reserve: self.sol_reserve + sol_in,
                 token_reserve: self.token_reserve - out,
+                quote: self.quote,
             },
         )
     }
@@ -42,6 +46,7 @@ impl PoolState {
             PoolState {
                 sol_reserve: self.sol_reserve - out,
                 token_reserve: self.token_reserve + tok_in,
+                quote: self.quote,
             },
         )
     }
@@ -129,6 +134,8 @@ pub enum SimError {
     InvalidOrder(&'static str),
     #[error("pool has no liquidity")]
     EmptyPool,
+    #[error("UNSUPPORTED_QUOTE_MINT: pool quoted in {quote_mint}; paper mode simulates SOL-quoted pools only")]
+    UnsupportedQuoteMint { quote_mint: String },
     #[error("slippage {actual_bps:.1} bps exceeds max {max_bps} bps")]
     SlippageExceeded { actual_bps: f64, max_bps: u32 },
 }
@@ -155,6 +162,11 @@ fn leg(pool: &PoolState, side: Side, amount_in: f64, fee: f64) -> (f64, f64, Poo
 
 /// Simulate a fill. Deterministic for a given (pool, order, config).
 pub fn simulate(pool: &PoolState, order: &Order, cfg: &SimConfig) -> Result<Fill, SimError> {
+    if !pool.quote.is_sol() {
+        return Err(SimError::UnsupportedQuoteMint {
+            quote_mint: pool.quote.mint(),
+        });
+    }
     if !(order.amount_in.is_finite() && order.amount_in > 0.0) {
         return Err(SimError::InvalidOrder("amount_in must be > 0"));
     }
@@ -236,6 +248,7 @@ mod tests {
         PoolState {
             sol_reserve: 30.0,
             token_reserve: 1_073_000_000.0,
+            quote: QuoteAsset::Sol,
         }
     }
     fn buy(sol: f64) -> Order {
@@ -364,7 +377,19 @@ mod tests {
         let empty = PoolState {
             sol_reserve: 0.0,
             token_reserve: 1.0,
+            quote: QuoteAsset::Sol,
         };
+        let other = PoolState {
+            quote: QuoteAsset::parse("pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn").expect("mint"),
+            ..pool()
+        };
+        assert_eq!(
+            simulate(&other, &buy(1.0), &zero_cost()),
+            Err(SimError::UnsupportedQuoteMint {
+                quote_mint: "pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn".into()
+            }),
+            "non-SOL quote is rejected, never converted"
+        );
         assert_eq!(
             simulate(&empty, &buy(1.0), &zero_cost()),
             Err(SimError::EmptyPool)
@@ -423,6 +448,7 @@ mod wire_tests {
         let pool = PoolState {
             sol_reserve: 30.0,
             token_reserve: 1_073_000_000.0,
+            quote: QuoteAsset::Sol,
         };
         let f = simulate(
             &pool,

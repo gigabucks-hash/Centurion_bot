@@ -26,6 +26,14 @@ pub struct CheckResult {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScreenResult {
     pub passed: bool,
+    /// `false` when paper mode cannot trade the coin at all (e.g. non-SOL quote); then `passed` is false
+    /// and `skip_reason` holds the code. Scores are still reported for information.
+    #[serde(default = "yes")]
+    pub tradeable: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skip_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quote_mint: Option<String>,
     pub score: f64,
     pub score_threshold: f64,
     pub max_score: f64,
@@ -42,6 +50,10 @@ impl ScreenResult {
             .iter()
             .filter(|c| c.class != RuleClass::Weighted && !c.passed)
     }
+}
+
+fn yes() -> bool {
+    true
 }
 
 fn op_passes(op: Op, t: Threshold, x: f64) -> bool {
@@ -98,6 +110,25 @@ pub fn evaluate(rs: &RuleSet, coin: &CoinSnapshot) -> ScreenResult {
             if venue_ok { "allowed" } else { "not enabled" }
         ),
     });
+
+    let tradeable = common::is_sol_quote(coin.quote_mint.as_deref());
+    if let Some(q) = &coin.quote_mint {
+        checks.push(CheckResult {
+            id: "quote_mint".into(),
+            class: RuleClass::Venue,
+            passed: tradeable,
+            measured: None,
+            points: 0.0,
+            reason: if tradeable {
+                "quote SOL".into()
+            } else {
+                format!(
+                    "{}: quote {q} (paper mode trades SOL-quoted pools only)",
+                    common::UNSUPPORTED_QUOTE_MINT
+                )
+            },
+        });
+    }
 
     for r in &rs.hard {
         let policy = r.on_missing.unwrap_or(rs.on_missing);
@@ -163,7 +194,10 @@ pub fn evaluate(rs: &RuleSet, coin: &CoinSnapshot) -> ScreenResult {
         .all(|c| c.passed);
     let weighted_ok = rs.weighted.is_empty() || score >= rs.score_threshold;
     ScreenResult {
-        passed: hard_ok && weighted_ok,
+        passed: tradeable && hard_ok && weighted_ok,
+        tradeable,
+        skip_reason: (!tradeable).then(|| common::UNSUPPORTED_QUOTE_MINT.to_string()),
+        quote_mint: coin.quote_mint.clone(),
         score,
         score_threshold: rs.score_threshold,
         max_score: rs.max_score(),
@@ -195,6 +229,8 @@ mod tests {
 
     fn coin(venue: Venue, m: CoinMetrics) -> CoinSnapshot {
         CoinSnapshot {
+            decimals: Some(6),
+            token_program: None,
             mint: Mint::parse("So11111111111111111111111111111111111111112").expect("mint"),
             venue,
             launchpad: Launchpad::PumpSwap,
@@ -204,6 +240,7 @@ mod tests {
             name: Untrusted::new("x".into()),
             symbol: Untrusted::new("X".into()),
             uri: Untrusted::new(String::new()),
+            quote_mint: None,
         }
     }
 
@@ -315,5 +352,43 @@ mod tests {
         let s = include_str!("../../../config/screener.example.json");
         let rs = RuleSet::from_json(s).expect("example config must validate");
         assert!(rs.max_score() >= rs.score_threshold);
+    }
+
+    #[test]
+    fn non_sol_quote_is_not_tradeable() {
+        let rs = RuleSet::from_json(RULES).expect("rules");
+        let mut c = coin(
+            Venue::Amm,
+            CoinMetrics {
+                liquidity_usd: Some(50_000.0),
+                age_minutes: Some(30.0),
+                top_holders_share_pct: Some(10.0),
+                holder_count: Some(1_000),
+                change_1h_pct: Some(20.0),
+                ..Default::default()
+            },
+        );
+        assert!(evaluate(&rs, &c).passed, "baseline passes");
+        c.quote_mint = Some(common::WSOL_MINT.into());
+        let r = evaluate(&rs, &c);
+        assert!(r.passed && r.tradeable && r.skip_reason.is_none());
+        c.quote_mint = Some("pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn".into());
+        let r = evaluate(&rs, &c);
+        assert!(!r.passed && !r.tradeable);
+        assert_eq!(r.skip_reason.as_deref(), Some("UNSUPPORTED_QUOTE_MINT"));
+        assert_eq!(
+            r.quote_mint.as_deref(),
+            Some("pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn")
+        );
+        let q = r
+            .checks
+            .iter()
+            .find(|c| c.id == "quote_mint")
+            .expect("quote check");
+        assert!(!q.passed && q.reason.starts_with("UNSUPPORTED_QUOTE_MINT"));
+        assert!(r.score > 0.0, "score still reported, never converted");
+        let v = serde_json::to_value(&r).expect("json");
+        assert_eq!(v["tradeable"], false);
+        assert_eq!(v["skip_reason"], "UNSUPPORTED_QUOTE_MINT");
     }
 }

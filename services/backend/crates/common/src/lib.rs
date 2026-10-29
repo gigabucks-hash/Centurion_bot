@@ -13,6 +13,7 @@ pub mod event;
 pub mod ids;
 pub mod mode;
 pub mod portfolio;
+pub mod quote;
 pub mod units;
 pub mod untrusted;
 
@@ -25,6 +26,7 @@ pub use error_codes::ErrorCode;
 pub use event::{Actor, Event, EventKind, ExpireReason, EVENT_SCHEMA_VERSION};
 pub use ids::{CoinKey, Mint, PositionKey};
 pub use mode::Mode;
+pub use quote::{is_sol_quote, QuoteAsset, UNSUPPORTED_QUOTE_MINT, WSOL_MINT};
 pub use units::{Dec, Lamports, RawAmount, SignedLamports, UnitError};
 pub use untrusted::Untrusted;
 

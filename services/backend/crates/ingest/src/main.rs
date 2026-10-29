@@ -97,6 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         repo: repo.clone(),
         executor: Arc::new(PaperExecutor::new(SimConfig::default())),
         demo_buy_sol: cfg.paper_demo_buy_sol,
+        practice_epoch: 0,
         stats: Stats::default(),
     };
 

@@ -63,6 +63,9 @@ event_kinds! {
     StrategyResumed => "strategy.resumed",
     StrategyArchived => "strategy.archived",
     StrategyDeleted => "strategy.deleted",
+    OrderSubmitted => "order.submitted",
+    OrderFilled => "order.filled",
+    OrderFailed => "order.failed",
     PracticeReset => "practice.reset",
     AccountDeletionScheduled => "account.deletion_scheduled",
     AccountDeletionCancelled => "account.deletion_cancelled",
@@ -90,7 +93,12 @@ pub struct Event {
     /// Unique: re-emitting the same fact is a no-op (idempotent writers).
     pub id: String,
     /// Assigned by the database (`bigint identity`). Ordering, pagination and resume cursor.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Wire form: int64 as a base-10 integer string (1.1.2). Accepts a JSON number on input.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "crate::units::int64_string_opt"
+    )]
     pub seq: Option<i64>,
     #[serde(rename = "type")]
     pub kind: EventKind,
@@ -205,6 +213,9 @@ mod tests {
             "exit.triggered",
             "portfolio.snapshot",
             "guard.changed",
+            "order.submitted",
+            "order.filled",
+            "order.failed",
             "practice.reset",
             "account.deletion_scheduled",
             "account.deletion_cancelled",
@@ -250,5 +261,21 @@ mod tests {
         assert_eq!(v["mode"], "practice");
         let back: Event = serde_json::from_value(v).expect("de");
         assert_eq!(back, e);
+    }
+
+    #[test]
+    fn seq_is_an_int64_string_on_the_wire() {
+        let mut e: Event = serde_json::from_value(serde_json::json!({
+            "id": "abc:1:coin.detected", "seq": 9007199254740993_i64, "type": "coin.detected", "version": 1,
+            "workspace_id": "w", "strategy_id": null, "ck": null, "mint": null,
+            "ts": "2026-10-29T09:00:00.000Z", "actor": "ingest", "mode": "practice", "payload": {}, "untrusted": {}
+        }))
+        .expect("number accepted on input");
+        assert_eq!(e.seq, Some(9_007_199_254_740_993));
+        let v = serde_json::to_value(&e).expect("ser");
+        assert_eq!(v["seq"], "9007199254740993");
+        e.seq = None;
+        let back: Event = serde_json::from_value(v).expect("string accepted");
+        assert_eq!(back.seq, Some(9_007_199_254_740_993));
     }
 }

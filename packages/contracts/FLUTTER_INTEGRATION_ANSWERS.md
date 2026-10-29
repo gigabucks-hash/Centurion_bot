@@ -1,93 +1,129 @@
-# Answers for Flutter (Phase 5 mobile)
+# Answers for Flutter (Phase 5 mobile), contract v1.1.2
 
-To: Flutter Mobile Specialist. From: Backend API Specialist. Contract v1 (v1.1 update at the end). I adopted all six of Apex's
-calls; refinements are noted inline. `ARCHITECTURE.md` was **not on disk** after the restore; these
-answers are checked against `app/lib/data/models/models.dart` and `repositories/repositories.dart`.
+To: Flutter Mobile Specialist. From: Backend API Specialist. Rewritten in full for **v1.1.2** (2026-10-29);
+it replaces every earlier version of this file. Sources of truth: `errors.json`, `src/wire/events.ts`,
+`EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, and the SQL in `services/backend/supabase/migrations/`.
+All 16 mismatches you reported are resolved below (Apex/Boss decisions folded in).
 
-## 1. Auth: Supabase Auth; Telegram and SIWS via Edge Functions that mint the JWT  - ADOPTED
-- Google, Apple (required on iOS since Google is offered), email OTP: native Supabase Auth providers.
-- Telegram: Edge Function `auth-telegram` verifies the Login Widget HMAC (bot token in env), `auth_date`
-  <= 10 min, then upserts `auth_identities(provider='telegram')` and mints a session via the admin API.
-  Mobile: open the Telegram login in an in-app browser / deep link back (`sentra://auth/telegram`).
-- SIWS: `POST /auth/siws/nonce` -> sign message with Phantom / Solflare / Mobile Wallet Adapter ->
-  `POST /auth/siws/verify`; ed25519 verify, nonce single-use 5 min (`siws_nonces`), domain + URI bound.
-- The login wallet is **not** a trading wallet; no keys ever leave the wallet app.
+## 1. Auth
+- Google, Apple, email OTP: native Supabase Auth. SIWS: `POST /auth/siws/nonce` -> sign in the wallet app ->
+  `POST /auth/siws/verify`. The login wallet is never a trading wallet.
+- Telegram: **official OIDC id_token flow only** (design-only, `AUTH_TELEGRAM_OIDC_ENABLED=false`):
+  `POST /auth/telegram/nonce {device_id, platform}` -> native Telegram login -> `POST /auth/telegram/verify
+  {nonce, id_token, device_id}`. Errors `AUTH_TG_INVALID`, `AUTH_TG_REPLAY`, `AUTH_TG_NO_PROFILE`, `RATE_LIMITED`.
+  The Login Widget HMAC path and `TELEGRAM_AUTH_INVALID` are removed.
+- Your JWT carries `sentra_client: "mobile"`. **Every RPC takes the actor from the JWT (`auth.uid()`) and the
+  channel from that claim.** You never send `p_actor`, `p_via`, `p_client` or `p_user`.
 
-## 2. Approvals model  - ADOPTED, aligned with `decide_approval(token)` and `expected_rev`
-- Token: opaque `apt_` + 128-bit random, single-use, stored only as sha256, TTL = min(15 min, `expires_at`). You receive it
-  from `GET /v1/workspaces/{ws}/approvals/{id}` (`decision_token`) or in the push data payload; never construct it.
-- RPC: `decide_approval(p_approval_id uuid, p_token text, p_decision text ('approve'|'reject'), p_expected_rev int, p_client text, p_idempotency_key text default null)`
-  returns jsonb `{proposal_id, status, version, replayed, server_now}`.
-  `p_expected_rev` = the approval's `version` (your `baseRev` stays the *strategy* rev for guard changes).
-- Idempotent: same token + same decision returns the same status (no error). Mismatch -> Postgres error
-  with SQLSTATE `P04xx` and `MESSAGE` = an error code from the shared enum (`VERSION_CONFLICT`,
-  `APPROVAL_ALREADY_DECIDED`, `APPROVAL_EXPIRED`, `APPROVAL_TOKEN_INVALID`, `STRATEGY_REV_CONFLICT`,
-  `IDEMPOTENCY_KEY_REUSED`, `APPROVAL_REQUIRES_APP`). Precedence: token, mcp, role, replay, key reuse, already decided,
-  expired, version, strategy rev. Map those to your
-  `ConflictException`.
-- Status wire values: `pending | approved | rejected | expired`. Your `ApprovalStatus.skipped` maps to
-  wire `rejected` (keep the "Skipped" label).
-- `ExpireReason` wire values: `timeout | strategy_deleted | strategy_archived | guard_failed | price_moved`
-  (map your `timedOut`, `guardFailedWhileWaiting`, `priceRanPastLimit`).
-- `ApprovalKind` wire: `buy_pick | guard_change | team_action`. `PickType` wire: `first_buy` boolean on
-  the proposal plus `reentry` flag on the pick. `approval_mode` wire: `off | ask_first_buy | ask_every_buy`.
-- The backend owns `expires_at` (10 min pick, 24 h guard change). The worker owns transitions;
-  deleting/archiving a strategy expires its pending proposals in the same transaction and emits
-  `proposal.expired {proposal_id, kind, version, reason, at}`. Ask mode also covers a portfolio's first buy.
-- Clock: every RPC/REST response and stream payload carries `server_now`; render countdowns as
-  `expires_at - (now + skew)`. Mode wire values are `practice | real` (not paper/live).
+## 2. Exactly which params you send
+| RPC | Params | Returns |
+|---|---|---|
+| `decide_approval` | `p_approval_id, p_token, p_decision ('approve'\|'reject'), p_expected_rev (required, the approval `rev`), p_idempotency_key?` | `{proposal_id, status, rev, replayed, server_now}` |
+| `update_strategy` | `p_strategy, p_expected_rev, p_patch?, p_name?, p_status?, p_device? (label, metadata only), p_challenge_id?` | strategy `{id, rev, name, status, mode, settings, server_now}` or the restart error object |
+| `set_strategy_status` | `p_strategy, p_status ('running'\|'paused'), p_expected_rev` | same as above |
+| `reset_practice` | `p_workspace` | `{epoch, starting_balance_lamports, archived, next_allowed_at, server_now}` |
+| `close_position` | `p_position_id, p_expected_rev (position rev), p_idempotency_key, p_fraction_bps? (1-10000, default 10000)` | `ClosePositionResponse` (section 6) |
+| `register_device` | `p_device_id, p_platform, p_provider, p_token, p_app_version, p_locale?` | `{id, device_id, platform, rev, last_seen_at, server_now}` |
+| `revoke_device` | `p_device_id` | boolean |
+| `exit_stats` | `p_workspace, p_strategy?, p_mode?, p_from?, p_to?` | rows (section 8) |
+REST equivalents: `POST /v1/workspaces/{ws}/approvals/{id}/decision`,
+`POST /v1/workspaces/{ws}/practice/reset`, `POST /v1/workspaces/{ws}/positions/{id}/close`.
+Practice reset is a direct action. It is **not** a `team_action` proposal.
 
-## 3. RPC error codes  - ADOPTED
-Shared enum `packages/contracts/errors.json` (source), generated `src/wire/errors.ts` and Rust
-`crates/common/src/error_codes.rs`. Please add a Dart generator (or I can add one to
-`scripts/gen-errors.mjs`; tell me the target path). REST returns `{error:{code,...}}`; RPC raises with
-the code as the message.
+## 3. Revisions, If-Match, idempotency
+- Every mutable resource carries `rev` (strategies, approvals, positions, devices, workspaces, ...).
+  REST writes send `If-Match: "<rev>"` or body `expected_rev`; RPCs send `p_expected_rev`. `expected_version`
+  no longer exists anywhere. Missing -> `428 PRECONDITION_REQUIRED` (SQLSTATE `P0428`).
+- `decide_approval` requires `p_expected_rev` for every channel, **push included**; null is rejected.
+- **Idempotency:** same key + same body -> the original response with `replayed: true`; same key + different
+  body -> `422 IDEMPOTENCY_KEY_REUSED` (`P0422`). Same decision token + same decision also replays.
+- Stale write -> `409` with merge data inside the error object: `current_rev`, `base_rev`, `changed_fields`,
+  `changed_by {actor, via, device}`, `changed_at`, `current`. Show the conflict, adopt `current`, refetch;
+  never retry blindly. `CONFIRMATION_RESTART_REQUIRED` (Real only, Phase 7) has the same shape.
 
-## 4. Mark price over Realtime Broadcast  - ADOPTED
-Channel `marks:<workspace_id>:<mode>` (private), events `mark` (payload `MarkMessage`, decimal strings, with `server_now`)
-and `clock` every 15 s `{server_now, safe_seq}`. Not
-persisted, not in `seq`. Compute unrealized PnL locally from `qty_raw` and the mark for live display, but
-use `portfolio.snapshot` / `GET /portfolio/overview` as the authoritative numbers. Drop your `double`
-fields in favour of `Decimal` / `BigInt` (`solIn` -> `sol_in_lamports`).
+## 4. Errors
+- `errors.json` (v4) is the single registry. Each code has `kind` (`error|notice|skip`), `http`, `sqlstate`
+  (`P0` + HTTP status: `P0401`..`P0429`, `P0500`, `P0503`; 5xx codes are `P05xx`, not `P04xx`), `retryable`,
+  and `messages.en` / `messages.id` (show `id` for `id-ID`). Generate Dart from it (or ask me to add a Dart
+  target to `scripts/gen-errors.mjs`).
+- RPC errors: `PostgrestException.code` = sqlstate, `.message` = the code, `.details` = JSON text of the details.
+  REST: `{error: {code, message, ...details, server_now}, server_now}`; `error` is always an object.
+- `MODE_NOT_ALLOWED`: "Only practice mode is allowed; real mode is not enabled". Wire modes are
+  `practice | real`; nothing on the wire says `paper` (healthz: `{mode: "practice", real_enabled: false}`).
+- New in 1.1.2: `POSITION_ALREADY_CLOSED` (409), `INVALID_FRACTION` (422), `UNSUPPORTED_QUOTE_MINT`,
+  `SLIPPAGE_EXCEEDED`, `INSUFFICIENT_PRACTICE_BALANCE`, `GUARD_FAILED`, `POOL_STALE`, and notice codes
+  `PRACTICE_CASH_INSUFFICIENT`, `JOB_DEAD_LETTERED`, `SOURCE_DEGRADED`.
 
-## 5. Firebase push  - ADOPTED as an external dependency
-Firebase project is owned by Boss's org account and set up at integration. Backend side: `outbox`
-rows with `channel='push'` are delivered by a push worker via FCM HTTP v1 using a service account
-from env (`FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_JSON_PATH`). Device tokens table arrives with Phase 4
-(`device_tokens`). Practice notifications may carry approve/skip actions that call `decide_approval`
-with `p_client='push'`; Real SOL never actions from a notification.
+## 5. Approvals and expiry
+- Token: opaque `apt_…`, single-use, TTL `min(15 min, expires_at)`, from `GET .../approvals/{id}`
+  (`decision_token`) or the push payload. Never construct it.
+- Status: `pending | approved | rejected | expired` (UI "Skipped" = `rejected`). Kinds: `buy_pick | guard_change | team_action`.
+- **Canonical `proposal.expired.reason` wire values** (exact strings): `timeout`, `strategy_deleted`,
+  `strategy_archived`, `guard_failed`, `price_moved`, `practice_reset`, `account_deleted`.
+  `reset_practice` expires pending and approved-but-unexecuted buys with `practice_reset`; account deletion
+  expires every open proposal with `account_deleted`. Both are covered by SQL tests.
+- `proposal.created` carries `{proposal_id, kind, rev, mint, symbol (untrusted text), price_sol, amount_lamports,
+  expires_at, first_buy, approval_mode, ...}`; `proposal.*` payloads use `rev` (not `version`).
+- The backend owns `expires_at`. Countdowns are `expires_at - (now + skew)`, with skew from `server_now`.
 
-## 6. Real SOL confirmation  - ADOPTED, all disabled until Phase 7
-Server-side 2FA (TOTP, checked by the API) **plus** a WebAuthn/passkey assertion (platform biometric) over a server
-challenge, typed strategy name and a 2.5 s hold; payload and verification steps in
-`packages/contracts/API_ENDPOINTS.md` section 4.6. App Attest / Play Integrity are post-MVP add-ons. Today the DB CHECK rejects
-`mode='real'` and the API returns `REAL_SOL_DISABLED`; build the UI flow behind a flag only.
+## 6. Manual sell (close a position)
+`POST /v1/workspaces/{ws}/positions/{id}/close` with `If-Match: "<position rev>"`, `Idempotency-Key`, body
+`{fraction_bps}` (integer 1-10000; 10000 = sell all), or RPC `close_position(...)` (section 2). Practice only.
+Response:
+```json
+{ "position": { "id": "6000…", "rev": 2, "practice_epoch": 0, "qty_raw": "1000000000", "decimals": 6, "...": "…" },
+  "order": { "id": "7a1…", "status": "queued", "fraction_bps": 5000, "job_id": "41", "...": "…" },
+  "order_id": "7a1…", "fill": null, "job_id": "41", "status": "queued", "replayed": false,
+  "server_now": "2026-10-29T10:00:00.000Z" }
+```
+Then events: `order.submitted` -> `fill.simulated` -> `position.updated` (partial; new `rev`) or
+`position.closed` (`exit_reason: "manual"`) -> `order.filled`; on rejection `order.failed {reason_code}`.
+Errors: `INVALID_FRACTION`, `POSITION_ALREADY_CLOSED`, `VERSION_CONFLICT` (with `current`), `PRECONDITION_REQUIRED`,
+`IDEMPOTENCY_KEY_REUSED`, `FORBIDDEN_ROLE`, `MODE_NOT_ALLOWED`. `sell_pct` is gone.
 
-## v1.1 update (2026-10-29), checked against `solbot_mobile/ARCHITECTURE.md`
-1. **Telegram: official OIDC replaces the Login Widget** (design-only, `AUTH_TELEGRAM_OIDC_ENABLED=false` until Boss
-   signs off the security review). Flow: `POST /auth/telegram/nonce {device_id, platform}` -> SDK login -> send
-   `POST /auth/telegram/verify {nonce, id_token, device_id}`. Errors `AUTH_TG_INVALID`, `AUTH_TG_REPLAY`,
-   `AUTH_TG_NO_PROFILE` (request the `profile` scope). Do not configure Supabase's custom OIDC provider.
-2. RPCs: `decide_approval(p_approval_id, p_token, p_decision approve|reject, p_expected_rev, p_client,
-   p_idempotency_key)` (no `device_id` argument; the token is bound to the device at issue).
-   `set_strategy_status(p_strategy, p_status, p_expected_rev)` now exists. Strategy edits:
-   `update_strategy(p_strategy, p_expected_rev, p_patch, ...)`; direct table UPDATE is revoked.
-   Practice reset: `reset_practice(p_workspace)`. Devices: `register_device(p_device_id, p_platform, p_provider,
-   p_token, p_app_version, p_locale)` / `revoke_device(p_device_id)` (replaces writing `device_tokens.fcm_token`).
-3. Views: `v_portfolio_summary` -> `portfolio_latest`; `v_strategy_stats` -> `exit_stats()`; `equity_history` ->
-   `portfolio_snapshots` (current `epoch`) or `GET .../portfolio/equity`.
-4. Realtime: subscribe to `public.events` (one feed, seq ordered) instead of `postgres_changes` on positions /
-   approvals / strategies; refetch rows on the event.
-5. 409 handling: every write sends its `rev` (approvals `version`); conflicts return `current`, `changed_fields`,
-   `changed_by`, `changed_at`; `CONFIRMATION_RESTART_REQUIRED` restarts the full Real confirmation.
-6. Last login method: unlink returns `422 LAST_LOGIN_METHOD`; unlink/deletion need re-auth within 5 min
-   (`REAUTH_REQUIRED`). The SIWS login wallet is never the trading wallet (`WALLET_ROLE_CONFLICT`).
-7. Account deletion (App Store): `GET/POST/DELETE /me/deletion`; grace is server-side (default 7 days, 1–30), cancellable until `scheduled_for`; events
-   `account.deletion_scheduled|deletion_cancelled|deleted`.
-8. Push payload: your data-only schema is adopted (`v=1, event=N-xx, mode, approval_id?, position_id?, token?,
-   exp?, expire_reason?`) plus `type`, `workspace_id`, `seq`, `deep_link` (`sentra://...`), `actions`, `vars`,
-   `server_now` (EVENTS_SCHEMA.md section 6). `expire_reason` uses wire values (`timeout guard_failed price_moved
-   strategy_deleted strategy_archived practice_reset account_deleted`); map them to UX copy on device.
-   Real SOL: no token, `actions: ["open"]` only.
-9. Renamed vocabulary and snake_case settings: `CHANGELOG.md`. Error enum: your `tool/gen_errors.dart` from
-   `errors.json` (`ERROR_CODES_VERSION` 2).
+## 7. Stream, seq, marks
+- Realtime `postgres_changes` on `public.events` (RLS) plus Broadcast `marks:<ws>:<mode>` (`mark`, `clock`).
+- **`seq` is an int64 integer string** (envelope `seq`, `after_seq`, `before_seq`, `next_after_seq`,
+  `safe_seq`, `as_of_seq`, SSE `id`). Parse it with `BigInt.parse`.
+- Resume only from REST `next_after_seq`, SSE `id` or `clock.safe_seq`.
+- SSE (if you need it): `/v1/workspaces/{ws}/events/stream?mode=practice&include=marks,clock`.
+- Units: lamports/raw amounts/int64 ids are integer strings; prices are decimal strings; pct/ratio/bps/usd/score
+  are numbers; `decimals` is an integer from the mint account (never assume 6).
+
+## 8. Portfolio and exit stats
+- `portfolio_latest` / `GET .../portfolio/overview` columns: `workspace_id, mode, practice_epoch, ts,
+  cash_lamports, positions_cost_lamports, positions_value_lamports, equity_lamports, peak_equity_lamports,
+  drawdown_bps, realized_pnl_lamports, unrealized_pnl_lamports, open_positions, as_of_seq` (lamports and
+  `as_of_seq` are strings).
+- `exit_stats()` = `GET .../stats/exit-reasons`, one shape: `{exit_reason, count, pnl_lamports (string),
+  avg_pnl_pct, win_rate_pct (0-100), avg_hold_s}`. The key is **`exit_reason`**, not `reason`.
+
+## 9. Push (FCM data message)
+**Every value in `data` is a string.** `v`, `seq`, `version` are base-10 integer strings; `actions` and `vars`
+are JSON-encoded strings.
+```json
+{ "v": "1", "event": "N-01", "type": "proposal.created", "mode": "practice",
+  "workspace_id": "1000…000a", "seq": "18301", "deep_link": "sentra://approvals/3000…000a",
+  "approval_id": "3000…000a", "version": "1", "token": "apt_Q2x…", "exp": "2026-10-29T08:52:00.000Z",
+  "actions": "[\"approve\",\"skip\",\"open\"]",
+  "vars": "{\"symbol\":\"EXM\",\"strategy\":\"Yumi · AMM\",\"amount_lamports\":\"250000000\"}",
+  "server_now": "2026-10-29T08:42:00.151Z" }
+```
+- `version` = approval `rev`: pass it as `p_expected_rev` when the user taps Approve or Skip.
+- `vars.amount_lamports` is an integer string (format it with BigInt). There is no `vars.sol` and no
+  `vars.mm_ss`: compute the countdown from `exp` and `server_now`.
+- Real SOL is never actionable from a push (no token, `actions` `["open"]`).
+- Devices: `register_device` on login, app start and token refresh; `revoke_device` on logout.
+
+## 10. Settings keys you asked about
+- `stop_loss_pct`: hard stop measured from the **entry** price (v1.0 `stopLossPct`; 0 = off, else 5-49).
+- `peak_trail_pct`: trailing stop from the **peak** (0 = off, else 5-49). They are separate keys.
+  The 1.1.0 rename table wrongly mapped `stopLossPct` to `peak_trail_pct`; corrected in 1.1.2.
+- `exit_rules.loss_guards[]`: `{at_loss_pct 1-99, sell_portion_pct 0.01-100}`.
+
+## 11. Real SOL confirmation (disabled until Phase 7)
+WebAuthn + typed strategy name + 2.5 s hold + TOTP via `confirmations/challenge`. Nothing in practice needs it.
+
+## 12. Account deletion
+`GET/POST/DELETE /me/deletion`. Grace is server-side (default 7 days, currently 1–30, pending Apex's final
+decision) and cancellable until `scheduled_for`.

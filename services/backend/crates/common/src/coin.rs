@@ -79,6 +79,15 @@ pub struct CoinSnapshot {
     pub name: Untrusted<String>,
     pub symbol: Untrusted<String>,
     pub uri: Untrusted<String>,
+    /// Quote mint of the coin's pool / curve (wSOL mint for SOL). `None` = source did not say.
+    #[serde(default)]
+    pub quote_mint: Option<String>,
+    /// Mint decimals from the mint account; `None` = unknown (never assumed).
+    #[serde(default)]
+    pub decimals: Option<u8>,
+    /// Token program that owns the mint.
+    #[serde(default)]
+    pub token_program: Option<String>,
 }
 
 #[cfg(test)]

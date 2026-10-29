@@ -9,3 +9,4 @@ P=(psql -q -X -v ON_ERROR_STOP=1 -d "$DB" -o /dev/null)
 "${P[@]}" -f supabase/tests/00_local_shim.sql
 for m in supabase/migrations/*.sql; do "${P[@]}" -f "$m"; done
 for s in supabase/tests/[1-9]*.sql; do "${P[@]}" -f "$s"; done
+python3 scripts/check_error_codes.py

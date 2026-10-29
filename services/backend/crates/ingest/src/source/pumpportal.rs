@@ -43,6 +43,7 @@ pub fn parse_message(raw: &str, now_ms: i64) -> Option<IngestEvent> {
         (Some(s), Some(t)) if s > 0.0 && t > 0.0 => Some(PoolState {
             sol_reserve: s,
             token_reserve: t,
+            quote: common::QuoteAsset::Sol,
         }),
         _ => None,
     };
@@ -53,6 +54,8 @@ pub fn parse_message(raw: &str, now_ms: i64) -> Option<IngestEvent> {
     };
     match m.tx_type.as_deref()? {
         "create" => Some(IngestEvent::NewCoin(Box::new(NewCoin {
+            decimals: None,
+            token_program: None,
             mint,
             venue: Venue::Curve,
             launchpad,
@@ -64,6 +67,7 @@ pub fn parse_message(raw: &str, now_ms: i64) -> Option<IngestEvent> {
             pool,
             metrics: None,
             guard: None,
+            quote_mint: None,
         }))),
         t @ ("buy" | "sell") => Some(IngestEvent::Trade(TradeTick {
             mint,
