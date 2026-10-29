@@ -63,8 +63,11 @@ export interface ScreenedCoin extends Tradeability {
   guard_verdict: GuardVerdict | null;
   status: "pick" | "pending_guard" | "rejected_score" | "rejected_guard" | "not_tradeable";
   liquidity_usd: number | null;
-  /** WF-20 Mcap column. Not in contracts 1.1.2 (no market-cap field yet) → always absent today. */
-  mcap_usd?: number | null;
+  /** WF-20 Mcap column, contracts 1.1.4 `MarketCapFields` (newest of coin.detected / screener.scored /
+   * pick.created). `mcap_usd` is a decimal string, display-only and indicative; null → "—". */
+  market_cap_lamports: Lamports | null;
+  mcap_usd: DecimalString | null;
+  mcap_as_of: IsoTs | null;
   decimals: number | null;
   token_program: string | null;
   ts_ms: number;

@@ -73,6 +73,9 @@ pub struct ScreenedCoin {
     pub guard_verdict: Option<GuardVerdict>,
     /// `pick` | `rejected_score` | `rejected_guard` | `not_tradeable`.
     pub status: String,
+    /// 1.1.4 market cap (flattened: `market_cap_lamports`, `mcap_usd`, `mcap_as_of`).
+    #[serde(flatten)]
+    pub mcap: crate::model::MarketCap,
     pub liquidity_usd: Option<Num>,
     pub decimals: Option<u8>,
     pub token_program: Option<String>,

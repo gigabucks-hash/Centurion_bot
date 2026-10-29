@@ -26,6 +26,8 @@ log = "0.4"
 # Wire contract v1: decimal strings parsed for internal math/display only (never f64 on the wire).
 rust_decimal = { version = "1", default-features = false, features = ["std"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+# Real transport (SENTRA_BACKEND): REST + SSE. rustls (no OpenSSL), no redirects, no cookies.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # Planned (Week 2): OS keychain for the backend session token. Off by default in the prototype.
 keyring = { version = "3", optional = true, features = ["apple-native", "windows-native", "sync-secret-service"] }

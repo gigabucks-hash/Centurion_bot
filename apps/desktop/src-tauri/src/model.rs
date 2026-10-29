@@ -20,7 +20,7 @@ use std::str::FromStr;
 
 pub const EVENT_SCHEMA_VERSION: u32 = 1;
 /// Contracts release this mirror was verified against (contract test checks major.minor).
-pub const CONTRACTS_VERSION: &str = "1.1.3";
+pub const CONTRACTS_VERSION: &str = "1.1.4";
 /// JSON number on the wire (pcts, ratios, bps, USD notionals, scores). Display/threshold only.
 pub type Num = f64;
 pub const LAMPORTS_PER_SOL: i128 = 1_000_000_000;
@@ -278,6 +278,26 @@ pub enum ExitReason {
     Manual,
     StrategyRetired,
     PracticeReset,
+    /// 1.1.4 `stall_exit` (|move| over `window_s` below `min_move_pct`). Not the v1.0 `stall` (= `no_new_high`).
+    Stall,
+}
+
+/// 1.1.4 `MarketCapFields` (coin.detected, screener.scored, pick.created, REST coin/pick). One backend
+/// computation (`common::mcap`); `mcap_usd` is display-only and indicative.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct MarketCap {
+    /// price × supply / 10^decimals in lamports; null when decimals or supply are unknown.
+    #[serde(default)]
+    pub market_cap_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub mcap_usd: Option<Dec>,
+    #[serde(default)]
+    pub mcap_as_of: Option<IsoTs>,
+}
+impl MarketCap {
+    pub fn is_known(&self) -> bool {
+        self.market_cap_lamports.is_some() || self.mcap_usd.is_some()
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -412,6 +432,9 @@ pub struct CoinDetected {
     pub decimals: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub token_program: Option<String>,
+    /// 1.1.4.
+    #[serde(flatten)]
+    pub mcap: MarketCap,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ScreenerScored {
@@ -428,6 +451,9 @@ pub struct ScreenerScored {
     pub rejected_by: Option<String>,
     pub failed: Vec<String>,
     pub result: ScreenerResult,
+    /// 1.1.4.
+    #[serde(flatten)]
+    pub mcap: MarketCap,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GuardResult {
@@ -444,6 +470,9 @@ pub struct PickCreated {
     pub score: ScreenerResult,
     pub guard_verdict: GuardVerdict,
     pub guard_reasons: Vec<String>,
+    /// 1.1.4: market cap as of the pick.
+    #[serde(flatten)]
+    pub mcap: MarketCap,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EntryArmed {

@@ -1,5 +1,5 @@
-//! Error-code → copy mapping from `@sentra/i18n` 0.4.3 `errors.map.json` (UX-owned, read-only,
-//! embedded at build time). It replaces the desktop's former hand mapping: each of the 56
+//! Error-code → copy mapping from `@sentra/i18n` 0.4.5 `errors.map.json` (v5) (UX-owned, read-only,
+//! embedded at build time). It replaces the desktop's former hand mapping: each of the 57
 //! `errors.json` v4 codes maps to `{key, source: copy|fallback, kind, http, retryable}`, and an
 //! unknown code maps to `unknown` (`error.code.internal`). The UI resolves the key in the
 //! catalog and falls back to `errors.json` `messages.id|en` (frontend `src/i18n/index.ts`).
@@ -79,8 +79,10 @@ mod tests {
     #[test]
     fn errors_map_covers_and_resolves() {
         let m = map();
-        assert_eq!(m.errors_json_version, 4);
-        assert_eq!(m.codes.len(), 56);
+        // i18n 0.4.5: errors.json v5 (57 codes, + GUARD_WEAKEN_REQUIRES_APPROVAL).
+        assert_eq!(m.errors_json_version, 5);
+        assert_eq!(m.codes.len(), 57);
+        assert_eq!(i18n_key("GUARD_WEAKEN_REQUIRES_APPROVAL"), "error.code.guard_weaken_requires_approval");
         assert_eq!(i18n_key("VERSION_CONFLICT"), "error.code.version_conflict");
         assert_eq!(i18n_key("IDEMPOTENCY_KEY_REUSED"), "error.code.internal");
         assert_eq!(i18n_key("PRECONDITION_REQUIRED"), "error.code.version_conflict");

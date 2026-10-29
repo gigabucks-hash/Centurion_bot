@@ -51,6 +51,8 @@ struct PickInfo {
 /// Per-mint facts from `coin.detected` / `screener.scored` / `order.failed` (1.1.2 fields).
 #[derive(Debug, Clone, Default)]
 struct CoinInfo {
+    /// 1.1.4: newest known market cap (any of coin.detected / screener.scored / pick.created).
+    mcap: MarketCap,
     venue: Option<Venue>,
     decimals: Option<u8>,
     token_program: Option<String>,
@@ -59,6 +61,20 @@ struct CoinInfo {
 
 /// `system.notice` kind notice: entries paused (workspace). ≠ `order.failed` `INSUFFICIENT_PRACTICE_BALANCE`.
 pub const PRACTICE_CASH_INSUFFICIENT: &str = "PRACTICE_CASH_INSUFFICIENT";
+
+/// Keep the newest market cap: a known value replaces an older one (by `mcap_as_of`); nulls never erase.
+fn merge_mcap(cur: &mut MarketCap, new: &MarketCap) {
+    if !new.is_known() {
+        return;
+    }
+    let newer = match (&cur.mcap_as_of, &new.mcap_as_of) {
+        (Some(a), Some(b)) => b.0 >= a.0,
+        _ => true,
+    };
+    if !cur.is_known() || newer {
+        *cur = new.clone();
+    }
+}
 
 fn not_tradeable(code: &str, quote_mint: Option<String>) -> Tradeability {
     let quote_symbol = quote_mint.as_deref().and_then(keys::quote_symbol);
@@ -368,6 +384,7 @@ impl Engine {
             KnownEvent::CoinDetected(c) => {
                 let trade = if is_sol_quote(c.quote_mint.as_deref()) { tradeable_with(c.quote_mint.clone()) } else { not_tradeable(UNSUPPORTED_QUOTE_MINT, c.quote_mint.clone()) };
                 let info = self.coins.entry(c.mint.clone()).or_default();
+                merge_mcap(&mut info.mcap, &c.mcap);
                 info.venue = Some(c.venue);
                 info.decimals = c.decimals.or(info.decimals);
                 info.token_program = c.token_program.clone().map(|t| crate::model::plain_text(&t, 48)).or(info.token_program.take());
@@ -389,8 +406,14 @@ impl Engine {
                 let tradeable = s.tradeable.unwrap_or(s.result.tradeable) && is_sol_quote(quote.as_deref());
                 let skip = s.skip_reason.clone().or_else(|| s.result.skip_reason.clone());
                 let trade = if tradeable { tradeable_with(quote) } else { not_tradeable(skip.as_deref().unwrap_or(UNSUPPORTED_QUOTE_MINT), quote) };
+                if let Some(info) = self.coins.get_mut(&s.mint) {
+                    merge_mcap(&mut info.mcap, &s.mcap);
+                } else if s.mcap.is_known() {
+                    self.coins.entry(s.mint.clone()).or_default().mcap = s.mcap.clone();
+                }
                 let coin = self.coins.get(&s.mint).cloned().unwrap_or_default();
                 let row = ScreenedCoin {
+                    mcap: coin.mcap.clone(),
                     ck: ck.clone(),
                     mint: s.mint.clone(),
                     symbol: sym.clone(),
@@ -447,7 +470,13 @@ impl Engine {
                 info.score = Some(p.score.score);
                 info.threshold = Some(p.score.score_threshold);
                 info.guard = Some(p.guard_verdict);
+                let mcap = {
+                    let ci = self.coins.entry(p.mint.clone()).or_default();
+                    merge_mcap(&mut ci.mcap, &p.mcap);
+                    ci.mcap.clone()
+                };
                 if let Some(c) = self.screened.iter_mut().find(|c| c.ck == ck) {
+                    c.mcap = mcap;
                     if c.trade.tradeable {
                         c.status = "pick".into();
                     }

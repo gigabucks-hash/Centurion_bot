@@ -10,8 +10,18 @@ use std::path::PathBuf;
 fn contracts() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../packages/contracts")
 }
+/// Contract files as **committed** (`git show HEAD:packages/contracts/<rel>`), so another team's
+/// uncommitted work in the shared tree (e.g. 1.1.4 WIP) cannot break the desktop's tests. Set
+/// `SENTRA_CONTRACTS_WORKTREE=1` to test against the working tree (early warning), or when git is absent.
 fn read(rel: &str) -> String {
-    std::fs::read_to_string(contracts().join(rel)).unwrap_or_else(|e| panic!("read {rel}: {e}"))
+    let path = contracts().join(rel);
+    if std::env::var("SENTRA_CONTRACTS_WORKTREE").as_deref() != Ok("1") {
+        let out = std::process::Command::new("git").arg("-C").arg(contracts()).args(["show", &format!("HEAD:./{rel}")]).output();
+        if let Some(o) = out.ok().filter(|o| o.status.success()) {
+            return String::from_utf8(o.stdout).expect("utf-8");
+        }
+    }
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {rel}: {e}"))
 }
 /// All values inside ```json fences (a fence may hold several concatenated objects).
 fn json_blocks(md: &str) -> Vec<Vec<serde_json::Value>> {
@@ -291,8 +301,8 @@ fn errors_map_and_order_fail_reasons_match_contracts_and_catalog() {
 #[test]
 fn contracts_1_1_3_reject_reason_and_approval_wire() {
     let ts = read("src/wire/events.ts");
-    assert!(ts.contains("CONTRACTS_VERSION = \"1.1.3\""));
-    assert_eq!(crate::model::CONTRACTS_VERSION, "1.1.3");
+    assert!(ts.contains(&format!("CONTRACTS_VERSION = \"{}\"", crate::model::CONTRACTS_VERSION)), "mirror == committed contracts");
+    assert_eq!(crate::model::CONTRACTS_VERSION, "1.1.4");
     let i = ts.find("export type ApprovalRejectReason").unwrap();
     let line = &ts[i..i + ts[i..].find(';').unwrap()];
     let theirs: Vec<String> = line.split('"').skip(1).step_by(2).map(str::to_owned).collect();
@@ -321,5 +331,29 @@ fn contracts_1_1_3_reject_reason_and_approval_wire() {
     let k = ts.find("export interface ConflictError").unwrap();
     let ce = &ts[k..k + ts[k..].find("\n}").unwrap()];
     assert!(ce.contains("current: T;") && !ce.contains("current?:"));
+}
+
+/// contracts 1.1.4: `MarketCapFields` on coin.detected / screener.scored / pick.created (nullable, decimal /
+/// int strings) and the new `stall` exit reason.
+#[test]
+fn contracts_1_1_4_market_cap_and_stall() {
+    let ts = read("src/wire/events.ts");
+    for f in ["market_cap_lamports: Lamports | null", "mcap_usd: DecimalString | null", "mcap_as_of: IsoTs | null"] {
+        assert!(ts.contains(f), "MarketCapFields.{f}");
+    }
+    for i in ["CoinDetected extends MarketCapFields", "ScreenerScored extends MarketCapFields", "PickCreated extends MarketCapFields"] {
+        assert!(ts.contains(i), "{i}");
+    }
+    let c: CoinDetected = serde_json::from_value(serde_json::json!({"mint": "Co68LzYNQArj5fmRmh4o2TVeEVx6FfaLiyRgDAjtpump", "venue": "curve", "launchpad": null,
+        "creator": null, "decimals": 6, "token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb", "quote_mint": null,
+        "market_cap_lamports": "31250000000000", "mcap_usd": "4687500.00", "mcap_as_of": "2026-10-29T08:42:00.000Z"})).unwrap();
+    assert_eq!(c.mcap.market_cap_lamports, Some(Lamports(31_250_000_000_000)));
+    assert!(c.mcap.mcap_usd.is_some() && c.mcap.is_known());
+    let n: CoinDetected = serde_json::from_value(serde_json::json!({"mint": "m", "venue": "amm", "launchpad": null, "creator": null,
+        "market_cap_lamports": null, "mcap_usd": null, "mcap_as_of": null})).unwrap();
+    assert!(!n.mcap.is_known(), "nullable");
+    let old: CoinDetected = serde_json::from_value(serde_json::json!({"mint": "m", "venue": "amm", "launchpad": null, "creator": null})).unwrap();
+    assert!(!old.mcap.is_known(), "pre-1.1.4 producer");
+    assert_eq!(serde_json::from_value::<ExitReason>(serde_json::json!("stall")).unwrap(), ExitReason::Stall);
 }
 

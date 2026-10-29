@@ -93,6 +93,17 @@ const REMOTE_EDIT_EVERY_MS: i64 = 75_000;
 const FEE_BPS: i64 = 125;
 const NETWORK_FEE: i128 = 25_000;
 const SOL_USD: i64 = 150;
+
+/// Shallow-merge `extra`'s keys into the object `p`.
+fn merge(p: &mut serde_json::Value, extra: serde_json::Value) {
+    if let (Some(o), serde_json::Value::Object(e)) = (p.as_object_mut(), extra) {
+        o.extend(e);
+    }
+}
+fn with_mcap(mut p: serde_json::Value, m: serde_json::Value) -> serde_json::Value {
+    merge(&mut p, m);
+    p
+}
 const DROP_LIVE_PCT: f64 = 0.04;
 const HOLE_PCT: f64 = 0.08;
 const CLOCK_EVERY_MS: i64 = 5_000; // contract: 15 s; faster in the mock to show resync
@@ -370,6 +381,18 @@ impl Server {
     }
 
     /// Screener payload for a coin (1.1.2: `tradeable`, `skip_reason`, `quote_mint`, quote check).
+    /// 1.1.4 `MarketCapFields` from the mock price (SOL per whole token) × a 1e9-token supply. ~10 % of
+    /// coins have an unknown supply → all three null (the column shows "—").
+    fn mcap_json(&self, mint: &str) -> serde_json::Value {
+        let Some(c) = self.coins.get(mint) else { return json!({"market_cap_lamports": null, "mcap_usd": null, "mcap_as_of": null}) };
+        if mint.as_bytes().last().is_some_and(|b| b % 10 == 0) {
+            return json!({"market_cap_lamports": null, "mcap_usd": null, "mcap_as_of": null});
+        }
+        let sol = c.price_sol * Decimal::from(1_000_000_000i64);
+        let lamports = (sol * Decimal::from(LAMPORTS_PER_SOL as i64)).round();
+        json!({"market_cap_lamports": lamports.to_string(), "mcap_usd": (sol * Decimal::from(SOL_USD)).round_dp(2).to_string(), "mcap_as_of": IsoTs::from_ms(self.now())})
+    }
+
     fn scored_payload(&mut self, mint: &str, score: i64, quote_mint: Option<&str>) -> serde_json::Value {
         let tradeable = is_sol_quote(quote_mint);
         let mut checks = Vec::new();
@@ -390,9 +413,11 @@ impl Server {
         }
         // 1.1.2: tradeable / skip_reason / quote_mint also at the screener.scored top level.
         let rejected_by = if !tradeable { json!("quote_mint") } else if !passed { json!("score_threshold") } else { json!(null) };
-        json!({"mint": mint, "passed": passed, "summary": format!("Fit {score}/{SCORE_THRESHOLD}"), "rejected_by": rejected_by,
+        let mut p = json!({"mint": mint, "passed": passed, "summary": format!("Fit {score}/{SCORE_THRESHOLD}"), "rejected_by": rejected_by,
             "failed": if passed { json!([]) } else { json!([rejected_by]) }, "tradeable": tradeable,
-            "skip_reason": (!tradeable).then_some(UNSUPPORTED_QUOTE_MINT), "quote_mint": quote_mint, "result": result})
+            "skip_reason": (!tradeable).then_some(UNSUPPORTED_QUOTE_MINT), "quote_mint": quote_mint, "result": result});
+        merge(&mut p, self.mcap_json(mint));
+        p
     }
 
     /// `race`: the coin's pool moved to a non-SOL quote → re-score as not tradeable.
@@ -445,7 +470,7 @@ impl Server {
         let flip_at_ms = (self.not_tradeable == NotTradeableMode::Race && is_sol_quote(Some(&quote)) && self.rng.f64() < 0.4).then(|| self.now() + FLIP_AFTER_MS);
         self.coins.insert(mint.clone(), Coin { price_sol: price, liquidity_usd: liq, untrusted: untrusted.clone(), ck: ck.clone(), strategy_id: sid.clone(), decimals, token_program: program, quote_mint: Some(quote.clone()), flip_at_ms });
         self.emit("coin.detected", Actor::Ingest, &ck, Some(&sid), Some(&ck), Some(&mint),
-            json!({"mint": mint, "venue": venue, "launchpad": "mock", "creator": null, "quote_mint": quote, "decimals": decimals, "token_program": program}), untrusted.clone());
+            { let mut p = json!({"mint": mint, "venue": venue, "launchpad": "mock", "creator": null, "quote_mint": quote, "decimals": decimals, "token_program": program}); merge(&mut p, self.mcap_json(&mint)); p }, untrusted.clone());
 
         let score = if self.rng.f64() < 0.15 { 40 + (self.rng.next_u64() % 29) as i64 } else { 70 + (self.rng.next_u64() % 45) as i64 };
         let payload = self.scored_payload(&mint, score, Some(&quote));
@@ -470,9 +495,10 @@ impl Server {
         }
         self.emit("guard.result", Actor::Guard, &ck, Some(&sid), Some(&ck), Some(&mint),
             json!({"mint": mint, "verdict": "PASS", "risk_score": 12, "reasons": [], "checks": []}), untrusted.clone());
+        let pick_mcap = self.mcap_json(&mint);
         self.emit("pick.created", Actor::Screener, &ck, Some(&sid), Some(&ck), Some(&mint),
-            json!({"mint": mint, "summary": format!("Fit {score}/{SCORE_THRESHOLD}"), "score": {"passed": true, "score": score, "score_threshold": SCORE_THRESHOLD, "max_score": 115, "checks": [], "tradeable": true, "quote_mint": quote},
-                "guard_verdict": "PASS", "guard_reasons": []}), untrusted.clone());
+            with_mcap(json!({"mint": mint, "summary": format!("Fit {score}/{SCORE_THRESHOLD}"), "score": {"passed": true, "score": score, "score_threshold": SCORE_THRESHOLD, "max_score": 115, "checks": [], "tradeable": true, "quote_mint": quote},
+                "guard_verdict": "PASS", "guard_reasons": []}), pick_mcap), untrusted.clone());
         let pick_id = self.uuid('6');
         let expires = self.now() + PROPOSAL_TTL_MS;
         self.emit("entry.armed", Actor::Entry, &ck, Some(&sid), Some(&ck), Some(&mint),
@@ -1054,7 +1080,9 @@ impl Transport for MockTransport {
         s.emit("order.filled", Actor::Executor, &order_id, Some(&sid), Some(&ck), Some(&mint),
             json!({"order": order, "fill": fill, "position_id": position_id, "position_rev": rev, "practice_epoch": epoch}), u);
         let resp = CloseResponse {
-            position: PositionWire { id: position_id.into(), position_key: key, rev, qty_raw: RawQty(qty_raw), status: status.into(), practice_epoch: Some(epoch),
+            // API_ENDPOINTS 4.4: `position` = the position at request time (rev `base`); the new rev
+            // arrives with position.updated / position.closed / order.filled.position_rev.
+            position: PositionWire { id: position_id.into(), position_key: key, rev: base, qty_raw: RawQty(qty_raw), status: status.into(), practice_epoch: Some(epoch),
                 decimals: Some(dec_), token_program: None, cost_basis_lamports: None, avg_entry_price_sol: None, exit_reason: (status == "closed").then_some(ExitReason::Manual) },
             order: serde_json::from_value(order).expect("OrderWire"),
             order_id,
@@ -1120,8 +1148,9 @@ impl Transport for MockTransport {
     async fn reset_practice(&self, _idem_key: &str, if_match: Option<u64>) -> ApiResult<ApiItem<PracticeResetResponse>> {
         let mut s = self.inner.lock().unwrap();
         let now = s.now();
-        let Some(base) = if_match else { return s.precondition() };
-        if base != s.ws_rev {
+        // contracts: body `{}` + Idempotency-Key; no rev required (the server ignores If-Match). A
+        // stale If-Match, when the desktop sends one, is still refused here as a guard.
+        if let Some(base) = if_match.filter(|b| *b != s.ws_rev) {
             let cur = s.ws_rev;
             return s.err(409, "VERSION_CONFLICT", &format!("Workspace rev is {cur}"), json!({
                 "current_rev": cur, "base_rev": base, "changed_fields": ["practice_epoch"], "current": {"id": WORKSPACE_ID, "rev": cur}}));
@@ -1282,7 +1311,7 @@ mod tests {
         assert_eq!(c.conflict().unwrap().current.as_ref().unwrap()["rev"], 1, "error.current inside the error object");
         assert_eq!(t.close(&id, "c2", Some(1), 0).await.unwrap_err().code(), "INVALID_FRACTION");
         let r = t.close(&id, "c3", Some(1), 5_000).await.unwrap();
-        assert_eq!((r.position.rev, r.status.as_str(), r.replayed), (2, "filled", false));
+        assert_eq!((r.position.rev, r.status.as_str(), r.replayed), (1, "filled", false), "position at request time");
         assert!(r.fill.is_some() && r.job_id.is_some() && r.order.fraction_bps == 5_000);
         // idempotency: identical retry replays, same key + different body = 422
         assert!(t.close(&id, "c3", Some(1), 5_000).await.unwrap().replayed);
@@ -1306,7 +1335,7 @@ mod tests {
         let a = t.get_approval(&pid).await.unwrap().data;
         t.decide(&pid, "k", ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.unwrap(), expected_rev: a.version, reason: None, reject_reason: None }).await.unwrap();
         assert_eq!(t.with(|s| s.positions.len()), 1);
-        assert_eq!(t.reset_practice("r0", None).await.unwrap_err(), ApiFailure::PreconditionRequired);
+        assert_eq!(t.reset_practice("r0", Some(999)).await.unwrap_err().code(), "VERSION_CONFLICT");
         let rev = t.get_workspace().await.unwrap().data.rev;
         let r = t.reset_practice("r1", Some(rev)).await.unwrap().data;
         assert_eq!(r.starting_balance_lamports, Lamports(30_000_000_000));

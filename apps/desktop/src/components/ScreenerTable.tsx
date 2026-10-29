@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ScreenedCoin } from "../api";
-import { useLang, useT } from "../i18n";
+import { LOCALES, solText, useLang, useT, type Lang } from "../i18n";
 import { fmtUsdLocale } from "./format";
 import { NtChip } from "./NotTradeable";
 
@@ -63,8 +63,8 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
                   {/* symbol is untrusted token metadata → text node only */}
                   <td><b>${c.symbol}</b></td>
                   <td className="muted">{c.venue === "curve" ? "Curve" : c.venue === "amm" ? "AMM" : "—"}</td>
-                  {/* Mcap: no market-cap field in contracts 1.1.2 (coin.detected / screener.scored / mark) → "—" until Backend adds one. */}
-                  <td className="num dim" title="mcap_usd: not in contracts 1.1.2">{c.mcap_usd != null ? fmtUsdLocale(c.mcap_usd, lang) : "—"}</td>
+                  {/* Mcap (1.1.4): mcap_usd is display-only/indicative; the title carries the SOL value and as-of time. */}
+                  <td className="num dim" title={mcapTitle(c, lang)}>{c.mcap_usd != null ? fmtUsdLocale(Number(c.mcap_usd), lang) : "—"}</td>
                   <td className="num">{nt || c.liquidity_usd == null ? "—" : fmtUsdLocale(c.liquidity_usd, lang)}</td>
                   <td className="num">{c.score}</td>
                   <td>{nt || !c.guard_verdict ? <span className="dim">—</span> : <span className={`chip verdict v-${c.guard_verdict.toLowerCase()}`}>{c.guard_verdict}</span>}</td>
@@ -91,3 +91,12 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
     </div>
   );
 }
+
+/** Mcap cell tooltip: SOL value (exact lamports formatter) + as-of time, or why it is empty. */
+function mcapTitle(c: ScreenedCoin, lang: Lang): string {
+  if (c.market_cap_lamports == null && c.mcap_usd == null) return "mcap: —";
+  const sol = c.market_cap_lamports != null ? solText(c.market_cap_lamports, lang, false) : null;
+  const at = c.mcap_as_of ? new Date(c.mcap_as_of).toLocaleTimeString(LOCALES[lang], { hour: "2-digit", minute: "2-digit" }) : null;
+  return [sol, at && `@ ${at}`].filter(Boolean).join(" ");
+}
+

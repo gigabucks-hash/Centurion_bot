@@ -145,7 +145,7 @@ pub fn spawn<R: Runtime>(app: AppHandle<R>, t: Arc<ActiveTransport>) {
             backoff = Duration::from_millis(500);
             let o = with_engine(&app, |e| {
                 e.connected = true;
-                e.note(Actor::System, Tone::Info, format!("Terhubung ke backend (mock) · resume dari seq {}", cur.watermark))
+                e.note(Actor::System, Tone::Info, format!("Terhubung ke backend ({}) · resume dari seq {}", t.label(), cur.watermark))
             });
             dispatch(&app, vec![Out::Connection(true), o]);
             let mut last_catchup = Instant::now() - MIN_CATCHUP_GAP;

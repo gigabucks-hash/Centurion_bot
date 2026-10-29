@@ -142,7 +142,8 @@ export const amountsAreStrings: [
 ] = [true, true, true, true];
 
 // ---- contracts 1.1.3: reject_reason (closed enum, reject only) + ApprovalWire; ConflictError.current required
-export const contractsVersion113: "1.1.3" = CONTRACTS_VERSION;
+/** Any 1.1.x (the Rust contract test pins the committed version to the mirror). */
+export const contractsVersion11x = CONTRACTS_VERSION satisfies `1.1.${number}`;
 /** What the desktop sends on Skip (Rust commands.rs `skip_reason`): not_tradeable for a WF-20 card. */
 export const skipNotTradeableSample = { decision: "reject", token: "apt_x", expected_rev: 1, reject_reason: "not_tradeable" } satisfies ApprovalDecisionRequest;
 export const skipNormalSample = { decision: "reject", token: "apt_x", expected_rev: 1, reject_reason: "user_declined" } satisfies ApprovalDecisionRequest;

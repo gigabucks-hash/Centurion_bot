@@ -164,6 +164,8 @@ pub fn exit_label(r: ExitReason) -> &'static str {
         ExitReason::Manual => "Jual manual",
         ExitReason::StrategyRetired => "Strategi dihentikan",
         ExitReason::PracticeReset => "Reset practice",
+        // i18n 0.4.5 has no exit_reason.stall copy yet (UX gap) → local label.
+        ExitReason::Stall => "Harga stagnan",
     }
 }
 

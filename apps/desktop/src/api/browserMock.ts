@@ -112,6 +112,10 @@ function spawnSignal() {
     score, score_threshold: 70, max_score: 100, passed: score >= 70, guard_verdict: nonSol || score < 70 ? null : "PASS",
     status: nonSol ? "not_tradeable" : score >= 70 ? "pick" : "rejected_score", liquidity_usd: 5000 + Math.random() * 40000,
     decimals: 6, token_program: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", ts_ms: now, ...(nonSol ? NOT_TRADEABLE : TRADEABLE),
+    // 1.1.4 MarketCapFields: price (SOL/token) × 1e9 supply; ~10 % unknown → null.
+    ...(Math.random() < 0.1
+      ? { market_cap_lamports: null, mcap_usd: null, mcap_as_of: null }
+      : { market_cap_lamports: String(Math.round(price * 1e9 * 1e9)), mcap_usd: (price * 1e9 * 150).toFixed(2), mcap_as_of: new Date(now).toISOString() }),
   };
   screened.unshift(row);
   screened.length = Math.min(screened.length, 150);

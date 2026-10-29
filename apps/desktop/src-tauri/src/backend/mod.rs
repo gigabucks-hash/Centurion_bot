@@ -17,7 +17,10 @@
 // Week-2 transport API; the mock does not need all of it yet.
 #![allow(dead_code)]
 
+pub mod http;
 pub mod mock;
+#[cfg(test)]
+mod smoke_real;
 
 use crate::model::*;
 use std::future::Future;
@@ -263,8 +266,94 @@ pub mod paths {
     pub const STRATEGY_RESUME: &str = "/strategies/{id}/resume";
 }
 
-/// Concrete transport used by the app. Week 2: `backend::http::HttpTransport`.
-pub type ActiveTransport = mock::MockTransport;
+/// Transport used by the app: the in-process mock (default) or the real REST/SSE client when
+/// `SENTRA_BACKEND=<base url>` is set (dev: plus `SENTRA_WORKSPACE_ID`, `SENTRA_BACKEND_TOKEN`).
+pub enum ActiveTransport {
+    Mock(mock::MockTransport),
+    Http(http::HttpTransport),
+}
+
+macro_rules! delegate {
+    ($self:ident, $t:ident => $e:expr) => {
+        match $self {
+            ActiveTransport::Mock($t) => $e,
+            ActiveTransport::Http($t) => $e,
+        }
+    };
+}
+
+impl ActiveTransport {
+    /// `SENTRA_BACKEND` unset → mock. Set but invalid → refuse to fall back silently (panic with the reason).
+    pub fn from_env(mock_skew_ms: i64) -> Self {
+        match std::env::var("SENTRA_BACKEND") {
+            Ok(v) if !v.trim().is_empty() && v.trim() != "mock" => match http::HttpTransport::from_env() {
+                Ok(t) => {
+                    log::info!("transport: http {}", t.base());
+                    Self::Http(t)
+                }
+                Err(e) => panic!("SENTRA_BACKEND set but unusable: {e}"),
+            },
+            _ => Self::Mock(mock::MockTransport::new(mock_skew_ms)),
+        }
+    }
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Mock(_) => "mock",
+            Self::Http(_) => "http",
+        }
+    }
+    /// Mock: start the simulated server. HTTP: nothing to start.
+    pub fn start(&self) {
+        if let Self::Mock(m) = self {
+            m.start();
+        }
+    }
+}
+
+impl Transport for ActiveTransport {
+    fn workspace_id(&self) -> &str {
+        delegate!(self, t => t.workspace_id())
+    }
+    async fn subscribe(&self, after_seq: i64) -> ApiResult<mpsc::Receiver<Inbound>> {
+        delegate!(self, t => t.subscribe(after_seq).await)
+    }
+    async fn list_events(&self, after_seq: i64, limit: u32) -> ApiResult<EventPage> {
+        delegate!(self, t => t.list_events(after_seq, limit).await)
+    }
+    async fn get_workspace(&self) -> ApiResult<ApiItem<WorkspaceSummary>> {
+        delegate!(self, t => t.get_workspace().await)
+    }
+    async fn get_portfolio(&self) -> ApiResult<ApiItem<PortfolioSnapshot>> {
+        delegate!(self, t => t.get_portfolio().await)
+    }
+    async fn list_strategies(&self) -> ApiResult<ApiItem<Vec<StrategySummary>>> {
+        delegate!(self, t => t.list_strategies().await)
+    }
+    async fn get_approval(&self, proposal_id: &str) -> ApiResult<ApiItem<ApprovalDetail>> {
+        delegate!(self, t => t.get_approval(proposal_id).await)
+    }
+    async fn decide(&self, proposal_id: &str, idem_key: &str, req: ApprovalDecisionRequest) -> ApiResult<ApiItem<ApprovalDecisionResponse>> {
+        delegate!(self, t => t.decide(proposal_id, idem_key, req).await)
+    }
+    async fn close(&self, position_id: &str, idem_key: &str, if_match: Option<u64>, fraction_bps: u16) -> ApiResult<CloseResponse> {
+        delegate!(self, t => t.close(position_id, idem_key, if_match, fraction_bps).await)
+    }
+    async fn set_strategy_paused(&self, id: &str, idem_key: &str, if_match: Option<u64>, paused: bool) -> ApiResult<ApiItem<StrategySummary>> {
+        delegate!(self, t => t.set_strategy_paused(id, idem_key, if_match, paused).await)
+    }
+    async fn patch_strategy(&self, id: &str, idem_key: &str, if_match: Option<u64>, settings_patch: serde_json::Value) -> ApiResult<ApiItem<StrategySummary>> {
+        delegate!(self, t => t.patch_strategy(id, idem_key, if_match, settings_patch).await)
+    }
+    async fn reset_practice(&self, idem_key: &str, if_match: Option<u64>) -> ApiResult<ApiItem<PracticeResetResponse>> {
+        delegate!(self, t => t.reset_practice(idem_key, if_match).await)
+    }
+    async fn coin_timeline(&self, mint: &str) -> ApiResult<CoinTimeline> {
+        delegate!(self, t => t.coin_timeline(mint).await)
+    }
+    async fn exit_reason_stats(&self, window: &str) -> ApiResult<ApiItem<Vec<ExitReasonStat>>> {
+        delegate!(self, t => t.exit_reason_stats(window).await)
+    }
+}
 
 #[cfg(test)]
 mod tests {

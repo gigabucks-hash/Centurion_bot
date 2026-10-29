@@ -32,7 +32,7 @@ pub fn run() {
             // Mock backend speaking wire v1.1. Its clock runs ahead (SENTRA_MOCK_SKEW_MS, default
             // 2500 ms) so countdowns provably use server_now. Week 2: HttpTransport (SSE + REST).
             let skew = std::env::var("SENTRA_MOCK_SKEW_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(2_500);
-            let transport = Arc::new(backend::ActiveTransport::new(skew));
+            let transport = Arc::new(backend::ActiveTransport::from_env(skew));
             state::AppState { engine: Mutex::new(state::Engine::new(transport.workspace_id())), transport }
         })
         .manage(hotkeys::Bindings(Mutex::new(Vec::new())))
