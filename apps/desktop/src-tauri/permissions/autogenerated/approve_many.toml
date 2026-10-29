@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-approve-many"
+description = "Enables the approve_many command without any pre-configured scope."
+commands.allow = ["approve_many"]
+
+[[permission]]
+identifier = "deny-approve-many"
+description = "Denies the approve_many command without any pre-configured scope."
+commands.deny = ["approve_many"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-activity-window"
+description = "Enables the open_activity_window command without any pre-configured scope."
+commands.allow = ["open_activity_window"]
+
+[[permission]]
+identifier = "deny-open-activity-window"
+description = "Denies the open_activity_window command without any pre-configured scope."
+commands.deny = ["open_activity_window"]

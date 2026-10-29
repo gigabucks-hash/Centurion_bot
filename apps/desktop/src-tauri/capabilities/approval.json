@@ -1,0 +1,18 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "approval",
+  "description": "Opt-in always-on-top approval popup: read + approve (Practice only, enforced in Rust) / skip / hand-off to main. No sell, no batch, no settings.",
+  "windows": [
+    "approval-popup"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "allow-get-snapshot",
+    "allow-get-candles",
+    "allow-approve-signal",
+    "allow-skip-signal",
+    "allow-focus-main-for-signal",
+    "allow-hide-approval-popup"
+  ]
+}
