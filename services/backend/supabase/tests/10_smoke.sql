@@ -27,7 +27,8 @@ insert into public.strategies (id, workspace_id, name, status, settings) values
      "approval_mode":"ask_first_buy","sell_floors":{"enabled":true,"max_loss_pct":35,"liquidity_drop_pct":80},
      "buy_to_sell_ratio_min":1.25,"guard_checks":{"bundled_share":true}}'),
   ('20000000-0000-0000-0000-00000000000c', '10000000-0000-0000-0000-00000000000a', 'A2', 'running', '{}');
-insert into public.coins (mint, venue, decimals) values ('7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', 'amm', 6);
+-- real SPL Token mint; decimals 9 verified on mainnet (fixtures/mainnet/README.md)
+insert into public.coins (mint, venue, decimals, token_program) values ('7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', 'amm', 9, 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 insert into public.picks (ck, workspace_id, strategy_id, mint, stage, score, score_threshold)
   values ('abc123', '10000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-00000000000a',
           '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', 'passed', 85, 70);

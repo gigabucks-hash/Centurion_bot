@@ -418,7 +418,7 @@ mod tests {
             .expect("fixture")
             .lines()
             .find(|l| {
-                l.contains("MASi45ub7Qe4ZE36UT5G6cU4ud8Fhhe4deS4F3cw9KTA") && l.contains("new_coin")
+                l.contains("7825dQ14LvPzUkfoVrUZCk52nuvZdUH4kCk4fEFPSkPc") && l.contains("new_coin")
             })
             .expect("line")
             .to_string();
@@ -527,7 +527,7 @@ mod tests {
         assert_eq!(d[0]["payload"]["decimals"], 6);
         assert_eq!(
             d[0]["payload"]["token_program"],
-            "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+            "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         );
     }
 }

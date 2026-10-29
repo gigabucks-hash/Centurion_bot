@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Base58 SPL mint address. Validated for charset/length only (no curve check).
+/// Base58 SPL mint address: must decode to exactly 32 bytes (no curve check).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct Mint(String);
@@ -12,8 +12,8 @@ pub struct InvalidMint(pub String);
 
 impl Mint {
     pub fn parse(s: &str) -> Result<Self, InvalidMint> {
-        const B58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-        let ok = (32..=44).contains(&s.len()) && s.chars().all(|c| B58.contains(c));
+        let ok =
+            (32..=44).contains(&s.len()) && bs58::decode(s).into_vec().is_ok_and(|b| b.len() == 32);
         if ok {
             Ok(Self(s.to_owned()))
         } else {
@@ -94,6 +94,15 @@ impl PositionKey {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn mint_must_decode_to_32_bytes() {
+        assert!(Mint::parse("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v").is_ok());
+        assert!(Mint::parse("So11111111111111111111111111111111111111112").is_ok());
+        // 44 valid base58 chars but 33 bytes: not a Solana pubkey
+        assert!(Mint::parse("MASi45ub7Qe4ZE36UT5G6cU4ud8Fhhe4deS4F3cw9KTA").is_err());
+        assert!(Mint::parse("0OIl").is_err());
+    }
+
     use super::*;
 
     const M: &str = "So11111111111111111111111111111111111111112";

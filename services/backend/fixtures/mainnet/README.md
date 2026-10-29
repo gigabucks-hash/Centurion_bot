@@ -58,3 +58,27 @@ Mint layout (SPL Token and Token-2022 base): decimals at byte 44, is_initialized
 `source/helius.rs` (create -> curve + mint fetch, trade cache/fallback).
 
 Re-capture: `HELIUS_API_KEY=… python3 scripts/capture_curve_accounts.py sol_quote=<curve> mint_sol_quote=<mint> …`.
+
+## Mint verification (decimals / token_program), read-only `getAccountInfo`
+
+Captured **2026-10-29 17:29 WIB (10:29 UTC)** via Helius mainnet RPC (`base64`, `confirmed`), same script
+(`mint_*` labels). Each file has a decoder test in `crates/ingest/src/curve.rs::decodes_mainnet_mint_accounts_exactly`.
+
+| File | Mint | Slot | Program | Decimals |
+|---|---|---|---|---|
+| `mint_usdc_spl.2026-10-29.json` | `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` (USDC) | 462847811 | SPL Token | 6 |
+| `mint_usdt_spl.2026-10-29.json` | `Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB` (USDT) | 462847812 | SPL Token | 6 |
+| `mint_wsol_spl.2026-10-29.json` | `So11111111111111111111111111111111111111112` (wSOL) | 462839824 | SPL Token | 9 |
+| `mint_pyusd_2022.2026-10-29.json` | `2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo` (PYUSD) | 462847812 | Token-2022 (866 B with extensions) | 6 |
+| `mint_sol_quote.2026-10-29.json` | `Co68LzYNQArj5fmRmh4o2TVeEVx6FfaLiyRgDAjtpump` (pump) | 462839823 | Token-2022 | 6 |
+| `mint_non_sol_quote.2026-10-29.json` | `McWZrfqAAJXKzjKXDANWaVp52o7xBAfQCzjQHLhinBW` (pump, PUMP-quoted) | 462839823 | Token-2022 | 6 |
+| `mint_pump_complete_2022.2026-10-29.json` | `F6LeVR2QMkzNXcQy6593Kf1hM7CPLnQaQ4eyBAvrpump` (pump, curve complete) | 462847812 | Token-2022 | 6 |
+
+Mock data checked against this (and fixed):
+- `fixtures/sample_stream.jsonl`: the four synthetic mints were 44-char base58 strings that decode to **33 bytes**
+  (RPC: `Invalid param: WrongSize`), i.e. not Solana pubkeys. Replaced by valid 32-byte synthetic keys, and
+  `Mint::parse` now requires exactly 32 decoded bytes. Their `token_program` said SPL Token; real pump mints are
+  Token-2022, so the pump_fun / pump_swap coins now say Token-2022 (decimals 6 was right).
+- `supabase/tests/10_smoke.sql`: `7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr` is a real SPL Token mint with
+  **decimals 9** (slot 462847815), not 6. Fixed.
+- `screener` test snapshot and `papersim` tests use decimals 6 with no mint account behind them (pure unit tests); unchanged.

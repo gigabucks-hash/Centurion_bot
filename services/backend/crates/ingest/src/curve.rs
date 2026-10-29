@@ -617,6 +617,14 @@ mod tests {
             ("mint_sol_quote.2026-10-29.json", 6, TOKEN_2022_PROGRAM),
             ("mint_non_sol_quote.2026-10-29.json", 6, TOKEN_2022_PROGRAM),
             ("mint_wsol_spl.2026-10-29.json", 9, SPL_TOKEN_PROGRAM),
+            ("mint_usdc_spl.2026-10-29.json", 6, SPL_TOKEN_PROGRAM),
+            ("mint_usdt_spl.2026-10-29.json", 6, SPL_TOKEN_PROGRAM),
+            ("mint_pyusd_2022.2026-10-29.json", 6, TOKEN_2022_PROGRAM),
+            (
+                "mint_pump_complete_2022.2026-10-29.json",
+                6,
+                TOKEN_2022_PROGRAM,
+            ),
         ] {
             let (_, owner, data) = parse_account_info(&mainnet(f)).expect("parse");
             let m = decode_mint(&owner, &data).expect(f);
