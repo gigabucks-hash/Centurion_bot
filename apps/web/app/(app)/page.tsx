@@ -4,16 +4,17 @@ import { AlertTriangle, Info, Plus } from "lucide-react";
 import { getApi } from "@/lib/api";
 import { getMode } from "@/lib/mode";
 import type { Strategy } from "@/lib/types";
-import { fmtDuration, fmtInt, fmtNum, fmtPct, fmtSol, fmtTime } from "@/lib/format";
+
 import { Badge, Card, PageHeader, Pnl, Sparkline, StatTile, Table } from "@/components/ui";
 import { ApprovalModeBadge, ModeBadge, severityTone, StatusBadge } from "@/components/domain";
 import { EquityChart } from "@/components/charts/EquityChart";
 import { OverviewFeed } from "@/components/OverviewFeed";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
-import { getT } from "@/lib/i18n/server";
+import { getT, getFmt } from "@/lib/i18n/server";
 
 async function Overview() {
   const [mode, t] = await Promise.all([getMode(), getT()]);
+  const f = await getFmt(mode);
   const api = getApi();
   const [o, strategies, events, coins] = await Promise.all([api.getOverview(mode), api.listStrategies(mode), api.listRecentEvents(mode, 30), api.listCoins(mode)]);
   const names: Record<string, string> = Object.fromEntries(strategies.map((s) => [s.id, s.name]));
@@ -25,18 +26,18 @@ async function Overview() {
     <>
       <PageHeader
         title={t("overview.title")}
-        subtitle={t("overview.subtitle", { workspace: t(mode === "practice" ? "mode.practiceShort" : "mode.realShort"), start: fmtSol(o.startingCashSol, { digits: 3 }) })}
+        subtitle={t("overview.subtitle", { workspace: t(mode === "practice" ? "mode.practiceShort" : "mode.realShort"), start: f.sol(o.startingCashSol) })}
         actions={<ModeBadge mode={mode} />}
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label={t("overview.cash")} value={fmtSol(o.cashSol)} hint={t("overview.inPositions", { sol: fmtSol(o.inPositionsSol) })} />
-        <StatTile label={t("overview.realized")} value={<Pnl sol={o.realizedPnlSol} unit />} hint={t("overview.vsStart", { pct: fmtPct(realizedPct) })} />
-        <StatTile label={t("overview.openPositions")} value={`${o.openPositions} / ${o.openPositionsCap}`} hint={t("overview.openHint", { sol: fmtSol(o.inPositionsSol), unreal: fmtSol(o.unrealizedPnlSol, { sign: true }) })} />
+        <StatTile label={t("overview.cash")} value={f.sol(o.cashSol)} hint={t("overview.inPositions", { sol: f.sol(o.inPositionsSol) })} />
+        <StatTile label={t("overview.realized")} value={<Pnl sol={o.realizedPnlSol} unit />} hint={t("overview.vsStart", { pct: f.pct(realizedPct) })} />
+        <StatTile label={t("overview.openPositions")} value={`${o.openPositions} / ${o.openPositionsCap}`} hint={t("overview.openHint", { sol: f.sol(o.inPositionsSol), unreal: f.sol(o.unrealizedPnlSol, { sign: true }) })} />
         <Link href="/approvals" className="rounded-lg focus-visible:outline-2">
           <StatTile
             label={t("overview.waiting")}
-            value={fmtInt(o.pendingApprovals)}
+            value={f.int(o.pendingApprovals)}
             tone={o.pendingApprovals ? "warning" : "neutral"}
             hint={o.expiringSoon ? <span className="text-semantic-loss">{t("overview.expiringSoon", { n: o.expiringSoon })}</span> : t("overview.noneExpiring")}
             className="h-full hover:border-border-default"
@@ -64,8 +65,8 @@ async function Overview() {
                 { key: "ap", header: t("overview.colApproval"), cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
                 { key: "pnl", header: t("overview.colPnl"), numeric: true, cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} />) },
                 { key: "wr", header: t("overview.colWin"), numeric: true, cell: (s) => (s.trades ? `${Math.round((s.wins / s.trades) * 100)}%` : "—") },
-                { key: "dd", header: t("overview.colDd"), numeric: true, cell: (s) => (s.trades ? fmtPct(-s.maxDrawdownPct) : "—") },
-                { key: "hold", header: t("overview.colHold"), numeric: true, cell: (s) => (s.trades ? fmtDuration(s.avgHoldSeconds) : "—") },
+                { key: "dd", header: t("overview.colDd"), numeric: true, cell: (s) => (s.trades ? f.pct(-s.maxDrawdownPct) : "—") },
+                { key: "hold", header: t("overview.colHold"), numeric: true, cell: (s) => (s.trades ? f.duration(s.avgHoldSeconds) : "—") },
                 { key: "spark", header: <span className="sr-only">{t("overview.colTrend")}</span>, align: "right", cell: (s) => <Sparkline values={s.pnlSpark} label={t("overview.trend", { name: s.name })} /> },
               ]}
             />
@@ -104,7 +105,7 @@ async function Overview() {
                         {a.title} <Badge tone={severityTone[a.severity]}>{t(`severity.${a.severity}`)}</Badge>
                       </span>
                       <span className="mt-0.5 block text-caption text-text-secondary">{a.detail}</span>
-                      <span className="mt-1 block text-caption text-text-tertiary">{fmtTime(a.createdAt)}</span>
+                      <span className="mt-1 block text-caption text-text-tertiary">{f.time(a.createdAt)}</span>
                     </span>
                   </Link>
                 </li>
@@ -112,7 +113,7 @@ async function Overview() {
             </ul>
           </Card>
           <p className="text-caption text-text-tertiary">
-            {t("overview.footer", { dd: fmtNum(o.drawdownPct, 1), stop: o.lossStopPct, engine: t(o.engine.online ? "overview.online" : "overview.offline") })}
+            {t("overview.footer", { dd: f.num(o.drawdownPct, 1), stop: o.lossStopPct, engine: t(o.engine.online ? "overview.online" : "overview.offline") })}
           </p>
         </div>
       </div>

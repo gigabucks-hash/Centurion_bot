@@ -1,10 +1,11 @@
 "use client";
+import { useFmt } from "@/lib/i18n/client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import type { TradingMode } from "@/lib/types";
 import { switchMode } from "@/lib/client";
-import { fmtSol } from "@/lib/format";
+
 import { Button, cn } from "@/components/ui";
 import { Dialog, HoldButton, useToast } from "@/components/ui/client";
 import { useT } from "@/lib/i18n/client";
@@ -17,6 +18,7 @@ export function ModeSwitch({ mode, summary }: { mode: TradingMode; summary: { ca
   const router = useRouter();
   const toast = useToast();
   const t = useT();
+  const f = useFmt();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -59,7 +61,7 @@ export function ModeSwitch({ mode, summary }: { mode: TradingMode; summary: { ca
       <Dialog open={open} onClose={() => setOpen(false)} title={t("mode.switchTitle")} accent="real" initialFocusRef={cancelRef}>
         <p className="text-body text-text-secondary">{t("mode.switchBody")}</p>
         <dl className="mt-4 grid grid-cols-3 gap-3 rounded-md bg-bg-inset p-3 text-caption">
-          <div><dt className="text-text-tertiary">{t("mode.realBalance")}</dt><dd className="num text-numSm text-text-primary">{summary.walletConnected ? fmtSol(summary.cashSol) : t("mode.balanceMock")}</dd></div>
+          <div><dt className="text-text-tertiary">{t("mode.realBalance")}</dt><dd className="num text-numSm text-text-primary">{summary.walletConnected ? f.sol(summary.cashSol) : t("mode.balanceMock")}</dd></div>
           <div><dt className="text-text-tertiary">{t("mode.lossStop")}</dt><dd className="num text-numSm text-text-primary">{summary.lossStopPct}%</dd></div>
           <div><dt className="text-text-tertiary">{t("mode.walletTwoFa")}</dt><dd className="text-text-primary">{summary.walletConnected ? t("mode.ready") : t("mode.setupSkipped")}</dd></div>
         </dl>

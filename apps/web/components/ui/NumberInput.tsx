@@ -1,18 +1,21 @@
 "use client";
 import { useId, useState } from "react";
 import { AlertTriangle, Minus, Plus } from "lucide-react";
-import { useT } from "@/lib/i18n/client";
+import { useLocale, useT } from "@/lib/i18n/client";
+import type { Locale } from "@/lib/i18n";
 import { cn } from "./cn";
+import { LOCALES } from "@/lib/i18n/format.mjs";
 
-/** Parses id-ID ("1.234,5") and plain ("1234.5") input. */
-export function parseLocaleNumber(raw: string): number {
+/** Parses input in the UI locale: id uses a decimal comma ("1.234,5"), en a decimal point ("1,234.5"). */
+export function parseLocaleNumber(raw: string, locale: Locale = "en"): number {
   const s = raw.trim().replace(/\s/g, "");
   if (!s) return NaN;
-  if (s.includes(",")) return Number(s.replace(/\./g, "").replace(",", "."));
-  return Number(s);
+  if (locale === "id") return Number(s.replace(/\./g, "").replace(",", "."));
+  return Number(s.replace(/,/g, ""));
 }
 
-const display = (v: number) => (Number.isFinite(v) ? v.toLocaleString("id-ID", { maximumFractionDigits: 6, useGrouping: false }) : "");
+const display = (v: number, locale: Locale) =>
+  Number.isFinite(v) ? new Intl.NumberFormat(LOCALES[locale], { maximumFractionDigits: 6, useGrouping: false }).format(v) : "";
 
 export function NumberInput({ label, value, onChange, unit, min, max, step = 1, error, hint, weakening, className, compact }: {
   label: string;
@@ -31,8 +34,9 @@ export function NumberInput({ label, value, onChange, unit, min, max, step = 1, 
 }) {
   const id = useId();
   const t = useT();
+  const locale = useLocale();
   const [text, setText] = useState<string | null>(null);
-  const shown = text ?? display(value);
+  const shown = text ?? display(value, locale);
   const bump = (d: number) => {
     const v = Math.round(((Number.isFinite(value) ? value : 0) + d) * 1e6) / 1e6;
     setText(null);
@@ -63,7 +67,7 @@ export function NumberInput({ label, value, onChange, unit, min, max, step = 1, 
           aria-describedby={error ? `${id}-err` : undefined}
           onChange={(e) => {
             setText(e.target.value);
-            const n = parseLocaleNumber(e.target.value);
+            const n = parseLocaleNumber(e.target.value, locale);
             onChange(n);
           }}
           onBlur={() => setText(null)}

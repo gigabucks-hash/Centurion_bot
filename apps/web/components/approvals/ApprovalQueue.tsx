@@ -4,8 +4,8 @@ import Link from "next/link";
 import { AlertTriangle, Ban, Check, Fingerprint, Keyboard, ShieldAlert, Timer, X } from "lucide-react";
 import type { Approval, ApprovalDecision, SkipReason, TradingMode } from "@/lib/types";
 import { decideApprovalClient, fetchApprovals } from "@/lib/client";
-import { fmtCountdown, fmtSol, fmtTime } from "@/lib/format";
-import { useT } from "@/lib/i18n/client";
+import { fmtCountdown } from "@/lib/format";
+import { useT, useFmt } from "@/lib/i18n/client";
 import { settingLabel } from "@/lib/strategy-schema";
 import { Badge, Button, Card, EmptyState, RiskBadge, cn } from "@/components/ui";
 import { Countdown, Dialog, HoldButton, Segmented, useNow, useToast } from "@/components/ui/client";
@@ -32,6 +32,7 @@ const SKIP_REASONS: SkipReason[] = ["thin_liquidity", "already_pumped", "dev_sus
 export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: TradingMode }) {
   const toast = useToast();
   const t = useT();
+  const f = useFmt();
   const now = useNow(1000);
   const [items, setItems] = useState(initial);
   const [tab, setTab] = useState<Tab>("pending");
@@ -173,7 +174,7 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
           <span>
             {t("approvals.cooldownBanner", { strategy: a.strategyName ?? "", from: a.revFrom ?? "", to: a.revTo ?? "" })}{" "}
             <span className="num font-semibold">{now ? fmtCountdown((a.cooldownEndsAt ?? 0) - now) : "--:--"}</span>
-            {a.autoRevertAt && <span className="text-text-secondary">{t("approvals.autoReverts", { time: fmtTime(a.autoRevertAt, true, false) })}</span>}
+            {a.autoRevertAt && <span className="text-text-secondary">{t("approvals.autoReverts", { time: f.dateTime(a.autoRevertAt) })}</span>}
           </span>
           <Button size="sm" variant="primary" className="ml-auto" onClick={() => decide(a, { action: "cancel_cooldown" }).then((n) => n && toast({ kind: "success", text: t("approvals.cancelled") }))}>
             {t("approvals.cancelChange")}
@@ -203,7 +204,7 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
       {selPicks.length > 0 && (
         <div className={cn("sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-3 rounded-md border px-4 py-2 shadow-e2", real ? "border-mode-real bg-mode-realContainer" : "border-border-default bg-bg-overlay")}>
           <span className="text-label">{t("approvals.selected", { n: selPicks.length })}</span>
-          {real && <span className="num text-label">{t("approvals.total", { sol: fmtSol(selTotal) })}</span>}
+          {real && <span className="num text-label">{t("approvals.total", { sol: f.sol(selTotal) })}</span>}
           <span className="text-caption text-text-tertiary">{t("approvals.batchNote")}</span>
           <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>{t("approvals.clear")}</Button>
           <Button size="sm" variant={real ? "real" : "success"} onClick={batchApprove}><Check size={14} /> {t("approvals.approveSelected")}</Button>
@@ -265,7 +266,7 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
           onConfirm={async (c) => {
             const n = await decide(guardFor, { action: "approve", confirmation: c });
             setGuardFor(null);
-            if (n) toast({ kind: "warning", text: n.cooldownEndsAt ? t("approvals.cooldownToast", { strategy: n.strategyName ?? "", time: fmtTime(n.cooldownEndsAt, true, false) }) : t("approvals.appliedPractice", { strategy: n.strategyName ?? "" }) });
+            if (n) toast({ kind: "warning", text: n.cooldownEndsAt ? t("approvals.cooldownToast", { strategy: n.strategyName ?? "", time: f.dateTime(n.cooldownEndsAt) }) : t("approvals.appliedPractice", { strategy: n.strategyName ?? "" }) });
           }}
         />
       )}
@@ -289,6 +290,7 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
   a: Approval; focused: boolean; selected: boolean; onFocus: () => void; onToggle: () => void; onApprove: () => void; onSkip: () => void; busy: boolean;
 }) {
   const t = useT();
+  const f = useFmt();
   const pending = a.status === "pending";
   const isPick = a.kind === "buy_pick";
   return (
@@ -323,9 +325,9 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
           {a.status === "rejected" && a.skipNote && ` · ${a.skipNote}`}
         </p>
       </div>
-      {a.amountSol != null && <span className="num hidden text-numSm sm:block">{fmtSol(a.amountSol, { digits: 2 })}</span>}
+      {a.amountSol != null && <span className="num hidden text-numSm sm:block">{f.sol(a.amountSol)}</span>}
       <span className="hidden md:block"><RiskBadge level={a.risk} /></span>
-      {pending ? <Countdown createdAt={a.createdAt} expiresAt={a.expiresAt} compact /> : <span className="num w-20 text-right text-caption text-text-tertiary">{fmtTime(a.decidedAt ?? a.expiresAt, false, false)}</span>}
+      {pending ? <Countdown createdAt={a.createdAt} expiresAt={a.expiresAt} compact /> : <span className="num w-20 text-right text-caption text-text-tertiary">{f.time(a.decidedAt ?? a.expiresAt)}</span>}
       {pending && (
         <div className="flex w-full justify-end gap-1.5 sm:w-auto" onClick={(e) => e.stopPropagation()}>
           <Button size="sm" variant="ghost" onClick={onSkip} disabled={busy} aria-label={t("approvals.skip")}><X size={14} /><span className="hidden xl:inline">{t("approvals.skip")}</span></Button>
@@ -340,9 +342,10 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
 
 function DetailPane({ a, onApprove, onSkip }: { a: Approval; onApprove: () => void; onSkip: () => void }) {
   const t = useT();
+  const f = useFmt();
   const p = a.pick;
   return (
-    <Card title={a.kind === "buy_pick" ? `$${a.symbol} · ${t(p ? PICK_KEY[p.pickKind] : "approvals.kindPick")}` : a.title} subtitle={t("approvals.requested", { strategy: a.strategyName ?? "", time: fmtTime(a.createdAt, false, false) })} action={<ModeBadge mode={a.mode} />}>
+    <Card title={a.kind === "buy_pick" ? `$${a.symbol} · ${t(p ? PICK_KEY[p.pickKind] : "approvals.kindPick")}` : a.title} subtitle={t("approvals.requested", { strategy: a.strategyName ?? "", time: f.time(a.createdAt) })} action={<ModeBadge mode={a.mode} />}>
       {p?.pickKind === "first_buy" && <p className="mb-2 rounded-md bg-semantic-warningContainer px-3 py-2 text-caption text-text-primary">{t("approvals.firstBuyNote")}</p>}
       <p className="text-body text-text-secondary">{a.detail}</p>
       {p && (
@@ -351,8 +354,8 @@ function DetailPane({ a, onApprove, onSkip }: { a: Approval; onApprove: () => vo
           <Field k={t("approvals.guard")} v={`${p.guard.passed}/${p.guard.total}${p.guard.note ? ` · ${p.guard.note}` : ""}`} />
           <Field k={t("approvals.entry")} v={p.entry} />
           <Field k={t("approvals.exitPlan")} v={p.exitPlan} />
-          <Field k={t("approvals.size")} v={a.amountSol != null ? fmtSol(a.amountSol) : "—"} />
-          <Field k={t("approvals.budget")} v={fmtSol(p.budgetSol, { digits: 1 })} />
+          <Field k={t("approvals.size")} v={a.amountSol != null ? f.sol(a.amountSol) : "—"} />
+          <Field k={t("approvals.budget")} v={f.sol(p.budgetSol)} />
         </dl>
       )}
       {a.kind === "guard_change" && a.diff && (
@@ -360,7 +363,7 @@ function DetailPane({ a, onApprove, onSkip }: { a: Approval; onApprove: () => vo
           {a.diff.map((r) => (
             <li key={r.key} className={cn("flex justify-between gap-2 rounded-sm px-2 py-1", r.direction === "weakens" && "bg-semantic-warningContainer")}>
               <span className="num">{settingLabel(t, r.key, r.label)}</span>
-              <span className="num">{r.before} → <b>{r.after}</b></span>
+              <span className="num">{f.value(r.before)} → <b>{f.value(r.after)}</b></span>
             </li>
           ))}
         </ul>
@@ -414,6 +417,7 @@ function SkipDialog({ a, onClose, onSkip }: { a: Approval | null; onClose: () =>
 
 function RealPickDialog({ picks, onClose, onConfirm, busy }: { picks: Approval[]; onClose: () => void; onConfirm: (holdMs: number) => void; busy: boolean }) {
   const t = useT();
+  const f = useFmt();
   const cancelRef = useRef<HTMLButtonElement>(null);
   const total = picks.reduce((s, a) => s + (a.amountSol ?? 0), 0);
   return (
@@ -422,14 +426,14 @@ function RealPickDialog({ picks, onClose, onConfirm, busy }: { picks: Approval[]
         {picks.map((a) => (
           <li key={a.id} className="flex items-center justify-between gap-2 px-3 py-2 text-body">
             <span><b>${a.symbol}</b> <span className="text-caption text-text-secondary">· {a.strategyName}</span></span>
-            <span className="num">{fmtSol(a.amountSol ?? 0)}</span>
+            <span className="num">{f.sol(a.amountSol ?? 0)}</span>
           </li>
         ))}
       </ul>
-      <p className="num mt-3 flex justify-between text-titleSm"><span>{t("approvals.totalLabel")}</span><span className="text-mode-real">{fmtSol(total)}</span></p>
+      <p className="num mt-3 flex justify-between text-titleSm"><span>{t("approvals.totalLabel")}</span><span className="text-mode-real">{f.sol(total)}</span></p>
       <p className="mt-2 text-caption text-text-secondary">{t("approvals.realNote")}</p>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <HoldButton durationMs={HOLD.real} variant="real" disabled={busy} onConfirm={onConfirm} hint={t("common.holdSeconds", { s: HOLD.real / 1000 })}>{t("approvals.holdApprove", { sol: fmtSol(total, { digits: 2 }) })}</HoldButton>
+        <HoldButton durationMs={HOLD.real} variant="real" disabled={busy} onConfirm={onConfirm} hint={t("common.holdSeconds", { s: HOLD.real / 1000 })}>{t("approvals.holdApprove", { sol: f.sol(total) })}</HoldButton>
         <Button ref={cancelRef} variant="primary" size="lg" onClick={onClose}>{t("common.cancelEsc")}</Button>
       </div>
     </Dialog>

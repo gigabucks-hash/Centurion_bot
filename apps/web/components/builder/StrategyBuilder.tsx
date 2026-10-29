@@ -1,4 +1,5 @@
 "use client";
+import { useFmt } from "@/lib/i18n/client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, CircleDot, Plus, RotateCcw, Trash2 } from "lucide-react";
@@ -10,7 +11,7 @@ import {
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n";
 import { publishStrategyClient } from "@/lib/client";
-import { fmtClock, fmtNum, fmtSol } from "@/lib/format";
+
 import { Badge, Button, Card, cn } from "@/components/ui";
 import { NumberInput, Segmented, Toggle, useToast } from "@/components/ui/client";
 import { ModeBadge } from "@/components/domain";
@@ -41,6 +42,7 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
   const router = useRouter();
   const toast = useToast();
   const t = useT();
+  const fm = useFmt();
   const [s, setS] = useState(initial);
   const [step, setStep] = useState<StepId>("screener");
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -117,7 +119,7 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
         max={f.max}
         step={f.inc ?? 1}
         error={errText(errors[path])}
-        hint={b != null && b !== v ? t("builder.activeValue", { v: fmtNum(b, 2, 0) }) : f.path}
+        hint={b != null && b !== v ? t("builder.activeValue", { v: fm.num(b, 2, 0) }) : f.path}
         weakening={weakening}
       />
     );
@@ -170,7 +172,7 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
         </div>
         <ModeBadge mode={mode} />
         <span className="text-caption text-text-tertiary" aria-live="polite">
-          {dirty ? t("builder.saving") : savedAt ? t("builder.saved", { time: fmtClock(savedAt) }) : rev != null ? t("builder.activeRev", { rev }) : t("builder.notSaved")}
+          {dirty ? t("builder.saving") : savedAt ? t("builder.saved", { time: fm.time(savedAt) }) : rev != null ? t("builder.activeRev", { rev }) : t("builder.notSaved")}
         </span>
       </div>
 
@@ -317,7 +319,7 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
                       <span className="font-medium text-text-primary">{settingLabel(t, r.key, r.label)}</span>
                       <Badge tone={r.direction === "weakens" ? "warning" : r.direction === "strengthens" ? "profit" : r.direction === "new" ? "info" : "neutral"}>{t(`builder.dir.${r.direction}`)}</Badge>
                     </div>
-                    <span className="num text-text-secondary">{r.before} → <b className="text-text-primary">{r.after}</b></span>
+                    <span className="num text-text-secondary">{fm.value(r.before)} → <b className="text-text-primary">{fm.value(r.after)}</b></span>
                   </li>
                 ))}
               </ul>
@@ -383,6 +385,7 @@ function Ladder({ s, errors, onChange }: { s: StrategySettings; errors: Errors; 
 /** Deterministic mock simulation from the settings (no backtest backend yet). */
 function Review({ s, errors }: { s: StrategySettings; errors: Errors }) {
   const t = useT();
+  const fm = useFmt();
   const looseness = (100 - s.screener.passMark) / 50 + s.guard.maxBundlersPct / 40 + (8 - Object.values(s.guard.checks).filter(Boolean).length) / 8;
   const perDay = Math.round(40 + looseness * 45);
   const winRate = Math.max(20, Math.min(70, 58 - looseness * 8));
@@ -395,7 +398,7 @@ function Review({ s, errors }: { s: StrategySettings; errors: Errors }) {
           [t("builder.sum.passMark"), `${s.screener.passMark} pts`],
           [t("builder.sum.guard"), t("builder.sumGuard", { preset: t(`guardPreset.${s.guard.preset}`), n: Object.values(s.guard.checks).filter(Boolean).length })],
           [t("builder.sum.approval"), t(`approvalMode.${s.approvalMode}`)],
-          [t("builder.sum.sizing"), t("builder.sumSizing", { trade: fmtSol(s.sizing.tradeSol, { digits: 2 }), budget: fmtSol(s.sizing.budgetSol, { digits: 1 }), max: s.sizing.maxOpen })],
+          [t("builder.sum.sizing"), t("builder.sumSizing", { trade: fm.sol(s.sizing.tradeSol), budget: fm.sol(s.sizing.budgetSol), max: s.sizing.maxOpen })],
           [t("builder.sum.exit"), t("builder.sumExit", { n: s.exit.takeProfits.length, trail: s.exit.trailingPct, sl: s.exit.stopLossPct })],
         ].map(([k, v]) => (
           <div key={k} className="rounded-md bg-bg-inset px-3 py-2"><dt className="text-text-tertiary">{k}</dt><dd className="num text-text-primary">{v}</dd></div>
@@ -405,7 +408,7 @@ function Review({ s, errors }: { s: StrategySettings; errors: Errors }) {
         <p className="text-label">{t("builder.sim")} <span className="text-caption font-normal text-text-tertiary">{t("builder.simNote")}</span></p>
         <div className="mt-2 grid grid-cols-3 gap-2 text-center">
           <div><p className="num text-numMd">{perDay}</p><p className="text-caption text-text-tertiary">{t("builder.simPass")}</p></div>
-          <div><p className="num text-numMd">{fmtNum(winRate, 0)}%</p><p className="text-caption text-text-tertiary">{t("builder.simWin")}</p></div>
+          <div><p className="num text-numMd">{fm.num(winRate, 0)}%</p><p className="text-caption text-text-tertiary">{t("builder.simWin")}</p></div>
           <div><p className="num text-numMd text-semantic-loss">−{dd}%</p><p className="text-caption text-text-tertiary">{t("builder.simDd")}</p></div>
         </div>
       </div>

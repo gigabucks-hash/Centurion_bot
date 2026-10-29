@@ -9,7 +9,7 @@ async function Shell({ children }: { children: React.ReactNode }) {
   const mode = await getMode();
   const [overview, locale] = await Promise.all([getApi().getOverview(mode), getLocale()]);
   return (
-    <I18nProvider locale={locale}>
+    <I18nProvider locale={locale} mode={mode}>
     <AppShell mode={mode} pendingApprovals={overview.pendingApprovals} walletConnected={overview.walletConnected} cashSol={overview.cashSol} lossStopPct={overview.lossStopPct} runningStrategies={overview.runningStrategies}>
       {children}
     </AppShell>

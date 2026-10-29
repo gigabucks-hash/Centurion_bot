@@ -1,7 +1,8 @@
 "use client";
+import { useFmt } from "@/lib/i18n/client";
 import type { StrategyFunnel } from "@/lib/types";
 import { FUNNEL_STAGES } from "@/lib/types";
-import { fmtInt, fmtNum } from "@/lib/format";
+
 import { useT } from "@/lib/i18n/client";
 
 /**
@@ -11,6 +12,7 @@ import { useT } from "@/lib/i18n/client";
  */
 export function Funnel({ funnel }: { funnel: StrategyFunnel }) {
   const t = useT();
+  const f = useFmt();
   const max = Math.max(1, funnel.scanned);
   const width = (n: number) => (n <= 0 ? 0 : Math.max(3, (Math.log10(n + 1) / Math.log10(max + 1)) * 100));
   return (
@@ -26,8 +28,8 @@ export function Funnel({ funnel }: { funnel: StrategyFunnel }) {
               <span className="block h-4 rounded-xs bg-brand-primary" style={{ width: `${width(n)}%`, opacity: 1 - i * 0.13 }} />
             </span>
             <span className="num text-right text-numSm text-text-primary">
-              {fmtInt(n)}
-              {conv != null && <span className="ml-1 text-caption text-text-tertiary">{fmtNum(conv, conv < 10 ? 1 : 0)}%</span>}
+              {f.int(n)}
+              {conv != null && <span className="ml-1 text-caption text-text-tertiary">{f.num(conv, conv < 10 ? 1 : 0)}%</span>}
             </span>
           </li>
         );

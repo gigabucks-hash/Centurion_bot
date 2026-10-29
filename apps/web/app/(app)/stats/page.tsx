@@ -3,17 +3,18 @@ import { Suspense } from "react";
 import { getApi } from "@/lib/api";
 import { getMode } from "@/lib/mode";
 import type { ExitReasonStat } from "@/lib/types";
-import { fmtDuration, fmtInt, fmtNum, fmtPct } from "@/lib/format";
+
 import { Card, EmptyState, PageHeader, Pnl, StatTile, Table } from "@/components/ui";
 import { ModeBadge } from "@/components/domain";
 import { ExitCountChart, ExitPnlChart } from "@/components/charts/ExitCharts";
 import { StatsFilters } from "@/components/StatsFilters";
-import { getT } from "@/lib/i18n/server";
+import { getT, getFmt } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Exit stats" };
 
 async function StatsBody({ searchParams }: { searchParams: PageProps<"/stats">["searchParams"] }) {
   const [sp, mode, t] = await Promise.all([searchParams, getMode(), getT()]);
+  const f = await getFmt(mode);
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const api = getApi();
   const strategies = await api.listStrategies(mode);
@@ -37,8 +38,8 @@ async function StatsBody({ searchParams }: { searchParams: PageProps<"/stats">["
     <>
       {filters}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label={t("stats.closed")} value={fmtInt(total)} />
-        <StatTile label={t("stats.winRate")} value={`${fmtNum((wins / total) * 100, 1)}%`} hint={t("stats.wins", { n: wins })} />
+        <StatTile label={t("stats.closed")} value={f.int(total)} />
+        <StatTile label={t("stats.winRate")} value={`${f.num((wins / total) * 100, 1)}%`} hint={t("stats.wins", { n: wins })} />
         <StatTile label={t("stats.total")} value={<Pnl sol={pnl} unit />} />
         <StatTile label={t("stats.costliest")} value={t(`exitReason.${worst.reason}`)} tone="warning" hint={<Pnl sol={worst.totalPnlSol} unit />} />
       </div>
@@ -53,13 +54,13 @@ async function StatsBody({ searchParams }: { searchParams: PageProps<"/stats">["
           minWidth={720}
           columns={[
             { key: "r", header: t("stats.colReason"), cell: (s) => <span className="font-medium">{t(`exitReason.${s.reason}`)}</span> },
-            { key: "c", header: t("stats.colCount"), numeric: true, cell: (s) => fmtInt(s.count) },
-            { key: "w", header: t("stats.colWin"), numeric: true, cell: (s) => `${fmtNum(s.winRate * 100, 0)}%` },
+            { key: "c", header: t("stats.colCount"), numeric: true, cell: (s) => f.int(s.count) },
+            { key: "w", header: t("stats.colWin"), numeric: true, cell: (s) => `${f.num(s.winRate * 100, 0)}%` },
             { key: "ap", header: t("stats.colAvgPct"), numeric: true, cell: (s) => <Pnl pct={s.avgPnlPct} /> },
             { key: "as", header: t("stats.colAvg"), numeric: true, cell: (s) => <Pnl sol={s.avgPnlSol} digits={4} /> },
             { key: "t", header: t("stats.colTotal"), numeric: true, cell: (s) => <Pnl sol={s.totalPnlSol} /> },
-            { key: "h", header: t("stats.colHold"), numeric: true, cell: (s) => fmtDuration(s.avgHoldSeconds) },
-            { key: "sh", header: t("stats.colShare"), numeric: true, cell: (s) => fmtPct((s.count / total) * 100, 0, false) },
+            { key: "h", header: t("stats.colHold"), numeric: true, cell: (s) => f.duration(s.avgHoldSeconds) },
+            { key: "sh", header: t("stats.colShare"), numeric: true, cell: (s) => f.pct((s.count / total) * 100, 0, false) },
           ]}
         />
       </Card>

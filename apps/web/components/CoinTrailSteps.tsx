@@ -1,17 +1,18 @@
 "use client";
 import type { CoinTrail } from "@/lib/types";
-import { fmtDuration, fmtNum } from "@/lib/format";
+
 import type { T } from "@/lib/i18n";
-import { useT } from "@/lib/i18n/client";
+import type { Fmt } from "@/lib/format";
+import { useT, useFmt } from "@/lib/i18n/client";
 import { cn } from "@/components/ui";
 import { pnlArrow, pnlTone } from "@/lib/pnl";
 
-const signed = (v: number) => `${pnlArrow(v)} ${v > 0 ? "+" : v < 0 ? "−" : "±"}${fmtNum(v, 0)}%`.trim();
+const signed = (f: Fmt, v: number) => `${pnlArrow(v)} ${v > 0 ? "+" : v < 0 ? "−" : "±"}${f.num(v, 0)}%`.trim();
 
 type Node = { id: string; label: string; value: string; tone: "brand" | "profit" | "loss" | "guard" | "neutral"; reached: boolean };
 
 /** Step nodes Screen → Guard → Entry → Buy → TP → Exit → Closed (SPEC §4). */
-export function trailNodes(tr: T, t: CoinTrail): Node[] {
+export function trailNodes(tr: T, t: CoinTrail, f: Fmt): Node[] {
   const ev = (k: string, pred?: (e: CoinTrail["events"][number]) => boolean) => t.events.find((e) => e.kind === k && (!pred || pred(e)));
   const screened = ev("passed", (e) => e.actor === "screener");
   const blocked = ev("blocked");
@@ -25,10 +26,10 @@ export function trailNodes(tr: T, t: CoinTrail): Node[] {
     { id: "screen", label: tr("trail.node.screen"), value: t.score ? tr("trail.node.fit", { v: t.score.value, p: t.score.passMark }) : "—", tone: blocked && !screened ? "loss" : "neutral", reached: true },
     { id: "guard", label: tr("trail.node.guard"), value: blocked ? tr("trail.node.blocked") : guard ? tr("trail.node.passed") : "—", tone: blocked ? "guard" : "brand", reached: !!(guard || blocked) },
     { id: "entry", label: tr("trail.node.entry"), value: armed?.reason?.replace("waiting for ", "") ?? "—", tone: "brand", reached: !!armed },
-    { id: "buy", label: tr("trail.node.buy"), value: bought?.solAmount ? `${fmtNum(bought.solAmount, 3)} SOL` : "—", tone: "brand", reached: !!bought },
-    { id: "tp", label: tr("trail.node.tp"), value: tp?.pctChange ? signed(tp.pctChange) : "—", tone: "profit", reached: !!tp },
-    { id: "exit", label: exit?.exitReason ? tr(`exitReason.${exit.exitReason}`) : tr("trail.node.exit"), value: exit?.pctChange != null ? signed(exit.pctChange) : "—", tone: pnlTone(exit?.pctChange), reached: !!exit },
-    { id: "closed", label: tr("trail.node.closed"), value: pos?.status === "closed" ? `${signed(pos.pnlPct)} · ${fmtDuration(Math.round(((pos.closedAt ?? 0) - pos.openedAt) / 1000))}` : pos ? tr("trail.node.open") : "—", tone: pnlTone(pos?.pnlPct), reached: pos?.status === "closed" },
+    { id: "buy", label: tr("trail.node.buy"), value: bought?.solAmount ? f.sol(bought.solAmount) : "—", tone: "brand", reached: !!bought },
+    { id: "tp", label: tr("trail.node.tp"), value: tp?.pctChange ? signed(f, tp.pctChange) : "—", tone: "profit", reached: !!tp },
+    { id: "exit", label: exit?.exitReason ? tr(`exitReason.${exit.exitReason}`) : tr("trail.node.exit"), value: exit?.pctChange != null ? signed(f, exit.pctChange) : "—", tone: pnlTone(exit?.pctChange), reached: !!exit },
+    { id: "closed", label: tr("trail.node.closed"), value: pos?.status === "closed" ? `${signed(f, pos.pnlPct)} · ${f.duration(Math.round(((pos.closedAt ?? 0) - pos.openedAt) / 1000))}` : pos ? tr("trail.node.open") : "—", tone: pnlTone(pos?.pnlPct), reached: pos?.status === "closed" },
   ];
 }
 
@@ -36,7 +37,8 @@ const ring = { brand: "border-brand-primary text-brand-primary", profit: "border
 
 export function CoinTrailSteps({ trail }: { trail: CoinTrail }) {
   const t = useT();
-  const nodes = trailNodes(t, trail);
+  const f = useFmt();
+  const nodes = trailNodes(t, trail, f);
   return (
     <ol className="flex items-start overflow-x-auto pb-1" aria-label={t("trail.stepsAria")}>
       {nodes.map((n, i) => (

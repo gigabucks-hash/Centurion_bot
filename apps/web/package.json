@@ -12,15 +12,16 @@
     "test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON 'lib/__tests__/*.test.ts'"
   },
   "dependencies": {
+    "@sentra/contracts": "file:../../packages/contracts",
+    "@sentra/design-tokens": "file:../../packages/design-tokens",
     "clsx": "^2.1.1",
     "lightweight-charts": "^5.2.1",
     "lucide-react": "^1.64.0",
     "next": "16.4.3",
+    "next-intl": "^4.14.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "recharts": "^3.10.1",
-    "@sentra/design-tokens": "file:../../packages/design-tokens",
-    "@sentra/contracts": "file:../../packages/contracts"
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",

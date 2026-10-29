@@ -2,11 +2,11 @@
 import { useRef, useState } from "react";
 import { Fingerprint, ShieldAlert } from "lucide-react";
 import type { Approval, DiffDirection } from "@/lib/types";
-import { fmtNum } from "@/lib/format";
+
 import { Badge, Button, RiskBadge, cn } from "@/components/ui";
 import { Dialog, HoldButton } from "@/components/ui/client";
 import { ModeBadge } from "@/components/domain";
-import { useT } from "@/lib/i18n/client";
+import { useT, useFmt } from "@/lib/i18n/client";
 import { settingLabel } from "@/lib/strategy-schema";
 
 const dirLabel = {
@@ -29,6 +29,7 @@ export function GuardWeakeningDialog({ approval, open, onClose, onConfirm, busy 
   busy?: boolean;
 }) {
   const t = useT();
+  const f = useFmt();
   const real = approval.mode === "real";
   const name = approval.strategyName ?? "";
   const [typed, setTyped] = useState("");
@@ -68,8 +69,8 @@ export function GuardWeakeningDialog({ approval, open, onClose, onConfirm, busy 
             {rows.map((r) => (
               <tr key={r.key} className={cn("border-t border-border-subtle", r.direction === "weakens" && "bg-semantic-warningContainer")}>
                 <td className="num py-2 pr-2 pl-2 text-numSm" title={r.key}>{settingLabel(t, r.key, r.label)}</td>
-                <td className="num py-2 pr-2 text-numSm text-text-secondary">{r.before}</td>
-                <td className="num py-2 pr-2 text-numSm font-semibold">{r.after}</td>
+                <td className="num py-2 pr-2 text-numSm text-text-secondary">{f.value(r.before)}</td>
+                <td className="num py-2 pr-2 text-numSm font-semibold">{f.value(r.after)}</td>
                 <td className={cn("py-2 pr-2 text-label", dirLabel[r.direction].cls)}>{r.key.includes(".checks.") && r.direction === "weakens" ? t("guardDialog.turnedOff") : t(dirLabel[r.direction].key)}</td>
               </tr>
             ))}
@@ -81,8 +82,8 @@ export function GuardWeakeningDialog({ approval, open, onClose, onConfirm, busy 
         <>
           <h3 className="mt-5 text-titleSm">{t("guardDialog.riskImpact")} <span className="text-caption font-normal text-text-tertiary">{t("guardDialog.riskNote")}</span></h3>
           <div className="mt-2 grid gap-3 sm:grid-cols-3">
-            <Impact label={t("guardDialog.coinsPassing")} value={`+${fmtNum(passedPct, 0)}%`} detail={t("guardDialog.perDay", { a: ri.coinsPassedPerDayBefore, b: ri.coinsPassedPerDayAfter })} />
-            <Impact label={t("guardDialog.rugged")} value={`+${fmtNum(rugX, 1)}×`} detail={`${ri.rugsBefore} → ${ri.rugsAfter}`} />
+            <Impact label={t("guardDialog.coinsPassing")} value={`+${f.num(passedPct, 0)}%`} detail={t("guardDialog.perDay", { a: ri.coinsPassedPerDayBefore, b: ri.coinsPassedPerDayAfter })} />
+            <Impact label={t("guardDialog.rugged")} value={`+${f.num(rugX, 1)}×`} detail={`${ri.rugsBefore} → ${ri.rugsAfter}`} />
             <Impact label={t("guardDialog.maxDd")} value={`−${ri.maxDrawdownBeforePct}% → −${ri.maxDrawdownAfterPct}%`} detail={t("guardDialog.replayed")} />
           </div>
           <div className="mt-2"><RiskBadge level={approval.risk} reason={t("guardDialog.riskReason")} /></div>

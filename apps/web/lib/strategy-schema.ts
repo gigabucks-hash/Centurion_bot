@@ -231,7 +231,8 @@ export function stepStatus(errors: Errors, step: StepId, weakened: boolean): "va
 // Diff
 // ---------------------------------------------------------------------------
 
-const fmt = (v: unknown, unit?: string) => (v == null || v === "" ? "—" : `${typeof v === "number" ? v.toLocaleString("id-ID") : String(v)}${unit === "%" ? "%" : unit ? ` ${unit}` : ""}`);
+/** Canonical, locale-neutral value ("12.5 SOL", "40%"). The UI re-formats it per locale with Fmt.value (QA-01). */
+const fmt = (v: unknown, unit?: string) => (v == null || v === "" ? "—" : `${String(v)}${unit === "%" ? "%" : unit ? ` ${unit}` : ""}`);
 
 export function diffSettings(before: StrategySettings, after: StrategySettings): SettingsDiffRow[] {
   const rows: SettingsDiffRow[] = [];
@@ -288,7 +289,7 @@ export function settingLabel(t: T, key: string, fallback?: string): string {
   if ((mm = key.match(/^guard\.checks\.(\w+)$/))) return t("diff.check", { label: t(`check.${mm[1]}` as MessageKey) });
   if ((mm = key.match(/^screener\.mustHave\.(\w+)$/))) return t("diff.mustHave", { label: t(`mustHave.${mm[1]}` as MessageKey) });
   if ((mm = key.match(/^exit\.tp\[(\d+)\]$/))) return t("diff.rung", { n: mm[1] });
-  const k = `field.${key}` as MessageKey;
+  const k = `field.${key.replace(/\./g, "_")}` as MessageKey;
   const v = t(k);
   return v === k ? (fallback ?? key) : v;
 }

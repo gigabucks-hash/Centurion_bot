@@ -1,0 +1,10 @@
+export const LOCALES: { en: string; id: string };
+export function formatSol(v: number, loc: string, o?: { kind?: "amount" | "pnl"; paper?: boolean }): string;
+export function formatPct(r: number, loc: string, o?: { signed?: boolean; dp?: number }): string;
+export function formatUsd(v: number, loc: string): string;
+export function formatCompact(v: number, loc: string): string;
+export function formatInt(v: number, loc: string): string;
+export function formatCountdown(ms: number): string;
+export function formatTime(d: number | Date, loc: string, tz: string): string;
+export function formatDateTime(d: number | Date, loc: string, tz: string): string;
+export function formatRelative(sec: number, loc: string): string;

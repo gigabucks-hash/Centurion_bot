@@ -9,14 +9,19 @@ import { AreaSeries, createChart, createSeriesMarkers, type SeriesMarker, type T
 import type { PricePoint, TradeEvent } from "@/lib/types";
 import { readToken, tokenVar } from "@/lib/theme";
 
-const TZ = "Asia/Jakarta";
-const fmt = (sec: number, withSec: boolean) =>
-  new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", ...(withSec ? { second: "2-digit" } : {}), hour12: false }).format(sec * 1000);
+import { useFmt } from "@/lib/i18n/client";
+import { LOCALES } from "@/lib/i18n/format.mjs";
+import { TZ } from "@/lib/format";
+
+const clock = (tag: string, h12: boolean) => (sec: number, withSec: boolean) =>
+  new Intl.DateTimeFormat(tag, { timeZone: TZ, hour: "2-digit", minute: "2-digit", ...(withSec ? { second: "2-digit" } : {}), hour12: h12 }).format(sec * 1000);
 
 export function PriceChart({ prices, events, height = 280 }: { prices: PricePoint[]; events: TradeEvent[]; height?: number }) {
   const el = useRef<HTMLDivElement>(null);
+  const f = useFmt();
 
   useEffect(() => {
+    const fmt = clock(LOCALES[f.locale], f.locale === "en");
     const node = el.current;
     if (!node) return;
     let dispose = () => {};
@@ -30,7 +35,7 @@ export function PriceChart({ prices, events, height = 280 }: { prices: PricePoin
         grid: { vertLines: { color: c(tokenVar.borderSubtle) }, horzLines: { color: c(tokenVar.borderSubtle) } },
         rightPriceScale: { borderColor: c(tokenVar.borderSubtle) },
         timeScale: { borderColor: c(tokenVar.borderSubtle), timeVisible: true, secondsVisible: true, tickMarkFormatter: (t: Time) => fmt(Number(t), false) },
-        localization: { timeFormatter: (t: Time) => `${fmt(Number(t), true)} WIB`, priceFormatter: (p: number) => `$${p.toPrecision(4)}` },
+        localization: { timeFormatter: (t: Time) => `${fmt(Number(t), true)} WIB`, priceFormatter: (p: number) => f.usd(p) },
       });
       const brand = c(tokenVar.brand);
       const series = chart.addSeries(AreaSeries, { lineColor: brand, topColor: `${brand}55`, bottomColor: `${brand}00`, lineWidth: 2, priceLineVisible: false });
@@ -66,7 +71,7 @@ export function PriceChart({ prices, events, height = 280 }: { prices: PricePoin
       mo.disconnect();
       dispose();
     };
-  }, [prices, events, height]);
+  }, [prices, events, height, f]);
 
   return <div ref={el} style={{ height }} className="w-full" role="img" aria-label="Price chart with buy and exit markers (mock data)" />;
 }

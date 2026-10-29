@@ -6,10 +6,10 @@ import { ArrowLeft, Check, X } from "lucide-react";
 import { getApi } from "@/lib/api";
 import { getMode } from "@/lib/mode";
 import type { Position } from "@/lib/types";
-import { fmtDuration, fmtNum, fmtSol, fmtTime, fmtUsdPrice, shortMint } from "@/lib/format";
+import { shortMint } from "@/lib/format";
 import { Badge, Card, EmptyState, PageHeader, Pnl, StatTile, Table } from "@/components/ui";
 import { eventKindMeta, ModeBadge } from "@/components/domain";
-import { getT } from "@/lib/i18n/server";
+import { getT, getFmt } from "@/lib/i18n/server";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
 import { EventTitle } from "@/components/EventTitle";
 import { PriceChart } from "@/components/charts/PriceChart";
@@ -18,6 +18,7 @@ export const metadata: Metadata = { title: "Coin trail" };
 
 async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] }) {
   const [{ mint }, mode, t] = await Promise.all([params, getMode(), getT()]);
+  const f = await getFmt(mode);
   const trail = await getApi().getCoinTrail(mint);
   if (!trail) notFound();
   if (trail.mode !== mode) {
@@ -45,9 +46,9 @@ async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] 
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label={t("trail.score")} value={trail.score ? `${trail.score.value} / ${trail.score.passMark}` : "—"} tone={trail.score && trail.score.value >= trail.score.passMark ? "profit" : "warning"} />
-        <StatTile label={t("trail.size")} value={pos ? fmtSol(pos.solIn) : "—"} hint={pos ? t("trail.fee", { bps: pos.feeBps }) : t("trail.notEntered")} />
-        <StatTile label={pos?.status === "open" ? t("trail.unrealized") : t("trail.pnl")} value={pos ? <Pnl sol={pos.pnlSol} unit /> : "—"} hint={pos ? t("trail.peak", { pct: fmtNum(pos.pnlPct, 1), peak: fmtNum(pos.peakGainPct, 1) }) : undefined} />
-        <StatTile label={t("trail.hold")} value={pos ? fmtDuration(holdS) : "—"} hint={pos?.exitReason ? t(`exitReason.${pos.exitReason}`) : pos ? t("trail.stillOpen") : undefined} />
+        <StatTile label={t("trail.size")} value={pos ? f.sol(pos.solIn) : "—"} hint={pos ? t("trail.fee", { bps: pos.feeBps }) : t("trail.notEntered")} />
+        <StatTile label={pos?.status === "open" ? t("trail.unrealized") : t("trail.pnl")} value={pos ? <Pnl sol={pos.pnlSol} unit /> : "—"} hint={pos ? t("trail.peak", { pct: f.num(pos.pnlPct, 1), peak: f.num(pos.peakGainPct, 1) }) : undefined} />
+        <StatTile label={t("trail.hold")} value={pos ? f.duration(holdS) : "—"} hint={pos?.exitReason ? t(`exitReason.${pos.exitReason}`) : pos ? t("trail.stillOpen") : undefined} />
       </div>
 
       <Card title={t("trail.trail")} className="mt-4"><CoinTrailSteps trail={trail} /></Card>
@@ -56,7 +57,7 @@ async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] 
         {trail.prices.length > 1 ? <PriceChart prices={trail.prices} events={ordered} /> : <p className="text-body text-text-secondary">{t("trail.noPrice")}</p>}
         {pos && (
           <p className="num mt-2 text-caption text-text-secondary">
-            {t("trail.entryExit", { entry: fmtUsdPrice(pos.entryPriceUsd) })}{pos.exitPriceUsd ? t("trail.exitAt", { exit: fmtUsdPrice(pos.exitPriceUsd) }) : ""}
+            {t("trail.entryExit", { entry: f.usd(pos.entryPriceUsd) })}{pos.exitPriceUsd ? t("trail.exitAt", { exit: f.usd(pos.exitPriceUsd) }) : ""}
           </p>
         )}
       </Card>
@@ -69,7 +70,7 @@ async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] 
                 <span className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-bg-surface ${eventKindMeta[e.kind].dot}`} aria-hidden />
                 <div className="flex flex-wrap items-center gap-2 text-overline uppercase tracking-wide text-text-tertiary">
                   <span>{t(`actor.${e.actor}`)} · {t(`kind.${e.kind}`)}</span>
-                  <span className="num normal-case">{fmtTime(e.ts)}</span>
+                  <span className="num normal-case">{f.time(e.ts)}</span>
                   {e.rev != null && <span className="normal-case">rev {e.rev}</span>}
                 </div>
                 <p className="mt-0.5 text-body font-semibold"><EventTitle e={e} /> {e.pnlSol != null && <Pnl sol={e.pnlSol} className="ml-1 text-caption font-normal" />}</p>
@@ -100,8 +101,8 @@ async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] 
               minWidth={280}
               columns={[
                 { key: "k", header: "#", cell: (p) => <span className="num text-caption">{p.key.split(".").pop()}</span> },
-                { key: "in", header: t("trail.colIn"), numeric: true, cell: (p) => fmtNum(p.solIn, 3) },
-                { key: "out", header: t("trail.colOut"), numeric: true, cell: (p) => fmtNum(p.solOut, 3) },
+                { key: "in", header: t("trail.colIn"), numeric: true, cell: (p) => f.num(p.solIn, 3) },
+                { key: "out", header: t("trail.colOut"), numeric: true, cell: (p) => f.num(p.solOut, 3) },
                 { key: "pnl", header: t("trail.colPnl"), numeric: true, cell: (p) => <Pnl sol={p.pnlSol} /> },
               ]}
             />

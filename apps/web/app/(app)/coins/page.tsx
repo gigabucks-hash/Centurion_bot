@@ -4,8 +4,8 @@ import { Suspense } from "react";
 import { getApi } from "@/lib/api";
 import { getMode } from "@/lib/mode";
 import type { CoinSummary } from "@/lib/types";
-import { fmtTime, shortMint } from "@/lib/format";
-import { getT } from "@/lib/i18n/server";
+import { shortMint } from "@/lib/format";
+import { getT, getFmt } from "@/lib/i18n/server";
 import { Badge, Card, EmptyState, PageHeader, Pnl, Table, type Tone } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Coins" };
@@ -13,6 +13,7 @@ const statusTone: Record<CoinSummary["status"], Tone> = { open: "profit", closed
 
 async function List({ searchParams }: { searchParams: PageProps<"/coins">["searchParams"] }) {
   const [sp, mode, t] = await Promise.all([searchParams, getMode(), getT()]);
+  const f = await getFmt(mode);
   const q = (typeof sp.q === "string" ? sp.q : "").trim().toLowerCase();
   const coins = (await getApi().listCoins(mode)).filter((c) => !q || c.symbol.toLowerCase().includes(q) || c.mint.toLowerCase().startsWith(q) || c.strategyName.toLowerCase().includes(q));
   return (
@@ -29,7 +30,7 @@ async function List({ searchParams }: { searchParams: PageProps<"/coins">["searc
           { key: "strat", header: t("coins.colStrategy"), cell: (c) => c.strategyName },
           { key: "status", header: t("coins.colStatus"), cell: (c) => <Badge tone={statusTone[c.status]}>{t(`coins.status.${c.status}`)}</Badge> },
           { key: "pnl", header: t("coins.colPnl"), numeric: true, cell: (c) => (c.pnlSol != null ? <Pnl sol={c.pnlSol} /> : "—") },
-          { key: "t", header: t("coins.colLast"), numeric: true, cell: (c) => fmtTime(c.lastEventAt) },
+          { key: "t", header: t("coins.colLast"), numeric: true, cell: (c) => f.time(c.lastEventAt) },
         ]}
       />
     </Card>
