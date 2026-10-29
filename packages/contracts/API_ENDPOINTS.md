@@ -141,9 +141,33 @@ match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `fro
 | Method | Path | Notes |
 |---|---|---|
 | POST | `/v1/auth/siws/nonce` | Body `{address, domain, uri?, chain_id?: "solana:mainnet"}` -> `200 {data: {nonce, message, issued_at, expires_at}}`. `domain` must be in `AUTH_SIWS_DOMAINS` and equal the `Origin` host when one is sent; `uri` https on that domain (default `https://{domain}`). 32-char alnum nonce, **5 min, single-use, bound to domain + address** (`siws_nonces`). Address not in `OWNER_WALLETS` -> `403 FORBIDDEN_ROLE {reason: "wallet_not_allowed"}`. **Fails closed:** the API refuses to start (exit 78) when `AUTH_SIWS_DOMAINS` is set and `OWNER_WALLETS` is missing, empty or has an entry that is not a 32-byte base58 address; an empty list at runtime denies every login. Login limits (nonce and verify, B-2): a malformed or non-allow-listed address is rejected before any DB or signature work and counted per IP (`AUTH_STRANGER_IP_PER_MIN`, 10) -> `429 RATE_LIMITED {retry_after_s, limit, window_s}` + `Retry-After`. An allow-listed owner wallet is **never** answered 429: per (address, IP) (`AUTH_OWNER_IP_PER_MIN`, 30), per address (`AUTH_OWNER_PER_MIN`, 60) and a global cap (`AUTH_GLOBAL_PER_MIN`, 600) are counted in Postgres (shared across instances) and any overage only delays the answer by 250 ms per hit over, at most `AUTH_OWNER_MAX_DELAY_MS` (3000), reported in `X-Sentra-Login-Delay-Ms`. `/v1/auth/*` is exempt from the generic write limits (2.3). `AUTH_SIWS_DOMAINS` empty -> `503 UNAVAILABLE`. |
-| POST | `/v1/auth/siws/verify` | Body `{address, message (exactly as returned), signature (base58, 64-byte ed25519), client?: web\|mobile\|desktop}`. Strict parse (any extra/changed line -> `401 SIWS_NONCE_INVALID {reason: "message"}`), expiry check, allowlist check, `consume_siws_nonce(nonce, address, domain)` (atomic; then a bad signature still burns it), ed25519 verify over the exact UTF-8 bytes with the address as public key (`401 SIWS_SIGNATURE_INVALID`), `siws_login(address)` (find/create user + `auth_identities(provider='siws')`). -> `200 {data: Session}`. Limits 10/min/IP, 5/min/address. Verification only: the server never holds keys or signs anything. |
+| POST | `/v1/auth/siws/verify` | Body `{address, message (exactly as returned), signature (base58, 64-byte ed25519), client?: web\|mobile\|desktop}`. Strict parse (any extra/changed line -> `401 SIWS_NONCE_INVALID {reason: "message"}`), expiry check, allowlist check, `consume_siws_nonce` (atomic; every message field must equal the nonce row: address, domain, uri, chain, issued_at, expiration, statement_version; any mismatch or a bad signature burns the nonce), ed25519 verify over the exact UTF-8 bytes with the address as public key (`401 SIWS_SIGNATURE_INVALID`), find/create the user + `auth_identities(provider='siws')`, ensure the owner workspace. -> `200 {data: Session & {workspace_id}}`. Limits as for nonce (owner never 429). Verification only: the server never holds keys or signs anything. |
 | POST | `/v1/auth/session/refresh` | Body `{refresh_token}` -> `200 {data: Session}` with a NEW refresh token (rotation; same `session_id`). A rotated token presented again revokes the whole session family -> `401 UNAUTHENTICATED {reason: "refresh_reused"}`; revoked/expired/unknown -> `401 {reason: refresh_revoked\|refresh_expired\|refresh_invalid}`. Wallet no longer in `OWNER_WALLETS` -> family revoked, `403 FORBIDDEN_ROLE`. 30/min/IP. |
 | POST | `/v1/auth/session/logout` | Body `{refresh_token}` -> `200 {data: {revoked: true}}` always (revokes the family if it exists). |
+
+**Client and token answers (mobile review B-9/B-10).** `client` on verify is optional, one of `web|mobile|desktop`,
+default `web`; the app must send `"mobile"`. It becomes the `sentra_client` claim, the channel (`via`) recorded on
+approvals, audit rows and the session; it never changes scopes. Access tokens are minted and verified by this API with
+its **own** HS256 key `SENTRA_SESSION_SECRET` (iss `sentra-api`; required when SIWS is on, must differ from
+`SUPABASE_JWT_SECRET`), not the Supabase project secret, so Supabase moving to asymmetric signing keys does not affect
+them. RLS still applies because the API sets the verified claims in each transaction itself (PostgREST is not in the
+path). Tokens without iss `sentra-api` are verified with `SUPABASE_JWT_SECRET` (legacy path, used by tests/tools);
+when the project switches to asymmetric keys that path moves to the project JWKS
+(`{SUPABASE_URL}/auth/v1/.well-known/jwks.json`, ES256/RS256 only, `kid` cache 10 min, refetch on unknown `kid` at
+most once per minute, fail closed). Every access token carries `sid` (= `session_id`); each request checks it is live,
+so logout or refresh-reuse revocation ends it immediately (`401 UNAUTHENTICATED {reason: "session_revoked"}`).
+Refresh replays inside 10 s of a rotation return the same successor pair (no revocation); later replays revoke the
+family (`refresh_reused`).
+
+**SIWS statement versions (B-7).** Message format `Version: 1` (SIWS) is fixed; the statement line is versioned
+separately. Nonce body `statement_version?` (integer, default current) and the nonce response's `statement_version`;
+the row stores it and verify accepts only that version. Every listed version stays accepted:
+
+| statement_version | statement |
+|---|---|
+| 1 | `Sign in to Sentra (practice). This request does not trigger a transaction or cost any fees.` |
+
+Changing the text adds a new version (contract change, CHANGELOG); old ones are only removed in a major version.
 
 `Session = {access_token, token_type: "bearer", expires_in, expires_at, refresh_token ("srt_..."), refresh_expires_in,
 session_id, user_id, address}`; verify also returns `workspace_id`: the first login of an allowed wallet creates

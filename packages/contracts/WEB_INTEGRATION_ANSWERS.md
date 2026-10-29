@@ -92,23 +92,32 @@ Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS type
   - `server_now` (clock_timestamp), `created_at`
 - Read it with `GET .../audit-log` (owner/admin only).
 
-## Round 2 — Q7: SIWS and email OTP
-- **SIWS:**
-  - `POST /auth/siws/nonce {address, domain, uri, chain_id}` returns
-    `{nonce, message, issued_at, expires_at}`. The nonce has a 5 min TTL, is single-use, and is bound to
-    the domain and address (`siws_nonces`).
-  - `POST /auth/siws/verify {address, message, signature}`: parse the message, check the domain
-    allow-list against the Origin, consume the nonce atomically (`consume_siws_nonce`), verify the
-    ed25519 signature over the exact bytes, then link the identity and mint a session.
-  - Rate limits: 10/min per IP, 5/min per address.
-- **Email OTP:**
-  - `POST /auth/email/otp/request {email}` always returns `202` (no account enumeration).
-  - The code is 6 digits with a 10 min TTL, stored only as
-    `HMAC-SHA256(OTP_PEPPER, email || code)` in `email_otps`.
-  - Limits: resend no sooner than 60 s, at most 5 codes per email per hour, at most 20 requests per IP
-    per hour (`429 RATE_LIMITED`, `retry_after_s`).
-  - `POST /auth/email/otp/verify {email, code}` uses a constant-time compare. 5 wrong attempts lock it
-    for 15 min (`OTP_LOCKED`). A code is single-use (`consumed_at`).
+## Round 2 — Q7: login (updated: wallet SIWS only; email OTP dropped)
+- **Wallet login (SIWS/Phantom) is the only login** (private single-owner app). Email OTP, Google/Apple and
+  Telegram are **not** part of the MVP: their routes answer `404` (flags `AUTH_EMAIL_OTP_ENABLED`,
+  `AUTH_TELEGRAM_OIDC_ENABLED` default off, no further work).
+- Four routes (API_ENDPOINTS 4.1):
+  - `POST /v1/auth/siws/nonce {address, domain, uri?, chain_id?: "solana:mainnet", statement_version?: 1}` ->
+    `{data: {nonce, message, issued_at, expires_at, statement_version}}`. Sign `message` **byte for byte** with
+    `signMessage` / MWA `sign_messages` (not the wallet's own `signIn`, which rebuilds the text).
+  - `POST /v1/auth/siws/verify {address, message, signature (base58, 64 bytes), client: "web"}` ->
+    `{data: Session & {workspace_id}}`.
+  - `POST /v1/auth/session/refresh {refresh_token}` -> `{data: Session}` (rotating; single-flight on the client;
+    a replay of the just-rotated token within 10 s returns the same new pair, later replays revoke the session).
+  - `POST /v1/auth/session/logout {refresh_token}` -> `{data: {revoked: true}}`; the access token stops working
+    at once (`401 UNAUTHENTICATED {reason: "session_revoked"}`).
+- Only allow-listed owner wallets (`OWNER_WALLETS`, required; the API does not boot without it) can sign in;
+  others get `403 FORBIDDEN_ROLE {reason: "wallet_not_allowed"}`. The owner wallet is never answered `429` at login,
+  only delayed (`X-Sentra-Login-Delay-Ms`).
+- Nonce: 5 min, single-use, every message field (domain, address, uri, chain, issued at, expiry, statement version)
+  is stored with it and compared exactly at verify; a tampered message burns the nonce.
+- **`client`:** send `"web"` from the web app (also the default). It is optional and defaults to `"web"`; it becomes the
+  `sentra_client` claim, which the backend records as the channel (`via`) on approvals and audit rows and on the
+  session. It grants nothing: scopes are always `read` + `trade` (never `trade:real`).
+- Access token: HS256 signed by the Sentra API with its own key (`SENTRA_SESSION_SECRET`, iss `sentra-api`,
+  15 min, claims `sub, sid, app_scopes, sentra_client, wallet, amr: ["siws"]`). Send it only to the Sentra API,
+  not to Supabase directly. The login wallet is never a trading wallet.
+- Web: `domain` must equal the page host (it is checked against `Origin`), `uri` an https URL on it.
 
 ## v1.1 changes and what `apps/web` should change (checked against `lib/types.ts`, `lib/api.ts`, `lib/http-api.ts`)
 1. Paths: `/v1/workspaces/${mode}/...` -> `/v1/workspaces/{ws}/...?mode=practice`; `/v1/strategies/{id}` ->
@@ -133,7 +142,7 @@ Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS type
 7. `lib/contracts.ts` is imported but missing: import from `@sentra/contracts` (`wire`).
 8. New flows: practice reset (`POST .../practice/reset`, 429 `RESET_COOLDOWN` with `next_allowed_at`,
    `practice.reset` event -> drop cached positions/equity), account deletion (`/me/deletion`), devices
-   (`PUT /devices/{device_id}` with `platform: "web"`, `provider: "webpush"`), Telegram OIDC (flag off).
+   (`PUT /devices/{device_id}` with `platform: "web"`, `provider: "webpush"`). Telegram and email OTP are dropped (404).
 
 ## v1.1.2 changes for `apps/web`
 - `seq`/`next_after_seq`/`safe_seq`/`as_of_seq` are strings: compare with `BigInt`.

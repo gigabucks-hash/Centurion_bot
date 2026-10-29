@@ -19,8 +19,8 @@ async function inTx<T>(db: Db, role: "authenticated" | "service_role", claims: C
   try {
     await c.query("begin");
     await c.query(
-      "select set_config('role', $1, true), set_config('request.jwt.claims', $2, true), set_config('request.jwt.claim.sub', $3, true)",
-      [role, claims ? JSON.stringify(claims) : "", claims?.sub ?? ""],
+      "select public.session_check($4::uuid), set_config('role', $1, true), set_config('request.jwt.claims', $2, true), set_config('request.jwt.claim.sub', $3, true)",
+      [role, claims ? JSON.stringify(claims) : "", claims?.sub ?? "", typeof claims?.sid === "string" ? claims.sid : null],
     );
     const r = await fn(c);
     await c.query("commit");

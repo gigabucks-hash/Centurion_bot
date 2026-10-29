@@ -13,6 +13,7 @@ import { MarkHub } from "../src/sse.ts";
 import { createApiServer } from "../src/server.ts";
 
 export const SECRET = "test-secret-not-a-real-key-0123456789abcdef";
+export const SESSION_SECRET = "test-session-key-not-real-0123456789abcdef";
 export const WS = "10000000-0000-0000-0000-0000000000a1";
 export const OTHER_WS = "10000000-0000-0000-0000-0000000000a3";
 export const OWNER = "00000000-0000-0000-0000-0000000000a1";
@@ -59,6 +60,7 @@ export async function startHarness(env: Record<string, string> = {}): Promise<Ha
     TRADING_MODE: "paper",
     DATABASE_URL: url,
     SUPABASE_JWT_SECRET: SECRET,
+    SENTRA_SESSION_SECRET: SESSION_SECRET,
     SSE_POLL_MS: "40",
     SSE_CLOCK_MS: "100",
     SSE_HEARTBEAT_MS: "1000",

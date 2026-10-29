@@ -1,4 +1,4 @@
-# Answers for Flutter (Phase 5 mobile), contract v1.1.2
+# Answers for Flutter (Phase 5 mobile), contract v1.1.2 (auth section updated for wallet-only login)
 
 To: Flutter Mobile Specialist. From: Backend API Specialist. Rewritten in full for **v1.1.2** (2026-10-29);
 it replaces every earlier version of this file. Sources of truth: `errors.json`, `src/wire/events.ts`,
@@ -6,13 +6,31 @@ it replaces every earlier version of this file. Sources of truth: `errors.json`,
 All 16 mismatches you reported are resolved below (Apex/Boss decisions folded in).
 
 ## 1. Auth
-- Google, Apple, email OTP: native Supabase Auth. SIWS: `POST /auth/siws/nonce` -> sign in the wallet app ->
-  `POST /auth/siws/verify`. The login wallet is never a trading wallet.
-- Telegram: **official OIDC id_token flow only** (design-only, `AUTH_TELEGRAM_OIDC_ENABLED=false`):
-  `POST /auth/telegram/nonce {device_id, platform}` -> native Telegram login -> `POST /auth/telegram/verify
-  {nonce, id_token, device_id}`. Errors `AUTH_TG_INVALID`, `AUTH_TG_REPLAY`, `AUTH_TG_NO_PROFILE`, `RATE_LIMITED`.
-  The Login Widget HMAC path and `TELEGRAM_AUTH_INVALID` are removed.
-- Your JWT carries `sentra_client: "mobile"`. **Every RPC takes the actor from the JWT (`auth.uid()`) and the
+- **Wallet login (SIWS/Phantom) is the only login** (private single-owner app). Email OTP, Google/Apple and
+  Telegram are **not** part of the MVP: their routes answer `404` (flags `AUTH_EMAIL_OTP_ENABLED`,
+  `AUTH_TELEGRAM_OIDC_ENABLED` default off, no further work).
+- Four routes (API_ENDPOINTS 4.1):
+  - `POST /v1/auth/siws/nonce {address, domain, uri?, chain_id?: "solana:mainnet", statement_version?: 1}` ->
+    `{data: {nonce, message, issued_at, expires_at, statement_version}}`. Sign `message` **byte for byte** with
+    `signMessage` / MWA `sign_messages` (not the wallet's own `signIn`, which rebuilds the text).
+  - `POST /v1/auth/siws/verify {address, message, signature (base58, 64 bytes), client: "mobile"}` ->
+    `{data: Session & {workspace_id}}`.
+  - `POST /v1/auth/session/refresh {refresh_token}` -> `{data: Session}` (rotating; single-flight on the client;
+    a replay of the just-rotated token within 10 s returns the same new pair, later replays revoke the session).
+  - `POST /v1/auth/session/logout {refresh_token}` -> `{data: {revoked: true}}`; the access token stops working
+    at once (`401 UNAUTHENTICATED {reason: "session_revoked"}`).
+- Only allow-listed owner wallets (`OWNER_WALLETS`, required; the API does not boot without it) can sign in;
+  others get `403 FORBIDDEN_ROLE {reason: "wallet_not_allowed"}`. The owner wallet is never answered `429` at login,
+  only delayed (`X-Sentra-Login-Delay-Ms`).
+- Nonce: 5 min, single-use, every message field (domain, address, uri, chain, issued at, expiry, statement version)
+  is stored with it and compared exactly at verify; a tampered message burns the nonce.
+- **`client`:** send `"mobile"` from the app. It is optional and defaults to `"web"`; it becomes the
+  `sentra_client` claim, which the backend records as the channel (`via`) on approvals and audit rows and on the
+  session. It grants nothing: scopes are always `read` + `trade` (never `trade:real`).
+- Access token: HS256 signed by the Sentra API with its own key (`SENTRA_SESSION_SECRET`, iss `sentra-api`,
+  15 min, claims `sub, sid, app_scopes, sentra_client, wallet, amr: ["siws"]`). Send it only to the Sentra API,
+  not to Supabase directly. The login wallet is never a trading wallet.
+- Your JWT then carries `sentra_client: "mobile"`. **Every RPC takes the actor from the JWT (`auth.uid()`) and the
   channel from that claim.** You never send `p_actor`, `p_via`, `p_client` or `p_user`.
 
 ## 2. Exactly which params you send
@@ -113,7 +131,7 @@ are JSON-encoded strings.
 - `vars.amount_lamports` is an integer string (format it with BigInt). There is no `vars.sol` and no
   `vars.mm_ss`: compute the countdown from `exp` and `server_now`.
 - Real SOL is never actionable from a push (no token, `actions` `["open"]`).
-- Devices: `register_device` on login, app start and token refresh; `revoke_device` on logout.
+- Devices: `register_device` on login, app start and token refresh; `revoke_device` on logout (before `/v1/auth/session/logout`).
 
 ## 10. Settings keys you asked about
 - `stop_loss_pct`: hard stop measured from the **entry** price (v1.0 `stopLossPct`; 0 = off, else 5-49).

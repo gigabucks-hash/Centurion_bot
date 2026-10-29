@@ -2,17 +2,19 @@
 // Verification only (ed25519 over the exact message, public key = address); no key custody, no signing of
 // transactions. Sessions: short-lived HS256 access token (same secret/claims the API verifies) + opaque
 // rotating refresh token (sha256 stored; reuse of a rotated token revokes the whole family).
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { ApiError } from "./errors.ts";
 import { asService } from "./db.ts";
 import { Router, readJson, send, type Ctx } from "./http.ts";
 import type { Deps } from "./deps.ts";
-import { signJwt } from "./jwt.ts";
+import { SESSION_ISSUER, signJwt } from "./jwt.ts";
 import { adminCreateWalletUser } from "./supabase_admin.ts";
 import { PgRateLimiter, RateLimiter, clientIp, type Limiter } from "./ratelimit.ts";
-import { SIWS_CHAIN, buildMessage, hostOf, isAddress, newNonce, parseMessage, verifySignature } from "./siws.ts";
+import { SIWS_CHAIN, SIWS_STATEMENTS, SIWS_STATEMENT_VERSION, buildMessage, hostOf, isAddress, newNonce, parseMessage, verifySignature } from "./siws.ts";
 
 const NONCE_TTL_MS = 5 * 60_000;
+/** B-4: a replay of the just-rotated refresh token within this window returns the same successor pair. */
+const REFRESH_GRACE_S = 10;
 const CLIENTS = new Set(["web", "mobile", "desktop"]);
 const sha = (s: string) => createHash("sha256").update(s, "utf8").digest();
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -79,9 +81,13 @@ export function registerAuth(r: Router, d: Deps): void {
     return address;
   };
 
-  const session = async (userId: string, client: string, family: string | null, address: string) => {
-    const now = Date.now();
-    const exp = Math.floor(now / 1000) + cfg.accessTtlS;
+  /** Successor of a refresh token: HMAC under our key, so a grace replay can return it without storing it. */
+  const successor = (token: string) =>
+    "srt_" + createHmac("sha256", cfg.sessionSecret).update("sentra-refresh-successor-v1\0" + token, "utf8").digest("base64url");
+
+  const session = async (userId: string, client: string, family: string | null, address: string, iatS?: number) => {
+    const iat = iatS ?? Math.floor(Date.now() / 1000);
+    const exp = iat + cfg.accessTtlS;
     const refresh = "srt_" + randomBytes(32).toString("base64url");
     let fam = family;
     if (!fam) {
@@ -91,11 +97,12 @@ export function registerAuth(r: Router, d: Deps): void {
         return f;
       }));
     }
+    // deterministic for a given (session, iat): a grace replay re-issues byte-identical tokens
     const access = signJwt({
-      iss: "sentra-api", sub: userId, aud: cfg.jwtAudience || "authenticated", role: "authenticated",
-      iat: Math.floor(now / 1000), exp, app_scopes: ["read", "trade"], sentra_client: client, session_id: fam,
+      iss: SESSION_ISSUER, sub: userId, aud: cfg.jwtAudience || "authenticated", role: "authenticated",
+      iat, exp, app_scopes: ["read", "trade"], sentra_client: client, sid: fam, session_id: fam,
       amr: ["siws"], wallet: address,
-    }, cfg.jwtSecret);
+    }, cfg.sessionSecret);
     return { access, refresh, exp, fam };
   };
   const sessionBody = (s: { access: string; refresh: string; exp: number; fam: string }, userId: string, address: string) => ({
@@ -113,21 +120,27 @@ export function registerAuth(r: Router, d: Deps): void {
     const domain = checkDomain(ctx, b.domain);
     const chain = b.chain_id ?? SIWS_CHAIN;
     if (chain !== SIWS_CHAIN) throw new ApiError("VALIDATION_FAILED", { field: "chain_id", allowed: [SIWS_CHAIN] });
+    const sv = b.statement_version ?? SIWS_STATEMENT_VERSION;
+    if (typeof sv !== "number" || !Number.isInteger(sv) || !(sv in SIWS_STATEMENTS)) {
+      throw new ApiError("VALIDATION_FAILED", { field: "statement_version", allowed: Object.keys(SIWS_STATEMENTS).map(Number) });
+    }
     const uri = typeof b.uri === "string" ? b.uri : `https://${domain}`;
     if (uri.length > 2048 || hostOf(uri) !== domain) throw new ApiError("VALIDATION_FAILED", { field: "uri", hint: "https URI on the same domain" });
     const nonce = newNonce();
     const row = await asService(d.db, async (c) =>
       (await c.query<{ issued_at: Date; expires_at: Date }>(
-        `insert into public.siws_nonces (nonce, address, domain, issued_at, expires_at)
-         values ($1, $2, $3, date_trunc('milliseconds', clock_timestamp()), date_trunc('milliseconds', clock_timestamp()) + make_interval(secs => $4))
+        `insert into public.siws_nonces (nonce, address, domain, uri, chain_id, statement_version, issued_at, expires_at)
+         values ($1, $2, $3, $5, $6, $7, date_trunc('milliseconds', clock_timestamp()), date_trunc('milliseconds', clock_timestamp()) + make_interval(secs => $4))
          returning issued_at, expires_at`,
-        [nonce, address, domain, NONCE_TTL_MS / 1000],
+        [nonce, address, domain, NONCE_TTL_MS / 1000, uri, chain, sv],
       )).rows[0]!);
     const f = {
       domain, address, uri, version: "1" as const, chain_id: chain, nonce,
-      issued_at: row.issued_at.toISOString(), expiration_time: row.expires_at.toISOString(),
+      issued_at: row.issued_at.toISOString(), expiration_time: row.expires_at.toISOString(), statement_version: sv,
     };
-    send(ctx, 200, { data: { nonce, message: buildMessage(f), issued_at: f.issued_at, expires_at: f.expiration_time } });
+    send(ctx, 200, {
+      data: { nonce, message: buildMessage(f), issued_at: f.issued_at, expires_at: f.expiration_time, statement_version: sv },
+    });
   });
 
   // ---- SIWS verify --------------------------------------------------------------------------------
@@ -147,9 +160,14 @@ export function registerAuth(r: Router, d: Deps): void {
     if (Date.parse(f.expiration_time) <= Date.now() || Date.parse(f.issued_at) > Date.now() + 30_000) {
       throw new ApiError("SIWS_NONCE_INVALID", { reason: "expired" });
     }
-    // single use + bound to domain and address, consumed before the signature check (a bad signature burns it)
+    // B-3: single use, and every field of the message must equal what the server stored with the nonce
+    // (address, domain, uri, chain, issued_at, expiration, statement version). Consumed before the signature
+    // check, so a bad signature burns it.
     const consumed = await asService(d.db, async (c) =>
-      (await c.query<{ ok: boolean }>("select public.consume_siws_nonce($1, $2, $3) as ok", [f.nonce, address, f.domain])).rows[0]!.ok);
+      (await c.query<{ ok: boolean }>(
+        "select public.consume_siws_nonce($1, $2, $3, $4, $5, $6::timestamptz, $7::timestamptz, $8) as ok",
+        [f.nonce, address, f.domain, f.uri, f.chain_id, f.issued_at, f.expiration_time, f.statement_version],
+      )).rows[0]!.ok);
     if (!consumed) throw new ApiError("SIWS_NONCE_INVALID", { reason: "unknown_used_or_expired" });
     if (!verifySignature(address, b.message, b.signature)) throw new ApiError("SIWS_SIGNATURE_INVALID");
     // find or create the user (production: Supabase admin API; local tests: direct insert), then the
@@ -176,17 +194,18 @@ export function registerAuth(r: Router, d: Deps): void {
     if (typeof b.refresh_token !== "string" || !/^srt_[A-Za-z0-9_-]{43}$/.test(b.refresh_token)) {
       throw new ApiError("UNAUTHENTICATED", { reason: "refresh_invalid" });
     }
-    const next = "srt_" + randomBytes(32).toString("base64url");
+    const next = successor(b.refresh_token);
     const out = await asService(d.db, async (c) =>
-      (await c.query<{ r: Record<string, string> }>("select public.rotate_refresh_token($1, $2, $3) as r",
-        [sha(b.refresh_token as string), sha(next), cfg.refreshTtlS])).rows[0]!.r);
+      (await c.query<{ r: Record<string, string> }>("select public.rotate_refresh_token($1, $2, $3, $4) as r",
+        [sha(b.refresh_token as string), sha(next), cfg.refreshTtlS, REFRESH_GRACE_S])).rows[0]!.r);
     if (out.error === "refresh_reused") throw new ApiError("UNAUTHENTICATED", { reason: "refresh_reused" });
     const address = out.address ?? "";
     if (!ownerOk(address)) {
       await asService(d.db, (c) => c.query("select public.revoke_refresh_family($1, 'owner_removed')", [sha(next)]));
       throw notOwner();
     }
-    const s = await session(out.user_id!, out.client!, out.family_id!, address);
+    // same successor pair for a grace replay: same refresh token, access token re-signed with the same iat
+    const s = await session(out.user_id!, out.client!, out.family_id!, address, Number(out.issued_at));
     s.refresh = next;
     send(ctx, 200, sessionBody(s, out.user_id!, address));
   });

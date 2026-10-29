@@ -53,6 +53,30 @@ export function verifyJwt(token: string, secret: string, audience: string, nowS 
   return claims;
 }
 
+export const SESSION_ISSUER = "sentra-api";
+
+/**
+ * Access-token verification for API requests. Tokens minted by our wallet login (iss "sentra-api") are verified
+ * with our own SENTRA_SESSION_SECRET only; anything else with the Supabase JWT secret. The unverified `iss` only
+ * picks the key, so a token claiming one issuer can never be accepted under the other's key.
+ * `sid` (session family) must be a uuid when present; its liveness is checked per request (db.ts).
+ */
+export function verifyAccess(token: string, keys: { sessionSecret: string; jwtSecret: string; jwtAudience: string }, nowS = Date.now() / 1000): Claims {
+  let iss: unknown;
+  try {
+    iss = (b64urlJson(token.split(".")[1] ?? "") as { iss?: unknown }).iss;
+  } catch {
+    throw new ApiError("UNAUTHENTICATED");
+  }
+  const ours = iss === SESSION_ISSUER;
+  const secret = ours ? keys.sessionSecret : keys.jwtSecret;
+  if (!secret) throw new ApiError("UNAUTHENTICATED");
+  const c = verifyJwt(token, secret, keys.jwtAudience, nowS);
+  if (ours && (typeof c.sid !== "string" || !UUID.test(c.sid))) throw new ApiError("UNAUTHENTICATED");
+  if (c.sid !== undefined && (typeof c.sid !== "string" || !UUID.test(c.sid))) throw new ApiError("UNAUTHENTICATED");
+  return c;
+}
+
 export function principal(claims: Claims): Principal {
   const raw = Array.isArray(claims.app_scopes) ? claims.app_scopes.filter((s) => typeof s === "string") : [];
   const scopes = new Set(raw);

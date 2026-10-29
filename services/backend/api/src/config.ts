@@ -6,6 +6,11 @@ export interface Config {
   databaseUrl: string;
   /** Supabase JWT secret (HS256). */
   jwtSecret: string;
+  /**
+   * Our own HS256 key for access tokens minted by wallet login (iss "sentra-api"). Independent of the Supabase
+   * project's JWT secret / signing keys. Required (>= 32 chars, != SUPABASE_JWT_SECRET) when SIWS is enabled.
+   */
+  sessionSecret: string;
   /** Expected `aud` claim (Supabase: "authenticated"). Empty = not checked. */
   jwtAudience: string;
   /** SSE: DB poll interval, clock frame interval, heartbeat comment interval (ms). */
@@ -89,6 +94,14 @@ function siwsConfig(env: NodeJS.ProcessEnv): { siwsDomains: string[]; ownerWalle
   return { siwsDomains, ownerWallets };
 }
 
+function sessionSecret(env: NodeJS.ProcessEnv, jwtSecret: string): string {
+  const s = env.SENTRA_SESSION_SECRET ?? "";
+  if ((env.AUTH_SIWS_DOMAINS ?? "").trim() === "" && s === "") return "";
+  if (s.length < 32) throw new ConfigError("refusing to start: SENTRA_SESSION_SECRET (>= 32 chars) is required when AUTH_SIWS_DOMAINS is set");
+  if (s === jwtSecret) throw new ConfigError("SENTRA_SESSION_SECRET must differ from SUPABASE_JWT_SECRET");
+  return s;
+}
+
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 function list(env: NodeJS.ProcessEnv, k: string, re: RegExp): string[] {
   const xs = (env[k] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -135,6 +148,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     accountDeletionGraceDays: int(env, "ACCOUNT_DELETION_GRACE_DAYS", 7, 7, 30),
     sseMemberCheckMs: int(env, "SSE_MEMBER_CHECK_MS", 30_000, 50, 600_000),
     ...siwsConfig(env),
+    sessionSecret: sessionSecret(env, jwtSecret),
     accessTtlS: int(env, "AUTH_ACCESS_TTL_S", 900, 60, 3600),
     refreshTtlS: int(env, "AUTH_REFRESH_TTL_S", 30 * 86_400, 3600, 90 * 86_400),
     trustProxy: flag(env, "TRUST_PROXY"),

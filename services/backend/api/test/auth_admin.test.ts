@@ -64,7 +64,7 @@ describe("SIWS with AUTH_USER_CREATE=supabase_admin", () => {
 
   test("config: supabase_admin needs SUPABASE_URL + key; direct is refused in production", async () => {
     const { loadConfig, ConfigError } = await import("../src/config.ts");
-    const base = { TRADING_MODE: "paper", DATABASE_URL: "postgres://x", SUPABASE_JWT_SECRET: "x".repeat(32), AUTH_SIWS_DOMAINS: DOMAIN, OWNER_WALLETS: wallet().address };
+    const base = { TRADING_MODE: "paper", DATABASE_URL: "postgres://x", SUPABASE_JWT_SECRET: "x".repeat(32), SENTRA_SESSION_SECRET: "s".repeat(32), AUTH_SIWS_DOMAINS: DOMAIN, OWNER_WALLETS: wallet().address };
     assert.throws(() => loadConfig(base), ConfigError);
     assert.throws(() => loadConfig({ ...base, AUTH_USER_CREATE: "direct", NODE_ENV: "production" }), ConfigError);
     assert.equal(loadConfig({ ...base, AUTH_USER_CREATE: "direct" }).userCreate, "direct");
@@ -73,7 +73,7 @@ describe("SIWS with AUTH_USER_CREATE=supabase_admin", () => {
 
 describe("B-1: OWNER_WALLETS fails closed", () => {
   const base = {
-    TRADING_MODE: "paper", DATABASE_URL: "postgres://x", SUPABASE_JWT_SECRET: "x".repeat(32),
+    TRADING_MODE: "paper", DATABASE_URL: "postgres://x", SUPABASE_JWT_SECRET: "x".repeat(32), SENTRA_SESSION_SECRET: "s".repeat(32),
     AUTH_SIWS_DOMAINS: DOMAIN, AUTH_USER_CREATE: "direct",
   };
   test("config refuses empty, missing or invalid OWNER_WALLETS when SIWS is enabled", async () => {
@@ -105,7 +105,7 @@ describe("B-1: OWNER_WALLETS fails closed", () => {
       const { createApiServer } = await import("../src/server.ts");
       const { loadConfig } = await import("../src/config.ts");
       const w = wallet();
-      const cfg = loadConfig({ TRADING_MODE: "paper", DATABASE_URL: "postgres://unused", SUPABASE_JWT_SECRET: "x".repeat(32), AUTH_SIWS_DOMAINS: DOMAIN, OWNER_WALLETS: w.address, AUTH_USER_CREATE: "direct" });
+      const cfg = loadConfig({ TRADING_MODE: "paper", DATABASE_URL: "postgres://unused", SUPABASE_JWT_SECRET: "x".repeat(32), SENTRA_SESSION_SECRET: "s".repeat(32), AUTH_SIWS_DOMAINS: DOMAIN, OWNER_WALLETS: w.address, AUTH_USER_CREATE: "direct" });
       cfg.ownerWallets.length = 0;
       const srv = createApiServer({ cfg, db: h.db, marks: h.marks, feeds: h.feeds });
       await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));

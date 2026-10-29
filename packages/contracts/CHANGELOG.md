@@ -4,6 +4,10 @@
 
 - SIWS fails closed: no boot (exit 78) with SIWS enabled and an empty/invalid `OWNER_WALLETS`; empty list at runtime = no login.
 - Login limits never hard-block the owner wallet (soft delay, `X-Sentra-Login-Delay-Ms`); strangers 403 then 429 per IP.
+- SIWS hardening (mobile review): every message field stored with the nonce and compared exactly (B-3; mismatch burns
+  the nonce); refresh grace 10 s returns the same successor pair (B-4); access tokens carry `sid`, checked per request,
+  so logout ends them (B-5, `session_revoked`); `statement_version` on nonce request/response (B-7); access tokens
+  signed with our own `SENTRA_SESSION_SECRET` (B-10); FLUTTER/WEB integration answers updated (B-8).
 - SIWS verify returns `workspace_id`; the first login creates the owner's workspace (idempotent); users are created
   via the Supabase admin API in production.
 - Rate limits on every write route (per IP, per user, per route), optional Postgres-backed counters (API_ENDPOINTS 2.3).

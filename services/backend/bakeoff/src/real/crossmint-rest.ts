@@ -50,7 +50,7 @@ export class CrossmintRest implements SignerProvider {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await r.text();
-    if (!r.ok) throw new CrossmintHttpError(r.status, `${method} ${path} -> ${r.status}: ${redact(text, this.secrets).slice(0, 600)}`);
+    if (!r.ok) throw new CrossmintHttpError(r.status, `${method} ${path} -> ${r.status}: ${redact(text, this.secrets).slice(0, 4000)}`);
     return (text ? JSON.parse(text) : {}) as T;
   }
 

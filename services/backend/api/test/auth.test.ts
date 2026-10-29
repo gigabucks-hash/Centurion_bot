@@ -145,6 +145,8 @@ describe("SIWS login", () => {
     assert.notEqual(r2, r1);
     assert.equal(a.body.data.session_id, v.body.data.session_id);
     assert.equal((await call(h.base, "GET", "/v1/me", { token: a.body.data.access_token })).status, 200);
+    // outside the 10 s grace window (B-4): backdate the rotation
+    await h.db.query("update public.auth_refresh_tokens set used_at = used_at - interval '11 seconds' where used_at is not null");
     const reuse = await call(h.base, "POST", "/v1/auth/session/refresh", { headers: ipHeaders(), body: { refresh_token: r1 } });
     assert.equal(reuse.status, 401);
     assert.equal(reuse.body.error.reason, "refresh_reused");

@@ -2,7 +2,7 @@ import { createServer, type Server } from "node:http";
 import { ApiError } from "./errors.ts";
 import { makeCtx, sendError, type Ctx } from "./http.ts";
 import { buildRouter, type Deps } from "./routes.ts";
-import { bearer, verifyJwt } from "./jwt.ts";
+import { bearer, verifyAccess } from "./jwt.ts";
 import { PgRateLimiter, RateLimiter, clientIp, type Limiter } from "./ratelimit.ts";
 
 const WRITES = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -10,7 +10,7 @@ const WRITES = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 /** Verified token subject for rate-limit keys only (an invalid token just means "no user key"). */
 function subjectOf(ctx: Ctx, d: Deps): string | null {
   try {
-    return verifyJwt(bearer(ctx.req.headers.authorization), d.cfg.jwtSecret, d.cfg.jwtAudience).sub;
+    return verifyAccess(bearer(ctx.req.headers.authorization), d.cfg).sub;
   } catch {
     return null;
   }
