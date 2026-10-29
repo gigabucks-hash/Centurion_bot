@@ -14,6 +14,7 @@ details are flattened into it. Codes, HTTP status, SQLSTATE and `en`/`id` messag
 (`kind: error|notice|skip`):
 ```json
 { "error": { "code": "VERSION_CONFLICT", "message": "Stale rev; refetch and retry", "current_rev": 3, "base_rev": 2,
+             "current": { "id": "apr_01J...", "rev": 3, "status": "approved" },
              "request_id": "req_01J...", "server_now": "2026-10-29T08:42:00.151Z" },
   "server_now": "2026-10-29T08:42:00.151Z" }
 ```
