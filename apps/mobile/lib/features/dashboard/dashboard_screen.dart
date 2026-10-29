@@ -43,10 +43,10 @@ class DashboardScreen extends ConsumerWidget {
                 crossAxisSpacing: AppSpace.s3,
                 childAspectRatio: 1.9,
                 children: [
-                  _Kpi(label: 'Cash', child: Text(fmtSol(s.cashSol), style: AppText.num(22))),
+                  _Kpi(label: 'Cash', child: Text(fmtSol(s.cashLamports), style: AppText.num(22))),
                   _Kpi(
                       label: 'Realized PnL',
-                      child: PnlText(s.realizedPnlSol, size: 22, key: const Key('realizedPnl'))),
+                      child: PnlText(s.realizedPnlLamports, size: 22, key: const Key('realizedPnl'))),
                   _Kpi(
                     label: 'Open',
                     onTap: () => context.go('/positions'),
@@ -69,13 +69,13 @@ class DashboardScreen extends ConsumerWidget {
                     Row(children: [
                       Text('Total PnL', style: text.labelLarge),
                       const Spacer(),
-                      PnlText(s.totalPnlSol, key: const Key('totalPnl'), unit: true),
+                      PnlText(s.totalPnlLamports, key: const Key('totalPnl'), unit: true),
                     ]),
                     const SizedBox(height: AppSpace.s3),
                     Sparkline(
                       height: 72,
-                      values: s.history.map((p) => p.equitySol).toList(),
-                      color: context.pnlColor(s.totalPnlSol),
+                      values: s.history.map((p) => p.equityLamports.plotValue).toList(),
+                      color: context.lamportsColor(s.totalPnlLamports),
                     ),
                   ]),
                 ),

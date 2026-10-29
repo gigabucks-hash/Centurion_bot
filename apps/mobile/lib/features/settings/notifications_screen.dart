@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
+import '../../data/api/server_clock.dart';
 import '../../core/notifications/local_notifier.dart';
 import '../../core/notifications/notification_catalog.dart';
 import '../../core/notifications/notification_renderer.dart';
@@ -56,7 +57,7 @@ class NotificationsScreen extends ConsumerWidget {
         else
           for (final s in shade)
             NotificationTile(
-              rendered: renderer.render(s.message, locale, now, groupCount: s.groupCount),
+              rendered: renderer.render(s.message, locale, now, groupCount: s.groupCount, clockSkew: ref.watch(serverClockProvider)),
               locale: locale,
               time: s.receivedAt,
               onAction: (a) async {
@@ -101,7 +102,7 @@ class NotificationsScreen extends ConsumerWidget {
         positionId: 'ck100.0',
         token: 'tok_preview',
         expiresAt: now.toUtc().add(const Duration(minutes: 1, seconds: 42)),
-        expireReason: 'timed_out',
+        expireReason: 'timeout',
         vars: {
           'coin': r'$MOON',
           'strategy': 'Pullback v2',

@@ -3,15 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solbot_mobile/app/app.dart';
 import 'package:solbot_mobile/core/approval_guard.dart';
+import 'package:solbot_mobile/core/feature_flags.dart';
 import 'package:solbot_mobile/core/theme/solbot_theme.dart';
 import 'package:solbot_mobile/core/widgets/common.dart';
 import 'package:solbot_mobile/data/mock/mock_backend.dart';
 import 'package:solbot_mobile/data/models/models.dart';
 import 'package:solbot_mobile/data/providers.dart';
 
-Widget _app(MockBackend b, String location) => ProviderScope(
+/// [realSol] flips the Phase 7 flag (client + mock server) for tests that exercise Real flows.
+Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderScope(
       overrides: [
-        mockBackendProvider.overrideWithValue(b),
+        mockBackendProvider.overrideWithValue(b..realSolEnabled = realSol),
+        featureFlagsProvider.overrideWithValue(FeatureFlags(realSolEnabled: realSol)),
         approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
       ],
       child: SolBotApp(initialLocation: location),
@@ -72,7 +75,7 @@ void main() {
   testWidgets('Real SOL guard change needs typed name before hold is enabled', (tester) async {
     await _phone(tester);
     final b = MockBackend();
-    await tester.pumpWidget(_app(b, '/approvals/apv_seed4/review'));
+    await tester.pumpWidget(_app(b, '/approvals/apv_seed4/review', realSol: true));
     await tester.pump();
     expect(find.textContaining('REAL SOL · memakai SOL nyata'), findsOneWidget);
     expect(find.text('Risk level: TINGGI'), findsOneWidget);
@@ -81,6 +84,7 @@ void main() {
     expect(find.text('✓ cocok'), findsOneWidget);
     final hold = find.byKey(const Key('holdConfirm'));
     await tester.ensureVisible(hold);
+    await tester.pump();
     final g = await tester.startGesture(tester.getCenter(hold));
     for (var i = 0; i < 30; i++) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -122,7 +126,7 @@ void main() {
         expiresAt: now.add(const Duration(minutes: 10)),
         token: 'tok_real1',
         strategyId: 'stg_grad',
-        amountSol: 0.1,
+        amountLamports: Lamports.fromSol('0.1'),
         mode: TradeMode.real,
         pickType: PickType.buy,
       ));
@@ -162,7 +166,7 @@ void main() {
   testWidgets('guard hold Real 2,5 s: a 1,3 s hold does not decide', (tester) async {
     await _phone(tester);
     final b2 = MockBackend();
-    await tester.pumpWidget(_app(b2, '/approvals/apv_seed4/review'));
+    await tester.pumpWidget(_app(b2, '/approvals/apv_seed4/review', realSol: true));
     await tester.pump();
     expect(tester.widget<HoldToConfirmButton>(find.byKey(const Key('holdConfirm'))).hold,
         const Duration(milliseconds: 2500));
@@ -172,6 +176,7 @@ void main() {
     await tester.pump();
     final hold = find.byKey(const Key('holdConfirm'));
     await tester.ensureVisible(hold);
+    await tester.pump();
     final g = await tester.startGesture(tester.getCenter(hold));
     for (var i = 0; i < 13; i++) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -181,5 +186,40 @@ void main() {
     expect(b2.debugApprovals.firstWhere((a) => a.id == 'apv_seed4').status, ApprovalStatus.pending);
     await tester.pump(const Duration(seconds: 3));
     b2.dispose();
+  });
+
+  testWidgets('Real SOL flag OFF (default): guard hold + Real approve disabled, note shown', (tester) async {
+    await _phone(tester);
+    final b = MockBackend();
+    await tester.pumpWidget(_app(b, '/approvals/apv_seed4/review'));
+    await tester.pump();
+    expect(find.text(realSolDisabledText), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('typedConfirm')), 'Graduated Momentum');
+    await tester.pump();
+    expect(tester.widget<HoldToConfirmButton>(find.byKey(const Key('holdConfirm'), skipOffstage: false)).enabled, isFalse);
+    b.dispose();
+  });
+
+  testWidgets('Lainnya: Practice reset once per 24 h, Real flag status shown', (tester) async {
+    await _phone(tester);
+    final b = MockBackend();
+    await tester.pumpWidget(_app(b, '/more'));
+    await tester.pump();
+    expect(find.text('Real SOL nonaktif sampai Fase 7'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('practiceReset')));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    await tester.tap(find.byKey(const Key('confirmReset')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.textContaining('Practice di-reset ke 30,000 paper SOL'), findsOneWidget);
+    expect(b.debugPositions.where((p) => p.mode == TradeMode.practice), isEmpty);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.tap(find.byKey(const Key('practiceReset')));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    await tester.tap(find.byKey(const Key('confirmReset')));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.textContaining('Reset berikutnya bisa pukul'), findsOneWidget);
+    b.dispose();
   });
 }

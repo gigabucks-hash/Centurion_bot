@@ -1,22 +1,31 @@
 import 'package:intl/intl.dart';
 
+import '../data/money.dart';
+
 // SPEC §1: id-ID number format (comma decimal), mono tabular in UI.
-final _sol = NumberFormat('#,##0.000', 'id');
 final _pct = NumberFormat('#,##0.0', 'id');
 final _time = DateFormat('HH:mm');
 
-/// Unsigned amount, e.g. `27,494`. Negative values get a real minus sign.
-String fmtSol(double v, {bool unit = false}) {
-  final s = _sol.format(v.abs()) + (unit ? ' SOL' : '');
-  return v < 0 ? '−$s' : s;
+/// |v| below this formats as `±0` (and is colored neutral): 0,0005 SOL.
+final Lamports pnlZeroEpsilon = Lamports.fromInt(500000);
+
+String _sol3(Lamports v) => formatDecimalAbs(v.toSol(), 'id', minDp: 3, maxDp: 3);
+
+/// Unsigned amount, e.g. `27,494`. Negative values get a real minus sign. Exact (BigInt).
+String fmtSol(Lamports v, {bool unit = false}) {
+  final s = _sol3(v) + (unit ? ' SOL' : '');
+  return v.isNegative ? '−$s' : s;
 }
 
 /// SPEC §1: PnL never by color alone: ▲/▼ + sign + number; zero = `±0`.
-String fmtPnl(double v, {bool unit = false}) {
-  if (v.abs() < 0.0005) return '±0${unit ? ' SOL' : ''}';
-  final s = _sol.format(v.abs()) + (unit ? ' SOL' : '');
-  return v > 0 ? '▲ +$s' : '▼ −$s';
+String fmtPnl(Lamports v, {bool unit = false}) {
+  if (v.abs() < pnlZeroEpsilon) return '±0${unit ? ' SOL' : ''}';
+  final s = _sol3(v) + (unit ? ' SOL' : '');
+  return v.isNegative ? '▼ −$s' : '▲ +$s';
 }
+
+/// USD price with 4 significant digits, id-ID separators.
+String fmtUsd(Decimal v) => '\$${formatDecimalAbs(v, 'id', minDp: 0, maxDp: decimalsForSignificant(v, 4))}';
 
 String fmtPct(double v, {bool arrow = true}) {
   if (v.abs() < 0.05) return '±0%';

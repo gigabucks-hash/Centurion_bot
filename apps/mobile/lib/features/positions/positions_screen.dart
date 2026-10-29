@@ -18,7 +18,6 @@ String fmtHold(Duration d) {
   return '${d.inHours} j ${d.inMinutes % 60} mnt';
 }
 
-String fmtUsd(double v) => '\$${v.toStringAsPrecision(3).replaceAll('.', ',')}';
 
 final _strategyNamesProvider = Provider<Map<String, String>>((ref) => {
       for (final s in ref.watch(strategiesProvider).valueOrNull ?? const <Strategy>[]) s.id: s.name,
@@ -95,12 +94,12 @@ class PositionCard extends ConsumerWidget {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('\$${p.symbol}', style: tt.titleMedium, overflow: TextOverflow.ellipsis),
-                  Text('${names[p.strategyId] ?? p.strategyId} · ${fmtSol(p.sizeSol)} SOL',
+                  Text('${names[p.strategyId] ?? p.strategyId} · ${fmtSol(p.sizeLamports)} SOL',
                       style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant), overflow: TextOverflow.ellipsis),
                 ]),
               ),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                PnlText(p.pnlSol, size: 14),
+                PnlText(p.pnlLamports, size: 14),
                 Text('(${fmtPct(p.pnlPct, arrow: false)})',
                     style: AppText.num(12, color: context.pnlColor(p.pnlPct, epsilon: 0.05))),
               ]),
@@ -140,7 +139,7 @@ class _ClosedRow extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       title: Text('\$${p.symbol}'),
       subtitle: Text(p.exitReason ?? 'Closed', overflow: TextOverflow.ellipsis),
-      trailing: PnlText(p.pnlSol),
+      trailing: PnlText(p.pnlLamports),
       onTap: () => context.go('/positions/${Uri.encodeComponent(p.id)}'),
     );
   }
@@ -172,11 +171,11 @@ class PositionDetailScreen extends ConsumerWidget {
               Expanded(
                   child: Text(names[p.strategyId] ?? p.strategyId,
                       style: tt.bodyMedium, overflow: TextOverflow.ellipsis)),
-              PnlText(p.pnlSol, size: 18, unit: true),
+              PnlText(p.pnlLamports, size: 18, unit: true),
             ]),
             const SizedBox(height: AppSpace.s2),
             Wrap(spacing: AppSpace.s4, runSpacing: AppSpace.s1, children: [
-              _Kv('Size', '${fmtSol(p.sizeSol)} SOL'),
+              _Kv('Size', '${fmtSol(p.sizeLamports)} SOL'),
               _Kv('Entry → now', '${fmtUsd(p.entryPriceUsd)} → ${fmtUsd(p.markPriceUsd)}'),
               _Kv('Hold', fmtHold(p.holdAt(now))),
               _Kv('Terjual', '${p.soldPct.round()}%'),
@@ -241,7 +240,7 @@ class ExitLadder extends StatelessWidget {
     final t = context.tradeColors;
     final cs = Theme.of(context).colorScheme;
     final next = plan.nextRung;
-    final peakPct = (p.peakPriceUsd / p.entryPriceUsd - 1) * 100;
+    final peakPct = pctChange(p.entryPriceUsd, p.peakPriceUsd);
     final trailLevel = (peakPct + 100) * (1 - plan.trailPct / 100) - 100;
     final rows = <(double, _RowKind, String, String)>[
       for (var i = 0; i < plan.rungs.length; i++)
@@ -266,7 +265,7 @@ class ExitLadder extends StatelessWidget {
         'Trailing −${plan.trailPct.round()}% dari high',
         plan.trailArmed ? 'armed' : 'aktif setelah TP1',
       ),
-      (0, _RowKind.entry, 'Entry', fmtUsd(p.entryPriceUsd)),
+      (0.0, _RowKind.entry, 'Entry', fmtUsd(p.entryPriceUsd)),
       (plan.stopLossPct, _RowKind.sl, 'Stop loss', 'armed'),
     ]..sort((a, b) => b.$1.compareTo(a.$1));
     return Column(

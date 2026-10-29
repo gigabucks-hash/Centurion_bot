@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../core/feature_flags.dart';
+import 'practice_reset_tile.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -36,6 +40,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           subtitle: const Text('Bahasa ID/EN, notifikasi diterima, katalog 17 event'),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => context.go('/more/notifications'),
+        ),
+        const _Header('Practice'),
+        const PracticeResetTile(),
+        Consumer(
+          builder: (context, ref, _) => ListTile(
+            key: const Key('realModeFlag'),
+            leading: const Icon(Icons.lock_outline),
+            title: const Text('Mode Real SOL'),
+            subtitle: Text(realModeStatus(ref.watch(featureFlagsProvider).realSolEnabled)),
+          ),
         ),
         const _Header('Notifications'),
         SwitchListTile(

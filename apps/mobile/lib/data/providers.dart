@@ -1,7 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/approval_guard.dart';
+import '../core/feature_flags.dart';
+import 'api/auth.dart';
+import 'api/events_feed.dart';
+import 'api/sentra_rpc.dart';
 import 'mock/mock_backend.dart';
+import 'mock/mock_rpc.dart';
 import 'models/models.dart';
 import 'repositories/repositories.dart';
 
@@ -22,6 +27,14 @@ final strategyRepositoryProvider =
     Provider<StrategyRepository>((ref) => ref.watch(mockBackendProvider));
 final approvalRepositoryProvider =
     Provider<ApprovalRepository>((ref) => ref.watch(mockBackendProvider));
+
+final practiceResetRepositoryProvider =
+    Provider<PracticeResetRepository>((ref) => ref.watch(mockBackendProvider));
+final eventsFeedProvider = Provider<EventsFeed>((ref) => ref.watch(mockBackendProvider));
+final marksSourceProvider = Provider<MarksSource>((ref) => ref.watch(mockBackendProvider));
+final sentraRpcProvider = Provider<SentraRpc>((ref) => MockSentraRpc(ref.watch(mockBackendProvider)));
+final authRepositoryProvider = Provider<AuthRepository>(
+    (ref) => UnimplementedAuthRepository(telegramEnabled: ref.watch(featureFlagsProvider).telegramOidcEnabled));
 
 final approvalGuardProvider = Provider<ApprovalGuard>((ref) => const DialogApprovalGuard());
 

@@ -1,16 +1,23 @@
-/// Contract for push notification data payloads (FCM `data` block; APNs via
-/// FCM). Pure Dart: unit-testable, usable from the FCM background isolate and
-/// shared with the backend spec. All values are strings (FCM data rule).
+/// PushPayload v1 (contract v1.1, EVENTS_SCHEMA §6). Data-only; copy is
+/// rendered on the device from the ARB catalog. Pure Dart: usable from the
+/// FCM background isolate.
 ///
-/// Example (N-01, Practice pick):
-/// {"v":"1","event":"N-01","mode":"practice","approval_id":"apv_0012",
-///  "token":"tok_…","exp":"1793260000","coin":"$KEPL","strategy":"Pullback v2",
-///  "sol":"0.25"}
+/// Canonical shape:
+/// {"v":1,"event":"N-01","type":"proposal.created","mode":"practice",
+///  "workspace_id":"…","seq":18301,"deep_link":"sentra://approvals/…",
+///  "approval_id":"…","token":"apt_…","exp":"2026-10-29T08:52:00.000Z",
+///  "actions":["approve","skip","open"],
+///  "vars":{"coin":"EXM","strategy":"Yumi · AMM","sol":"0.25","mm_ss":"09:58"},
+///  "server_now":"2026-10-29T08:42:00.151Z"}
 ///
-/// Copy is NEVER sent by the server: the client renders it from the typed
-/// catalog (`core/notifications/notification_catalog.dart`) in the user's
-/// language. Token metadata (`coin`) is untrusted display text.
+/// FCM `data` only carries string values, so the parser also accepts the
+/// stringified form (`"v":"1"`, `"seq":"18301"`, `actions`/`vars` as JSON
+/// strings) and the pre-v1.1 flat form (vars as top-level keys, epoch `exp`).
+/// Fails closed on unknown `v`/`event`, missing `mode`, real-only events in
+/// practice. A Real payload never carries a usable token (dropped if present).
 library;
+
+import 'dart:convert';
 
 import '../notifications/notification_catalog.dart';
 
@@ -24,32 +31,72 @@ class PushMessage {
     this.token,
     this.expiresAt,
     this.expireReason,
+    this.serverNow,
+    this.serverActions,
+    this.type,
+    this.workspaceId,
+    this.seq,
+    this.deepLink,
   });
 
   final NotifEvent event;
 
   /// Null only for modeless events (N-03 without mode, N-14, N-16, N-17).
   final NotifMode? mode;
+
+  /// Raw display vars (strings). Token metadata (`coin`) is untrusted text.
   final Map<String, String> vars;
   final String? approvalId;
   final String? positionId;
+
+  /// Single-use Practice buy_pick token. Always null for Real.
   final String? token;
   final DateTime? expiresAt;
 
-  /// N-07 variant: timed_out | strategy_deleted | guard_failed | price_ran.
+  /// N-07 variant (wire: timeout | strategy_deleted | strategy_archived |
+  /// guard_failed | price_moved | practice_reset | account_deleted).
   final String? expireReason;
+
+  /// Server clock at send time → clock-skew for countdowns.
+  final DateTime? serverNow;
+
+  /// `actions` from the server; the client only ever narrows it. Null = absent (legacy).
+  final Set<String>? serverActions;
+  final String? type;
+  final String? workspaceId;
+  final int? seq;
+  final String? deepLink;
 
   /// Single-use approval token present and not yet expired.
   bool tokenValidAt(DateTime now) =>
       token != null && token!.isNotEmpty && expiresAt != null && now.toUtc().isBefore(expiresAt!);
 
-  static const _reserved = {'v', 'event', 'mode', 'approval_id', 'position_id', 'token', 'exp', 'expire_reason'};
+  static const _reserved = {
+    'v', 'event', 'type', 'mode', 'workspace_id', 'seq', 'deep_link', 'approval_id', 'position_id', //
+    'token', 'exp', 'expire_reason', 'actions', 'vars', 'server_now',
+  };
 
-  /// Fails closed: unknown version/event, or a missing/unknown mode for an
-  /// event that requires one, yields null (the notification is dropped and
-  /// the in-app feed remains the source of truth).
+  static DateTime? _time(Object? v) {
+    if (v == null) return null;
+    if (v is num) return DateTime.fromMillisecondsSinceEpoch(v.toInt() * 1000, isUtc: true);
+    final s = '$v';
+    final epoch = int.tryParse(s);
+    if (epoch != null) return DateTime.fromMillisecondsSinceEpoch(epoch * 1000, isUtc: true);
+    return DateTime.tryParse(s)?.toUtc();
+  }
+
+  static Object? _json(Object? v) {
+    if (v is! String) return v;
+    try {
+      return jsonDecode(v);
+    } on FormatException {
+      return null;
+    }
+  }
+
   static PushMessage? tryParse(Map<String, dynamic> data) {
-    if (data['v'] != '1') return null;
+    final v = data['v'];
+    if (!(v == 1 || v == '1')) return null;
     final event = NotifEvent.byCode('${data['event']}');
     if (event == null) return null;
     final rawMode = data['mode'];
@@ -60,30 +107,50 @@ class PushMessage {
     };
     if (mode == null && (rawMode != null || event.spec.requiresMode)) return null;
     if (event.spec.realOnly && mode != NotifMode.real) return null;
-    final exp = int.tryParse('${data['exp'] ?? ''}');
     String? str(String k) {
-      final v = data[k];
-      return v is String && v.isNotEmpty ? v : null;
+      final x = data[k];
+      return x is String && x.isNotEmpty ? x : null;
     }
 
     final approvalId = str('approval_id');
     if (event.isPick && approvalId == null) return null;
+
+    final rawActions = _json(data['actions']);
+    final actions = rawActions is List
+        ? rawActions.map((e) => '$e').toSet()
+        : data['actions'] is String && rawActions == null
+            ? '${data['actions']}'.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet()
+            : null;
+    final varsJson = _json(data['vars']);
+    final vars = <String, String>{
+      // Legacy flat vars first; nested `vars` wins.
+      for (final e in data.entries)
+        if (!_reserved.contains(e.key) && (e.value is String || e.value is num)) e.key: '${e.value}',
+      if (varsJson is Map)
+        for (final e in varsJson.entries)
+          if (e.value != null) '${e.key}': '${e.value}',
+    };
+    final seq = data['seq'];
     return PushMessage(
       event: event,
       mode: mode,
       approvalId: approvalId,
       positionId: str('position_id'),
-      token: str('token'),
-      expiresAt: exp == null ? null : DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true),
-      expireReason: str('expire_reason'),
-      vars: {
-        for (final e in data.entries)
-          if (!_reserved.contains(e.key) && e.value is String) e.key: e.value as String,
-      },
+      // Real SOL is never actionable from a push: ignore any token.
+      token: mode == NotifMode.real ? null : str('token'),
+      expiresAt: _time(data['exp']),
+      expireReason: str('expire_reason') ?? vars['reason_code'],
+      serverNow: _time(data['server_now']),
+      serverActions: actions,
+      type: str('type'),
+      workspaceId: str('workspace_id'),
+      seq: seq is num ? seq.toInt() : int.tryParse('${seq ?? ''}'),
+      deepLink: str('deep_link'),
+      vars: vars,
     );
   }
 
-  /// Deep link handled by go_router (also `sentra://…` later).
+  /// In-app route (go_router). `deep_link` (sentra://…) maps to the same paths.
   String? get route {
     String enc(String? s) => Uri.encodeComponent(s ?? '');
     return switch (event) {

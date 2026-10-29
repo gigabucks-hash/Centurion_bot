@@ -18,18 +18,18 @@ GoRouter buildRouter({String initialLocation = '/'}) {
     initialLocation: initialLocation,
     routes: [
       StatefulShellRoute.indexedStack(
-        builder: (_, __, shell) => HomeShell(shell: shell),
+        builder: (_, _, shell) => HomeShell(shell: shell),
         branches: [
           StatefulShellBranch(routes: [
-            GoRoute(path: '/', builder: (_, __) => const DashboardScreen()),
+            GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/strategies', builder: (_, __) => const StrategiesScreen()),
+            GoRoute(path: '/strategies', builder: (_, _) => const StrategiesScreen()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/approvals',
-              builder: (_, __) => const ApprovalsScreen(),
+              builder: (_, _) => const ApprovalsScreen(),
               routes: [
                 // Push deep link target: highlights the approval in the inbox.
                 GoRoute(
@@ -51,21 +51,21 @@ GoRouter buildRouter({String initialLocation = '/'}) {
             ),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/activity', builder: (_, __) => const ActivityScreen()),
+            GoRoute(path: '/activity', builder: (_, _) => const ActivityScreen()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/more',
-              builder: (_, __) => const SettingsScreen(),
+              builder: (_, _) => const SettingsScreen(),
               routes: [
-                GoRoute(path: 'notifications', builder: (_, __) => const NotificationsScreen()),
+                GoRoute(path: 'notifications', builder: (_, _) => const NotificationsScreen()),
               ],
             ),
             // Wireframe 12: Positions lives under the Lainnya tab. Path kept
             // as `/positions` so push deep links stay short and stable.
             GoRoute(
               path: '/positions',
-              builder: (_, __) => const PositionsScreen(),
+              builder: (_, _) => const PositionsScreen(),
               routes: [
                 GoRoute(
                   path: ':id',

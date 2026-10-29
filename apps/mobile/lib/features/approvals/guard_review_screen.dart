@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/feature_flags.dart';
 import '../../core/theme/solbot_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../data/api/api_exception.dart';
+import '../../data/api/settings_keys.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';
+import 'approvals_screen.dart' show decideRequest;
 
 /// Wireframe 08 / flow guard-weakening.mmd. Practice: hold 1,2 s.
 /// Real SOL: typed strategy name → hold 2,5 s → biometric → cooldown 10 min.
@@ -41,13 +45,14 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
     try {
-      final st = await ref.read(approvalRepositoryProvider).decide(a.id, approve: approve, token: a.token);
+      final res = await ref.read(approvalRepositoryProvider).decide(decideRequest(a, approve: approve));
+      final st = res.status;
       messenger.showSnackBar(SnackBar(
           content: Text(approve && a.mode == TradeMode.real
               ? 'Disetujui · berlaku setelah cooldown 10 mnt (bisa dibatalkan)'
               : 'Guard change: ${st.name}')));
       nav.maybePop();
-    } on ConflictException catch (e) {
+    } on ApiException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -76,6 +81,8 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final typedOk = !real || _typed.text.trim() == name;
+    // Real SOL weakening needs Phase 7 proof-of-confirmation (TOTP + passkey + typed + hold).
+    final realBlocked = real && !ref.watch(featureFlagsProvider).realSolEnabled;
     final canAct = approval.isPending && !_submitting;
 
     return Scaffold(
@@ -105,7 +112,7 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
               Card(
                 margin: const EdgeInsets.only(bottom: AppSpace.s2),
                 child: ListTile(
-                  title: Text(e.key),
+                  title: Text(SettingsKeys.label(e.key)),
                   subtitle: Text('${e.value.first}  →  ${e.value.last}', style: AppText.num(14, color: t.loss)),
                   trailing: Text('▼ longgar', style: text.labelLarge!.copyWith(color: t.warning)),
                 ),
@@ -141,12 +148,18 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
                   style: text.bodySmall!.copyWith(color: cs.onSurfaceVariant)),
             ],
             const SizedBox(height: AppSpace.s6),
+            if (realBlocked)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpace.s2),
+                child: Text(realSolDisabledText,
+                    key: const Key('realDisabledNote'), style: text.bodySmall!.copyWith(color: t.real)),
+              ),
             HoldToConfirmButton(
               key: const Key('holdConfirm'),
               label: real ? 'Tahan untuk melemahkan · biometrik' : 'Tahan untuk melemahkan',
               hold: real ? AppMotion.holdRealBase : AppMotion.holdPracticeBase,
               color: real ? t.real : t.warning,
-              enabled: canAct && typedOk,
+              enabled: canAct && typedOk && !realBlocked,
               onConfirmed: () => _decide(approval, approve: true),
             ),
             const SizedBox(height: AppSpace.s3),

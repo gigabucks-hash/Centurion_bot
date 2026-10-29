@@ -93,7 +93,7 @@ class ActivityTile extends StatelessWidget {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final color = switch (e.kind) {
       ActivityKind.bought || ActivityKind.passed || ActivityKind.resumed || ActivityKind.approved => t.profit,
-      ActivityKind.sold => context.pnlColor(e.pnlSol ?? 0),
+      ActivityKind.sold => context.lamportsColor(e.pnlLamports ?? Lamports.zero),
       ActivityKind.blocked => t.guard,
       ActivityKind.expired || ActivityKind.skipped => muted,
       ActivityKind.proposal || ActivityKind.paused => t.warning,
@@ -109,7 +109,7 @@ class ActivityTile extends StatelessWidget {
         TextSpan(text: e.message),
       ])),
       subtitle: Text('${actorLabel(e.actor)} · ${fmtTime(e.at)}', style: TextStyle(color: muted)),
-      trailing: e.pnlSol == null ? null : PnlText(e.pnlSol!, size: 13),
+      trailing: e.pnlLamports == null ? null : PnlText(e.pnlLamports!, size: 13),
     );
   }
 }

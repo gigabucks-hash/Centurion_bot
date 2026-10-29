@@ -133,16 +133,17 @@ enum NotifEvent {
       };
 }
 
-/// N-07 reason → copy key. Accepts the NOTIFICATIONS.md names and the
-/// contract v1 wire names (`timeout`, `price_moved`, `strategy_archived`).
+/// N-07 `expire_reason` (wire values, contract v1.1 `ProposalExpiredReason`) → copy key.
+/// `practice_reset` / `account_deleted` have no UX copy yet → generic N-07a
+/// (reported to UX). Unknown values also fall back to N-07a.
 const expireReasonKeys = {
-  'timed_out': 'N-07a',
   'timeout': 'N-07a',
   'strategy_deleted': 'N-07b',
   'guard_failed': 'N-07c',
-  'price_ran': 'N-07d',
   'price_moved': 'N-07d',
   'strategy_archived': 'N-07e',
+  'practice_reset': 'N-07a',
+  'account_deleted': 'N-07a',
 };
 
 typedef Copy = ({String title, String body});

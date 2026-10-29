@@ -1,6 +1,11 @@
-/// Domain models. Field names mirror the planned Postgres schema
-/// (snake_case in DB, camelCase here) so the Supabase mappers stay trivial.
+/// Domain models. Wire names (snake_case, contract v1.1) live only in
+/// `data/api/` (wire.dart, settings_keys.dart); models are wire-agnostic.
+/// Money: [Lamports] (BigInt) and [Decimal] prices, never double.
 library;
+
+import '../money.dart';
+
+export '../money.dart';
 
 enum TradeMode { practice, real }
 
@@ -17,10 +22,9 @@ class Strategy {
     required this.status,
     required this.rev,
     required this.exitPlan,
-    required this.tradeSol,
+    required this.ticketLamports,
     required this.maxOpen,
-    required this.askFirst,
-    required this.realizedPnlSol,
+    required this.realizedPnlLamports,
     this.approvalMode = ApprovalMode.askFirstBuy,
     this.winRatePct = 0,
     this.maxDrawdownPct = 0,
@@ -35,11 +39,11 @@ class Strategy {
   /// Optimistic version of the settings document. Every mutation must send
   /// the rev it was based on; the backend rejects stale writes.
   final int rev;
+  /// Exit preset id (see `SettingsKeys.exitPresets`).
   final String exitPlan;
-  final double tradeSol;
+  final Lamports ticketLamports;
   final int maxOpen;
-  final bool askFirst;
-  final double realizedPnlSol;
+  final Lamports realizedPnlLamports;
   final ApprovalMode approvalMode;
   final double winRatePct;
   final double maxDrawdownPct;
@@ -47,19 +51,30 @@ class Strategy {
 
   bool get isRunning => status == StrategyStatus.running;
 
-  Strategy copyWith({StrategyStatus? status, int? rev, double? realizedPnlSol}) {
+  /// v1.1 removed `askFirst`; derived from approval mode.
+  bool get askFirst => approvalMode != ApprovalMode.off;
+
+  Strategy copyWith({
+    StrategyStatus? status,
+    int? rev,
+    Lamports? realizedPnlLamports,
+    String? name,
+    String? exitPlan,
+    Lamports? ticketLamports,
+    int? maxOpen,
+    ApprovalMode? approvalMode,
+  }) {
     return Strategy(
       id: id,
-      name: name,
+      name: name ?? this.name,
       mode: mode,
       status: status ?? this.status,
       rev: rev ?? this.rev,
-      exitPlan: exitPlan,
-      tradeSol: tradeSol,
-      maxOpen: maxOpen,
-      askFirst: askFirst,
-      realizedPnlSol: realizedPnlSol ?? this.realizedPnlSol,
-      approvalMode: approvalMode,
+      exitPlan: exitPlan ?? this.exitPlan,
+      ticketLamports: ticketLamports ?? this.ticketLamports,
+      maxOpen: maxOpen ?? this.maxOpen,
+      realizedPnlLamports: realizedPnlLamports ?? this.realizedPnlLamports,
+      approvalMode: approvalMode ?? this.approvalMode,
       winRatePct: winRatePct,
       maxDrawdownPct: maxDrawdownPct,
       avgHold: avgHold,
@@ -123,25 +138,25 @@ class ExitPlanState {
 }
 
 class Position {
-  const Position({
+  Position({
     required this.id,
     required this.strategyId,
     required this.symbol,
     required this.mint,
     required this.mode,
     required this.state,
-    required this.solIn,
+    required this.costLamports,
     required this.entryPriceUsd,
     required this.markPriceUsd,
     required this.peakPriceUsd,
     required this.openedAt,
-    this.solOut,
+    Lamports? proceedsLamports,
     this.closedAt,
     this.exitReason,
-    this.soldPct = 0,
+    this.soldBps = 0,
     this.exitPlan,
     this.feeBps = 125,
-  });
+  }) : proceedsLamports = proceedsLamports ?? Lamports.zero;
 
   /// `ck.N` style key: coin key + index of the position for that coin.
   final String id;
@@ -153,51 +168,56 @@ class Position {
   final TradeMode mode;
   final PositionState state;
 
-  /// Original cost in SOL.
-  final double solIn;
-  final double entryPriceUsd;
-  final double markPriceUsd;
-  final double peakPriceUsd;
+  /// Original cost (wire `sol_in_lamports`).
+  final Lamports costLamports;
+  final Decimal entryPriceUsd;
+  final Decimal markPriceUsd;
+  final Decimal peakPriceUsd;
   final DateTime openedAt;
 
   /// Cumulative proceeds of all (partial) sells.
-  final double? solOut;
+  final Lamports proceedsLamports;
   final DateTime? closedAt;
   final String? exitReason;
 
-  /// Share of the original size already sold (0–100).
-  final double soldPct;
+  /// Share of the original size already sold, in basis points (0–10000).
+  final int soldBps;
   final ExitPlanState? exitPlan;
   final int feeBps;
 
   bool get isOpen => state == PositionState.open;
-  double get remainingFraction => ((100 - soldPct) / 100).clamp(0.0, 1.0);
+  double get soldPct => soldBps / 100;
+  int get remainingBps => (10000 - soldBps).clamp(0, 10000);
 
-  /// Current size at cost, e.g. "0,24 SOL".
-  double get sizeSol => solIn * remainingFraction;
-  double get changePct => (markPriceUsd / entryPriceUsd - 1) * 100;
-  double get fromPeakPct => (1 - markPriceUsd / peakPriceUsd) * 100;
+  /// Cost of the remainder, e.g. "0,24 SOL".
+  Lamports get sizeLamports => costLamports.bps(remainingBps);
+
+  /// Mark-to-market value of the remainder (exact Decimal ratio, rounded to a lamport).
+  Lamports get valueLamports => isOpen ? sizeLamports.times(ratio(markPriceUsd, entryPriceUsd)) : Lamports.zero;
+  double get changePct => pctChange(entryPriceUsd, markPriceUsd);
+  double get fromPeakPct => -pctChange(peakPriceUsd, markPriceUsd);
   Duration holdAt(DateTime now) => (closedAt ?? now).difference(openedAt);
 
-  /// PnL in SOL: realized proceeds + mark-to-market of the remainder − cost.
-  double get pnlSol =>
-      (solOut ?? 0) + (isOpen ? solIn * remainingFraction * markPriceUsd / entryPriceUsd : 0) - solIn;
+  /// PnL: realized proceeds + mark-to-market of the remainder − cost.
+  Lamports get pnlLamports => proceedsLamports + valueLamports - costLamports;
 
-  /// PnL % of cost basis.
-  double get pnlPct => pnlSol / solIn * 100;
+  /// PnL % of cost basis (display number).
+  double get pnlPct => pnlLamports.ratioTo(costLamports) * 100;
 
   /// Estimated SOL received for selling [pct]% of the CURRENT remainder, after fees.
-  double estimateSellSol(double pct) =>
-      solIn * remainingFraction * (pct / 100) * (markPriceUsd / entryPriceUsd) * (1 - feeBps / 10000);
+  Lamports estimateSell(int pct) => sizeLamports
+      .bps(pct * 100)
+      .times(ratio(markPriceUsd, entryPriceUsd))
+      .bps(10000 - feeBps);
 
   Position copyWith({
-    double? markPriceUsd,
-    double? peakPriceUsd,
+    Decimal? markPriceUsd,
+    Decimal? peakPriceUsd,
     PositionState? state,
-    double? solOut,
+    Lamports? proceedsLamports,
     DateTime? closedAt,
     String? exitReason,
-    double? soldPct,
+    int? soldBps,
     ExitPlanState? exitPlan,
   }) {
     return Position(
@@ -207,15 +227,15 @@ class Position {
       mint: mint,
       mode: mode,
       state: state ?? this.state,
-      solIn: solIn,
+      costLamports: costLamports,
       entryPriceUsd: entryPriceUsd,
       markPriceUsd: markPriceUsd ?? this.markPriceUsd,
       peakPriceUsd: peakPriceUsd ?? this.peakPriceUsd,
       openedAt: openedAt,
-      solOut: solOut ?? this.solOut,
+      proceedsLamports: proceedsLamports ?? this.proceedsLamports,
       closedAt: closedAt ?? this.closedAt,
       exitReason: exitReason ?? this.exitReason,
-      soldPct: soldPct ?? this.soldPct,
+      soldBps: soldBps ?? this.soldBps,
       exitPlan: exitPlan ?? this.exitPlan,
       feeBps: feeBps,
     );
@@ -237,7 +257,7 @@ class ActivityEvent {
     required this.message,
     this.strategyId,
     this.symbol,
-    this.pnlSol,
+    this.pnlLamports,
   });
 
   /// `<ck>:<epoch ms>:<kind>`; append-only, safe to dedupe on.
@@ -248,7 +268,7 @@ class ActivityEvent {
   final String message;
   final String? strategyId;
   final String? symbol;
-  final double? pnlSol;
+  final Lamports? pnlLamports;
 }
 
 enum ApprovalKind { buyPick, guardChange, teamAction }
@@ -256,7 +276,17 @@ enum ApprovalKind { buyPick, guardChange, teamAction }
 enum PickType { firstBuy, buy, rebuy }
 
 /// SPEC §3 expiry reasons.
-enum ExpireReason { timedOut, strategyDeleted, strategyArchived, guardFailedWhileWaiting, priceRanPastLimit }
+enum ExpireReason {
+  timedOut,
+  strategyDeleted,
+  strategyArchived,
+  guardFailedWhileWaiting,
+  priceRanPastLimit,
+
+  /// Contract v1.1 (no UX copy yet → generic expired copy).
+  practiceReset,
+  accountDeleted,
+}
 
 enum RiskLevel { low, medium, high, critical }
 
@@ -275,7 +305,8 @@ class Approval {
     this.strategyId,
     this.baseRev,
     this.diff = const {},
-    this.amountSol,
+    this.amountLamports,
+    this.version = 1,
     this.mode = TradeMode.practice,
     this.pickType,
     this.expireReason,
@@ -302,7 +333,10 @@ class Approval {
 
   /// For setting changes: key -> [old, new].
   final Map<String, List<Object?>> diff;
-  final double? amountSol;
+  final Lamports? amountLamports;
+
+  /// Approval `version` (sent as `p_expected_rev` to `decide_approval`).
+  final int version;
   final TradeMode mode;
   final PickType? pickType;
   final ExpireReason? expireReason;
@@ -319,7 +353,7 @@ class Approval {
 
   bool isExpiredAt(DateTime now) => now.isAfter(expiresAt);
 
-  Approval copyWith({ApprovalStatus? status, ExpireReason? expireReason, DateTime? decidedAt}) => Approval(
+  Approval copyWith({ApprovalStatus? status, ExpireReason? expireReason, DateTime? decidedAt, int? version}) => Approval(
         id: id,
         kind: kind,
         status: status ?? this.status,
@@ -331,7 +365,8 @@ class Approval {
         strategyId: strategyId,
         baseRev: baseRev,
         diff: diff,
-        amountSol: amountSol,
+        amountLamports: amountLamports,
+        version: version ?? this.version,
         mode: mode,
         pickType: pickType,
         expireReason: expireReason ?? this.expireReason,
@@ -342,38 +377,32 @@ class Approval {
 }
 
 class PnlPoint {
-  const PnlPoint(this.at, this.equitySol);
+  const PnlPoint(this.at, this.equityLamports);
   final DateTime at;
-  final double equitySol;
+  final Lamports equityLamports;
 }
 
 class PortfolioSummary {
   const PortfolioSummary({
     required this.mode,
-    required this.cashSol,
-    required this.startSol,
-    required this.realizedPnlSol,
-    required this.unrealizedPnlSol,
+    required this.cashLamports,
+    required this.startLamports,
+    required this.realizedPnlLamports,
+    required this.unrealizedPnlLamports,
     required this.openPositions,
     required this.history,
   });
 
   final TradeMode mode;
-  final double cashSol;
-  final double startSol;
-  final double realizedPnlSol;
-  final double unrealizedPnlSol;
+  final Lamports cashLamports;
+  final Lamports startLamports;
+  final Lamports realizedPnlLamports;
+  final Lamports unrealizedPnlLamports;
   final int openPositions;
   final List<PnlPoint> history;
 
-  double get totalPnlSol => realizedPnlSol + unrealizedPnlSol;
-  double get equitySol => startSol + totalPnlSol;
+  Lamports get totalPnlLamports => realizedPnlLamports + unrealizedPnlLamports;
+  Lamports get equityLamports => startLamports + totalPnlLamports;
 }
 
-/// Thrown when a write is based on an outdated rev or a consumed token.
-class ConflictException implements Exception {
-  ConflictException(this.message);
-  final String message;
-  @override
-  String toString() => 'ConflictException: $message';
-}
+// Errors: see data/api/api_exception.dart (ApiException, typed by errors.json).

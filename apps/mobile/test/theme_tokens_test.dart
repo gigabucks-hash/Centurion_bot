@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:solbot_mobile/data/money.dart';
 import 'package:solbot_mobile/core/format.dart';
 import 'package:solbot_mobile/core/theme/solbot_theme.dart';
 
@@ -28,9 +29,10 @@ void main() {
   test('pnl color + format never rely on color alone', () {
     expect(TradeColors.dark.pnl(0), AppColorsDark.semanticNeutralPnl);
     expect(TradeColors.dark.pnl(1), AppColorsDark.semanticProfit);
-    expect(fmtPnl(0), '±0');
-    expect(fmtPnl(0.412), '▲ +0,412');
-    expect(fmtPnl(-2.506), '▼ −2,506');
+    expect(fmtPnl(Lamports.zero), '±0');
+    expect(fmtPnl(Lamports.fromInt(400000)), '±0'); // < 0,0005 SOL
+    expect(fmtPnl(Lamports.fromSol('0.412')), '▲ +0,412');
+    expect(fmtPnl(Lamports.fromSol('-2.506')), '▼ −2,506');
     expect(fmtCountdown(const Duration(minutes: 1, seconds: 42)), '01:42');
   });
 }

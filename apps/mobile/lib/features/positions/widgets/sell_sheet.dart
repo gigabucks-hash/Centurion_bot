@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/feature_flags.dart';
 import '../../../core/format.dart';
 import '../../../core/theme/solbot_theme.dart';
 import '../../../core/widgets/common.dart';
+import '../../../data/api/api_exception.dart';
 import '../../../data/models/models.dart';
 import '../../../data/providers.dart';
 
@@ -28,7 +30,7 @@ class SellSheet extends ConsumerStatefulWidget {
 }
 
 class _SellSheetState extends ConsumerState<SellSheet> {
-  double _pct = 50;
+  int _pct = 50;
   bool _busy = false;
 
   String get _unit => widget.position.mode == TradeMode.real ? 'SOL' : 'paper SOL';
@@ -38,7 +40,7 @@ class _SellSheetState extends ConsumerState<SellSheet> {
     if (needsBiometric) {
       final ok = await ref
           .read(approvalGuardProvider)
-          .confirm(context, action: 'Jual ${_pct.round()}% \$${p.symbol} (Real SOL)');
+          .confirm(context, action: 'Jual $_pct% \$${p.symbol} (Real SOL)');
       if (!ok || !mounted) return;
     }
     setState(() => _busy = true);
@@ -47,9 +49,8 @@ class _SellSheetState extends ConsumerState<SellSheet> {
     try {
       final got = await ref.read(portfolioRepositoryProvider).sellPosition(p.id, pct: _pct);
       nav.pop();
-      messenger.showSnackBar(SnackBar(
-          content: Text('Terjual ${_pct.round()}% \$${p.symbol} · ≈ ${fmtSol(got)} $_unit')));
-    } on ConflictException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Terjual $_pct% \$${p.symbol} · ≈ ${fmtSol(got)} $_unit')));
+    } on ApiException catch (e) {
       nav.pop();
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -62,7 +63,8 @@ class _SellSheetState extends ConsumerState<SellSheet> {
     final real = p.mode == TradeMode.real;
     final tt = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
-    final est = p.estimateSellSol(_pct);
+    final est = p.estimateSell(_pct);
+    final realBlocked = real && !ref.watch(featureFlagsProvider).realSolEnabled;
     final full = _pct >= 100;
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpace.s4, 0, AppSpace.s4, AppSpace.s4),
@@ -73,8 +75,8 @@ class _SellSheetState extends ConsumerState<SellSheet> {
           ModeChip(p.mode),
         ]),
         const SizedBox(height: AppSpace.s3),
-        SegmentedButton<double>(
-          key: const Key('sellPct'),
+        SegmentedButton<int>(
+          key: const Key('sellShare'),
           showSelectedIcon: false,
           segments: const [
             ButtonSegment(value: 25, label: Text('25%')),
@@ -107,10 +109,14 @@ class _SellSheetState extends ConsumerState<SellSheet> {
         // Real SOL 2,5 s + biometric (SPEC §6 only asks a plain confirm for Practice).
         HoldToConfirmButton(
           key: const Key('sellHold'),
-          label: real ? 'Tahan untuk jual ${_pct.round()}% (Real SOL)' : 'Tahan untuk jual ${_pct.round()}% (Practice)',
+          label: realBlocked
+              ? realSolDisabledText
+              : real
+                  ? 'Tahan untuk jual $_pct% (Real SOL)'
+                  : 'Tahan untuk jual $_pct% (Practice)',
           hold: real ? AppMotion.holdRealBase : AppMotion.holdPracticeBase,
           color: real ? context.tradeColors.real : Theme.of(context).colorScheme.primary,
-          enabled: !_busy,
+          enabled: !_busy && !realBlocked,
           onConfirmed: () => _sell(needsBiometric: real),
         ),
         const SizedBox(height: AppSpace.s2),

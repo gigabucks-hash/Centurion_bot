@@ -4,25 +4,37 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/api/server_clock.dart';
 import '../../data/models/models.dart';
 import '../format.dart';
 import '../theme/solbot_theme.dart';
 
 /// PnL: arrow + sign + color + mono tabular number (SPEC §1).
 class PnlText extends StatelessWidget {
-  const PnlText(this.value, {super.key, this.size = 14, this.pct = false, this.unit = false});
-  final double value;
+  /// SOL PnL (exact lamports): ▲/▼ + sign; |v| < 0,0005 SOL → `±0`, neutral color.
+  const PnlText(Lamports this.value, {super.key, this.size = 14, this.unit = false}) : pctValue = null;
+
+  /// Percent PnL (display number).
+  const PnlText.pct(double this.pctValue, {super.key, this.size = 14})
+      : value = null,
+        unit = false;
+  final Lamports? value;
+  final double? pctValue;
   final double size;
-  final bool pct;
   final bool unit;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      pct ? fmtPct(value) : fmtPnl(value, unit: unit),
-      style: AppText.num(size, weight: FontWeight.w600, color: context.pnlColor(value, epsilon: pct ? 0.05 : 0.0005)),
-    );
+    final v = value;
+    final text = v == null ? fmtPct(pctValue!) : fmtPnl(v, unit: unit);
+    final color = v == null ? context.pnlColor(pctValue!, epsilon: 0.05) : context.lamportsColor(v);
+    return Text(text, style: AppText.num(size, weight: FontWeight.w600, color: color));
   }
+}
+
+extension LamportsColor on BuildContext {
+  /// PnL color for an exact amount; within [pnlZeroEpsilon] is neutral (matches `±0`).
+  Color lamportsColor(Lamports v) => pnlColor(v.abs() < pnlZeroEpsilon ? 0 : v.sign.toDouble());
 }
 
 /// Non-dismissable mode banner on every screen (SPEC §1 "Mode banner").
@@ -130,16 +142,17 @@ class RiskBadge extends StatelessWidget {
 }
 
 /// mm:ss countdown + progress bar; < 2 min turns red with an icon (SPEC §1).
-class ExpiryCountdown extends StatefulWidget {
+/// Uses the server clock: `expires_at − (device now + skew)`.
+class ExpiryCountdown extends ConsumerStatefulWidget {
   const ExpiryCountdown({super.key, required this.createdAt, required this.expiresAt, this.showBar = true});
   final DateTime createdAt;
   final DateTime expiresAt;
   final bool showBar;
   @override
-  State<ExpiryCountdown> createState() => _ExpiryCountdownState();
+  ConsumerState<ExpiryCountdown> createState() => _ExpiryCountdownState();
 }
 
-class _ExpiryCountdownState extends State<ExpiryCountdown> {
+class _ExpiryCountdownState extends ConsumerState<ExpiryCountdown> {
   Timer? _t;
   @override
   void initState() {
@@ -155,7 +168,7 @@ class _ExpiryCountdownState extends State<ExpiryCountdown> {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
+    final now = DateTime.now().add(ref.watch(serverClockProvider));
     final left = widget.expiresAt.difference(now);
     final total = max(1, widget.expiresAt.difference(widget.createdAt).inMilliseconds);
     final urgent = left.inSeconds < 120;
@@ -229,7 +242,7 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton> with SingleTi
         onTapCancel: () => _c.reverse(),
         child: AnimatedBuilder(
           animation: _c,
-          builder: (_, __) => Container(
+          builder: (_, _) => Container(
             height: AppDensity.comfortable.controlLg,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.sm),

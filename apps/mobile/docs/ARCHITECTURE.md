@@ -40,19 +40,37 @@ app/lib/
       notification_renderer.dart  # isi variabel, format locale, filter keamanan aksi, grouping >3/60 dtk
       local_notifier.dart         # pipeline push → parse → render → shade (mock flutter_local_notifications) + handler aksi
     approval_guard.dart     # gate biometrik (interface; mock = dialog)
-    format.dart             # id-ID, ▲/▼, ±0, mm:ss
+    feature_flags.dart      # realSolEnabled=false (Fase 7), telegramOidcEnabled=false
+    format.dart             # id-ID, ▲/▼, ±0, mm:ss (Lamports/Decimal)
   data/
-    models/models.dart      # Strategy, Position (+ExitPlanState/TpRung, soldPct), ActivityEvent, Approval, PortfolioSummary
-    repositories/repositories.dart  # interface Portfolio(+equityHistory, sellPosition)/Activity/Strategy/Approval/PushSource
-    mock/mock_backend.dart  # simulator in-memory + stream + exit plan engine + push payload emitter
+    money.dart              # Lamports (extension type BigInt) + Decimal helper; tanpa double untuk uang/harga
+    models/models.dart      # Strategy, Position (lamports, soldBps, harga Decimal), ActivityEvent, Approval(version), PortfolioSummary
+    api/                    # SATU-SATUNYA tempat yang tahu wire kontrak v1.1
+      api_errors.g.dart     # GENERATED dari errors.json (tool/gen_errors.dart)
+      api_exception.dart    # ApiException(code, rawCode, sqlState, details): fromCode/fromPostgres/fromRestBody
+      wire.dart             # enum ↔ wire (rejected↔skipped, buy_pick, practice|real, ask_first_buy, expire reason)
+      settings_keys.dart    # tabel rename v1.0→v1.1 (settings, exit preset, checks, venue, exit reason, metric)
+      decide_approval.dart  # DecideApprovalRequest/Result (p_* params)
+      sentra_rpc.dart       # interface SentraRpc: 6 RPC + portfolio_latest + exit_stats()
+      events_feed.dart      # EventEnvelope + EventSequencer (dedupe id, urut seq, watermark safe_seq)
+      marks.dart            # Broadcast marks:<ws>:<mode> (mark/clock)
+      server_clock.dart     # skew = server_now − now device
+      auth.dart             # AuthRepository stub (Supabase Auth; Telegram OIDC + SIWS via Edge Function)
+      real_confirmation.dart# proof-of-confirmation Real SOL (stub, Fase 7)
+    repositories/repositories.dart  # Portfolio/Activity/Strategy/Approval/PushSource/PracticeReset
+    mock/mock_backend.dart  # simulator + exit plan + push v1.1 + events envelope + marks + reset + update_strategy
+    mock/mock_rpc.dart      # MockSentraRpc (lewat bentuk wire: toRpcParams → JSON → DTO)
     providers.dart          # composition root + StreamProvider
   features/
     positions/ positions_screen.dart (list + detail ladder) · widgets/ equity_card · exit_progress_bar · sell_sheet
-    settings/ settings_screen.dart (Lainnya) · notifications_screen.dart (bahasa ID/EN, shade mock, katalog)
+    settings/ settings_screen.dart (Lainnya: Reset Practice, status flag Real) · practice_reset_tile.dart · notifications_screen.dart
     dashboard · activity · approvals (+guard_review) · strategies · shell
   l10n/ app_en.arb app_id.arb (verbatim dari UX) · gen/ (gen-l10n output)
   core/l10n_format.dart     # mirror format.mjs
-test/  flutter_test_config · mock_backend · push_payload · notification_catalog · notification_pipeline · l10n_format · positions · theme_tokens · widget_flows
+test/  flutter_test_config · mock_backend · push_payload · notification_catalog · notification_pipeline · l10n_format · positions
+       theme_tokens · widget_flows · contract_v11 · api_errors_gen · settings_keys
+tool/  gen_errors.dart · ci_check_errors.sh · contracts/errors.json (salinan verbatim)
+.github/workflows/mobile.yml   # pub get → ci_check_errors → analyze → test
 ```
 
 ### 3a. Design tokens dan font
@@ -68,7 +86,9 @@ test/  flutter_test_config · mock_backend · push_payload · notification_catal
 - Deep link: `sentra://approvals/<id>` dan Universal/App Links `https://app.<domain>/approvals/<id>` dipetakan ke path yang sama.
 
 ## 5. Data layer
-- Interface: `PortfolioRepository.watchSummary/watchPositions`, `ActivityRepository.watchFeed`, `StrategyRepository.watchStrategies/setPaused(expectedRev)`, `ApprovalRepository.watchPending/watchAll/decide(token)`.
+- Interface: `PortfolioRepository.watchSummary/watchPositions/equityHistory/sellPosition(pct:int) → Lamports`, `ActivityRepository.watchFeed`, `StrategyRepository.watchStrategies/setPaused(expectedRev)`, `ApprovalRepository.watchPending/watchAll/decide(DecideApprovalRequest) → DecideApprovalResult`, `PracticeResetRepository.resetPractice`, `PushSource`, `EventsFeed`, `MarksSource`, `SentraRpc`, `AuthRepository`.
+- **Uang:** semua jumlah SOL = `Lamports` (BigInt, wire string integer), harga = `Decimal` (wire string desimal), persen/rasio/bps = `num` (JSON number). `double` hanya untuk koordinat chart (`plotValue`) dan persen tampilan. PnL `±0` bila |v| < 500 000 lamports.
+- **Error:** satu tipe `ApiException` (kode dari `api_errors.g.dart`). `ConflictException` lama dihapus; `isConflict` = HTTP 409.
 - **Mock** (`MockBackend`): satu objek mengimplementasikan semua interface, jadi state konsisten (approve pick membuat posisi dan event). `tick()` menggerakkan harga dan menjalankan **exit plan sebagai data** per posisi (rung TP jual sebagian dari ukuran awal, trailing armed setelah TP1, stop loss, time stop bila belum ada TP; fee 125 bps), lalu memunculkan pick baru. Mock juga mengirim payload push (N-01/02/04/08/09) lewat `PushSource`, dengan bentuk yang sama seperti FCM `data`. Idempotensi token, expiry, dan konflik `rev` sudah disimulasikan.
 - **Swap ke Supabase:** buat `data/supabase/*_repository.dart`, lalu di `main_supabase.dart` panggil `ProviderScope(overrides: [portfolioRepositoryProvider.overrideWithValue(...), ...])`. Folder `features/` tidak berubah.
 
@@ -80,20 +100,29 @@ test/  flutter_test_config · mock_backend · push_payload · notification_catal
 - **Sell tidak pernah dari notifikasi:** enum `NotifAction` tidak punya `sell`, dan ini diuji.
 - Repo: `equityHistory(range)`, `sellPosition(id, pct)` (prod: RPC/Edge Function `sell_position` dengan idempotency key).
 
+### Kontrak v1.1 (packages/contracts 1.1.0, ERROR_CODES_VERSION 2)
+- **RPC (mutasi hanya lewat ini; UPDATE tabel langsung dicabut):**
+  - `decide_approval(p_approval_id, p_token, p_decision approve|reject, p_expected_rev, p_client, p_idempotency_key)` → `{proposal_id, status, version, replayed, server_now}`. **Tanpa `device_id`** (token sudah terikat device). `p_expected_rev` = `version` approval. Idempotency key deterministik `<id>:v<version>:<decision>` (tap ganda = replay). Dari push: `p_client='push'`, key `push:<id>:<token>:<decision>`.
+  - `set_strategy_status(p_strategy, p_status, p_expected_rev)` (dipakai toggle pause/resume) dan `update_strategy(p_strategy, p_expected_rev, p_patch, p_name, p_status, p_actor, p_via, p_device, p_challenge_id)`. Key `p_patch` wajib dari `SettingsKeys.*.current` (snake_case); mock menolak key v1.0 dengan `SETTINGS_SCHEMA_INVALID`. Konflik: SQLSTATE `P0409`, `details` berisi body 409 (`current_rev, base_rev, changed_fields, changed_by, changed_at, current`).
+  - `reset_practice(p_workspace)` / `POST /workspaces/{ws}/practice/reset`: 30 SOL (`"30000000000"`), arsip per epoch, pending buy → expired `practice_reset`, maks 1×/24 jam → `429 RESET_COOLDOWN` + `details.next_allowed_at`. UI: Lainnya → "Reset Practice".
+  - `register_device(p_device_id, p_platform, p_provider, p_token, p_app_version, p_locale)` / `revoke_device(p_device_id)` (menggantikan tulis `device_tokens.fcm_token`). `device_id` = install id 8–128 `[A-Za-z0-9_-]` di Keychain/Keystore. Dipanggil saat login, setiap app start, dan pada token refresh SDK; revoke saat logout.
+- **Baca:** `portfolio_latest` (pengganti `v_portfolio_summary`), `exit_stats()` (pengganti `v_strategy_stats`, grup per `ExitReason`), equity dari `portfolio_snapshots` epoch aktif atau `GET /portfolio/equity`.
+- **Satu feed realtime:** subscribe INSERT `public.events` (filter `workspace_id`), **bukan** `postgres_changes` di positions/approvals/strategies. Setiap event dipetakan ke topik (`proposal.*` → approvals, `position.*`/`fill.*`/`portfolio.*` → portfolio, `strategy.*`/`guard.*` → strategies, `practice.reset` → semua) dan repository me-refetch baris terkait (select by id / `portfolio_latest`). `EventSequencer`: dedupe by `id`, urut by `seq` (bukan `ts`), watermark resume hanya dari REST `next_after_seq`, SSE `id`, atau `clock.safe_seq`; saat reconnect/heartbeat jalankan catch-up `GET /v1/events?after_seq=watermark`.
+- **Mark price:** Broadcast privat `marks:<ws>:<mode>` (`mark` dengan `price_usd` string desimal, `clock` tiap 15 dtk). PnL live dihitung lokal; angka otoritatif dari `portfolio_latest`.
+- **Jam:** setiap payload membawa `server_now` → `ServerClock` (skew). `ExpiryCountdown` dan renderer notifikasi memakai `expires_at − (now + skew)`.
+- **Settings dan exit preset:** semua nama di `data/api/settings_keys.dart`, diisi dari tabel rename CHANGELOG 1.1.0 (60 settings, 13 exit preset, 7 required checks, 2 venue, 9 exit reason, 18 metric, 4 ruleset). `v10` hanya dibaca untuk normalisasi. Test `settings_keys_test.dart` gagal bila ada nama itu di-hardcode di `lib/` di luar file tersebut. `TODO(v1.1)`: hapus alias v1.0 setelah dikonfirmasi Backend dan cek ulang dengan `strategy_settings.schema.json`.
+- **Real SOL:** `FeatureFlags.realSolEnabled=false` sampai Fase 7. UI: approve Real dan resume strategi Real disabled, hold guard/sell Real disabled + teks "Real SOL nonaktif sampai Fase 7"; mock server juga menolak dengan `REAL_SOL_DISABLED`. Alur Fase 7 (stub `real_confirmation.dart`): challenge → passkey/WebAuthn + TOTP + typed name + hold ≥ 2 500 ms → `CONFIRMATION_RESTART_REQUIRED` mengulang semuanya. Test Real flow meng-override flag ke true.
+
 ### Rencana integrasi Supabase
-- **Auth:** `supabase_flutter` dengan Supabase Auth (Google, Apple, Email OTP sesuai SPEC). Telegram dan SIWS lewat Edge Function yang menerbitkan session. Token disimpan di Keychain/Keystore (`flutter_secure_storage` sebagai storage adapter). Refresh otomatis.
-- **Tabel yang dibaca app** (sesuai blueprint): `workspaces`, `strategies` (id, workspace_id, mode, status, rev, settings jsonb), `positions` (ck.N, entry/exit, sol_in/out, peak, fee_bps), `events` (append-only, id `<ck>:<ts>:<kind>`, actor, `untrusted` jsonb), `approvals` (kind, payload, status, token_hash, expires_at, expire_reason), plus tabel baru `device_tokens` (user_id, platform, fcm_token, app_version, last_seen) dan `notification_prefs`.
-- **View/RPC baca:** `v_portfolio_summary` (cash, realized, unrealized dari mark terakhir), `v_strategy_stats` (WR, DD, avg hold), dan `equity_history(workspace_id, since)`.
-- **Realtime:** `postgres_changes` untuk `positions` (UPDATE mark/close), `events` (INSERT), `approvals` (INSERT/UPDATE), dan `strategies` (UPDATE), dengan filter `workspace_id=eq.<id>`. Saat reconnect, lakukan snapshot ulang via select (Realtime tidak menjamin delivery). Event di-dedupe via id. Mark price frekuensi tinggi sebaiknya lewat **Broadcast channel** per workspace (throttle 1–2 dtk), bukan update baris.
-- **Mutasi lewat RPC/Edge Function, bukan update tabel langsung:**
-  - `decide_approval(approval_id, decision, token, device_id)` dijalankan sebagai Postgres function `SECURITY DEFINER`. Function ini memverifikasi hash token, mengecek `expires_at` dan status `pending`, lalu melakukan update atomik `status` + insert `jobs` + audit. Pemanggilan ulang dengan token yang sama mengembalikan hasil yang sama (idempoten).
-  - `set_strategy_status(strategy_id, status, expected_rev)` menolak `rev` yang basi (409, `ConflictException` di app).
-  - Guard change Real SOL ditangani Edge Function `approve_guard_change`: memverifikasi step-up (biometrik/2FA, lihat §7), memasang cooldown 10 mnt, mengirim notifikasi ke semua device, dan email.
+- **Auth:** `supabase_flutter` + Supabase Auth untuk Google, Apple (wajib di iOS) dan Email OTP (`/auth/email/otp/request|verify`). SIWS: `/auth/siws/nonce` → tanda tangan wallet (Phantom/Solflare/MWA) → `/auth/siws/verify`; Edge Function mencetak JWT session. Wallet login ≠ wallet trading (`WALLET_ROLE_CONFLICT`). **Telegram (v1.1): OIDC resmi** `POST /auth/telegram/nonce {device_id, platform}` → login SDK → `POST /auth/telegram/verify {nonce, id_token, device_id}` (error `AUTH_TG_INVALID|REPLAY|NO_PROFILE`, minta scope `profile`). Hanya stub di balik `FeatureFlags.telegramOidcEnabled=false` (server `AUTH_TELEGRAM_OIDC_ENABLED=false`): tombol tidak tampil, method melempar `TelegramLoginDisabled`. **Tidak ada SDK Telegram yang dipasang** sampai Boss menyetujui. Jangan konfigurasi custom OIDC provider Supabase. Unlink/hapus akun butuh re-auth ≤ 5 mnt (`REAUTH_REQUIRED`); metode login terakhir tidak bisa di-unlink (`422 LAST_LOGIN_METHOD`). Token sesi di Keychain/Keystore (`flutter_secure_storage`).
+- **Baca:** `strategies`, `positions`, `approvals` (select by id saat event datang), `portfolio_latest`, `exit_stats()`, `portfolio_snapshots`/`GET /portfolio/equity`, `GET /v1/events` untuk catch-up.
+- **Realtime:** lihat "Kontrak v1.1": satu feed `public.events` + Broadcast marks. Tidak ada `postgres_changes` pada tabel domain.
+- **Mutasi:** hanya 6 RPC di atas (+ REST twin). Guard change Real SOL lewat `update_strategy` + `p_challenge_id` dari proof-of-confirmation (Fase 7): cooldown 10 mnt, auto-revert 24 jam, notifikasi semua device + email.
 - **RLS:** semua tabel `workspace_id in (select id from workspaces where owner = auth.uid())`. Role `anon` tidak punya akses. Tabel `approvals`/`jobs` read-only untuk client, dan perubahan hanya lewat RPC. Kolom `token_hash` tidak di-expose (view tanpa kolom itu).
 
 ## 6. Push notification dan katalog notifikasi
 - **FCM** untuk Android dan iOS (iOS via APNs key di Firebase). Paket: `firebase_messaging` + `flutter_local_notifications`, yang menyediakan action button (Android `actions`, iOS `UNNotificationCategory`).
-- **Payload data-only, tanpa copy** (`core/push/push_payload.dart`): `v=1, event=N-xx, mode=practice|real, approval_id?, position_id?, token?, exp?, expire_reason?` + variabel (`coin, strategy, sol, pnl, pct, …`). Copy di-render **di client** dari katalog sesuai bahasa user. Payload yang versi/event-nya tidak dikenal, pick tanpa `approval_id`, atau event wajib-mode tanpa `mode` akan ditolak (**fail closed**). Event Real-only (N-11, N-13) ditolak bila mode-nya Practice. `coin` tetap untrusted: hanya teks.
+- **Payload data-only, tanpa copy** (PushPayload v1, EVENTS_SCHEMA §6, diadopsi Backend di v1.1): `v=1, event=N-xx, mode, approval_id?, position_id?, token?, exp? (ISO), expire_reason?` + `type, workspace_id, seq, deep_link (sentra://…), actions, vars{…}, server_now`. Parser menerima bentuk JSON kanonik **dan** bentuk FCM `data` (semua string; `actions`/`vars` JSON-encoded; `v`/`seq` string) serta bentuk flat lama. `seq` dipakai untuk **dedupe** (`workspace:seq`), **urutan shade** (by seq, bukan waktu tiba), dan **staleness** per approval (event lebih lama untuk approval yang sama dibuang; N-03/N-06/N-07 menghapus notifikasi pick-nya). `actions` dari server hanya bisa **dipersempit** client. Real: token diabaikan walau ada, `actions=["open"]`. `vars.mm_ss` diabaikan; countdown selalu dihitung client dari `exp` dan skew `server_now`. `expire_reason` memakai nilai wire (`timeout guard_failed price_moved strategy_deleted strategy_archived practice_reset account_deleted`); `practice_reset`/`account_deleted` belum punya copy UX → copy generik N-07a. Copy di-render **di client** dari katalog sesuai bahasa user. Payload yang versi/event-nya tidak dikenal, pick tanpa `approval_id`, atau event wajib-mode tanpa `mode` akan ditolak (**fail closed**). Event Real-only (N-11, N-13) ditolak bila mode-nya Practice. `coin` tetap untrusted: hanya teks.
 - **Katalog typed** (`core/notifications/notification_catalog.dart`): `enum NotifEvent` N-01…N-17 (N-07 punya 5 varian alasan a–e, termasuk `strategy_archived` dari ARB/kontrak; N-05/N-12/N-14 punya varian mode/arah). Setiap event membawa kanal, prioritas, dan aksi Practice/Real persis seperti tabel spec. Prefix mode berasal dari ICU `select` di ARB. Angka mengikuti locale, unit `paper SOL`/`SOL`, PnL diberi ▲/▼ (ARB tidak memuat glyph), `{time}` = countdown `expires_at − (now + skew server)`. Variabel yang hilang tampil sebagai `–`, tidak pernah sebagai `{x}` mentah.
 - **Lokalisasi: ARB UX + `flutter_localizations`/gen-l10n.** `lib/l10n/app_{en,id}.arb` disalin **verbatim** dari `/workspace/ux-solbot/locales/arb` (313 key, md5 sama; jangan diedit di sini). `l10n.yaml` menghasilkan `lib/l10n/gen/app_localizations*.dart` (di-commit, deterministik, dan juga di-regenerate otomatis oleh `flutter pub get`/build karena `generate: true`). Copy 17 event diambil dari key `notif*` (+ `queueExpiredReason*` untuk N-07, `commonAction*`/`notifAction*` untuk tombol). Background isolate memakai `lookupAppLocalizations(Locale)` tanpa `BuildContext`. *Pendekatan const-map awal sudah dibuang.* Bahasa app = bahasa notifikasi = locale angka (aturan `format.mjs`); formatter Dart mirror-nya ada di `core/l10n_format.dart` (SOL 2 dp bila ≥1, NBSP + `paper SOL`, minus U+2212, USD 4 digit signifikan, waktu id `16.05` / en `4:05 PM`).
   - Bug ARB (dilaporkan ke UX): 13 key plural memakai `#`, padahal gen-l10n tidak mensubstitusi `#` (tampil literal "# pick"). Saat ini di-workaround hanya untuk `notifGroupedTitle`. Perbaikan yang benar: ganti `#` dengan `{count}` di ARB.
@@ -104,7 +133,7 @@ test/  flutter_test_config · mock_backend · push_payload · notification_catal
   - Tombol yang sudah basi (token habis setelah tampil, atau aksi palsu di Real) tidak mengirim keputusan dan memunculkan N-17 "Aksi dari notifikasi kedaluwarsa".
 - **Mock display:** `MockLocalNotifier` = "notification shade" in-app (Lainnya → Notifikasi). Isinya push live dari mock backend (dengan tombol aktif), toggle bahasa ID/EN, dan preview katalog 17 event per mode. Prod menggantinya dengan `flutter_local_notifications.show()` memakai `RenderedNotification` yang sama.
 - **Token approval:** acak 128-bit, sekali pakai, disimpan sebagai hash di server. TTL pick 10 mnt, guard change 24 jam.
-- **Registrasi device:** saat login dan saat `onTokenRefresh`, upsert `device_tokens`. Saat logout, hapus.
+- **Registrasi device:** `register_device(...)` saat login, setiap app start, dan `onTokenRefresh`; `revoke_device(device_id)` saat logout.
 
 ## 7. Keamanan
 - **Tidak ada private key di device.** Signing dilakukan di custody server (MPC/KMS) dengan policy (maks SOL/tx, allow-list program). App hanya mengirim keputusan.
@@ -118,7 +147,14 @@ test/  flutter_test_config · mock_backend · push_payload · notification_catal
 - **Unit:** `MockBackend` (idempotensi token, token palsu ditolak, expiry, konflik rev, stream tick, exit plan TP/SL, manual sell), parser payload push, **katalog notifikasi** (17 event, copy ID+EN lengkap untuk setiap varian, tidak ada placeholder tersisa, prefix mode, tombol yang benar per mode, Approve hanya Practice + token valid, tidak ada sell, format locale, grouping), pipeline notifikasi (push → shade, aksi basi → N-17), dan formatter/token theme.
 - **Widget:** dashboard (banner + KPI), approve pick, skip + undo 5 dtk, guard Real (typed + hold), toggle strategi, Positions (equity, exit bar, sell 50% Practice dengan hold 1,2 dtk; lepas lebih awal = tidak terjual), sell Real (hold 1,3 dtk tidak cukup, 2,5 dtk menjual), swipe dinonaktifkan untuk pick Real, durasi hold guard Practice 1,2 dtk / Real 2,5 dtk, dan ladder detail.
 - **Berikutnya:** golden test per screen (dark/light, textScale 1.3), integration test (`integration_test`) dengan Supabase lokal (`supabase start`) + seed, kontrak RPC diuji bersama Backend, dan uji push di device fisik (Firebase Test Lab + 1 iPhone).
-- CI: `flutter analyze`, `flutter test --coverage`, build `apk --debug` + `ios --no-codesign`.
+- **Kontrak v1.1** (`contract_v11_test.dart`): mapping wire, tabel rename, `ApiException` dari P04xx/REST, marks, wire params 6 RPC (tanpa `device_id`), patch snake_case, reset + cooldown, register/revoke device, `portfolio_latest`, `exit_stats()`, `EventSequencer` (dedupe/urutan/watermark), envelope mock urut seq. Push v1.1 + seq dedupe/urutan/staleness + skew di `push_payload_test`/`notification_pipeline_test`. Flag Real OFF: hold guard/sell disabled + server `REAL_SOL_DISABLED`.
+- CI (`.github/workflows/mobile.yml`, working dir `app`): `flutter pub get` → `tool/ci_check_errors.sh` → `flutter analyze` → `flutter test`. Berikutnya: `--coverage`, build `apk --debug` + `ios --no-codesign`.
+
+### 8a. Generator kode error (`errors.json` → Dart)
+- `app/tool/gen_errors.dart` (Dart murni, deterministik, tanpa timestamp): `errors.json` → `lib/data/api/api_errors.g.dart` berisi `apiErrorCodesVersion`, `apiErrorCodesCount`, `enum ApiErrorCode(wire, http, retryable, messageEn, messageId, sqlState)` + `unknown`, `fromWire`, `fromPostgres(sqlState, message)` (MESSAGE = kode; SQLSTATE harus `P04xx`), `message(lang)`. Memvalidasi format kode dan duplikat. Mendukung `messages.{id,en}`/`message_id`/`sqlstate` per kode bila Backend menambahkannya.
+- Jalankan (dari `app/`): `dart run tool/gen_errors.dart` (sumber default `tool/contracts/errors.json`; atau `--source <path>` / env `ERRORS_JSON`), `--check` untuk verifikasi tanpa menulis. Update kontrak: `cp /workspace/sentra/packages/contracts/errors.json tool/contracts/ && dart run tool/gen_errors.dart`.
+- CI: `tool/ci_check_errors.sh` memilih `$ERRORS_JSON` → `../../packages/contracts/errors.json` (setelah pindah monorepo) → salinan vendored; gagal bila salinan vendored beda dengan upstream; regenerate lalu `git diff --exit-code -- lib/data/api/api_errors.g.dart`.
+- Test `api_errors_gen_test.dart`: jumlah/versi/setiap kode **dibaca dari JSON** (tidak ada angka 36/47 yang di-hardcode), sync/golden via `--check`, dan fixture kode baru (mis. `RESET_COOLDOWN` dulu) ter-generate otomatis tanpa edit manual.
 
 ## 9. Milestone 2 minggu
 Fase 5 mulai Kamis 29 Okt 2026 (D1). Hari kalender berurutan, D14 = Rabu 11 Nov 2026.
@@ -128,7 +164,7 @@ Fase 5 mulai Kamis 29 Okt 2026 (D1). Hari kalender berurutan, D14 = Rabu 11 Nov 
 | D1–2 ✔ | Kam 29 – Jum 30 Okt | Arsitektur, prototype mock (semua screen), migrasi token `@sentra/design-tokens` 0.2.1 + google_fonts, Positions sesuai SPEC §6, katalog notifikasi 17 event ID/EN, test |
 | D3–4 | Sab 31 Okt – Min 1 Nov | Golden test, polish sesuai wireframe, flavor `mock`/`staging`/`prod`, **rename ke Sentra (`sentra_mobile`, `com.sentra.app`) + pindah ke monorepo `/workspace/sentra/apps/mobile`** |
 | D5–6 | Sen 2 – Sel 3 Nov | Supabase Auth + repositori Supabase (read + Realtime) di staging, reconnect/snapshot |
-| D7–8 | Rab 4 – Kam 5 Nov | RPC `decide_approval` / `set_strategy_status` + optimistic UI + error/conflict state |
+| D7–8 | Rab 4 – Kam 5 Nov | Implementasi Supabase untuk `SentraRpc` (6 RPC v1.1) + feed `public.events` + optimistic UI + state error/409 (interface + mock sudah ada di commit 2) |
 | **D8–9** | **Kam 5 – Jum 6 Nov** | **Bundling font lokal** (Inter + JetBrains Mono `.ttf` OFL di `assets/google_fonts/`, `allowRuntimeFetching=false`, lisensi, uji offline + golden ulang). Wajib selesai sebelum build store D14 |
 | D9–10 | Jum 6 – Sab 7 Nov | FCM + `flutter_local_notifications` (render katalog) + action button + deep link + registrasi device, uji Android/iOS fisik |
 | D11 | Min 8 Nov | Biometrik/step-up, FLAG_SECURE, guard Real flow end-to-end |
@@ -136,13 +172,7 @@ Fase 5 mulai Kamis 29 Okt 2026 (D1). Hari kalender berurutan, D14 = Rabu 11 Nov 
 | D14 | Rab 11 Nov | Build store: Play internal track + TestFlight (font sudah dibundel), demo ke Apex Dev Lead |
 
 ## 10. Open questions dan dependency
-**Ke Backend API Specialist:**
-1. Supabase dipakai juga untuk Auth, atau auth terpisah (OAuth server MCP)? Telegram/SIWS lewat Edge Function?
-2. Nama final tabel/view, plus kolom `expire_reason`, `pick_type`, `risk_impact`, `mode` di `approvals`.
-3. Kontrak RPC `decide_approval` (response, kode error 409/410) dan `set_strategy_status`.
-4. Kanal mark price: Broadcast throttle atau tabel `marks`? Seberapa sering?
-5. Siapa yang mengirim push (Edge Function + FCM HTTP v1)? Proyek Firebase milik siapa?
-6. Mekanisme step-up untuk Real SOL: device key attestation, atau cukup 2FA TOTP di server?
+**Ke Backend API Specialist:** pertanyaan 1–6 sudah dijawab di `FLUTTER_INTEGRATION_ANSWERS.md` (v1 + update v1.1) dan diterapkan di commit 2. Mismatch kontrak yang masih terbuka ada di laporan commit 2 (mis. per-kode SQLSTATE/pesan ID di `errors.json`, `version` approval tidak ada di PushPayload, bentuk `exit_stats()`/`portfolio_latest` belum terdokumentasi).
 
 **Ke UX UI Designer:**
 1. ~~Regen token~~ selesai di 0.2.1. Sisa yang open: T-15 (ambang netral PnL), T-16, T-17 (lihat `TOKENS_REVIEW.md`).

@@ -9,7 +9,10 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/models/models.dart';
+import '../../data/api/api_exception.dart';
+import '../../data/api/decide_approval.dart';
+import '../../data/api/server_clock.dart';
+import '../../data/api/wire.dart';
 import '../../data/providers.dart';
 import '../push/push_payload.dart';
 import 'notification_catalog.dart';
@@ -36,18 +39,61 @@ abstract interface class LocalNotifier {
 /// so switching ID/EN re-renders already shown items.
 class MockLocalNotifier extends Notifier<List<ShownNotification>> implements LocalNotifier {
   static const cap = 30;
+  static const _seenCap = 500;
   final _grouper = PickGrouper();
+
+  /// `workspace:seq` already shown (FCM may deliver twice; several devices/channels).
+  final _seen = <String>{};
+  final _seenOrder = <String>[];
+
+  /// approval_id → highest seq seen; an older event for the same approval is stale.
+  final _approvalSeq = <String, int>{};
 
   @override
   List<ShownNotification> build() => const [];
 
+  /// Inserts newest-first by `seq` (server order, never `ts`); seq-less items
+  /// (local N-16/N-17) go on top.
   @override
-  void show(ShownNotification n) => state = [n, ...state].take(cap).toList();
+  void show(ShownNotification n) {
+    final seq = n.message.seq;
+    final list = [...state];
+    var at = 0;
+    if (seq != null) {
+      while (at < list.length && (list[at].message.seq == null || list[at].message.seq! > seq)) {
+        at++;
+      }
+    }
+    list.insert(at, n);
+    state = list.take(cap).toList();
+  }
 
-  /// Entry point for a raw FCM-style data map. Returns false when dropped.
+  static const _terminal = {NotifEvent.n03Approved, NotifEvent.n06Skipped, NotifEvent.n07Expired};
+
+  /// Entry point for a raw FCM-style data map. Returns false when dropped
+  /// (invalid, duplicate seq, or older than what we know for that approval).
   bool receive(Map<String, dynamic> data, DateTime now) {
     final m = PushMessage.tryParse(data);
     if (m == null) return false;
+    final seq = m.seq;
+    if (seq != null) {
+      final key = '${m.workspaceId ?? ''}:$seq';
+      if (_seen.contains(key)) return false;
+      final aid = m.approvalId;
+      if (aid != null) {
+        final last = _approvalSeq[aid];
+        if (last != null && seq < last) return false; // stale (e.g. N-01 after its N-03)
+        _approvalSeq[aid] = seq;
+      }
+      _seen.add(key);
+      _seenOrder.add(key);
+      if (_seenOrder.length > _seenCap) _seen.remove(_seenOrder.removeAt(0));
+    }
+    if (m.serverNow != null) ref.read(serverClockProvider.notifier).observe(m.serverNow!, localNow: now);
+    // A decided/expired approval supersedes its pick notification (buttons must vanish).
+    if (_terminal.contains(m.event) && m.approvalId != null) {
+      state = state.where((s) => !(s.message.event.isPick && s.message.approvalId == m.approvalId)).toList();
+    }
     final count = m.event.isPick && m.mode != null ? _grouper.record(m.mode!, now) : 0;
     show(ShownNotification(m, now, groupCount: count));
     return true;
@@ -91,23 +137,31 @@ Future<ActionOutcome> handleNotificationAction(
   final m = shown.message;
   final renderer = ref.read(notificationRendererProvider);
   final notifier = ref.read(localNotifierProvider.notifier);
-  void tokenInvalid() => notifier.receive({'v': '1', 'event': 'N-17'}, now);
+  void tokenInvalid() => notifier.receive({'v': 1, 'event': 'N-17'}, now);
+  final skew = ref.read(serverClockProvider);
 
   switch (action) {
     case NotifAction.approve:
     case NotifAction.skip:
-      final allowed = renderer.actionsFor(m, now, grouped: shown.groupCount > 3);
+      final allowed = renderer.actionsFor(m, now.add(skew), grouped: shown.groupCount > 3);
       if (!allowed.contains(action) || m.approvalId == null) {
         tokenInvalid();
         return const Done('Aksi dari notifikasi kedaluwarsa');
       }
+      final approve = action == NotifAction.approve;
       try {
-        await ref
-            .read(approvalRepositoryProvider)
-            .decide(m.approvalId!, approve: action == NotifAction.approve, token: m.token ?? '');
+        // Push payload carries no approval version → p_expected_rev null (reported to Backend).
+        final res = await ref.read(approvalRepositoryProvider).decide(DecideApprovalRequest(
+              approvalId: m.approvalId!,
+              token: m.token ?? '',
+              approve: approve,
+              client: Wire.clientPush,
+              idempotencyKey: 'push:${m.approvalId}:${m.token}:${Wire.decision(approve: approve)}',
+            ));
+        ref.read(serverClockProvider.notifier).observe(res.serverNow, localNow: now);
         notifier.dismiss(shown);
         return Done(action == NotifAction.approve ? 'Disetujui dari notifikasi' : 'Dilewati dari notifikasi');
-      } on ConflictException {
+      } on ApiException {
         tokenInvalid();
         return const Done('Aksi dari notifikasi kedaluwarsa');
       }
@@ -121,7 +175,7 @@ Future<ActionOutcome> handleNotificationAction(
     case NotifAction.viewPosition:
     case NotifAction.detail:
     case NotifAction.open:
-      final route = renderer.render(m, NotifLocale.id, now, groupCount: shown.groupCount).tapRoute;
+      final route = renderer.render(m, NotifLocale.id, now, groupCount: shown.groupCount, clockSkew: skew).tapRoute;
       return Navigate(route ?? '/');
   }
 }

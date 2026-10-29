@@ -3,14 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solbot_mobile/app/app.dart';
 import 'package:solbot_mobile/core/approval_guard.dart';
+import 'package:solbot_mobile/core/feature_flags.dart';
+import 'package:solbot_mobile/core/widgets/common.dart';
+import 'package:solbot_mobile/data/api/api_exception.dart';
+import 'package:solbot_mobile/data/api/settings_keys.dart';
 import 'package:solbot_mobile/data/mock/mock_backend.dart';
 import 'package:solbot_mobile/data/models/models.dart';
 import 'package:solbot_mobile/data/providers.dart';
 import 'package:solbot_mobile/features/positions/widgets/exit_progress_bar.dart';
 
-Widget _app(MockBackend b, String location) => ProviderScope(
+/// [realSol] flips the Phase 7 flag (client + mock server) for tests that exercise Real flows.
+Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderScope(
       overrides: [
-        mockBackendProvider.overrideWithValue(b),
+        mockBackendProvider.overrideWithValue(b..realSolEnabled = realSol),
+        featureFlagsProvider.overrideWithValue(FeatureFlags(realSolEnabled: realSol)),
         approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
       ],
       child: SolBotApp(initialLocation: location),
@@ -41,12 +47,12 @@ Position _realPosition() {
     mint: 'So11111111111111111111111111111111111111112',
     mode: TradeMode.real,
     state: PositionState.open,
-    solIn: 0.1,
-    entryPriceUsd: 0.001,
-    markPriceUsd: 0.0011,
-    peakPriceUsd: 0.0011,
+    costLamports: Lamports.fromSol('0.1'),
+    entryPriceUsd: Decimal.parse('0.001'),
+    markPriceUsd: Decimal.parse('0.0011'),
+    peakPriceUsd: Decimal.parse('0.0011'),
     openedAt: now.subtract(const Duration(minutes: 3)),
-    exitPlan: MockBackend.planFor('ladder', now),
+    exitPlan: MockBackend.planFor(ExitPresets.threeStepLadder.current, now),
   );
 }
 
@@ -54,14 +60,14 @@ void main() {
   group('exit plan (mock backend)', () {
     test('TP rung sells its share, arms trail, emits N-08 push', () async {
       final b = MockBackend();
-      final pushes = <Map<String, String>>[];
+      final pushes = <Map<String, Object?>>[];
       final sub = b.watchPushPayloads().listen(pushes.add);
       // ck103.0 = ORBI, ladder 50/100/200, nothing filled yet.
       b.debugSetChange('ck103.0', 55);
       final p = (await b.watchPositions().first).firstWhere((p) => p.id == 'ck103.0');
       expect(p.exitPlan!.rungs.first.filled, isTrue);
       expect(p.exitPlan!.trailArmed, isTrue);
-      expect(p.soldPct, 33);
+      expect(p.soldBps, 3300);
       expect(p.isOpen, isTrue);
       await Future<void>.delayed(Duration.zero);
       expect(pushes.single['event'], 'N-08');
@@ -72,13 +78,13 @@ void main() {
 
     test('stop loss closes the remainder and emits N-09', () async {
       final b = MockBackend();
-      final pushes = <Map<String, String>>[];
+      final pushes = <Map<String, Object?>>[];
       final sub = b.watchPushPayloads().listen(pushes.add);
       b.debugSetChange('ck101.0', -36); // MOTH, SL −35%
       final p = (await b.watchPositions().first).firstWhere((p) => p.id == 'ck101.0');
       expect(p.isOpen, isFalse);
       expect(p.exitReason, 'Stop loss -35%');
-      expect(p.pnlSol, lessThan(0));
+      expect(p.pnlLamports.isNegative, isTrue);
       await Future<void>.delayed(Duration.zero);
       expect(pushes.single['event'], 'N-09');
       await sub.cancel();
@@ -88,17 +94,17 @@ void main() {
     test('manual sell 50% halves size, keeps plan; 100% closes', () async {
       final b = MockBackend();
       final before = (await b.watchPositions().first).firstWhere((p) => p.id == 'ck101.0');
-      final est = before.estimateSellSol(50);
+      final est = before.estimateSell(50);
       final got = await b.sellPosition('ck101.0', pct: 50);
-      expect(got, closeTo(est, 1e-12));
+      expect(got, est); // exact lamports
       var p = (await b.watchPositions().first).firstWhere((p) => p.id == 'ck101.0');
-      expect(p.sizeSol, closeTo(before.sizeSol / 2, 1e-9));
+      expect(p.sizeLamports, before.costLamports.bps(5000)); // exact half
       expect(p.isOpen, isTrue);
       expect(p.exitPlan, isNotNull);
       await b.sellPosition('ck101.0', pct: 100);
       p = (await b.watchPositions().first).firstWhere((p) => p.id == 'ck101.0');
       expect(p.isOpen, isFalse);
-      expect(() => b.sellPosition('ck101.0', pct: 25), throwsA(isA<ConflictException>()));
+      expect(() => b.sellPosition('ck101.0', pct: 25), throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'VALIDATION_FAILED')));
       b.dispose();
     });
 
@@ -164,7 +170,7 @@ void main() {
   testWidgets('Real SOL sell needs a 2,5 s hold (1,3 s is not enough)', (tester) async {
     await _phone(tester);
     final b = MockBackend()..debugAddPosition(_realPosition());
-    await tester.pumpWidget(_app(b, '/positions'));
+    await tester.pumpWidget(_app(b, '/positions', realSol: true));
     await tester.pump();
     await tester.scrollUntilVisible(find.byKey(const Key('sell_ckR1.0')), 200);
     await tester.tap(find.byKey(const Key('sell_ckR1.0')));
@@ -177,6 +183,26 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
     expect(b.debugPositions.firstWhere((p) => p.id == 'ckR1.0').soldPct, 50);
+    b.dispose();
+  });
+
+  testWidgets('Real SOL sell disabled while flag is OFF (default)', (tester) async {
+    await _phone(tester);
+    final b = MockBackend()..debugAddPosition(_realPosition());
+    await tester.pumpWidget(_app(b, '/positions'));
+    await tester.pump();
+    await tester.scrollUntilVisible(find.byKey(const Key('sell_ckR1.0')), 200);
+    await tester.tap(find.byKey(const Key('sell_ckR1.0')));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    expect(find.text(realSolDisabledText), findsOneWidget);
+    expect(tester.widget<HoldToConfirmButton>(find.byKey(const Key('sellHold'))).enabled, isFalse);
+    await _hold(tester, find.byKey(const Key('sellHold')), const Duration(milliseconds: 2700));
+    expect(b.debugPositions.firstWhere((p) => p.id == 'ckR1.0').soldBps, 0);
+    // Server gate too (mock mirrors REAL_SOL_DISABLED).
+    await tester.runAsync(() async {
+      await expectLater(b.sellPosition('ckR1.0', pct: 50),
+          throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'REAL_SOL_DISABLED')));
+    });
     b.dispose();
   });
 }

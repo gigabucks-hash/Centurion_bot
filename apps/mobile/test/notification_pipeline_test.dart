@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solbot_mobile/core/notifications/local_notifier.dart';
 import 'package:solbot_mobile/core/notifications/notification_catalog.dart';
+import 'package:solbot_mobile/data/api/server_clock.dart';
 import 'package:solbot_mobile/data/mock/mock_backend.dart';
 import 'package:solbot_mobile/data/models/models.dart';
 import 'package:solbot_mobile/data/providers.dart';
@@ -37,6 +38,8 @@ void main() {
     final shade = c.read(localNotifierProvider);
     expect(shade.single.message.event, NotifEvent.n08TpHit);
     expect(shade.single.message.positionId, 'ck103.0');
+    expect(shade.single.message.seq, isNotNull, reason: 'mock emits PushPayload v1.1');
+    expect(shade.single.message.serverActions, {'open'});
   });
 
   test('malformed or mode-less pick payloads are dropped', () {
@@ -83,5 +86,51 @@ void main() {
     final shown = c.read(localNotifierProvider).single;
     final out = await handleNotificationAction(ContainerReader(c), shown, NotifAction.viewPosition, DateTime.now());
     expect(out, isA<Navigate>().having((n) => n.route, 'route', '/positions/ck100.0'));
+  });
+
+  group('seq: dedupe + ordering', () {
+    Map<String, Object?> ev(String event, int seq, {String? approval, String ws = 'ws1'}) => {
+          'v': 1,
+          'event': event,
+          'mode': 'practice',
+          'workspace_id': ws,
+          'seq': seq,
+          'approval_id': ?approval,
+          'actions': ['open'],
+          'vars': {'coin': 'EXM'},
+        };
+
+    test('duplicate (workspace, seq) is shown once', () {
+      final n = c.read(localNotifierProvider.notifier);
+      expect(n.receive(ev('N-04', 10), DateTime.now()), isTrue);
+      expect(n.receive(ev('N-04', 10), DateTime.now()), isFalse);
+      expect(n.receive(ev('N-04', 10, ws: 'ws2'), DateTime.now()), isTrue, reason: 'seq is per workspace');
+      expect(c.read(localNotifierProvider), hasLength(2));
+    });
+
+    test('shade is ordered by seq, not arrival', () {
+      final n = c.read(localNotifierProvider.notifier);
+      for (final s in [12, 10, 11]) {
+        n.receive(ev('N-04', s), DateTime.now());
+      }
+      expect(c.read(localNotifierProvider).map((x) => x.message.seq), [12, 11, 10]);
+    });
+
+    test('decision supersedes its pick; an older pick arriving late is dropped', () {
+      final n = c.read(localNotifierProvider.notifier);
+      n.receive({...ev('N-01', 20, approval: 'a1'), 'token': 't', 'exp': '2099-01-01T00:00:00Z'}, DateTime.now());
+      n.receive(ev('N-03', 22, approval: 'a1'), DateTime.now());
+      final shade = c.read(localNotifierProvider);
+      expect(shade.map((x) => x.message.event), [NotifEvent.n03Approved]);
+      // Late duplicate delivery of an older event for the same approval.
+      expect(n.receive({...ev('N-01', 21, approval: 'a1'), 'token': 't'}, DateTime.now()), isFalse);
+    });
+
+    test('server_now feeds the clock skew', () {
+      final now = DateTime.utc(2026, 10, 29, 8, 0);
+      c.read(localNotifierProvider.notifier)
+          .receive({...ev('N-04', 30), 'server_now': '2026-10-29T08:00:05.000Z'}, now);
+      expect(c.read(serverClockProvider), const Duration(seconds: 5));
+    });
   });
 }

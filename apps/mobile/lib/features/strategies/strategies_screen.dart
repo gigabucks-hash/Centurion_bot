@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/feature_flags.dart';
 import '../../core/format.dart';
 import '../../core/theme/solbot_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../data/api/api_exception.dart';
+import '../../data/api/settings_keys.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';
 
@@ -13,11 +16,13 @@ class StrategyToggleController extends Notifier<Map<String, bool>> {
   Map<String, bool> build() => const {};
 
   Future<String?> toggle(Strategy s, {required bool run}) async {
+    // Pausing Real is always allowed (safe direction); resuming needs Phase 7.
+    if (run && s.mode == TradeMode.real && !ref.read(featureFlagsProvider).realSolEnabled) return realSolDisabledText;
     state = {...state, s.id: run};
     try {
       await ref.read(strategyRepositoryProvider).setPaused(s.id, paused: !run, expectedRev: s.rev);
       return null;
-    } on ConflictException catch (e) {
+    } on ApiException catch (e) {
       return e.message;
     } catch (e) {
       return 'Gagal: $e';
@@ -66,7 +71,7 @@ class StrategySummaryCard extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(child: Text(s.name, style: text.titleMedium, overflow: TextOverflow.ellipsis)),
-              PnlText(s.realizedPnlSol, size: 15),
+              PnlText(s.realizedPnlLamports, size: 15),
             ]),
             const SizedBox(height: AppSpace.s2),
             Row(children: [
@@ -115,7 +120,7 @@ class StrategiesScreen extends ConsumerWidget {
         data: (list) => ListView.separated(
           padding: const EdgeInsets.all(AppSpace.s4),
           itemCount: list.length,
-          separatorBuilder: (_, __) => const SizedBox(height: AppSpace.s3),
+          separatorBuilder: (_, _) => const SizedBox(height: AppSpace.s3),
           itemBuilder: (_, i) {
             final s = list[i];
             final optimistic = pendingToggles[s.id];
@@ -135,12 +140,12 @@ class StrategiesScreen extends ConsumerWidget {
                     const SizedBox(height: AppSpace.s1),
                     Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
                       Text('Realized ', style: text.bodySmall!.copyWith(color: muted)),
-                      PnlText(s.realizedPnlSol, size: 13),
+                      PnlText(s.realizedPnlLamports, size: 13),
                       Text('  ·  rev ${s.rev}', style: text.bodySmall!.copyWith(color: muted)),
                     ]),
                     const SizedBox(height: AppSpace.s1),
                     Text(
-                      '${fmtSol(s.tradeSol, unit: true)}/coin · max ${s.maxOpen} · exit ${s.exitPlan} · ${approvalModeLabel(s.approvalMode)}',
+                      '${fmtSol(s.ticketLamports, unit: true)}/coin · max ${s.maxOpen} · exit ${ExitPresets.label(s.exitPlan)} · ${approvalModeLabel(s.approvalMode)}',
                       style: text.bodySmall!.copyWith(color: muted),
                     ),
                   ]),

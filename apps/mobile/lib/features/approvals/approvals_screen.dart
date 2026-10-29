@@ -5,9 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/feature_flags.dart';
 import '../../core/format.dart';
 import '../../core/theme/solbot_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../data/api/api_exception.dart';
+import '../../data/api/server_clock.dart';
+import '../../data/api/decide_approval.dart';
+import '../../data/api/wire.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';
 
@@ -26,8 +31,26 @@ final skippingApprovalsProvider = NotifierProvider<_BusyApprovals, Set<String>>(
 const undoWindow = Duration(seconds: 5);
 const skipReasons = ['Likuiditas tipis', 'Sudah pump', 'Dev aneh', 'Lainnya'];
 
-/// Approve path. Real SOL always passes the biometric gate first (SPEC §3).
+/// `decide_approval` request for [a]. The idempotency key is deterministic per
+/// (approval, version, decision), so a double tap or retry replays instead of
+/// double-deciding.
+DecideApprovalRequest decideRequest(Approval a, {required bool approve, String client = Wire.clientMobile}) =>
+    DecideApprovalRequest(
+      approvalId: a.id,
+      token: a.token,
+      approve: approve,
+      expectedRev: a.version,
+      client: client,
+      idempotencyKey: '${a.id}:v${a.version}:${Wire.decision(approve: approve)}',
+    );
+
+/// Approve path. Real SOL always passes the biometric gate first (SPEC §3),
+/// and is disabled entirely while [FeatureFlags.realSolEnabled] is false.
 Future<ApprovalStatus?> approveItem(BuildContext context, WidgetRef ref, Approval a) async {
+  if (a.mode == TradeMode.real && !ref.read(featureFlagsProvider).realSolEnabled) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text(realSolDisabledText)));
+    return null;
+  }
   if (a.mode == TradeMode.real) {
     final ok = await ref.read(approvalGuardProvider).confirm(context, action: 'Approve "${a.title}" (Real SOL)');
     if (!ok) return null;
@@ -36,10 +59,11 @@ Future<ApprovalStatus?> approveItem(BuildContext context, WidgetRef ref, Approva
   final busy = ref.read(busyApprovalsProvider.notifier)..set(a.id, true);
   final messenger = ScaffoldMessenger.maybeOf(context);
   try {
-    final status = await ref.read(approvalRepositoryProvider).decide(a.id, approve: true, token: a.token);
-    messenger?.showSnackBar(SnackBar(content: Text('${a.title}: ${status.name}')));
-    return status;
-  } on ConflictException catch (e) {
+    final res = await ref.read(approvalRepositoryProvider).decide(decideRequest(a, approve: true));
+    ref.read(serverClockProvider.notifier).observe(res.serverNow);
+    messenger?.showSnackBar(SnackBar(content: Text('${a.title}: ${res.status.name}')));
+    return res.status;
+  } on ApiException catch (e) {
     messenger?.showSnackBar(SnackBar(content: Text(e.message)));
     return null;
   } finally {
@@ -63,7 +87,7 @@ void skipItem(BuildContext context, WidgetRef ref, Approval a, {String? reason})
   Timer(undoWindow, () async {
     if (!undone) {
       try {
-        await repo.decide(a.id, approve: false, token: a.token);
+        await repo.decide(decideRequest(a, approve: false));
       } catch (_) {/* surfaced via feed in prod */}
     }
     busy.set(a.id, false);
@@ -147,7 +171,7 @@ class ApprovalsScreen extends ConsumerWidget {
               return ListView.separated(
                 padding: const EdgeInsets.fromLTRB(AppSpace.s4, AppSpace.s2, AppSpace.s4, AppSpace.s8),
                 itemCount: list.length,
-                separatorBuilder: (_, __) => const SizedBox(height: AppSpace.s3),
+                separatorBuilder: (_, _) => const SizedBox(height: AppSpace.s3),
                 itemBuilder: (_, i) => ApprovalCard(list[i], highlighted: list[i].id == highlightId),
               );
             },
@@ -168,6 +192,8 @@ String expireReasonLabel(ExpireReason r) => switch (r) {
       ExpireReason.strategyArchived => 'Strategi diarsip',
       ExpireReason.guardFailedWhileWaiting => 'Guard gagal saat menunggu',
       ExpireReason.priceRanPastLimit => 'Harga lari melewati batas',
+      ExpireReason.practiceReset => 'Practice di-reset',
+      ExpireReason.accountDeleted => 'Akun dihapus',
     };
 
 class ApprovalCard extends ConsumerWidget {
@@ -181,6 +207,7 @@ class ApprovalCard extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final busy = ref.watch(busyApprovalsProvider).contains(a.id);
+    final realBlocked = a.mode == TradeMode.real && !ref.watch(featureFlagsProvider).realSolEnabled;
     final isGuard = a.kind == ApprovalKind.guardChange;
     final expired = a.status == ApprovalStatus.expired;
 
@@ -215,8 +242,8 @@ class ApprovalCard extends ConsumerWidget {
             ]),
             const SizedBox(height: AppSpace.s1),
             Text(a.detail, style: text.bodyMedium!.copyWith(color: cs.onSurfaceVariant)),
-            if (a.amountSol != null)
-              Text('Size ${fmtSol(a.amountSol!, unit: true)}', style: AppText.num(13, color: cs.onSurfaceVariant)),
+            if (a.amountLamports != null)
+              Text('Size ${fmtSol(a.amountLamports!, unit: true)}', style: AppText.num(13, color: cs.onSurfaceVariant)),
             if (expired) ...[
               const SizedBox(height: AppSpace.s2),
               Text('${expireReasonLabel(a.expireReason ?? ExpireReason.timedOut)} · Tidak bisa di-approve',
@@ -241,13 +268,18 @@ class ApprovalCard extends ConsumerWidget {
                   child: FilledButton(
                     key: Key('approve_${a.id}'),
                     style: a.mode == TradeMode.real ? AppButtons.real(context) : AppButtons.success(context),
-                    onPressed: busy ? null : () => approveItem(context, ref, a),
+                    onPressed: busy || realBlocked ? null : () => approveItem(context, ref, a),
                     child: busy
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Approve'),
+                        : Text(realBlocked ? 'Fase 7' : 'Approve'),
                   ),
                 ),
               ]),
+              if (realBlocked)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpace.s2),
+                  child: Text(realSolDisabledText, style: text.labelSmall!.copyWith(color: t.real)),
+                ),
               if (a.swipeable)
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpace.s2),

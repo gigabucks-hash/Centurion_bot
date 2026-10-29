@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/format.dart';
 import '../../../core/theme/solbot_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../data/models/models.dart';
@@ -46,7 +47,7 @@ class EquityCard extends ConsumerWidget {
           Row(children: [
             Expanded(child: Text('Equity · ${_labels[range]!.$2}', style: tt.titleSmall)),
             if (hist.valueOrNull case final pts? when pts.length > 1)
-              PnlText(pts.last.equitySol - pts.first.equitySol, size: 15),
+              PnlText(pts.last.equityLamports - pts.first.equityLamports, size: 15),
           ]),
           const SizedBox(height: AppSpace.s2),
           SizedBox(
@@ -59,7 +60,7 @@ class EquityCard extends ConsumerWidget {
                 child: CustomPaint(
                   size: Size.infinite,
                   painter: _EquityPainter(
-                    pts.map((p) => p.equitySol).toList(),
+                    pts.map((p) => p.equityLamports.plotValue).toList(),
                     line: cs.primary,
                     hwm: cs.outline,
                   ),
@@ -74,7 +75,7 @@ class EquityCard extends ConsumerWidget {
                 Text(_axisLabel(pts.first.at, range), style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
                 Expanded(
                   child: Text(
-                      '- - high-water ${pts.map((p) => p.equitySol).reduce(max).toStringAsFixed(3).replaceAll('.', ',')}',
+                      '- - high-water ${fmtSol(pts.map((p) => p.equityLamports).reduce((a, b) => a > b ? a : b))}',
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
                       style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
