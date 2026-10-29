@@ -117,7 +117,7 @@ Service-only (API / workers, never clients): `issue_approval_token`, `request_ac
 `revoke_device_token`, `expire_proposal`. These take an explicit `p_user` because the API has already verified it.
 
 ## 3. Pagination and filters
-Lists: keyset `?cursor=&limit<=100`, newest first by `(created_at, id)`. Events: seq cursors
+Lists: keyset `?cursor=&limit<=100` (default 50), newest first by `(created_at, id)`; `next_cursor` is opaque (base64url of the microsecond timestamp + id), `null` on the last page; a malformed cursor or one from another list -> `400 CURSOR_INVALID`. Implemented for positions, strategies, strategy revisions (by `rev`), coins (by last pick), picks, fills, guard-changes, audit-log (also `before_id`), practice resets, devices and approvals (`status=pending` pages soonest `expires_at` first; other filters newest `created_at` first). Events: seq cursors
 (`after_seq`, `before_seq`; int64 **strings**, as are `next_after_seq`, `next_before_seq`, `safe_seq`). Common filters, parsed by one function and reused by stats so numbers
 match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `from`/`to`.
 

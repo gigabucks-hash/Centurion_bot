@@ -5,10 +5,13 @@ import { asUser, requireMember, type Tx } from "./db.ts";
 import { readJson, send, type Ctx, type Router } from "./http.ts";
 import { idempotent } from "./idem.ts";
 import {
-  deviceLabel, expectedRev, idempotencyKey, limitParam, modeParam, requireRev, requireScope, uuidParam, withCurrent,
+  cursorParam, deviceLabel, expectedRev, idempotencyKey, limitParam, modeParam, requireRev, requireScope, uuidParam, withCurrent,
 } from "./rules.ts";
 import { authenticate, type Deps } from "./deps.ts";
-import { iso } from "./wire.ts";
+import { cursorCols, iso, pageOf } from "./wire.ts";
+
+// row type for keyset pages
+type Page = Record<string, any> & { cur_ts: string; cur_id: string };
 
 const etag = (rev: unknown) => ({ ETag: `"${String(rev)}"` });
 const NAME_MAX = 80;
@@ -60,18 +63,20 @@ export function registerStrategies(r: Router, d: Deps): void {
     const mode = modeParam(ctx);
     const status = ctx.url.searchParams.get("status");
     if (status !== null && !["draft", "running", "paused", "archived"].includes(status)) throw new ApiError("VALIDATION_FAILED", { field: "status" });
-    const limit = limitParam(ctx, 100, 100);
-    const items = await asUser(d.db, p.claims, async (c) => {
+    const limit = limitParam(ctx, 50, 100);
+    const cur = cursorParam(ctx);
+    const rows = await asUser(d.db, p.claims, async (c) => {
       await requireMember(c, ws);
       const q = await c.query(
-        `select public.strategy_wire(s) as w from public.strategies s
+        `select public.strategy_wire(s) as w, ${cursorCols("s.created_at", "s.id")} from public.strategies s
           where s.workspace_id = $1 and s.mode = $2::public.trade_mode and ($3::text is null or s.status::text = $3)
-          order by s.created_at desc, s.id desc limit $4`,
-        [ws, mode, status, limit],
+            and ($4::timestamptz is null or (s.created_at, s.id) < ($4::timestamptz, $5::uuid))
+          order by s.created_at desc, s.id desc limit $6`,
+        [ws, mode, status, cur?.ts ?? null, cur?.id ?? null, limit + 1],
       );
-      return q.rows.map((x) => x.w);
+      return q.rows as Page[];
     });
-    send(ctx, 200, { items, next_cursor: null });
+    send(ctx, 200, pageOf(rows, limit, (x) => x.w));
   });
 
   r.add("POST", base, async (ctx) => {
@@ -110,16 +115,19 @@ export function registerStrategies(r: Router, d: Deps): void {
     requireScope(p, "read");
     const ws = uuidParam(ctx, "ws");
     const id = uuidParam(ctx, "id");
-    const items = await asUser(d.db, p.claims, async (c) => {
+    const limit = limitParam(ctx, 50, 100);
+    const cur = cursorParam(ctx, "int");
+    const rows = await asUser(d.db, p.claims, async (c) => {
       await strategyIn(c, id, ws);
       const q = await c.query(
-        `select rev, name, status::text as status, changed_by, changed_via, device, created_at
-           from public.strategy_revisions where strategy_id = $1 order by rev desc limit 200`,
-        [id],
+        `select rev, name, status::text as status, changed_by, changed_via, device, created_at, ${cursorCols("created_at", "rev")}
+           from public.strategy_revisions where strategy_id = $1 and ($2::int is null or rev < $2::int)
+          order by rev desc limit $3`,
+        [id, cur?.id ?? null, limit + 1],
       );
-      return q.rows.map((x) => ({ ...x, created_at: iso(x.created_at) }));
+      return q.rows as Page[];
     });
-    send(ctx, 200, { items, next_cursor: null });
+    send(ctx, 200, pageOf(rows, limit, ({ cur_ts: _t, cur_id: _i, ...x }) => ({ ...x, created_at: iso(x.created_at) })));
   });
 
   /** Merge base for the 3-way conflict review. */
@@ -261,15 +269,20 @@ export function registerStrategies(r: Router, d: Deps): void {
     const p = authenticate(ctx, d.cfg);
     requireScope(p, "read");
     const ws = uuidParam(ctx, "ws");
-    const items = await asUser(d.db, p.claims, async (c) => {
+    const limit = limitParam(ctx, 20, 100);
+    const cur = cursorParam(ctx, "int");
+    const rows = await asUser(d.db, p.claims, async (c) => {
       await requireMember(c, ws);
       const q = await c.query(
-        `select id::text as id, from_epoch, to_epoch, starting_lamports::text as starting_lamports, actor_user, archived, created_at
-           from public.practice_resets where workspace_id = $1 order by created_at desc limit 100`,
-        [ws],
+        `select id::text as id, from_epoch, to_epoch, starting_lamports::text as starting_lamports, actor_user, archived, created_at,
+                ${cursorCols("created_at", "id")}
+           from public.practice_resets where workspace_id = $1
+            and ($2::timestamptz is null or (created_at, id) < ($2::timestamptz, $3::bigint))
+          order by created_at desc, id desc limit $4`,
+        [ws, cur?.ts ?? null, cur?.id ?? null, limit + 1],
       );
-      return q.rows.map((x) => ({ ...x, created_at: iso(x.created_at) }));
+      return q.rows as Page[];
     });
-    send(ctx, 200, { items, next_cursor: null });
+    send(ctx, 200, pageOf(rows, limit, ({ cur_ts: _t, cur_id: _i, ...x }) => ({ ...x, created_at: iso(x.created_at) })));
   });
 }

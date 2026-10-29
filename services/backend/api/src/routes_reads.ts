@@ -3,9 +3,11 @@
 import { ApiError } from "./errors.ts";
 import { asService, asUser, requireMember } from "./db.ts";
 import { send, type Router } from "./http.ts";
-import { limitParam, modeParam, requireScope, seqParam, timeRange, uuidParam, UUID } from "./rules.ts";
+import { cursorParam, limitParam, modeParam, requireScope, seqParam, timeRange, uuidParam, UUID } from "./rules.ts";
 import { authenticate, type Deps } from "./deps.ts";
-import { EVENT_COLUMNS, eventWire, iso, num, str, type EventRow } from "./wire.ts";
+import { EVENT_COLUMNS, cursorCols, eventWire, iso, num, pageOf, str, type EventRow } from "./wire.ts";
+
+type Page = Record<string, any> & { cur_ts: string; cur_id: string };
 
 const MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
@@ -56,20 +58,24 @@ export function registerReads(r: Router, d: Deps): void {
     const mode = modeParam(ctx);
     const strategy = optUuid(ctx.url.searchParams.get("strategy_id"), "strategy_id");
     const { from, to } = timeRange(ctx);
-    const limit = limitParam(ctx, 100, 100);
-    const items = await asUser(d.db, p.claims, async (c) => {
+    const limit = limitParam(ctx, 50, 100);
+    const cur = cursorParam(ctx, "mint");
+    const rows = await asUser(d.db, p.claims, async (c) => {
       await requireMember(c, ws);
       const q = await c.query(
-        `select ${COIN_COLUMNS}, max(pk.created_at) as last_seen from public.coins c
-           join public.picks pk on pk.mint = c.mint
-          where pk.workspace_id = $1 and pk.mode = $2::public.trade_mode and ($3::uuid is null or pk.strategy_id = $3)
-            and ($4::timestamptz is null or pk.created_at >= $4) and ($5::timestamptz is null or pk.created_at < $5)
-          group by c.mint order by last_seen desc limit $6`,
-        [ws, mode, strategy, from, to, limit],
+        `select x.*, ${cursorCols("x.last_seen", "x.mint")} from (
+           select ${COIN_COLUMNS}, max(pk.created_at) as last_seen from public.coins c
+             join public.picks pk on pk.mint = c.mint
+            where pk.workspace_id = $1 and pk.mode = $2::public.trade_mode and ($3::uuid is null or pk.strategy_id = $3)
+              and ($4::timestamptz is null or pk.created_at >= $4) and ($5::timestamptz is null or pk.created_at < $5)
+            group by c.mint) x
+          where ($6::timestamptz is null or (x.last_seen, x.mint) < ($6::timestamptz, $7::text))
+          order by x.last_seen desc, x.mint desc limit $8`,
+        [ws, mode, strategy, from, to, cur?.ts ?? null, cur?.id ?? null, limit + 1],
       );
-      return q.rows.map(coinWire);
+      return q.rows as Page[];
     });
-    send(ctx, 200, { items, next_cursor: null });
+    send(ctx, 200, pageOf(rows, limit, coinWire));
   });
 
   r.add("GET", `${ws0}/coins/:mint`, async (ctx) => {
@@ -119,19 +125,21 @@ export function registerReads(r: Router, d: Deps): void {
     const strategy = optUuid(ctx.url.searchParams.get("strategy_id"), "strategy_id");
     const stage = ctx.url.searchParams.get("stage");
     if (stage !== null && !/^[a-z_]{1,24}$/.test(stage)) throw new ApiError("VALIDATION_FAILED", { field: "stage" });
-    const limit = limitParam(ctx, 100, 100);
-    const items = await asUser(d.db, p.claims, async (c) => {
+    const limit = limitParam(ctx, 50, 100);
+    const cur = cursorParam(ctx);
+    const rows = await asUser(d.db, p.claims, async (c) => {
       await requireMember(c, ws);
       const q = await c.query(
-        `select ${PICK_COLUMNS} from public.picks
+        `select ${PICK_COLUMNS}, ${cursorCols("created_at", "id")} from public.picks
           where workspace_id = $1 and mode = $2::public.trade_mode and ($3::uuid is null or strategy_id = $3)
             and ($4::text is null or stage::text = $4)
-          order by created_at desc, id desc limit $5`,
-        [ws, mode, strategy, stage, limit],
+            and ($5::timestamptz is null or (created_at, id) < ($5::timestamptz, $6::uuid))
+          order by created_at desc, id desc limit $7`,
+        [ws, mode, strategy, stage, cur?.ts ?? null, cur?.id ?? null, limit + 1],
       );
-      return q.rows.map(pickWire);
+      return q.rows as Page[];
     });
-    send(ctx, 200, { items, next_cursor: null });
+    send(ctx, 200, pageOf(rows, limit, pickWire));
   });
 
   r.add("GET", `${ws0}/picks/:id`, async (ctx) => {
@@ -155,19 +163,22 @@ export function registerReads(r: Router, d: Deps): void {
     const mode = modeParam(ctx);
     const position = optUuid(ctx.url.searchParams.get("position_id"), "position_id");
     const { from, to } = timeRange(ctx);
-    const limit = limitParam(ctx, 100, 100);
-    const items = await asUser(d.db, p.claims, async (c) => {
+    const limit = limitParam(ctx, 50, 100);
+    const cur = cursorParam(ctx);
+    const rows = await asUser(d.db, p.claims, async (c) => {
       await requireMember(c, ws);
       const q = await c.query(
-        `select public.fill_wire(f) || jsonb_build_object('position_id', f.position_id) as w from public.fills f
+        `select public.fill_wire(f) || jsonb_build_object('position_id', f.position_id) as w, ${cursorCols("f.created_at", "f.id")}
+           from public.fills f
           where f.workspace_id = $1 and f.mode = $2::public.trade_mode and ($3::uuid is null or f.position_id = $3)
             and ($4::timestamptz is null or f.created_at >= $4) and ($5::timestamptz is null or f.created_at < $5)
-          order by f.created_at desc, f.id desc limit $6`,
-        [ws, mode, position, position ? null : from, to, limit],
+            and ($6::timestamptz is null or (f.created_at, f.id) < ($6::timestamptz, $7::uuid))
+          order by f.created_at desc, f.id desc limit $8`,
+        [ws, mode, position, position ? null : from, to, cur?.ts ?? null, cur?.id ?? null, limit + 1],
       );
-      return q.rows.map((x) => x.w);
+      return q.rows as Page[];
     });
-    send(ctx, 200, { items, next_cursor: null });
+    send(ctx, 200, pageOf(rows, limit, (x) => x.w));
   });
 
   // ---- orders / jobs (poll if you do not consume the stream) ------------------------------------
@@ -210,23 +221,23 @@ export function registerReads(r: Router, d: Deps): void {
     const ws = uuidParam(ctx, "ws");
     const mode = modeParam(ctx);
     const strategy = optUuid(ctx.url.searchParams.get("strategy_id"), "strategy_id");
+    const status = ctx.url.searchParams.get("status");
+    if (status !== null && !/^[a-z_]{1,16}$/.test(status)) throw new ApiError("VALIDATION_FAILED", { field: "status" });
     const limit = limitParam(ctx, 50, 100);
-    const items = await asUser(d.db, p.claims, async (c) => {
+    const cur = cursorParam(ctx);
+    const rows = await asUser(d.db, p.claims, async (c) => {
       await requireMember(c, ws);
       const q = await c.query(
-        `select id, workspace_id, strategy_id, approval_id, mode::text as mode, rev, from_rev, diff, weakened_fields, impact,
-                status::text as status, requested_by, cooldown_until, auto_revert_at, applied_at, reverted_at, created_at
-           from public.guard_changes where workspace_id = $1 and mode = $2::public.trade_mode and ($3::uuid is null or strategy_id = $3)
-          order by created_at desc, id desc limit $4`,
-        [ws, mode, strategy, limit],
+        `select public.guard_change_wire(g) as w, ${cursorCols("g.created_at", "g.id")} from public.guard_changes g
+          where g.workspace_id = $1 and g.mode = $2::public.trade_mode and ($3::uuid is null or g.strategy_id = $3)
+            and ($4::text is null or g.status::text = $4)
+            and ($5::timestamptz is null or (g.created_at, g.id) < ($5::timestamptz, $6::uuid))
+          order by g.created_at desc, g.id desc limit $7`,
+        [ws, mode, strategy, status, cur?.ts ?? null, cur?.id ?? null, limit + 1],
       );
-      return q.rows.map((x) => ({
-        ...x,
-        cooldown_until: iso(x.cooldown_until), auto_revert_at: iso(x.auto_revert_at), applied_at: iso(x.applied_at),
-        reverted_at: iso(x.reverted_at), created_at: iso(x.created_at),
-      }));
+      return q.rows as Page[];
     });
-    send(ctx, 200, { items, next_cursor: null });
+    send(ctx, 200, pageOf(rows, limit, (x) => x.w));
   });
 
   /** Owner/admin only. ip, user agent and proof hashes never leave the server. */
@@ -239,24 +250,27 @@ export function registerReads(r: Router, d: Deps): void {
     if (action !== null && !/^[a-z_.]{1,64}$/.test(action)) throw new ApiError("VALIDATION_FAILED", { field: "action" });
     const { from, to } = timeRange(ctx);
     const before = seqParam(ctx.url.searchParams.get("before_id"), "before_id");
-    const limit = limitParam(ctx, 100, 200);
-    const items = await asUser(d.db, p.claims, async (c) => {
+    const cur = cursorParam(ctx, "int");
+    const limit = limitParam(ctx, 50, 100);
+    const rows = await asUser(d.db, p.claims, async (c) => {
       await requireMember(c, ws);
       const ok = await c.query<{ ok: boolean }>("select public.has_workspace_role($1, '{owner,admin}') as ok", [ws]);
       if (!ok.rows[0]?.ok) throw new ApiError("FORBIDDEN_ROLE", { required: ["owner", "admin"] });
       const q = await c.query(
         `select id::text as id, mode::text as mode, actor_user, actor_kind::text as actor_kind, actor_via, action, target_type, target,
-                before, after, risk, proof_kind, approval_id, request_id, device, server_now, created_at
+                before, after, risk, proof_kind, approval_id, request_id, device, server_now, created_at,
+                ${cursorCols("created_at", "id")}
            from public.audit_log
           where workspace_id = $1 and mode = $2::public.trade_mode and ($3::text is null or action = $3)
             and ($4::timestamptz is null or created_at >= $4) and ($5::timestamptz is null or created_at < $5)
-            and ($6::bigint is null or id < $6)
-          order by id desc limit $7`,
-        [ws, mode, action, from, to, before, limit],
+            and ($6::bigint is null or id < $6) and ($7::bigint is null or id < $7::bigint)
+          order by id desc limit $8`,
+        [ws, mode, action, from, to, before, cur?.id ?? null, limit + 1],
       );
-      return q.rows.map((x) => ({ ...x, server_now_at: iso(x.server_now), server_now: undefined, created_at: iso(x.created_at) }));
+      return q.rows as Page[];
     });
-    send(ctx, 200, { items, next_before_id: items.length === limit ? items.at(-1)?.id ?? null : null, next_cursor: null });
+    const out = pageOf(rows, limit, ({ cur_ts: _t, cur_id: _i, server_now, ...x }) => ({ ...x, server_now_at: iso(server_now), created_at: iso(x.created_at) }));
+    send(ctx, 200, { ...out, next_before_id: out.next_cursor ? ((out.items.at(-1) as Record<string, unknown> | undefined)?.id ?? null) : null });
   });
 
   void str;

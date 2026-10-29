@@ -2,10 +2,10 @@
 import { ApiError } from "./errors.ts";
 import { asService, asUser } from "./db.ts";
 import { readJson, send, type Router } from "./http.ts";
-import { idempotencyKey, requireApp } from "./rules.ts";
+import { cursorParam, idempotencyKey, limitParam, requireApp } from "./rules.ts";
 import { idempotent } from "./idem.ts";
 import { authenticate, type Deps } from "./deps.ts";
-import { iso } from "./wire.ts";
+import { cursorCols, iso, pageOf } from "./wire.ts";
 
 const DEVICE_ID = /^[A-Za-z0-9._:-]{8,128}$/;
 const PLATFORMS = ["ios", "android", "macos", "windows", "linux", "web"];
@@ -35,14 +35,19 @@ export function registerAccount(r: Router, d: Deps): void {
   r.add("GET", "/v1/devices", async (ctx) => {
     const p = authenticate(ctx, d.cfg);
     requireApp(p);
-    const items = await asUser(d.db, p.claims, async (c) => {
+    const limit = limitParam(ctx, 50, 100);
+    const cur = cursorParam(ctx);
+    const rows = await asUser(d.db, p.claims, async (c) => {
       const q = await c.query(
-        `select id, device_id, platform, provider, app_version, locale, rev, last_seen_at, created_at
-           from public.device_tokens where revoked_at is null order by last_seen_at desc nulls last limit 50`,
+        `select id, device_id, platform, provider, app_version, locale, rev, last_seen_at, created_at, ${cursorCols("created_at", "id")}
+           from public.device_tokens where revoked_at is null
+            and ($1::timestamptz is null or (created_at, id) < ($1::timestamptz, $2::uuid))
+          order by created_at desc, id desc limit $3`,
+        [cur?.ts ?? null, cur?.id ?? null, limit + 1],
       );
-      return q.rows.map((x) => ({ ...x, last_seen_at: iso(x.last_seen_at), created_at: iso(x.created_at) }));
+      return q.rows as (Record<string, any> & { cur_ts: string; cur_id: string })[];
     });
-    send(ctx, 200, { items, next_cursor: null });
+    send(ctx, 200, pageOf(rows, limit, ({ cur_ts: _t, cur_id: _i, ...x }) => ({ ...x, last_seen_at: iso(x.last_seen_at), created_at: iso(x.created_at) })));
   });
 
   // RLS limits device_tokens to the caller; user_id and token are not even selectable.
@@ -56,7 +61,10 @@ export function registerAccount(r: Router, d: Deps): void {
     if (typeof b.platform !== "string" || !PLATFORMS.includes(b.platform)) throw new ApiError("VALIDATION_FAILED", { field: "platform", allowed: PLATFORMS });
     if (typeof b.provider !== "string" || !PROVIDERS.includes(b.provider)) throw new ApiError("VALIDATION_FAILED", { field: "provider", allowed: PROVIDERS });
     if (typeof b.token !== "string" || b.token.length < 16 || b.token.length > 4096) throw new ApiError("DEVICE_TOKEN_INVALID");
-    const appVersion = typeof b.app_version === "string" ? b.app_version.slice(0, 32) : null;
+    if (typeof b.app_version !== "string" || !/^[0-9A-Za-z.+_-]{1,32}$/.test(b.app_version)) {
+      throw new ApiError("VALIDATION_FAILED", { field: "app_version" });
+    }
+    const appVersion = b.app_version;
     const locale = typeof b.locale === "string" && /^[a-z]{2}(-[A-Z]{2})?$/.test(b.locale) ? b.locale : "id-ID";
     const out = await asUser(d.db, p.claims, async (c) =>
       (await c.query("select public.register_device($1, $2, $3, $4, $5, $6) as r", [id, b.platform, b.provider, b.token, appVersion, locale])).rows[0]?.r,

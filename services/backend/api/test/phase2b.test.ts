@@ -305,6 +305,7 @@ describe("devices", () => {
     err(await call(h.base, "PUT", `/v1/devices/${DEV}`, { token: tok, body: { platform: "ios", provider: "apns", token: "short" } }), 422, "DEVICE_TOKEN_INVALID");
     err(await call(h.base, "PUT", `/v1/devices/${DEV}`, { token: tok, body: { platform: "symbian", provider: "apns", token: "x".repeat(64) } }), 422, "VALIDATION_FAILED");
     err(await call(h.base, "PUT", `/v1/devices/${DEV}`, { token: token(VIEWER, { client: "mcp" }), body: {} }), 403, "FORBIDDEN_SCOPE");
+    err(await call(h.base, "PUT", `/v1/devices/${DEV}`, { token: tok, body: { platform: "ios", provider: "apns", token: "x".repeat(64) } }), 422, "VALIDATION_FAILED");
     const r = await call(h.base, "PUT", `/v1/devices/${DEV}`, { token: tok, body: { platform: "ios", provider: "apns", token: "apns-token-" + "a".repeat(40), app_version: "1.0.0" } });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.equal(r.body.data.device_id, DEV);

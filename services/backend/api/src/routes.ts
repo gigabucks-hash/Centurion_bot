@@ -4,10 +4,10 @@ import { asService, asUser, requireMember, type Db, type Tx } from "./db.ts";
 import { Router, readJson, send, type Ctx } from "./http.ts";
 import { authenticate, type Deps } from "./deps.ts";
 import {
-  expectedRev, idempotencyKey, limitParam, modeParam, requireRev, requireScope, seqParam, timeRange, uuidParam,
+  cursorParam, expectedRev, idempotencyKey, limitParam, modeParam, requireRev, requireScope, seqParam, timeRange, uuidParam,
 } from "./rules.ts";
 import {
-  APPROVAL_COLUMNS, EVENT_COLUMNS, approvalWire, decodeCursor, encodeCursor, eventWire, exitStatsWire,
+  APPROVAL_COLUMNS, EVENT_COLUMNS, approvalWire, cursorCols, decodeCursor, encodeCursor, pageOf, eventWire, exitStatsWire,
   portfolioWire, workspaceWire, type EventRow,
 } from "./wire.ts";
 import { streamEvents } from "./sse.ts";
@@ -152,19 +152,24 @@ export function buildRouter(d: Deps): Router {
     const kind = q.get("kind");
     if (kind !== null && !/^[a-z_]{1,32}$/.test(kind)) throw new ApiError("VALIDATION_FAILED", { field: "kind" });
     const limit = limitParam(ctx, 50, 100);
+    const cur = cursorParam(ctx);
+    // status=pending: soonest expiry first (keyset on expires_at asc); otherwise newest first (created_at desc)
+    const pending = status === "pending";
+    const tsCol = pending ? "expires_at" : "created_at";
     const rows = await asUser(d.db, p.claims, async (c) => {
       await requireMember(c, ws);
       const res = await c.query(
-        `select ${APPROVAL_COLUMNS} from public.approvals
+        `select ${APPROVAL_COLUMNS}, ${cursorCols(tsCol, "id")} from public.approvals
           where workspace_id = $1 and mode = $2::public.trade_mode
             and ($3::text is null or status::text = $3) and ($4::text is null or kind::text = $4)
-          order by case when status = 'pending' then expires_at end asc nulls last, created_at desc, id desc
-          limit $5`,
-        [ws, mode, status, kind, limit],
+            and ($5::timestamptz is null or (${tsCol}, id) ${pending ? ">" : "<"} ($5::timestamptz, $6::uuid))
+          order by ${tsCol} ${pending ? "asc" : "desc"}, id ${pending ? "asc" : "desc"}
+          limit $7`,
+        [ws, mode, status, kind, cur?.ts ?? null, cur?.id ?? null, limit + 1],
       );
-      return res.rows as Record<string, unknown>[];
+      return res.rows as (Record<string, unknown> & { cur_ts: string; cur_id: string })[];
     });
-    send(ctx, 200, { items: rows.map(approvalWire), next_cursor: null });
+    send(ctx, 200, pageOf(rows, limit, approvalWire));
   });
 
   /** Detail; members with `trade` get a fresh single-use decision token while the approval is pending. */

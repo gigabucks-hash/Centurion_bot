@@ -2,6 +2,7 @@
 import { ApiError } from "./errors.ts";
 import type { Ctx } from "./http.ts";
 import type { Principal } from "./jwt.ts";
+import { decodeCursor, type CursorIdKind } from "./wire.ts";
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -133,4 +134,11 @@ export function deviceLabel(ctx: Ctx, body: Record<string, unknown>): string | n
 /** "app" endpoints (deletion, unlink, Real switches): first-party apps only, never MCP agents. */
 export function requireApp(p: Principal): void {
   if (p.via === "mcp") throw new ApiError("FORBIDDEN_SCOPE", { required: "app" });
+}
+
+/** `?cursor=` (opaque keyset cursor from a previous page); malformed -> 400 CURSOR_INVALID. */
+export function cursorParam(ctx: Ctx, kind: CursorIdKind = "uuid"): { ts: string; id: string } | null {
+  const c = decodeCursor(ctx.url.searchParams.get("cursor"), kind);
+  if (c === "bad") throw new ApiError("CURSOR_INVALID", { field: "cursor" });
+  return c;
 }

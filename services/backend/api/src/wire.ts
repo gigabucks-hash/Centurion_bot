@@ -132,9 +132,30 @@ export function workspaceWire(r: Record<string, unknown>) {
 export function encodeCursor(ts: string, id: unknown): string {
   return Buffer.from(`${ts}|${String(id)}`).toString("base64url");
 }
-export function decodeCursor(c: string | null): { ts: string; id: string } | null | "bad" {
+const CURSOR_ID = {
+  uuid: /^[0-9a-f-]{36}$/,
+  int: /^\d{1,19}$/,
+  mint: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
+} as const;
+export type CursorIdKind = keyof typeof CURSOR_ID;
+
+export function decodeCursor(c: string | null, kind: CursorIdKind = "uuid"): { ts: string; id: string } | null | "bad" {
   if (!c) return null;
+  if (c.length > 200) return "bad";
   const s = Buffer.from(c, "base64url").toString("utf8");
-  const m = /^(\d{4}-\d\d-\d\dT[\d:.]+Z)\|([0-9a-f-]{36})$/.exec(s);
-  return m?.[1] && m[2] ? { ts: m[1], id: m[2] } : "bad";
+  const m = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?Z)\|(.+)$/.exec(s);
+  if (!m?.[1] || !m[2] || !CURSOR_ID[kind].test(m[2]) || Number.isNaN(Date.parse(m[1]))) return "bad";
+  return { ts: m[1], id: m[2] };
+}
+
+/** SQL select-list fragment for the keyset columns (`cur_ts` keeps microseconds). */
+export function cursorCols(tsExpr: string, idExpr: string): string {
+  return `to_char(${tsExpr} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cur_ts, (${idExpr})::text as cur_id`;
+}
+
+/** Rows were fetched with `limit + 1`; returns the page and the next cursor. */
+export function pageOf<R extends { cur_ts: string; cur_id: string }, T>(rows: R[], limit: number, map: (r: R) => T): { items: T[]; next_cursor: string | null } {
+  const page = rows.slice(0, limit);
+  const last = page.at(-1);
+  return { items: page.map(map), next_cursor: rows.length > limit && last ? encodeCursor(last.cur_ts, last.cur_id) : null };
 }
