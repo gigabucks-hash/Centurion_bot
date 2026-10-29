@@ -293,8 +293,8 @@ unless `TRADING_MODE=paper`.
 - **Passkey** (WebAuthn user-verification assertion) over a challenge that embeds `prepare_id`, mint, fraction and
   min-out, so the approval cannot be replayed for a different order.
 - **Typed name**: the user types the token symbol (or wallet label) exactly; compared server-side.
-- **Hold-to-confirm** (press and hold ≥ 2 s) in the client; the client sends the hold duration, the server
-  rejects < 2 s. UX only, but required.
+- **Hold-to-confirm** (press and hold ≥ 2,500 ms for Real, matching contracts §4.6; practice uses 1,200 ms) in the client; the client sends the hold duration, the server
+  rejects < 2,500 ms. UX only, but required.
 - Any failure or expiry voids the `prepare_id`; a new prepare is needed. No "remember this device" bypass.
 
 ### 16.5 Limits
