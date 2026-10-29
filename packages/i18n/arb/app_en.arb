@@ -142,12 +142,13 @@
   "@builderStepValid": {
     "description": "builder.step.valid"
   },
-  "builderStepWeakened": "{count, plural, one {# setting loosened} other {# settings loosened}}",
+  "builderStepWeakened": "{count,plural,one{{count} setting loosened} other{{count} settings loosened}}",
   "@builderStepWeakened": {
     "description": "builder.step.weakened",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -265,30 +266,33 @@
   "@commonActionView": {
     "description": "common.action.view"
   },
-  "commonDurationHours": "{count, plural, one {# hour} other {# hours}}",
+  "commonDurationHours": "{count,plural,one{{count} hour} other{{count} hours}}",
   "@commonDurationHours": {
     "description": "common.duration.hours",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
-  "commonDurationMinutes": "{count, plural, one {# min} other {# min}}",
+  "commonDurationMinutes": "{count,plural,one{{count} min} other{{count} min}}",
   "@commonDurationMinutes": {
     "description": "common.duration.minutes",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
-  "commonDurationSeconds": "{count, plural, one {# s} other {# s}}",
+  "commonDurationSeconds": "{count,plural,one{{count} s} other{{count} s}}",
   "@commonDurationSeconds": {
     "description": "common.duration.seconds",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -382,12 +386,13 @@
       }
     }
   },
-  "conflictBannerConflicts": "{count, plural, =0 {No overlapping fields — your edits can be merged.} one {# field changed on both sides.} other {# fields changed on both sides.}}",
+  "conflictBannerConflicts": "{count,plural,one{{count} field changed on both sides.} other{{count} fields changed on both sides.} =0{No overlapping fields — your edits can be merged.}}",
   "@conflictBannerConflicts": {
     "description": "conflict.banner.conflicts",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -435,12 +440,13 @@
       }
     }
   },
-  "conflictDiscardConfirm": "Discard {count, plural, one {# edit} other {# edits}}? This can’t be undone.",
+  "conflictDiscardConfirm": "Discard {count,plural,one{{count} edit} other{{count} edits}}? This can’t be undone.",
   "@conflictDiscardConfirm": {
     "description": "conflict.discard.confirm",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -497,12 +503,13 @@
   "@dashboardKpiCash": {
     "description": "dashboard.kpi.cash"
   },
-  "dashboardKpiExpiringSoon": "{count, plural, one {# expires in under 2 min} other {# expire in under 2 min}}",
+  "dashboardKpiExpiringSoon": "{count,plural,one{{count} expires in under 2 min} other{{count} expire in under 2 min}}",
   "@dashboardKpiExpiringSoon": {
     "description": "dashboard.kpi.expiring_soon",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -628,12 +635,13 @@
   "@errorCodeOtpLocked": {
     "description": "wire error.code OTP_LOCKED"
   },
-  "errorCodeRateLimited": "Too many requests. Try again in {retry_after_s, plural, one {# second} other {# seconds}}.",
+  "errorCodeRateLimited": "Too many requests. Try again in {retry_after_s,plural,one{{retry_after_s} second} other{{retry_after_s} seconds}}.",
   "@errorCodeRateLimited": {
     "description": "wire error.code RATE_LIMITED",
     "placeholders": {
       "retry_after_s": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -1078,12 +1086,13 @@
   "@loginOtpTitle": {
     "description": "login.otp.title"
   },
-  "loginOtpWrong": "{remaining, plural, one {Wrong code. # attempt left.} other {Wrong code. # attempts left.}}",
+  "loginOtpWrong": "{remaining,plural,one{Wrong code. {remaining} attempt left.} other{Wrong code. {remaining} attempts left.}}",
   "@loginOtpWrong": {
     "description": "login.otp.wrong",
     "placeholders": {
       "remaining": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -1375,12 +1384,13 @@
   "@notifGroupedBody": {
     "description": "N-18"
   },
-  "notifGroupedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {count, plural, one {# pick awaits approval} other {# picks await approval}}",
+  "notifGroupedTitle": "[{mode,select,other{PRACTICE} real{REAL SOL}}] {count,plural,one{{count} pick awaits approval} other{{count} picks await approval}}",
   "@notifGroupedTitle": {
     "description": "N-18; placeholders = push vars (snake_case)",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       },
       "mode": {
         "type": "String"
@@ -1707,12 +1717,13 @@
       }
     }
   },
-  "positionsOpenCount": "{count, plural, one {# open} other {# open}}",
+  "positionsOpenCount": "{count,plural,one{{count} open} other{{count} open}}",
   "@positionsOpenCount": {
     "description": "positions.open_count",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -1767,21 +1778,23 @@
   "@positionsTitle": {
     "description": "positions.title"
   },
-  "queueBatchApprove": "{count, plural, one {Approve # pick} other {Approve # picks}}",
+  "queueBatchApprove": "{count,plural,one{Approve {count} pick} other{Approve {count} picks}}",
   "@queueBatchApprove": {
     "description": "queue.batch.approve",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
-  "queueBatchSelected": "{count, plural, one {# selected} other {# selected}}",
+  "queueBatchSelected": "{count,plural,one{{count} selected} other{{count} selected}}",
   "@queueBatchSelected": {
     "description": "queue.batch.selected",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -1839,12 +1852,13 @@
   "@queueRealApproveButton": {
     "description": "queue.real.approve_button"
   },
-  "queueRealBatchConfirmTitle": "{count, plural, one {Approve # buy with REAL SOL?} other {Approve # buys with REAL SOL?}}",
+  "queueRealBatchConfirmTitle": "{count,plural,one{Approve {count} buy with REAL SOL?} other{Approve {count} buys with REAL SOL?}}",
   "@queueRealBatchConfirmTitle": {
     "description": "queue.real.batch_confirm.title",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -1985,12 +1999,13 @@
   "@settingsDeleteConfirm": {
     "description": "settings.delete.confirm"
   },
-  "settingsDeleteGrace": "Grace period: {count, plural, one {# day} other {# days}}",
+  "settingsDeleteGrace": "Grace period: {count,plural,one{{count} day} other{{count} days}}",
   "@settingsDeleteGrace": {
     "description": "grace_days from GET /me/deletion (server-side ACCOUNT_DELETION_GRACE_DAYS, default 7, range 7–30 per Apex Rev 4.1); read-only, client cannot choose",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },

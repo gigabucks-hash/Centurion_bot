@@ -1,13 +1,14 @@
-# @sentra/i18n · v0.4.1 (UX Rev 4.1, 29 Okt 2026 WIB)
+# @sentra/i18n · v0.4.2 (UX Rev 4.2, 29 Okt 2026 WIB)
 
 Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/build_locales.py` (EN = source, ID = locale). Perubahan copy → minta UX, lalu publish ulang ke folder ini.
 
 | File | Isi | Konsumen |
 |---|---|---|
 | `en.json`, `id.json` | 408 key, nested, ICU MessageFormat (plural/select) | Web (next-intl), Desktop |
-| `arb/app_en.arb`, `arb/app_id.arb` | key lowerCamel (`notif.pick_pending.title` → `notifPickPendingTitle`), placeholder bertipe dari AST ICU (`int` untuk plural, `String` lainnya). Lolos `flutter gen-l10n` + `dart analyze` 0 issue | Flutter |
+| `arb/app_en.arb`, `arb/app_id.arb` | key lowerCamel (`notif.pick_pending.title` → `notifPickPendingTitle`), placeholder bertipe dari AST ICU (`int` untuk plural, `String` lainnya). **Plural tanpa `#`**: `#` diganti `{count}` (dll.) + metadata `int`/`decimalPattern`. Lolos `flutter gen-l10n` + `dart analyze` 0 issue + `test/flutter/l10n_plural_test.dart` | Flutter |
 | `format.mjs` | formatter angka/waktu terikat locale UI | Web, Desktop (Flutter: port 1:1) |
 | `notifications.map.json` | N-01..N-22 → wire `type`, kondisi, key title/body, `vars`, aksi push per mode | push worker, Flutter/Web notif handler |
+| `format.test.mjs` | `npm test`: aturan PnL nol (T-15), presisi SOL, lamports | CI |
 | `REPORT.md` | hasil cek ICU, paritas argumen EN/ID, rasio panjang ID/EN | QA |
 
 ## Aturan
@@ -19,6 +20,7 @@ Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/
 - Push data-only dirender **di device** dari `notif.<key>.title|body` (lihat `notifications.map.json`). Real SOL: aksi push hanya `open`; token + approve/skip hanya Practice `buy_pick`. Event/`v` tak dikenal atau `mode` hilang → fail closed (generik "Buka app").
 
 ## Changelog
+- **0.4.2 (Rev 4.2)**: ARB: 15 key plural `#` → placeholder eksplisit (`builderStepWeakened`, `commonDurationHours/Minutes/Seconds`, `conflictBannerConflicts`, `conflictDiscardConfirm`, `dashboardKpiExpiringSoon`, `errorCodeRateLimited`, `loginOtpWrong`, `notifGroupedTitle`, `positionsOpenCount`, `queueBatchApprove`, `queueBatchSelected`, `queueRealBatchConfirmTitle`, `settingsDeleteGrace`), placeholder plural `int` + `decimalPattern`. JSON tidak berubah. `format.mjs`: `pnlSol()` / `pnlPct()` → `{text, tone, arrow, sign}`; nol persis = `0.00` netral tanpa panah/tanda, non-nol tidak pernah tampil 0. `formatSol(…, {kind:'pnl'})` dan `formatPct(…, {signed:true})` ikut aturan ini (PnL 0 kini `0.00 SOL`, sebelumnya `0.000 SOL`).
 - **0.4.1 (Rev 4.1)**: N-05 = `order.failed` (contracts 1.1.2) — `notif.failed.*` kini `{side}`, `{symbol}`, `{reason_code}`, `{amount_lamports}` (sebelumnya `{coin}`, `{reason}`); `order.fail_reason.*` untuk `SLIPPAGE_EXCEEDED`, `INSUFFICIENT_PRACTICE_BALANCE`, `GUARD_FAILED`, `UNSUPPORTED_QUOTE_MINT`, `POOL_STALE` + fallback `unknown`; `screener.not_tradeable.badge|detail` (netral, tanpa Approve); grace hapus akun 7–30 default 7 (read-only dari server); N-14 client-only.
 - **0.4.0 (Rev 4)**: selaras contracts v1.1.1. `expire_reason.*` (7 nilai wire, mengganti `queue.expired.reason.*`), `exit_reason.*` (13), `error.code.*` (26), `guard.impact.*` (Estimasi/replay), `settings.devices.*`, `settings.delete.*`, `settings.section.devices|danger`, `conflict.banner.changed_by|fields`, `conflict.guard_change_cancelled`, `common.you`, Telegram OIDC (`login.telegram.*`; `reopen/expired` dihapus), N-01..N-22 dengan vars wire (`{mm_ss}` menggantikan `{time}`/`{mm:ss}`; N-07a–d → N-07 + `{reason}`; N-18..N-22 baru). `format.mjs`: `lamportsToSol`, `formatLamports`, `formatSolVar`, `skewFrom`, `remainingMs`.
 - 0.3.0 (Rev 3): 313 key awal (dipakai `apps/web/messages` sebagai salinan).

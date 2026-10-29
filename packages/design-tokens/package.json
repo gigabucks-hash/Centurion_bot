@@ -1,9 +1,14 @@
 {
   "name": "@sentra/design-tokens",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "description": "Sentra (working name) design tokens — source src/tokens.json (W3C DTCG), generated Tailwind v4 / CSS / Tauri / Flutter outputs.",
-  "files": ["src", "tokens", "scripts", "README.md"],
+  "files": [
+    "src",
+    "tokens",
+    "scripts",
+    "README.md"
+  ],
   "exports": {
     "./tokens.json": "./src/tokens.json",
     "./tailwind.theme.css": "./tokens/tailwind.theme.css",
