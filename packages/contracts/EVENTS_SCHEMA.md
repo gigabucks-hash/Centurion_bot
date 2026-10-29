@@ -131,8 +131,9 @@ on reconnect or every clock heartbeat: repeat the loop from watermark (cheap; ca
 ## 4. Event types (payloads)
 
 Vocabularies: `ExitReason` = `sell_floor profit_target loss_guard peak_trail max_hold idle sell_pressure
-no_new_high rug_detected drawdown_halt manual strategy_retired practice_reset` (`sell_floor` is evaluated
-before every other exit rule). `Venue` = `curve amm`.
+no_new_high rug_detected drawdown_halt manual strategy_retired practice_reset stall` (`sell_floor` is evaluated
+before every other exit rule). 1.1.4: `max_hold` also covers settings `time_stop_s`; `stall` (new) = settings
+`stall_exit` fired (|price change| over `window_s` < `min_move_pct`); the v1.0 name `stall` maps to `no_new_high`. `Venue` = `curve amm`.
 `GuardVerdict` = `PASS WARN FAIL`. `ProposalKind` = `buy_pick guard_change team_action`.
 `ProposalExpiredReason` = `timeout strategy_deleted strategy_archived guard_failed price_moved practice_reset
 account_deleted`. Guard check names: `mint_authority freeze_authority lp_safety top_holders_share single_holder
@@ -140,10 +141,10 @@ creator_share bundled_share sniper_share transfer_fee honeypot serial_creator`.
 
 | type | actor | payload (v1) |
 |---|---|---|
-| `coin.detected` | ingest | `{mint, venue: curve\|amm, launchpad, creator, decimals, token_program, quote_mint}`. `decimals` (integer) and `token_program` come from the mint account (never assume 6; `null` only while the mint is unreadable, and such coins are never filled). `quote_mint` null = SOL. Metadata in `untrusted`. Fanned out once per workspace that runs a strategy on that venue. |
-| `screener.scored` | screener | `{mint, passed, tradeable, skip_reason, quote_mint, summary, rejected_by, failed[], result: {passed, score, score_threshold, max_score, tradeable, skip_reason, quote_mint, checks: [{id, class: venue\|hard\|weighted, passed, measured, points, reason}]}}` (scores/measured are JSON numbers). `tradeable: false` + `skip_reason: "UNSUPPORTED_QUOTE_MINT"` = practice mode cannot trade the coin (non-SOL quote; prices never converted); then `passed` is false and `rejected_by` = skip_reason. **Design choice (1.1.2):** the screener result is extended; there is no separate `coin.skipped` event. |
+| `coin.detected` | ingest | `{mint, venue: curve\|amm, launchpad, creator, decimals, token_program, quote_mint}`. `decimals` (integer) and `token_program` come from the mint account (never assume 6; `null` only while the mint is unreadable, and such coins are never filled). `quote_mint` null = SOL. 1.1.4: plus `market_cap_lamports` (integer string \| null), `mcap_usd` (decimal string \| null, indicative), `mcap_as_of` (ts \| null), see API_ENDPOINTS 4.4. Metadata in `untrusted`. Fanned out once per workspace that runs a strategy on that venue. |
+| `screener.scored` | screener | `{mint, passed, tradeable, skip_reason, quote_mint, summary, rejected_by, failed[], result: {passed, score, score_threshold, max_score, tradeable, skip_reason, quote_mint, checks: [{id, class: venue\|hard\|weighted, passed, measured, points, reason}]}}` (scores/measured are JSON numbers). `tradeable: false` + `skip_reason: "UNSUPPORTED_QUOTE_MINT"` = practice mode cannot trade the coin (non-SOL quote; prices never converted); then `passed` is false and `rejected_by` = skip_reason. 1.1.4: plus `market_cap_lamports`, `mcap_usd`, `mcap_as_of` (same values as `coin.detected`; `mcap_usd` = the `measured` of the `mcap` check). **Design choice (1.1.2):** the screener result is extended; there is no separate `coin.skipped` event. |
 | `guard.result` | guard | `{mint, verdict, risk_score, reasons[], checks: [{name, status: PASS\|WARN\|FAIL\|UNKNOWN, measured, reason, weight}]}` |
-| `pick.created` | screener | `{mint, summary, score: <screener result>, guard_verdict, guard_reasons[]}` |
+| `pick.created` | screener | `{mint, summary, score: <screener result>, guard_verdict, guard_reasons[], market_cap_lamports, mcap_usd, mcap_as_of}` (market cap fields 1.1.4) |
 | `entry.armed` / `entry.expired` | entry | `{pick_id, condition, expires_at}` / `{pick_id, reason}` |
 | `proposal.created` | entry\|user\|system | `{proposal_id, kind, rev, mint, symbol (untrusted text, same as envelope untrusted.symbol), price_sol (decimal string), expires_at, first_buy, approval_mode, amount_lamports, risk_level, summary, base_rev, weakening, diff: [{field, before, after, weakening}]\|null, estimate}` |
 | `proposal.approved` / `proposal.rejected` | user | `{proposal_id, kind, rev, decided_by, decided_via: web\|mobile\|desktop\|mcp\|push, reason, reject_reason}`. `reject_reason` (1.1.3): `user_declined\|not_tradeable\|price_moved\|other` on `proposal.rejected` (default `user_declined`), `null` on `proposal.approved` (UI label for rejected: "Skipped") |

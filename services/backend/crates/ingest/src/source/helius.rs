@@ -356,6 +356,7 @@ pub fn to_ingest(ev: CurveEvent, now_ms: TsMs) -> Option<IngestEvent> {
             ..
         } => Some(IngestEvent::NewCoin(Box::new(NewCoin {
             decimals: None,
+            total_supply: None,
             token_program: None,
             mint: Mint::parse(&mint).ok()?,
             venue: Venue::Curve,

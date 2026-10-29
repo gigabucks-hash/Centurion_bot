@@ -1,4 +1,4 @@
-// REST endpoints (packages/contracts/API_ENDPOINTS.md, contracts 1.1.3). Practice mode only.
+// REST endpoints (packages/contracts/API_ENDPOINTS.md, contracts 1.1.4). Practice mode only.
 import { ApiError } from "./errors.ts";
 import { asService, asUser, requireMember, type Db, type Tx } from "./db.ts";
 import { Router, readJson, send, type Ctx } from "./http.ts";
@@ -15,7 +15,7 @@ import { registerStrategies } from "./routes_strategies.ts";
 import { registerReads } from "./routes_reads.ts";
 import { registerAccount } from "./routes_account.ts";
 
-export const CONTRACTS_VERSION = "1.1.3";
+export const CONTRACTS_VERSION = "1.1.4";
 /** 1.1.3: closed enum, only with decision=reject (default user_declined, applied in SQL). */
 export const APPROVAL_REJECT_REASONS = ["user_declined", "not_tradeable", "price_moved", "other"] as const;
 

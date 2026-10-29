@@ -42,6 +42,8 @@ pub struct PickRecord {
     pub score_threshold: Option<f64>,
     pub checks: Value,
     pub guard: Value,
+    /// Market cap at pick time (same value as the coin snapshot's).
+    pub market_cap: Option<common::MarketCap>,
     pub updated_at: TsMs,
 }
 

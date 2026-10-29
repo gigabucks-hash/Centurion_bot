@@ -69,6 +69,8 @@ pub const TOKEN_2022_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuE
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MintInfo {
     pub decimals: u8,
+    /// Total supply in raw units (`supply` u64 @36).
+    pub supply: u64,
     pub token_program: String,
 }
 
@@ -84,6 +86,7 @@ pub fn decode_mint(owner: &str, data: &[u8]) -> Result<MintInfo, CurveError> {
     }
     Ok(MintInfo {
         decimals: data[44],
+        supply: u64_at(data, 36),
         token_program: owner.to_string(),
     })
 }
@@ -308,11 +311,13 @@ pub async fn attach_mint(
     match mints.get_or_fetch(c.mint.as_str(), fetcher).await {
         Ok(m) => {
             c.decimals = Some(m.decimals);
+            c.total_supply = Some(m.supply);
             c.token_program = Some(m.token_program);
         }
         Err(e) => {
             tracing::warn!(mint = %c.mint, error = %e, "mint account unavailable");
             c.decimals = None;
+            c.total_supply = None;
             c.token_program = None;
             c.pool = None;
         }
@@ -713,6 +718,15 @@ mod tests {
             let m = decode_mint(&owner, &data).expect(f);
             assert_eq!(m.decimals, decimals, "{f}");
             assert_eq!(m.token_program, program, "{f}");
+        }
+        // supply u64 @36 (raw units), the market-cap input
+        for (f, supply) in [
+            ("mint_sol_quote.2026-10-29.json", 2_000_000_000_000_000_u64),
+            ("mint_non_sol_quote.2026-10-29.json", 1_000_000_000_000_000),
+            ("mint_wsol_spl.2026-10-29.json", 0),
+        ] {
+            let (_, owner, data) = parse_account_info(&mainnet(f)).expect("parse");
+            assert_eq!(decode_mint(&owner, &data).expect(f).supply, supply, "{f}");
         }
         // a curve account is not a mint
         let (_, owner, data) =

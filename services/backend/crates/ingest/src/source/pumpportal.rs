@@ -103,6 +103,7 @@ pub fn parse_frame(raw: &str, now_ms: i64) -> Option<Frame> {
         "create" => IngestEvent::NewCoin(Box::new(NewCoin {
             // filled from the mint account by `enrich`; never assumed
             decimals: None,
+            total_supply: None,
             token_program: None,
             mint,
             venue: Venue::Curve,

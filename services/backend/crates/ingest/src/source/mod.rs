@@ -45,6 +45,9 @@ pub struct NewCoin {
     /// Mint decimals, read from the mint account. `None` = not read yet (never assumed).
     #[serde(default)]
     pub decimals: Option<u8>,
+    /// Total supply in raw units, from the mint account. `None` = not read yet (never assumed).
+    #[serde(default)]
+    pub total_supply: Option<u64>,
     /// Owning token program of the mint (SPL Token or Token-2022).
     #[serde(default)]
     pub token_program: Option<String>,

@@ -34,18 +34,29 @@ function coinWire(r: Record<string, unknown>) {
     first_seen_at: iso(r.first_seen_at),
     migrated_at: iso(r.migrated_at),
     untrusted: r.untrusted ?? {},
+    ...mcapWire(r),
   };
 }
-const COIN_COLUMNS = "c.mint, c.decimals, c.token_program, c.quote_mint, c.launchpad, c.venue, c.creator, c.first_seen_at, c.migrated_at, c.untrusted";
+
+/** 1.1.4 market cap: lamports integer string, indicative USD decimal string, observation time. */
+function mcapWire(r: Record<string, unknown>) {
+  return {
+    market_cap_lamports: r.market_cap_lamports == null ? null : String(r.market_cap_lamports),
+    mcap_usd: r.mcap_usd == null ? null : String(r.mcap_usd),
+    mcap_as_of: iso(r.mcap_as_of),
+  };
+}
+const COIN_COLUMNS = "c.mint, c.decimals, c.token_program, c.quote_mint, c.launchpad, c.venue, c.creator, c.first_seen_at, c.migrated_at, c.untrusted, c.market_cap_lamports, c.mcap_usd, c.mcap_as_of";
 
 function pickWire(r: Record<string, unknown>) {
   return {
     id: r.id, ck: r.ck, workspace_id: r.workspace_id, strategy_id: r.strategy_id, mint: r.mint, mode: r.mode,
     stage: r.stage, score: num(r.score), score_threshold: num(r.score_threshold), checks: r.checks ?? [],
     guard: r.guard ?? null, guard_verdict: r.guard_verdict ?? null, created_at: iso(r.created_at), updated_at: iso(r.updated_at),
+    ...mcapWire(r),
   };
 }
-const PICK_COLUMNS = "id, ck, workspace_id, strategy_id, mint, mode::text as mode, stage::text as stage, score, score_threshold, checks, guard, guard_verdict, created_at, updated_at";
+const PICK_COLUMNS = "id, ck, workspace_id, strategy_id, mint, mode::text as mode, stage::text as stage, score, score_threshold, checks, guard, guard_verdict, created_at, updated_at, market_cap_lamports, mcap_usd, mcap_as_of";
 
 export function registerReads(r: Router, d: Deps): void {
   const ws0 = "/v1/workspaces/:ws";

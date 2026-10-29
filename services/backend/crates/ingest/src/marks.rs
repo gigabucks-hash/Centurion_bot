@@ -145,7 +145,7 @@ pub fn decimal(v: f64, max_frac: usize) -> String {
     }
 }
 
-fn rfc3339_ms(ts_ms: i64) -> String {
+pub(crate) fn rfc3339_ms(ts_ms: i64) -> String {
     chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ts_ms)
         .unwrap_or_default()
         .format("%Y-%m-%dT%H:%M:%S%.3fZ")

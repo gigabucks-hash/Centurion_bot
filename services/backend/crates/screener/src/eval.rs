@@ -241,6 +241,7 @@ mod tests {
             symbol: Untrusted::new("X".into()),
             uri: Untrusted::new(String::new()),
             quote_mint: None,
+            market_cap: None,
         }
     }
 

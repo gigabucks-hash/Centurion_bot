@@ -130,6 +130,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         practice_epoch: 0,
         stats: Stats::default(),
         marks: marks_sink(&cfg).await,
+        sol_usd: cfg.marks_sol_usd,
     };
 
     loop {

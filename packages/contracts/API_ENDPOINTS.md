@@ -12,7 +12,7 @@ Every response body is an object with a top-level `server_now`; lists are
 `{ "data": {..}, "server_now": "..." }`.
 
 **Errors (Q15).** `error` is ALWAYS an object `{code, message, ...details, server_now}` (never a bare string);
-details are flattened into it. Codes, HTTP status, SQLSTATE and `en`/`id` messages come from `errors.json`
+details are flattened into it: read `error.<field>` (e.g. `error.next_allowed_at`, `error.current`, `error.field`), never `error.details.<field>`. Codes, HTTP status, SQLSTATE and `en`/`id` messages come from `errors.json`
 (`kind: error|notice|skip`):
 ```json
 { "error": { "code": "VERSION_CONFLICT", "message": "Stale rev; refetch and retry", "current_rev": 3, "base_rev": 2,
@@ -146,7 +146,7 @@ match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `fro
 |---|---|---|---|
 | GET | `/me` | read | user, memberships, `scopes` |
 | GET | `/workspaces/{ws}` | read | `WorkspaceWire`: `{id, name, rev, modes_enabled: ["practice"], practice_epoch, practice_start_lamports, ...TTL settings}` |
-| POST | `/workspaces/{ws}/practice/reset` | trade | Body `{}` + `Idempotency-Key`. SQL `reset_practice(p_workspace uuid)` (one signature; a direct user action, **not** a proposal): archives the current epoch (positions closed with `practice_reset` + `archived_at`; fills/snapshots stay under their old `practice_epoch`), expires pending buys (`practice_reset`), restores **30 SOL** (`"30000000000"`), resets first-buy flags, emits `practice.reset`, audits. `200 {epoch, starting_balance_lamports, archived, next_allowed_at, server_now}`. Once per 24 h: `429 RESET_COOLDOWN` with `details.next_allowed_at` (+ `Retry-After`). Practice only (`MODE_NOT_ALLOWED`). |
+| POST | `/workspaces/{ws}/practice/reset` | trade | Body `{}` + `Idempotency-Key`. SQL `reset_practice(p_workspace uuid)` (one signature; a direct user action, **not** a proposal): archives the current epoch (positions closed with `practice_reset` + `archived_at`; fills/snapshots stay under their old `practice_epoch`), expires pending buys (`practice_reset`), restores **30 SOL** (`"30000000000"`), resets first-buy flags, emits `practice.reset`, audits. `200 {epoch, starting_balance_lamports, archived, next_allowed_at, server_now}`. Once per 24 h: `429 RESET_COOLDOWN` with `error.next_allowed_at` (flat in the error object, + `Retry-After`). Practice only (`MODE_NOT_ALLOWED`). |
 | GET | `/workspaces/{ws}/practice/resets` | read | reset history; `?epoch=` on positions/fills/equity reads archived epochs |
 
 ### 4.3 Strategies (`/workspaces/{ws}/strategies`)
@@ -166,14 +166,24 @@ match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `fro
 ### 4.4 Coins, picks, positions, fills, events
 | Method | Path | Scope | Notes |
 |---|---|---|---|
-| GET | `/coins?mode=&strategy_id=&window=`, `/coins/{mint}`, `/coins/{mint}/timeline?mode=&strategy_id=` | read | coin carries `decimals` (integer, from the mint account; never assume 6), `token_program`, `quote_mint` (null = SOL); timeline = events by `mint`, seq ordered |
-| GET | `/picks?mode=&strategy_id=&stage=`, `/picks/{id}` | read | |
+| GET | `/coins?mode=&strategy_id=&window=`, `/coins/{mint}`, `/coins/{mint}/timeline?mode=&strategy_id=` | read | `CoinWire`: coin carries `decimals` (integer, from the mint account; never assume 6), `token_program`, `quote_mint` (null = SOL), and (1.1.4) `market_cap_lamports` / `mcap_usd` / `mcap_as_of` (below); timeline = events by `mint`, seq ordered |
+| GET | `/picks?mode=&strategy_id=&stage=`, `/picks/{id}` | read | `PickWire`; market cap as of the pick (fields below) |
 | GET | `/positions?mode=&state=open\|closed&strategy_id=&window=&epoch=`, `/positions/{id}` | read | `PositionWire` (= SQL `position_wire()`): `rev`, `practice_epoch`, `qty_raw`, `decimals`, `token_program`, `cost_basis_lamports`, ... |
 | POST | `/positions/{id}/close` | trade | Manual sell, practice only. Headers `If-Match: "<position rev>"` (or body `expected_rev`) + `Idempotency-Key`. Body `{fraction_bps?: 1-10000 (default 10000 = all)}`. SQL `close_position()`. `200 ClosePositionResponse {position (rev at request time), order: OrderWire, order_id, fill: null\|FillWire (only if the simulated fill completed synchronously), job_id (int64 string, if async), status: queued\|filled\|failed, replayed, server_now}`. Then `order.submitted` -> `fill.simulated` + `position.updated` (partial, new rev) or `position.closed` (`exit_reason: manual`) + `order.filled`; or `order.failed`. Errors `404 NOT_FOUND`, `403 FORBIDDEN_ROLE`, `403 MODE_NOT_ALLOWED`, `422 INVALID_FRACTION`, `409 POSITION_ALREADY_CLOSED`, `428 PRECONDITION_REQUIRED`, `409 VERSION_CONFLICT {current_rev, base_rev, current}`, `422 IDEMPOTENCY_KEY_REUSED`. `sell_pct` is gone everywhere. |
 | GET | `/orders/{id}`, `/jobs/{job_id}` | read | `OrderWire`, `JobWire` (poll if you do not consume the stream) |
 | GET | `/fills?mode=&position_id=&window=` | read | `simulated: true` always until Phase 7 |
 | GET | `/events?mode=&after_seq=&before_seq=&limit=&types=&strategy_id=&ck=` | read | seq cursor (strings) + `safe_seq` |
 | GET | `/events/stream?mode=&after_seq=&include=marks,clock` | read | SSE at **`/v1/workspaces/{ws}/events/stream`** (the old `/v1/events/stream` is removed). `id:` = seq string; `Last-Event-ID` honoured. `include=marks` adds `event: mark` frames (`MarkMessage`, same shape as Broadcast), `include=clock` adds `event: clock` frames every 5 s (`{server_now, safe_seq}`). See EVENTS_SCHEMA section 3 |
+
+**Market cap (1.1.4)** on `CoinWire`, `PickWire`, `coin.detected`, `screener.scored`, `pick.created`
+(TS `MarketCapFields`; SQL columns `coins/picks.market_cap_lamports, mcap_usd, mcap_as_of`):
+- `market_cap_lamports`: integer string = price (SOL per whole token, from curve or pool state) x total supply
+  (raw / 10^decimals, from the mint account) x 10^9. `null` when decimals or supply are unknown (never assumed).
+- `mcap_usd`: decimal string or `null`, **display-only and indicative**: `market_cap_lamports` at the same
+  configured SOL/USD reference the marks use (`MARKS_SOL_USD`, not a live feed). It is the exact value the
+  screener's `mcap_usd` rule measured (`checks[].measured` for `mcap`), so the column and the check agree. When
+  `market_cap_lamports` is null it is the data source's own figure, or null.
+- `mcap_as_of`: ISO timestamp the inputs were observed; `null` when both values are null.
 
 ### 4.5 Approvals (`/workspaces/{ws}/approvals`)
 | Method | Path | Scope | Notes |
@@ -182,6 +192,38 @@ match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `fro
 | GET | `/{id}` | read (+trade to get a token) | `{..., rev, expires_at, decision_token, decision_token_expires_at, server_now}` |
 | POST | `/{id}/decision` | trade (+app for weakening/team actions; + proof for real) | below |
 | POST | `/batch-decision` | trade | `buy_pick` only; per-item results |
+
+**Approval resource (`ApprovalWire`, = SQL `approval_wire()`).** Returned by list/get (`data`), in `proposal.*`
+event context, and as `proposal` in the 202 guard-change response. Every field is always present (`null` when unset):
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | uuid | Approval id (path `{id}`) |
+| `proposal_id` | uuid | Same value as `id` (event payloads call it `proposal_id`) |
+| `workspace_id` | uuid | Owning workspace |
+| `strategy_id` | uuid \| null | Strategy the proposal belongs to |
+| `kind` | `buy_pick \| guard_change \| team_action` | What is being approved |
+| `mode` | `practice` | Always `practice` until Phase 7 (`approvals_practice_only`) |
+| `subject` | string \| null | Kind-specific key: pick `ck` (buy_pick), strategy id (guard_change), position key / action |
+| `mint` | base58 \| null | Coin for `buy_pick` |
+| `amount_lamports` | integer string \| null | Buy size (`buy_pick`); `null` otherwise |
+| `is_first_buy` | boolean | First buy of this strategy (drives `ask_first_buy`) |
+| `risk` | `low \| medium \| high \| critical` | Server-assigned risk (guard_change: `guard_change_risk()`) |
+| `weakening` | boolean | `true` = guard-weakening guard_change (needs the 1,200 ms hold) |
+| `status` | `pending \| approved \| rejected \| expired` | Lifecycle |
+| `rev` | integer >= 1 | Optimistic-concurrency revision; send as `If-Match` / `expected_rev` |
+| `expire_reason` | `timeout \| strategy_deleted \| strategy_archived \| guard_failed \| price_moved \| practice_reset \| account_deleted` \| null | Set only when `status = expired` |
+| `base_rev` | integer \| null | guard_change: strategy `rev` the patch was built on (applied only on exactly this rev) |
+| `decision` | `approve \| reject` \| null | Set once decided (null for expired) |
+| `reject_reason` | `ApprovalRejectReason` \| null | Only when rejected (default `user_declined`) |
+| `decided_via` | `web \| mobile \| desktop \| mcp \| push` \| null | Channel from the JWT claim |
+| `decided_by` | uuid \| null | Deciding user |
+| `payload` | object | Kind-specific detail (guard_change: `{patch, weakened_fields, guard_change_id, ...}`; buy_pick: pick summary) |
+| `created_at` | ISO ts | Created (ms precision, `Z`) |
+| `expires_at` | ISO ts | Server-owned deadline (guard_change: created + 24 h) |
+| `decided_at` | ISO ts \| null | When approved/rejected/expired |
+
+`GET /{id}` adds `decision_token`, `decision_token_expires_at` (with trade scope) and `server_now`.
 
 ```http
 POST /v1/workspaces/1000.../approvals/3000.../decision
@@ -321,7 +363,16 @@ no secrets, Real SOL never actionable from a push).
 `GET /healthz`, `GET /readyz` -> `{mode: "practice", real_enabled: false, modes_enabled: ["practice"], live_executor: "disabled", contracts_version: "1.1.3", server_now}`.
 (The `TRADING_MODE=paper` env gate and the `papersim` crate keep their internal names; nothing on the wire says `paper`.)
 
-## 5. Strategy settings (v1.1.2)
+## 5. Strategy settings (v1.1.2; 1.1.4 adds `time_stop_s`, `stall_exit`)
+
+**1.1.4 time-based exits** (both sell the whole position; absent or `null` = off; evaluated on marks by the exit
+engine, `papersim::exits`; `time_stop_s` wins if both are due on the same mark):
+- `time_stop_s`: integer seconds 1-604800; sell once the position has been held that long -> `exit_reason: max_hold`
+  (the existing reason, v1.0 `time_out`).
+- `stall_exit: {window_s, min_move_pct}`: `window_s` integer 5-86400, `min_move_pct` 0.01-100, both required, no
+  other keys. Sell when |last price / price in force at the window start - 1| x 100 < `min_move_pct`; never before
+  a full `window_s` since entry -> `exit_reason: stall` (new in 1.1.4; not the v1.0 `stall`, which is `no_new_high`).
+Invalid values -> `422 VALIDATION_FAILED` (SQL `strategy_settings_valid`, CHECK violation).
 JSON Schema: `services/backend/config/strategy_settings.schema.json`, generated together with the SQL CHECK
 `strategy_settings_valid()` by `services/backend/scripts/gen_settings.py` (single source). All keys snake_case;
 `bankroll_lamports` / `ticket_lamports` are lamport strings; every percentage/ratio/threshold is a JSON number.

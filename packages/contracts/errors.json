@@ -416,8 +416,8 @@
       "sqlstate": "P0429",
       "retryable": true,
       "messages": {
-        "en": "Practice reset allowed once per 24 h; see details.next_allowed_at",
-        "id": "Reset practice hanya sekali per 24 jam; lihat details.next_allowed_at"
+        "en": "Practice reset allowed once per 24 h; see error.next_allowed_at",
+        "id": "Reset practice hanya sekali per 24 jam; lihat error.next_allowed_at"
       }
     },
     {

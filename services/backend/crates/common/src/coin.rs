@@ -88,6 +88,10 @@ pub struct CoinSnapshot {
     /// Token program that owns the mint.
     #[serde(default)]
     pub token_program: Option<String>,
+    /// Market cap from curve/pool state ([`crate::mcap`]); `None` when decimals or supply are unknown.
+    /// When it carries a USD value, `metrics.mcap_usd` is that same value.
+    #[serde(default)]
+    pub market_cap: Option<crate::MarketCap>,
 }
 
 #[cfg(test)]

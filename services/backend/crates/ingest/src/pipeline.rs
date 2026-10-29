@@ -41,6 +41,33 @@ pub struct Pipeline {
     pub stats: Stats,
     /// Display-only mark prices to the API's SSE (`include=marks`) via Postgres NOTIFY. `None` = off.
     pub marks: Option<MarkSink>,
+    /// SOL/USD reference for the indicative `mcap_usd` (same `MARKS_SOL_USD` the marks use). `None` = no USD.
+    pub sol_usd: Option<f64>,
+}
+
+/// `market_cap_lamports` (integer string), `mcap_usd` (decimal string, display-only, = the screener's
+/// `mcap_usd` metric) and `mcap_as_of`, merged into coin.detected / screener.scored / pick.created.
+pub fn mcap_fields(
+    mc: Option<&common::MarketCap>,
+    mcap_usd: Option<f64>,
+    observed_at: common::TsMs,
+) -> serde_json::Value {
+    let usd = mcap_usd.filter(|v| v.is_finite() && *v >= 0.0);
+    let as_of = mc.map(|m| m.as_of).or(usd.map(|_| observed_at));
+    json!({
+        "market_cap_lamports": mc.map(|m| m.lamports.to_string()),
+        "mcap_usd": usd.map(|v| crate::marks::decimal(v, 2)),
+        "mcap_as_of": as_of.map(crate::marks::rfc3339_ms),
+    })
+}
+
+fn merge(mut a: serde_json::Value, b: &serde_json::Value) -> serde_json::Value {
+    if let (Some(a), Some(b)) = (a.as_object_mut(), b.as_object()) {
+        for (k, v) in b {
+            a.insert(k.clone(), v.clone());
+        }
+    }
+    a
 }
 
 /// Throttled mark builder + publisher. Publish failures are counted and logged, never fatal.
@@ -135,19 +162,35 @@ impl Pipeline {
     async fn on_new_coin(&mut self, c: NewCoin) -> Result<(), PipelineError> {
         self.stats.seen += 1;
         let ck = CoinKey::derive(&self.strategy_id, &c.mint);
+        // One market-cap computation feeds both the screener metric and the wire fields.
+        let market_cap = c.pool.as_ref().and_then(|p| {
+            common::market_cap(
+                p.mid_price(),
+                c.total_supply,
+                c.decimals,
+                self.sol_usd,
+                c.ts,
+            )
+        });
+        let mut metrics = c.metrics.clone().unwrap_or_default();
+        if let Some(usd) = market_cap.and_then(|m| m.usd) {
+            metrics.mcap_usd = Some(usd);
+        }
+        let mcap = mcap_fields(market_cap.as_ref(), metrics.mcap_usd, c.ts);
         let snap = CoinSnapshot {
             mint: c.mint.clone(),
             venue: c.venue,
             launchpad: c.launchpad,
             creator: c.creator.clone(),
             observed_at: c.ts,
-            metrics: c.metrics.clone().unwrap_or_default(),
+            metrics,
             name: c.name.clone(),
             symbol: c.symbol.clone(),
             uri: c.uri.clone(),
             quote_mint: c.quote_mint.clone(),
             decimals: c.decimals,
             token_program: c.token_program.clone(),
+            market_cap,
         };
         self.repo.upsert_coin(&snap).await?;
         let found = self
@@ -157,7 +200,7 @@ impl Pipeline {
                 c.ts,
                 EventKind::CoinDetected,
                 Actor::Ingest,
-                json!({ "mint": c.mint.to_string(), "venue": c.venue, "launchpad": c.launchpad, "creator": c.creator.as_ref().map(|m| m.to_string()), "quote_mint": c.quote_mint, "decimals": c.decimals, "token_program": c.token_program }),
+                merge(json!({ "mint": c.mint.to_string(), "venue": c.venue, "launchpad": c.launchpad, "creator": c.creator.as_ref().map(|m| m.to_string()), "quote_mint": c.quote_mint, "decimals": c.decimals, "token_program": c.token_program }), &mcap),
             )
             .with_untrusted_symbol(&c.name, &c.symbol);
         self.repo.append_event(&found).await?;
@@ -172,6 +215,7 @@ impl Pipeline {
             score_threshold: None,
             checks: json!([]),
             guard: json!(null),
+            market_cap,
             updated_at: c.ts,
         };
 
@@ -195,7 +239,7 @@ impl Pipeline {
                 c.ts + 1,
                 EventKind::ScreenerScored,
                 Actor::Screener,
-                json!({ "mint": c.mint.to_string(), "passed": false, "tradeable": sr.tradeable, "skip_reason": sr.skip_reason, "quote_mint": sr.quote_mint, "summary": sr.summary(), "rejected_by": rejected_by, "failed": failed, "result": sr }),
+                merge(json!({ "mint": c.mint.to_string(), "passed": false, "tradeable": sr.tradeable, "skip_reason": sr.skip_reason, "quote_mint": sr.quote_mint, "summary": sr.summary(), "rejected_by": rejected_by, "failed": failed, "result": sr }), &mcap),
             );
             self.repo.append_event(&e).await?;
             tracing::debug!(mint = %c.mint, summary = %sr.summary(), "rejected");
@@ -243,7 +287,7 @@ impl Pipeline {
             c.ts + 2,
             EventKind::PickCreated,
             Actor::Screener,
-            json!({ "mint": c.mint.to_string(), "summary": sr.summary(), "score": sr, "guard_verdict": report.verdict, "guard_reasons": report.reasons }),
+            merge(json!({ "mint": c.mint.to_string(), "summary": sr.summary(), "score": sr, "guard_verdict": report.verdict, "guard_reasons": report.reasons }), &mcap),
         );
         self.repo.append_event(&e).await?;
 
@@ -385,6 +429,7 @@ pub(crate) mod tests {
             practice_epoch: 0,
             stats: Stats::default(),
             marks: None,
+            sol_usd: None,
         };
         let (tx, mut rx) = mpsc::channel(64);
         let (_stx, srx) = watch::channel(false);
@@ -445,6 +490,7 @@ pub(crate) mod tests {
             practice_epoch: 0,
             stats: Stats::default(),
             marks: None,
+            sol_usd: None,
         }
     }
 
@@ -588,6 +634,86 @@ pub(crate) mod tests {
             d[0]["payload"]["token_program"],
             "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         );
+    }
+
+    #[tokio::test]
+    async fn market_cap_fields_match_the_screener_mcap_metric() {
+        // Fixture coin: pool 85 SOL / 2e8 tokens, 6 decimals. Supply 1e9 whole tokens -> 425 SOL.
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        p.sol_usd = Some(500.0); // 425 SOL x 500 = 212,500 USD: inside the screener's 60k..3M band
+        let mut c = passing_coin();
+        c.total_supply = Some(1_000_000_000_000_000);
+        p.process(IngestEvent::NewCoin(Box::new(c)))
+            .await
+            .expect("process");
+        let want = common::market_cap(
+            85.0 / 200_000_000.0,
+            Some(1_000_000_000_000_000),
+            Some(6),
+            Some(500.0),
+            0,
+        )
+        .expect("mcap");
+        assert_eq!(want.lamports, 425_000_000_000);
+        for kind in ["coin.detected", "pick.created"] {
+            let e = events_of(&repo, kind).await;
+            let pl = &e[0]["payload"];
+            assert_eq!(pl["market_cap_lamports"], "425000000000", "{kind}");
+            assert_eq!(pl["mcap_usd"], "212500", "{kind}");
+            assert_eq!(pl["mcap_as_of"], "2025-10-29T01:06:40.000Z", "{kind}");
+        }
+        // the screener measured the same value (fixture said 350000; the computed value wins)
+        let pick = &events_of(&repo, "pick.created").await[0]["payload"]["score"]["checks"];
+        let m = pick
+            .as_array()
+            .expect("checks")
+            .iter()
+            .find(|c| c["id"] == "mcap")
+            .expect("mcap check");
+        assert_eq!(m["measured"], 212_500.0);
+
+        // too small once computed: the screener rejects on the computed mcap, and says so
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        p.sol_usd = Some(50.0); // 21,250 USD < 60k
+        let mut c = passing_coin();
+        c.total_supply = Some(1_000_000_000_000_000);
+        p.process(IngestEvent::NewCoin(Box::new(c)))
+            .await
+            .expect("process");
+        let s = events_of(&repo, "screener.scored").await;
+        assert_eq!(s[0]["payload"]["passed"], false);
+        assert_eq!(s[0]["payload"]["mcap_usd"], "21250");
+        assert_eq!(s[0]["payload"]["market_cap_lamports"], "425000000000");
+    }
+
+    #[tokio::test]
+    async fn market_cap_is_null_when_supply_or_decimals_unknown() {
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        p.sol_usd = Some(500.0);
+        let mut c = passing_coin();
+        c.total_supply = None; // unread supply: no lamports; USD stays the source's metric
+        p.process(IngestEvent::NewCoin(Box::new(c)))
+            .await
+            .expect("process");
+        let d = &events_of(&repo, "coin.detected").await[0]["payload"];
+        assert_eq!(d["market_cap_lamports"], serde_json::Value::Null);
+        assert_eq!(d["mcap_usd"], "350000");
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        let mut c = passing_coin();
+        c.total_supply = Some(1);
+        c.decimals = None;
+        c.metrics = None;
+        p.process(IngestEvent::NewCoin(Box::new(c)))
+            .await
+            .expect("process");
+        let d = &events_of(&repo, "coin.detected").await[0]["payload"];
+        assert_eq!(d["market_cap_lamports"], serde_json::Value::Null);
+        assert_eq!(d["mcap_usd"], serde_json::Value::Null);
+        assert_eq!(d["mcap_as_of"], serde_json::Value::Null);
     }
 
     #[tokio::test]

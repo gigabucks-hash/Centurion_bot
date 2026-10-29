@@ -1,4 +1,4 @@
-// Sentra stream contract v1.1.3 (snake_case everywhere). Mirrors services/backend/crates/common/src/event.rs,
+// Sentra stream contract v1.1.4 (snake_case everywhere). Mirrors services/backend/crates/common/src/event.rs,
 // the SQL wire functions (position_wire, order_wire, fill_wire) and EVENTS_SCHEMA.md.
 // Number rule: SOL amounts = lamport integer strings, raw token amounts = integer strings, prices = decimal
 // strings, int64 ids (seq, job_id) = integer strings; percentages, ratios, bps, USD notionals, scores,
@@ -7,7 +7,7 @@ import type { ErrorCode } from "./errors";
 import type { Base58, DecimalString, Int64String, IsoTs, Lamports, RawQty, Uuid } from "./units";
 
 export const EVENT_SCHEMA_VERSION = 1 as const;
-export const CONTRACTS_VERSION = "1.1.3" as const;
+export const CONTRACTS_VERSION = "1.1.4" as const;
 
 /** Any JSON value (used instead of `unknown` on the wire). */
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
@@ -31,13 +31,16 @@ export type ApprovalMode = "off" | "ask_first_buy" | "ask_every_buy";
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 /** Derived server-side from the token / JWT claim; clients never send it. */
 export type DecidedVia = "web" | "mobile" | "desktop" | "mcp" | "push";
-/** sell_floor is evaluated before every other exit rule. */
+/** sell_floor is evaluated before every other exit rule. `max_hold` also covers `time_stop_s`;
+ *  `stall` (1.1.4) is `stall_exit` only (v1.0 `stall` is `no_new_high`). */
 export type ExitReason =
   | "sell_floor" | "profit_target" | "loss_guard" | "peak_trail" | "max_hold" | "idle" | "sell_pressure"
-  | "no_new_high" | "rug_detected" | "drawdown_halt" | "manual" | "strategy_retired" | "practice_reset";
+  | "no_new_high" | "rug_detected" | "drawdown_halt" | "manual" | "strategy_retired" | "practice_reset"
+  | "stall";
 export const EXIT_REASONS: readonly ExitReason[] = [
   "sell_floor", "profit_target", "loss_guard", "peak_trail", "max_hold", "idle", "sell_pressure",
   "no_new_high", "rug_detected", "drawdown_halt", "manual", "strategy_retired", "practice_reset",
+  "stall",
 ] as const;
 export type ExitPreset =
   | "momentum_trail" | "principal_recovery" | "double_out" | "three_step_ladder" | "peak_giveback"
@@ -85,6 +88,8 @@ export interface EventEnvelope<T extends string = string, P = JsonValue> {
 // ---------------------------------------------------------------------------
 /** profit_targets[] item. */
 export interface ProfitTarget { at_gain_pct: number; sell_portion_pct: number; giveback_pct?: number }
+/** 1.1.4 `stall_exit`: window_s integer 5-86400, min_move_pct 0.01-100 (both required). */
+export interface StallExit { window_s: number; min_move_pct: number }
 /** exit_rules.loss_guards[] item: sell `sell_portion_pct` once price is `at_loss_pct` below ENTRY. */
 export interface LossGuard { at_loss_pct: number; sell_portion_pct: number }
 export interface ExitRules { label?: string; profit_targets?: ProfitTarget[]; loss_guards?: LossGuard[] }
@@ -93,6 +98,12 @@ export interface ExitRules { label?: string; profit_targets?: ProfitTarget[]; lo
 export interface ExitSettings {
   exit_preset?: ExitPreset; profit_targets?: ProfitTarget[]; exit_rules?: ExitRules;
   stop_loss_pct?: number; peak_trail_pct?: number; idle_exit_seconds?: number | null;
+  /** 1.1.4. Sell the whole position after this hold time, integer seconds 1-604800; null/absent = off.
+   *  exit_reason `max_hold`. */
+  time_stop_s?: number | null;
+  /** 1.1.4. Sell the whole position when |price change| over the last `window_s` seconds is below
+   *  `min_move_pct`; never before a full window since entry. null/absent = off. exit_reason `stall`. */
+  stall_exit?: StallExit | null;
   sell_floors?: { enabled?: boolean; max_loss_pct?: number; liquidity_drop_pct?: number } | null;
 }
 
@@ -129,17 +140,44 @@ export interface ScreenerResult {
 }
 export interface GuardCheck { name: GuardCheckName | string; status: GuardCheckStatus; measured: number | null; reason: string; weight: number }
 
-export interface CoinDetected {
+/** 1.1.4 market cap, on coin.detected / screener.scored / pick.created and the REST coin and pick.
+ *  One computation (backend `common::mcap`) feeds these fields and the screener's `mcap_usd` metric,
+ *  so the column and the check agree. */
+export interface MarketCapFields {
+  /** price (SOL per whole token) x total supply / 10^decimals, from curve or pool state; integer string.
+   *  null when decimals or supply are unknown (never assumed). */
+  market_cap_lamports: Lamports | null;
+  /** Display-only, INDICATIVE: market_cap_lamports at the same configured SOL/USD reference the marks use
+   *  (not a live feed). Equals the `measured` value of the screener's mcap_usd check. When
+   *  market_cap_lamports is null it is the data source's own figure, or null. */
+  mcap_usd: DecimalString | null;
+  /** When the inputs were observed; null when both values are null. */
+  mcap_as_of: IsoTs | null;
+}
+export interface CoinDetected extends MarketCapFields {
   mint: Base58; venue: Venue; launchpad: string | null; creator: Base58 | null;
   /** From the mint account (never assumed). null only while the mint account is unreadable; such coins are not filled. */
   decimals: number | null; token_program: TokenProgram | null; quote_mint: Base58 | null;
 }
-export interface ScreenerScored {
+export interface ScreenerScored extends MarketCapFields {
   mint: Base58; passed: boolean; tradeable: boolean; skip_reason: ErrorCode | null; quote_mint: Base58 | null;
   summary: string; rejected_by: string | null; failed: string[]; result: ScreenerResult;
 }
 export interface GuardResult { mint: Base58; verdict: GuardVerdict; risk_score: number; reasons: string[]; checks: GuardCheck[] }
-export interface PickCreated { mint: Base58; summary: string; score: ScreenerResult; guard_verdict: GuardVerdict; guard_reasons: string[] }
+export interface PickCreated extends MarketCapFields { mint: Base58; summary: string; score: ScreenerResult; guard_verdict: GuardVerdict; guard_reasons: string[] }
+
+/** REST coin resource (GET .../coins, .../coins/{mint}). Token name/symbol/uri stay in `untrusted`. */
+export interface CoinWire extends MarketCapFields {
+  mint: Base58; decimals: number | null; token_program: TokenProgram | null; quote_mint: Base58 | null;
+  launchpad: string | null; venue: Venue | null; creator: Base58 | null;
+  first_seen_at: IsoTs | null; migrated_at: IsoTs | null; untrusted: Record<string, unknown>;
+}
+/** REST pick resource (GET .../picks, .../picks/{id}); market cap as of the pick. */
+export interface PickWire extends MarketCapFields {
+  id: Uuid; ck: string; workspace_id: Uuid; strategy_id: Uuid; mint: Base58; mode: "practice";
+  stage: string; score: number | null; score_threshold: number | null; checks: ScreenerCheck[];
+  guard: unknown | null; guard_verdict: GuardVerdict | null; created_at: IsoTs; updated_at: IsoTs;
+}
 
 /** POST .../guard-impact/estimate (ships first). */
 export interface StaticEstimate {
