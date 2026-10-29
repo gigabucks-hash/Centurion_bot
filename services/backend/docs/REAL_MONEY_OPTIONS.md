@@ -1,4 +1,12 @@
-# Sentra: Real-money trading options (design only)
+# Sentra: Real-money trading options (design only, rev2)
+
+rev2 (2026-10-29): folds in Apex's provider research (Page "Sentra — Real Money: Login & Wallet Options"):
+shortlist Turnkey + Privy, **Crossmint as backup** (added to §1, §2, §6, §9); market evidence from a comparable
+Solana trading bot and Axiom (§1.2); every vendor latency figure marked *vendor-claimed*; withdraw-delay check (§4.6);
+explicit "§16 is a candidate to revise if Boss picks C" list (§7.9).
+
+> **No signups, no developer accounts, no SDK installs, no API keys and no devnet spikes happen before Boss
+> approves.** Everything below comes from public docs and Apex's research only.
 
 **Status: research and design only. Nothing here is built or approved.** No SDK is installed, no code signs or
 touches keys, no private keys or key shares exist anywhere in this repo, and no transaction is ever sent. The
@@ -25,13 +33,13 @@ Contents: 0 Summary · 1 Options · 2 STRIDE · 3 Latency · 4 Policy engine · 
 |---|---|---|---|
 | Who can move funds | User only | **Us** (and anyone who breaches us) | User; our signer only inside the policy |
 | Auto-trade | No (human in the loop per tx) | Yes | Yes |
-| Signal -> finalized (est.) | ~3–30 s, dominated by the human | ~0.3–1.5 s | ~0.4–1.9 s |
+| Signal -> finalized (est.; C includes vendor-claimed signing) | ~3–30 s, dominated by the human | ~0.3–1.5 s | ~0.4–1.9 s |
 | Worst case on server breach | Nothing signable | **Total loss of all user funds** | Losses bounded by policy + trading-wallet balance (not zero: see T3) |
 | Regulatory posture | Non-custodial software | Custodian / money transmitter / CASP-like | Mostly non-custodial; depends on provider model and who holds which credential |
 | Fits TECH_DESIGN §16 | Yes (it *is* §16) | **No** (violates §16.2) | Yes, with the §16.2 delta in §7.8 |
 
 **Recommendation (details in §9): C for automated trading, with A kept as the path for manual sells, anything
-above limits, and all fund movements; B rejected.** C is accepted only with these conditions: a dedicated,
+above limits, and all fund movements; B rejected. Provider shortlist: Turnkey and Privy; Crossmint as backup.** C is accepted only with these conditions: a dedicated,
 small-balance trading wallet; buys limited to mints our own screener picked; no transfer rule at all for our signer
 (withdrawals are done by the user, not by us); our own pre-sign simulation on top of the provider policy; and a
 staged rollout (sells-only, then tiny buys).
@@ -57,16 +65,44 @@ before signing. Candidate providers and what their public docs say today:
 
 | Provider | Model (per docs) | Delegated server signing for a *user-owned* wallet | Solana policy depth (per docs) | Published signing latency |
 |---|---|---|---|---|
-| **Privy** | 2-of-2 Shamir shares, key reconstructed only transiently inside an AWS Nitro Enclave [P1][P2] | Yes: "signers" / key quorums added by the user (`addSigners`, `delegateWallet`); requests can be required to be signed by our P-256 authorization key [P3][P4] | Program allowlists/denylists, recipient allow/deny, transfer limits, time-bound signers; default DENY; evaluated in the enclave [P5] | Solana median 72.42 ms (vendor SLATE rerun, May 2026) [P6] |
-| **Turnkey** | Keys generated and used in AWS Nitro Enclaves (QuorumOS), remote attestation [T1][T2] | Yes, via policies granting an API-key user (our backend) rights on the user's wallet; non-custodial if the end user holds the root authenticator [T2] | Enclave-side Solana parser: programs, accounts, signers, top-level SOL and SPL transfers, instruction data, IDL; `solana.tx` policy fields [T3][T4][T5] | "sub-100ms signing latency" incl. ingress (vendor whitepaper) [T2] |
+| **Privy** | 2-of-2 Shamir shares, key reconstructed only transiently inside an AWS Nitro Enclave [P1][P2] | Yes: "signers" / key quorums added by the user (`addSigners`, `delegateWallet`); requests can be required to be signed by our P-256 authorization key [P3][P4] | Program allowlists/denylists, recipient allow/deny, transfer limits, time-bound signers; default DENY; evaluated in the enclave [P5] | *Vendor-claimed:* Solana median 72.42 ms (Privy SLATE rerun, May 2026) [P6] |
+| **Turnkey** | Keys generated and used in AWS Nitro Enclaves (QuorumOS), remote attestation [T1][T2] | Yes, via policies granting an API-key user (our backend) rights on the user's wallet; non-custodial if the end user holds the root authenticator [T2] | Enclave-side Solana parser: programs, accounts, signers, top-level SOL and SPL transfers, instruction data, IDL; `solana.tx` policy fields [T3][T4][T5] | *Vendor-claimed:* "sub-100ms" incl. ingress (whitepaper) [T2]; 50–100 ms on the vendor site (per Apex, not re-checked) [A1] |
 | **Dynamic** | TSS-MPC; policies evaluated in a TEE [D2] | "Delegated access": **our server receives and stores an encrypted MPC key share** plus a per-wallet API key; Enterprise plan for production [D1] | Address, program, mint and token-account rules; resolves token accounts to owners; simulation before signing; policies are early access [D2] | Not found in public docs |
 | **Para** | MPC | Guardrails cover **app-owned** wallets (REST / unclaimed pregenerated). For a user-owned wallet, server signing goes through user "Requests"/review links, not unattended [R1] | deny / require_approval rules, windowed spend limits; rules skipped on decode gaps in some cases [R1] | Not found in public docs |
+| **Crossmint** (backup) | Smart wallet; custody is decided by the signer configuration: device/passkey signer + user email/phone recovery = non-custodial; **server signer + user recovery = "Hybrid: organization signs"** [C1][C2] | Yes: operational ("delegated") signers added to an existing wallet, approved by the wallet's recovery signer; revocable; signer-level `expiresAt` [C3][C4] | Scopes of type **`transfer` only**: per-token spending limit (optional interval), recipient whitelist, expiry; checked before broadcast and enforced on-chain by a policy contract [C3]. **No program/instruction allowlist found in public docs**, so "swap-only" cannot be expressed in scopes as documented | Not found in public docs |
 | **Phantom (Connect embedded / Server SDK)** | Embedded wallet via Google/Apple sign-in [H2] | Embedded user wallets: only `signAndSendTransaction`, no `signTransaction`, from the client [H2]. The Server SDK signs **app-owned** wallets, is marked experimental and gated by partnership [H1] | Phantom simulation blocks known-malicious transactions [H2]; no developer policy engine found | Not found |
 
 Reading of the table (our analysis, not vendor claims): Privy and Turnkey are the only two whose public docs show
-unattended, policy-bound signing on a wallet the *user* owns, without us storing a key share. Dynamic's delegated
+unattended, policy-bound signing on a wallet the *user* owns, without us storing a key share, **and** with
+program-level Solana policies. Crossmint can do unattended signing on a user-recoverable wallet, but (a) Crossmint's own
+docs classify a server operational signer as *hybrid* custody, (b) its documented scopes limit transfers, not which
+programs a swap may call, so our §4.3 checks would carry the whole swap restriction, and (c) a `server` signer is a
+secret held in our infrastructure (a Cloud KMS signer with a non-extractable key is the documented alternative [C2]),
+which needs the §16.2 wording in §7.8. Dynamic's delegated
 access puts a key share on our servers (custody-adjacent; conflicts with the spirit of §16.2). Para's and Phantom's
 server-side signing is for app-owned wallets, which is option B under another name.
+
+### 1.1 Apex's provider input (from Apex's research Page [A1]; not re-verified unless cited)
+
+| | Turnkey | Privy | Crossmint (backup) |
+|---|---|---|---|
+| Why shortlisted | TEE policy engine with in-enclave Solana parsing [T3][T4] | Native Telegram login (incl. Flutter, Mini App) [A1] | Swap-restricted trading key pattern reportedly used by a comparable Solana trading bot [A1] |
+| Signing latency | *Vendor-claimed* ~50–100 ms (vendor site [A1]) / "sub-100ms" (whitepaper [T2]) | *Vendor-claimed* Solana median 72.42 ms [P6] | Not published |
+| SDKs (per Apex) | Rust crate, Flutter SDK [A1] | Flutter SDK; Rust SDK **alpha** (`privy-rs` 0.1.0-alpha) [A1] | Flutter, Web; REST for server [A1] |
+| Pricing (per Apex, rough) | Per signature (PAYG / Pro + per-sig) [A1]: cost scales with trade count | Per MAU tiers [A1] | Per monthly active wallet [A1] |
+| Concerns | Telegram login only via Mini App pattern [A1] | Rust SDK alpha; OAuth account = wallet access, so MFA mandatory [A1] | Hybrid custody classification; transfer-only scopes (above) |
+
+### 1.2 Market evidence (reported, not verified by us)
+- **Axiom** (a public Solana trading terminal) is reported to use Turnkey for embedded non-custodial trading wallets
+  [A1]. Reported only; we did not verify Axiom's integration.
+- **A comparable Solana trading bot** is reported (via its published terms, per Apex) to use Crossmint wallets where
+  the user holds recovery, the bot holds a **trading key limited to swaps**, withdrawals need user approval, and **new
+  withdraw addresses wait 2 days** [A1]. We could not confirm from Crossmint's public docs how "swap-only" is enforced
+  (the documented scopes are transfer-only [C3]); it may be enforced by the bot's own backend, which is exactly our
+  §4.3 layer.
+- What this supports: the shape of our design (user-owned wallet, restricted engine key, no engine withdrawals,
+  delayed new addresses) is already in production use by comparable products. It does not prove any specific
+  provider's policy is sufficient on its own.
 
 ---
 
@@ -116,9 +152,19 @@ Top issue: no mitigation bounds the loss to less than everything we hold. Reject
 | E | Provider policy misses CPI-level transfers (e.g. Turnkey lists only *top-level* SOL/SPL transfers [T4]) | Our simulation checks *all* balance deltas, not just top-level instructions; deny unknown programs |
 | E | TEE vulnerability / vendor insider | Bounded by trading-wallet balance; keep main funds in a separate wallet the signer has no grant on |
 
+**Crossmint-specific rows (if the backup is used):**
+
+| STRIDE | Threat | Mitigation |
+|---|---|---|
+| S/E | Our `server` operational-signer secret leaks: it is a signing secret in our infra, not a provider-held share [C2] | Use the Cloud KMS signer type (non-extractable key) instead of a raw secret [C2]; `expiresAt` short [C3]; revoke via remove-signer [C4] |
+| T | Scopes are transfer-only [C3]: an allowed signer can call **any program** unless our backend stops it | §4.3 program/instruction allowlist and simulation become the *only* swap restriction; treat as a weaker floor than Turnkey/Privy |
+| T | Transfer scope with no `recipients` allows **any recipient** [C3] | Always set `recipients` to the wallet itself / ATAs only; SOL spending limit per interval; never register a scope-less signer (scope-less = unrestricted [C3]) |
+| E | Whoever controls the **recovery method** can authorize transactions and add/remove signers [C2] | Recovery must be the user's (passkey or email/phone with MFA), never our server; otherwise the wallet is hybrid/custodial by Crossmint's own definition |
+| D | Spending-limit windows are enforced at slot level and drift [C3] (the doc still assumes ~400 ms slots; slots are 200 ms now [S1]) | Our own rolling counters (`real_limit_usage`) are authoritative; provider limit is a backstop |
+
 ### 2.4 Top threats (ranked across the chosen design, C + A fallback)
 
-1. **T1: Stolen signer credential** used to sign within policy. Bound: per-trade/daily caps, mint/route allowlist,
+1. **T1: Stolen signer credential** (Turnkey/Privy authorization key, or Crossmint server-signer secret) used to sign within policy. Bound: per-trade/daily caps, mint/route allowlist,
    trading-wallet balance cap, auto-trip on anomaly, instant provider-side revocation.
 2. **T2: Value extraction through "allowed" trades** (buying attacker-controlled or illiquid tokens, self-sandwich,
    inflated priority fees or Jito tips). Bound: screener-pick mint binding, independent min-out, fee and tip caps,
@@ -146,15 +192,15 @@ proposed (an expectation, not a constant) [S2]; blockhash validity is still 150 
 | Tx build | 5–300 ms (est.) | same | same | Direct pump.fun/PumpSwap build from cached curve state is local (est. <5 ms); Jupiter/Raydium routing adds an API round trip (est. 50–300 ms) |
 | Pre-sign checks + simulation | 50–200 ms (est.) | same | same | One `simulateTransaction` RPC round trip (est.); can run in parallel with provider enclave warm-up in C |
 | Push to user + human review + sign | **2–20 s+ (est.)** | — | — | Human time; user may be away (then: never). Must finish inside the ~30 s blockhash window [S1] |
-| Sign | wallet-local | <1 ms (est., local ed25519) | **~70–400 ms** | Privy Solana median 72.42 ms [P6]; Turnkey "sub-100ms" [T2]; a third-party comparison [X1] reported Turnkey sign-tx median ~348 ms vs Privy ~245 ms (indicative only; reproducible probes exist at [T6]) (region and date dependent). Dynamic/Para: no public figure |
+| Sign | wallet-local | <1 ms (est., local ed25519) | **~70–400 ms** | All *vendor-claimed* unless noted: Privy Solana median 72.42 ms [P6]; Turnkey "sub-100ms" [T2] / ~50–100 ms [A1]; *reported (third party)* Turnkey sign-tx median ~348 ms vs Privy ~245 ms [X1] (indicative only; reproducible probes at [T6]; region and date dependent). Crossmint, Dynamic, Para: no public figure |
 | Send (to block engine / sender) | 10–100 ms (est.) | same | same | One network hop to a regional Jito block engine [J1] or Helius Sender [J3]; co-locate region |
 | Landed (included in a block) | 1–5 slots = 200–1000 ms (est.) | same | same | 200 ms slots [S1]; Jito bundles only land on Jito-Solana leaders and need a competitive tip (min 1,000 lamports) [J1][J2] |
 | Finalized | ~150 ms after the block (expectation) | same | same | Alpenglow [S2] |
 | **Total, signal -> finalized** | **~3–30 s (est.)** | **~0.3–1.5 s (est.)** | **~0.4–1.9 s (est.)** | Sum of the above; human dominates A; C adds roughly one provider round trip over B |
 
 Notes:
-- C's extra cost over B is about one provider round trip (vendor medians 72–350 ms). For memecoin entries this
-  matters; for exits on a 15 s+ hold it usually does not. Vendor-integrated "quote+sign+send" APIs (Privy reports
+- C's extra cost over B is about one provider round trip (vendor-claimed / reported medians 72–350 ms; none measured by us). For memecoin entries this
+  matters; for exits on a 15 s+ hold it usually does not. Vendor-integrated "quote+sign+send" APIs (Privy claims, *vendor-claimed*,
   ~190 ms end-to-end for its Solana swap API [P6]) are faster but move route building outside our pre-sign checks;
   **we do not use them** unless the provider policy alone can enforce our §4 rules.
 - `skipPreflight`-style fast paths (Jito `sendTransaction` always skips preflight [J1]; Privy `optimistic_broadcast`
@@ -237,6 +283,11 @@ Same checks 1–9 run when *preparing* the unsigned tx; the user's wallet signs;
   passkey + TOTP + typed address suffix + **48 h delay** before it becomes usable, notifications on all channels,
   cancellable during the delay. Every withdrawal of Boss's funds additionally requires Boss's explicit
   re-confirmation at the time of withdrawal.
+- **Does 48 h match the comparable bot's 2-day delay?** Yes: 2 days = 48 h, so our default matches the reported pattern
+  [A1]. We keep 48 h as the **minimum** (configurable longer, never shorter); a shorter window such as the 2 h some
+  bots used after incidents [A1] is too short for a user to notice an account takeover. The delay applies only to
+  *adding* an address; withdrawals to an already-active own address still need passkey + TOTP (and Boss's
+  re-confirmation for Boss's funds).
 
 ---
 
@@ -278,6 +329,7 @@ Scopes (all must be "on" to trade; checked before build and again immediately be
 | Provider exit / lock-in | N/A | N/A | Export-to-self-custody path documented and tested on devnet before launch; policy-as-data lets us re-create policy at another provider |
 | Account deletion (§9 TECH_DESIGN) | Unlink wallet; nothing to destroy | Must return funds first | Blocked while real positions or balance > dust (`ACCOUNT_DELETION_BLOCKED`); revoke signer; user exports or withdraws; then normal 7–30 day grace |
 | Signer rotation | N/A | Key rotation = fund move | Rotate our authorization key in KMS and re-register the key quorum; old one revoked; no fund move |
+| Crossmint (backup) | — | — | Recovery = user's passkey or email/phone OTP (must stay user-controlled [C2]); signer rotation = remove + re-add operational signer, approved by the user's recovery method [C3][C4] |
 
 ---
 
@@ -334,13 +386,34 @@ Per-step latency histograms (§3 rows), land rate by path, tip/fee spend, presig
 - §16.2: keep "the server never holds, derives, receives or stores private keys **or key shares**"; add: "in the
   delegated mode the server may hold one provider *authorization* credential (KMS-resident, sign-only), whose
   powers are bounded by a provider policy and §4; it cannot export keys, change owners or transfer to foreign
-  addresses." This rules out Dynamic-style delegated shares and option B.
+  addresses." This rules out Dynamic-style delegated shares and option B. For the Crossmint backup the credential
+  must be a Cloud KMS signer (non-extractable), not a raw `server` secret.
 - §16.3: generalise from sells to orders; add `presign_check_id`; add the delegated sign path.
 - §16.4: align hold to **2,500 ms** (contracts §4.6 already says 2,500; §16.4 says 2 s). Delegated auto-trades
   don't prompt per trade; the four-factor confirmation applies to granting the signer, activating/loosening policy,
   adding withdraw addresses, clearing kill switches, and every manual (A) sell.
 - §16.5: limits become policy-as-data (§4.5); loosen after 24 h and auto-revert.
 - New §16.8 Kill switch (§5), §16.9 Withdrawals (§4.6), §16.10 Provider choice and exit plan.
+
+### 7.9 TECH_DESIGN §16 is a CANDIDATE TO REVISE if Boss picks C
+**§16 today describes option A** (user-signed, sells only). It stays valid as written until Boss decides. If Boss
+picks C, these exact changes go into §16 in a separate, reviewed commit (not in this one):
+1. §16 title/intro: "Real SOL sell RPC" -> "Real SOL execution"; two signing paths: delegated (C) for engine orders
+   within limits, user-signed (A) for manual sells, over-limit orders and provider outages.
+2. §16.1 gating: add a 4th gate, an active, unexpired signer grant whose provider policy hash matches `real_policies`.
+3. §16.2 "who signs": replace "never the server" with the §7.8 wording (no wallet keys or key shares on our side; one
+   KMS-resident, sign-only provider authorization credential bounded by provider policy + §4.3).
+4. §16.2 wallet binding: add the embedded trading wallet (`real_wallets`, role `trading`), separate from SIWS login
+   wallets (keeps the existing `WALLET_ROLE_CONFLICT` rule).
+5. §16.3 RPC shape: generalise prepare/submit from sells to `real_orders`; add `presign_check_id`; add the delegated
+   sign step and the error codes in §7.3.
+6. §16.4 confirmation: hold 2 s -> **2,500 ms** (match contracts §4.6); four factors move from "every real sell" to
+   "every manual sell + grant signer + activate/loosen policy + add withdraw address + clear kill switch".
+7. §16.5 limits: become policy-as-data (§4.5); buys allowed only in rollout stage 2+, screener-pick mints only.
+8. §16.6 audit: add presign verdicts, provider activity IDs, policy hash syncs, signer grant/revoke.
+9. §16.7 before any code: add provider security review, Boss's provider choice, and the legal opinion (§8).
+10. New §16.8 kill switch, §16.9 withdrawals (48 h minimum new-address delay, Boss re-confirmation), §16.10 provider
+    choice, lock-in and exit-to-self-custody plan.
 
 ---
 
@@ -365,9 +438,13 @@ Per-step latency histograms (§3 rows), land rate by path, tip/fee spend, presig
 ## 9. Recommendation
 
 **Choose C (delegated, policy-bound signer on a user-owned embedded wallet) for automated trading, keep A as the
-fallback and for anything outside limits, reject B.** Shortlist **Privy** and **Turnkey** (both document unattended
-signing on user-owned wallets, TEE enforcement and Solana transaction policies, and publish latency) and decide by a
-devnet bake-off on our own §3 bench. Drop Dynamic (our servers would store a key share; conflicts with §16.2), Para
+fallback and for anything outside limits, reject B.** Shortlist **Turnkey** and **Privy** (agreeing with Apex [A1]:
+both document unattended signing on user-owned wallets, TEE enforcement and Solana transaction policies, and publish
+vendor-claimed latency) and, **only after Boss approves signups**, decide by a devnet bake-off on our own §3 bench.
+Tie-breakers: Telegram login required -> Privy; Rust-native backend and in-enclave Solana parsing -> Turnkey; cost
+model (Turnkey per signature grows with trade count; Privy per MAU) [A1]. **Crossmint is the backup**: workable for
+the comparable bot's pattern, but its documented scopes are transfer-only and a server signer is "hybrid" custody by
+Crossmint's own definition [C2][C3], so it leans harder on our §4.3 checks. Not shortlisted: Dynamic (our servers would store a key share; conflicts with §16.2), Para
 (server Guardrails are for app-owned wallets) and Phantom embedded (no delegated user-wallet signing found; Server SDK
 is app-owned and experimental) for the trading signer. Phantom/Solflare stay first-class as option-A wallets.
 
@@ -393,14 +470,17 @@ Where we challenge C (and what we add because of it):
 
 ## 10. Open questions for Boss
 
-1. **Provider:** OK to bake off Privy vs Turnkey on devnet? Any preference, or an existing account/relationship?
-2. **Budget:** provider plan (both have paid tiers; Dynamic's delegated access is Enterprise-only [D1]), Jito tips and
+1. **Provider:** OK to create developer accounts at Turnkey and Privy (nothing is signed up until you say so) and
+   bake them off on devnet, with Crossmint as backup? Any preference or existing relationship? Is Telegram login a
+   must-have (favours Privy)?
+2. **Budget:** per-signature (Turnkey) vs per-MAU (Privy) vs per-wallet (Crossmint) pricing ( Dynamic's delegated access is Enterprise-only [D1]), Jito tips and
    priority fees, a dedicated RPC/sender, and an external security review before mainnet.
 3. **Jurisdiction / scope:** Boss-only with Boss's own funds, or ever other users? Which country's law applies? OK to
    get a lawyer's view before Stage 2?
 4. **Limits:** per-trade cap, daily cap, max open positions, trading-wallet maximum balance, max slippage bps, max tip.
 5. **Auto-trip thresholds:** loss velocity (% in 15 min / 24 h), failed-tx count, and whether a trip halts exits too.
-6. **Withdrawals:** the list of Boss's own withdraw addresses, the delay (proposed 48 h), and confirmation that every
+6. **Withdrawals:** the list of Boss's own withdraw addresses, the delay (proposed 48 h minimum, matching the
+   comparable bot's reported 2 days), and confirmation that every
    withdrawal needs Boss's explicit re-confirmation at the time.
 7. **Rollout:** agree to the 4 stages, sells-only first, and who signs off each stage (Boss alone, or Boss + Apex).
 8. **Option A wallets:** which of Phantom / Solflare / Backpack / hardware Boss actually uses, for the manual path.
@@ -432,6 +512,13 @@ Where we challenge C (and what we add because of it):
 - [R1] Para guardrails for server-side wallets: https://docs.getpara.com/v3/server/guides/permissions
 - [H1] Phantom Server SDK (experimental, partnership access): https://github.com/phantom/phantom-connect-sdk/blob/main/packages/server-sdk/README.md
 - [H2] Phantom Browser SDK, sign and send (embedded: signAndSendTransaction only; simulation): https://docs.phantom.com/sdks/browser-sdk/sign-and-send-transaction
+- [C1] Crossmint custody models: https://docs.crossmint.com/wallets/concepts/custody-models
+- [C2] Crossmint signers (server, Cloud KMS, device, recovery): https://docs.crossmint.com/wallets/concepts/signers
+- [C3] Crossmint signer scopes (transfer-only scopes, recipients, spending limit, `expiresAt`): https://docs.crossmint.com/wallets/guides/signers/scopes
+- [C4] Crossmint register delegated (operational) signer API: https://docs.crossmint.com/api-reference/wallets/register-delegated-key
+- [A1] Apex Dev Lead, research Page "Sentra — Real Money: Login & Wallet Options" (2026-10-29), and the sources it
+  links (vendor pricing/SDK pages, Axiom, a comparable Solana trading bot's published terms). Claims marked "per
+  Apex" or "reported" were not re-verified by Backend: https://cursor.com/canvas/store-5126697f-8ba1-4316-99b4-f1165b73c1fb/b6afde9c-17d6-4723-a46d-bfd107b8ca57
 - [L1] FinCEN FIN-2019-G001: https://www.fincen.gov/system/files/2019-05/FinCEN%20Guidance%20CVC%20FINAL%20508.pdf
 - [L2] MiCA Article 3 definitions (ESMA): https://www.esma.europa.eu/publications-and-data/interactive-single-rulebook/mica/article-3-definitions
 - [L3] MiCA Regulation (EU) 2023/1114: https://eur-lex.europa.eu/eli/reg/2023/1114/oj/eng
