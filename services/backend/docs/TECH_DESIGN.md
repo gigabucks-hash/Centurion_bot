@@ -99,12 +99,12 @@ under the frozen plan.
   `approvals_guard` trigger **only rejects illegal transitions**; the worker drives them.
 - Decide: `decide_approval()` (security definer) checks the token (sha256, single use, TTL <=
   expires_at), then the MCP/app rule, role, replay (same token or same Idempotency-Key with the same
-  decision), key reuse, already decided, expired, `expected_rev` vs `version`, and `base_rev` vs
+  decision), key reuse, already decided, expired, `expected_rev` vs `rev`, and `base_rev` vs
   strategy `rev`. It then applies the decision, emits `proposal.approved|rejected`, writes `audit_log`
   and burns the token.
 - Expire: the sweeper runs `expire_due_proposals()` every 2 s. `retire_strategy(id, archive|delete)` locks
   the strategy and expires everything pending in the same transaction (`proposal.expired {proposal_id,
-  kind, version, reason, at}`), plus the strategy event and audit row.
+  kind, rev, reason, at}`), plus the strategy event and audit row.
 
 ## 7. Guard change and replay; the < 2 s answer
 - A settings PATCH is diffed per field against the "weakening" direction table (e.g. raising
@@ -190,7 +190,7 @@ actionable from a push.
 `tracing` JSON logs with `request_id`, `ck`, `workspace_id`. Metrics (OpenTelemetry/Prometheus):
 ingest lag, events/s, screener pass rate, guard verdict mix, fill latency, queue depth, sweeper lag,
 outbox lag (`max(seq) - cursor`), replay `compute_ms` p50/p95, and 409 rates by code. Health
-`/healthz` and `/readyz` (DB, sources, `trading_mode`). Alerts: outbox lag over 10 s, sweeper lag over
+`/healthz` and `/readyz` (DB, sources, `mode: "practice"`, `real_enabled: false`). Alerts: outbox lag over 10 s, sweeper lag over
 10 s, ingest silence over 60 s.
 
 ## 12. Testing
