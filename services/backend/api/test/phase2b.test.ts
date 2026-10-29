@@ -91,28 +91,68 @@ describe("strategies CRUD with rev", () => {
     err(await call(h.base, "PATCH", path(`/${id}`), { token: viewer(), headers: { "idempotency-key": key(), "if-match": `"${rev}"` }, body: { name: "v" } }), 403, "FORBIDDEN_ROLE");
   });
 
-  test("guard weakening is refused (409 GUARD_WEAKEN_REQUIRES_APPROVAL); strengthening applies; mixed is refused", async () => {
-    const patch = (body: object) =>
-      call(h.base, "PATCH", path(`/${id}`), { token: owner(), headers: { "idempotency-key": key(), "if-match": `"${rev}"` }, body });
-    const weak = await patch({ settings_patch: { guard_checks: { allow_mint_authority: true } } });
-    err(weak, 409, "GUARD_WEAKEN_REQUIRES_APPROVAL");
-    assert.deepEqual(weak.body.error.weakened_fields, ["allow_mint_authority"]);
-    assert.equal(weak.body.error.rev, rev);
+  test("guard weakening -> 202 proposal (nothing applied); strengthening applies; mixed -> proposal; hold-confirmed approval applies", async () => {
+    const patch = (body: object, tok = owner()) =>
+      call(h.base, "PATCH", path(`/${id}`), { token: tok, headers: { "idempotency-key": key(), "if-match": `"${rev}"` }, body });
     const strong = await patch({ settings_patch: { guard_checks: { creator_share_pct_fail: 10 }, top_holders_share_pct_max: 30 } });
     assert.equal(strong.status, 200, JSON.stringify(strong.body));
     rev = strong.body.data.rev;
+
+    // merge patch is top-level: guard_checks is replaced whole, so send the full object
+    const weak = await patch({ settings_patch: { guard_checks: { creator_share_pct_fail: 10, allow_mint_authority: true } } });
+    assert.equal(weak.status, 202, JSON.stringify(weak.body));
+    assert.equal(weak.body.data.proposal.kind, "guard_change");
+    assert.equal(weak.body.data.proposal.risk, "critical");
+    assert.equal(weak.body.data.proposal.base_rev, rev);
+    assert.deepEqual(weak.body.data.guard_change.weakened_fields, ["allow_mint_authority"]);
+    assert.equal(weak.headers.get("location"), `/v1/workspaces/${WS}/approvals/${weak.body.data.proposal.id}`);
+    const hours = (Date.parse(weak.body.data.proposal.expires_at) - Date.parse(weak.body.data.proposal.created_at)) / 3_600_000;
+    assert.equal(hours, 24);
+    err(await patch({ settings_patch: { guard_checks: { allow_mint_authority: true } }, name: "x" }), 422, "VALIDATION_FAILED");
+
     const mixed = await patch({ settings_patch: { guard_checks: { creator_share_pct_fail: 5 }, top_holders_share_pct_max: null } });
-    err(mixed, 409, "GUARD_WEAKEN_REQUIRES_APPROVAL");
-    assert.deepEqual(mixed.body.error.weakened_fields, ["top_holders_share_pct_max"]);
-    const now = await call(h.base, "GET", path(`/${id}`), { token: owner() });
+    assert.equal(mixed.status, 202, JSON.stringify(mixed.body));
+    assert.deepEqual(mixed.body.data.guard_change.weakened_fields, ["top_holders_share_pct_max"]);
+    const mcp = await patch({ settings_patch: { top_holders_share_pct_max: 45 } }, token(OWNER, { client: "mcp" }));
+    assert.equal(mcp.status, 202, "MCP may propose");
+    let now = await call(h.base, "GET", path(`/${id}`), { token: owner() });
     assert.equal(now.body.data.rev, rev, "nothing applied");
     assert.equal(now.body.data.settings.top_holders_share_pct_max, 30);
-    // the SQL function refuses on its own too (Flutter RPC path)
-    const direct = await h.db.query(
-      `select set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claims', $2, true)`,
-      [OWNER, JSON.stringify({ sub: OWNER })],
-    ).then(() => h.db.query("select public.update_strategy($1, $2, $3) as r", [id, rev, JSON.stringify({ guard_checks: { require_sell_sim: false } })])).catch((e) => e);
+
+    // the SQL write path refuses weakening on its own (Flutter RPC must use propose_guard_change)
+    const direct = await h.db.query("select public.update_strategy($1, $2, $3) as r", [id, rev, JSON.stringify({ guard_checks: { require_sell_sim: false } })]).catch((e) => e);
     assert.equal(direct.message, "GUARD_WEAKEN_REQUIRES_APPROVAL");
+
+    // decide: MCP cannot; approve needs the 1,200 ms hold
+    const ap = `/v1/workspaces/${WS}/approvals/${mixed.body.data.proposal.id}`;
+    const mcpDetail = await call(h.base, "GET", ap, { token: token(OWNER, { client: "mcp" }) });
+    err(await call(h.base, "POST", `${ap}/decision`, { token: token(OWNER, { client: "mcp" }), headers: { "idempotency-key": key(), "if-match": '"1"' },
+      body: { decision: "approve", token: mcpDetail.body.data.decision_token, confirmation: { hold_duration_ms: 1500 } } }), 403, "APPROVAL_REQUIRES_APP");
+    const detail = await call(h.base, "GET", ap, { token: owner() });
+    const tok = detail.body.data.decision_token;
+    const decide = (body: object) => call(h.base, "POST", `${ap}/decision`, { token: owner(), headers: { "idempotency-key": key(), "if-match": '"1"' }, body: { decision: "approve", token: tok, ...body } });
+    err(await decide({}), 428, "CONFIRMATION_REQUIRED");
+    err(await decide({ confirmation: { hold_duration_ms: 900 } }), 422, "HOLD_TOO_SHORT");
+    err(await decide({ confirmation: { hold_duration_ms: "long" } }), 422, "VALIDATION_FAILED");
+    await new Promise((r) => setTimeout(r, 1250));
+    const ok = await decide({ confirmation: { hold_duration_ms: 1300 } });
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    assert.equal(ok.body.data.status, "approved");
+    now = await call(h.base, "GET", path(`/${id}`), { token: owner() });
+    assert.equal(now.body.data.rev, rev + 1, "applied on approval");
+    assert.equal(now.body.data.settings.top_holders_share_pct_max, undefined);
+    assert.equal(now.body.data.settings.guard_checks.creator_share_pct_fail, 5);
+    rev = now.body.data.rev;
+    const gc = await call(h.base, "GET", `/v1/workspaces/${WS}/guard-changes?strategy_id=${id}`, { token: owner() });
+    assert.deepEqual(gc.body.items.map((g: any) => g.status).sort(), ["applied", "requested", "requested"]);
+    // the other pending proposals are now stale
+    const other = `/v1/workspaces/${WS}/approvals/${weak.body.data.proposal.id}`;
+    const od = await call(h.base, "GET", other, { token: owner() });
+    await new Promise((r) => setTimeout(r, 1250));
+    const stale = await call(h.base, "POST", `${other}/decision`, { token: owner(), headers: { "idempotency-key": key(), "if-match": '"1"' },
+      body: { decision: "approve", token: od.body.data.decision_token, confirmation: { hold_duration_ms: 1300 } } });
+    err(stale, 409, "STRATEGY_REV_CONFLICT");
+    assert.equal(stale.body.error.current.id, id);
   });
 
   test("pause / resume with rev; revisions list and merge base", async () => {

@@ -214,11 +214,22 @@ export function buildRouter(d: Deps): Router {
       }
     }
     if (typeof body.token !== "string" || body.token.length > 64) throw new ApiError("APPROVAL_TOKEN_INVALID");
+    // Practice guard weakening: `confirmation.hold_duration_ms` >= 1200 (API_ENDPOINTS 4.6); SQL also checks
+    // that the decision token is at least 1.2 s old. Real proofs (WebAuthn, typed name, 2FA) are Phase 7.
+    const conf = body.confirmation;
+    let holdMs: number | null = null;
+    if (conf !== undefined && conf !== null) {
+      const h = typeof conf === "object" ? (conf as Record<string, unknown>).hold_duration_ms : undefined;
+      if (typeof h !== "number" || !Number.isInteger(h) || h < 0 || h > 600_000) {
+        throw new ApiError("VALIDATION_FAILED", { field: "confirmation.hold_duration_ms" });
+      }
+      holdMs = h;
+    }
     const rev = expectedRev(ctx, body);
     const key = idempotencyKey(ctx);
     const out = await asUser(d.db, p.claims, async (c) => {
       await inWorkspace(c, "approvals", id, ws);
-      const res = await c.query("select public.decide_approval($1, $2, $3, $4, $5, $6) as r", [id, body.token, decision, rev, key, rr]);
+      const res = await c.query("select public.decide_approval($1, $2, $3, $4, $5, $6, $7) as r", [id, body.token, decision, rev, key, rr, holdMs]);
       return res.rows[0]?.r as Record<string, unknown>;
     });
     const { server_now, ...data } = out;

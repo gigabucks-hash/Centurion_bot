@@ -266,15 +266,27 @@ export interface WorkspaceWire {
 /** GET /v1/workspaces/{ws}/stats/exit-reasons and RPC exit_stats(): one shape. */
 export interface ExitStatsRow { exit_reason: ExitReason; count: number; pnl_lamports: Lamports; avg_pnl_pct: number | null; win_rate_pct: number; avg_hold_s: number }
 
+export type GuardChangeStatus = "requested" | "cooling_down" | "applied" | "reverted" | "cancelled" | "rejected" | "expired";
+/** = SQL guard_change_wire(); GET /guard-changes items and the 202 PATCH response. */
+export interface GuardChangeWire {
+  id: Uuid; guard_change_id: Uuid; proposal_id: Uuid | null; strategy_id: Uuid; mode: "practice";
+  status: GuardChangeStatus; rev: number; from_rev: number;
+  diff: { key: string; before: unknown; after: unknown; effect: "weakens" | "changes" }[];
+  weakened_fields: string[]; requested_by: Uuid | null;
+  cooldown_until: IsoTs | null; auto_revert_at: IsoTs | null; applied_at: IsoTs | null; created_at: IsoTs;
+}
+/** `202` body of PATCH /strategies/{id} when the patch weakens a guard (nothing applied). */
+export interface GuardChangeProposed { proposal: ApprovalWire; guard_change: GuardChangeWire }
 export interface GuardChanged {
   guard_change_id: Uuid; proposal_id: Uuid | null;
-  status: "requested" | "cooling_down" | "applied" | "reverted" | "cancelled";
+  /** rejected / expired: the proposal was rejected or ran out (24 h) before it was applied. */
+  status: GuardChangeStatus;
   from_rev: number; to_rev: number | null; weakening: boolean; weakened_fields: string[];
   cooldown_until: IsoTs | null; auto_revert_at: IsoTs | null;
 }
 export interface EntryArmed { pick_id: Uuid; condition: string; expires_at: IsoTs }
 export interface EntryExpired { pick_id: Uuid; reason: string }
-export interface StrategyLifecycle { rev: number; base_rev?: number; status?: string; changed_fields?: string[]; expired_proposals?: number }
+export interface StrategyLifecycle { rev: number; base_rev?: number; status?: string; changed_fields?: string[]; expired_proposals?: number; /** set when an approved guard_change applied the update */ proposal_id?: Uuid }
 export interface PracticeReset {
   epoch: number; previous_epoch: number; starting_balance_lamports: Lamports;
   archived: { positions: number; closed_open_positions: number; fills: number; snapshots: number; expired_proposals: number };
@@ -365,8 +377,11 @@ export interface ApprovalDecisionRequest {
   reason?: string | null;
   /** 1.1.3, decision=reject only (422 VALIDATION_FAILED otherwise or on an unknown value). Default user_declined. */
   reject_reason?: ApprovalRejectReason;
-  /** Only for real mode / guard weakening (Phase 7). */
-  confirmation?: ConfirmationProof;
+  /**
+   * Practice guard weakening (approval.weakening, decision=approve): `{hold_duration_ms >= 1200}`.
+   * Missing -> 428 CONFIRMATION_REQUIRED; shorter, or a decision token younger than 1.2 s -> 422 HOLD_TOO_SHORT.
+   */
+  confirmation?: PracticeHoldProof | ConfirmationProof;
 }
 export interface ApprovalDecisionResponse {
   proposal_id: Uuid; status: ProposalStatus; rev: number; reject_reason: ApprovalRejectReason | null; replayed: boolean; server_now: IsoTs;
@@ -381,6 +396,9 @@ export interface ApprovalWire {
   payload: { [k: string]: JsonValue }; created_at: IsoTs; expires_at: IsoTs; decided_at: IsoTs | null;
 }
 
+/** Practice guard-weakening approval: press-and-hold only (Real needs the full ConfirmationProof, Phase 7). */
+export interface PracticeHoldProof { hold_duration_ms: number }
+/** Real mode actions and Real guard weakening (Phase 7). */
 export interface ConfirmationProof {
   challenge_id: Uuid;
   webauthn: { credential_id: string; client_data_json: string; authenticator_data: string; signature: string; user_handle: string | null };

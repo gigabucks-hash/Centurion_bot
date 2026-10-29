@@ -157,7 +157,7 @@ creator_share bundled_share sniper_share transfer_fee honeypot serial_creator`.
 | `fill.simulated` | executor | `FillWire` + `{position_key, position_id, order_id, mark_price_sol?, fee_bps?}` |
 | `exit.triggered` | exit | `{position_key, rule: ExitReason, rule_index, sell_portion_pct, trigger_price_sol, detail}` |
 | `portfolio.snapshot` | system | `{practice_epoch, cash_lamports, positions_cost_lamports, positions_value_lamports, equity_lamports, peak_equity_lamports, drawdown_bps, drawdown_pct, realized_pnl_lamports, unrealized_pnl_lamports, open_positions, as_of_seq}` |
-| `guard.changed` | user\|system | `{guard_change_id, proposal_id, status: requested\|cooling_down\|applied\|reverted\|cancelled, from_rev, to_rev, weakening, weakened_fields[], cooldown_until, auto_revert_at}` |
+| `guard.changed` | user\|system | `{guard_change_id, proposal_id, status: requested\|cooling_down\|applied\|reverted\|cancelled\|rejected\|expired, from_rev, to_rev, weakening, weakened_fields[], cooldown_until, auto_revert_at}`; practice: `requested` on proposal, `applied` (with `to_rev`) on approval, `rejected` / `expired` otherwise |
 | `strategy.created/updated/paused/resumed/archived/deleted` | user\|system | `{rev, base_rev?, status?, changed_fields?, expired_proposals?}`; a client editing at `base_rev < rev` enters the conflict state (API_ENDPOINTS.md 2.1) |
 | `practice.reset` | user\|system | `{epoch, previous_epoch, starting_balance_lamports: "30000000000", archived: {positions, closed_open_positions, fills, snapshots, expired_proposals}, next_allowed_at, at}`; clients drop cached positions/equity and refetch for the new epoch |
 | `account.deletion_scheduled` | user | `{scheduled_for, grace_days, at}` (emitted into every workspace the user owns) |

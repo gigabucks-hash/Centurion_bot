@@ -103,7 +103,8 @@ RPC (Supabase) errors: `PostgrestException.code` = SQLSTATE (`P0` + HTTP status,
 ### 2.2 RPC parameters clients send (complete list)
 | RPC | Client params | Notes |
 |---|---|---|
-| `decide_approval` | `p_approval_id, p_token, p_decision ('approve'\|'reject'), p_expected_rev (required), p_idempotency_key?, p_reject_reason?` | via = JWT claim / push token. `p_reject_reason` (1.1.3): `user_declined\|not_tradeable\|price_moved\|other`, reject only, default `user_declined` |
+| `decide_approval` | `p_approval_id, p_token, p_decision ('approve'\|'reject'), p_expected_rev (required), p_idempotency_key?, p_reject_reason?, p_hold_ms?` | via = JWT claim / push token. `p_reject_reason` (1.1.3): `user_declined\|not_tradeable\|price_moved\|other`, reject only, default `user_declined`. `p_hold_ms`: required (>= 1200) to approve a weakening guard_change |
+| `propose_guard_change` | `p_strategy, p_expected_rev, p_patch, p_device?` | the only path for a guard-weakening change; returns `{proposal, guard_change, server_now}`. `update_strategy` refuses weakening with `409 GUARD_WEAKEN_REQUIRES_APPROVAL` |
 | `update_strategy` | `p_strategy, p_expected_rev, p_patch?, p_name?, p_status?, p_device?, p_challenge_id?` | |
 | `set_strategy_status` | `p_strategy, p_status ('running'\|'paused'), p_expected_rev` | |
 | `reset_practice` | `p_workspace` | REST `POST /v1/workspaces/{ws}/practice/reset` |
@@ -154,7 +155,7 @@ match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `fro
 | GET | `/?mode=&status=` | read | with `rev`, headline stats |
 | POST | `/` | trade | `{mode, name, settings}`; settings validated by `config/strategy_settings.schema.json` + DB CHECK |
 | GET | `/{id}` / `/{id}/revisions` | read | |
-| PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge; `null` removes a key). Non-weakening -> applied (`rev+1`). Weakening -> **today `409 GUARD_WEAKEN_REQUIRES_APPROVAL {weakened_fields, strategy_id, rev}`, nothing applied** (mixed changes too); planned: `202 {proposal}` (`guard_change`, 24 h). Classifier: SQL `guard_weakened_fields()` (= Rust `weakened_fields` + settings-level guard keys, see CHANGELOG). Stale -> 409 (2.1) |
+| PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge at the top level; `null` removes a key; nested objects such as `guard_checks` are replaced whole). Non-weakening -> applied (`200`, `rev+1`). **Weakening** (any guard field less strict, per SQL `guard_weakened_fields()`) -> **`202 {data: {proposal: ApprovalWire, guard_change: GuardChangeWire}}`** + `Location: /approvals/{id}`; **nothing is applied**; the whole patch (mixed strengthen + weaken too) becomes one `guard_change` proposal (24 h expiry, `base_rev` = current rev). A weakening patch cannot carry `name`/`status` (422). MCP may propose; only first-party apps decide. Stale -> 409 (2.1) |
 | GET | `/{id}/revisions`, `/{id}/revisions/{rev}` | read | history and merge base |
 | POST | `/{id}/pause`, `/{id}/resume` | trade | `If-Match` / `expected_rev` (status changes bump `rev`) |
 | POST | `/{id}/archive`, DELETE `/{id}` | trade | `retire_strategy()`; response `{expired_proposals: n}` |
@@ -202,6 +203,21 @@ and in the audit row. Same `Idempotency-Key` with a different `reject_reason` is
 Flutter: `supabase.rpc('decide_approval', {p_approval_id, p_token, p_decision, p_expected_rev, p_idempotency_key, p_reject_reason})`
 returns `{proposal_id, status, rev, reject_reason, replayed, server_now}`; errors are SQLSTATE `P04xx` with `message` = error code.
 No `client` / `p_client`: the channel comes from the JWT claim (`push` when the token was minted for a push).
+
+**Guard-change proposals (practice).** Decide like any approval, plus for `decision: "approve"` on a weakening
+proposal the body carries `"confirmation": {"hold_duration_ms": <int>}` from a **1,200 ms press-and-hold**:
+missing -> `428 CONFIRMATION_REQUIRED {required: {hold_ms: 1200}}`; `< 1200`, or a decision token issued less than
+1.2 s earlier (server-side check) -> `422 HOLD_TOO_SHORT {min_hold_ms: 1200}`. MCP -> `403 APPROVAL_REQUIRES_APP`.
+On approve the patch is applied on exactly `base_rev` (else `409 STRATEGY_REV_CONFLICT` with `current`; ask for a
+new proposal), the guard change becomes `applied`, and `strategy.updated {proposal_id}` + `guard.changed {status:
+applied, to_rev}` are emitted. Reject -> `guard.changed {status: rejected}`; 24 h expiry -> `{status: expired}`.
+Several pending proposals may exist; once one is applied the others fail with `STRATEGY_REV_CONFLICT`.
+Real SOL guard weakening (Phase 7, rejected by the schema today: `guard_changes_practice_only`,
+`approvals_practice_only`): proof-of-confirmation (4.6: WebAuthn, typed strategy name, 2.5 s hold) **and** TOTP 2FA
+(`TWO_FACTOR_REQUIRED`), then a mandatory **10 min cooldown** (`cooling_down`, cancellable via
+`POST /guard-changes/{id}/cancel`) before apply, and a mandatory **24 h auto-revert** (`auto_revert_at =
+applied_at + 24 h`, CHECK-enforced), with notifications to every device plus email and an audit row with the risk
+snapshot.
 
 ### 4.6 Proof-of-confirmation (Real SOL actions and Real guard weakening; disabled until Phase 7)
 Flow: `POST /confirmations/challenge {action, target, payload_hash}` -> `{challenge_id, challenge (base64url 32 B), expires_at (2 min), rp_id, required: {webauthn: true, typed_name: "<strategy name>", hold_ms: 2500}}`,

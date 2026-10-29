@@ -8,8 +8,14 @@
   A strategy change that weakens any guard is **refused and nothing is applied** (REST `PATCH .../strategies/{id}`
   and RPC `update_strategy`), with flat details `{weakened_fields: string[], strategy_id, rev, hint}`.
   Strengthening-only and neutral changes still apply directly; a change mixing both is refused as a whole.
-  This is the interim rule until the `202 {proposal}` guard_change flow ships, which will replace this 409 for
-  practice. Clients: show the fields and offer "request approval" once the proposal flow is available.
+  The RPC `update_strategy` keeps refusing weakening; REST PATCH now turns it into a proposal (below).
+- **Guard-change proposals (practice)**, migration `0008_guard_change_proposals.sql`: REST PATCH with a weakening
+  patch -> `202 {data: {proposal: ApprovalWire, guard_change: GuardChangeWire}}`, nothing applied (RPC
+  `propose_guard_change`). Approve needs `confirmation.hold_duration_ms >= 1200` (`p_hold_ms`) and a decision
+  token >= 1.2 s old (`428 CONFIRMATION_REQUIRED` / `422 HOLD_TOO_SHORT`); applied on exactly `base_rev`.
+  `guard.changed.status` gains `rejected | expired`; `strategy.updated` gains `proposal_id`. TS: `GuardChangeStatus`,
+  `GuardChangeWire`, `GuardChangeProposed`, `ApprovalDecisionRequest.confirmation?`. `decide_approval` gains
+  `p_hold_ms` (6-argument overload dropped). Real SOL path documented (API_ENDPOINTS 4.5), still schema-rejected.
 - Classifier: SQL `guard_weakened_fields(old, new)` mirrors the Rust `guard::impact::weakened_fields` over the
   effective GuardConfig (`guard_config_defaults()` overlaid with `settings.guard_checks`; a Rust test keeps the
   defaults equal), plus settings-level guard keys: `*_share_pct_max` raised or turned off (0 / removed),

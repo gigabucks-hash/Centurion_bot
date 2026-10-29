@@ -30,18 +30,12 @@ export function mergePatch(base: Record<string, unknown>, patch: Record<string, 
   return out;
 }
 
-/**
- * Guard weakening never applies directly (the 202 proposal flow is the only path). Checked here with the same
- * SQL classifier update_strategy uses, so the API refuses before any write; the SQL check stays authoritative.
- */
-async function rejectWeakening(c: Tx, cur: Record<string, unknown>, patch: object): Promise<void> {
+/** Same SQL classifier update_strategy / propose_guard_change use (guard_weakened_fields). */
+async function weakenedFields(c: Tx, cur: Record<string, unknown>, patch: object): Promise<string[]> {
   const before = (cur.settings ?? {}) as Record<string, unknown>;
   const after = mergePatch(before, patch as Record<string, unknown>);
   const q = await c.query<{ f: string[] }>("select public.guard_weakened_fields($1::jsonb, $2::jsonb) as f", [JSON.stringify(before), JSON.stringify(after)]);
-  const fields = q.rows[0]?.f ?? [];
-  if (fields.length > 0) {
-    throw new ApiError("GUARD_WEAKEN_REQUIRES_APPROVAL", { weakened_fields: fields, strategy_id: cur.id, rev: cur.rev, hint: "submit the change as a guard_change proposal" });
-  }
+  return q.rows[0]?.f ?? [];
 }
 
 function strategyBody(body: Record<string, unknown>) {
@@ -170,7 +164,16 @@ export function registerStrategies(r: Router, d: Deps): void {
       withCurrent(async () => {
         const w = await asUser(d.db, p.claims, async (c) => {
           const cur = await strategyIn(c, id, ws);
-          if (b.patch) await rejectWeakening(c, cur, b.patch);
+          const weak = b.patch ? await weakenedFields(c, cur, b.patch) : [];
+          if (weak.length > 0) {
+            // weakening never applies directly: the whole patch becomes a guard_change proposal (24 h)
+            if (b.name !== undefined || b.status !== undefined) {
+              throw new ApiError("VALIDATION_FAILED", { field: "settings_patch", hint: "send name/status separately from a guard-weakening patch" });
+            }
+            const q = await c.query("select public.propose_guard_change($1, $2, $3, $4) as r", [id, rev, JSON.stringify(b.patch), device]);
+            const out = q.rows[0]?.r as Record<string, unknown>;
+            return { proposal: out };
+          }
           const q = await c.query("select public.update_strategy($1, $2, $3, $4, $5::public.strategy_status, $6, null) as r", [
             id, rev, b.patch ? JSON.stringify(b.patch) : null, b.name ?? null, b.status ?? null, device,
           ]);
@@ -179,6 +182,11 @@ export function registerStrategies(r: Router, d: Deps): void {
           if (err) throw err;
           return strategyIn(c, id, ws);
         });
+        if ("proposal" in w) {
+          const { server_now, ...data } = w.proposal as Record<string, unknown>;
+          const pid = (data.proposal as Record<string, unknown>).id;
+          return { status: 202, body: { data, server_now }, headers: { Location: `/v1/workspaces/${ws}/approvals/${String(pid)}` } };
+        }
         return { status: 200, body: { data: w }, headers: etag(w.rev) };
       }, load(p, id, ws)),
     );
