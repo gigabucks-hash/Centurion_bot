@@ -1,0 +1,436 @@
+/**
+ * UI view models for the Sentra dashboard.
+ *
+ * Shared enums are imported from the official wire contract (@sentra/contracts/wire, v1) so
+ * they cannot drift. Wire payloads (lamport / decimal strings, ISO timestamps, no floats) are
+ * decoded into these view models ONLY at the API edge (lib/contracts.ts + lib/http-api.ts);
+ * `Sol` numbers here are display values derived from lamport strings via BigInt math.
+ */
+import type {
+  Actor as WireActor,
+  ApprovalMode as WireApprovalMode,
+  CoinStream as WireCoinStream,
+  EventType as WireEventType,
+  ExitReason as WireExitReason,
+  GuardChanged,
+  Mode as WireMode,
+  ProposalExpiredReason,
+  ProposalKind,
+  ProposalStatus,
+  RiskLevel as WireRiskLevel,
+} from "@sentra/contracts/wire";
+
+/** Unix epoch milliseconds. */
+export type Timestamp = number;
+/** SOL display value (decoded from wire lamport strings at the edge; never sent back on the wire). */
+export type Sol = number;
+/** Base58 SPL token mint address. */
+export type Mint = string;
+
+/** Workspace mode. Practice = paper SOL; Real = real SOL (separate workspace, numbers never mixed). */
+export type TradingMode = WireMode;
+export const MODE_LABEL: Record<TradingMode, string> = { practice: "PRACTICE", real: "REAL SOL" };
+export type ConnectionState = "connected" | "connecting" | "disconnected";
+
+// ---------------------------------------------------------------------------
+// Workspace / team overview
+// ---------------------------------------------------------------------------
+
+export type AlertSeverity = "info" | "warning" | "critical";
+
+export interface Alert {
+  id: string;
+  severity: AlertSeverity;
+  title: string;
+  detail: string;
+  createdAt: Timestamp;
+  href?: string;
+  strategyId?: string;
+}
+
+export interface EquityPoint {
+  t: Timestamp;
+  equitySol: Sol;
+}
+
+export interface WorkspaceOverview {
+  id: string;
+  name: string;
+  mode: TradingMode;
+  /** Real only: whether a custody wallet + 2FA are set up (mock: always false). */
+  walletConnected: boolean;
+  startingCashSol: Sol;
+  cashSol: Sol;
+  inPositionsSol: Sol;
+  realizedPnlSol: Sol;
+  unrealizedPnlSol: Sol;
+  openPositions: number;
+  /** Sum of maxOpen across running strategies. */
+  openPositionsCap: number;
+  runningStrategies: number;
+  pausedStrategies: number;
+  lossStopPct: number;
+  drawdownPct: number;
+  pendingApprovals: number;
+  /** Pending approvals expiring in < 2 min. */
+  expiringSoon: number;
+  engine: { online: boolean; lastHeartbeatAt: Timestamp; version: string };
+  equityCurve: EquityPoint[];
+  alerts: Alert[];
+  updatedAt: Timestamp;
+}
+
+// ---------------------------------------------------------------------------
+// Strategy settings (subset of the 52-key schema; see lib/strategy-schema.ts)
+// ---------------------------------------------------------------------------
+
+export type CoinStream = WireCoinStream;
+/** Per-strategy setting (ask-before-first-buy is the default). */
+export type ApprovalMode = WireApprovalMode;
+export type GuardPreset = "strict" | "balanced" | "loose" | "custom";
+export type ExitPlanPreset = "ladder3" | "trailOnly" | "quickScalp" | "doubling" | "custom";
+export type MustHaveRule = "liquidity" | "volume" | "marketCap" | "age" | "top10" | "lpBurn";
+export type GuardCheck = "bundlers" | "devDump" | "snipers" | "washTrading" | "layeredLaunch" | "serialCreator" | "transferFee" | "insiderProfit";
+
+export interface TakeProfitRung {
+  gainPct: number;
+  sellPct: number;
+  pullbackPct?: number | null;
+}
+
+export interface StrategySettings {
+  name: string;
+  mode: TradingMode;
+  approvalMode: ApprovalMode;
+  sizing: { budgetSol: Sol; tradeSol: Sol; maxOpen: number; lossStopPct: number };
+  screener: {
+    streams: CoinStream[];
+    minAgeMinutes: number;
+    maxAgeMinutes: number;
+    minMarketCapUsd: number;
+    maxMarketCapUsd: number;
+    minLiquidityUsd: number;
+    minVolume24hUsd: number;
+    minHolders: number;
+    minBuyers1h: number;
+    minBuySellRatio: number;
+    maxTop10Percent: number;
+    minLpBurnPct: number;
+    maxDrawdownPct: number;
+    mustHave: MustHaveRule[];
+    passMark: number;
+  };
+  guard: {
+    preset: GuardPreset;
+    maxDevPercent: number;
+    maxBundlersPct: number;
+    maxSnipersPct: number;
+    checks: Record<GuardCheck, boolean>;
+  };
+  entry: {
+    dipPct: number;
+    entryDelayMinutes: number;
+    entryMaxUpPct: number;
+    breakout: { enabled: boolean; minutes: number; rangePct: number; buyers: number };
+    activeTrading: boolean;
+    rebuy: boolean;
+    tradingHoursUtc: { enabled: boolean; from: number; to: number };
+  };
+  exit: {
+    plan: ExitPlanPreset;
+    takeProfits: TakeProfitRung[];
+    trailingPct: number;
+    stopLossPct: number;
+    timeStopMinutes: number;
+    noTradeSeconds: number;
+    drainDropPct: number;
+    stallExit: boolean;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Strategies
+// ---------------------------------------------------------------------------
+
+export type StrategyStatus = "draft" | "running" | "paused" | "stopped" | "archived";
+
+export type FunnelStage = "scanned" | "filtered" | "signaled" | "entered" | "exited";
+export const FUNNEL_STAGES: FunnelStage[] = ["scanned", "filtered", "signaled", "entered", "exited"];
+
+export interface StrategyFunnel {
+  scanned: number;
+  /** Passed screener + guard. */
+  filtered: number;
+  /** Entry condition hit (or approval requested). */
+  signaled: number;
+  entered: number;
+  exited: number;
+  rejections: { reason: string; count: number }[];
+}
+
+export interface Strategy {
+  id: string;
+  name: string;
+  mode: TradingMode;
+  status: StrategyStatus;
+  /** Active settings revision (optimistic versioning). */
+  rev: number;
+  settings: StrategySettings;
+  openPositions: number;
+  realizedPnlSol: Sol;
+  unrealizedPnlSol: Sol;
+  trades: number;
+  wins: number;
+  maxDrawdownPct: number;
+  avgHoldSeconds: number;
+  /** Cumulative PnL points for the sparkline. */
+  pnlSpark: number[];
+  funnel: StrategyFunnel;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export type DiffDirection = "weakens" | "strengthens" | "new" | "neutral";
+
+export interface SettingsDiffRow {
+  key: string;
+  label: string;
+  before: string;
+  after: string;
+  direction: DiffDirection;
+}
+
+export interface PublishResult {
+  strategyId: string;
+  /** "published" when applied directly, "needs_approval" when a guard is weakened. */
+  outcome: "published" | "needs_approval";
+  rev: number;
+  approvalId?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Coins, positions, trail
+// ---------------------------------------------------------------------------
+
+export interface CoinMeta {
+  mint: Mint;
+  /** Token metadata is UNTRUSTED. Render as plain text only. */
+  untrusted: { symbol: string; name: string };
+  launchpad: string;
+  stream: CoinStream;
+  createdAt: Timestamp;
+}
+
+export type PositionStatus = "open" | "closed";
+
+export interface Position {
+  /** `<pickKey>.<n>` */
+  key: string;
+  strategyId: string;
+  mint: Mint;
+  status: PositionStatus;
+  entryPriceUsd: number;
+  exitPriceUsd?: number;
+  solIn: Sol;
+  solOut: Sol;
+  peakGainPct: number;
+  feeBps: number;
+  openedAt: Timestamp;
+  closedAt?: Timestamp;
+  exitReason?: ExitReason;
+  pnlSol: Sol;
+  pnlPct: number;
+}
+
+export type ActorKind = WireActor;
+
+/** Activity kinds per UX SPEC §4. */
+export type EventKind =
+  | "found"
+  | "passed"
+  | "blocked"
+  | "armed"
+  | "expired"
+  | "proposal"
+  | "approved"
+  | "skipped"
+  | "bought"
+  | "sold";
+
+/**
+ * Feed view model of a wire `EventEnvelope` (see lib/contracts.ts `envelopeToTradeEvent`).
+ * Id = envelope id `<subject>:<epoch_ms>:<type>` (dedupe key).
+ */
+export interface TradeEvent {
+  id: string;
+  /** Envelope seq: monotonic, NOT gapless. Used for paging / resume (after_seq, safe_seq). */
+  seq: number;
+  /** Wire event type, e.g. "position.closed". */
+  type?: WireEventType;
+  /** Pick key (1 coin x 1 strategy). */
+  ck?: string;
+  ts: Timestamp;
+  kind: EventKind;
+  actor: ActorKind;
+  strategyId?: string;
+  mint?: Mint;
+  symbol?: string;
+  /** Short headline, e.g. "Bought 0.24 SOL". */
+  message: string;
+  /** Reason / detail line, e.g. "dip −8% reached". */
+  reason?: string;
+  solAmount?: Sol;
+  pnlSol?: Sol;
+  pctChange?: number;
+  priceUsd?: number;
+  /** For `sold`: partial take-profit vs final close. */
+  partial?: boolean;
+  exitReason?: ExitReason;
+  checks?: CheckResult[];
+  /** Settings revision whose thresholds were used (snapshot). */
+  rev?: number;
+}
+
+export interface CheckResult {
+  name: string;
+  passed: boolean;
+  hard: boolean;
+  measured: string;
+  threshold: string;
+}
+
+export interface PricePoint {
+  t: Timestamp;
+  priceUsd: number;
+}
+
+export interface CoinTrail {
+  coin: CoinMeta;
+  strategyId: string;
+  strategyName: string;
+  mode: TradingMode;
+  score?: { value: number; passMark: number };
+  positions: Position[];
+  events: TradeEvent[];
+  /** Mock price series around the trade window. */
+  prices: PricePoint[];
+}
+
+export interface CoinSummary {
+  mint: Mint;
+  symbol: string;
+  strategyId: string;
+  strategyName: string;
+  mode: TradingMode;
+  lastEventAt: Timestamp;
+  status: PositionStatus | "watching" | "rejected";
+  pnlSol?: Sol;
+}
+
+// ---------------------------------------------------------------------------
+// Exit stats
+// ---------------------------------------------------------------------------
+
+/** = @sentra/contracts wire `ExitReason` (v1). */
+export type ExitReason = WireExitReason;
+
+export const EXIT_REASONS: ExitReason[] = ["take_profit", "stop_loss", "trailing_stop", "time_out", "inactivity", "drain", "stall", "rug", "sell_floor", "loss_stop", "manual", "strategy_retired"];
+
+export interface ExitReasonStat {
+  reason: ExitReason;
+  count: number;
+  wins: number;
+  winRate: number; // 0..1
+  avgPnlSol: Sol;
+  avgPnlPct: number;
+  totalPnlSol: Sol;
+  avgHoldSeconds: number;
+}
+
+export interface StatsFilter {
+  strategyId?: string;
+  mode: TradingMode;
+  windowHours?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Approvals (UX SPEC §3)
+// ---------------------------------------------------------------------------
+
+export type ApprovalKind = ProposalKind;
+export type PickKind = "first_buy" | "buy" | "rebuy";
+export type TeamActionKind = "sell_all" | "rearm_loss_stop" | "delete_strategy";
+
+/** Wire ProposalStatus ("rejected" is labelled "Skipped") + UI-only execution states derived from position/fill events. */
+export type ApprovalStatus = ProposalStatus | "executing" | "filled" | "failed";
+
+export type ExpiredReason = ProposalExpiredReason;
+
+export type SkipReason = "thin_liquidity" | "already_pumped" | "dev_suspicious" | "other";
+
+export type RiskLevel = WireRiskLevel;
+
+export interface RiskImpact {
+  /** 7-day replay on own paper data. */
+  coinsPassedPerDayBefore: number;
+  coinsPassedPerDayAfter: number;
+  rugsBefore: number;
+  rugsAfter: number;
+  maxDrawdownBeforePct: number;
+  maxDrawdownAfterPct: number;
+}
+
+export interface PickDetail {
+  pickKind: PickKind;
+  score: { value: number; passMark: number };
+  guard: { passed: number; total: number; note?: string };
+  entry: string;
+  exitPlan: string;
+  budgetSol: Sol;
+}
+
+export interface Approval {
+  id: string;
+  /** Optimistic-concurrency version (send as expected_version). */
+  version: number;
+  /** Opaque single-use decision token (apt_…), from GET /approvals/{id}. */
+  decisionToken?: string;
+  kind: ApprovalKind;
+  status: ApprovalStatus;
+  mode: TradingMode;
+  strategyId?: string;
+  strategyName?: string;
+  mint?: Mint;
+  symbol?: string;
+  title: string;
+  detail: string;
+  amountSol?: Sol;
+  risk: RiskLevel;
+  requestedBy: ActorKind;
+  createdAt: Timestamp;
+  expiresAt: Timestamp;
+  decidedAt?: Timestamp;
+  expiredReason?: ExpiredReason;
+  skipReason?: SkipReason;
+  skipNote?: string;
+  pick?: PickDetail;
+  teamAction?: TeamActionKind;
+  /** guard_change only */
+  diff?: SettingsDiffRow[];
+  riskImpact?: RiskImpact;
+  revFrom?: number;
+  revTo?: number;
+  /** guard_change on Real: change takes effect at this time (cancellable). */
+  cooldownEndsAt?: Timestamp;
+  /** guard_change on Real: ALWAYS set (mandatory policy) = effective time + 24 h. */
+  autoRevertAt?: Timestamp;
+  /** Mirrors wire `guard.changed.status`. */
+  guardChangeState?: Exclude<GuardChanged["status"], "requested">;
+  auditId?: string;
+}
+
+export type ApprovalDecision =
+  | { action: "approve"; confirmation?: { typedName?: string; secondFactor?: "mock_passkey"; holdMs: number } }
+  | { action: "skip"; reason?: SkipReason; note?: string }
+  | { action: "undo_skip" }
+  | { action: "cancel_cooldown" };

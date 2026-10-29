@@ -1,0 +1,52 @@
+/*
+ * Sentra tokens are CONSUMED from the shared package — do not copy values here.
+ *   source: packages/design-tokens/src/tokens.json  (owner: UX UI Designer)
+ *   output: @sentra/design-tokens/tailwind.theme.css (Tailwind v4 @theme, dark default,
+ *           [data-theme="light"], [data-mode], [data-density])
+ * `theme(static)` keeps every token variable in the output so JS (canvas charts via
+ * lib/theme.ts readToken) can read tokens that no utility happens to use.
+ *
+ * Below are web-only EXTENSIONS (no colour values): font binding to next/font, the
+ * [data-mode] alias fix, and a few utilities the package doesn't ship.
+ */
+@import "@sentra/design-tokens/tailwind.theme.css" theme(static);
+
+@theme {
+  /* next/font self-hosts Inter + JetBrains Mono and exposes them as these variables. */
+  --font-sans: var(--font-inter), Inter, "SF Pro Text", Roboto, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", "SF Mono", "Roboto Mono", ui-monospace, monospace;
+}
+
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
+
+/*
+ * The package declares --color-mode-accent: var(--mode-accent, …) on :root, where it is
+ * resolved once (Practice). Re-declare it where [data-mode] is set so bg-mode-accent etc.
+ * follow the workspace. (Reported upstream to design-tokens.)
+ */
+[data-mode] {
+  --color-mode-accent: var(--mode-accent);
+  --color-mode-container: var(--mode-container);
+  --color-mode-on: var(--mode-on);
+}
+
+/* Motion: token durations (package zeroes them under prefers-reduced-motion; holds stay time-based). */
+@utility duration-instant { transition-duration: var(--duration-instant); }
+@utility duration-fast { transition-duration: var(--duration-fast); }
+@utility duration-base { transition-duration: var(--duration-base); }
+@utility duration-slow { transition-duration: var(--duration-slow); }
+
+/* Tap targets: web 40px (density hit token), touch 48px (WCAG 2.5.8 / Android). */
+@utility min-h-tap { min-height: var(--spacing-hit); }
+@utility min-w-tap { min-width: var(--spacing-hit); }
+@utility min-h-tap-touch { min-height: var(--spacing-control-lg); }
+@utility min-w-tap-touch { min-width: var(--spacing-control-lg); }
+
+/* Numbers: always tabular mono */
+@utility num { font-family: var(--font-mono); font-variant-numeric: tabular-nums slashed-zero; }
+
+/* Practice banner pattern (diagonal stripes, so mode is not conveyed by colour alone) */
+@utility stripes-practice {
+  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-mode-practice) 22%, transparent) 0 6px, transparent 6px 14px);
+}
