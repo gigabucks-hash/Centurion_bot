@@ -157,6 +157,11 @@ class Position {
     this.soldBps = 0,
     this.exitPlan,
     this.feeBps = 125,
+    this.rev = 1,
+    this.practiceEpoch = 0,
+    this.decimals,
+    this.tokenProgram,
+    this.qtyRaw,
   }) : proceedsLamports = proceedsLamports ?? Lamports.zero;
 
   /// `ck.N` style key: coin key + index of the position for that coin.
@@ -185,6 +190,21 @@ class Position {
   final int soldBps;
   final ExitPlanState? exitPlan;
   final int feeBps;
+
+  /// Position `rev` (+1 on every change; `close_position` p_expected_rev / If-Match).
+  final int rev;
+
+  /// `practice_epoch` (1.1.2). Rows from an older epoch are dropped after a reset.
+  final int practiceEpoch;
+
+  /// Mint decimals from the mint account (1.1.2); null = unknown. NEVER assume 6.
+  final int? decimals;
+
+  /// SPL token program id of the mint (`Tokenkeg…` / Token-2022).
+  final String? tokenProgram;
+
+  /// Remaining raw token amount (integer string on the wire).
+  final BigInt? qtyRaw;
 
   bool get isOpen => state == PositionState.open;
   double get soldPct => soldBps / 100;
@@ -218,6 +238,8 @@ class Position {
     String? exitReason,
     int? soldBps,
     ExitPlanState? exitPlan,
+    int? rev,
+    BigInt? qtyRaw,
   }) {
     return Position(
       id: id,
@@ -237,6 +259,11 @@ class Position {
       soldBps: soldBps ?? this.soldBps,
       exitPlan: exitPlan ?? this.exitPlan,
       feeBps: feeBps,
+      rev: rev ?? this.rev,
+      practiceEpoch: practiceEpoch,
+      decimals: decimals,
+      tokenProgram: tokenProgram,
+      qtyRaw: qtyRaw ?? this.qtyRaw,
     );
   }
 }
@@ -305,7 +332,7 @@ class Approval {
     this.baseRev,
     this.diff = const {},
     this.amountLamports,
-    this.version = 1,
+    this.rev = 1,
     this.mode = TradeMode.practice,
     this.pickType,
     this.expireReason,
@@ -335,8 +362,8 @@ class Approval {
   final Map<String, List<Object?>> diff;
   final Lamports? amountLamports;
 
-  /// Approval `version` (sent as `p_expected_rev` to `decide_approval`).
-  final int version;
+  /// Approval `rev` (1.1.2 naming; sent as `p_expected_rev` to `decide_approval`).
+  final int rev;
   final TradeMode mode;
   final PickType? pickType;
   final ExpireReason? expireReason;
@@ -360,29 +387,28 @@ class Approval {
 
   bool isExpiredAt(DateTime now) => now.isAfter(expiresAt);
 
-  Approval copyWith({ApprovalStatus? status, ExpireReason? expireReason, DateTime? decidedAt, int? version}) =>
-      Approval(
-        id: id,
-        kind: kind,
-        status: status ?? this.status,
-        title: title,
-        detail: detail,
-        createdAt: createdAt,
-        expiresAt: expiresAt,
-        token: token,
-        strategyId: strategyId,
-        baseRev: baseRev,
-        diff: diff,
-        amountLamports: amountLamports,
-        version: version ?? this.version,
-        mode: mode,
-        pickType: pickType,
-        expireReason: expireReason ?? this.expireReason,
-        riskLevel: riskLevel,
-        riskImpact: riskImpact,
-        decidedAt: decidedAt ?? this.decidedAt,
-        reasonCode: reasonCode,
-      );
+  Approval copyWith({ApprovalStatus? status, ExpireReason? expireReason, DateTime? decidedAt, int? rev}) => Approval(
+    id: id,
+    kind: kind,
+    status: status ?? this.status,
+    title: title,
+    detail: detail,
+    createdAt: createdAt,
+    expiresAt: expiresAt,
+    token: token,
+    strategyId: strategyId,
+    baseRev: baseRev,
+    diff: diff,
+    amountLamports: amountLamports,
+    rev: rev ?? this.rev,
+    mode: mode,
+    pickType: pickType,
+    expireReason: expireReason ?? this.expireReason,
+    riskLevel: riskLevel,
+    riskImpact: riskImpact,
+    decidedAt: decidedAt ?? this.decidedAt,
+    reasonCode: reasonCode,
+  );
 }
 
 /// Wire reason code for coins without a SOL quote pair (screener + `order.failed`).
@@ -401,8 +427,18 @@ class ScreenerCoin {
     this.quoteSymbol = 'SOL',
     this.approvalId,
     this.note,
+    this.mint,
+    this.decimals,
+    this.tokenProgram,
+    this.quoteMint,
   });
   final String symbol;
+  final String? mint;
+
+  /// Coin facts (1.1.2): decimals from the mint account (never assume 6), token program, quote mint.
+  final int? decimals;
+  final String? tokenProgram;
+  final String? quoteMint;
   final String strategyId;
 
   /// Screener score 0–100.

@@ -1,3 +1,4 @@
+import 'package:decimal/decimal.dart';
 import 'package:intl/intl.dart';
 
 import '../data/money.dart';
@@ -23,6 +24,25 @@ String fmtPnl(Lamports v, {bool unit = false}) {
 
 /// USD price with 4 significant digits, id-ID separators.
 String fmtUsd(Decimal v) => '\$${formatDecimalAbs(v, 'id', minDp: 0, maxDp: decimalsForSignificant(v, 4))}';
+
+/// Token amount from the raw integer `qty_raw` and the mint's `decimals`
+/// (contracts 1.1.2: integer from the mint account, NEVER assume 6). Exact
+/// (BigInt → Decimal). ≥ 1 → 2 dp; below 1 → 2 significant digits. Unknown
+/// decimals → `—` (the raw count is meaningless without them).
+String fmtTokenQty(BigInt raw, int? decimals) {
+  if (decimals == null || decimals < 0) return '—';
+  if (raw == BigInt.zero) return '0';
+  final v = (Decimal.fromBigInt(raw) / Decimal.ten.pow(decimals).toDecimal()).toDecimal(
+    scaleOnInfinitePrecision: decimals,
+  );
+  final abs = formatDecimalAbs(
+    v,
+    'id',
+    minDp: v.abs() >= Decimal.one ? 2 : 0,
+    maxDp: v.abs() >= Decimal.one ? 2 : decimalsForSignificant(v.abs(), 2),
+  );
+  return raw.isNegative ? '−$abs' : abs;
+}
 
 /// Percent PnL via [pnlPct] (T-15): exact 0 → `0,0%`; non-zero → sign (+ arrow).
 String fmtPct(double v, {bool arrow = true}) {

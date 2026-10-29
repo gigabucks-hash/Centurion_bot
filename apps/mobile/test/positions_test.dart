@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solbot_mobile/app/app.dart';
 import 'package:solbot_mobile/core/approval_guard.dart';
+import 'package:solbot_mobile/core/format.dart';
 import 'package:solbot_mobile/core/feature_flags.dart';
 import 'package:solbot_mobile/core/widgets/common.dart';
 import 'package:solbot_mobile/data/api/api_exception.dart';
@@ -10,6 +11,7 @@ import 'package:solbot_mobile/data/api/settings_keys.dart';
 import 'package:solbot_mobile/data/mock/mock_backend.dart';
 import 'package:solbot_mobile/data/models/models.dart';
 import 'package:solbot_mobile/data/providers.dart';
+import 'package:solbot_mobile/data/repositories/repositories.dart';
 import 'package:solbot_mobile/features/positions/widgets/exit_progress_bar.dart';
 
 /// [realSol] flips the Phase 7 flag (client + mock server) for tests that exercise Real flows.
@@ -91,23 +93,88 @@ void main() {
       b.dispose();
     });
 
-    test('manual sell 50% halves size, keeps plan; 100% closes', () async {
+    ClosePositionRequest close(Position p, int bps, {String? key, int? rev}) => ClosePositionRequest(
+      positionId: p.id,
+      expectedRev: rev ?? p.rev,
+      idempotencyKey: key ?? 'close:${p.id}:r${p.rev}:$bps',
+      fractionBps: bps,
+    );
+    Matcher api(String code) => throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', code));
+
+    test('close_position 5000 bps halves size, keeps plan, bumps rev; 10000 closes', () async {
       final b = MockBackend();
       final before = (await b.watchPositions().first).firstWhere((p) => p.id == 'ck101.0');
       final est = before.estimateSell(50);
-      final got = await b.sellPosition('ck101.0', pct: 50);
-      expect(got, est); // exact lamports
+      final r = await b.closePosition(close(before, 5000));
+      expect(r.proceeds, est); // exact lamports
+      expect(r.status, 'filled');
+      expect(r.replayed, isFalse);
+      expect(r.positionRev, before.rev + 1);
+      expect(r.practiceEpoch, before.practiceEpoch);
       var p = (await b.watchPositions().first).firstWhere((p) => p.id == 'ck101.0');
       expect(p.sizeLamports, before.costLamports.bps(5000)); // exact half
       expect(p.isOpen, isTrue);
       expect(p.exitPlan, isNotNull);
-      await b.sellPosition('ck101.0', pct: 100);
+      expect(p.rev, before.rev + 1);
+      expect(p.qtyRaw, before.qtyRaw! - before.qtyRaw! ~/ BigInt.two);
+      await b.closePosition(close(p, 10000));
       p = (await b.watchPositions().first).firstWhere((p) => p.id == 'ck101.0');
       expect(p.isOpen, isFalse);
-      expect(
-        () => b.sellPosition('ck101.0', pct: 25),
-        throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'VALIDATION_FAILED')),
-      );
+      expect(p.qtyRaw, BigInt.zero);
+      // 1.1.2 has a dedicated code (no more VALIDATION_FAILED stand-in).
+      expect(() => b.closePosition(close(p, 2500)), api('POSITION_ALREADY_CLOSED'));
+      b.dispose();
+    });
+
+    test('close_position: INVALID_FRACTION, stale rev → VERSION_CONFLICT, wire params', () async {
+      final b = MockBackend();
+      final p = b.debugPositions.firstWhere((p) => p.id == 'ck101.0');
+      expect(() => b.closePosition(close(p, 0)), api('INVALID_FRACTION'));
+      expect(() => b.closePosition(close(p, 10001)), api('INVALID_FRACTION'));
+      expect(() => b.closePosition(close(p, 5000, rev: p.rev + 7)), api('VERSION_CONFLICT'));
+      expect(close(p, 2500).toRpcParams(), {
+        'p_position_id': 'ck101.0',
+        'p_expected_rev': p.rev,
+        'p_idempotency_key': 'close:ck101.0:r${p.rev}:2500',
+        'p_fraction_bps': 2500,
+      });
+      expect(const ClosePositionRequest(positionId: 'x', expectedRev: 1, idempotencyKey: 'k').fractionBps, 10000);
+      b.dispose();
+    });
+
+    test('close_position idempotency: replay → replayed=true; same key + other body → 422', () async {
+      final b = MockBackend();
+      final p = b.debugPositions.firstWhere((p) => p.id == 'ck101.0');
+      final r1 = await b.closePosition(close(p, 2500, key: 'K'));
+      final r2 = await b.closePosition(close(p, 2500, key: 'K'));
+      expect(r2.replayed, isTrue);
+      expect(r2.orderId, r1.orderId);
+      expect(b.debugPositions.firstWhere((x) => x.id == p.id).rev, p.rev + 1, reason: 'replay does not sell twice');
+      try {
+        await b.closePosition(close(p, 5000, key: 'K'));
+        fail('expected IDEMPOTENCY_KEY_REUSED');
+      } on ApiException catch (e) {
+        expect(e.rawCode, 'IDEMPOTENCY_KEY_REUSED');
+        expect(e.code.http, 422);
+      }
+      b.dispose();
+    });
+
+    test('positions carry decimals + token_program; token qty formatted with decimals', () {
+      final b = MockBackend();
+      for (final p in b.debugPositions.where((p) => p.isOpen)) {
+        expect(p.decimals, anyOf(6, 9));
+        expect(p.tokenProgram, MockBackend.splTokenProgram);
+        expect(p.qtyRaw, isNotNull);
+      }
+      expect(fmtTokenQty(BigInt.parse('1234567890'), 6), '1.234,57');
+      expect(fmtTokenQty(BigInt.parse('1234567890'), 9), '1,23');
+      expect(fmtTokenQty(BigInt.parse('1500'), 6), '0,0015');
+      expect(fmtTokenQty(BigInt.zero, 6), '0');
+      expect(fmtTokenQty(BigInt.one, null), '—', reason: 'unknown decimals: never assume 6');
+      final coins = b.debugScreener;
+      expect(coins.every((c) => c.decimals != null && c.tokenProgram != null && c.quoteMint != null), isTrue);
+      expect(coins.firstWhere((c) => c.outcome == ScreenerOutcome.notTradeable).quoteMint, MockBackend.usdcMint);
       b.dispose();
     });
 
@@ -170,7 +237,7 @@ void main() {
     b.dispose();
   });
 
-  testWidgets('Real SOL sell needs a 2,5 s hold (1,3 s is not enough)', (tester) async {
+  testWidgets('Real SOL sell needs a 2,5 s hold (1,3 s is not enough); server refuses Real', (tester) async {
     await _phone(tester);
     final b = MockBackend()..debugAddPosition(_realPosition());
     await tester.pumpWidget(_app(b, '/positions', realSol: true));
@@ -189,7 +256,10 @@ void main() {
     await _hold(tester, find.byKey(const Key('sellHold')), const Duration(milliseconds: 2700));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
-    expect(b.debugPositions.firstWhere((p) => p.id == 'ckR1.0').soldPct, 50);
+    // The 2,5 s hold fired close_position; 1.1.2 close_position is Practice only, so
+    // the server refuses Real with MODE_NOT_ALLOWED (localized from errors.json).
+    expect(find.text(ApiErrorCode.modeNotAllowed.messageId!), findsOneWidget);
+    expect(b.debugPositions.firstWhere((p) => p.id == 'ckR1.0').soldPct, 0);
     b.dispose();
   });
 
@@ -207,8 +277,11 @@ void main() {
     expect(b.debugPositions.firstWhere((p) => p.id == 'ckR1.0').soldBps, 0);
     // Server gate too (mock mirrors REAL_SOL_DISABLED).
     await tester.runAsync(() async {
+      final r = b.debugPositions.firstWhere((p) => p.id == 'ckR1.0');
       await expectLater(
-        b.sellPosition('ckR1.0', pct: 50),
+        b.closePosition(
+          ClosePositionRequest(positionId: r.id, expectedRev: r.rev, idempotencyKey: 'k', fractionBps: 5000),
+        ),
         throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'REAL_SOL_DISABLED')),
       );
     });

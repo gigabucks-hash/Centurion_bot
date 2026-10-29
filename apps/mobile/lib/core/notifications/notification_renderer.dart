@@ -71,6 +71,9 @@ class NotificationRenderer {
       return policy.realSkipFromNotification ? const [NotifAction.skip] : const [];
     }
     if (!m.tokenValidAt(now)) return const [];
+    // 1.1.2: decide_approval needs p_expected_rev; without the push `version` the
+    // action could only fail → no buttons, open the app instead.
+    if (m.version == null) return const [];
     // The client only narrows what the server offers (`actions`).
     final offered = m.serverActions;
     return [
@@ -156,6 +159,10 @@ class NotificationRenderer {
     if (out.containsKey('sol_lamports')) out['sol'] = out.remove('sol_lamports')!;
     if (out.containsKey('pnl_lamports')) out['pnl'] = out.remove('pnl_lamports')!;
     if (out.containsKey('price_usd')) out['price'] = out.remove('price_usd')!;
+    // 1.1.2 push vars → ARB placeholders: `symbol` fills {coin}, `amount_lamports`
+    // fills {sol} (there is no `vars.sol` anymore). Originals stay for N-05 copy.
+    if (!out.containsKey('coin') && out.containsKey('symbol')) out['coin'] = out['symbol']!;
+    if (!out.containsKey('sol') && out.containsKey('amount_lamports')) out['sol'] = out['amount_lamports']!;
     // Countdown is always client-computed from exp − (now + skew); `vars.mm_ss` is ignored.
     if (m.expiresAt != null) out['mm_ss'] = formatCountdown(m.expiresAt!.difference(now.toUtc()));
     return out;

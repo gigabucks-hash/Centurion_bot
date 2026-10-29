@@ -23,10 +23,33 @@ void main() {
     expect(ApiErrorCode.fromWire('RESET_COOLDOWN').http, 429);
   });
 
-  test('P04xx mapper: MESSAGE = code wins; non-P04 SQLSTATE is unknown', () {
-    expect(ApiErrorCode.fromPostgres('P0409', 'STRATEGY_REV_CONFLICT'), ApiErrorCode.fromWire('STRATEGY_REV_CONFLICT'));
-    expect(ApiErrorCode.fromPostgres('P0400', 'APPROVAL_EXPIRED'), ApiErrorCode.fromWire('APPROVAL_EXPIRED'));
+  test('v4: sqlstate = P0+http, kind and en/id messages come from errors.json', () {
+    for (final raw in json['codes']! as List) {
+      final c = (raw as Map).cast<String, Object?>();
+      final e = ApiErrorCode.fromWire(c['code']! as String);
+      expect(e.sqlState, 'P0${c['http']}', reason: e.wire);
+      expect(e.sqlState, c['sqlstate'], reason: e.wire);
+      expect(e.kind.name, c['kind'], reason: e.wire);
+      final msgs = (c['messages']! as Map).cast<String, String>();
+      expect(e.message('en'), msgs['en'], reason: e.wire);
+      expect(e.message('id'), msgs['id'], reason: e.wire);
+    }
+    expect(ApiErrorCode.fromWire('POSITION_ALREADY_CLOSED').http, 409);
+    expect(ApiErrorCode.fromWire('INVALID_FRACTION').http, 422);
+    expect(ApiErrorCode.fromWire('IDEMPOTENCY_KEY_REUSED').http, 422);
+    expect(ApiErrorCode.fromWire('UNSUPPORTED_QUOTE_MINT').kind, ApiErrorKind.skip);
+  });
+
+  test('sqlstate mapper: P04xx/P05xx + MESSAGE = code; plain Postgres SQLSTATE is unknown', () {
+    expect(ApiErrorCode.fromPostgres('P0409', 'VERSION_CONFLICT'), ApiErrorCode.fromWire('VERSION_CONFLICT'));
+    expect(
+      ApiErrorCode.fromPostgres('P0409', 'POSITION_ALREADY_CLOSED'),
+      ApiErrorCode.fromWire('POSITION_ALREADY_CLOSED'),
+    );
+    expect(ApiErrorCode.fromPostgres('P0503', 'UNAVAILABLE'), ApiErrorCode.fromWire('UNAVAILABLE'));
     expect(ApiErrorCode.fromPostgres('23505', 'duplicate key'), ApiErrorCode.unknown);
+    expect(ApiErrorCode.httpFromSqlState('P0422'), 422);
+    expect(ApiErrorCode.httpFromSqlState('23505'), isNull);
   });
 
   test('committed api_errors.g.dart == fresh generator output (sync / golden)', () async {
@@ -40,9 +63,10 @@ void main() {
     final fixture = jsonDecode(File(source).readAsStringSync()) as Map<String, dynamic>;
     (fixture['codes'] as List).add({
       'code': 'BRAND_NEW_CODE',
+      'kind': 'error',
       'http': 418,
+      'sqlstate': 'P0418',
       'retryable': true,
-      'message': 'Fixture only',
       'messages': {'id': 'Hanya fixture', 'en': 'Fixture only'},
     });
     final out = gen.generate(jsonEncode(fixture));
@@ -53,5 +77,9 @@ void main() {
     // Duplicates are rejected.
     (fixture['codes'] as List).add({'code': 'BRAND_NEW_CODE', 'http': 418, 'retryable': false, 'message': 'dup'});
     expect(() => gen.generate(jsonEncode(fixture)), throwsA(anything));
+    // sqlstate must be P0 + http.
+    final bad = jsonDecode(File(source).readAsStringSync()) as Map<String, dynamic>;
+    ((bad['codes'] as List).first as Map)['sqlstate'] = 'P0999';
+    expect(() => gen.generate(jsonEncode(bad)), throwsA(isA<FormatException>()));
   });
 }

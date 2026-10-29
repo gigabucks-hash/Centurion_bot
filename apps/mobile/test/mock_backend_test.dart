@@ -3,6 +3,7 @@ import 'package:solbot_mobile/data/api/api_exception.dart';
 import 'package:solbot_mobile/data/api/decide_approval.dart';
 import 'package:solbot_mobile/data/mock/mock_backend.dart';
 import 'package:solbot_mobile/data/models/models.dart';
+import 'package:solbot_mobile/data/repositories/repositories.dart' show ResetPracticeRequest;
 import 'package:solbot_mobile/features/approvals/approvals_screen.dart' show decideRequest;
 
 Matcher _api(String code) => throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', code));
@@ -19,8 +20,8 @@ void main() {
       expect(r1.status, ApprovalStatus.approved);
       expect(r1.replayed, isFalse);
       expect(r2.replayed, isTrue);
-      expect(r2.version, r1.version);
-      expect(r1.version, pick.version + 1);
+      expect(r2.rev, r1.rev);
+      expect(r1.rev, pick.rev + 1);
       expect(b.debugPositions.length, before + 1);
       // Different key, already decided → typed error.
       expect(
@@ -29,7 +30,7 @@ void main() {
             approvalId: pick.id,
             token: pick.token,
             approve: true,
-            expectedRev: r1.version,
+            expectedRev: r1.rev,
             idempotencyKey: 'other',
           ),
         ),
@@ -84,8 +85,9 @@ void main() {
       final a = b.debugApprovals.firstWhere((a) => a.id == 'apv_nt');
       expect(a.notTradeable, isTrue);
       expect(a.swipeable, isFalse);
-      expect(a.copyWith(version: 2).notTradeable, isTrue, reason: 'copyWith keeps reason_code');
-      expect(() => b.decide(decideRequest(a, approve: true)), _api('VALIDATION_FAILED'));
+      expect(a.copyWith(rev: 2).notTradeable, isTrue, reason: 'copyWith keeps reason_code');
+      // 1.1.2 has a real code for it (kind: skip) → no more VALIDATION_FAILED stand-in.
+      expect(() => b.decide(decideRequest(a, approve: true)), _api('UNSUPPORTED_QUOTE_MINT'));
       b.dispose();
     });
 
@@ -134,7 +136,7 @@ void main() {
     test('30 SOL, archives practice, once per 24 h (RESET_COOLDOWN + next_allowed_at)', () async {
       var now = DateTime.utc(2026, 10, 29, 9);
       final b = MockBackend(clock: () => now);
-      final r = await b.resetPractice(idempotencyKey: 'k1');
+      final r = await b.resetPractice(const ResetPracticeRequest(MockBackend.workspaceId));
       expect(r.startingBalance, Lamports.parse('30000000000'));
       expect(r.epoch, 2);
       expect(r.nextAllowedAt, now.add(const Duration(hours: 24)));
@@ -146,7 +148,7 @@ void main() {
       expect(b.debugApprovals.where((a) => a.expireReason == ExpireReason.practiceReset), isNotEmpty);
       now = now.add(const Duration(hours: 23));
       try {
-        await b.resetPractice(idempotencyKey: 'k2');
+        await b.resetPractice(const ResetPracticeRequest(MockBackend.workspaceId));
         fail('expected cooldown');
       } on ApiException catch (e) {
         expect(e.rawCode, 'RESET_COOLDOWN');
@@ -154,7 +156,7 @@ void main() {
         expect(e.details['next_allowed_at'], '2026-10-30T09:00:00.000Z');
       }
       now = now.add(const Duration(hours: 1));
-      expect((await b.resetPractice(idempotencyKey: 'k3')).epoch, 3);
+      expect((await b.resetPractice(const ResetPracticeRequest(MockBackend.workspaceId))).epoch, 3);
       b.dispose();
     });
   });

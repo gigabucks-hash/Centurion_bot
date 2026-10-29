@@ -15,7 +15,8 @@ class ApiException implements Exception {
   factory ApiException.fromCode(String code, {String? message, Map<String, Object?> details = const {}}) =>
       ApiException(ApiErrorCode.fromWire(code), rawCode: code, message: message, details: details);
 
-  /// Supabase RPC error: SQLSTATE `P04xx`, MESSAGE = code, DETAIL = JSON details.
+  /// Supabase RPC error (`PostgrestException`): `.code` = SQLSTATE `P0`+HTTP, `.message` = the code,
+  /// `.details` = JSON text of the details (pass it decoded).
   factory ApiException.fromPostgres({
     required String? sqlState,
     required String? message,
@@ -25,16 +26,21 @@ class ApiException implements Exception {
     return ApiException(code, rawCode: message ?? '', sqlState: sqlState, details: details ?? const {});
   }
 
-  /// REST error body `{error: {code, message, details}, ...409 merge fields}`.
+  /// REST error body (1.1.2): `{error: {code, message, ...details, server_now}, server_now}`.
+  /// `error` is always an object; 409 merge fields (`current_rev`, `current`, ...) live inside it.
   factory ApiException.fromRestBody(Map<String, Object?> body) {
     final e = (body['error'] as Map?)?.cast<String, Object?>() ?? const {};
     final details = <String, Object?>{
+      for (final k in e.keys)
+        if (k != 'code' && k != 'message' && k != 'details') k: e[k],
       ...?(e['details'] as Map?)?.cast<String, Object?>(),
-      for (final k in const ['current_rev', 'base_rev', 'changed_fields', 'changed_by', 'changed_at', 'current'])
-        if (body.containsKey(k)) k: body[k],
+      if (!e.containsKey('server_now') && body['server_now'] != null) 'server_now': body['server_now'],
     };
     return ApiException.fromCode('${e['code'] ?? ''}', message: e['message'] as String?, details: details);
   }
+
+  /// Localized message from errors.json (`id`/`en`), else the server's text.
+  String localizedMessage(String lang) => code.message(lang) ?? message;
 
   final ApiErrorCode code;
 

@@ -49,9 +49,16 @@ class MockSentraRpc implements SentraRpc {
   }
 
   @override
-  Future<PracticeResetResult> resetPractice(String workspaceId) {
-    _record(Rpc.resetPractice, {'p_workspace': workspaceId});
-    return backend.resetPractice(idempotencyKey: 'rpc:$workspaceId:${backend.epoch}');
+  Future<PracticeResetResult> resetPractice(ResetPracticeRequest r) {
+    _record(Rpc.resetPractice, r.toRpcParams());
+    return backend.resetPractice(r);
+  }
+
+  @override
+  Future<ClosePositionResult> closePosition(ClosePositionRequest r) async {
+    _record(Rpc.closePosition, r.toRpcParams());
+    final res = await backend.closePosition(r);
+    return ClosePositionResult.fromJson(res.toJson()); // round-trip the wire shape
   }
 
   @override
@@ -79,8 +86,21 @@ class MockSentraRpc implements SentraRpc {
   }
 
   @override
-  Future<List<ExitStat>> exitStats({required TradeMode mode, String? strategyId, String window = '24h'}) async {
-    _record(Rpc.exitStats, {'p_mode': Wire.mode(mode), 'p_strategy_id': strategyId, 'p_window': window});
+  Future<List<ExitStat>> exitStats(
+    String workspaceId, {
+    TradeMode? mode,
+    String? strategyId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    _record(Rpc.exitStats, {
+      'p_workspace': workspaceId,
+      'p_strategy': ?strategyId,
+      if (mode != null) 'p_mode': Wire.mode(mode),
+      if (from != null) 'p_from': from.toUtc().toIso8601String(),
+      if (to != null) 'p_to': to.toUtc().toIso8601String(),
+    });
+    if (workspaceId != MockBackend.workspaceId) throw ApiException.fromCode('NOT_FOUND');
     return backend.exitStatsRows(strategyId: strategyId).map(ExitStat.fromJson).toList();
   }
 }

@@ -45,6 +45,7 @@ PushMessage msg(
     approvalId: 'apv_1',
     positionId: 'ck1.0',
     token: validToken ? 'tok_1' : null,
+    version: 1,
     expiresAt: exp,
     expireReason: expireReason,
   );

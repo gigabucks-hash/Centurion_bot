@@ -7,6 +7,7 @@ import '../../../core/theme/solbot_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../data/api/api_exception.dart';
 import '../../../data/models/models.dart';
+import '../../../data/repositories/repositories.dart' show ClosePositionRequest;
 import '../../../data/providers.dart';
 
 /// Opens the manual sell sheet (SPEC §6, flows/positions-sell.mmd).
@@ -45,12 +46,34 @@ class _SellSheetState extends ConsumerState<SellSheet> {
     final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
     try {
-      final got = await ref.read(portfolioRepositoryProvider).sellPosition(p.id, pct: _pct);
+      // close_position (1.1.2): fraction of the CURRENT remainder, If-Match on the
+      // position rev. The key is deterministic per (position, rev, fraction): a
+      // double tap / retry replays; a successful sell bumps rev → new key.
+      final bps = _pct * 100;
+      final res = await ref
+          .read(portfolioRepositoryProvider)
+          .closePosition(
+            ClosePositionRequest(
+              positionId: p.id,
+              expectedRev: p.rev,
+              idempotencyKey: 'close:${p.id}:r${p.rev}:$bps',
+              fractionBps: bps,
+            ),
+          );
       nav.pop();
-      messenger.showSnackBar(SnackBar(content: Text('Terjual $_pct% \$${p.symbol} · ≈ ${fmtSol(got)} $_unit')));
+      final got = res.proceeds;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            got == null
+                ? 'Order jual $_pct% \$${p.symbol} dikirim'
+                : 'Terjual $_pct% \$${p.symbol} · ≈ ${fmtSol(got)} $_unit',
+          ),
+        ),
+      );
     } on ApiException catch (e) {
       nav.pop();
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      messenger.showSnackBar(SnackBar(content: Text(e.localizedMessage('id'))));
     }
   }
 

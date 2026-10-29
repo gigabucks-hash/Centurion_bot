@@ -1,8 +1,9 @@
-/// `decide_approval` RPC contract (FLUTTER_INTEGRATION_ANSWERS §2, API §4.5):
+/// `decide_approval` RPC, contracts 1.1.2 (FLUTTER_INTEGRATION_ANSWERS §2):
 /// `supabase.rpc('decide_approval', {p_approval_id, p_token, p_decision,
-/// p_expected_rev, p_client, p_idempotency_key})` →
-/// `{proposal_id, status, version, replayed, server_now}`; errors are
-/// SQLSTATE P04xx with MESSAGE = errors.json code ([ApiException]).
+/// p_expected_rev, p_idempotency_key?})` → `{proposal_id, status, rev,
+/// replayed, server_now}`. Actor/channel come from the JWT (`auth.uid()` +
+/// `sentra_client` claim): no `p_client`/`p_actor`/`p_via`. `p_expected_rev`
+/// is REQUIRED on every channel, push included (push `version` = approval rev).
 library;
 
 import '../models/models.dart';
@@ -13,17 +14,15 @@ class DecideApprovalRequest {
     required this.approvalId,
     required this.token,
     required this.approve,
-    this.expectedRev,
-    this.client = Wire.clientMobile,
+    required this.expectedRev,
     this.idempotencyKey,
   });
   final String approvalId;
   final String token;
   final bool approve;
 
-  /// The approval's `version`.
-  final int? expectedRev;
-  final String client;
+  /// The approval `rev` (never null; a missing rev is `428 PRECONDITION_REQUIRED`).
+  final int expectedRev;
   final String? idempotencyKey;
 
   Map<String, Object?> toRpcParams() => {
@@ -31,8 +30,7 @@ class DecideApprovalRequest {
     'p_token': token,
     'p_decision': Wire.decision(approve: approve),
     'p_expected_rev': expectedRev,
-    'p_client': client,
-    'p_idempotency_key': idempotencyKey,
+    'p_idempotency_key': ?idempotencyKey,
   };
 }
 
@@ -40,7 +38,7 @@ class DecideApprovalResult {
   const DecideApprovalResult({
     required this.proposalId,
     required this.status,
-    required this.version,
+    required this.rev,
     required this.replayed,
     required this.serverNow,
   });
@@ -48,7 +46,7 @@ class DecideApprovalResult {
 
   /// Domain status (`rejected` on the wire → [ApprovalStatus.skipped]).
   final ApprovalStatus status;
-  final int version;
+  final int rev;
   final bool replayed;
   final DateTime serverNow;
 
@@ -58,7 +56,7 @@ class DecideApprovalResult {
     return DecideApprovalResult(
       proposalId: j['proposal_id']! as String,
       status: status,
-      version: (j['version']! as num).toInt(),
+      rev: Wire.intOf(j['rev'])!,
       replayed: j['replayed'] as bool? ?? false,
       serverNow: DateTime.parse(j['server_now']! as String),
     );
@@ -67,7 +65,7 @@ class DecideApprovalResult {
   Map<String, Object?> toJson() => {
     'proposal_id': proposalId,
     'status': Wire.approvalStatus(status),
-    'version': version,
+    'rev': rev,
     'replayed': replayed,
     'server_now': serverNow.toUtc().toIso8601String(),
   };

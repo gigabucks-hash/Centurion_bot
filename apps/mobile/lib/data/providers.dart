@@ -30,6 +30,12 @@ final screenerProvider = StreamProvider<List<ScreenerCoin>>(
   (ref) => ref.watch(screenerRepositoryProvider).watchScreener(),
 );
 
+/// Active workspace id (prod: from the session / workspace picker).
+final workspaceIdProvider = Provider<String>((_) => MockBackend.workspaceId);
+
+/// `practice_epoch` gate (1.1.2): drops rows from an archived practice run.
+final practiceEpochGateProvider = Provider<PracticeEpochGate>((ref) => PracticeEpochGate());
+
 final practiceResetRepositoryProvider = Provider<PracticeResetRepository>((ref) => ref.watch(mockBackendProvider));
 final eventsFeedProvider = Provider<EventsFeed>((ref) => ref.watch(mockBackendProvider));
 final marksSourceProvider = Provider<MarksSource>((ref) => ref.watch(mockBackendProvider));
@@ -46,9 +52,10 @@ final summaryProvider = StreamProvider<PortfolioSummary>(
   (ref) => ref.watch(portfolioRepositoryProvider).watchSummary(),
 );
 
-final positionsProvider = StreamProvider<List<Position>>(
-  (ref) => ref.watch(portfolioRepositoryProvider).watchPositions(),
-);
+final positionsProvider = StreamProvider<List<Position>>((ref) {
+  final gate = ref.watch(practiceEpochGateProvider);
+  return ref.watch(portfolioRepositoryProvider).watchPositions().map(gate.filter);
+});
 
 final positionByIdProvider = Provider.family<AsyncValue<Position?>, String>((ref, id) {
   return ref.watch(positionsProvider).whenData((list) {

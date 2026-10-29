@@ -3,7 +3,8 @@
 /// metrics. Nothing else in lib/ may hardcode them.
 ///
 /// Filled from the rename table in `packages/contracts/CHANGELOG.md` 1.1.0
-/// (v1.0 name -> v1.1 name). `current` is what we send; `v10` is accepted
+/// (v1.0 name -> v1.1 name), as corrected in 1.1.2 (`stopLossPct` →
+/// `stop_loss_pct`, separate from `peak_trail_pct`). `current` is what we send; `v10` is accepted
 /// when reading (legacy fixtures) and normalized to `current`.
 /// TODO(v1.1): drop the `v10` aliases once Backend confirms no v1.0 payload
 /// exists anywhere (CHANGELOG: "No producer had shipped v1.0 payloads"), and
@@ -76,7 +77,13 @@ abstract final class SettingsKeys {
   static const atGainPct = (current: 'at_gain_pct', v10: 'gainPct');
   static const sellPortionPct = (current: 'sell_portion_pct', v10: 'sellPct');
   static const givebackPct = (current: 'giveback_pct', v10: 'pullbackPct');
-  static const peakTrailPct = (current: 'peak_trail_pct', v10: 'stopLossPct');
+
+  /// Hard stop from ENTRY (0 = off, else 5–49). 1.1.2 corrected the 1.1.0 table,
+  /// which wrongly mapped v1.0 `stopLossPct` → `peak_trail_pct`.
+  static const stopLossPct = (current: 'stop_loss_pct', v10: 'stopLossPct');
+
+  /// Trailing stop from the PEAK (0 = off, else 5–49). New in v1.1: no v1.0 alias.
+  static const peakTrailPct = (current: 'peak_trail_pct', v10: 'peak_trail_pct');
   static const idleExitSeconds = (current: 'idle_exit_seconds', v10: 'noTradeSeconds');
   static const sellPressureExit = (current: 'sell_pressure_exit', v10: 'drain');
   static const sellFloors = (current: 'sell_floors', v10: 'sellFloors');
@@ -137,6 +144,7 @@ abstract final class SettingsKeys {
     atGainPct,
     sellPortionPct,
     givebackPct,
+    stopLossPct,
     peakTrailPct,
     idleExitSeconds,
     sellPressureExit,

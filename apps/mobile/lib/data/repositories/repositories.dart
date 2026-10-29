@@ -1,7 +1,9 @@
 import '../api/decide_approval.dart';
+import '../api/sentra_rpc.dart' show ClosePositionRequest, ClosePositionResult, ResetPracticeRequest;
 import '../models/models.dart';
 
 export '../api/decide_approval.dart';
+export '../api/sentra_rpc.dart' show ClosePositionRequest, ClosePositionResult, ResetPracticeRequest;
 export '../api/marks.dart' show MarksSource;
 
 /// Data-layer contracts. UI and providers depend ONLY on these, so the mock
@@ -15,9 +17,9 @@ abstract interface class PortfolioRepository {
   /// Equity curve for the Positions header (SPEC §6: 1D/7D/30D/All).
   Future<List<PnlPoint>> equityHistory(EquityRange range);
 
-  /// Manual sell of [pct]% of the remaining size. Returns lamports received.
-  /// Never callable from a notification (SPEC §6).
-  Future<Lamports> sellPosition(String positionId, {required int pct});
+  /// Manual sell via `close_position` (1.1.2): `fraction_bps` of the remaining size,
+  /// If-Match on the position `rev`, idempotent. Never callable from a notification (SPEC §6).
+  Future<ClosePositionResult> closePosition(ClosePositionRequest r);
 }
 
 abstract interface class ActivityRepository {
@@ -76,14 +78,14 @@ class PracticeResetResult {
   );
 }
 
-/// `POST /workspaces/{ws}/practice/reset` (contract v1.1): back to 30 SOL,
-/// at most once per 24 h; otherwise 429 RESET_COOLDOWN with
-/// `details.next_allowed_at`. Practice only; Real is never resettable.
 /// Strategy screener results ("Coins", WF-20/21).
 abstract interface class ScreenerRepository {
   Stream<List<ScreenerCoin>> watchScreener();
 }
 
+/// `reset_practice(p_workspace)` / `POST /v1/workspaces/{ws}/practice/reset`
+/// (1.1.2): back to 30 SOL, at most once per 24 h; otherwise 429 RESET_COOLDOWN
+/// with `next_allowed_at`. Practice only; Real is never resettable.
 abstract interface class PracticeResetRepository {
-  Future<PracticeResetResult> resetPractice({required String idempotencyKey});
+  Future<PracticeResetResult> resetPractice(ResetPracticeRequest r);
 }

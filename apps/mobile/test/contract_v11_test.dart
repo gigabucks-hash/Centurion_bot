@@ -36,14 +36,19 @@ void main() {
     test('settings + exit preset mapping follows the CHANGELOG 1.1.0 rename table', () {
       expect(SettingsKeys.ticketLamports.current, 'ticket_lamports');
       expect(SettingsKeys.normalize('maxOpen'), 'max_concurrent_positions');
-      expect(SettingsKeys.normalize('stopLossPct'), 'peak_trail_pct');
+      // 1.1.2 correction: v1.0 stopLossPct = hard stop from ENTRY → stop_loss_pct;
+      // peak_trail_pct (from peak) is a separate key with no v1.0 alias.
+      expect(SettingsKeys.normalize('stopLossPct'), 'stop_loss_pct');
+      expect(SettingsKeys.normalize('stop_loss_pct'), 'stop_loss_pct');
+      expect(SettingsKeys.normalize('peak_trail_pct'), 'peak_trail_pct');
+      expect(SettingsKeys.stopLossPct.current, isNot(SettingsKeys.peakTrailPct.current));
       expect(SettingsKeys.normalize('shield'), 'guard_checks');
       expect(SettingsKeys.removedV10, contains('askFirst'));
       expect(ExitPresets.normalize('ladder'), 'three_step_ladder');
       expect(ExitPresets.normalize('scalp'), 'fast_half');
       expect(ExitPresets.normalize('stepLock'), 'ratchet');
       expect(ExitPresets.all, hasLength(13));
-      expect(SettingsKeys.all, hasLength(59)); // 60 rows, askFirst removed
+      expect(SettingsKeys.all, hasLength(60)); // 60 rows, askFirst removed, + stop_loss_pct (1.1.2)
       for (final k in [...SettingsKeys.all, ...ExitPresets.all]) {
         expect(k.current, matches(RegExp(r'^[a-z][a-z0-9_]*$')), reason: 'snake_case: ${k.current}');
       }
@@ -62,12 +67,28 @@ void main() {
       });
       expect(rest.code.http, 429);
       expect(rest.details['next_allowed_at'], 'x');
+      // 1.1.2 body: {error: {code, message, ...details, server_now}}; details are
+      // spread into `error` (a nested `details` map is still merged).
       final conflict = ApiException.fromRestBody({
-        'error': {'code': 'VERSION_CONFLICT'},
-        'current_rev': 9,
-        'changed_fields': ['approval_mode'],
+        'error': {
+          'code': 'VERSION_CONFLICT',
+          'message': 'stale',
+          'current_rev': 9,
+          'changed_fields': ['approval_mode'],
+          'current': {'id': 's1', 'rev': 9},
+          'server_now': '2026-10-29T10:00:00.000Z',
+        },
       });
       expect(conflict.details['current_rev'], 9);
+      expect(conflict.details['changed_fields'], ['approval_mode']);
+      expect((conflict.details['current']! as Map)['rev'], 9);
+      expect(conflict.details['server_now'], '2026-10-29T10:00:00.000Z');
+      expect(conflict.code.sqlState, 'P0409');
+      final reused = ApiException.fromRestBody({
+        'error': {'code': 'IDEMPOTENCY_KEY_REUSED', 'message': 'x'},
+      });
+      expect(reused.code.http, 422);
+      expect(reused.localizedMessage('id'), isNot('x'), reason: 'localized from errors.json v4');
       expect(ApiException.fromCode('SOMETHING_NEW').code, ApiErrorCode.unknown);
     });
 
@@ -105,27 +126,21 @@ void main() {
     });
     tearDown(() => b.dispose());
 
-    test('decide_approval params: no device_id, p_* names', () async {
+    test('decide_approval params (1.1.2): no p_client / device_id, p_expected_rev required', () async {
       final pick = b.debugApprovals.firstWhere((a) => a.isPending && a.mode == TradeMode.practice);
       await rpc.decideApproval(
         DecideApprovalRequest(
           approvalId: pick.id,
           token: pick.token,
           approve: true,
-          expectedRev: pick.version,
+          expectedRev: pick.rev,
           idempotencyKey: 'k',
         ),
       );
       final (name, params) = rpc.lastCall!;
       expect(name, 'decide_approval');
-      expect(params.keys.toSet(), {
-        'p_approval_id',
-        'p_token',
-        'p_decision',
-        'p_expected_rev',
-        'p_client',
-        'p_idempotency_key',
-      });
+      expect(params.keys.toSet(), {'p_approval_id', 'p_token', 'p_decision', 'p_expected_rev', 'p_idempotency_key'});
+      expect(params['p_expected_rev'], pick.rev);
     });
 
     test('set_strategy_status + update_strategy (snake_case patch only)', () async {
@@ -160,7 +175,7 @@ void main() {
     });
 
     test('reset_practice, register_device / revoke_device', () async {
-      final r = await rpc.resetPractice(MockBackend.workspaceId);
+      final r = await rpc.resetPractice(const ResetPracticeRequest(MockBackend.workspaceId));
       expect(rpc.lastCall!.$2, {'p_workspace': MockBackend.workspaceId});
       expect(r.startingBalance.toWire(), '30000000000');
       const req = RegisterDeviceRequest(
@@ -205,24 +220,32 @@ void main() {
       expect(p.equity, s.equityLamports);
       expect(p.cash, s.cashLamports);
       b.debugSetChange('ck101.0', -36); // MOTH → loss_guard
-      final stats = await rpc.exitStats(mode: TradeMode.practice);
-      expect(stats.map((e) => e.reason), contains('loss_guard'));
-      expect(stats.map((e) => e.reason).every((r) => !r.contains(RegExp('[A-Z]'))), isTrue);
+      final stats = await rpc.exitStats(MockBackend.workspaceId, mode: TradeMode.practice);
+      expect(rpc.lastCall!.$2, {'p_workspace': MockBackend.workspaceId, 'p_mode': 'practice'});
+      expect(stats.map((e) => e.exitReason), contains('loss_guard'));
+      expect(stats.map((e) => e.exitReason).every((r) => !r.contains(RegExp('[A-Z]'))), isTrue);
+      final row = stats.firstWhere((e) => e.exitReason == 'loss_guard');
+      expect(
+        row.toJson().keys,
+        containsAll(['exit_reason', 'count', 'pnl_lamports', 'avg_pnl_pct', 'win_rate_pct', 'avg_hold_s']),
+      );
+      expect(row.toJson().containsKey('reason'), isFalse);
     });
   });
 
   group('events feed', () {
-    Map<String, Object?> env(int seq, String id, {String mode = 'practice'}) => {
-      'id': id,
-      'seq': seq,
-      'type': 'proposal.created',
-      'version': 1,
-      'workspace_id': 'ws',
-      'ts': '2026-10-29T08:42:00.123Z',
-      'actor': 'entry',
-      'mode': mode,
-      'payload': {},
-    };
+    Map<String, Object?> env(int seq, String id, {String mode = 'practice', Map<String, Object?> payload = const {}}) =>
+        {
+          'id': id,
+          'seq': '$seq', // 1.1.2: int64 integer string
+          'type': 'proposal.created',
+          'version': 1,
+          'workspace_id': 'ws',
+          'ts': '2026-10-29T08:42:00.123Z',
+          'actor': 'entry',
+          'mode': mode,
+          'payload': payload,
+        };
 
     test('dedupe by id, order by seq, watermark only from safe_seq', () {
       final s = EventSequencer();
@@ -232,9 +255,9 @@ void main() {
         env(11, 'b'),
         env(10, 'a'),
       ].map(EventEnvelope.tryParse).cast<EventEnvelope>();
-      expect(s.acceptAll(page).map((e) => e.seq), [10, 11, 12]);
-      expect(s.watermark, 0, reason: 'raw rows never move the watermark');
-      s.advanceSafe(11);
+      expect(s.acceptAll(page).map((e) => e.seq.toInt()), [10, 11, 12]);
+      expect(s.watermark, BigInt.zero, reason: 'raw rows never move the watermark');
+      s.advanceSafe('11');
       expect(s.accept(EventEnvelope.tryParse(env(11, 'late'))!), isFalse);
       expect(s.accept(EventEnvelope.tryParse(env(13, 'd'))!), isTrue);
       expect(EventEnvelope.tryParse(env(14, 'x', mode: 'paper')), isNull, reason: 'fail closed on mode');
@@ -246,14 +269,138 @@ void main() {
       final sub = b.watchEvents(MockBackend.workspaceId, TradeMode.practice).listen(got.add);
       final pick = b.debugApprovals.firstWhere((a) => a.isPending && a.mode == TradeMode.practice);
       await b.decide(
-        DecideApprovalRequest(approvalId: pick.id, token: pick.token, approve: false, expectedRev: pick.version),
+        DecideApprovalRequest(approvalId: pick.id, token: pick.token, approve: false, expectedRev: pick.rev),
       );
-      await b.resetPractice(idempotencyKey: 'k');
+      await b.resetPractice(const ResetPracticeRequest(MockBackend.workspaceId));
       await Future<void>.delayed(Duration.zero);
       expect(got.map((e) => e.type), containsAllInOrder(['proposal.rejected', 'practice.reset']));
       expect(got.first.topic, EventTopic.approvals);
       final seqs = got.map((e) => e.seq).toList();
       expect(seqs, [...seqs]..sort());
+      await sub.cancel();
+      b.dispose();
+    });
+  });
+
+  group('contracts 1.1.2', () {
+    Map<String, Object?> row(String seq, String type, {Map<String, Object?> payload = const {}}) => {
+      'id': 'x:$seq:$type',
+      'seq': seq,
+      'type': type,
+      'version': '1',
+      'workspace_id': 'ws',
+      'ts': '2026-10-29T08:42:00.123Z',
+      'actor': 'system',
+      'mode': 'practice',
+      'payload': payload,
+    };
+
+    test('seq is an int64 string compared as BigInt ("10" > "9"), watermark kept exact', () {
+      final page = [row('10', 'a'), row('9', 'b'), row('100', 'c')].map(EventEnvelope.tryParse).cast<EventEnvelope>();
+      final s = EventSequencer();
+      expect(s.acceptAll(page).map((e) => '${e.seq}'), ['9', '10', '100']);
+      s.advanceSafe('9007199254740993');
+      expect(s.watermark.toString(), '9007199254740993', reason: 'beyond 2^53: no double rounding');
+      expect(EventEnvelope.tryParse(row('nope', 'a')), isNull, reason: 'fail closed on non-integer seq');
+    });
+
+    test('practice_epoch gate drops old-epoch rows after practice.reset', () {
+      final g = PracticeEpochGate(epoch: 1);
+      EventEnvelope e(String seq, String type, Map<String, Object?> p) =>
+          EventEnvelope.tryParse(row(seq, type, payload: p))!;
+      expect(g.accept(e('1', 'position.updated', {'practice_epoch': 1})), isTrue);
+      expect(g.accept(e('2', 'practice.reset', {'epoch': 2, 'previous_epoch': 1})), isTrue);
+      expect(g.epoch, 2);
+      expect(g.accept(e('3', 'fill.simulated', {'practice_epoch': 1})), isFalse, reason: 'late row from old run');
+      expect(g.accept(e('4', 'position.opened', {'practice_epoch': 2})), isTrue);
+      expect(g.accept(e('5', 'proposal.created', {})), isTrue, reason: 'no epoch → not epoch-scoped');
+      g.observe(1);
+      expect(g.epoch, 2, reason: 'epoch never moves back');
+      final now = DateTime.utc(2026, 10, 29);
+      Position pos(String id, int epoch, TradeMode mode) => Position(
+        id: id,
+        strategyId: 's',
+        symbol: 'X',
+        mint: 'm',
+        mode: mode,
+        state: PositionState.open,
+        costLamports: Lamports.fromSol('1'),
+        entryPriceUsd: Decimal.one,
+        markPriceUsd: Decimal.one,
+        peakPriceUsd: Decimal.one,
+        openedAt: now,
+        practiceEpoch: epoch,
+      );
+      expect(
+        g
+            .filter([pos('old', 1, TradeMode.practice), pos('new', 2, TradeMode.practice), pos('r', 0, TradeMode.real)])
+            .map((p) => p.id),
+        ['new', 'r'],
+      );
+    });
+
+    test('mock practice.reset envelope + positions/portfolio carry practice_epoch', () async {
+      final b = MockBackend();
+      final got = <EventEnvelope>[];
+      final sub = b.watchEvents(MockBackend.workspaceId, TradeMode.practice).listen(got.add);
+      final before = b.epoch;
+      expect(
+        b.debugPositions.where((p) => p.mode == TradeMode.practice).every((p) => p.practiceEpoch == before),
+        isTrue,
+      );
+      expect(b.portfolioLatestRow()['practice_epoch'], before);
+      expect(b.portfolioLatestRow()['as_of_seq'], isA<String>());
+      await b.resetPractice(const ResetPracticeRequest(MockBackend.workspaceId));
+      await Future<void>.delayed(Duration.zero);
+      final reset = got.firstWhere((e) => e.type == 'practice.reset');
+      expect(reset.payload['epoch'], before + 1);
+      expect(reset.payload['previous_epoch'], before);
+      expect(reset.payload.keys, containsAll(['starting_balance_lamports', 'archived', 'next_allowed_at', 'at']));
+      expect(b.portfolioLatestRow()['practice_epoch'], before + 1);
+      await expectLater(
+        b.resetPractice(const ResetPracticeRequest('ws_other')),
+        throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'NOT_FOUND')),
+      );
+      await sub.cancel();
+      b.dispose();
+    });
+
+    test('decide_approval: same idempotency key + different body → 422 IDEMPOTENCY_KEY_REUSED', () async {
+      final b = MockBackend();
+      final pick = b.debugApprovals.firstWhere((a) => a.isPending && a.mode == TradeMode.practice);
+      DecideApprovalRequest req({required bool approve}) => DecideApprovalRequest(
+        approvalId: pick.id,
+        token: pick.token,
+        approve: approve,
+        expectedRev: pick.rev,
+        idempotencyKey: 'same-key',
+      );
+      final r1 = await b.decide(req(approve: true));
+      expect(r1.replayed, isFalse);
+      expect((await b.decide(req(approve: true))).replayed, isTrue);
+      try {
+        await b.decide(req(approve: false));
+        fail('expected IDEMPOTENCY_KEY_REUSED');
+      } on ApiException catch (e) {
+        expect(e.rawCode, 'IDEMPOTENCY_KEY_REUSED');
+        expect(e.code.http, 422);
+        expect(e.code.sqlState, 'P0422');
+      }
+      b.dispose();
+    });
+
+    test('decided envelope uses `rev`; decided_via comes from the server, not a param', () async {
+      final b = MockBackend();
+      final got = <EventEnvelope>[];
+      final sub = b.watchEvents(MockBackend.workspaceId, TradeMode.practice).listen(got.add);
+      final pick = b.debugApprovals.firstWhere((a) => a.isPending && a.mode == TradeMode.practice);
+      await b.decide(
+        DecideApprovalRequest(approvalId: pick.id, token: pick.token, approve: true, expectedRev: pick.rev),
+      );
+      await Future<void>.delayed(Duration.zero);
+      final e = got.firstWhere((e) => e.type == 'proposal.approved');
+      expect(e.payload['rev'], pick.rev + 1);
+      expect(e.payload.containsKey('version'), isFalse);
       await sub.cancel();
       b.dispose();
     });

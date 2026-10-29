@@ -47,7 +47,7 @@ class MockLocalNotifier extends Notifier<List<ShownNotification>> implements Loc
   final _seenOrder = <String>[];
 
   /// approval_id → highest seq seen; an older event for the same approval is stale.
-  final _approvalSeq = <String, int>{};
+  final _approvalSeq = <String, BigInt>{};
 
   @override
   List<ShownNotification> build() => const [];
@@ -153,7 +153,8 @@ Future<ActionOutcome> handleNotificationAction(
       }
       final approve = action == NotifAction.approve;
       try {
-        // Push payload carries no approval version → p_expected_rev null (reported to Backend).
+        // 1.1.2: p_expected_rev = push `version` (approval rev; actionsFor guarantees
+        // non-null). Client/via come from the JWT, never a param.
         final res = await ref
             .read(approvalRepositoryProvider)
             .decide(
@@ -161,8 +162,8 @@ Future<ActionOutcome> handleNotificationAction(
                 approvalId: m.approvalId!,
                 token: m.token ?? '',
                 approve: approve,
-                client: Wire.clientPush,
-                idempotencyKey: 'push:${m.approvalId}:${m.token}:${Wire.decision(approve: approve)}',
+                expectedRev: m.version!,
+                idempotencyKey: 'push:${m.approvalId}:r${m.version}:${Wire.decision(approve: approve)}',
               ),
             );
         ref.read(serverClockProvider.notifier).observe(res.serverNow, localNow: now);

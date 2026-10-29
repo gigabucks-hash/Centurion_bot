@@ -1,18 +1,20 @@
-/// PushPayload v1 (contract v1.1, EVENTS_SCHEMA §6). Data-only; copy is
+/// PushPayload v1 (contracts 1.1.2, EVENTS_SCHEMA §6). Data-only; copy is
 /// rendered on the device from the ARB catalog. Pure Dart: usable from the
 /// FCM background isolate.
 ///
-/// Canonical shape:
-/// {"v":1,"event":"N-01","type":"proposal.created","mode":"practice",
-///  "workspace_id":"…","seq":18301,"deep_link":"sentra://approvals/…",
+/// Canonical FCM `data` (1.1.2: EVERY value is a string):
+/// {"v":"1","event":"N-01","type":"proposal.created","mode":"practice",
+///  "workspace_id":"…","seq":"18301","version":"3","deep_link":"sentra://approvals/…",
 ///  "approval_id":"…","token":"apt_…","exp":"2026-10-29T08:52:00.000Z",
-///  "actions":["approve","skip","open"],
-///  "vars":{"coin":"EXM","strategy":"Yumi · AMM","sol":"0.25","mm_ss":"09:58"},
+///  "actions":"[\"approve\",\"skip\",\"open\"]",
+///  "vars":"{\"symbol\":\"EXM\",\"strategy\":\"Yumi · AMM\",\"amount_lamports\":\"250000000\"}",
 ///  "server_now":"2026-10-29T08:42:00.151Z"}
 ///
-/// FCM `data` only carries string values, so the parser also accepts the
-/// stringified form (`"v":"1"`, `"seq":"18301"`, `actions`/`vars` as JSON
-/// strings) and the pre-v1.1 flat form (vars as top-level keys, epoch `exp`).
+/// `seq` is an int64 string (kept as [BigInt]); `version` is the approval `rev`
+/// that the notification action sends as `p_expected_rev`. `vars.amount_lamports`
+/// replaced `vars.sol`; `mm_ss` is no longer sent (computed from `exp` on device).
+/// The parser still accepts JSON numbers/lists/maps and the pre-v1.1 flat form
+/// (vars as top-level keys, epoch `exp`).
 /// Fails closed on unknown `v`/`event`, missing `mode`, real-only events in
 /// practice. A Real payload never carries a usable token (dropped if present).
 library;
@@ -37,6 +39,7 @@ class PushMessage {
     this.type,
     this.workspaceId,
     this.seq,
+    this.version,
     this.deepLink,
   });
 
@@ -65,7 +68,10 @@ class PushMessage {
   final Set<String>? serverActions;
   final String? type;
   final String? workspaceId;
-  final int? seq;
+  final BigInt? seq;
+
+  /// Approval `rev` at send time → `p_expected_rev` for Approve/Skip. Null = not actionable.
+  final int? version;
   final String? deepLink;
 
   /// Screener/order says the coin has no SOL quote pair: informational only,
@@ -77,7 +83,7 @@ class PushMessage {
       token != null && token!.isNotEmpty && expiresAt != null && now.toUtc().isBefore(expiresAt!);
 
   static const _reserved = {
-    'v', 'event', 'type', 'mode', 'workspace_id', 'seq', 'deep_link', 'approval_id', 'position_id', //
+    'v', 'event', 'type', 'mode', 'workspace_id', 'seq', 'version', 'deep_link', 'approval_id', 'position_id', //
     'token', 'exp', 'expire_reason', 'actions', 'vars', 'server_now',
   };
 
@@ -136,6 +142,7 @@ class PushMessage {
           if (e.value != null) '${e.key}': '${e.value}',
     };
     final seq = data['seq'];
+    final version = data['version'];
     return PushMessage(
       event: event,
       mode: mode,
@@ -149,7 +156,8 @@ class PushMessage {
       serverActions: actions,
       type: str('type'),
       workspaceId: str('workspace_id'),
-      seq: seq is num ? seq.toInt() : int.tryParse('${seq ?? ''}'),
+      seq: seq is num ? BigInt.from(seq.toInt()) : BigInt.tryParse('${seq ?? ''}'.trim()),
+      version: version is num ? version.toInt() : int.tryParse('${version ?? ''}'.trim()),
       deepLink: str('deep_link'),
       vars: vars,
     );

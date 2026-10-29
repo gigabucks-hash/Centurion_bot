@@ -5,6 +5,7 @@ import '../../core/format.dart';
 import '../../data/api/api_exception.dart';
 import '../../data/api/server_clock.dart';
 import '../../data/providers.dart';
+import '../../data/repositories/repositories.dart' show ResetPracticeRequest;
 
 /// Lainnya → "Reset Practice" (contract v1.1 `POST /workspaces/{ws}/practice/reset`):
 /// back to 30 paper SOL, at most once per 24 h (RESET_COOLDOWN).
@@ -42,8 +43,9 @@ class _PracticeResetTileState extends ConsumerState<PracticeResetTile> {
     try {
       final r = await ref
           .read(practiceResetRepositoryProvider)
-          .resetPractice(idempotencyKey: 'reset:${DateTime.now().millisecondsSinceEpoch}');
+          .resetPractice(ResetPracticeRequest(ref.read(workspaceIdProvider)));
       ref.read(serverClockProvider.notifier).observe(r.serverNow);
+      ref.read(practiceEpochGateProvider).observe(r.epoch);
       messenger.showSnackBar(
         SnackBar(content: Text('Practice di-reset ke ${fmtSol(r.startingBalance)} paper SOL · epoch ${r.epoch}')),
       );

@@ -50,53 +50,66 @@ void main() {
     expect(PushMessage.tryParse({'v': '1', 'event': 'N-02', 'mode': 'practice'}), isNull);
   });
 
-  group('PushPayload v1 (contract v1.1, EVENTS_SCHEMA §6)', () {
+  group('PushPayload v1 (contracts 1.1.2, FLUTTER_INTEGRATION_ANSWERS §9)', () {
+    /// Verbatim shape of the 1.1.2 FCM data example: EVERY value is a string.
     Map<String, Object?> canonical({
       String mode = 'practice',
       List<String> actions = const ['approve', 'skip', 'open'],
+      String? version = '3',
     }) => {
-      'v': 1,
+      'v': '1',
       'event': 'N-01',
       'type': 'proposal.created',
       'mode': mode,
       'workspace_id': 'ws1',
-      'seq': 18301,
+      'seq': '18301',
       'deep_link': 'sentra://approvals/apv1',
       'approval_id': 'apv1',
+      'version': ?version,
       'token': 'apt_Q2x',
       'exp': '2026-10-29T08:52:00.000Z',
-      'actions': actions,
-      'vars': {'coin': 'EXM', 'strategy': 'Yumi · AMM', 'sol': '0.25', 'mm_ss': '09:58'},
+      'actions': jsonEncode(actions),
+      'vars': jsonEncode({'symbol': 'EXM', 'strategy': 'Yumi · AMM', 'amount_lamports': '250000000'}),
       'server_now': '2026-10-29T08:42:00.151Z',
     };
 
-    test('canonical JSON: numeric v/seq, nested vars, ISO exp, server_now, actions, deep_link', () {
-      final p = PushMessage.tryParse(canonical())!;
-      expect(p.seq, 18301);
+    test('FCM all-string data: v/seq/version integer strings, actions/vars JSON strings', () {
+      final c = canonical();
+      expect(c.values.every((v) => v is String), isTrue, reason: 'fixture mirrors the contract');
+      final p = PushMessage.tryParse(c)!;
+      expect(p.seq, BigInt.from(18301));
+      expect(p.version, 3);
       expect(p.workspaceId, 'ws1');
       expect(p.deepLink, 'sentra://approvals/apv1');
       expect(p.type, 'proposal.created');
       expect(p.expiresAt, DateTime.utc(2026, 10, 29, 8, 52));
       expect(p.serverNow, DateTime.utc(2026, 10, 29, 8, 42, 0, 151));
       expect(p.serverActions, {'approve', 'skip', 'open'});
-      expect(p.vars['coin'], 'EXM');
+      expect(p.vars, {'symbol': 'EXM', 'strategy': 'Yumi · AMM', 'amount_lamports': '250000000'});
+      expect(p.vars.containsKey('version'), isFalse, reason: 'envelope keys are not display vars');
       expect(p.token, 'apt_Q2x');
     });
 
-    test('FCM data form (all strings, JSON-encoded actions/vars) parses identically', () {
-      final c = canonical();
-      final fcm = <String, Object?>{
-        for (final e in c.entries) e.key: e.value is String ? e.value : jsonEncode(e.value),
-      };
-      fcm['v'] = '1';
-      fcm['seq'] = '18301';
-      final p = PushMessage.tryParse(fcm)!;
-      expect(p.seq, 18301);
-      expect(p.serverActions, {'approve', 'skip', 'open'});
-      expect(p.vars['sol'], '0.25');
+    test('int64 seq beyond 2^53 stays exact (BigInt)', () {
+      final p = PushMessage.tryParse({...canonical(), 'seq': '9007199254740993'})!;
+      expect(p.seq.toString(), '9007199254740993');
     });
 
-    test('Real: token dropped even if present, no buttons; client narrows server actions', () {
+    test('legacy JSON numbers / lists / maps still parse', () {
+      final p = PushMessage.tryParse({
+        ...canonical(),
+        'v': 1,
+        'seq': 18301,
+        'version': 3,
+        'actions': ['approve', 'skip', 'open'],
+        'vars': {'symbol': 'EXM', 'amount_lamports': '250000000'},
+      })!;
+      expect(p.seq, BigInt.from(18301));
+      expect(p.version, 3);
+      expect(p.vars['amount_lamports'], '250000000');
+    });
+
+    test('Real: token dropped, no buttons; client narrows server actions; no version → no buttons', () {
       final r = PushMessage.tryParse(canonical(mode: 'real', actions: ['open']))!;
       expect(r.token, isNull);
       const renderer = NotificationRenderer();
@@ -106,15 +119,16 @@ void main() {
       expect(renderer.actionsFor(onlyOpen, at), isEmpty, reason: 'server offered no approve/skip');
       final full = PushMessage.tryParse(canonical())!;
       expect(renderer.actionsFor(full, at), [NotifAction.approve, NotifAction.skip]);
+      final noRev = PushMessage.tryParse(canonical(version: null))!;
+      expect(renderer.actionsFor(noRev, at), isEmpty, reason: 'p_expected_rev is required (1.1.2)');
     });
 
-    test('renderer: lamport-exact sol, client-side countdown (vars.mm_ss ignored)', () {
+    test('renderer: amount_lamports → lamport-exact SOL, symbol → coin, countdown from exp', () {
       final p = PushMessage.tryParse(canonical())!;
       final r = const NotificationRenderer().render(p, NotifLocale.en, DateTime.utc(2026, 10, 29, 8, 50));
       expect(r.title, contains(r'$EXM'));
       expect(r.body, contains('0.25\u00A0paper SOL'));
-      expect(r.body, contains('02:00'));
-      expect(r.body, isNot(contains('09:58')));
+      expect(r.body, contains('02:00'), reason: 'mm_ss is computed on device (no vars.mm_ss in 1.1.2)');
     });
 
     test('expire_reason uses wire values', () {

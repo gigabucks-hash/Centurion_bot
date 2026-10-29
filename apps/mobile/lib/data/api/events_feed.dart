@@ -5,6 +5,10 @@
 /// Resume rule: apply live rows immediately (dedupe by `id`), but persist the
 /// watermark only from REST `next_after_seq`, SSE `id` or Broadcast
 /// `clock.safe_seq`, never from a raw Realtime row (seq is monotonic, not gapless).
+///
+/// 1.1.2: `seq` is an int64 integer STRING (JS-safe); compared as [BigInt], never
+/// lexically ("10" > "9"). Payloads carry `practice_epoch`; [PracticeEpochGate]
+/// drops old-epoch rows after a reset.
 library;
 
 import '../models/models.dart';
@@ -30,7 +34,7 @@ class EventEnvelope {
 
   /// `<subject>:<epoch_ms>:<type>`; dedupe key.
   final String id;
-  final int seq;
+  final BigInt seq;
   final String type;
   final int version;
   final String workspaceId;
@@ -48,15 +52,15 @@ class EventEnvelope {
   /// fine; consumers ignore them.
   static EventEnvelope? tryParse(Map<String, Object?> j) {
     final mode = Wire.modeOf(j['mode'] as String?);
-    final seq = j['seq'];
+    final seq = Wire.seqOf(j['seq']);
     final id = j['id'];
     final ts = DateTime.tryParse('${j['ts']}');
-    if (mode == null || seq is! num || id is! String || ts == null || j['type'] is! String) return null;
+    if (mode == null || seq == null || id is! String || ts == null || j['type'] is! String) return null;
     return EventEnvelope(
       id: id,
-      seq: seq.toInt(),
+      seq: seq,
       type: j['type']! as String,
-      version: (j['version'] as num?)?.toInt() ?? 1,
+      version: Wire.intOf(j['version']) ?? 1,
       workspaceId: '${j['workspace_id']}',
       mode: mode,
       ts: ts,
@@ -69,6 +73,9 @@ class EventEnvelope {
       serverNow: DateTime.tryParse('${j['server_now']}'),
     );
   }
+
+  /// `payload.practice_epoch` (position/fill/portfolio rows); null when absent.
+  int? get practiceEpoch => Wire.intOf(payload['practice_epoch']);
 
   /// Which repository must refetch on this event.
   EventTopic get topic => switch (type.split('.').first) {
@@ -84,10 +91,11 @@ enum EventTopic { approvals, portfolio, strategies, activity, all }
 
 /// Dedupe + ordering + resume watermark for the events feed.
 class EventSequencer {
-  EventSequencer({this.watermark = 0, this.maxRemembered = 2000});
+  EventSequencer({BigInt? watermark, this.maxRemembered = 2000}) : watermark = watermark ?? BigInt.zero;
 
-  /// Persisted resume point (safe). Only advanced by [advanceSafe].
-  int watermark;
+  /// Persisted resume point (safe). Only advanced by [advanceSafe]. Persist as
+  /// `watermark.toString()` (int64 string), never as a JS/double number.
+  BigInt watermark;
   final int maxRemembered;
   final _seen = <String>{};
   final _order = <String>[];
@@ -102,8 +110,10 @@ class EventSequencer {
   }
 
   /// From REST `next_after_seq`, SSE `id` or Broadcast `clock.safe_seq`.
-  void advanceSafe(int safeSeq) {
-    if (safeSeq > watermark) watermark = safeSeq;
+  /// Accepts the wire string (or a [BigInt]/int); unparsable values are ignored.
+  void advanceSafe(Object? safeSeq) {
+    final v = safeSeq is BigInt ? safeSeq : Wire.seqOf(safeSeq);
+    if (v != null && v > watermark) watermark = v;
   }
 
   /// Sorts a catch-up page by seq (never by ts) and keeps only new events.
@@ -114,5 +124,35 @@ class EventSequencer {
 /// Prod: Realtime INSERT on `public.events` (filter workspace_id) + `GET /v1/events?after_seq=`
 /// catch-up loop; mock: `MockBackend.watchEvents`.
 abstract interface class EventsFeed {
-  Stream<EventEnvelope> watchEvents(String workspaceId, TradeMode mode, {int afterSeq = 0});
+  Stream<EventEnvelope> watchEvents(String workspaceId, TradeMode mode, {BigInt? afterSeq});
+}
+
+/// `practice_epoch` gate (1.1.2): after `practice.reset` (or a workspace/portfolio
+/// read with a newer epoch) every row from an older epoch is dropped, so late
+/// fills/marks/positions from the archived run never reappear. Real rows have
+/// no epoch and always pass.
+class PracticeEpochGate {
+  PracticeEpochGate({this.epoch = 0});
+
+  /// Current practice epoch (monotonic; only ever moves forward).
+  int epoch;
+
+  /// Raise the epoch from a workspace / portfolio / snapshot read.
+  void observe(int? e) {
+    if (e != null && e > epoch) epoch = e;
+  }
+
+  /// False for rows from an older epoch. `practice.reset` moves the gate.
+  bool accept(EventEnvelope e) {
+    if (e.type == 'practice.reset') {
+      observe(Wire.intOf(e.payload['epoch']));
+      return true;
+    }
+    final pe = e.practiceEpoch;
+    return pe == null || pe >= epoch;
+  }
+
+  /// Drop cached practice positions from older epochs.
+  List<Position> filter(Iterable<Position> ps) =>
+      ps.where((p) => p.mode != TradeMode.practice || p.practiceEpoch >= epoch).toList();
 }

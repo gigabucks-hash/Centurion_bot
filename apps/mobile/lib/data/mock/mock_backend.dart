@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
+
+import 'package:decimal/decimal.dart';
 
 import '../api/api_exception.dart';
 import '../api/events_feed.dart';
@@ -45,7 +48,7 @@ class MockBackend
   final Map<String, Map<String, Object?>> devices = {};
 
   /// Latest seq (shared by events and pushes, like the server's `events.seq`).
-  int get lastSeq => _eventSeq;
+  BigInt get lastSeq => BigInt.from(_eventSeq);
   int get epoch => _epoch;
   Timer? _timer;
   int _seq = 0;
@@ -55,6 +58,20 @@ class MockBackend
   bool realSolEnabled;
 
   static const workspaceId = 'ws_mock';
+
+  /// SPL Token program id (mock coins; Token-2022 coins carry `TokenzQd…`).
+  static const splTokenProgram = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+
+  /// Quote mints (screener `quote_mint`): wrapped SOL (tradeable) and USDC (not tradeable).
+  static const wsolMint = 'So11111111111111111111111111111111111111112';
+  static const usdcMint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+
+  /// Mock raw token qty for [cost] at [priceUsd] (SOL = 180 USD), scaled by [decimals].
+  static BigInt _qtyRaw(Lamports cost, Decimal priceUsd, int decimals) {
+    final usd = cost.toSol() * Decimal.fromInt(180);
+    final scaled = usd * Decimal.ten.pow(decimals).toDecimal();
+    return (scaled / priceUsd).truncate();
+  }
 
   /// Practice starting balance: 30 SOL.
   static final Lamports startLamports = _sol('30');
@@ -68,7 +85,23 @@ class MockBackend
   final List<PnlPoint> _history = [];
 
   /// p_idempotency_key → first result (replayed on retry).
-  final Map<String, DecideApprovalResult> _idempotent = {};
+  /// Idempotency store: key → (request body, response). Same key + same body →
+  /// replay (`replayed: true`); same key + different body → 422 IDEMPOTENCY_KEY_REUSED.
+  final Map<String, (String, Object)> _idempotent = {};
+
+  T? _replay<T>(String? key, Map<String, Object?> body) {
+    if (key == null) return null;
+    final prior = _idempotent[key];
+    if (prior == null) return null;
+    if (prior.$1 != jsonEncode(body)) {
+      throw ApiException.fromCode('IDEMPOTENCY_KEY_REUSED', details: {'idempotency_key': key});
+    }
+    return prior.$2 as T;
+  }
+
+  void _remember(String? key, Map<String, Object?> body, Object result) {
+    if (key != null) _idempotent[key] = (jsonEncode(body), result);
+  }
 
   /// Mock server clock (`server_now`).
   DateTime get serverNow => _clock();
@@ -147,36 +180,99 @@ class MockBackend
     ];
   }
 
+  /// `close_position` (1.1.2 §6): practice only, If-Match on the position `rev`,
+  /// `fraction_bps` 1–10000 of the CURRENT remainder, idempotent. Mock fills
+  /// synchronously (`status: filled`, `fill` present); prod may return `queued`.
   @override
-  Future<Lamports> sellPosition(String positionId, {required int pct}) async {
+  Future<ClosePositionResult> closePosition(ClosePositionRequest r) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
-    final i = _positions.indexWhere((p) => p.id == positionId);
+    final prior = _replay<ClosePositionResult>(r.idempotencyKey, r.body);
+    if (prior != null) return ClosePositionResult.fromJson({...prior.toJson(), 'replayed': true});
+    if (!r.validFraction) {
+      throw ApiException.fromCode('INVALID_FRACTION', details: {'fraction_bps': r.fractionBps, 'range': '1-10000'});
+    }
+    final i = _positions.indexWhere((p) => p.id == r.positionId);
     if (i < 0) throw ApiException.fromCode('NOT_FOUND');
     final p = _positions[i];
-    // No dedicated code for "already closed" in errors.json → VALIDATION_FAILED (reported to Backend).
-    if (!p.isOpen) throw ApiException.fromCode('VALIDATION_FAILED', details: {'reason': 'position_closed'});
-    if (p.mode == TradeMode.real && !realSolEnabled) throw ApiException.fromCode('REAL_SOL_DISABLED');
-    final share = pct.clamp(1, 100);
-    final proceeds = p.estimateSell(share);
-    final full = share >= 100;
-    final soldNowBps = p.remainingBps * share ~/ 100;
+    if (p.mode == TradeMode.real) {
+      throw ApiException.fromCode(realSolEnabled ? 'MODE_NOT_ALLOWED' : 'REAL_SOL_DISABLED');
+    }
+    if (!p.isOpen) throw ApiException.fromCode('POSITION_ALREADY_CLOSED', details: {'position_id': p.id});
+    if (r.expectedRev != p.rev) {
+      throw ApiException.fromCode(
+        'VERSION_CONFLICT',
+        details: {
+          'current_rev': p.rev,
+          'base_rev': r.expectedRev,
+          'current': {'id': p.id, 'rev': p.rev},
+        },
+      );
+    }
+    final full = r.fractionBps >= 10000;
+    final soldNowBps = p.remainingBps * r.fractionBps ~/ 10000;
+    final proceeds = p.estimateSell(r.fractionBps ~/ 100 == 0 ? 1 : r.fractionBps ~/ 100);
+    final qtyLeft = p.qtyRaw == null
+        ? null
+        : (full ? BigInt.zero : p.qtyRaw! - p.qtyRaw! * BigInt.from(r.fractionBps) ~/ BigInt.from(10000));
+    final rev = p.rev + 1;
     _positions[i] = p.copyWith(
       proceedsLamports: p.proceedsLamports + proceeds,
       soldBps: full ? 10000 : p.soldBps + soldNowBps,
       state: full ? PositionState.closed : null,
       closedAt: full ? _clock() : null,
       exitReason: full ? 'You sold 100% manually' : null,
+      rev: rev,
+      qtyRaw: qtyLeft,
     );
+    final orderId = _id('ord_');
+    final jobId = '${_eventSeq + 1}';
+    _emitEnvelope('order.submitted', orderId, {
+      'order_id': orderId,
+      'position_id': p.id,
+      'side': 'sell',
+      'fraction_bps': r.fractionBps,
+    });
+    _emitEnvelope('fill.simulated', orderId, {
+      'order_id': orderId,
+      'position_id': p.id,
+      'practice_epoch': p.practiceEpoch,
+      'proceeds_lamports': proceeds.toWire(),
+    });
+    _emitEnvelope(full ? 'position.closed' : 'position.updated', p.id, {
+      'position_id': p.id,
+      'rev': rev,
+      'practice_epoch': p.practiceEpoch,
+      if (full) 'exit_reason': 'manual',
+      if (!full && qtyLeft != null) 'qty_raw': qtyLeft.toString(),
+    });
+    _emitEnvelope('order.filled', orderId, {'order_id': orderId, 'proceeds_lamports': proceeds.toWire()});
     _emitEvent(
       ActivityKind.sold,
       Actor.you,
-      '${p.symbol}: you sold $share%',
+      '${p.symbol}: you sold ${r.fractionBps / 100}%',
       strategyId: p.strategyId,
       symbol: p.symbol,
       pnlLamports: proceeds - p.costLamports.bps(soldNowBps),
     );
     _notify();
-    return proceeds;
+    final result = ClosePositionResult.fromJson({
+      'position': {
+        'id': p.id,
+        'rev': rev,
+        'practice_epoch': p.practiceEpoch,
+        'qty_raw': ?qtyLeft?.toString(),
+        'decimals': ?p.decimals,
+      },
+      'order': {'id': orderId, 'status': 'filled', 'fraction_bps': r.fractionBps, 'job_id': jobId},
+      'order_id': orderId,
+      'fill': {'proceeds_lamports': proceeds.toWire()},
+      'job_id': jobId,
+      'status': 'filled',
+      'replayed': false,
+      'server_now': _clock().toUtc().toIso8601String(),
+    });
+    _remember(r.idempotencyKey, r.body, result);
+    return result;
   }
 
   @override
@@ -186,9 +282,9 @@ class MockBackend
   Stream<Map<String, Object?>> get rawEvents => _envelopes.stream;
 
   @override
-  Stream<EventEnvelope> watchEvents(String workspaceId, TradeMode mode, {int afterSeq = 0}) => _envelopes.stream
+  Stream<EventEnvelope> watchEvents(String workspaceId, TradeMode mode, {BigInt? afterSeq}) => _envelopes.stream
       .map(EventEnvelope.tryParse)
-      .where((e) => e != null && e.mode == mode && e.seq > afterSeq)
+      .where((e) => e != null && e.mode == mode && e.seq > (afterSeq ?? BigInt.zero))
       .cast<EventEnvelope>();
 
   /// Emits an EVENTS_SCHEMA §2 envelope; returns its seq.
@@ -205,7 +301,7 @@ class MockBackend
     if (!_envelopes.isClosed) {
       _envelopes.add({
         'id': '$subject:${now.millisecondsSinceEpoch}:$type',
-        'seq': seq,
+        'seq': '$seq', // int64 integer string (1.1.2)
         'type': type,
         'version': 1,
         'workspace_id': workspaceId,
@@ -286,10 +382,14 @@ class MockBackend
     return [
       for (final e in by.entries)
         {
-          'reason': e.key,
+          'exit_reason': e.key,
           'count': e.value.length,
           'pnl_lamports': sumLamports(e.value.map((p) => p.pnlLamports)).toWire(),
+          'avg_pnl_pct': e.value.map((p) => p.pnlPct).reduce((a, b) => a + b) / e.value.length,
           'win_rate_pct': e.value.where((p) => p.pnlLamports > Lamports.zero).length * 100 / e.value.length,
+          'avg_hold_s':
+              e.value.map((p) => (p.closedAt ?? _clock()).difference(p.openedAt).inSeconds).reduce((a, b) => a + b) ~/
+              e.value.length,
         },
     ];
   }
@@ -317,7 +417,8 @@ class MockBackend
         : ((peak - s.equityLamports).ratioTo(peak) * 10000).round();
     return {
       'mode': 'practice',
-      'epoch': _epoch,
+      'workspace_id': workspaceId,
+      'practice_epoch': _epoch,
       'cash_lamports': s.cashLamports.toWire(),
       'positions_cost_lamports': cost.toWire(),
       'positions_value_lamports': value.toWire(),
@@ -328,7 +429,7 @@ class MockBackend
       'realized_pnl_lamports': s.realizedPnlLamports.toWire(),
       'unrealized_pnl_lamports': s.unrealizedPnlLamports.toWire(),
       'open_positions': s.openPositions,
-      'as_of_seq': _eventSeq,
+      'as_of_seq': '$_eventSeq',
       'server_now': _clock().toUtc().toIso8601String(),
     };
   }
@@ -355,7 +456,8 @@ class MockBackend
   }
 
   @override
-  Future<PracticeResetResult> resetPractice({required String idempotencyKey}) async {
+  Future<PracticeResetResult> resetPractice(ResetPracticeRequest r) async {
+    if (r.workspaceId != workspaceId) throw ApiException.fromCode('NOT_FOUND');
     await Future<void>.delayed(const Duration(milliseconds: 150));
     final now = _clock();
     final last = _lastResetAt;
@@ -386,11 +488,16 @@ class MockBackend
     _history
       ..clear()
       ..add(PnlPoint(now, startLamports));
+    final previous = _epoch;
     _epoch++;
     _lastResetAt = now;
     _emitEnvelope('practice.reset', workspaceId, {
       'epoch': _epoch,
+      'previous_epoch': previous,
       'starting_balance_lamports': startLamports.toWire(),
+      'archived': {'positions': archivedPositions, 'expired_proposals': archivedApprovals},
+      'next_allowed_at': now.add(resetCooldown).toUtc().toIso8601String(),
+      'at': now.toUtc().toIso8601String(),
     }, actor: 'user');
     _emitEvent(ActivityKind.resumed, Actor.you, 'Practice reset to 30 paper SOL (epoch $_epoch)');
     _notify();
@@ -406,6 +513,7 @@ class MockBackend
   /// Test hook: synchronous snapshot (avoids awaiting streams in fake-async widget tests).
   List<Position> get debugPositions => List.unmodifiable(_positions);
   List<Approval> get debugApprovals => List.unmodifiable(_approvals);
+  List<ScreenerCoin> get debugScreener => List.unmodifiable(_screener);
 
   /// Test hooks: inject fixtures (e.g. Real SOL items, which the Practice seed has none of).
   void debugAddPosition(Position p) {
@@ -442,23 +550,27 @@ class MockBackend
     if (_pushes.isClosed) return;
     final real = mode == TradeMode.real;
     final pick = event == 'N-01' || event == 'N-02';
+    // FCM data (1.1.2): EVERY value is a string; v/seq/version are integer
+    // strings, actions/vars are JSON strings. No vars.sol / vars.mm_ss.
+    final seq = _emitEnvelope(type, approvalId ?? positionId ?? event, {
+      'approval_id': approvalId,
+      'position_id': positionId,
+    }, mode: mode);
     _pushes.add({
-      'v': 1,
+      'v': '1',
       'event': event,
       'type': type,
       'mode': Wire.mode(mode),
       'workspace_id': workspaceId,
-      'seq': _emitEnvelope(type, approvalId ?? positionId ?? event, {
-        'approval_id': approvalId,
-        'position_id': positionId,
-      }, mode: mode),
+      'seq': '$seq',
       'deep_link': approvalId != null ? 'sentra://approvals/$approvalId' : 'sentra://positions/${positionId ?? ''}',
       'approval_id': ?approvalId,
       'position_id': ?positionId,
+      if (approvalId != null) 'version': '${_approvals.where((a) => a.id == approvalId).firstOrNull?.rev ?? 1}',
       if (!real && pick) 'token': ?token,
       if (exp != null) 'exp': exp.toUtc().toIso8601String(),
-      'actions': real || !pick ? ['open'] : ['approve', 'skip', 'open'],
-      'vars': vars,
+      'actions': jsonEncode(real || !pick ? ['open'] : ['approve', 'skip', 'open']),
+      'vars': jsonEncode({for (final e in vars.entries) e.key: '${e.value}'}),
       'server_now': _clock().toUtc().toIso8601String(),
     });
   }
@@ -482,7 +594,15 @@ class MockBackend
   /// Screener seed per WF-21: passed picks, a guard reject, and one coin with
   /// no SOL quote pair (USDC) that never enters the queue.
   final _screener = <ScreenerCoin>[
-    const ScreenerCoin(symbol: 'MOON', strategyId: 'stg_pull', score: 82, outcome: ScreenerOutcome.passed),
+    const ScreenerCoin(
+      symbol: 'MOON',
+      strategyId: 'stg_pull',
+      score: 82,
+      outcome: ScreenerOutcome.passed,
+      decimals: 6,
+      tokenProgram: splTokenProgram,
+      quoteMint: wsolMint,
+    ),
     const ScreenerCoin(
       symbol: 'USDX',
       strategyId: 'stg_pull',
@@ -490,6 +610,9 @@ class MockBackend
       outcome: ScreenerOutcome.notTradeable,
       reasonCode: unsupportedQuoteMint,
       quoteSymbol: 'USDC',
+      decimals: 9,
+      tokenProgram: splTokenProgram,
+      quoteMint: usdcMint,
     ),
     const ScreenerCoin(
       symbol: 'RUGZ',
@@ -497,8 +620,19 @@ class MockBackend
       score: 64,
       outcome: ScreenerOutcome.rejected,
       reasonCode: 'GUARD_FAILED',
+      decimals: 6,
+      tokenProgram: splTokenProgram,
+      quoteMint: wsolMint,
     ),
-    const ScreenerCoin(symbol: 'KIRA', strategyId: 'stg_pull', score: 77, outcome: ScreenerOutcome.passed),
+    const ScreenerCoin(
+      symbol: 'KIRA',
+      strategyId: 'stg_pull',
+      score: 77,
+      outcome: ScreenerOutcome.passed,
+      decimals: 6,
+      tokenProgram: splTokenProgram,
+      quoteMint: wsolMint,
+    ),
   ];
 
   @override
@@ -526,18 +660,23 @@ class MockBackend
     return updated;
   }
 
-  /// Mirrors `decide_approval` (API §4.5): idempotency replay, token check,
-  /// version check, expiry, Real gate. Errors are typed [ApiException]s.
+  /// Mirrors `decide_approval` (1.1.2): `p_expected_rev` required, idempotency
+  /// replay / 422 reuse, token check, rev check, expiry, Real gate. Typed [ApiException]s.
   @override
   Future<DecideApprovalResult> decide(DecideApprovalRequest r) async {
     await Future<void>.delayed(const Duration(milliseconds: 150));
-    final key = r.idempotencyKey;
-    final prior = key == null ? null : _idempotent[key];
+    final body = {
+      'approval_id': r.approvalId,
+      'token': r.token,
+      'decision': Wire.decision(approve: r.approve),
+      'expected_rev': r.expectedRev,
+    };
+    final prior = _replay<DecideApprovalResult>(r.idempotencyKey, body);
     if (prior != null) {
       return DecideApprovalResult(
         proposalId: prior.proposalId,
         status: prior.status,
-        version: prior.version,
+        rev: prior.rev,
         replayed: true,
         serverNow: _clock(),
       );
@@ -550,8 +689,8 @@ class MockBackend
     if (a.status != ApprovalStatus.pending) {
       throw ApiException.fromCode('APPROVAL_ALREADY_DECIDED', details: {'status': Wire.approvalStatus(a.status)});
     }
-    if (r.expectedRev != null && r.expectedRev != a.version) {
-      throw ApiException.fromCode('VERSION_CONFLICT', details: {'current_rev': a.version, 'base_rev': r.expectedRev});
+    if (r.expectedRev != a.rev) {
+      throw ApiException.fromCode('VERSION_CONFLICT', details: {'current_rev': a.rev, 'base_rev': r.expectedRev});
     }
     if (a.isExpiredAt(_clock())) {
       _approvals[i] = a.copyWith(
@@ -563,21 +702,21 @@ class MockBackend
       throw ApiException.fromCode('APPROVAL_EXPIRED');
     }
     if (a.mode == TradeMode.real && r.approve && !realSolEnabled) throw ApiException.fromCode('REAL_SOL_DISABLED');
-    // errors.json has no dedicated code yet; mock uses VALIDATION_FAILED + reason_code.
-    if (a.notTradeable && r.approve) {
-      throw ApiException.fromCode('VALIDATION_FAILED', details: {'reason_code': unsupportedQuoteMint});
-    }
+    // A non-SOL-quote coin never reaches the queue (1.1.2 quote gate); defensive only.
+    if (a.notTradeable && r.approve) throw ApiException.fromCode(unsupportedQuoteMint);
     final status = r.approve ? ApprovalStatus.approved : ApprovalStatus.skipped;
-    _approvals[i] = a.copyWith(status: status, decidedAt: _clock(), version: a.version + 1);
+    final rev = a.rev + 1;
+    _approvals[i] = a.copyWith(status: status, decidedAt: _clock(), rev: rev);
     _emitEnvelope(
       r.approve ? 'proposal.approved' : 'proposal.rejected',
       a.id,
       {
         'proposal_id': a.id,
         'kind': Wire.approvalKind(a.kind),
-        'version': a.version + 1,
+        'rev': rev,
         'decided_by': 'mock_user',
-        'decided_via': r.client,
+        // From the JWT `sentra_client` claim on the server; never a client param.
+        'decided_via': Wire.clientMobile,
         'reason': null,
       },
       mode: a.mode,
@@ -589,11 +728,11 @@ class MockBackend
     final result = DecideApprovalResult(
       proposalId: a.id,
       status: status,
-      version: a.version + 1,
+      rev: rev,
       replayed: false,
       serverNow: _clock(),
     );
-    if (key != null) _idempotent[key] = result;
+    _remember(r.idempotencyKey, body, result);
     return result;
   }
 
@@ -701,7 +840,7 @@ class MockBackend
         p.mode,
         positionId: p.id,
         vars: {
-          'coin': p.symbol,
+          'symbol': p.symbol,
           'pct_sold': (sellBps / 100).round(),
           'pct': rung.gainPct.round(),
           'pnl': pnl.toSol().toString(),
@@ -743,9 +882,9 @@ class MockBackend
           p.mode,
           positionId: p.id,
           vars: {
-            'coin': p.symbol,
+            'symbol': p.symbol,
             'stop_type': stop,
-            'pnl': next.pnlLamports.toSol().toString(),
+            'pnl_lamports': next.pnlLamports.toWire(),
             'pct': double.parse(next.pnlPct.toStringAsFixed(1)),
           },
         );
@@ -811,7 +950,12 @@ class MockBackend
       approvalId: id,
       token: token,
       exp: exp,
-      vars: {'coin': sym, 'strategy': s.name, 'sol': s.ticketLamports.toSol().toString(), 'reason': 'fit $score/70'},
+      vars: {
+        'symbol': sym,
+        'strategy': s.name,
+        'amount_lamports': s.ticketLamports.toWire(),
+        'reason': 'fit $score/70',
+      },
     );
     _approvals.add(
       Approval(
@@ -848,8 +992,8 @@ class MockBackend
             a.mode,
             positionId: pid,
             vars: {
-              'coin': sym,
-              'sol': amount.toSol().toString(),
+              'symbol': sym,
+              'amount_lamports': amount.toWire(),
               'price': price.toString(),
               'exit_plan': planFor(preset, opened).name,
             },
@@ -868,6 +1012,10 @@ class MockBackend
               markPriceUsd: price,
               peakPriceUsd: price,
               openedAt: opened,
+              practiceEpoch: _epoch,
+              decimals: 6, // mock coin facts; real values come from the mint account
+              tokenProgram: splTokenProgram,
+              qtyRaw: _qtyRaw(amount, price, 6),
             ),
           );
           _emitEvent(
@@ -982,6 +1130,10 @@ class MockBackend
           exitPlan: ep,
           soldBps: soldBps,
           proceedsLamports: proceeds,
+          practiceEpoch: _epoch,
+          decimals: i.isEven ? 6 : 9,
+          tokenProgram: splTokenProgram,
+          qtyRaw: _qtyRaw(cost.bps(10000 - soldBps), price, i.isEven ? 6 : 9),
         ),
       );
     }
@@ -1002,6 +1154,10 @@ class MockBackend
         openedAt: now.subtract(const Duration(hours: 1)),
         closedAt: now.subtract(const Duration(minutes: 41)),
         exitReason: 'Took profit: 40% at +20%',
+        practiceEpoch: _epoch,
+        decimals: 6,
+        tokenProgram: splTokenProgram,
+        qtyRaw: BigInt.zero,
       ),
     );
     var equity = startLamports;

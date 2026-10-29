@@ -8,8 +8,9 @@
 //   dart run tool/gen_errors.dart --source ../../packages/contracts/errors.json
 //   dart run tool/gen_errors.dart --check              # exit 1 if the .g.dart is stale
 //
-// Supported per-code fields: code (required), http, retryable, message (EN),
-// and optional future fields: message_id / messages.{id,en}, sqlstate.
+// errors.json v4 (contracts 1.1.2): per code `code`, `kind` (error|notice|skip),
+// `http`, `sqlstate` (= "P0" + http, validated here), `retryable`,
+// `messages.{en,id}`. Legacy v2 fields (`message`, `message_id`) still read.
 // Unknown codes at runtime map to ApiErrorCode.unknown and keep the raw code.
 import 'dart:convert';
 import 'dart:io';
@@ -39,6 +40,10 @@ String generate(String jsonText) {
     ..writeln('const int apiErrorCodesVersion = $version;')
     ..writeln('const int apiErrorCodesCount = ${codes.length};')
     ..writeln()
+    ..writeln('/// `error` = API/RPC error body; `notice` = system.notice code; `skip` = screener skip_reason')
+    ..writeln('/// (may also be an `order.failed` reason_code).')
+    ..writeln('enum ApiErrorKind { error, notice, skip }')
+    ..writeln()
     ..writeln('enum ApiErrorCode {');
   for (final c in codes) {
     final code = c['code'] as String;
@@ -47,48 +52,58 @@ String generate(String jsonText) {
     final msgs = (c['messages'] as Map?)?.cast<String, dynamic>();
     final en = (msgs?['en'] ?? c['message']) as String?;
     final id = (msgs?['id'] ?? c['message_id']) as String?;
+    final http = c['http'] as int? ?? 0;
+    final sql = c['sqlstate'] as String?;
+    if (sql != null && sql != 'P0$http') throw FormatException('$code: sqlstate $sql != P0$http');
+    final kind = c['kind'] as String? ?? 'error';
+    if (!const {'error', 'notice', 'skip'}.contains(kind)) throw FormatException('$code: bad kind "$kind"');
     b.writeln(
-      '  ${_camel(code)}(${_lit(code)}, http: ${c['http'] ?? 0}, retryable: ${c['retryable'] ?? false}, '
-      'messageEn: ${_lit(en)}, messageId: ${_lit(id)}, sqlState: ${_lit(c['sqlstate'] as String?)}),',
+      '  ${_camel(code)}(${_lit(code)}, kind: ApiErrorKind.$kind, http: $http, retryable: ${c['retryable'] ?? false}, '
+      'messageEn: ${_lit(en)}, messageId: ${_lit(id)}, sqlState: ${_lit(sql)}),',
     );
   }
   b
     ..writeln("  /// Not (yet) in errors.json: keep [ApiException.rawCode] and regenerate.")
-    ..writeln("  unknown('', http: 0, retryable: false, messageEn: null, messageId: null, sqlState: null);")
+    ..writeln(
+      "  unknown('', kind: ApiErrorKind.error, http: 0, retryable: false, messageEn: null, messageId: null, "
+      "sqlState: null);",
+    )
     ..writeln()
     ..writeln(
-      '  const ApiErrorCode(this.wire, {required this.http, required this.retryable, '
+      '  const ApiErrorCode(this.wire, {required this.kind, required this.http, required this.retryable, '
       'required this.messageEn, required this.messageId, required this.sqlState});',
     )
     ..writeln('  final String wire;')
+    ..writeln('  final ApiErrorKind kind;')
     ..writeln('  final int http;')
     ..writeln('  final bool retryable;')
     ..writeln('  final String? messageEn;')
     ..writeln()
-    ..writeln('  /// Indonesian text when errors.json provides it; otherwise null (UI falls back to EN/ARB).')
+    ..writeln('  /// Indonesian text (errors.json `messages.id`); null only for [unknown].')
     ..writeln('  final String? messageId;')
     ..writeln()
-    ..writeln('  /// Specific SQLSTATE when errors.json provides it (contract today: any `P04xx`).')
+    ..writeln('  /// SQLSTATE = `P0` + HTTP status (`P0409`, `P0503`). Shared by codes with the same status.')
     ..writeln('  final String? sqlState;')
     ..writeln()
     ..writeln(
       '  static final Map<String, ApiErrorCode> _byWire = {for (final c in values) if (c != unknown) c.wire: c};',
     )
-    ..writeln('  static final Map<String, ApiErrorCode> _bySqlState = {')
-    ..writeln('    for (final c in values) if (c.sqlState != null) c.sqlState!: c,')
-    ..writeln('  };')
     ..writeln()
     ..writeln('  /// Code string (REST `error.code` / RPC `MESSAGE`) → enum; unknown → [unknown].')
     ..writeln('  static ApiErrorCode fromWire(String? code) => _byWire[code?.trim()] ?? unknown;')
     ..writeln()
-    ..writeln('  /// Postgres error from an RPC. Contract: SQLSTATE `P04xx` + MESSAGE = code.')
-    ..writeln('  /// A specific SQLSTATE (if the JSON ever defines one) wins over MESSAGE.')
+    ..writeln('  /// Postgres error from an RPC (`PostgrestException`): `.code` = SQLSTATE `P0` + HTTP')
+    ..writeln('  /// (`P04xx`/`P05xx`), `.message` = the code. SQLSTATE alone is not unique, so the code')
+    ..writeln('  /// comes from MESSAGE; a non-`P0xxx` SQLSTATE (plain Postgres error) is [unknown].')
     ..writeln('  static ApiErrorCode fromPostgres(String? sqlState, String? message) {')
-    ..writeln('    final bySql = sqlState == null ? null : _bySqlState[sqlState];')
-    ..writeln('    if (bySql != null) return bySql;')
-    ..writeln("    if (sqlState == null || !RegExp(r'^P04[0-9A-Z]{2}\$').hasMatch(sqlState)) return unknown;")
+    ..writeln("    if (sqlState == null || !RegExp(r'^P0[45][0-9]{2}\$').hasMatch(sqlState)) return unknown;")
     ..writeln('    return fromWire(message);')
     ..writeln('  }')
+    ..writeln()
+    ..writeln('  /// HTTP status encoded in a `P0xxx` SQLSTATE (`P0409` → 409), else null.')
+    ..writeln('  static int? httpFromSqlState(String? sqlState) =>')
+    ..write("      sqlState != null && RegExp(r'^P0[45][0-9]{2}\$').hasMatch(sqlState) ")
+    ..writeln('? int.parse(sqlState.substring(2)) : null;')
     ..writeln()
     ..writeln('  /// Message for a UI language (`id`/`en`); ID falls back to EN.')
     ..writeln("  String? message(String lang) => lang == 'id' ? (messageId ?? messageEn) : messageEn;")
@@ -106,9 +121,12 @@ Future<void> main(List<String> args) async {
   final out = arg('--out', defaultOut);
   final code = generate(await File(source).readAsString());
   // Run through `dart format` so the committed file equals formatter output.
-  final tmp = File('${Directory.systemTemp.createTempSync('gen_errors').path}/api_errors.g.dart')
-    ..writeAsStringSync(code);
-  final fmt = await Process.run(Platform.resolvedExecutable, ['format', '--page-width', '120', tmp.path]);
+  // The temp file lives INSIDE the package (.dart_tool/) so the formatter uses
+  // the project's language version and analysis_options `formatter.page_width`,
+  // exactly like the CI `dart format --set-exit-if-changed .` step.
+  final tmpDir = Directory('.dart_tool/gen_errors')..createSync(recursive: true);
+  final tmp = File('${tmpDir.path}/api_errors.g.dart')..writeAsStringSync(code);
+  final fmt = await Process.run(Platform.resolvedExecutable, ['format', tmp.path]);
   if (fmt.exitCode != 0) {
     stderr.writeln(fmt.stderr);
     exit(2);

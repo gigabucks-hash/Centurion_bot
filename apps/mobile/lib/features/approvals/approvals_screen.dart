@@ -33,17 +33,16 @@ const undoWindow = Duration(seconds: 5);
 const skipReasons = ['Likuiditas tipis', 'Sudah pump', 'Dev aneh', 'Lainnya'];
 
 /// `decide_approval` request for [a]. The idempotency key is deterministic per
-/// (approval, version, decision), so a double tap or retry replays instead of
-/// double-deciding.
-DecideApprovalRequest decideRequest(Approval a, {required bool approve, String client = Wire.clientMobile}) =>
-    DecideApprovalRequest(
-      approvalId: a.id,
-      token: a.token,
-      approve: approve,
-      expectedRev: a.version,
-      client: client,
-      idempotencyKey: '${a.id}:v${a.version}:${Wire.decision(approve: approve)}',
-    );
+/// (approval, rev, decision), so a double tap or retry replays instead of
+/// double-deciding. 1.1.2: `p_expected_rev` = the approval `rev` (never null);
+/// no `p_client` (the server takes it from the JWT).
+DecideApprovalRequest decideRequest(Approval a, {required bool approve}) => DecideApprovalRequest(
+  approvalId: a.id,
+  token: a.token,
+  approve: approve,
+  expectedRev: a.rev,
+  idempotencyKey: '${a.id}:r${a.rev}:${Wire.decision(approve: approve)}',
+);
 
 /// Approve path. Real SOL always passes the biometric gate first (SPEC §3),
 /// and is disabled entirely while [FeatureFlags.realSolEnabled] is false.

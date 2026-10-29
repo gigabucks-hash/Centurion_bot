@@ -57,7 +57,28 @@ abstract final class Wire {
   };
   static ApprovalMode? approvalModeOf(String? w) => ApprovalMode.values.where((m) => approvalMode(m) == w).firstOrNull;
 
-  /// `p_client` / `decided_via`: web | mobile | desktop | mcp | push.
+  /// `decided_via` / JWT claim `sentra_client`: web | mobile | desktop | mcp | push.
+  /// Never sent as an RPC param (1.1.2: actor/channel come from the JWT).
   static const clientMobile = 'mobile';
   static const clientPush = 'push';
+
+  /// Small integer (rev, count, bps) from a JSON number OR a base-10 string
+  /// (FCM data values are all strings in 1.1.2). Null/invalid → null.
+  static int? intOf(Object? v) => switch (v) {
+    final num n => n.toInt(),
+    final String s => int.tryParse(s.trim()),
+    _ => null,
+  };
+
+  /// int64 `seq` / ids: integer STRING on the wire (a JSON number is accepted).
+  /// Compare as BigInt, never lexicographically ("10" > "9").
+  static BigInt? seqOf(Object? v) => switch (v) {
+    final int n => BigInt.from(n),
+    final num n => BigInt.from(n.toInt()),
+    final String s => BigInt.tryParse(s.trim()),
+    _ => null,
+  };
+
+  /// int64 id as its canonical string (`"18301"`), from string or number.
+  static String? idOf(Object? v) => seqOf(v)?.toString();
 }

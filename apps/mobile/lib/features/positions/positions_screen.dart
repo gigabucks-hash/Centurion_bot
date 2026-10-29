@@ -211,6 +211,8 @@ class PositionDetailScreen extends ConsumerWidget {
                   _Kv('Entry → now', '${fmtUsd(p.entryPriceUsd)} → ${fmtUsd(p.markPriceUsd)}'),
                   _Kv('Hold', fmtHold(p.holdAt(now))),
                   _Kv('Terjual', '${p.soldPct.round()}%'),
+                  // 1.1.2: raw qty scaled by the mint's `decimals` (never assumed).
+                  if (p.qtyRaw != null) _Kv('Token', fmtTokenQty(p.qtyRaw!, p.decimals), key: Key('qty_${p.id}')),
                   _Kv('Mint', shortMint(p.mint)),
                 ],
               ),
@@ -251,7 +253,7 @@ class PositionDetailScreen extends ConsumerWidget {
 }
 
 class _Kv extends StatelessWidget {
-  const _Kv(this.k, this.v);
+  const _Kv(this.k, this.v, {super.key});
   final String k, v;
   @override
   Widget build(BuildContext context) {
