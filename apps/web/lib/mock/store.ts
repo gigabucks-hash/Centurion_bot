@@ -4,7 +4,7 @@
  */
 import type { Approval, ApprovalDecision, OpenPosition, PublishResult, RiskLevel, Strategy, StrategySettings, TradingMode } from "@/lib/types";
 import { diffSettings, validate, weakensGuard } from "@/lib/strategy-schema";
-import { approvalToWire, settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
+import { APPROVAL_REJECT_REASONS, approvalToWire, settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
 import type { ApprovalDecisionRequest, ErrorCode } from "@sentra/contracts/wire";
 import { coinSummaries, seedStrategies, trails } from "./data";
 
@@ -448,6 +448,10 @@ export function decideApprovalWire(id: string, req: ApprovalDecisionRequest, now
   tick(now);
   const a = state().approvals.find((x) => x.id === id);
   if (!a) throw wireErr("NOT_FOUND");
+  // 1.1.3: reject_reason only with decision=reject, closed enum; default user_declined.
+  if (req.reject_reason !== undefined && (req.decision !== "reject" || !APPROVAL_REJECT_REASONS.includes(req.reject_reason))) {
+    throw wireErr("VALIDATION_FAILED", { field: "reject_reason", allowed: [...APPROVAL_REJECT_REASONS] });
+  }
   // Not tradeable: reject (= Skip as dismiss) is allowed; approve is refused.
   if (a.screenerState === "UNSUPPORTED_QUOTE_MINT" && req.decision === "approve") throw wireErr("UNSUPPORTED_QUOTE_MINT");
   const tok = tokens.get(req.token);
@@ -460,20 +464,27 @@ export function decideApprovalWire(id: string, req: ApprovalDecisionRequest, now
   if (a.status === "expired") throw wireErr("APPROVAL_EXPIRED", { reason: a.expiredReason });
   if (a.status !== "pending") throw wireErr("APPROVAL_ALREADY_DECIDED");
   if (req.expected_rev == null) throw wireErr("PRECONDITION_REQUIRED");
-  if (req.expected_rev !== a.rev) throw wireErr("VERSION_CONFLICT", { current_rev: a.rev, base_rev: req.expected_rev, current: approvalToWire(a) as unknown as Record<string, unknown> });
+  if (req.expected_rev !== a.rev) throw wireErr("VERSION_CONFLICT", { current_rev: a.rev, base_rev: req.expected_rev, current: approvalToWire(a) as unknown as Record<string, unknown> } /* ConflictError<ApprovalWire>: current REQUIRED */);
 
   let confirmation: { typedName?: string; secondFactor?: "mock_passkey"; holdMs: number } | undefined;
   if (req.confirmation) {
     const c = req.confirmation;
-    const ch = challenges.get(c.challenge_id);
-    if (!ch || ch.used || now > ch.exp || ch.target !== id) throw wireErr("CONFIRMATION_INVALID");
-    ch.used = true;
-    confirmation = { holdMs: c.hold_duration_ms, typedName: c.typed_confirmation ?? undefined, secondFactor: c.webauthn ? "mock_passkey" : undefined };
+    // Practice hold-only proof ({hold_duration_ms}) has no challenge; the mock accepts it as a hold.
+    if (!("challenge_id" in c)) {
+      confirmation = { holdMs: c.hold_duration_ms };
+    } else {
+      const ch = challenges.get(c.challenge_id);
+      if (!ch || ch.used || now > ch.exp || ch.target !== id) throw wireErr("CONFIRMATION_INVALID");
+      ch.used = true;
+      confirmation = { holdMs: c.hold_duration_ms, typedName: c.typed_confirmation ?? undefined, secondFactor: c.webauthn ? "mock_passkey" : undefined };
+    }
   }
   const next = req.decision === "approve" ? decideApproval(id, { action: "approve", confirmation }, now) : decideApproval(id, { action: "skip", reason: (req.reason ?? undefined) as never }, now);
   const live = state().approvals.find((x) => x.id === id)!;
   live.rev += 1;
-  const result = { proposal_id: id, status: next.status === "rejected" ? "rejected" : "approved", rev: live.rev, replayed: false };
+  const rejectReason = req.decision === "reject" ? (req.reject_reason ?? "user_declined") : null;
+  if (rejectReason) live.rejectReason = rejectReason;
+  const result = { proposal_id: id, status: next.status === "rejected" ? "rejected" : "approved", rev: live.rev, reject_reason: rejectReason, replayed: false };
   tok.used = { decision: req.decision, result };
   return result;
 }

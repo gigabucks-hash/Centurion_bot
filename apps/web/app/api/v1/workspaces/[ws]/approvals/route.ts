@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const status = q.get("status");
   const kind = q.get("kind");
   const items = listApprovals(mode)
-    .map(approvalToWire)
+    .map((a) => approvalToWire(a))
     .filter((a) => (!status || a.status === status) && (!kind || a.kind === kind))
     .sort((a, b) => (a.status === "pending" && b.status === "pending" ? Date.parse(a.expires_at) - Date.parse(b.expires_at) : 0));
   return list(items);

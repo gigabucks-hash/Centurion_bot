@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { Fingerprint, ShieldAlert } from "lucide-react";
+import { Dot, Fingerprint, Lock, ShieldAlert } from "lucide-react";
 import type { Approval, DiffDirection } from "@/lib/types";
 
 import { Badge, Button, RiskBadge, cn } from "@/components/ui";
@@ -127,18 +127,20 @@ export function GuardWeakeningDialog({ approval, open, onClose, onConfirm, busy 
         )}
         <div>
           <h4 className="text-label">{t("guardDialog.afterApproval")}</h4>
-          <ul className="mt-1 list-disc pl-5 text-caption text-text-secondary">
+          {/* QA-02: the cooldown and the 24 h auto-revert are mandatory on Real SOL (server-enforced), so they are
+              static info rows with a lock, never checkboxes or toggles. */}
+          <ul className="mt-1 flex flex-col gap-1 text-caption text-text-secondary" data-testid="after-approval">
             {real ? (
               <>
-                <li>{t("guardDialog.ruleCooldown")}</li>
-                <li>{t("guardDialog.ruleNotify")}</li>
-                <li>{t("guardDialog.ruleAudit")}</li>
-                <li className="font-medium text-text-primary">{t("guardDialog.ruleRevert")}</li>
+                <RuleRow locked text={t("guardDialog.ruleCooldown")} lockedLabel={t("guardDialog.locked")} />
+                <RuleRow locked strong text={t("guardDialog.ruleRevert")} lockedLabel={t("guardDialog.locked")} />
+                <RuleRow text={t("guardDialog.ruleNotify")} />
+                <RuleRow text={t("guardDialog.ruleAudit")} />
               </>
             ) : (
               <>
-                <li>{t("guardDialog.ruleApplies")}</li>
-                <li>{t("guardDialog.ruleAuditShort")}</li>
+                <RuleRow text={t("guardDialog.ruleApplies")} />
+                <RuleRow text={t("guardDialog.ruleAuditShort")} />
               </>
             )}
           </ul>
@@ -169,6 +171,8 @@ export function GuardWeakeningDialog({ approval, open, onClose, onConfirm, busy 
 }
 
 function TitleWithWeaken({ text, word }: { text: string; word: string }) {
+  // UX 0.4.x titles already say "LOOSEN" and carry no {weaken} slot: then show the text as is (no glued-on word).
+  if (!text.includes("\u0000")) return <>{text}</>;
   const [a, b = ""] = text.split("\u0000");
   return <>{a}<span className="text-semantic-warning">{word}</span>{b}</>;
 }
@@ -180,5 +184,15 @@ function Impact({ label, value, detail }: { label: string; value: string; detail
       <p className="num mt-1 text-numMd text-semantic-loss">{value}</p>
       <p className="num text-caption text-text-tertiary">{detail}</p>
     </div>
+  );
+}
+
+/** Static rule row: a lock for mandatory, server-enforced rules (not a control); a dot for plain info. */
+function RuleRow({ text, locked, strong, lockedLabel }: { text: string; locked?: boolean; strong?: boolean; lockedLabel?: string }) {
+  return (
+    <li className={cn("flex items-start gap-2", strong && "font-medium text-text-primary")} data-locked={locked || undefined}>
+      {locked ? <Lock size={14} className="mt-0.5 shrink-0 text-text-tertiary" role="img" aria-label={lockedLabel} /> : <Dot size={14} className="mt-0.5 shrink-0" aria-hidden />}
+      <span>{text}</span>
+    </li>
   );
 }

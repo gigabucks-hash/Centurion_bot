@@ -79,9 +79,17 @@ test("0.4.3: errors.map.json maps all errors.json v4 codes to existing UX keys; 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
   const map = req("@sentra/i18n/errors.map.json") as { codes: Record<string, { key: string }> };
-  const codes = Object.keys(ERROR_CODES);
-  assert.equal(codes.length, 56);
-  assert.deepEqual(codes.filter((c) => !map.codes[c]), []);
+  const all = Object.keys(ERROR_CODES);
+  // errors.json v5 (57) adds GUARD_WEAKEN_REQUIRES_APPROVAL; errors.map.json (i18n 0.4.4) still maps the 56 v4 codes.
+  assert.ok(all.length >= 56);
+  const unmapped = all.filter((c) => !map.codes[c]);
+  assert.deepEqual(unmapped.filter((c) => c !== "GUARD_WEAKEN_REQUIRES_APPROVAL"), [], "only the known v5 gap may be unmapped");
+  const { codeText } = await import("../errors.ts");
+  for (const c of unmapped) {
+    assert.notEqual(codeText(createT("en"), c as never), createT("en").ux("error.code.internal" as never), `${c} has app copy`);
+    assert.notEqual(codeText(createT("id"), c as never), createT("id").ux("error.code.internal" as never), `${c} has app copy (id)`);
+  }
+  const codes = all.filter((c) => map.codes[c]);
   const en = createT("en");
   const id = createT("id");
   for (const c of codes) {

@@ -10,8 +10,13 @@ test("not-tradeable pick: approve refused with UNSUPPORTED_QUOTE_MINT, skip (rej
   assert.throws(() => store.decideApproval(nt.id, { action: "approve" }), (e: { code?: string }) => e.code === "UNSUPPORTED_QUOTE_MINT");
   const { token } = store.issueDecisionToken(nt.id);
   assert.throws(() => store.decideApprovalWire(nt.id, { decision: "approve", token, expected_rev: nt.rev }), (e: { code?: string }) => e.code === "UNSUPPORTED_QUOTE_MINT");
-  const r = store.decideApprovalWire(nt.id, { decision: "reject", token, expected_rev: nt.rev, reason: null }) as { status: string };
+  const r = store.decideApprovalWire(nt.id, { decision: "reject", token, expected_rev: nt.rev, reason: null, reject_reason: "not_tradeable" }) as { status: string; reject_reason: string };
   assert.equal(r.status, "rejected");
+  assert.equal(r.reject_reason, "not_tradeable");
+  const { approvalToWire } = await import("../contracts.ts");
+  const w = approvalToWire(store.getApproval(nt.id)!);
+  assert.equal(w.decision, "reject");
+  assert.equal(w.reject_reason, "not_tradeable");
 });
 
 test("not-tradeable coins come from the wire flag (tradeable:false + skip_reason)", async () => {

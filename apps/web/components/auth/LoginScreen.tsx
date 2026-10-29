@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Check, Loader2, Lock, Mail, Wallet } from "lucide-react";
 import { request } from "@/lib/client";
 import { ApiError, errorText } from "@/lib/errors";
-import { useFmt, useT } from "@/lib/i18n/client";
+import { useFmt, useLocale, useT } from "@/lib/i18n/client";
 import { Button, cn } from "@/components/ui";
 import { Dialog, useNow } from "@/components/ui/client";
 
@@ -12,8 +12,11 @@ import { Dialog, useNow } from "@/components/ui/client";
  * MOCK sign-in (SPEC §5, UX SIGN_IN_BUTTONS.md, QA-05). Nothing here talks to an IdP, wallet or mail server.
  * - One equal-size stack (40 px tall, 320–400 px wide, 12 px gaps, radius 6): Google, Apple, [Telegram], "or", Email, Wallet.
  *   Telegram is hidden (not disabled) while AUTH_TELEGRAM_OIDC_ENABLED is off (NEXT_PUBLIC_AUTH_TELEGRAM_OIDC_ENABLED=true shows it).
- * - Google/Apple use the documented custom-button colours per theme; brand logos are striped placeholders: we never
- *   draw, download or ship brand logos (the implementation team pulls the official assets).
+ * - QA-05 official buttons: Google = Google Identity Services rendered button when NEXT_PUBLIC_GOOGLE_CLIENT_ID is set
+ *   (theme filled_black/outline, size large, rectangular, continue_with, UI locale); without a client id (mock build)
+ *   the documented custom button with the unmodified standard "G" from Google's pre-approved asset bundle.
+ *   Apple = Apple's own rendered button image (official button endpoint, localized, White on dark / Black on light).
+ *   Telegram = hidden while the flag is off; when on, the Telegram Login library renders its own widget.
  * - Loading: spinner inside the pressed button, label kept, the other buttons disabled.
  * - Email OTP and Sign-In With Solana go through the mock contract endpoints (/api/v1/auth/email/otp/*, /api/v1/auth/siws/*).
  *   Mock code 123456; the mock "signature" is a literal string (no wallet access, no window.solana).
@@ -98,9 +101,9 @@ export function LoginScreen() {
               <p className="mt-1 text-body text-text-secondary">{t("login.sub")}</p>
               {error && <ErrorBox text={error} />}
               <div className="mx-auto mt-5 flex w-full max-w-[400px] min-w-0 flex-col gap-3 sm:min-w-[320px]">
-                <BrandButton brand="google" label={t("login.google")} busy={busy === "google"} disabled={disabled("google")} onClick={() => idp("google")} />
-                <BrandButton brand="apple" label={t("login.apple")} busy={busy === "apple"} disabled={disabled("apple")} onClick={() => idp("apple")} />
-                {TELEGRAM_ENABLED && <BrandButton brand="telegram" label={t("login.telegram")} busy={busy === "telegram"} disabled={disabled("telegram")} onClick={() => idp("telegram")} />}
+                <GoogleButton label={t("login.google")} busy={busy === "google"} disabled={disabled("google")} onClick={() => idp("google")} />
+                <AppleButton label={t("login.apple")} busy={busy === "apple"} disabled={disabled("apple")} onClick={() => idp("apple")} />
+                {TELEGRAM_ENABLED && <TelegramButton label={t("login.telegram")} busy={busy === "telegram"} disabled={disabled("telegram")} onClick={() => idp("telegram")} />}
 
                 <Divider label={t("login.or")} />
 
@@ -155,29 +158,106 @@ export function LoginScreen() {
   );
 }
 
-/** Striped placeholder where the official brand asset goes (never a redrawn logo). */
-function LogoSlot({ label }: { label: string }) {
-  return <span className="h-5 w-5 shrink-0 rounded-[3px] border border-current/40 bg-[repeating-linear-gradient(45deg,currentColor_0_1px,transparent_1px_4px)] opacity-60" role="img" aria-label={label} />;
-}
-
-const BRAND: Record<"google" | "apple" | "telegram", string> = {
-  // Google custom button: dark #131314 / #8E918F / #E3E3E3, light #FFFFFF / #747775 / #1F1F1F (1 px inside stroke).
-  google: "bg-[#131314] text-[#E3E3E3] shadow-[inset_0_0_0_1px_#8E918F] in-data-[theme=light]:bg-[#FFFFFF] in-data-[theme=light]:text-[#1F1F1F] in-data-[theme=light]:shadow-[inset_0_0_0_1px_#747775]",
-  // Apple: White on dark, Black on light.
-  apple: "bg-[#FFFFFF] text-[#000000] in-data-[theme=light]:bg-[#000000] in-data-[theme=light]:text-[#FFFFFF]",
-  // Telegram: the library renders its own default widget; this stand-in keeps the slot size only.
-  telegram: "bg-bg-raised text-text-primary shadow-[inset_0_0_0_1px_var(--color-border-default)]",
-};
+const TELEGRAM_PLACEHOLDER = "bg-bg-raised text-text-primary shadow-[inset_0_0_0_1px_var(--color-border-default)]";
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
 const BASE =
   "relative flex h-10 w-full items-center justify-center gap-2.5 rounded-sm px-3 text-[14px] leading-5 font-medium transition outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus disabled:cursor-not-allowed disabled:opacity-50 enabled:hover:brightness-[1.08] enabled:active:brightness-[0.92]";
 
-function BrandButton({ brand, label, onClick, busy, disabled }: { brand: keyof typeof BRAND; label: string; onClick: () => void; busy: boolean; disabled: boolean }) {
-  const t = useT();
+type BrandProps = { label: string; onClick: () => void; busy: boolean; disabled: boolean };
+
+/**
+ * Google. With a client id: the GIS-rendered button (always current with Google's guideline). Mock build: custom
+ * button per the branding guideline (dark #131314 / #8E918F stroke / #E3E3E3 text, light #FFFFFF / #747775 /
+ * #1F1F1F; Google Sans Medium 14/20; 12 · 10 · 12 padding; standard-colour G at bundle size 20 px).
+ */
+function GoogleButton(p: BrandProps) {
+  const locale = useLocale();
+  const gis = useRef<HTMLDivElement>(null);
+  const [gisReady, setGisReady] = useState(false);
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    const el = gis.current;
+    const render = () => {
+      const g = (window as unknown as { google?: { accounts: { id: { initialize: (o: object) => void; renderButton: (e: HTMLElement, o: object) => void } } } }).google;
+      if (!g || !el) return;
+      g.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: () => p.onClick() });
+      const light = document.documentElement.dataset.theme === "light";
+      g.accounts.id.renderButton(el, { theme: light ? "outline" : "filled_black", size: "large", shape: "rectangular", text: "continue_with", locale, width: el.clientWidth || 320 });
+      setGisReady(true);
+    };
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.onload = render;
+    document.head.appendChild(s);
+    return () => s.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale]);
+  if (GOOGLE_CLIENT_ID) return <div ref={gis} className={cn("flex h-10 w-full justify-center", !gisReady && "rounded-sm bg-bg-raised")} data-brand="google" aria-label={p.label} />;
   return (
-    <button type="button" data-brand={brand} onClick={onClick} disabled={disabled || busy} aria-busy={busy || undefined} className={cn(BASE, BRAND[brand])}>
-      {busy ? <Loader2 size={18} className="shrink-0 animate-spin" aria-hidden /> : <LogoSlot label={t("login.logo")} />}
-      <span>{label}</span>
+    <button
+      type="button"
+      data-brand="google"
+      onClick={p.onClick}
+      disabled={p.disabled || p.busy}
+      aria-busy={p.busy || undefined}
+      className={cn(
+        BASE,
+        "gap-[10px] px-3 font-[\"Google_Sans\",Roboto,Arial,sans-serif] bg-[#131314] text-[#E3E3E3] shadow-[inset_0_0_0_1px_#8E918F] in-data-[theme=light]:bg-[#FFFFFF] in-data-[theme=light]:text-[#1F1F1F] in-data-[theme=light]:shadow-[inset_0_0_0_1px_#747775]",
+      )}
+    >
+      {p.busy ? <Loader2 size={20} className="shrink-0 animate-spin" aria-hidden /> : (
+        // eslint-disable-next-line @next/next/no-img-element -- brand asset must ship unmodified (no re-encoding)
+        <img src="/brand/google/g-logo.svg" width={20} height={20} alt="" aria-hidden className="shrink-0" />
+      )}
+      <span>{p.label}</span>
+    </button>
+  );
+}
+
+const APPLE_LOCALE = { en: "en_US", id: "id_ID" } as const;
+const appleImg = (color: "white" | "black", locale: "en" | "id") =>
+  `https://appleid.cdn-apple.com/appleid/button?height=40&width=352&type=continue&color=${color}&border=false&border_radius=6&scale=2&locale=${APPLE_LOCALE[locale]}`;
+
+/**
+ * Apple: the button artwork comes from Apple's own button endpoint (system-rendered title, localized), White on the
+ * dark theme and Black on light, never redrawn. If the image cannot load (offline), the plain localized title shows.
+ */
+function AppleButton(p: BrandProps) {
+  const locale = useLocale();
+  const [failed, setFailed] = useState(false);
+  return (
+    <button
+      type="button"
+      data-brand="apple"
+      onClick={p.onClick}
+      disabled={p.disabled || p.busy}
+      aria-busy={p.busy || undefined}
+      aria-label={p.label}
+      className={cn(BASE, "overflow-hidden px-0 bg-[#FFFFFF] text-[#000000] in-data-[theme=light]:bg-[#000000] in-data-[theme=light]:text-[#FFFFFF]")}
+    >
+      {p.busy && <Loader2 size={18} className="absolute left-3 shrink-0 animate-spin" aria-hidden />}
+      {failed ? (
+        <span>{p.label}</span>
+      ) : (
+        <>
+          {/* eslint-disable @next/next/no-img-element -- Apple-rendered button artwork, served by Apple, not re-encoded */}
+          <img src={appleImg("white", locale)} alt="" aria-hidden width={352} height={40} onError={() => setFailed(true)} className="h-10 w-auto max-w-full object-contain in-data-[theme=light]:hidden" />
+          <img src={appleImg("black", locale)} alt="" aria-hidden width={352} height={40} onError={() => setFailed(true)} className="hidden h-10 w-auto max-w-full object-contain in-data-[theme=light]:block" />
+          {/* eslint-enable @next/next/no-img-element */}
+        </>
+      )}
+    </button>
+  );
+}
+
+/** Telegram stand-in (flag off by default → not rendered). When enabled the Telegram Login library draws its widget. */
+function TelegramButton(p: BrandProps) {
+  return (
+    <button type="button" data-brand="telegram" onClick={p.onClick} disabled={p.disabled || p.busy} aria-busy={p.busy || undefined} className={cn(BASE, TELEGRAM_PLACEHOLDER)}>
+      {p.busy && <Loader2 size={18} className="shrink-0 animate-spin" aria-hidden />}
+      <span>{p.label}</span>
     </button>
   );
 }

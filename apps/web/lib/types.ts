@@ -472,6 +472,8 @@ export interface Approval {
   expiredReason?: ExpiredReason;
   skipReason?: SkipReason;
   skipNote?: string;
+  /** Contract reject_reason (1.1.3), set once rejected. */
+  rejectReason?: "user_declined" | "not_tradeable" | "price_moved" | "other";
   pick?: PickDetail;
   teamAction?: TeamActionKind;
   /** guard_change only */
@@ -490,6 +492,6 @@ export interface Approval {
 
 export type ApprovalDecision =
   | { action: "approve"; confirmation?: { typedName?: string; secondFactor?: "mock_passkey"; holdMs: number } }
-  | { action: "skip"; reason?: SkipReason; note?: string }
+  | { action: "skip"; reason?: SkipReason; note?: string; rejectReason?: "user_declined" | "not_tradeable" | "price_moved" | "other" }
   | { action: "undo_skip" }
   | { action: "cancel_cooldown" };

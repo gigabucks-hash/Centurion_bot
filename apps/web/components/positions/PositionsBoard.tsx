@@ -26,6 +26,8 @@ const PCTS = ["25", "50", "100"] as const;
 export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mode: TradingMode }) {
   const t = useT();
   const f = useFmt();
+  // QA-04: Practice amounts always say "paper SOL" (column headers included).
+  const unit = t(mode === "practice" ? "overview.paperSol" : "overview.realSol");
   const toast = useToast();
   const router = useRouter();
   const now = useNow(1000);
@@ -106,11 +108,11 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
                 <tr className="border-b border-border-subtle text-left text-label text-text-tertiary">
                   <th scope="col" className="sticky left-0 z-10 bg-bg-surface px-4 py-2 font-medium shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:shadow-none">{t("positions.colCoin")}</th>
                   <th scope="col" className="px-4 py-2 font-medium">{t("positions.colStrategy")}</th>
-                  <th scope="col" className="px-4 py-2 text-right font-medium">{t("positions.colSize")}</th>
-                  <th scope="col" className="px-4 py-2 text-right font-medium">{t("positions.colPrice")}</th>
-                  <th scope="col" className="px-4 py-2 text-right font-medium">{t("positions.colPnlSol")}</th>
-                  <th scope="col" className="px-4 py-2 text-right font-medium">{t("positions.colPnlPct")}</th>
-                  <th scope="col" className="px-4 py-2 text-right font-medium">{t("positions.colHold")}</th>
+                  <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colSize", { unit })}</th>
+                  <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colPrice")}</th>
+                  <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colPnlSol", { unit })}</th>
+                  <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colPnlPct")}</th>
+                  <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colHold")}</th>
                   <th scope="col" className="px-4 py-2"><span className="sr-only">{t("positions.sell")}</span></th>
                 </tr>
               </thead>
@@ -152,8 +154,8 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
         {focused && (
           <Card title={`${focused.symbol} · ${focused.strategyName}`} action={<ModeBadge mode={mode} />}>
             <dl className="grid grid-cols-2 gap-2 text-caption">
-              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colSize")}</dt><dd className="num whitespace-nowrap">{f.sol(focused.solIn * remaining(focused))}</dd></div>
-              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colPnlSol")}</dt><dd><Pnl sol={focused.pnlSol * remaining(focused)} unit /></dd></div>
+              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colSize", { unit })}</dt><dd className="num whitespace-nowrap">{f.sol(focused.solIn * remaining(focused))}</dd></div>
+              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colPnlSol", { unit })}</dt><dd><Pnl sol={focused.pnlSol * remaining(focused)} unit /></dd></div>
               <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.lossGuard")}</dt><dd className="num">{f.pct(-focused.stopLossPct, 0)}</dd></div>
               <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.trail")}</dt><dd className="num">{f.pct(-focused.trailingPct, 0)}</dd></div>
             </dl>

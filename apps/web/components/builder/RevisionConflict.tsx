@@ -67,10 +67,18 @@ export function RevisionConflict({ conflict, base, mine, onMerged, onDiscard }: 
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-text-primary">{t("conflict.title")}</p>
           <p className="text-text-secondary">{t("conflict.body", { current_rev: conflict.current_rev, base_rev: conflict.base_rev })}</p>
-          <p className="text-caption text-text-secondary">
-            {t("conflict.changedBy", { actor: conflict.changed_by.actor, via: conflict.changed_by.via, device: conflict.changed_by.device ?? conflict.changed_by.via, changed_at: f.dateTime(Date.parse(conflict.changed_at)) })}
-          </p>
-          {conflict.changed_fields.length > 0 && <p className="font-mono text-caption text-text-tertiary">{t("conflict.fields", { fields: conflict.changed_fields.join(", ") })}</p>}
+          {/* changed_by / changed_at / changed_fields are optional in ConflictError; `current` is required (1.1.3). */}
+          {conflict.changed_by && (
+            <p className="text-caption text-text-secondary">
+              {t("conflict.changedBy", {
+                actor: conflict.changed_by.actor ?? "—",
+                via: conflict.changed_by.via ?? "—",
+                device: conflict.changed_by.device ?? conflict.changed_by.via ?? "—",
+                changed_at: f.dateTime(Date.parse(conflict.changed_at ?? conflict.current.updated_at)),
+              })}
+            </p>
+          )}
+          {(conflict.changed_fields?.length ?? 0) > 0 && <p className="font-mono text-caption text-text-tertiary">{t("conflict.fields", { fields: conflict.changed_fields!.join(", ") })}</p>}
           <p className="mt-1 text-caption text-text-secondary">{t("conflict.conflicts", { count: overlaps.length })} {t("builder.conflictLocked")}</p>
           {conflict.code === "CONFIRMATION_RESTART_REQUIRED" || conflict.current.mode === "real" ? <p className="mt-1 text-caption text-semantic-warning">{t("conflict.realReconfirm")}</p> : null}
         </div>

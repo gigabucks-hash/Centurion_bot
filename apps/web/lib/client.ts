@@ -7,9 +7,9 @@
  * - Writes carry an Idempotency-Key; retries reuse the same key.
  */
 import { pctToFractionBps } from "@sentra/i18n/format";
-import type { ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof } from "@sentra/contracts/wire";
+import type { ConflictError, ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof } from "@sentra/contracts/wire";
 import { observeServerNow } from "./clock";
-import { approvalFromWire, payloadHash, positionFromWire, type PositionWireView, settingsFromWire, settingsPatch, settingsToWire, type ApprovalWire, type WireSettings } from "./contracts";
+import { approvalFromWire, payloadHash, positionFromWire, type PositionWireView, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire, type ApprovalRejectReason, type WireSettings } from "./contracts";
 import { ApiError, toApiError } from "./errors";
 import type { Approval, ConnectionState, OpenPosition, PublishResult, StrategySettings, TradeEvent, TradingMode } from "./types";
 import { createRealtime } from "./realtime";
@@ -43,12 +43,12 @@ export async function request<T>(path: string, init: { method?: string; body?: u
 
 export async function fetchApprovals(mode: TradingMode): Promise<Approval[]> {
   const { raw } = await request<unknown>(`/approvals?mode=${mode}`);
-  return (raw.items as ApprovalWire[]).map(approvalFromWire);
+  return (raw.items as ApprovalItemWire[]).map(approvalFromWire);
 }
 
 /** GET /approvals/{id}: fresh item + single-use decision token. */
 export async function fetchApproval(id: string): Promise<Approval> {
-  return approvalFromWire((await request<ApprovalWire>(`/approvals/${id}`)).data);
+  return approvalFromWire((await request<ApprovalItemWire>(`/approvals/${id}`)).data);
 }
 
 /** Confirmation challenge (2 min, single use) bound to sha256 of the exact change. */
@@ -59,6 +59,8 @@ export async function requestChallenge(action: string, target: string, change: u
 export interface DecideOptions {
   decision: "approve" | "reject";
   reason?: string | null;
+  /** 1.1.3: sent with decision=reject only (the server answers 422 otherwise). Default on the server: user_declined. */
+  rejectReason?: ApprovalRejectReason;
   /** Hold / typed name / passkey collected by the dialog; turned into a ConfirmationProof here. */
   confirmation?: { holdMs: number; typedName?: string; passkey?: boolean };
 }
@@ -84,14 +86,14 @@ export async function decideApprovalClient(a: Approval, o: DecideOptions): Promi
     } as unknown as ConfirmationProof;
   }
   // 1.1.2: approval rev via If-Match (expected_rev mirrors it for RPC parity); no `client` field (channel comes from the JWT).
-  const body: ApprovalDecisionRequest = { decision: o.decision, token: fresh.decisionToken, expected_rev: fresh.rev, reason: o.reason ?? null, ...(confirmation ? { confirmation } : {}) };
+  const body: ApprovalDecisionRequest = { decision: o.decision, token: fresh.decisionToken, expected_rev: fresh.rev, reason: o.reason ?? null, ...(o.decision === "reject" ? { reject_reason: o.rejectReason ?? "user_declined" } : {}), ...(confirmation ? { confirmation } : {}) };
   const { data } = await request<ApprovalDecisionResponse>(`/approvals/${a.id}/decision`, { body, headers: { "If-Match": `"${fresh.rev}"` } });
   window.dispatchEvent(new Event(APPROVALS_CHANGED));
   return data;
 }
 
 export async function cancelGuardChangeClient(id: string): Promise<Approval> {
-  const { data } = await request<ApprovalWire>(`/guard-changes/${id}/cancel`, { body: {} });
+  const { data } = await request<ApprovalItemWire>(`/guard-changes/${id}/cancel`, { body: {} });
   window.dispatchEvent(new Event(APPROVALS_CHANGED));
   return approvalFromWire(data);
 }
@@ -132,22 +134,21 @@ export interface StrategyWire {
   updated_at: string;
 }
 
-/** 409 STRATEGY_REV_CONFLICT / CONFIRMATION_RESTART_REQUIRED body (API_ENDPOINTS.md §2.1). */
-export interface RevConflict {
+/**
+ * 409 STRATEGY_REV_CONFLICT / CONFIRMATION_RESTART_REQUIRED (contracts 1.1.3 `ConflictError<StrategyWire>`).
+ * `current` is REQUIRED by the contract, so the merge view always has "theirs"; a 409 without it is a contract
+ * violation and is shown as a plain error (asRevConflict → null), never as an empty merge.
+ */
+export type RevConflict = Omit<ConflictError<StrategyWire>["error"], "code" | "message" | "request_id" | "server_now"> & {
   code: "STRATEGY_REV_CONFLICT" | "CONFIRMATION_RESTART_REQUIRED";
-  current_rev: number;
-  base_rev: number;
-  changed_fields: string[];
-  changed_by: { actor: string; via: string; device?: string };
-  changed_at: string;
-  current: StrategyWire;
-}
+};
 
 export function asRevConflict(e: unknown): RevConflict | null {
   if (!(e instanceof ApiError) || (e.code !== "STRATEGY_REV_CONFLICT" && e.code !== "CONFIRMATION_RESTART_REQUIRED")) return null;
-  // 1.1.2: conflict data lives inside `error` ({error: {code, message, current_rev, base_rev, current, ...}}).
+  // Conflict data lives inside `error` ({error: {code, message, current_rev, base_rev, current, ...}}).
   const b = e.details as Partial<RevConflict>;
-  return b.current ? ({ ...b, code: e.code } as RevConflict) : null;
+  if (!b.current || typeof b.current_rev !== "number" || typeof b.base_rev !== "number") return null;
+  return { ...(b as RevConflict), code: e.code };
 }
 
 export async function fetchRevision(id: string, rev: number): Promise<WireSettings> {
@@ -165,7 +166,7 @@ export async function publishStrategyClient(id: string | null, settings: Strateg
     return { strategyId: data.id, outcome: "published", rev: data.rev };
   }
   const patch = settingsPatch(settingsToWire(base.settings), settingsToWire(settings));
-  const res = await request<StrategyWire | { proposal: ApprovalWire; strategy: StrategyWire }>(`/strategies/${id}?mode=${settings.mode}`, {
+  const res = await request<StrategyWire | { proposal: ApprovalItemWire; strategy: StrategyWire }>(`/strategies/${id}?mode=${settings.mode}`, {
     method: "PATCH",
     body: { settings_patch: patch },
     headers: { "If-Match": `"${base.rev}"` },

@@ -10,7 +10,7 @@
 import { randomUUID } from "node:crypto";
 import type { AnyEvent, EventPage, ExitStatsRow } from "@sentra/contracts/wire";
 import type { DashboardApi } from "./api";
-import { approvalFromWire, coinSummaryFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalWire, type WireSettings } from "./contracts";
+import { approvalFromWire, coinSummaryFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings } from "./contracts";
 import { toApiError } from "./errors";
 import { blankSettings } from "./strategy-schema";
 import type { Strategy, TradeEvent, TradingMode } from "./types";
@@ -82,7 +82,7 @@ export const httpApi: DashboardApi = {
       await req(wsPath(`/approvals/${encodeURIComponent(id)}/decision`), {
         method: "POST",
         headers: { "If-Match": `"${fresh.rev}"` },
-        body: JSON.stringify({ decision: d.action === "approve" ? "approve" : "reject", token: fresh.decisionToken, expected_rev: fresh.rev, reason: d.action === "skip" ? (d.reason ?? null) : null }),
+        body: JSON.stringify({ decision: d.action === "approve" ? "approve" : "reject", token: fresh.decisionToken, expected_rev: fresh.rev, reason: d.action === "skip" ? (d.reason ?? null) : null, ...(d.action === "skip" ? { reject_reason: d.rejectReason ?? rejectReasonFor({ skipReason: d.reason }) } : {}) }),
       });
     }
     return approvalFromWire((await req<ApprovalWire>(wsPath(`/approvals/${encodeURIComponent(id)}`))).data);

@@ -402,6 +402,7 @@ export const en = {
     ruleCooldown: "10-minute cooldown before it takes effect (can be cancelled)",
     ruleNotify: "Notification to all devices + email",
     ruleAudit: "Recorded in the audit log (who, when, device, diff, risk)",
+    locked: "Required · can’t be turned off",
     ruleRevert: "Auto-reverts 24 h after it takes effect (always on for Real SOL)",
     ruleApplies: "Applies immediately",
     ruleAuditShort: "Recorded in the audit log",
@@ -537,7 +538,7 @@ export const en = {
     subtitlePractice: "Open positions in Practice · paper SOL, simulated fills",
     subtitleReal: "Open positions in Real SOL",
     summary: "{open} · {cost} in positions · unrealized",
-    colCoin: "Coin", colStrategy: "Strategy", colSize: "Size", colPrice: "Entry → now", colPnlSol: "PnL SOL", colPnlPct: "PnL %", colHold: "Hold",
+    colCoin: "Coin", colStrategy: "Strategy", colSize: "Size ({unit})", colPrice: "Entry → now", colPnlSol: "PnL ({unit})", colPnlPct: "PnL %", colHold: "Hold",
     sell: "Sell", sellShare: "Share to sell", lossGuard: "Loss guard", trail: "Peak trail",
     alreadySold: "{pct} already sold manually",
     soldToast: "Sell sent: {pct} of {symbol} (simulated)",
@@ -593,6 +594,8 @@ export const en = {
     mockNote: "Mock build: nothing here contacts an identity provider, wallet or push service.",
   },
   apiError: {
+    // errors.json v5 (contracts fdc52e3); not yet in @sentra/i18n errors.map.json → app copy until UX maps it.
+    GUARD_WEAKEN_REQUIRES_APPROVAL: "This change loosens a guard, so it needs approval first. Nothing was changed.",
     UNAUTHENTICATED: "Please sign in again.",
     FORBIDDEN_SCOPE: "This session can’t do that.",
     FORBIDDEN_ROLE: "Your workspace role doesn’t allow this.",

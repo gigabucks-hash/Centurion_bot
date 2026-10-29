@@ -61,7 +61,11 @@ export function errorUxKey(code: string): string {
  * Localized copy for an error code (i18n 0.4.3): errors.map.json → UX key → t.ux (en/id). Codes the map does not
  * know (and our client-only UNKNOWN) fall back to `error.code.internal`; OFFLINE keeps our app copy.
  */
+/** Codes newer than errors.map.json that we cover with app copy (apiError.*) until UX maps them. */
+const APP_ONLY_CODES = new Set<string>(["GUARD_WEAKEN_REQUIRES_APPROVAL"]);
+
 export function codeText(t: T, code: ClientErrorCode): string {
   if (code === "OFFLINE") return t(errorKey(code));
+  if (APP_ONLY_CODES.has(code) && !(ERRORS_MAP as { codes: Record<string, unknown> }).codes[code]) return t(`apiError.${code}` as never);
   return t.ux(errorUxKey(code) as never);
 }

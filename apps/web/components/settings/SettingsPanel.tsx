@@ -16,6 +16,7 @@ import {
 import { ApiError, errorText } from "@/lib/errors";
 import { createFmt } from "@/lib/format";
 import { LOCALES } from "@/lib/i18n";
+import { LOCALES as LOCALE_TAGS } from "@sentra/i18n/format";
 import { useFmt, useLocale, useT } from "@/lib/i18n/client";
 import type { ApprovalMode } from "@/lib/types";
 import { Badge, Button, Card, cn } from "@/components/ui";
@@ -109,7 +110,9 @@ export function SettingsPanel({ signedInWith }: { signedInWith: Method | null })
       router.refresh();
     } catch (e) {
       if (e instanceof ApiError && e.code === "RESET_COOLDOWN") {
-        const next = (e.details as { next_allowed_at?: string }).next_allowed_at ?? null;
+        // 1.1.2+: details are flattened into `error` → error.next_allowed_at (ApiError.details is that object).
+        const raw = (e.details as { next_allowed_at?: unknown }).next_allowed_at;
+        const next = typeof raw === "string" && !Number.isNaN(Date.parse(raw)) ? raw : null;
         setPractice((p) => (p ? { ...p, next_allowed_at: next } : p));
       }
       fail(e);
@@ -200,7 +203,7 @@ export function SettingsPanel({ signedInWith }: { signedInWith: Method | null })
           {thisDevice ? (
             <Button size="sm" variant="ghost" onClick={() => revokeDeviceClient().then(() => fetchDevices().then(setDevices)).catch(fail)}>{t("settings.deviceRemove")}</Button>
           ) : (
-            <Button size="sm" variant="secondary" onClick={() => registerDeviceClient(locale === "id" ? "id-ID" : "en-US").then(() => fetchDevices().then(setDevices)).catch(fail)}>{t("settings.deviceRegister")}</Button>
+            <Button size="sm" variant="secondary" onClick={() => registerDeviceClient(LOCALE_TAGS[locale]).then(() => fetchDevices().then(setDevices)).catch(fail)}>{t("settings.deviceRegister")}</Button>
           )}
         </Row>
         <Toggle checked={emailOn} onChange={setEmailOn} label={t.ux("settings.notif.email")} />

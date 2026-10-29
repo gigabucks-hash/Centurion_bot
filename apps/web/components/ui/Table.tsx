@@ -78,7 +78,7 @@ export function Table<T>({ columns, rows, rowKey, empty, minWidth = 560, mobile 
             <thead className="sticky top-0 bg-bg-surface">
               <tr className="border-b border-border-subtle text-label text-text-tertiary">
                 {columns.map((c, i) => (
-                  <th key={c.key} scope="col" className={cn("px-4 py-2 font-medium", align(c), i === 0 && "sticky left-0 z-10 bg-bg-surface shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:static sm:shadow-none", c.className)}>
+                  <th key={c.key} scope="col" className={cn("px-4 py-2 font-medium", align(c), (c.numeric || c.nowrap) && "whitespace-nowrap", i === 0 && "sticky left-0 z-10 bg-bg-surface shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:static sm:shadow-none", c.className)}>
                     {c.header}
                   </th>
                 ))}

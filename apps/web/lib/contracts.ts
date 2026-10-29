@@ -5,10 +5,11 @@
  * wire objects.
  */
 import { lamportsToSol, type Actor, type AnyEvent, type EventEnvelope, type EventPage, type ExitReason, type Lamports, type Mode } from "@sentra/contracts/wire";
-import type { DecimalString, ErrorCode, ExitStatsRow, PositionWire, ProposalExpiredReason, ProposalKind, ProposalStatus, RiskLevel, TokenProgram } from "@sentra/contracts/wire";
+import { APPROVAL_REJECT_REASONS, type ApprovalRejectReason, type ApprovalWire, type DecidedVia } from "@sentra/contracts/wire";
+import type { DecimalString, ErrorCode, ExitStatsRow, PositionWire, ProposalStatus, TokenProgram } from "@sentra/contracts/wire";
 import { pctToFractionBps } from "@sentra/i18n/format";
 import { cmpSeq, maxSeq, minSeq, seqGt, seqLt, type Seq } from "./seq";
-import type { Approval, CoinMeta, CoinSummary, EventKind, ExitReasonStat, GuardCheck, OpenPosition, ScreenerState, StrategySettings, TradeEvent } from "./types";
+import type { Approval, SkipReason, CoinMeta, CoinSummary, EventKind, ExitReasonStat, GuardCheck, OpenPosition, ScreenerState, StrategySettings, TradeEvent } from "./types";
 
 /** SOL (UI number) → lamports integer string. Rounds to the lamport; never emits an exponent. */
 export function solToLamports(sol: number): Lamports {
@@ -146,123 +147,148 @@ export function pageEvents<E extends { seq: Seq }>(all: E[], q: { after_seq?: Se
 }
 
 // ---------------------------------------------------------------------------
-// Approvals. The contract has no Approval resource schema yet (open item for Backend); this is the
-// shape our mock BFF serves: contract enums/fields where defined (ProposalStatus, version, expires_at,
-// decision_token, amount_lamports, risk_level, GuardChanged.status/cooldown_until/auto_revert_at),
-// display-only extras (pick, diff, risk_impact) nested and documented as mock.
+// Approvals (contracts 1.1.3): the official `ApprovalWire` (= SQL public.approval_wire(), also the `current` of
+// an approval 409). Everything the UI shows beyond the contract fields (title, pick, diff, guard cooldown, …)
+// travels in the contract's free-form `payload` object, documented below as `ApprovalPayload` (mock-defined).
+// GET /approvals/{id} adds the single-use decision_token next to the resource.
 // ---------------------------------------------------------------------------
 
-export interface ApprovalWire {
-  id: string;
-  kind: ProposalKind;
-  status: ProposalStatus;
-  /** Execution sub-state after approval (buy_pick) or applied/reverted (guard_change). */
-  execution: "executing" | "filled" | "failed" | null;
-  /** Approval rev (1.1.2; was `version`). */
-  rev: number;
-  mode: Mode;
-  strategy_id: string | null;
-  strategy_name: string | null;
-  mint: string | null;
-  untrusted: { symbol?: string };
+export type { ApprovalWire, ApprovalRejectReason };
+export { APPROVAL_REJECT_REASONS };
+
+/** GET /approvals/{id} item: the resource plus its single-use decision token. */
+export type ApprovalItemWire = ApprovalWire & { decision_token?: string; decision_token_expires_at?: string };
+
+/** Display-only extras inside ApprovalWire.payload (mock-defined; Backend owns the real payload per kind). */
+export interface ApprovalPayload {
   title: string;
   detail: string;
-  amount_lamports: Lamports | null;
-  risk_level: RiskLevel;
+  strategy_name: string | null;
+  untrusted: { symbol?: string };
   requested_by: Actor;
-  created_at: string;
-  expires_at: string;
-  decided_at: string | null;
-  expired_reason: ProposalExpiredReason | null;
-  screener_state?: string | null;
-  reason: string | null;
-  note: string | null;
-  base_rev: number | null;
+  execution: "executing" | "filled" | "failed" | null;
+  screener_state: string | null;
+  skip_reason: string | null;
+  skip_note: string | null;
   to_rev: number | null;
-  guard_change: { status: "cooling_down" | "applied" | "reverted" | "cancelled" | null; cooldown_until: string | null; auto_revert_at: string | null } | null;
+  guard_change: { status: Approval["guardChangeState"] | null; cooldown_until: string | null; auto_revert_at: string | null } | null;
   team_action: string | null;
   audit_id: string | null;
-  decision_token?: string;
-  decision_token_expires_at?: string;
-  /** mock display extras */
   pick?: Approval["pick"];
   diff?: Approval["diff"];
   risk_impact?: Approval["riskImpact"];
 }
 
+/**
+ * Skip chip → contract reject_reason (1.1.3, decision=reject only). Not tradeable → not_tradeable;
+ * "already pumped" = the price ran away → price_moved; the other chips → other; no chip → user_declined.
+ * The chip itself still goes in the free-text `reason` so the audit keeps the detail.
+ */
+export function rejectReasonFor(o: { notTradeable?: boolean; skipReason?: SkipReason | null }): ApprovalRejectReason {
+  if (o.notTradeable) return "not_tradeable";
+  switch (o.skipReason) {
+    case undefined:
+    case null:
+      return "user_declined";
+    case "already_pumped":
+      return "price_moved";
+    default:
+      return "other";
+  }
+}
+
 const iso = (t?: number) => (t == null ? null : new Date(t).toISOString());
 const ms = (s: string | null | undefined) => (s ? Date.parse(s) : undefined);
+const DECIDED: Partial<Record<ProposalStatus, "approve" | "reject">> = { approved: "approve", rejected: "reject" };
 
-export function approvalToWire(a: Approval): ApprovalWire {
+export function approvalToWire(a: Approval, extra: { workspaceId?: string; decidedVia?: DecidedVia | null; rejectReason?: ApprovalRejectReason | null } = {}): ApprovalWire {
   const exec = a.status === "executing" || a.status === "filled" || a.status === "failed" ? a.status : null;
-  return {
-    id: a.id,
-    kind: a.kind,
-    status: exec ? "approved" : (a.status as ProposalStatus),
-    execution: exec,
-    rev: a.rev,
-    mode: a.mode,
-    strategy_id: a.strategyId ?? null,
-    strategy_name: a.strategyName ?? null,
-    mint: a.mint ?? null,
-    untrusted: a.symbol ? { symbol: a.symbol } : {},
+  const status: ProposalStatus = exec ? "approved" : (a.status as ProposalStatus);
+  const payload: ApprovalPayload = {
     title: a.title,
     detail: a.detail,
-    amount_lamports: a.amountSol != null ? solToLamports(a.amountSol) : null,
-    risk_level: a.risk,
+    strategy_name: a.strategyName ?? null,
+    untrusted: a.symbol ? { symbol: a.symbol } : {},
     requested_by: a.requestedBy,
-    created_at: iso(a.createdAt)!,
-    expires_at: iso(a.expiresAt)!,
-    decided_at: iso(a.decidedAt),
-    expired_reason: a.expiredReason ?? null,
+    execution: exec,
     screener_state: a.screenerState ?? null,
-    reason: a.skipReason ?? null,
-    note: a.skipNote ?? null,
-    base_rev: a.revFrom ?? null,
+    skip_reason: a.skipReason ?? null,
+    skip_note: a.skipNote ?? null,
     to_rev: a.revTo ?? null,
     guard_change: a.kind === "guard_change" ? { status: a.guardChangeState ?? null, cooldown_until: iso(a.cooldownEndsAt), auto_revert_at: iso(a.autoRevertAt) } : null,
     team_action: a.teamAction ?? null,
     audit_id: a.auditId ?? null,
-    pick: a.pick,
-    diff: a.diff,
-    risk_impact: a.riskImpact,
+    ...(a.pick ? { pick: a.pick } : {}),
+    ...(a.diff ? { diff: a.diff } : {}),
+    ...(a.riskImpact ? { risk_impact: a.riskImpact } : {}),
+  };
+  const decision = DECIDED[status] ?? null;
+  return {
+    id: a.id,
+    proposal_id: a.id,
+    workspace_id: extra.workspaceId ?? "ws_mock",
+    strategy_id: a.strategyId ?? null,
+    kind: a.kind,
+    mode: a.mode,
+    subject: a.symbol ?? a.strategyName ?? null,
+    mint: a.mint ?? null,
+    amount_lamports: a.amountSol != null ? solToLamports(a.amountSol) : null,
+    is_first_buy: a.pick?.pickKind === "first_buy",
+    risk: a.risk,
+    weakening: a.kind === "guard_change",
+    status,
+    rev: a.rev,
+    expire_reason: a.expiredReason ?? null,
+    base_rev: a.revFrom ?? null,
+    decision,
+    reject_reason: decision === "reject" ? (extra.rejectReason ?? a.rejectReason ?? rejectReasonFor({ notTradeable: a.screenerState === "UNSUPPORTED_QUOTE_MINT", skipReason: a.skipReason })) : null,
+    decided_via: decision ? (extra.decidedVia ?? "web") : null,
+    decided_by: null,
+    payload: payload as unknown as ApprovalWire["payload"],
+    created_at: iso(a.createdAt)!,
+    expires_at: iso(a.expiresAt)!,
+    decided_at: iso(a.decidedAt),
   };
 }
 
-export function approvalFromWire(w: ApprovalWire): Approval {
+export function approvalFromWire(w: ApprovalItemWire): Approval {
+  const p = (w.payload ?? {}) as unknown as Partial<ApprovalPayload>;
+  const sym = p.untrusted?.symbol;
   return {
     id: w.id,
     rev: w.rev,
     decisionToken: w.decision_token,
     kind: w.kind,
-    status: w.execution ?? w.status,
+    status: p.execution ?? w.status,
     mode: w.mode,
     strategyId: w.strategy_id ?? undefined,
-    strategyName: w.strategy_name ?? undefined,
+    strategyName: p.strategy_name ?? undefined,
     mint: w.mint ?? undefined,
-    symbol: typeof w.untrusted?.symbol === "string" ? w.untrusted.symbol.slice(0, 16) : undefined,
-    title: w.title,
-    detail: w.detail,
+    // Untrusted token text: plain text only, clipped.
+    symbol: typeof sym === "string" ? sym.slice(0, 16) : undefined,
+    title: p.title ?? w.subject ?? w.kind,
+    detail: p.detail ?? "",
     amountSol: lamportsToSolNumber(w.amount_lamports),
-    risk: w.risk_level,
-    requestedBy: w.requested_by,
+    risk: w.risk,
+    requestedBy: p.requested_by ?? "system",
     createdAt: ms(w.created_at)!,
     expiresAt: ms(w.expires_at)!,
     decidedAt: ms(w.decided_at),
-    expiredReason: w.expired_reason ?? undefined,
-    ...(w.screener_state === "UNSUPPORTED_QUOTE_MINT" ? { screenerState: "UNSUPPORTED_QUOTE_MINT" as const } : {}),
-    skipReason: (w.reason ?? undefined) as Approval["skipReason"],
-    skipNote: w.note ?? undefined,
-    pick: w.pick,
-    teamAction: (w.team_action ?? undefined) as Approval["teamAction"],
-    diff: w.diff,
-    riskImpact: w.risk_impact,
+    expiredReason: w.expire_reason ?? undefined,
+    ...(p.screener_state === "UNSUPPORTED_QUOTE_MINT" ? { screenerState: "UNSUPPORTED_QUOTE_MINT" as const } : {}),
+    skipReason: (p.skip_reason ?? undefined) as Approval["skipReason"],
+    skipNote: p.skip_note ?? undefined,
+    rejectReason: w.reject_reason ?? undefined,
+    pick: p.pick,
+    teamAction: (p.team_action ?? undefined) as Approval["teamAction"],
+    diff: p.diff,
+    riskImpact: p.risk_impact,
     revFrom: w.base_rev ?? undefined,
-    revTo: w.to_rev ?? undefined,
-    cooldownEndsAt: ms(w.guard_change?.cooldown_until),
-    autoRevertAt: ms(w.guard_change?.auto_revert_at),
-    guardChangeState: w.guard_change?.status ?? undefined,
-    auditId: w.audit_id ?? undefined,
+    revTo: p.to_rev ?? undefined,
+    cooldownEndsAt: ms(p.guard_change?.cooldown_until),
+    autoRevertAt: ms(p.guard_change?.auto_revert_at),
+    guardChangeState: p.guard_change?.status ?? undefined,
+    auditId: p.audit_id ?? undefined,
   };
 }
 
@@ -335,8 +361,10 @@ export function settingsToWire(s: StrategySettings): WireSettings {
     peak_trail_pct: ex.trailingPct,
     // Deterministic floors stay on with the server default max_loss_pct (35); only the liquidity floor is set here.
     sell_floors: { enabled: true, liquidity_drop_pct: 80 },
-    // Time stop / stall exit have NO settings key in schema 1.1.2 (exit_rules.loss_guards is now
-    // {at_loss_pct, sell_portion_pct} only), so they are not sent. Open item for Backend.
+    // Time stop / stall exit have NO settings key up to contracts 1.1.3, so they stay "device only" (not sent;
+    // settingsFromWire keeps the local values). TODO(contracts 1.1.4): send `time_stop_s` (= timeStopMinutes * 60,
+    // null = off) and `stall_exit: { window_s, min_move_pct } | null` (null = off; stallExit:false → null), read them
+    // back in settingsFromWire, add them to settingsPatch/diff keys, and drop the builder's "device only" hint.
     idle_exit_seconds: ex.noTradeSeconds || null,
     sell_pressure_exit: ex.drainDropPct ? { fall_pct: ex.drainDropPct, window_minutes: 5 } : null,
   };

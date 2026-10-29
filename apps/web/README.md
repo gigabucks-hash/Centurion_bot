@@ -121,3 +121,16 @@ lib/mock/               ← seeded data, mutable store (TTL, holds, cooldown, au
 - Risk impact, replay and the builder simulation are deterministic mock estimates
 - Switching to Real skips the wallet-setup wizard and shows a notice instead
 - The exit-stats sample is synthetic and doesn't reconcile with the overview totals
+
+## Pass 4 · Design QA (QA-01..16) + contracts 1.1.3
+
+- Contracts 1.1.3: official `ApprovalWire` (display extras ride in `payload`), `reject_reason` sent on reject only
+  (chip map: none → user_declined, already_pumped → price_moved, other chips → other, Not tradeable → not_tradeable;
+  the chip id stays in free-text `reason`), mock server validates it (422 otherwise) and echoes it;
+  `ConflictError.current` required (`RevConflict` derived from the contract type; a 409 without `current` is a plain
+  error, never an empty merge); RESET_COOLDOWN reads `error.next_allowed_at`. Time stop / stall exit stay "device only"
+  (TODO for 1.1.4 `time_stop_s`, `stall_exit {window_s, min_move_pct}` in lib/contracts.ts).
+- errors.json v5 `GUARD_WEAKEN_REQUIRES_APPROVAL` is not in errors.map.json yet → app copy (en/id) instead of the generic text.
+- QA-02 lock rows · QA-04 paper SOL headers · QA-05 GIS / Apple-rendered buttons (see public/brand/README.md) ·
+  QA-09/10 nowrap numeric headers, compact mobile KPI tiles · QA-15 `SENTRA_QA_SHOTS=1` hides the dev badge ·
+  practice reset starts a flat epoch in the mock overview (30 paper SOL, no PnL/positions/exit stats).

@@ -6,6 +6,8 @@ import { decideApprovalWire, getApproval, WireError } from "@/lib/mock/store";
 /**
  * POST /approvals/{id}/decision  (Idempotency-Key required)
  * Contracts 1.1.2: `If-Match: "<approval rev>"` (or body expected_rev) + {decision: approve|reject, token, reason?, confirmation?}.
+ * 1.1.3: optional `reject_reason` (user_declined | not_tradeable | price_moved | other), reject only → else 422
+ * VALIDATION_FAILED; default user_declined; echoed in the response and on the ApprovalWire.
  * No `client` field (the channel comes from the JWT). `expected_version` is gone.
  * 428 PRECONDITION_REQUIRED · 409 VERSION_CONFLICT {error.current_rev, base_rev, current} · APPROVAL_ALREADY_DECIDED ·
  * APPROVAL_EXPIRED {error.reason} · IDEMPOTENCY_KEY_REUSED.

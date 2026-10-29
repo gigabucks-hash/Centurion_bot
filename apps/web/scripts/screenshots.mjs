@@ -47,6 +47,12 @@ await go(coin, 2000); await shot("06-coin-trail-chart");
 if (rejected) { await go(rejected, 1500); await shot("06b-coin-trail-rejected"); }
 await go("/stats"); await shot("07-stats");
 await go("/positions"); await shot("17-positions-practice");
+try {
+  // QA-11: Sell confirm = hold 1.2 s (Practice) / 2.5 s (Real).
+  await page.getByRole("button", { name: /^Sell…?$|^Sell\.\.\.$/ }).first().click({ timeout: 4000 });
+  await page.waitForTimeout(300);
+  await shot("17b-positions-sell-hold");
+} catch (e) { console.error("sell hold shot skipped", e.message); }
 await go("/settings", 1500); await shot("18-settings");
 await go("/activity", 2500);
 { const more = page.getByRole("button", { name: /Load older events/ });

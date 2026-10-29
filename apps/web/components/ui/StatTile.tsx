@@ -17,7 +17,8 @@ export function StatTile({ label, value, hint, tone = "neutral", icon, className
         <span>{label}</span>
         {icon && <span className="text-text-tertiary">{icon}</span>}
       </div>
-      <div className={cn("num mt-2 text-numMd sm:text-numLg", color)}>{value}</div>
+      {/* QA-09: compact on 2-up mobile tiles so "−9.83 paper SOL" never overflows; nowrap keeps amount + unit together. */}
+      <div className={cn("num mt-2 min-w-0 whitespace-nowrap text-numSm sm:text-numLg", color)}>{value}</div>
       {hint && <div className="mt-1 text-caption text-text-tertiary">{hint}</div>}
     </div>
   );

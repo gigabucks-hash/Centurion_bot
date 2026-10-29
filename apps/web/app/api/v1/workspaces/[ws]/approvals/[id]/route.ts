@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import { approvalToWire } from "@/lib/contracts";
+import { approvalToWire, type ApprovalItemWire } from "@/lib/contracts";
 import { fail, ok, realSolDisabled } from "@/lib/bff";
 import { getApproval, issueDecisionToken } from "@/lib/mock/store";
 
@@ -10,7 +10,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/v1/workspaces/[
   const a = getApproval(id);
   if (!a) return fail("NOT_FOUND");
   if (a.mode === "real" && realSolDisabled()) return fail("REAL_SOL_DISABLED");
-  const w = approvalToWire(a);
+  const w: ApprovalItemWire = approvalToWire(a);
   if (a.status === "pending" || (a.kind === "guard_change" && a.guardChangeState === "cooling_down")) {
     const tok = issueDecisionToken(id);
     w.decision_token = tok.token;

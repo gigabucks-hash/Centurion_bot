@@ -71,11 +71,13 @@ export const id: PartialMessages = {
     // N-10
     guardPending: "[{mode}] Perubahan guard menunggu · {strategy}: melonggarkan guard",
   },
-  guardDialog: { ruleRevert: "Auto-revert 24 jam setelah berlaku (selalu aktif untuk Real SOL)" },
+  guardDialog: { locked: "Wajib · tidak bisa dimatikan", ruleRevert: "Auto-revert 24 jam setelah berlaku (selalu aktif untuk Real SOL)" },
   login: { title: "Masuk", heading: "Masuk atau buat akun", or: "atau", email: "Email" },
+  positions: { colSize: "Ukuran ({unit})", colPnlSol: "PnL ({unit})" },
   notFound: { title: "Tidak ditemukan", back: "Kembali ke dasbor" },
   notTradeable: { ctaNote: "Bukan error. Approve dan Jual tetap nonaktif; Skip hanya menutupnya." },
   apiError: {
+    GUARD_WEAKEN_REQUIRES_APPROVAL: "Perubahan ini melonggarkan pengaman, jadi perlu persetujuan dulu. Belum ada yang diubah.",
     UNAUTHENTICATED: "Silakan masuk lagi.",
     NOT_FOUND: "Tidak ditemukan di workspace ini.",
     VERSION_CONFLICT: "Item ini berubah sejak kamu buka. Versi terbaru dimuat ulang.",

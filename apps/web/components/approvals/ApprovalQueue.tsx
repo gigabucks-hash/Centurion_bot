@@ -1,4 +1,5 @@
 "use client";
+import { rejectReasonFor } from "@/lib/contracts";
 import { remainingUntil } from "@/lib/clock";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -162,8 +163,9 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
         });
       const timer = setTimeout(async () => {
         skipTimers.current.delete(a.id);
-        // Not tradeable: dismiss with wire reason "not_tradeable" (i18n queue.skip_reason.not_tradeable); no dialog.
-        await decide(a, { decision: "reject", reason: isNotTradeable(a) ? "not_tradeable" : (reason ?? null) });
+        // 1.1.3 reject_reason: not tradeable → not_tradeable (dismiss, no dialog); chip → price_moved/other; none → user_declined.
+        // The chip id stays in the free-text `reason` for the audit trail.
+        await decide(a, { decision: "reject", reason: reason ?? null, rejectReason: rejectReasonFor({ notTradeable: isNotTradeable(a), skipReason: reason }) });
         drop();
       }, 5000);
       skipTimers.current.set(a.id, timer);
