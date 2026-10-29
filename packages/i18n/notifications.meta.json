@@ -23,5 +23,14 @@
     "cooldown_until": "formatTime",
     "auto_revert_at": "formatTime",
     "scheduled_for": "formatDateTime"
+  },
+  "silent_events": {
+    "proposal.updated": {
+      "push": false,
+      "toast": false,
+      "inline_key": "review.quote.updated_inline",
+      "hold_reset_key": "review.quote.changed_during_hold",
+      "why": "quote refresh (rev+1) is routine, every ~15 s in practice; a push or toast would be noise. Client: merge quote fields, store new rev for expected_rev, show the inline label only if the review sheet is open; if a Real hold is in progress, cancel it and show hold_reset_key"
+    }
   }
 }

@@ -74,8 +74,21 @@ void main() {
     expect(id.commonRange7d, '7H');
     expect(en.rejectReasonNotTradeable, 'Not tradeable');
     expect(id.rejectReasonUserDeclined, 'Dilewati olehmu');
-    expect(id.errorCodeGuardWeakenRequiresApproval, contains('perlu approval'));
+    expect(id.errorCodeGuardWeakenRequiresApproval, startsWith('Perubahan menunggu approval')); // 0.4.6: pending tone, not an error
     expect(AppColorsDark.skeletonBase, const Color(0xFF262F43));
     expect(AppColorsLight.skeletonHighlight, const Color(0xFFF1F3F7));
+  });
+  test('Rev 4.6: quote freshness plurals (=0 branch, no #), stall, guard pending, mcap', () {
+    expect(en.reviewQuoteUpdatedAgo(0), 'Quote updated just now');
+    expect(en.reviewQuoteUpdatedAgo(5), 'Quote updated 5 s ago');
+    expect(id.reviewQuoteUpdatedAgo(0), 'Quote baru diperbarui');
+    expect(id.reviewQuoteUpdatedAgo(12), 'Quote diperbarui 12 dtk lalu');
+    expect(en.reviewQuoteExpiresIn(1), 'Expires in 1 s');
+    expect(id.reviewQuoteExpiresIn(9), 'Berakhir dalam 9 dtk');
+    expect(id.reviewQuoteStale, 'Quote kedaluwarsa — perbarui untuk lanjut');
+    expect(id.reviewQuoteUpdatedInline, 'Quote diperbarui');
+    expect(id.exitReasonStall, 'Exit stagnan');
+    expect(en.guardWeakenPendingTitle, 'Change waiting for approval');
+    expect(id.mcapAsOf('18.42'), 'Per 18.42');
   });
 }

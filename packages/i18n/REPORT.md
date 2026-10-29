@@ -1,6 +1,6 @@
 # Locale build report
 
-Keys: 515 · placeholder/whitespace issues: 0
+Keys: 538 · placeholder/whitespace issues: 0
 ID/EN length ratio (strings ≥ 12 chars): median 1.00, max 1.77 (screener.not_tradeable.badge)
 Over 1.30× (layout must allow ~30% growth; these need extra room or shorter ID copy): 26
 

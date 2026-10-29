@@ -2,6 +2,39 @@
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
+## 0.4.6 · 29 Okt 2026 (UX Rev 4.6, contracts 1.1.4)
+538 key (+23). Tidak ada key dihapus/di-rename → **tidak ada breaking change**. Satu perubahan copy (lihat "Diubah").
+
+### Ditambahkan
+- errors.json **v6**: `error.code.quote_missing_or_stale` (`QUOTE_MISSING_OR_STALE`, 409, retryable, Real saja). Coverage 58/58 (copy 47, fallback 11).
+- `errors.map.json`: field opsional baru per kode (aditif): `tone` (`pending`/`warning`; default error), `title_key`, `cta_key`, `inline_key`, `modes`.
+  `QUOTE_MISSING_OR_STALE` → tone `warning`, CTA `review.quote.refresh`, inline `review.quote.stale`, modes `["real"]`.
+  `GUARD_WEAKEN_REQUIRES_APPROVAL` → tone `pending`, title `guard.weaken.pending.title`, CTA `guard.weaken.pending.open`.
+- Kesegaran quote di review sheet WF-22 `review.quote.*` (9): `updated_ago` (`{seconds}` plural, `=0` "baru diperbarui"), `expires_in` (`{seconds}`),
+  `stale` ("Quote kedaluwarsa — perbarui untuk lanjut"), `missing`, `practice_stale` (Practice tidak pernah diblokir), `refresh` (CTA), `refreshing`,
+  `updated_inline` ("Quote diperbarui", untuk `proposal.updated`), `changed_during_hold` (hold Real di-reset saat quote berubah).
+- Market cap `mcap.{label,as_of,usd_indicative,sol_value}`; nilai null → "—" + `common.value.unavailable`.
+- `exit_reason.stall` ("Stall exit" / "Exit stagnan", contracts 1.1.4 `stall_exit`; bukan `stall` v1.0 = `no_new_high`). `max_hold` juga dipakai `time_stop_s`.
+  Build gagal bila `ExitReason` di `contracts/src/wire/events.ts` ≠ key `exit_reason.*` (14/14).
+- Builder: `builder.exit.time_stop_hint` (`{duration}`), `builder.exit.stall`, `builder.exit.stall_hint` (`{min_move_pct}`, `{window}`).
+- Guard weakening lewat REST PATCH → `202 {proposal, guard_change}`: `guard.weaken.pending.{title,body,open}` (`{expires_at}`), tone info/pending, bukan error.
+  `guard.change_status.{rejected,expired}` (status `guard.changed` baru).
+- `format.mjs` (semua null-safe → `DASH` "—"): `formatLamportsOrDash`, `formatBps` (25 → 0,25%), `formatRawQty(raw, decimals)` (BigInt, decimals tidak diasumsikan),
+  `quoteState(q, skew, {mode})` → `{state: missing|fresh|stale, ageS, expiresInS, blocksApprove}` (Real saja yang diblokir),
+  `formatRelativeSeconds` (Intl.RelativeTimeFormat, Web), `formatMcapUsd` ("$1.2M" / "$1,2 jt"), `formatMcapSol` ("8.4K SOL"). Tes: 7/7.
+- `notifications.meta.json`: blok baru `silent_events`. **`proposal.updated` = senyap** (tanpa push, tanpa toast, tanpa N-id): merge field quote, simpan
+  `rev` baru untuk `expected_rev`, label inline `review.quote.updated_inline` hanya bila review sheet terbuka; bila hold Real sedang berjalan → batalkan
+  hold + `review.quote.changed_during_hold`. Alasan: refresh quote rutin (~15 dtk di practice), notifikasi = noise.
+- Build: cek baru `ProposalQuoteFields` (8/8 field) ↔ key `review.*`.
+- `key-migrations.json`: array baru `releases` (per versi: `renamed`, `removed`, `copy_changed`, `description_changed`).
+
+### Diubah
+- `error.code.guard_weaken_requires_approval` copy jadi status menunggu: EN "Change waiting for approval. It loosens a guard, so nothing applies until you
+  approve it." / ID "Perubahan menunggu approval. Ini melonggarkan guard, jadi belum berlaku sampai kamu approve." Snapshot test yang mencari
+  "perlu approval" harus diganti (referensi Flutter test sudah).
+- Deskripsi ARB (bukan copy) `review.{network_fee,priority_fee,swap_fee,slippage,min_received_value,total_max,estimate_note}` menunjuk field wire 1.1.4
+  dan helper baru; `exit_reason.max_hold` mencatat `time_stop_s`.
+
 ## 0.4.5 · 29 Okt 2026 (UX Rev 4.5)
 515 key (+33). Tidak ada key dihapus/di-rename → **tidak ada breaking change**.
 

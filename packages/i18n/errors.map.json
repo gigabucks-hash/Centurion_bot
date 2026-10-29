@@ -1,5 +1,5 @@
 {
-  "errors_json_version": 5,
+  "errors_json_version": 6,
   "unknown": "error.code.internal",
   "codes": {
     "UNAUTHENTICATED": {
@@ -70,7 +70,10 @@
       "source": "copy",
       "kind": "error",
       "http": 409,
-      "retryable": false
+      "retryable": false,
+      "tone": "pending",
+      "title_key": "guard.weaken.pending.title",
+      "cta_key": "guard.weaken.pending.open"
     },
     "IDEMPOTENCY_KEY_REUSED": {
       "key": "error.code.internal",
@@ -229,6 +232,19 @@
       "kind": "error",
       "http": 422,
       "retryable": false
+    },
+    "QUOTE_MISSING_OR_STALE": {
+      "key": "error.code.quote_missing_or_stale",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": true,
+      "tone": "warning",
+      "cta_key": "review.quote.refresh",
+      "inline_key": "review.quote.stale",
+      "modes": [
+        "real"
+      ]
     },
     "REPLAY_UNAVAILABLE": {
       "key": "error.code.replay_unavailable",

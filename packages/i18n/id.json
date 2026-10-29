@@ -26,7 +26,10 @@
         "total": "Total terjual: {pct}"
       },
       "no_trade": "Exit tanpa trade",
+      "stall": "Exit stagnan",
+      "stall_hint": "Jual semua bila harga bergerak kurang dari {min_move_pct} dalam {window}",
       "time_stop": "Time stop",
+      "time_stop_hint": "Jual semua setelah ditahan {duration}",
       "trailing": "Trailing stop dari high"
     },
     "guards": {
@@ -201,7 +204,7 @@
       "forbidden_role": "Peran di workspace tidak mengizinkan tindakan ini.",
       "forbidden_scope": "Token ini tidak punya izin untuk tindakan ini.",
       "guard_cooldown_active": "Perubahan guard ini sedang cooldown.",
-      "guard_weaken_requires_approval": "Perubahan ini melonggarkan guard dan perlu approval dulu. Belum ada yang diubah.",
+      "guard_weaken_requires_approval": "Perubahan menunggu approval. Ini melonggarkan guard, jadi belum berlaku sampai kamu approve.",
       "hold_too_short": "Dilepas terlalu cepat. Tahan sampai bar penuh.",
       "internal": "Terjadi kesalahan. Coba lagi.",
       "invalid_fraction": "Pilih porsi jual dari 0,01% sampai 100%.",
@@ -213,6 +216,7 @@
       "otp_locked": "Terlalu banyak percobaan. Coba lagi dalam 15 menit.",
       "position_already_closed": "Posisi ini sudah ditutup.",
       "practice_cash_insufficient": "Saldo practice tidak cukup untuk entry berikutnya. Entry dijeda sampai saldo pulih atau practice direset.",
+      "quote_missing_or_stale": "Quote kedaluwarsa — perbarui lalu cek ulang nilainya sebelum approve.",
       "rate_limited": "Terlalu banyak permintaan. Coba lagi dalam {retry_after_s, plural, other {# detik}}.",
       "real_sol_disabled": "Real SOL belum tersedia.",
       "reauth_required": "Konfirmasi ulang identitasmu untuk melanjutkan.",
@@ -247,6 +251,7 @@
     "rug_detected": "Rug terdeteksi",
     "sell_floor": "Sell floor",
     "sell_pressure": "Tekanan jual",
+    "stall": "Exit stagnan",
     "strategy_retired": "Strategi dihentikan"
   },
   "expire_reason": {
@@ -300,6 +305,10 @@
     }
   },
   "guard": {
+    "change_status": {
+      "expired": "Kedaluwarsa, belum di-approve",
+      "rejected": "Ditolak"
+    },
     "impact": {
       "estimate_body": "Hingga {max_extra_passes} koin tambahan bisa lolos per {window}. Berdasarkan aturan, bukan replay.",
       "estimate_label": "Estimasi",
@@ -326,6 +335,11 @@
         "real": "Tahan 2,5 dtk untuk melonggarkan"
       },
       "match": "{matched} dari {total} karakter cocok",
+      "pending": {
+        "body": "Perubahan ini melonggarkan guard, jadi belum berlaku sampai kamu approve. Approve sebelum {expires_at} atau kedaluwarsa.",
+        "open": "Tinjau di antrean",
+        "title": "Perubahan menunggu approval"
+      },
       "risk": {
         "level": "Level risiko: {level, select, low {Rendah} medium {Sedang} high {Tinggi} other {Kritis}}",
         "title": "Dampak risiko (replay 7 hari data paper kita)"
@@ -373,6 +387,12 @@
       "sign_note": "Kamu menandatangani pesan, bukan transaksi. Tanpa biaya.",
       "sign_title": "Tanda tangani untuk masuk"
     }
+  },
+  "mcap": {
+    "as_of": "Per {time}",
+    "label": "Kapitalisasi pasar",
+    "sol_value": "≈ {amount}",
+    "usd_indicative": "USD bersifat indikatif (harga SOL referensi), bukan live."
   },
   "mode": {
     "practice": {
@@ -631,6 +651,17 @@
     "price": "Harga",
     "price_moved": "Harga bergerak {pct} sejak pick ini. Tinjau ulang sebelum approve.",
     "priority_fee": "Priority fee",
+    "quote": {
+      "changed_during_hold": "Quote berubah. Cek nilai baru lalu tahan lagi.",
+      "expires_in": "{seconds, plural, other {Berakhir dalam # dtk}}",
+      "missing": "Quote belum ada — perbarui untuk lanjut",
+      "practice_stale": "Estimasi kedaluwarsa. Practice tetap bisa approve; nilai bisa berbeda.",
+      "refresh": "Perbarui quote",
+      "refreshing": "Memperbarui quote…",
+      "stale": "Quote kedaluwarsa — perbarui untuk lanjut",
+      "updated_ago": "{seconds, plural, =0 {Quote baru diperbarui} other {Quote diperbarui # dtk lalu}}",
+      "updated_inline": "Quote diperbarui"
+    },
     "real_note": "Real SOL: biaya jaringan tetap terpakai walau order gagal.",
     "slippage": "Slippage maks.",
     "swap_fee": "Biaya swap",

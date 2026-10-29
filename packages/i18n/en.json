@@ -26,7 +26,10 @@
         "total": "Total sold: {pct}"
       },
       "no_trade": "No-trade exit",
+      "stall": "Stall exit",
+      "stall_hint": "Sell all if the price moves less than {min_move_pct} in {window}",
       "time_stop": "Time stop",
+      "time_stop_hint": "Sell all after holding for {duration}",
       "trailing": "Trailing stop from high"
     },
     "guards": {
@@ -201,7 +204,7 @@
       "forbidden_role": "Your workspace role doesn’t allow this action.",
       "forbidden_scope": "This token doesn’t have permission for this action.",
       "guard_cooldown_active": "This guard change is in its cooldown.",
-      "guard_weaken_requires_approval": "This change loosens a guard and needs approval first. Nothing was changed.",
+      "guard_weaken_requires_approval": "Change waiting for approval. It loosens a guard, so nothing applies until you approve it.",
       "hold_too_short": "Released too early. Hold until the bar is full.",
       "internal": "Something went wrong. Try again.",
       "invalid_fraction": "Choose a sell amount from 0.01% to 100%.",
@@ -213,6 +216,7 @@
       "otp_locked": "Too many attempts. Try again in 15 minutes.",
       "position_already_closed": "This position is already closed.",
       "practice_cash_insufficient": "Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.",
+      "quote_missing_or_stale": "Quote expired — refresh it and check the values again before approving.",
       "rate_limited": "Too many requests. Try again in {retry_after_s, plural, one {# second} other {# seconds}}.",
       "real_sol_disabled": "Real SOL isn’t available yet.",
       "reauth_required": "Please confirm it’s you again to continue.",
@@ -247,6 +251,7 @@
     "rug_detected": "Rug detected",
     "sell_floor": "Sell floor",
     "sell_pressure": "Sell pressure",
+    "stall": "Stall exit",
     "strategy_retired": "Strategy retired"
   },
   "expire_reason": {
@@ -300,6 +305,10 @@
     }
   },
   "guard": {
+    "change_status": {
+      "expired": "Expired before approval",
+      "rejected": "Rejected"
+    },
     "impact": {
       "estimate_body": "Up to {max_extra_passes} more coins could pass per {window}. Based on rules, not a replay.",
       "estimate_label": "Estimate",
@@ -326,6 +335,11 @@
         "real": "Hold 2.5 s to loosen"
       },
       "match": "{matched} of {total} characters match",
+      "pending": {
+        "body": "This change loosens a guard, so nothing applies until you approve it. Approve before {expires_at} or it expires.",
+        "open": "Review in queue",
+        "title": "Change waiting for approval"
+      },
       "risk": {
         "level": "Risk level: {level, select, low {Low} medium {Medium} high {High} other {Critical}}",
         "title": "Risk impact (7-day replay on our paper data)"
@@ -373,6 +387,12 @@
       "sign_note": "You’ll sign a message, not a transaction. No fee.",
       "sign_title": "Sign to sign in"
     }
+  },
+  "mcap": {
+    "as_of": "As of {time}",
+    "label": "Market cap",
+    "sol_value": "≈ {amount}",
+    "usd_indicative": "USD is indicative (reference SOL price), not live."
   },
   "mode": {
     "practice": {
@@ -631,6 +651,17 @@
     "price": "Price",
     "price_moved": "Price moved {pct} since this pick. Review again before approving.",
     "priority_fee": "Priority fee",
+    "quote": {
+      "changed_during_hold": "Quote changed. Check the new values and hold again.",
+      "expires_in": "{seconds, plural, one {Expires in # s} other {Expires in # s}}",
+      "missing": "No quote yet — refresh to continue",
+      "practice_stale": "Estimate expired. Practice can still approve; values may differ.",
+      "refresh": "Refresh quote",
+      "refreshing": "Refreshing quote…",
+      "stale": "Quote expired — refresh to continue",
+      "updated_ago": "{seconds, plural, =0 {Quote updated just now} one {Quote updated # s ago} other {Quote updated # s ago}}",
+      "updated_inline": "Quote updated"
+    },
     "real_note": "Real SOL: network fees are paid even if the order fails.",
     "slippage": "Max slippage",
     "swap_fee": "Swap fee",

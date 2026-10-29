@@ -1,19 +1,19 @@
-# @sentra/i18n · v0.4.5 (UX Rev 4.5, 29 Okt 2026 WIB)
+# @sentra/i18n · v0.4.6 (UX Rev 4.6, contracts 1.1.4, 29 Okt 2026 WIB)
 
 Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/build_locales.py` (EN = source, ID = locale). Perubahan copy → minta UX, lalu publish ulang ke folder ini.
 
 | File | Isi | Konsumen |
 |---|---|---|
-| `en.json`, `id.json` | 515 key, nested, ICU MessageFormat (plural/select) | Web (next-intl), Desktop |
+| `en.json`, `id.json` | 538 key, nested, ICU MessageFormat (plural/select) | Web (next-intl), Desktop |
 | `arb/app_en.arb`, `arb/app_id.arb` | key lowerCamel (`notif.pick_pending.title` → `notifPickPendingTitle`), placeholder bertipe dari AST ICU (`int` untuk plural, `String` lainnya). **Plural tanpa `#`**: `#` diganti `{count}` (dll.) + metadata `int`/`decimalPattern`. Lolos `flutter gen-l10n` + `dart analyze` 0 issue + `test/flutter/l10n_plural_test.dart` | Flutter |
 | `format.mjs` | formatter angka/waktu terikat locale UI | Web, Desktop (Flutter: port 1:1) |
 | `notifications.map.json` | N-01..N-22 → wire `type`, kondisi, key title/body, `vars` (wire), `computed` (dihitung di device), aksi push + `token` per mode | push worker, Flutter/Web notif handler |
-| `notifications.meta.json` | aturan push (Real open-only, token hanya Practice `buy_pick`, fail closed) + formatter per var | idem |
-| `errors.map.json` | 56 kode `errors.json` v4 → key copy (`source: copy` atau `fallback`), kind/http/retryable | Web, Desktop, Flutter error handler |
-| `format.test.mjs` | `npm test`: aturan PnL nol (T-15), presisi SOL, lamports, `fraction_bps` | CI |
+| `notifications.meta.json` | aturan push (Real open-only, token hanya Practice `buy_pick`, fail closed) + formatter per var + `silent_events` (`proposal.updated`, 0.4.6) | idem |
+| `errors.map.json` | 58 kode `errors.json` v6 → key copy (`source: copy` atau `fallback`), kind/http/retryable; opsional `tone`/`title_key`/`cta_key`/`inline_key`/`modes` (0.4.6) | Web, Desktop, Flutter error handler |
+| `format.test.mjs` | `npm test`: aturan PnL nol (T-15), presisi SOL, lamports, `fraction_bps`, quote/bps/mcap (0.4.6) | CI |
 | `CHANGELOG.md` | riwayat versi, **BREAKING** ditandai | semua |
 | `reject_reasons.map.json` | wire `reject_reason` (contracts 1.1.3) → label key; chip skip → `reject_reason` + `reason` (0.4.5) | semua app |
-| `key-migrations.json` | key lama app-lokal (`desktop.*`) → key paket (0.4.4) | Desktop |
+| `key-migrations.json` | key lama app-lokal (`desktop.*`) → key paket (0.4.4); `releases[]` per versi (0.4.6) | Desktop |
 | `REPORT.md` | hasil cek ICU, paritas argumen EN/ID, rasio panjang ID/EN | QA |
 
 ## Aturan
@@ -21,13 +21,15 @@ Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/
 - **Angka domain diformat dulu, baru masuk ICU** (argumen string): `formatSol`, `formatLamports("250000000", locale)`, `formatSolVar("0.25", locale, {paper})`, `formatPct`, `formatUsd`, `formatDateTime`. Locale angka = bahasa UI. SOL ≥ 1 → 2 desimal; < 1 → 2–4 (PnL 3–4); < 0,01 → s.d. 6. NBSP sebelum unit, minus U+2212, Practice = "paper SOL".
 - Label mode tidak diterjemahkan: `{mode, select, real {REAL SOL} other {PRACTICE}}`.
 - **Countdown**: `skew = skewFrom(server_now)` dari setiap respons REST / envelope stream / heartbeat `clock`; `formatCountdown(remainingMs(expires_at, skew))`. Jangan pernah menghitung TTL lokal.
+- **Quote (0.4.6)**: field quote `ApprovalWire` boleh null → `formatLamportsOrDash` / `formatBps` / `formatRawQty(min_out_raw, decimals)`; null = "—" + `common.value.unavailable`. Kesegaran = `quoteState(q, skew, {mode})`; Real dengan `blocksApprove` → hold/Approve nonaktif + `review.quote.refresh`. `proposal.updated` senyap (lihat `notifications.meta.json`).
+- **Mcap (0.4.6)**: `formatMcapUsd(mcap_usd)` utama, `formatMcapSol(market_cap_lamports)` sekunder, tooltip `mcap.as_of` + `mcap.usd_indicative`.
 - **Manual sell**: UI persen, wire `fraction_bps` (`pctToFractionBps(50)` → 5000; `formatFractionBps(bps, locale)` untuk teks %).
 - **Error**: `errors.map.json` → `codes[code].key` (fallback `error.code.internal`); field error = placeholder.
 - Enum wire → key: `expire_reason.<ProposalExpiredReason>.badge|detail`, `exit_reason.<ExitReason>`, `error.code.<code lowercase>`. Nilai tak dikenal → fallback (`error.code.internal`), jangan tampilkan nilai mentah.
 - Push data-only dirender **di device** dari `notif.<key>.title|body` (lihat `notifications.map.json`). Real SOL: aksi push hanya `open`; token + approve/skip hanya Practice `buy_pick`. Event/`v` tak dikenal atau `mode` hilang → fail closed (generik "Buka app").
 
 ## Changelog
-Lihat [`CHANGELOG.md`](CHANGELOG.md) (0.4.0–0.4.5, BREAKING ditandai).
+Lihat [`CHANGELOG.md`](CHANGELOG.md) (0.4.0–0.4.6, BREAKING ditandai).
 
 ### Migrasi key Desktop (0.4.4)
 | Lama (`apps/desktop` local.ts) | Baru (`@sentra/i18n`) | Catatan |

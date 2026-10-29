@@ -70,9 +70,34 @@
   "@builderExitNoTrade": {
     "description": "builder.exit.no_trade"
   },
+  "builderExitStall": "Stall exit",
+  "@builderExitStall": {
+    "description": "settings stall_exit; fires exit_reason stall"
+  },
+  "builderExitStallHint": "Sell all if the price moves less than {min_move_pct} in {window}",
+  "@builderExitStallHint": {
+    "description": "min_move_pct = formatPct unsigned; window = formatted window_s; never before one full window",
+    "placeholders": {
+      "min_move_pct": {
+        "type": "String"
+      },
+      "window": {
+        "type": "String"
+      }
+    }
+  },
   "builderExitTimeStop": "Time stop",
   "@builderExitTimeStop": {
     "description": "builder.exit.time_stop"
+  },
+  "builderExitTimeStopHint": "Sell all after holding for {duration}",
+  "@builderExitTimeStopHint": {
+    "description": "duration = formatted time_stop_s; fires exit_reason max_hold",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
   },
   "builderExitTrailing": "Trailing stop from high",
   "@builderExitTrailing": {
@@ -672,7 +697,7 @@
   "@errorCodeGuardCooldownActive": {
     "description": "wire error.code GUARD_COOLDOWN_ACTIVE"
   },
-  "errorCodeGuardWeakenRequiresApproval": "This change loosens a guard and needs approval first. Nothing was changed.",
+  "errorCodeGuardWeakenRequiresApproval": "Change waiting for approval. It loosens a guard, so nothing applies until you approve it.",
   "@errorCodeGuardWeakenRequiresApproval": {
     "description": "wire error.code GUARD_WEAKEN_REQUIRES_APPROVAL"
   },
@@ -719,6 +744,10 @@
   "errorCodePracticeCashInsufficient": "Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.",
   "@errorCodePracticeCashInsufficient": {
     "description": "wire error.code PRACTICE_CASH_INSUFFICIENT"
+  },
+  "errorCodeQuoteMissingOrStale": "Quote expired — refresh it and check the values again before approving.",
+  "@errorCodeQuoteMissingOrStale": {
+    "description": "wire error.code QUOTE_MISSING_OR_STALE"
   },
   "errorCodeRateLimited": "Too many requests. Try again in {retry_after_s,plural,one{{retry_after_s} second} other{{retry_after_s} seconds}}.",
   "@errorCodeRateLimited": {
@@ -825,7 +854,7 @@
   },
   "exitReasonMaxHold": "Time stop",
   "@exitReasonMaxHold": {
-    "description": "wire ExitReason"
+    "description": "wire ExitReason (1.1.4: also time_stop_s)"
   },
   "exitReasonNoNewHigh": "No new high",
   "@exitReasonNoNewHigh": {
@@ -854,6 +883,10 @@
   "exitReasonSellPressure": "Sell pressure",
   "@exitReasonSellPressure": {
     "description": "wire ExitReason"
+  },
+  "exitReasonStall": "Stall exit",
+  "@exitReasonStall": {
+    "description": "wire ExitReason (1.1.4 stall_exit; not v1.0 stall = no_new_high)"
   },
   "exitReasonStrategyRetired": "Strategy retired",
   "@exitReasonStrategyRetired": {
@@ -1023,6 +1056,14 @@
       }
     }
   },
+  "guardChangeStatusExpired": "Expired before approval",
+  "@guardChangeStatusExpired": {
+    "description": "guard.changed status=expired (contracts 1.1.4)"
+  },
+  "guardChangeStatusRejected": "Rejected",
+  "@guardChangeStatusRejected": {
+    "description": "guard.changed status=rejected (contracts 1.1.4)"
+  },
   "guardImpactEstimateBody": "Up to {max_extra_passes} more coins could pass per {window}. Based on rules, not a replay.",
   "@guardImpactEstimateBody": {
     "description": "POST …/guard-impact/estimate",
@@ -1122,6 +1163,23 @@
         "type": "String"
       }
     }
+  },
+  "guardWeakenPendingBody": "This change loosens a guard, so nothing applies until you approve it. Approve before {expires_at} or it expires.",
+  "@guardWeakenPendingBody": {
+    "description": "expires_at = formatDateTime(proposal.expires_at)",
+    "placeholders": {
+      "expires_at": {
+        "type": "String"
+      }
+    }
+  },
+  "guardWeakenPendingOpen": "Review in queue",
+  "@guardWeakenPendingOpen": {
+    "description": "opens the guard_change proposal (Location: /approvals/{id})"
+  },
+  "guardWeakenPendingTitle": "Change waiting for approval",
+  "@guardWeakenPendingTitle": {
+    "description": "202 GuardChangeProposed; info tone (not error); also used for 409 GUARD_WEAKEN_REQUIRES_APPROVAL"
   },
   "guardWeakenRiskLevel": "Risk level: {level, select, low {Low} medium {Medium} high {High} other {Critical}}",
   "@guardWeakenRiskLevel": {
@@ -1268,6 +1326,32 @@
   "loginWalletSignTitle": "Sign to sign in",
   "@loginWalletSignTitle": {
     "description": "login.wallet.sign_title"
+  },
+  "mcapAsOf": "As of {time}",
+  "@mcapAsOf": {
+    "description": "tooltip; time = formatTime(mcap_as_of) or formatDateTime if not today",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "mcapLabel": "Market cap",
+  "@mcapLabel": {
+    "description": "coin detail row label; table column stays screener.col.mcap"
+  },
+  "mcapSolValue": "≈ {amount}",
+  "@mcapSolValue": {
+    "description": "amount = formatMcapSol(market_cap_lamports, loc, {paper:false}); secondary line under USD",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "mcapUsdIndicative": "USD is indicative (reference SOL price), not live.",
+  "@mcapUsdIndicative": {
+    "description": "tooltip second line when mcap_usd is shown"
   },
   "modePracticeBanner": "Practice · paper SOL, no real SOL moves",
   "@modePracticeBanner": {
@@ -2205,7 +2289,7 @@
   },
   "reviewEstimateNote": "Estimates as of {time}. Final values can change with the price.",
   "@reviewEstimateNote": {
-    "description": "review.estimate_note",
+    "description": "time = formatTime(quote_ts)",
     "placeholders": {
       "time": {
         "type": "String"
@@ -2218,7 +2302,7 @@
   },
   "reviewMinReceivedValue": "≥ {min_out} {symbol}",
   "@reviewMinReceivedValue": {
-    "description": "min_out = token qty (formatted), symbol untrusted",
+    "description": "min_out = formatRawQty(min_out_raw, decimals); symbol untrusted. Missing value or decimals → whole row shows —",
     "placeholders": {
       "min_out": {
         "type": "String"
@@ -2230,7 +2314,7 @@
   },
   "reviewNetworkFee": "Est. network fee",
   "@reviewNetworkFee": {
-    "description": "value = formatLamports(est_network_fee_lamports) (proposed quote field)"
+    "description": "value = formatLamportsOrDash(est_network_fee_lamports); base + priority fee (contracts 1.1.4)"
   },
   "reviewPracticeNote": "Practice: simulated fill. No real SOL moves.",
   "@reviewPracticeNote": {
@@ -2251,7 +2335,55 @@
   },
   "reviewPriorityFee": "Priority fee",
   "@reviewPriorityFee": {
-    "description": "value = formatLamports(priority_fee_lamports)"
+    "description": "value = formatLamportsOrDash(priority_fee_lamports)"
+  },
+  "reviewQuoteChangedDuringHold": "Quote changed. Check the new values and hold again.",
+  "@reviewQuoteChangedDuringHold": {
+    "description": "proposal.updated while the hold is in progress: cancel the hold, reset the bar, new rev"
+  },
+  "reviewQuoteExpiresIn": "{seconds,plural,one{Expires in {seconds} s} other{Expires in {seconds} s}}",
+  "@reviewQuoteExpiresIn": {
+    "description": "seconds = quoteState().expiresInS; shown while fresh",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "reviewQuoteMissing": "No quote yet — refresh to continue",
+  "@reviewQuoteMissing": {
+    "description": "Real: all quote fields null; hold/Approve disabled"
+  },
+  "reviewQuotePracticeStale": "Estimate expired. Practice can still approve; values may differ.",
+  "@reviewQuotePracticeStale": {
+    "description": "Practice is never blocked by a missing/stale quote"
+  },
+  "reviewQuoteRefresh": "Refresh quote",
+  "@reviewQuoteRefresh": {
+    "description": "CTA on stale/missing state and on 409 QUOTE_MISSING_OR_STALE"
+  },
+  "reviewQuoteRefreshing": "Refreshing quote…",
+  "@reviewQuoteRefreshing": {
+    "description": "CTA busy state; values keep their old text, muted"
+  },
+  "reviewQuoteStale": "Quote expired — refresh to continue",
+  "@reviewQuoteStale": {
+    "description": "Real: hold/Approve disabled until a fresh quote (409 QUOTE_MISSING_OR_STALE otherwise)"
+  },
+  "reviewQuoteUpdatedAgo": "{seconds,plural,one{Quote updated {seconds} s ago} other{Quote updated {seconds} s ago} =0{Quote updated just now}}",
+  "@reviewQuoteUpdatedAgo": {
+    "description": "seconds = quoteState().ageS (server_now − quote_ts)",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "reviewQuoteUpdatedInline": "Quote updated",
+  "@reviewQuoteUpdatedInline": {
+    "description": "proposal.updated: subtle inline label next to the values for ~2 s, polite live region; no toast/push"
   },
   "reviewRealNote": "Real SOL: network fees are paid even if the order fails.",
   "@reviewRealNote": {
@@ -2259,11 +2391,11 @@
   },
   "reviewSlippage": "Max slippage",
   "@reviewSlippage": {
-    "description": "value = formatPct(max_slippage_bps/10000)"
+    "description": "value = formatBps(max_slippage_bps)"
   },
   "reviewSwapFee": "Swap fee",
   "@reviewSwapFee": {
-    "description": "value = formatPct(fee_bps/10000)"
+    "description": "value = formatBps(swap_fee_bps)"
   },
   "reviewTitle": "{side, select, sell {Review sell} other {Review buy}}",
   "@reviewTitle": {
@@ -2276,7 +2408,7 @@
   },
   "reviewTotalMax": "Total (max)",
   "@reviewTotalMax": {
-    "description": "amount + all fees, worst case"
+    "description": "value = formatLamportsOrDash(total_max_lamports) = SOL in + network fee (contracts 1.1.4)"
   },
   "reviewYouPay": "You pay",
   "@reviewYouPay": {

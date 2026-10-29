@@ -78,3 +78,51 @@ export function pctToFractionBps(pct) {
 export const fractionBpsToPct = (bps) => Number(bps) / 100;
 /** `fraction_bps` → display text: 5000 → "50%", 3333 → "33.33%" ("33,33%" id). */
 export const formatFractionBps = (bps, loc) => formatPct(Number(bps) / 10000, loc, { dp: Number(bps) % 100 === 0 ? 0 : 2 });
+
+// ---- contracts 1.1.4 (Rev 4.6): proposal quote fields, market cap. Every helper is null-safe: missing → DASH,
+//      and the UI pairs DASH with common.value.unavailable (tooltip + aria-label). Never show "0" for a missing value.
+export const DASH = '\u2014';
+const missing = (v) => v === null || v === undefined || v === '';
+/** Lamports integer string (or null) → SOL text, or DASH. For est_network_fee_lamports, priority_fee_lamports,
+ *  total_max_lamports. Exact BigInt split via lamportsToSol (never parseFloat a lamports string). */
+export const formatLamportsOrDash = (lamports, loc, opts) =>
+  missing(lamports) ? DASH : formatLamports(lamports, loc, opts);
+/** Basis points (JSON number) → percent: 25 → "0.25%", 50 → "0.5%", 100 → "1%" ("0,25%" id). null → DASH.
+ *  For swap_fee_bps, max_slippage_bps. Copy always shows %, never bps. */
+export const formatBps = (bps, loc) => missing(bps) || !Number.isFinite(Number(bps)) ? DASH :
+  nf(loc, { style: 'percent', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(bps) / 10000);
+/** Raw token units (integer string) + mint decimals → token quantity text, or DASH when either is missing.
+ *  min_out_raw: |v| ≥ 1 → 2 dp max; < 1 → up to 6 dp. BigInt split, decimals never assumed (no default 6). */
+export function formatRawQty(raw, decimals, loc) {
+  if (missing(raw) || missing(decimals) || !Number.isInteger(Number(decimals))) return DASH;
+  const n = BigInt(raw), d = 10n ** BigInt(decimals), neg = n < 0n, a = neg ? -n : n;
+  const v = Number(a / d) + Number(a % d) / Number(d);
+  const s = nf(loc, { minimumFractionDigits: 0, maximumFractionDigits: v >= 1 ? 2 : 6 }).format(v);
+  return neg ? '\u2212' + s : s;
+}
+/** Quote freshness from server time (skew), never the device clock alone.
+ *  state: 'missing' (no quote_expires_at) | 'fresh' (server now < quote_expires_at) | 'stale'.
+ *  blocksApprove: Real only (409 QUOTE_MISSING_OR_STALE); Practice is never blocked.
+ *  ageS → review.quote.updated_ago {seconds}; expiresInS → review.quote.expires_in {seconds}. */
+export function quoteState(q, skewMs = 0, { mode = 'practice', localNowMs = Date.now() } = {}) {
+  const serverNow = localNowMs + skewMs;
+  const ts = missing(q?.quote_ts) ? null : Date.parse(q.quote_ts);
+  const exp = missing(q?.quote_expires_at) ? null : Date.parse(q.quote_expires_at);
+  const ageS = ts === null ? null : Math.max(0, Math.floor((serverNow - ts) / 1000));
+  if (exp === null) return { state: 'missing', ageS, expiresInS: null, blocksApprove: mode === 'real' };
+  const fresh = serverNow < exp;
+  return { state: fresh ? 'fresh' : 'stale', ageS, expiresInS: fresh ? Math.ceil((exp - serverNow) / 1000) : 0,
+    blocksApprove: mode === 'real' && !fresh };
+}
+/** Web-only alternative to the ICU plural keys: Intl.RelativeTimeFormat ("5 sec. ago" / "5 dtk. yang lalu",
+ *  "in 9 sec." / "dalam 9 dtk."). Flutter has no RelativeTimeFormat → use review.quote.* ICU keys (ARB). */
+export const formatRelativeSeconds = (sec, loc) =>
+  new Intl.RelativeTimeFormat(LOCALES[loc] ?? loc, { numeric: 'auto', style: 'short' })
+    .format(Math.round(sec), 'second');
+/** Market cap (USD decimal string, indicative) → compact USD: "$1.2M" (en) / "$1,2 jt" (id). null → DASH. */
+export const formatMcapUsd = (usd, loc) => missing(usd) || !Number.isFinite(Number(usd)) ? DASH :
+  nf(loc, { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', notation: 'compact',
+    maximumFractionDigits: 1 }).format(Number(usd));
+/** Market cap (lamports integer string) → compact SOL: "8.4K SOL" (en) / "8,4 rb SOL" (id). null → DASH. */
+export const formatMcapSol = (lamports, loc) => missing(lamports) ? DASH :
+  formatCompact(lamportsToSol(lamports), loc) + '\u00A0SOL';
