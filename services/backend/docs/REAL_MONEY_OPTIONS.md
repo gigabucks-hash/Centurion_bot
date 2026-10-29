@@ -1,4 +1,10 @@
-# Sentra: Real-money trading options (design only, rev2)
+# Sentra: Real-money trading options (design only, rev3: direction set)
+
+rev3 (2026-10-29): records Boss's direction **as relayed by Apex Dev Lead, 2026-10-29** (§D): private single-owner
+app, wallet-only login (SIWS via Phantom), option C with a delegated swap-only signer on a separate capped trading
+wallet, withdrawals user-signed to Boss's main wallet only; shortlist now **Turnkey (primary) vs Crossmint**; threat
+model revised for single-owner wallet login (§2.5); multi-tenant and legal items marked deprioritized (§8, §D.4).
+The §16 changes are drafted as a proposal in `TECH_DESIGN_S16_PROPOSAL.md`; `TECH_DESIGN.md` itself is untouched.
 
 rev2 (2026-10-29): folds in Apex's provider research (Page "Sentra — Real Money: Login & Wallet Options"):
 shortlist Turnkey + Privy, **Crossmint as backup** (added to §1, §2, §6, §9); market evidence from a comparable
@@ -6,7 +12,62 @@ Solana trading bot and Axiom (§1.2); every vendor latency figure marked *vendor
 explicit "§16 is a candidate to revise if Boss picks C" list (§7.9).
 
 > **No signups, no developer accounts, no SDK installs, no API keys and no devnet spikes happen before Boss
-> approves.** Everything below comes from public docs and Apex's research only.
+> approves.** The Turnkey vs Crossmint bake-off and any vendor signup still wait for Boss's explicit approval.
+> Everything below comes from public docs and Apex's research only.
+
+---
+
+## D. Decision direction (relayed by Apex Dev Lead, 2026-10-29)
+
+This section supersedes the earlier "options" framing wherever they disagree. Sections 1–3 are kept as the record of
+why C won.
+
+### D.1 What Boss decided (as relayed)
+1. **Private, single owner.** Sentra is Boss's own app. One owner (Boss); no other users, no sign-up, no teams.
+2. **Login is wallet only:** SIWS with Phantom. Email OTP, Google/Apple and Telegram are **dropped from the MVP**;
+   their code stays in the repo behind off-by-default flags (`AUTH_TELEGRAM_OIDC_ENABLED=false` already exists; email
+   OTP and OAuth get the same treatment). Nothing is deleted.
+3. **Real money = option C:** a delegated, **swap-only** signer on a **separate, capped trading wallet that Boss
+   funds** himself.
+4. **Boss's main wallet is never delegated.** No signer grant, no policy, no provider account ever touches it; it is
+   only the login identity and the single withdraw destination.
+5. **Withdrawals are user-signed, to Boss's main wallet only.** Our signer can never withdraw; there is no second
+   destination.
+
+### D.2 What stays exactly as designed
+Program allowlist, per-trade and daily caps, **no transfer-out** for our signer, simulation before every sign
+(§4.3), policy-as-data with versioning and audit (§4.5), kill switch at global / workspace / strategy plus signer
+revocation and auto-trip (§5), staged rollout (§9.6). The shared hard rule is unchanged: no outbound transfer or
+withdrawal of Boss's funds without Boss's explicit re-confirmation.
+
+### D.3 Provider shortlist change: Turnkey (primary) vs Crossmint; Privy dropped
+- **Why Privy drops out.** Privy's main advantage in Apex's research was native Telegram login [A1]. With wallet-only
+  login that no longer applies. What remains weighs against it for this backend: its Rust SDK is alpha [A1], and its
+  per-MAU pricing advantage means nothing for one user. Privy stays documented in §1 as a fallback only if both
+  shortlisted vendors fail the bake-off.
+- **Turnkey (primary).** Fits a wallet-login owner: Turnkey documents external-wallet (Phantom) authentication for
+  its users / sub-organizations [W1][W2], so Boss's Phantom can be the trading wallet's owner credential. In-enclave
+  Solana transaction parsing and program-level policy [T3][T4] can express "swap-only" at the provider, not just in our
+  backend. Rust crate for our backend [A1]. Per-signature pricing [A1] is acceptable at one user but grows with trade
+  count, so the bake-off must price it at expected trades/day. Signing latency is *vendor-claimed* ~50–100 ms / "sub-100ms" [A1][T2].
+- **Crossmint (challenger).** Also fits a wallet-login owner: an external wallet can be the wallet's recovery
+  method (the owner) [C3], with our operational signer added under it and revocable [C4]. But its documented scopes are
+  **transfer-only** (token, spend limit, recipients, expiry) [C3], so swap-only would rest on our §4.3 checks, and a
+  server operational signer under user recovery is "hybrid" custody by Crossmint's own definition [C1]. It is the
+  pattern a comparable Solana trading bot is reported to use (swap-only trading key, 2-day delay on new withdraw
+  addresses) [A1]; we could not verify from public docs how that bot enforces swap-only. No public latency figure.
+- **Bake-off criteria (when approved):** can the provider policy alone reject a non-allowlisted program and any
+  transfer-out (test on devnet with crafted txs)? p50/p95 sign latency from our region; owner = Boss's Phantom works
+  end-to-end; revoke-signer time; cost at expected trades/day; export-to-self-custody drill.
+
+### D.4 Deprioritized / out of scope for the MVP
+Marked, not deleted, so they can come back if the app ever goes multi-user:
+- Multi-tenant concerns: other users' onboarding, team roles beyond Owner, per-user custody classification, account
+  deletion for third parties, cross-user abuse and rate-limit fairness.
+- Legal and licensing work (OJK / POJK 27/2024, FinCEN, MiCA, app-store custody rules): **deprioritized**. A private
+  tool used only by Boss with Boss's own funds is a different situation from offering trading to the public; §8 keeps
+  the notes for the day that changes. Not legal advice.
+- Email / Telegram / Google / Apple login flows and their threat rows (code stays behind off flags).
 
 **Status: research and design only. Nothing here is built or approved.** No SDK is installed, no code signs or
 touches keys, no private keys or key shares exist anywhere in this repo, and no transaction is ever sent. The
@@ -38,8 +99,8 @@ Contents: 0 Summary · 1 Options · 2 STRIDE · 3 Latency · 4 Policy engine · 
 | Regulatory posture | Non-custodial software | Custodian / money transmitter / CASP-like | Mostly non-custodial; depends on provider model and who holds which credential |
 | Fits TECH_DESIGN §16 | Yes (it *is* §16) | **No** (violates §16.2) | Yes, with the §16.2 delta in §7.8 |
 
-**Recommendation (details in §9): C for automated trading, with A kept as the path for manual sells, anything
-above limits, and all fund movements; B rejected. Provider shortlist: Turnkey and Privy; Crossmint as backup.** C is accepted only with these conditions: a dedicated,
+**Recommendation (details in §9; direction now set in §D): C for automated trading, with A kept as the path for manual sells, anything
+above limits, and all fund movements; B rejected. Provider shortlist (rev3): Turnkey primary vs Crossmint; Privy dropped (§D.3).** C is accepted only with these conditions: a dedicated,
 small-balance trading wallet; buys limited to mints our own screener picked; no transfer rule at all for our signer
 (withdrawals are done by the user, not by us); our own pre-sign simulation on top of the provider policy; and a
 staged rollout (sells-only, then tiny buys).
@@ -162,6 +223,23 @@ Top issue: no mitigation bounds the loss to less than everything we hold. Reject
 | E | Whoever controls the **recovery method** can authorize transactions and add/remove signers [C2] | Recovery must be the user's (passkey or email/phone with MFA), never our server; otherwise the wallet is hybrid/custodial by Crossmint's own definition |
 | D | Spending-limit windows are enforced at slot level and drift [C3] (the doc still assumes ~400 ms slots; slots are 200 ms now [S1]) | Our own rolling counters (`real_limit_usage`) are authoritative; provider limit is a backstop |
 
+### 2.5 Single-owner wallet-login threat model (rev3; applies to the chosen design)
+
+With one owner, wallet-only login and no other users, the attack surface moves from "many accounts" to "Boss's wallet,
+Boss's sessions and Boss's devices". Email/Telegram/OAuth rows above are out of scope while those flags are off.
+
+| STRIDE | Threat | Mitigation |
+|---|---|---|
+| S | **Wallet-login phishing:** a look-alike site gets Boss to sign *its* SIWS message, or Boss signs ours on a fake origin | SIWS message binds `domain` and `uri`; Phantom rejects a recognised SIWS message whose `domain`/`uri` does not match the requesting page (error -32000, no prompt) [W3]; prefer the wallet-standard `solana:signIn` flow so the wallet builds and checks the message [W4]; server rejects any domain/URI mismatch; nonce 5 min, single use (TECH_DESIGN §9) [W5] |
+| S/T | **Malicious sign-in message:** a "login" prompt that is really a transaction or an approval, or arbitrary bytes | The app only ever asks Boss's main wallet for (a) a SIWS message and (b) a withdraw transaction it displays in full; never `signMessage` on arbitrary/base64 bytes; never `signAllTransactions`; UI teaches "Sentra never asks you to sign anything at login except the sign-in text" |
+| S/E | **Someone else's wallet logs in** | **Owner-wallet allowlist**: `OWNER_WALLETS` (public addresses, config, not secrets) checked in SIWS verify; sign-up disabled; any other address -> 403 and an alert; changing the allowlist = signed by an existing owner wallet + 48 h delay + audit |
+| S | **Session theft** (stolen JWT/refresh token from a device, XSS, malware) | Short access token (≤15 min), rotating refresh bound to `device_id`, refresh reuse = revoke all sessions; httpOnly cookies on web; **step-up for every money action**: a fresh, action-bound owner-wallet signature over `payload_hash` (plus passkey/TOTP where enrolled) for granting the signer, loosening policy, clearing a kill switch, manual sells and withdrawals. A stolen session can view and can *tighten* or trip the kill switch, nothing more |
+| T | Stolen session tries to change where funds go | There is no "where": the only withdraw destination is the main wallet, set at owner bootstrap; changing it = owner-allowlist change rules above |
+| R | Boss disputes an action | Every money action carries the owner wallet's own signature (non-repudiable) plus the audit row |
+| D | **Single point of failure: Boss's main wallet** is login + owner of the trading wallet + withdraw destination. Seed lost -> locked out; seed stolen -> attacker is Boss | Register a **backup owner wallet** (ideally hardware) on the allowlist at bootstrap; trading-wallet owner credential has a second factor at the provider (passkey) so one lost seed does not strand funds; kill switch can be tripped from any logged-in session; trading wallet stays small (cap), so a stolen seed's extra reach through Sentra is bounded by the cap. If the main wallet seed is stolen, the main wallet's funds are already at risk outside Sentra: Sentra must not make that worse (no new destinations, no loosening without delay) |
+| D | Single point of failure: one provider, one RPC/sender, one operator | Manual (A) exits via Phantom; dual send paths; kill switch defaults to "exits only" on provider errors |
+| E | Phantom extension/app compromise or malicious update | Hardware backup owner wallet; small trading cap; review prompts show the exact destination (main wallet) |
+
 ### 2.4 Top threats (ranked across the chosen design, C + A fallback)
 
 1. **T1: Stolen signer credential** (Turnkey/Privy authorization key, or Crossmint server-signer secret) used to sign within policy. Bound: per-trade/daily caps, mint/route allowlist,
@@ -175,6 +253,11 @@ Top issue: no mitigation bounds the loss to less than everything we hold. Reject
    check per sign, loosen-only-with-delay, audit.
 5. **T5: Provider outage during a drawdown** (exits can't fire). Bound: fallback to user-signed exits (A),
    halt new entries, alerting, small position sizes during rollout.
+
+Rev3 re-ranking for the single-owner design (§2.5): T1 stolen signer credential, T2 value extraction via allowed
+trades, **T3' wallet-login phishing / malicious signing prompts against Boss's main wallet**, **T4' session theft
+(contained by action-bound wallet step-up)**, **T5' single point of failure on the main wallet (backup owner wallet)**.
+Policy drift (old T4) and provider outage (old T5) stay as next in line.
 
 ---
 
@@ -276,18 +359,16 @@ Same checks 1–9 run when *preparing* the unsigned tx; the user's wallet signs;
   kill switch (`PROVIDER_POLICY_MISMATCH`).
 - Audit: every create/activate/retire/sync/mismatch is an append-only `audit_log` row with `body_hash`.
 
-### 4.6 Withdrawals (the hard rule)
-- Our signer has **no transfer permission at all**. Withdrawals are initiated by the user in the app, signed by the
-  user's own authentication at the provider (C) or their own wallet (A), never by our delegated signer.
-- The app only offers destinations from `withdraw_addresses` (the user's own pre-registered addresses). Adding one:
-  passkey + TOTP + typed address suffix + **48 h delay** before it becomes usable, notifications on all channels,
-  cancellable during the delay. Every withdrawal of Boss's funds additionally requires Boss's explicit
-  re-confirmation at the time of withdrawal.
-- **Does 48 h match the comparable bot's 2-day delay?** Yes: 2 days = 48 h, so our default matches the reported pattern
-  [A1]. We keep 48 h as the **minimum** (configurable longer, never shorter); a shorter window such as the 2 h some
-  bots used after incidents [A1] is too short for a user to notice an account takeover. The delay applies only to
-  *adding* an address; withdrawals to an already-active own address still need passkey + TOTP (and Boss's
-  re-confirmation for Boss's funds).
+### 4.6 Withdrawals (the hard rule; rev3 single-destination)
+- Our signer has **no transfer permission at all**. A withdrawal is initiated by Boss in the app and **signed by Boss**
+  as the trading wallet's owner (Boss's Phantom via the provider's owner credential), never by our delegated signer.
+- **One destination only: Boss's main wallet**, fixed at owner bootstrap. There is no address book. The app builds the
+  withdraw tx to that address, Boss reviews it in Phantom, and every withdrawal still requires Boss's explicit
+  re-confirmation at that moment (action-bound wallet signature, §2.5).
+- **Delay rule:** with a single fixed destination, the "new withdraw address" delay applies to **changing the main
+  wallet or adding a backup owner wallet**: 48 h minimum, cancellable, alerted. 48 h equals the 2-day delay a
+  comparable Solana trading bot is reported to use [A1], so it matches; it stays a minimum (longer allowed, never
+  shorter).
 
 ---
 
@@ -395,7 +476,9 @@ Per-step latency histograms (§3 rows), land rate by path, tip/fee spend, presig
 - §16.5: limits become policy-as-data (§4.5); loosen after 24 h and auto-revert.
 - New §16.8 Kill switch (§5), §16.9 Withdrawals (§4.6), §16.10 Provider choice and exit plan.
 
-### 7.9 TECH_DESIGN §16 is a CANDIDATE TO REVISE if Boss picks C
+### 7.9 TECH_DESIGN §16 is a CANDIDATE TO REVISE (Boss has now picked C)
+> rev3: the full diff-style proposal, updated for wallet-only single-owner login, is in
+> `TECH_DESIGN_S16_PROPOSAL.md`. The list below is the rev2 summary; the proposal file is authoritative.
 **§16 today describes option A** (user-signed, sells only). It stays valid as written until Boss decides. If Boss
 picks C, these exact changes go into §16 in a separate, reviewed commit (not in this one):
 1. §16 title/intro: "Real SOL sell RPC" -> "Real SOL execution"; two signing paths: delegated (C) for engine orders
@@ -417,73 +500,61 @@ picks C, these exact changes go into §16 in a separate, reviewed commit (not in
 
 ---
 
-## 8. Regulatory and custody notes (high level, not legal advice)
+## 8. Regulatory and custody notes (DEPRIORITIZED for the private single-owner MVP; not legal advice)
+
+> Deprioritized per Boss's direction (relayed by Apex Dev Lead, 2026-10-29): Sentra is a private tool for Boss's own
+> funds with no other users. The notes stay for the day that changes; no legal work is planned for the MVP.
 
 - **US (FinCEN FIN-2019-G001):** unhosted-wallet software where the user controls the value is generally not money
-  transmission; a provider that hosts value or has total independent control is a money transmitter; a
-  multi-signature-style provider supplying only an additional key without independent control is generally not [L1].
-  B squarely is custody. C sits closer to "additional key with limited control", but our signer *can* move value
-  inside the policy, so counsel must review.
-- **EU (MiCA):** custody and administration on behalf of clients is a regulated CASP service; providers of
-  non-custodial hardware/software wallets where the user controls keys are outside it [L2][L3]. Same C caveat.
-- **Indonesia:** supervision of crypto assets moved from Bappebti to OJK on 10 Jan 2025 (PP 49/2024; POJK 27/2024
-  governs digital-asset trading) [L4][L5]. Offering trading or custody to the public there likely needs OJK
-  licensing; a private tool used only by Boss with Boss's own funds is a different situation. Counsel should confirm.
-- Practical stance for now: **Boss-only, Boss's own funds, no third-party users, no pooled funds, no fees** until a
-  lawyer in Boss's jurisdiction has reviewed C. Provider terms (KYC, sanctions screening, prohibited uses such as
-  automated trading) must also be read before choosing.
+  transmission; a provider that hosts value or has total independent control is a money transmitter [L1].
+- **EU (MiCA):** custody on behalf of clients is a regulated CASP service; non-custodial wallet software is outside
+  it [L2][L3].
+- **Indonesia:** crypto supervision moved from Bappebti to OJK on 10 Jan 2025 (PP 49/2024; POJK 27/2024) [L4][L5].
+  Relevant only if Sentra is ever offered to others.
+- Still worth doing even for one user: read the chosen provider's terms (permitted automated trading, KYC, sanctions)
+  before signup.
 
 ---
 
 ## 9. Recommendation
 
-**Choose C (delegated, policy-bound signer on a user-owned embedded wallet) for automated trading, keep A as the
-fallback and for anything outside limits, reject B.** Shortlist **Turnkey** and **Privy** (agreeing with Apex [A1]:
-both document unattended signing on user-owned wallets, TEE enforcement and Solana transaction policies, and publish
-vendor-claimed latency) and, **only after Boss approves signups**, decide by a devnet bake-off on our own §3 bench.
-Tie-breakers: Telegram login required -> Privy; Rust-native backend and in-enclave Solana parsing -> Turnkey; cost
-model (Turnkey per signature grows with trade count; Privy per MAU) [A1]. **Crossmint is the backup**: workable for
-the comparable bot's pattern, but its documented scopes are transfer-only and a server signer is "hybrid" custody by
-Crossmint's own definition [C2][C3], so it leans harder on our §4.3 checks. Not shortlisted: Dynamic (our servers would store a key share; conflicts with §16.2), Para
-(server Guardrails are for app-owned wallets) and Phantom embedded (no delegated user-wallet signing found; Server SDK
-is app-owned and experimental) for the trading signer. Phantom/Solflare stay first-class as option-A wallets.
+**Direction set (§D): C with a delegated swap-only signer on a separate, capped, Boss-funded trading wallet; Boss's
+main wallet never delegated; withdrawals user-signed to the main wallet only; A (Phantom) stays the manual and
+fallback path; B rejected.** Provider: **Turnkey primary, Crossmint challenger** (§D.3), chosen by a devnet bake-off
+**only after Boss explicitly approves signups**. Not shortlisted: Privy (Telegram advantage gone, Rust SDK alpha),
+Dynamic (our servers would store a key share; conflicts with §16.2), Para (server Guardrails are for app-owned
+wallets), Phantom embedded (no delegated user-wallet signing found; Server SDK is app-owned and experimental).
 
-Where we challenge C (and what we add because of it):
+Where we still challenge C (and what we add because of it):
 1. **"Non-custodial" is not "no loss on breach."** A stolen signer can still lose money *through allowed trades*
-   (T2). So: dedicated **trading wallet** with a balance cap the user tops up manually; Boss's main wallet never gets a
-   signer grant; mint binding to our picks; independent min-out; fee/tip caps; our simulation.
-2. **TEE trust.** We trust AWS Nitro + the vendor's build pipeline and attestation [P2][T1]. A TEE bug or vendor insider
-   is outside our control: bounded only by (1). Prefer the vendor whose attestation we can verify ourselves.
-3. **Lock-in and availability.** Policy-as-data, an export-to-self-custody drill, and A as the manual exit path keep us
-   portable and able to exit positions during a provider outage.
-4. **Provider policy gaps.** Top-level-only transfer parsing [T4] and decode-gap rule skipping [R1] mean the provider
-   policy is a floor, not the whole check; §4.3 is mandatory.
-5. **Large sells via A.** Any sell above the per-trade cap, and every manual sell, is user-signed (A) with the four
-   factors; the delegated signer never handles size.
+   (T2): trading-wallet cap Boss tops up manually; mint binding to our picks; independent min-out; fee/tip caps; our
+   simulation.
+2. **TEE trust.** We trust AWS Nitro + the vendor's build pipeline and attestation [T1]. Bounded only by (1).
+3. **Lock-in and availability.** Policy-as-data, an export-to-self-custody drill, and A as the manual exit path.
+4. **Provider policy gaps.** Turnkey lists top-level transfers only [T4]; Crossmint scopes are transfer-only [C3]:
+   §4.3 is mandatory with either.
+5. **Large sells via A.** Over-cap and manual sells are signed by Boss in Phantom.
 6. **Staged rollout from practice-proven strategies only.** Stage 0: devnet end-to-end (no mainnet funds).
-   Stage 1: mainnet **sells-only** on positions the user opened by hand (A), delegated exits enabled. Stage 2: delegated
-   buys with tiny limits (suggested start for Boss to set: per-trade 0.05 SOL, daily 0.5 SOL, max 3 open positions,
-   trading wallet <= 2 SOL; these are proposals, not decisions). Stage 3: raise limits only after N days with
-   zero security-rule hits and real-vs-practice fill divergence inside a set band. Each stage needs Boss's sign-off.
+   Stage 1: mainnet **sells-only**, delegated exits on positions Boss opened by hand. Stage 2: delegated buys with tiny
+   limits (suggested start for Boss to set: per-trade 0.05 SOL, daily 0.5 SOL, max 3 open positions, trading wallet
+   ≤ 2 SOL; proposals, not decisions). Stage 3: raise limits only after N days with zero security-rule hits. Each
+   stage needs Boss's sign-off.
 
 ---
 
-## 10. Open questions for Boss
+## 10. Open questions for Boss (rev3)
 
-1. **Provider:** OK to create developer accounts at Turnkey and Privy (nothing is signed up until you say so) and
-   bake them off on devnet, with Crossmint as backup? Any preference or existing relationship? Is Telegram login a
-   must-have (favours Privy)?
-2. **Budget:** per-signature (Turnkey) vs per-MAU (Privy) vs per-wallet (Crossmint) pricing ( Dynamic's delegated access is Enterprise-only [D1]), Jito tips and
-   priority fees, a dedicated RPC/sender, and an external security review before mainnet.
-3. **Jurisdiction / scope:** Boss-only with Boss's own funds, or ever other users? Which country's law applies? OK to
-   get a lawyer's view before Stage 2?
+1. **Bake-off approval:** may we create developer accounts at Turnkey and Crossmint and run the devnet bake-off
+   (§D.3 criteria)? Nothing is signed up until you say so.
+2. **Budget:** Turnkey per-signature vs Crossmint per-wallet pricing [A1] at your expected trades/day; Jito tips and
+   priority fees; a dedicated RPC/sender; an external security review before mainnet.
+3. **Owner wallets:** your main Phantom address (login + only withdraw destination) and a backup owner wallet
+   (hardware preferred). OK with a 48 h delay to change either?
 4. **Limits:** per-trade cap, daily cap, max open positions, trading-wallet maximum balance, max slippage bps, max tip.
 5. **Auto-trip thresholds:** loss velocity (% in 15 min / 24 h), failed-tx count, and whether a trip halts exits too.
-6. **Withdrawals:** the list of Boss's own withdraw addresses, the delay (proposed 48 h minimum, matching the
-   comparable bot's reported 2 days), and confirmation that every
-   withdrawal needs Boss's explicit re-confirmation at the time.
-7. **Rollout:** agree to the 4 stages, sells-only first, and who signs off each stage (Boss alone, or Boss + Apex).
-8. **Option A wallets:** which of Phantom / Solflare / Backpack / hardware Boss actually uses, for the manual path.
+6. **Step-up:** is a fresh wallet signature enough for money actions, or do you also want passkey/TOTP on top?
+7. **Rollout:** agree to the 4 stages, sells-only first, and who signs off each (you alone, or you + Apex).
+8. **§16 proposal:** review `TECH_DESIGN_S16_PROPOSAL.md`; it is applied to `TECH_DESIGN.md` only after Phase 7 is approved.
 
 ---
 
@@ -519,6 +590,11 @@ Where we challenge C (and what we add because of it):
 - [A1] Apex Dev Lead, research Page "Sentra — Real Money: Login & Wallet Options" (2026-10-29), and the sources it
   links (vendor pricing/SDK pages, Axiom, a comparable Solana trading bot's published terms). Claims marked "per
   Apex" or "reported" were not re-verified by Backend: https://cursor.com/canvas/store-5126697f-8ba1-4316-99b4-f1165b73c1fb/b6afde9c-17d6-4723-a46d-bfd107b8ca57
+- [W1] Turnkey, external wallet authentication: https://docs.turnkey.com/solutions/embedded-wallets/integration-guide/react/using-external-wallets/authentication
+- [W2] Turnkey, `loginOrSignupWithWallet()` (Solana wallet login, sub-organization): https://docs.turnkey.com/generated-docs/core/turnkey-client-login-or-signup-with-wallet
+- [W3] Phantom, Sign a message / SIWS domain and uri validation: https://docs.phantom.com/solana/signing-a-message
+- [W4] Phantom, Sign-In-With (SIW) standards (message format): https://docs.phantom.com/developer-powertools/signing-a-message
+- [W5] SIWS specification (domain binding, nonce rules, phishing notes): https://osiws.com/docs/specification
 - [L1] FinCEN FIN-2019-G001: https://www.fincen.gov/system/files/2019-05/FinCEN%20Guidance%20CVC%20FINAL%20508.pdf
 - [L2] MiCA Article 3 definitions (ESMA): https://www.esma.europa.eu/publications-and-data/interactive-single-rulebook/mica/article-3-definitions
 - [L3] MiCA Regulation (EU) 2023/1114: https://eur-lex.europa.eu/eli/reg/2023/1114/oj/eng
