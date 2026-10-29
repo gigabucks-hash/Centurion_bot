@@ -15,10 +15,10 @@ describe("write-route rate limits", () => {
   test("per route (user or IP): 4th write to the same route is 429 with Retry-After", async () => {
     const hdr = { "x-forwarded-for": "203.0.113.10" };
     for (let i = 0; i < 3; i++) {
-      const r = await call(h.base, "POST", "/v1/auth/session/logout", { body: {}, headers: hdr });
+      const r = await call(h.base, "POST", "/v1/me/deletion", { body: {}, headers: hdr });
       assert.notEqual(r.status, 429);
     }
-    const r = await call(h.base, "POST", "/v1/auth/session/logout", { body: {}, headers: hdr });
+    const r = await call(h.base, "POST", "/v1/me/deletion", { body: {}, headers: hdr });
     assert.equal(r.status, 429);
     assert.equal(r.body.error.code, "RATE_LIMITED");
     assert.equal(r.body.error.limit, 3);
@@ -30,7 +30,7 @@ describe("write-route rate limits", () => {
 
   test("per IP across routes", async () => {
     const hdr = { "x-forwarded-for": "203.0.113.11" };
-    const routes = ["/v1/auth/session/logout", "/v1/auth/session/refresh", "/v1/auth/siws/verify"];
+    const routes = ["/v1/me/deletion", "/v1/workspaces/w/strategies", "/v1/workspaces/w/positions/p/close"];
     const st: number[] = [];
     for (let i = 0; i < 6; i++) st.push((await call(h.base, "POST", routes[i % 3]!, { body: {}, headers: hdr })).status);
     assert.equal(st.filter((s) => s === 429).length, 1, JSON.stringify(st));
@@ -41,7 +41,7 @@ describe("write-route rate limits", () => {
     const tok = token(OWNER);
     const st: number[] = [];
     for (let i = 0; i < 5; i++) {
-      const r = await call(h.base, "POST", i % 2 ? "/v1/auth/session/logout" : "/v1/auth/session/refresh", {
+      const r = await call(h.base, "POST", i % 2 ? "/v1/me/deletion" : "/v1/workspaces/w/strategies", {
         body: {}, token: tok, headers: { "x-forwarded-for": `198.51.100.${i}` },
       });
       st.push(r.status);

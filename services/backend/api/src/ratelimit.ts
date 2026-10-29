@@ -8,6 +8,13 @@ import { asService, type Db } from "./db.ts";
 export interface Limiter {
   /** Count one hit for `key`; rejects with RATE_LIMITED when over `max` in the current `windowS` window. */
   hit(key: string, max: number, windowS: number): Promise<void>;
+  /** Count one hit for `key` and return the count in the current window (never throws for being over). */
+  count(key: string, windowS: number): Promise<Count>;
+}
+
+export interface Count {
+  n: number;
+  retryAfterS: number;
 }
 
 const limited = (retry: number, max: number, windowS: number) =>
@@ -22,16 +29,21 @@ export class RateLimiter implements Limiter {
   }
 
   async hit(key: string, max: number, windowS: number): Promise<void> {
+    const c = await this.count(key, windowS);
+    if (c.n > max) throw limited(c.retryAfterS, max, windowS);
+  }
+
+  async count(key: string, windowS: number): Promise<Count> {
     const t = this.now();
     this.sweep(t);
     const w = windowS * 1000;
-    const e = this.hits.get(key);
+    let e = this.hits.get(key);
     if (!e || t - e.start >= w) {
-      this.hits.set(key, { start: t, n: 1 });
-      return;
+      e = { start: t, n: 0 };
+      this.hits.set(key, e);
     }
     e.n += 1;
-    if (e.n > max) throw limited(Math.max(1, Math.ceil((e.start + w - t) / 1000)), max, windowS);
+    return { n: e.n, retryAfterS: Math.max(1, Math.ceil((e.start + w - t) / 1000)) };
   }
 
   private sweep(t: number): void {
@@ -57,6 +69,17 @@ export class PgRateLimiter implements Limiter {
       return;
     }
     if (retry > 0) throw limited(retry, max, windowS);
+  }
+
+  async count(key: string, windowS: number): Promise<Count> {
+    try {
+      const r = await asService(this.db, async (c) =>
+        (await c.query<{ r: { n: number; retry_after_s: number } }>("select public.rate_limit_count($1, $2) as r", [key.slice(0, 200), windowS])).rows[0]!.r);
+      return { n: r.n, retryAfterS: r.retry_after_s };
+    } catch (e) {
+      console.error("rate limit store unavailable:", e instanceof Error ? e.message : e);
+      return { n: 0, retryAfterS: 1 };
+    }
   }
 }
 

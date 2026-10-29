@@ -40,6 +40,12 @@ export interface Config {
   rateLimitWriteUserPerMin: number;
   rateLimitWriteRoutePerMin: number;
   rateLimitStore: "memory" | "postgres";
+  /** Login limits (B-2). Strangers: hard 429 per IP. Owner wallets: never 429, soft delay up to authOwnerMaxDelayMs. */
+  authStrangerIpPerMin: number;
+  authOwnerIpPerMin: number;
+  authOwnerPerMin: number;
+  authGlobalPerMin: number;
+  authOwnerMaxDelayMs: number;
 }
 
 function flag(env: NodeJS.ProcessEnv, k: string): boolean {
@@ -139,5 +145,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     rateLimitWriteUserPerMin: int(env, "RATE_LIMIT_WRITE_USER_PER_MIN", 120, 1, 100_000),
     rateLimitWriteRoutePerMin: int(env, "RATE_LIMIT_WRITE_ROUTE_PER_MIN", 60, 1, 100_000),
     rateLimitStore: store(env),
+    authStrangerIpPerMin: int(env, "AUTH_STRANGER_IP_PER_MIN", 10, 1, 10_000),
+    authOwnerIpPerMin: int(env, "AUTH_OWNER_IP_PER_MIN", 30, 1, 10_000),
+    authOwnerPerMin: int(env, "AUTH_OWNER_PER_MIN", 60, 1, 10_000),
+    authGlobalPerMin: int(env, "AUTH_GLOBAL_PER_MIN", 600, 1, 100_000),
+    authOwnerMaxDelayMs: int(env, "AUTH_OWNER_MAX_DELAY_MS", 3_000, 0, 10_000),
   };
 }

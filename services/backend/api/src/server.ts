@@ -37,7 +37,8 @@ export function createApiServer(d: Deps): Server {
       if (m === undefined) throw new ApiError("NOT_FOUND");
       if (m === "method") throw new ApiError("VALIDATION_FAILED", { reason: `method ${req.method} not allowed` });
       ctx.params = m.params;
-      if (WRITES.has(method)) await limitWrite(ctx, deps, limiter, method, m.pattern);
+      // /v1/auth/* has its own limits (routes_auth.ts) that never hard-block the owner wallet
+      if (WRITES.has(method) && !m.pattern.startsWith("/v1/auth/")) await limitWrite(ctx, deps, limiter, method, m.pattern);
       await m.handler(ctx);
     } catch (e) {
       if (e instanceof ApiError) {

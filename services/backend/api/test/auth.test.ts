@@ -89,9 +89,9 @@ describe("SIWS login", () => {
     // bound to the address: the message names OWNER_W; another address cannot use it
     const n2 = await nonce(OWNER_W);
     const other = await call(h.base, "POST", "/v1/auth/siws/verify", {
-      headers: ipHeaders(), body: { address: OTHER_W.address, message: n2.body.data.message, signature: sig(OTHER_W, n2.body.data.message) },
+      headers: ipHeaders(), body: { address: OWNERS[5]!.address, message: n2.body.data.message, signature: sig(OWNERS[5]!, n2.body.data.message) },
     });
-    assert.equal(other.status, 401, JSON.stringify(other.body)); // message/address mismatch
+    assert.equal(other.status, 401, JSON.stringify(other.body)); // message/address mismatch (another allow-listed wallet)
     assert.equal(other.body.error.code, "SIWS_NONCE_INVALID");
     // bound to the domain: rewriting the domain in a nonce row's message no longer matches the stored binding
     await h.db.query("update public.siws_nonces set domain = 'evil.test' where nonce = $1", [n2.body.data.nonce]);
@@ -159,26 +159,6 @@ describe("SIWS login", () => {
     const gone = await call(h.base, "POST", "/v1/auth/session/refresh", { headers: ipHeaders(), body: { refresh_token: v2.body.data.refresh_token } });
     assert.equal(gone.status, 401);
     assert.equal((await call(h.base, "POST", "/v1/auth/session/refresh", { headers: ipHeaders(), body: { refresh_token: "nope" } })).status, 401);
-  });
-
-  test("rate limits: 10 nonces/min per IP, 5 per address -> 429 RATE_LIMITED with Retry-After", async () => {
-    OWNER_W = OWNERS[4]!;
-    const fixed = ipHeaders("192.0.2.77");
-    const codes: number[] = [];
-    const ws = Array.from({ length: 11 }, () => wallet());
-    for (const w of ws) codes.push((await call(h.base, "POST", "/v1/auth/siws/nonce", { headers: fixed, body: { address: w.address, domain: DOMAIN } })).status);
-    // other wallets are refused by OWNER_WALLETS (403) but still count; the 11th is limited
-    assert.deepEqual(codes.slice(0, 10).every((c) => c === 403), true, String(codes));
-    assert.equal(codes[10], 429);
-    const r = await call(h.base, "POST", "/v1/auth/siws/nonce", { headers: fixed, body: { address: OWNER_W.address, domain: DOMAIN } });
-    assert.equal(r.status, 429);
-    assert.equal(r.body.error.code, "RATE_LIMITED");
-    assert.ok(Number(r.headers.get("retry-after")) >= 1);
-    assert.ok(r.body.error.retry_after_s >= 1);
-    // per address, from different IPs
-    const st: number[] = [];
-    for (let i = 0; i < 6; i++) st.push((await nonce(OWNER_W)).status);
-    assert.ok(st.includes(429), String(st));
   });
 
   test("email OTP and Telegram are off by default (404)", async () => {

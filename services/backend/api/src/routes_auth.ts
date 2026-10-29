@@ -9,7 +9,7 @@ import { Router, readJson, send, type Ctx } from "./http.ts";
 import type { Deps } from "./deps.ts";
 import { signJwt } from "./jwt.ts";
 import { adminCreateWalletUser } from "./supabase_admin.ts";
-import { RateLimiter, clientIp, type Limiter } from "./ratelimit.ts";
+import { PgRateLimiter, RateLimiter, clientIp, type Limiter } from "./ratelimit.ts";
 import { SIWS_CHAIN, buildMessage, hostOf, isAddress, newNonce, parseMessage, verifySignature } from "./siws.ts";
 
 const NONCE_TTL_MS = 5 * 60_000;
@@ -17,9 +17,15 @@ const CLIENTS = new Set(["web", "mobile", "desktop"]);
 const sha = (s: string) => createHash("sha256").update(s, "utf8").digest();
 const iso = (ms: number) => new Date(ms).toISOString();
 
-export function registerAuth(r: Router, d: Deps, rl: Limiter = d.limiter ?? new RateLimiter()): void {
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+export function registerAuth(r: Router, d: Deps): void {
   const cfg = d.cfg;
   const ip = (ctx: Ctx) => clientIp(ctx.req, cfg.trustProxy);
+  // B-2: owner and session counters are shared across instances (Postgres); strangers are counted in memory so
+  // rejecting them never touches the database.
+  const shared: Limiter = d.limiter instanceof PgRateLimiter ? d.limiter : new PgRateLimiter(d.db);
+  const strangers = new RateLimiter();
 
   const enabled = () => {
     if (cfg.siwsDomains.length === 0) throw new ApiError("UNAVAILABLE", { reason: "AUTH_SIWS_DOMAINS not configured" });
@@ -38,6 +44,40 @@ export function registerAuth(r: Router, d: Deps, rl: Limiter = d.limiter ?? new 
   // defense in depth (config already refuses to boot with an empty list): empty allowlist = nobody
   const ownerOk = (address: string) => cfg.ownerWallets.length > 0 && cfg.ownerWallets.includes(address);
   const notOwner = () => new ApiError("FORBIDDEN_ROLE", { reason: "wallet_not_allowed", hint: "only the owner wallet may sign in" });
+
+  /**
+   * Login gate (nonce + verify), before any DB or signature work.
+   * - Malformed or non-allow-listed address: hard limit per IP (429 after AUTH_STRANGER_IP_PER_MIN), else 403/422.
+   * - Allow-listed owner wallet: never 429. Per (address, IP), per address and a global cap are counted; any
+   *   overage only delays the answer (250 ms per hit over, at most AUTH_OWNER_MAX_DELAY_MS), so a stranger who
+   *   floods the owner's (public) address cannot lock the owner out.
+   */
+  const stranger = async (ctx: Ctx) => {
+    await strangers.hit(`siws:stranger:${ip(ctx)}`, cfg.authStrangerIpPerMin, 60);
+    await strangers.hit("siws:stranger:global", cfg.authGlobalPerMin, 60);
+  };
+  const gate = async (ctx: Ctx, route: string, address: unknown): Promise<string> => {
+    if (!isAddress(address)) {
+      await stranger(ctx);
+      throw new ApiError("VALIDATION_FAILED", { field: "address" });
+    }
+    if (!ownerOk(address)) {
+      await stranger(ctx);
+      throw notOwner();
+    }
+    const [a, b, g] = await Promise.all([
+      shared.count(`siws:${route}:owner:${address}:ip:${ip(ctx)}`, 60),
+      shared.count(`siws:${route}:owner:${address}`, 60),
+      shared.count("siws:owner:global", 60),
+    ]);
+    const over = Math.max(0, a.n - cfg.authOwnerIpPerMin, b.n - cfg.authOwnerPerMin, g.n - cfg.authGlobalPerMin);
+    if (over > 0) {
+      const ms = Math.min(cfg.authOwnerMaxDelayMs, 250 * over);
+      ctx.res.setHeader("X-Sentra-Login-Delay-Ms", String(ms));
+      await sleep(ms);
+    }
+    return address;
+  };
 
   const session = async (userId: string, client: string, family: string | null, address: string) => {
     const now = Date.now();
@@ -68,17 +108,13 @@ export function registerAuth(r: Router, d: Deps, rl: Limiter = d.limiter ?? new 
   // ---- SIWS nonce ---------------------------------------------------------------------------------
   r.add("POST", "/v1/auth/siws/nonce", async (ctx) => {
     enabled();
-    await rl.hit(`siws.nonce:ip:${ip(ctx)}`, 10, 60);
     const b = await readJson(ctx);
-    if (!isAddress(b.address)) throw new ApiError("VALIDATION_FAILED", { field: "address" });
-    const address = b.address;
-    await rl.hit(`siws.nonce:addr:${address}`, 5, 60);
+    const address = await gate(ctx, "nonce", b.address);
     const domain = checkDomain(ctx, b.domain);
     const chain = b.chain_id ?? SIWS_CHAIN;
     if (chain !== SIWS_CHAIN) throw new ApiError("VALIDATION_FAILED", { field: "chain_id", allowed: [SIWS_CHAIN] });
     const uri = typeof b.uri === "string" ? b.uri : `https://${domain}`;
     if (uri.length > 2048 || hostOf(uri) !== domain) throw new ApiError("VALIDATION_FAILED", { field: "uri", hint: "https URI on the same domain" });
-    if (!ownerOk(address)) throw notOwner();
     const nonce = newNonce();
     const row = await asService(d.db, async (c) =>
       (await c.query<{ issued_at: Date; expires_at: Date }>(
@@ -97,15 +133,12 @@ export function registerAuth(r: Router, d: Deps, rl: Limiter = d.limiter ?? new 
   // ---- SIWS verify --------------------------------------------------------------------------------
   r.add("POST", "/v1/auth/siws/verify", async (ctx) => {
     enabled();
-    await rl.hit(`siws.verify:ip:${ip(ctx)}`, 10, 60);
     const b = await readJson(ctx);
-    if (!isAddress(b.address)) throw new ApiError("VALIDATION_FAILED", { field: "address" });
+    const address = await gate(ctx, "verify", b.address);
     if (typeof b.message !== "string") throw new ApiError("VALIDATION_FAILED", { field: "message" });
     if (typeof b.signature !== "string" || b.signature.length > 128) throw new ApiError("VALIDATION_FAILED", { field: "signature" });
     const client = b.client ?? "web";
     if (typeof client !== "string" || !CLIENTS.has(client)) throw new ApiError("VALIDATION_FAILED", { field: "client", allowed: [...CLIENTS] });
-    const address = b.address;
-    await rl.hit(`siws.verify:addr:${address}`, 5, 60);
     const f = parseMessage(b.message);
     if (!f || f.address !== address || f.chain_id !== SIWS_CHAIN || hostOf(f.uri) !== f.domain) {
       throw new ApiError("SIWS_NONCE_INVALID", { reason: "message" });
@@ -114,7 +147,6 @@ export function registerAuth(r: Router, d: Deps, rl: Limiter = d.limiter ?? new 
     if (Date.parse(f.expiration_time) <= Date.now() || Date.parse(f.issued_at) > Date.now() + 30_000) {
       throw new ApiError("SIWS_NONCE_INVALID", { reason: "expired" });
     }
-    if (!ownerOk(address)) throw notOwner();
     // single use + bound to domain and address, consumed before the signature check (a bad signature burns it)
     const consumed = await asService(d.db, async (c) =>
       (await c.query<{ ok: boolean }>("select public.consume_siws_nonce($1, $2, $3) as ok", [f.nonce, address, f.domain])).rows[0]!.ok);
@@ -139,7 +171,7 @@ export function registerAuth(r: Router, d: Deps, rl: Limiter = d.limiter ?? new 
 
   // ---- refresh (rotation) -------------------------------------------------------------------------
   r.add("POST", "/v1/auth/session/refresh", async (ctx) => {
-    await rl.hit(`session.refresh:ip:${ip(ctx)}`, 30, 60);
+    await shared.hit(`session.refresh:ip:${ip(ctx)}`, 30, 60);
     const b = await readJson(ctx);
     if (typeof b.refresh_token !== "string" || !/^srt_[A-Za-z0-9_-]{43}$/.test(b.refresh_token)) {
       throw new ApiError("UNAUTHENTICATED", { reason: "refresh_invalid" });
@@ -160,7 +192,7 @@ export function registerAuth(r: Router, d: Deps, rl: Limiter = d.limiter ?? new 
   });
 
   r.add("POST", "/v1/auth/session/logout", async (ctx) => {
-    await rl.hit(`session.logout:ip:${ip(ctx)}`, 30, 60);
+    await shared.hit(`session.logout:ip:${ip(ctx)}`, 30, 60);
     const b = await readJson(ctx);
     if (typeof b.refresh_token === "string" && b.refresh_token.length <= 64) {
       await asService(d.db, (c) => c.query("select public.revoke_refresh_family($1, 'logout')", [sha(b.refresh_token as string)]));
