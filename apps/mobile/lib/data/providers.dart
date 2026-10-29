@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/approval_guard.dart';
 import '../core/feature_flags.dart';
+import '../core/perf/per_key_throttle.dart';
 import 'api/auth.dart';
 import 'api/events_feed.dart';
+import 'api/marks.dart';
 import 'api/sentra_rpc.dart';
 import 'mock/mock_backend.dart';
 import 'mock/mock_rpc.dart';
@@ -13,8 +15,10 @@ import 'repositories/repositories.dart';
 /// Composition root for the data layer. In prod, `main()` overrides these
 /// four repository providers with Supabase implementations; nothing in
 /// features/ changes.
+/// Ticking (the mock's stand-in for Realtime) starts after the first frame via
+/// `deferredInitProvider`, not here, so building the first screen does no extra work.
 final mockBackendProvider = Provider<MockBackend>((ref) {
-  final b = MockBackend()..start();
+  final b = MockBackend();
   ref.onDispose(b.dispose);
   return b;
 });
@@ -39,6 +43,21 @@ final practiceEpochGateProvider = Provider<PracticeEpochGate>((ref) => PracticeE
 final practiceResetRepositoryProvider = Provider<PracticeResetRepository>((ref) => ref.watch(mockBackendProvider));
 final eventsFeedProvider = Provider<EventsFeed>((ref) => ref.watch(mockBackendProvider));
 final marksSourceProvider = Provider<MarksSource>((ref) => ref.watch(mockBackendProvider));
+
+/// Max live-price refresh per row (4 Hz). Marks can arrive much faster for a hot
+/// mint; repainting a row more often than this is invisible but costs frames.
+const markRowInterval = Duration(milliseconds: 250);
+
+/// Latest mark for one mint, throttled per row. Each visible row watches its own
+/// family instance, so one hot mint never rebuilds the whole list.
+final liveMarkProvider = StreamProvider.autoDispose.family<MarkMessage, ({String mint, TradeMode mode})>((ref, k) {
+  return ref
+      .watch(marksSourceProvider)
+      .watchMarks(ref.watch(workspaceIdProvider), k.mode)
+      .where((m) => m is MarkMessage && m.mint == k.mint)
+      .cast<MarkMessage>()
+      .transform(PerKeyThrottle<MarkMessage, String>(keyOf: (m) => m.mint, interval: markRowInterval));
+});
 final sentraRpcProvider = Provider<SentraRpc>((ref) => MockSentraRpc(ref.watch(mockBackendProvider)));
 final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => UnimplementedAuthRepository(telegramEnabled: ref.watch(featureFlagsProvider).telegramOidcEnabled),

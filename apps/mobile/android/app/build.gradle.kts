@@ -31,6 +31,11 @@ android {
 
     buildTypes {
         release {
+            // Explicit (MASVS-RESILIENCE): never debuggable; R8 shrinks the Java/Kotlin side.
+            // Dart code is obfuscated by `flutter build --obfuscate --split-debug-info` (tool/build_release.sh).
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")

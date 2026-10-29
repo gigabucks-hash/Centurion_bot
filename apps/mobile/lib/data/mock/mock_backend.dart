@@ -107,6 +107,9 @@ class MockBackend
   DateTime get serverNow => _clock();
 
   // ---------------------------------------------------------------- lifecycle
+  /// Whether the 2 s tick runs (started after the first frame by deferred init).
+  bool get isTicking => _timer?.isActive ?? false;
+
   void start({Duration every = const Duration(seconds: 2)}) {
     _timer ??= Timer.periodic(every, (_) => tick());
   }

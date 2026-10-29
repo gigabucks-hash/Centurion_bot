@@ -132,7 +132,7 @@ Menimpa bagian v1.1 di bawah bila bertentangan. Sumber: `FLUTTER_INTEGRATION_ANS
 - **Real SOL:** `FeatureFlags.realSolEnabled=false` sampai Fase 7. UI: approve Real dan resume strategi Real disabled, hold guard/sell Real disabled + teks "Real SOL nonaktif sampai Fase 7"; mock server juga menolak dengan `REAL_SOL_DISABLED`. Alur Fase 7 (stub `real_confirmation.dart`): challenge → passkey/WebAuthn + TOTP + typed name + hold ≥ 2 500 ms → `CONFIRMATION_RESTART_REQUIRED` mengulang semuanya. Test Real flow meng-override flag ke true.
 
 ### Rencana integrasi Supabase
-- **Auth:** `supabase_flutter` + Supabase Auth untuk Google, Apple (wajib di iOS) dan Email OTP (`/auth/email/otp/request|verify`). SIWS: `/auth/siws/nonce` → tanda tangan wallet (Phantom/Solflare/MWA) → `/auth/siws/verify`; Edge Function mencetak JWT session. Wallet login ≠ wallet trading (`WALLET_ROLE_CONFLICT`). **Telegram (v1.1): OIDC resmi** `POST /auth/telegram/nonce {device_id, platform}` → login SDK → `POST /auth/telegram/verify {nonce, id_token, device_id}` (error `AUTH_TG_INVALID|REPLAY|NO_PROFILE`, minta scope `profile`). Hanya stub di balik `FeatureFlags.telegramOidcEnabled=false` (server `AUTH_TELEGRAM_OIDC_ENABLED=false`): tombol tidak tampil, method melempar `TelegramLoginDisabled`. **Tidak ada SDK Telegram yang dipasang** sampai Boss menyetujui. Jangan konfigurasi custom OIDC provider Supabase. Unlink/hapus akun butuh re-auth ≤ 5 mnt (`REAUTH_REQUIRED`); metode login terakhir tidak bisa di-unlink (`422 LAST_LOGIN_METHOD`). Token sesi di Keychain/Keystore (`flutter_secure_storage`).
+- **Auth (keputusan Boss 29 Okt, MENGGANTI rencana lama):** **SIWS (Sign-In With Solana) wallet-only adalah auth utama**, lihat "Auth MVP: SIWS" di bawah. Google/Apple/Email OTP **tidak** dipakai di MVP. **Telegram OIDC dikeluarkan dari MVP**: stub `AuthRepository.telegram*` tetap ada di balik `FeatureFlags.telegramOidcEnabled=false` (server `AUTH_TELEGRAM_OIDC_ENABLED=false`), tidak dikembangkan lagi. *(Rencana lama, arsip: Supabase Auth Google/Apple/Email OTP + Telegram OIDC `POST /auth/telegram/nonce|verify`.)*
 - **Baca:** `strategies`, `positions`, `approvals` (select by id saat event datang), `portfolio_latest`, `exit_stats()`, `portfolio_snapshots`/`GET /portfolio/equity`, `GET /v1/events` untuk catch-up.
 - **Realtime:** lihat "Kontrak v1.1": satu feed `public.events` + Broadcast marks. Tidak ada `postgres_changes` pada tabel domain.
 - **Mutasi:** hanya 6 RPC di atas (+ REST twin). Guard change Real SOL lewat `update_strategy` + `p_challenge_id` dari proof-of-confirmation (Fase 7): cooldown 10 mnt, auto-revert 24 jam, notifikasi semua device + email.
@@ -156,7 +156,7 @@ Menimpa bagian v1.1 di bawah bila bertentangan. Sumber: `FLUTTER_INTEGRATION_ANS
 ## 7. Keamanan
 - **Tidak ada private key di device.** Signing dilakukan di custody server (MPC/KMS) dengan policy (maks SOL/tx, allow-list program). App hanya mengirim keputusan.
 - **Biometrik** (`local_auth`: BiometricPrompt / Face ID) wajib sebelum setiap aksi Real SOL: approve pick, resume strategi Real, dan melemahkan guard. Untuk guard Real ada tambahan typed-confirm (nama strategi) dan hold 2,5 dtk. Practice: hold 1,2 dtk untuk guard. Approve pick Practice tanpa biometrik (bisa diaktifkan di setting). Step-up idealnya di-attest server: device key di Secure Enclave/StrongBox menandatangani challenge dari server.
-- Token sesi disimpan di Keychain/Keystore. Opsi lock screen app dengan biometrik saat resume. Screenshot dibatasi di layar konfirmasi Real (`FLAG_SECURE`).
+- Token sesi disimpan di Keychain/Keystore (`flutter_secure_storage`, **menunggu approval Boss**, belum di-install; review di `docs/PERF_SECURITY.md` §3.3). Hardening release (obfuscate, backup off, HTTPS-only/ATS, exported eksplisit) dan threat model: `docs/PERF_SECURITY.md`. Opsi lock screen app dengan biometrik saat resume. Screenshot dibatasi di layar konfirmasi Real (`FLAG_SECURE`).
 - **RLS** di semua tabel. Mutasi hanya lewat RPC yang memvalidasi `rev`/token. Rate limit di Edge Function.
 - Metadata token (symbol/name) dianggap untrusted: hanya ditampilkan sebagai teks, tidak pernah di-render sebagai HTML/link.
 - Practice dan Real adalah workspace terpisah. Angka Real tidak pernah tampil di layar Practice (SPEC §4).
@@ -218,3 +218,24 @@ Aturan ini MENGGANTI aturan lama ("tanpa Approve/Skip"). Pick tanpa pair SOL **b
 - Notifikasi: Approve tidak pernah tampil; Skip hanya jika server eksplisit menawarkan `actions: ["skip"]` (+ token valid + versi).
 - Mock: approve → `UNSUPPORTED_QUOTE_MINT`; skip/reject diterima, envelope `proposal.rejected` membawa `reason`.
 - Kontrak: body REST `POST …/approvals/{id}/decision` punya `reason` (`DecideApprovalRequest.toRestBody()`), tapi RPC `decide_approval` 1.1.2 **tidak punya `p_reason`**, jadi `toRpcParams()` tidak mengirimnya (gap dilaporkan ke Backend).
+
+## Auth MVP: SIWS (keputusan Boss, 29 Okt 2026)
+
+- **App privat, satu user (Boss).** Login **hanya** lewat wallet (SIWS, Phantom). Server menerapkan **allowlist wallet**: tanda tangan valid dari wallet lain tidak mendapat sesi. Wallet SDK (Phantom deeplink / MWA) **sedang direview terpisah, tidak di-install**.
+- **Wewenang app terbatas pada trading** (approve/skip pick, sell, pause/resume, proposal guard). Tidak ada withdraw, tidak ada private key di app; tanda tangan SIWS terjadi di app wallet.
+- **Distribusi iOS:** TestFlight internal / ad-hoc di akun Apple pribadi Boss; **tanpa rilis App Store publik**. Android: lihat keputusan D5 di `PERF_SECURITY.md`.
+- Alur (kontrak 1.1.4): `POST /v1/auth/siws/nonce` → pesan SIWS (domain, URI, chain, nonce, expiry) ditandatangani wallet → `POST /v1/auth/siws/verify` → access token 15 menit + refresh token yang **berotasi**; `POST /v1/auth/session/refresh`; **reuse refresh token mencabut sesi → forced logout** (state `signedOut(reason: revoked)`); `POST /v1/auth/logout`.
+- Interface (stub; implementasi + mock di migrasi kontrak 1.1.4):
+
+```dart
+abstract interface class SiwsAuthRepository {
+  Stream<AuthState> watchState();                       // signedOut | signedIn(session) | forcedLogout(reason)
+  Future<SiwsChallenge> requestNonce({required String walletAddress});
+  Future<AuthSession> verify({required SiwsChallenge challenge, required String signatureBase58});
+  Future<AuthSession> refresh();                        // rotates; reuse → forced logout
+  Future<void> logout();
+}
+abstract interface class WalletSigner {                 // implemented after the wallet SDK review
+  Future<String> signMessage(String message);           // returns base58 signature; never sees a private key
+}
+```

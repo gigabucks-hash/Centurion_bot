@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sentra_mobile/core/startup/deferred_init.dart';
 import 'package:sentra_mobile/app/app.dart';
 import 'package:sentra_mobile/core/approval_guard.dart';
 import 'package:sentra_mobile/core/format.dart';
@@ -18,6 +19,8 @@ import 'package:sentra_mobile/features/positions/widgets/exit_progress_bar.dart'
 Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderScope(
   overrides: [
     mockBackendProvider.overrideWithValue(b..realSolEnabled = realSol),
+    // No post-first-frame services (mock tick) in widget tests: deterministic data.
+    deferredInitProvider.overrideWithValue(DeferredInit(const [])),
     featureFlagsProvider.overrideWithValue(FeatureFlags(realSolEnabled: realSol)),
     approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
   ],

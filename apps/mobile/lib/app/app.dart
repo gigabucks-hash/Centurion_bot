@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/notifications/local_notifier.dart';
+import '../core/startup/deferred_init.dart';
 import '../l10n/gen/app_localizations.dart';
 
 import 'router.dart';
@@ -19,6 +20,13 @@ class SentraApp extends ConsumerStatefulWidget {
 
 class _SentraAppState extends ConsumerState<SentraApp> {
   late final GoRouter _router = buildRouter(initialLocation: widget.initialLocation);
+
+  @override
+  void initState() {
+    super.initState();
+    // Push / Realtime / Telegram / analytics: only after the first frame.
+    ref.read(deferredInitProvider).scheduleAfterFirstFrame();
+  }
 
   @override
   void dispose() {

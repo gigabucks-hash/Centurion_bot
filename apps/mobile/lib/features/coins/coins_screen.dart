@@ -27,24 +27,48 @@ class CoinsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(l10n.screenerTitle)),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpace.s4),
-        children: [
-          if (strategy.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpace.s3),
-              // GAP (UX): no ARB key for the "<strategy> · live" caption; strategy name only.
-              child: Text(strategy, style: Theme.of(context).textTheme.bodySmall),
+      // Slivers: the screener can list many coins; only visible cards are built.
+      body: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.all(AppSpace.s4),
+            sliver: SliverMainAxisGroup(
+              slivers: [
+                SliverList.list(
+                  children: [
+                    if (strategy.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpace.s3),
+                        // GAP (UX): no ARB key for the "<strategy> · live" caption; strategy name only.
+                        child: Text(strategy, style: Theme.of(context).textTheme.bodySmall),
+                      ),
+                    if (coins.isEmpty) Text(l10n.screenerEmpty, key: const Key('screenerEmpty')),
+                  ],
+                ),
+                SliverList.builder(
+                  itemCount: coins.length,
+                  itemBuilder: (context, i) {
+                    final c = coins[i];
+                    return Padding(
+                      key: ValueKey('coinRow_${c.mint}'),
+                      padding: const EdgeInsets.only(bottom: AppSpace.s3),
+                      // Live score/price row: repaint isolated from its neighbours.
+                      child: RepaintBoundary(child: c.notTradeable ? NotTradeableCoinCard(c) : _CoinCard(c)),
+                    );
+                  },
+                ),
+                if (coins.any((c) => c.notTradeable))
+                  SliverToBoxAdapter(
+                    // i18n 0.4.4 legend: grey = no SOL pair, can't be approved but can be skipped.
+                    child: Text(
+                      l10n.screenerLegend,
+                      key: const Key('screenerLegend'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+              ],
             ),
-          if (coins.isEmpty) Text(l10n.screenerEmpty, key: const Key('screenerEmpty')),
-          for (final c in coins)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpace.s3),
-              child: c.notTradeable ? NotTradeableCoinCard(c) : _CoinCard(c),
-            ),
-          if (coins.any((c) => c.notTradeable))
-            // i18n 0.4.4 legend: grey = no SOL pair, can't be approved but can be skipped.
-            Text(l10n.screenerLegend, key: const Key('screenerLegend'), style: Theme.of(context).textTheme.bodySmall),
+          ),
         ],
       ),
     );

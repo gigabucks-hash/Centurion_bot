@@ -46,19 +46,39 @@ class PositionsScreen extends ConsumerWidget {
           final openList = list.where((p) => p.isOpen).toList();
           final closed = list.where((p) => !p.isOpen).toList()
             ..sort((a, b) => (b.closedAt ?? b.openedAt).compareTo(a.closedAt ?? a.openedAt));
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(AppSpace.s4, AppSpace.s2, AppSpace.s4, AppSpace.s6),
-            children: [
-              const EquityCard(),
-              const SizedBox(height: AppSpace.s3),
-              if (openList.isEmpty)
-                const EmptyState(icon: Icons.inbox_outlined, text: 'Belum ada posisi terbuka')
-              else
-                for (final p in openList) ...[PositionCard(position: p), const SizedBox(height: AppSpace.s2)],
-              if (closed.isNotEmpty) ...[
-                const SectionHeader('Closed'),
-                for (final p in closed) _ClosedRow(position: p),
-              ],
+          // Slivers + builders: closed history grows without bound; only visible rows build.
+          return CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(AppSpace.s4, AppSpace.s2, AppSpace.s4, AppSpace.s6),
+                sliver: SliverMainAxisGroup(
+                  slivers: [
+                    const SliverToBoxAdapter(child: EquityCard()),
+                    const SliverToBoxAdapter(child: SizedBox(height: AppSpace.s3)),
+                    if (openList.isEmpty)
+                      const SliverToBoxAdapter(
+                        child: EmptyState(icon: Icons.inbox_outlined, text: 'Belum ada posisi terbuka'),
+                      )
+                    else
+                      SliverList.builder(
+                        itemCount: openList.length,
+                        itemBuilder: (context, i) => Padding(
+                          key: ValueKey('posRow_${openList[i].id}'),
+                          padding: const EdgeInsets.only(bottom: AppSpace.s2),
+                          // Live price row (marks): repaints stay inside the card.
+                          child: RepaintBoundary(child: PositionCard(position: openList[i])),
+                        ),
+                      ),
+                    if (closed.isNotEmpty) ...[
+                      const SliverToBoxAdapter(child: SectionHeader('Closed')),
+                      SliverList.builder(
+                        itemCount: closed.length,
+                        itemBuilder: (context, i) => _ClosedRow(position: closed[i]),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ],
           );
         },
