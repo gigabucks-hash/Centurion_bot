@@ -72,12 +72,12 @@ class EventEnvelope {
 
   /// Which repository must refetch on this event.
   EventTopic get topic => switch (type.split('.').first) {
-        'proposal' => EventTopic.approvals,
-        'position' || 'fill' || 'exit' || 'portfolio' => EventTopic.portfolio,
-        'strategy' || 'guard' => EventTopic.strategies,
-        'practice' => EventTopic.all,
-        _ => EventTopic.activity,
-      };
+    'proposal' => EventTopic.approvals,
+    'position' || 'fill' || 'exit' || 'portfolio' => EventTopic.portfolio,
+    'strategy' || 'guard' => EventTopic.strategies,
+    'practice' => EventTopic.all,
+    _ => EventTopic.activity,
+  };
 }
 
 enum EventTopic { approvals, portfolio, strategies, activity, all }

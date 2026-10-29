@@ -9,16 +9,17 @@ import 'package:solbot_mobile/core/widgets/common.dart';
 import 'package:solbot_mobile/data/mock/mock_backend.dart';
 import 'package:solbot_mobile/data/models/models.dart';
 import 'package:solbot_mobile/data/providers.dart';
+import 'package:solbot_mobile/l10n/gen/app_localizations.dart';
 
 /// [realSol] flips the Phase 7 flag (client + mock server) for tests that exercise Real flows.
 Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderScope(
-      overrides: [
-        mockBackendProvider.overrideWithValue(b..realSolEnabled = realSol),
-        featureFlagsProvider.overrideWithValue(FeatureFlags(realSolEnabled: realSol)),
-        approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
-      ],
-      child: SolBotApp(initialLocation: location),
-    );
+  overrides: [
+    mockBackendProvider.overrideWithValue(b..realSolEnabled = realSol),
+    featureFlagsProvider.overrideWithValue(FeatureFlags(realSolEnabled: realSol)),
+    approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
+  ],
+  child: SolBotApp(initialLocation: location),
+);
 
 Future<void> _phone(WidgetTester tester) async {
   tester.view.physicalSize = const Size(412 * 3, 915 * 3);
@@ -91,7 +92,11 @@ void main() {
     }
     await g.up();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle(const Duration(milliseconds: 100), EnginePhase.sendSemanticsUpdate, const Duration(seconds: 10));
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 100),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 10),
+    );
     final pending = await tester.runAsync(() => b.watchPending().first);
     expect(pending!.any((a) => a.id == 'apv_seed4'), isFalse);
     b.dispose();
@@ -116,20 +121,22 @@ void main() {
     await _phone(tester);
     final now = DateTime.now();
     final b = MockBackend()
-      ..debugAddApproval(Approval(
-        id: 'apv_real1',
-        kind: ApprovalKind.buyPick,
-        status: ApprovalStatus.pending,
-        title: 'Buy REALX',
-        detail: 'Graduated Momentum · fit 80/70',
-        createdAt: now,
-        expiresAt: now.add(const Duration(minutes: 10)),
-        token: 'tok_real1',
-        strategyId: 'stg_grad',
-        amountLamports: Lamports.fromSol('0.1'),
-        mode: TradeMode.real,
-        pickType: PickType.buy,
-      ));
+      ..debugAddApproval(
+        Approval(
+          id: 'apv_real1',
+          kind: ApprovalKind.buyPick,
+          status: ApprovalStatus.pending,
+          title: 'Buy REALX',
+          detail: 'Graduated Momentum · fit 80/70',
+          createdAt: now,
+          expiresAt: now.add(const Duration(minutes: 10)),
+          token: 'tok_real1',
+          strategyId: 'stg_grad',
+          amountLamports: Lamports.fromSol('0.1'),
+          mode: TradeMode.real,
+          pickType: PickType.buy,
+        ),
+      );
     await tester.pumpWidget(_app(b, '/approvals'));
     await tester.pump();
     expect(find.byKey(const ValueKey('swipe_apv_seed1')), findsOneWidget, reason: 'Practice pick swipeable');
@@ -152,13 +159,98 @@ void main() {
     b.dispose();
   });
 
+  testWidgets('UNSUPPORTED_QUOTE_MINT pick: neutral "not tradeable" badge, no Approve/Skip, no swipe', (tester) async {
+    await _phone(tester);
+    final now = DateTime.now();
+    final b = MockBackend()
+      ..debugAddApproval(
+        Approval(
+          id: 'apv_nt1',
+          kind: ApprovalKind.buyPick,
+          status: ApprovalStatus.pending,
+          title: 'Buy NOPAIR',
+          detail: 'Pullback v2 · fit 90/70',
+          createdAt: now,
+          expiresAt: now.add(const Duration(minutes: 10)),
+          token: 'tok_nt1',
+          strategyId: 'stg_pull',
+          amountLamports: Lamports.fromSol('0.1'),
+          pickType: PickType.buy,
+          reasonCode: unsupportedQuoteMint,
+        ),
+      );
+    await tester.pumpWidget(_app(b, '/approvals'));
+    await tester.pump();
+    final badge = find.byKey(const Key('notTradeable_apv_nt1'), skipOffstage: false);
+    await tester.ensureVisible(badge);
+    await tester.pump();
+    expect(badge, findsOneWidget);
+    final ctx = tester.element(badge);
+    final l = AppLocalizations.of(ctx);
+    expect(find.text(l.screenerNotTradeableBadge), findsOneWidget);
+    expect(find.text(l.screenerNotTradeableDetail), findsOneWidget);
+    // Neutral color (same token as ±0 PnL), not profit/warning.
+    expect(
+      tester
+          .widget<TagChip>(find.ancestor(of: find.text(l.screenerNotTradeableBadge), matching: find.byType(TagChip)))
+          .color,
+      ctx.tradeColors.neutral,
+    );
+    expect(find.byKey(const Key('approve_apv_nt1'), skipOffstage: false), findsNothing);
+    expect(find.byKey(const Key('skip_apv_nt1'), skipOffstage: false), findsNothing);
+    expect(find.byKey(const ValueKey('swipe_apv_nt1'), skipOffstage: false), findsNothing);
+    expect(find.ancestor(of: badge, matching: find.byType(Dismissible)), findsNothing);
+  });
+
+  testWidgets('WF-21 Coins: not-tradeable card is neutral, has no actions, cannot swipe; detail CTA disabled', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final b = MockBackend();
+    await tester.pumpWidget(_app(b, '/coins'));
+    await tester.pumpAndSettle();
+    final card = find.byKey(const Key('coin_USDX'));
+    expect(card, findsOneWidget);
+    final l = AppLocalizations.of(tester.element(card));
+    expect(find.byKey(const Key('notTradeable_USDX')), findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text(l.screenerNotTradeableBadge)), findsOneWidget);
+    // Neutral chip, not red/green; no buttons; not swipeable.
+    final chip = tester.widget<TagChip>(
+      find.descendant(of: find.byKey(const Key('notTradeable_USDX')), matching: find.byType(TagChip)),
+    );
+    expect(chip.color, tester.element(card).tradeColors.neutral);
+    expect(chip.icon, Icons.block);
+    expect(find.descendant(of: card, matching: find.byType(ButtonStyleButton)), findsNothing);
+    expect(find.ancestor(of: card, matching: find.byType(Dismissible)), findsNothing);
+    expect(find.textContaining('Approve'), findsNothing);
+    expect(find.text('Skip'), findsNothing);
+    // Passed coins still link to the queue (control).
+    expect(
+      find.descendant(of: find.byKey(const Key('coin_MOON')), matching: find.text('Buka antrean ›')),
+      findsOneWidget,
+    );
+
+    await tester.tap(card);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('detail_notTradeable')), findsOneWidget);
+    expect(find.text(l.screenerNotTradeableDetail), findsOneWidget);
+    expect(find.text('USDC · bukan SOL'), findsOneWidget);
+    final cta = tester.widget<FilledButton>(find.byKey(const Key('approve_disabled')));
+    expect(cta.onPressed, isNull);
+    expect(find.text('Skip'), findsNothing);
+    // USDX never entered the approval queue.
+    expect(b.debugApprovals.where((a) => a.title.contains('USDX')), isEmpty);
+  });
+
   testWidgets('guard hold Practice is 1,2 s', (tester) async {
     await _phone(tester);
     final b = MockBackend();
     await tester.pumpWidget(_app(b, '/approvals/apv_seed2/review'));
     await tester.pump();
-    expect(tester.widget<HoldToConfirmButton>(find.byKey(const Key('holdConfirm'))).hold,
-        const Duration(milliseconds: 1200));
+    expect(
+      tester.widget<HoldToConfirmButton>(find.byKey(const Key('holdConfirm'))).hold,
+      const Duration(milliseconds: 1200),
+    );
     expect(AppMotion.holdPracticeBase, const Duration(milliseconds: 1200));
     b.dispose();
   });
@@ -168,8 +260,10 @@ void main() {
     final b2 = MockBackend();
     await tester.pumpWidget(_app(b2, '/approvals/apv_seed4/review', realSol: true));
     await tester.pump();
-    expect(tester.widget<HoldToConfirmButton>(find.byKey(const Key('holdConfirm'))).hold,
-        const Duration(milliseconds: 2500));
+    expect(
+      tester.widget<HoldToConfirmButton>(find.byKey(const Key('holdConfirm'))).hold,
+      const Duration(milliseconds: 2500),
+    );
     expect(AppMotion.holdRealBase, const Duration(milliseconds: 2500));
     // Practice-length hold on Real does not decide.
     await tester.enterText(find.byKey(const Key('typedConfirm')), 'Graduated Momentum');
@@ -196,7 +290,10 @@ void main() {
     expect(find.text(realSolDisabledText), findsOneWidget);
     await tester.enterText(find.byKey(const Key('typedConfirm')), 'Graduated Momentum');
     await tester.pump();
-    expect(tester.widget<HoldToConfirmButton>(find.byKey(const Key('holdConfirm'), skipOffstage: false)).enabled, isFalse);
+    expect(
+      tester.widget<HoldToConfirmButton>(find.byKey(const Key('holdConfirm'), skipOffstage: false)).enabled,
+      isFalse,
+    );
     b.dispose();
   });
 

@@ -27,16 +27,24 @@ class MockSentraRpc implements SentraRpc {
   @override
   Future<StrategyWriteResult> setStrategyStatus(SetStrategyStatusRequest r) async {
     _record(Rpc.setStrategyStatus, r.toRpcParams());
-    final s = await backend.setPaused(r.strategyId,
-        paused: r.status != StrategyStatus.running, expectedRev: r.expectedRev);
+    final s = await backend.setPaused(
+      r.strategyId,
+      paused: r.status != StrategyStatus.running,
+      expectedRev: r.expectedRev,
+    );
     return StrategyWriteResult(strategyId: s.id, rev: s.rev, status: s.status, serverNow: backend.serverNow);
   }
 
   @override
   Future<StrategyWriteResult> updateStrategy(UpdateStrategyRequest r) async {
     _record(Rpc.updateStrategy, r.toRpcParams());
-    final s = await backend.updateStrategy(r.strategyId,
-        expectedRev: r.expectedRev, patch: r.patch, name: r.name, status: r.status);
+    final s = await backend.updateStrategy(
+      r.strategyId,
+      expectedRev: r.expectedRev,
+      patch: r.patch,
+      name: r.name,
+      status: r.status,
+    );
     return StrategyWriteResult(strategyId: s.id, rev: s.rev, status: s.status, serverNow: backend.serverNow);
   }
 

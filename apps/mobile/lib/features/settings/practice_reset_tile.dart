@@ -22,11 +22,17 @@ class _PracticeResetTileState extends ConsumerState<PracticeResetTile> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Reset Practice?'),
-        content: const Text('Posisi Practice diarsipkan, pick yang menunggu kedaluwarsa, saldo kembali ke '
-            '30 paper SOL. Hanya 1× per 24 jam.'),
+        content: const Text(
+          'Posisi Practice diarsipkan, pick yang menunggu kedaluwarsa, saldo kembali ke '
+          '30 paper SOL. Hanya 1× per 24 jam.',
+        ),
         actions: [
           FilledButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-          TextButton(key: const Key('confirmReset'), onPressed: () => Navigator.pop(ctx, true), child: const Text('Reset')),
+          TextButton(
+            key: const Key('confirmReset'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reset'),
+          ),
         ],
       ),
     );
@@ -38,14 +44,20 @@ class _PracticeResetTileState extends ConsumerState<PracticeResetTile> {
           .read(practiceResetRepositoryProvider)
           .resetPractice(idempotencyKey: 'reset:${DateTime.now().millisecondsSinceEpoch}');
       ref.read(serverClockProvider.notifier).observe(r.serverNow);
-      messenger.showSnackBar(SnackBar(
-          content: Text('Practice di-reset ke ${fmtSol(r.startingBalance)} paper SOL · epoch ${r.epoch}')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Practice di-reset ke ${fmtSol(r.startingBalance)} paper SOL · epoch ${r.epoch}')),
+      );
     } on ApiException catch (e) {
       final next = DateTime.tryParse('${e.details['next_allowed_at']}');
-      messenger.showSnackBar(SnackBar(
-          content: Text(e.isCode('RESET_COOLDOWN') && next != null
-              ? 'Reset berikutnya bisa pukul ${fmtTime(next.toLocal())}'
-              : e.message)));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            e.isCode('RESET_COOLDOWN') && next != null
+                ? 'Reset berikutnya bisa pukul ${fmtTime(next.toLocal())}'
+                : e.message,
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -53,15 +65,14 @@ class _PracticeResetTileState extends ConsumerState<PracticeResetTile> {
 
   @override
   Widget build(BuildContext context) => ListTile(
-        key: const Key('practiceReset'),
-        leading: const Icon(Icons.restart_alt),
-        title: const Text('Reset Practice'),
-        subtitle: const Text('Kembali ke 30 paper SOL · maks 1× / 24 jam'),
-        enabled: !_busy,
-        onTap: _reset,
-      );
+    key: const Key('practiceReset'),
+    leading: const Icon(Icons.restart_alt),
+    title: const Text('Reset Practice'),
+    subtitle: const Text('Kembali ke 30 paper SOL · maks 1× / 24 jam'),
+    enabled: !_busy,
+    onTap: _reset,
+  );
 }
 
 /// Shows that Real SOL is behind [FeatureFlags.realSolEnabled].
 String realModeStatus(bool enabled) => enabled ? 'Real SOL aktif' : 'Real SOL nonaktif sampai Fase 7';
-

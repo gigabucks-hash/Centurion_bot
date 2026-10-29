@@ -25,3 +25,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  # Static OFL fonts for google_fonts (T-17). Names must END with <Family>-<Weight>
+  # (google_fonts 9 matches assets by suffix), so Google's `Inter_18pt-*.ttf` are renamed.
+  # Do NOT list them under `fonts:` as well. OFL texts ship next to the files.
+  assets:
+    - assets/google_fonts/

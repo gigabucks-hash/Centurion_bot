@@ -13,7 +13,7 @@ void main() {
     expect(formatSol(sol('27.533'), 'id'), '27,53${nb}SOL');
     expect(formatSol(sol('-0.066'), 'en', pnl: true), '−0.066${nb}SOL');
     expect(formatSol(sol('0.031'), 'id', pnl: true, paper: true), '+0,031${nb}paper SOL');
-    expect(formatSol(sol('0'), 'en', pnl: true), '0.000${nb}SOL');
+    expect(formatSol(sol('0'), 'en', pnl: true), '0.00${nb}SOL'); // T-15 / i18n 0.4.2
     expect(formatSol(sol('0.004123'), 'en'), '0.004123${nb}SOL');
   });
   test('formatPct / formatUsd / formatTime / countdown', () {

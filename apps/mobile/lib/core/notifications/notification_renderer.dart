@@ -44,12 +44,12 @@ class NotificationRenderer {
 
   /// Copy key for a message (variant selection).
   static String copyKeyFor(PushMessage m) => switch (m.event) {
-        NotifEvent.n05Failed => m.mode == NotifMode.real ? 'N-05.real' : 'N-05',
-        NotifEvent.n07Expired => expireReasonKeys[m.expireReason] ?? 'N-07a',
-        NotifEvent.n12WeakeningActive => m.mode == NotifMode.real ? 'N-12.real' : 'N-12',
-        NotifEvent.n14ModeSwitch => m.mode == NotifMode.real ? 'N-14.real' : 'N-14.practice',
-        _ => m.event.code,
-      };
+    NotifEvent.n05Failed => m.mode == NotifMode.real ? 'N-05.real' : 'N-05',
+    NotifEvent.n07Expired => expireReasonCopyKey(m.expireReason),
+    NotifEvent.n12WeakeningActive => m.mode == NotifMode.real ? 'N-12.real' : 'N-12',
+    NotifEvent.n14ModeSwitch => m.mode == NotifMode.real ? 'N-14.real' : 'N-14.practice',
+    _ => m.event.code,
+  };
 
   /// Security filter on top of the spec table:
   /// - Approve only for Practice picks with a valid single-use token;
@@ -58,9 +58,13 @@ class NotificationRenderer {
   /// - Real SOL picks: no Approve ever; Skip only if
   ///   [NotificationPolicy.realSkipFromNotification] (off per team lead).
   /// - Grouped picks: no buttons.
+  /// - Not tradeable (`reason_code=UNSUPPORTED_QUOTE_MINT`): never Approve/Skip.
   List<NotifAction> actionsFor(PushMessage m, DateTime now, {bool grouped = false}) {
     final real = m.mode == NotifMode.real;
     final base = real ? m.event.spec.realActions : m.event.spec.practiceActions;
+    if (m.notTradeable) {
+      return List.unmodifiable(base.where((a) => a != NotifAction.approve && a != NotifAction.skip));
+    }
     if (!m.event.isPick) return List.unmodifiable(base);
     if (grouped) return const [];
     if (real) {
@@ -75,13 +79,23 @@ class NotificationRenderer {
     ];
   }
 
-  RenderedNotification render(PushMessage m, NotifLocale locale, DateTime now,
-      {int groupCount = 0, Duration clockSkew = Duration.zero}) {
+  RenderedNotification render(
+    PushMessage m,
+    NotifLocale locale,
+    DateTime now, {
+    int groupCount = 0,
+    Duration clockSkew = Duration.zero,
+  }) {
     final grouped = m.event.isPick && groupCount > 3;
     final key = grouped ? 'group' : copyKeyFor(m);
     final vars = _formatVars(m, locale, now.add(clockSkew));
-    final copy = notifCopy(l10nFor(locale), key, m.mode == NotifMode.real ? 'real' : 'practice', vars,
-        count: groupCount);
+    final copy = notifCopy(
+      l10nFor(locale),
+      key,
+      m.mode == NotifMode.real ? 'real' : 'practice',
+      vars,
+      count: groupCount,
+    );
     final priority = m.event == NotifEvent.n14ModeSwitch && m.mode == NotifMode.real
         ? NotifPriority.high
         : m.event.spec.priority;
@@ -102,23 +116,40 @@ class NotificationRenderer {
   /// Wire: `sol`/`pnl` are SOL decimal strings (or `*_lamports` integer
   /// strings), `price` a USD decimal string, pct values JSON numbers.
   /// Money is parsed to [Lamports]/[Decimal], never double.
+  /// i18n 0.4.1 N-05: `amount_lamports` → Lamports formatter, `reason_code` →
+  /// `order.fail_reason.*` copy (unknown → `.unknown`), `symbol` like `coin`,
+  /// `side` passed through for the ICU select. Timestamps (`cooldown_until`,
+  /// `auto_revert_at`, `scheduled_for`) → local time + zone.
   Map<String, String> _formatVars(PushMessage m, NotifLocale locale, DateTime now) {
     final loc = locale.name;
     final paper = m.mode != NotifMode.real;
     final out = <String, String>{};
     Lamports? lamports(String k) =>
         Lamports.tryParse(m.vars['${k}_lamports']) ?? _tryOr(() => Lamports.fromSol(m.vars[k]!), m.vars[k]);
-    String pnl(Lamports v) => '${v.isZero ? '' : v.isNegative ? '▼ ' : '▲ '}${formatSol(v, loc, pnl: true, paper: paper)}';
+    String pnl(Lamports v) {
+      final p = pnlSol(v, loc, paper: paper);
+      return p.arrow.isEmpty ? p.text : '${p.arrow} ${p.text}';
+    }
+
     m.vars.forEach((k, raw) {
       out[k] = switch (k) {
-        'coin' => raw.startsWith(r'$') ? raw : '\$$raw',
+        'coin' || 'symbol' => raw.startsWith(r'$') ? raw : '\$$raw',
+        'amount_lamports' => _or(Lamports.tryParse(raw), raw, (v) => formatSol(v, loc, paper: paper)),
+        'reason_code' => orderFailReason(l10nFor(locale), raw),
         'sol' || 'sol_lamports' => _or(lamports('sol'), raw, (v) => formatSol(v, loc, paper: paper)),
         // ARB has no glyph: SPEC §1 requires ▲/▼ + sign on every PnL.
         'pnl' || 'pnl_lamports' => _or(lamports('pnl'), raw, pnl),
-        'pct' => _or(num.tryParse(raw), raw, (v) => formatPct(v, loc, signed: m.event == NotifEvent.n09StopHit)),
+        'pct' => _or(
+          num.tryParse(raw),
+          raw,
+          (v) => formatPct(v, loc, signed: m.event == NotifEvent.n08TpHit || m.event == NotifEvent.n09StopHit),
+        ),
         'pct_sold' => _or(num.tryParse(raw), raw, (v) => formatPct(v, loc)),
         'price' || 'price_usd' => _or(Decimal.tryParse(raw), raw, (v) => formatUsd(v, loc)),
-        'time' => _or(_parseTime(raw), raw, (t) => formatTime(t.toLocal(), loc, zone: zoneLabel)),
+        'time' ||
+        'cooldown_until' ||
+        'auto_revert_at' ||
+        'scheduled_for' => _or(_parseTime(raw), raw, (t) => formatTime(t.toLocal(), loc, zone: zoneLabel)),
         _ => raw,
       };
     });
@@ -126,7 +157,7 @@ class NotificationRenderer {
     if (out.containsKey('pnl_lamports')) out['pnl'] = out.remove('pnl_lamports')!;
     if (out.containsKey('price_usd')) out['price'] = out.remove('price_usd')!;
     // Countdown is always client-computed from exp − (now + skew); `vars.mm_ss` is ignored.
-    if (m.expiresAt != null) out['mm:ss'] = formatCountdown(m.expiresAt!.difference(now.toUtc()));
+    if (m.expiresAt != null) out['mm_ss'] = formatCountdown(m.expiresAt!.difference(now.toUtc()));
     return out;
   }
 

@@ -142,12 +142,13 @@
   "@builderStepValid": {
     "description": "builder.step.valid"
   },
-  "builderStepWeakened": "{count, plural, one {# setting loosened} other {# settings loosened}}",
+  "builderStepWeakened": "{count,plural,one{{count} setting loosened} other{{count} settings loosened}}",
   "@builderStepWeakened": {
     "description": "builder.step.weakened",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -265,30 +266,33 @@
   "@commonActionView": {
     "description": "common.action.view"
   },
-  "commonDurationHours": "{count, plural, one {# hour} other {# hours}}",
+  "commonDurationHours": "{count,plural,one{{count} hour} other{{count} hours}}",
   "@commonDurationHours": {
     "description": "common.duration.hours",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
-  "commonDurationMinutes": "{count, plural, one {# min} other {# min}}",
+  "commonDurationMinutes": "{count,plural,one{{count} min} other{{count} min}}",
   "@commonDurationMinutes": {
     "description": "common.duration.minutes",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
-  "commonDurationSeconds": "{count, plural, one {# s} other {# s}}",
+  "commonDurationSeconds": "{count,plural,one{{count} s} other{{count} s}}",
   "@commonDurationSeconds": {
     "description": "common.duration.seconds",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -327,14 +331,18 @@
   "@commonStateSaving": {
     "description": "common.state.saving"
   },
-  "commonTimerLeft": "{time} left",
+  "commonTimerLeft": "{mm_ss} left",
   "@commonTimerLeft": {
-    "description": "time = mm:ss from expires_at",
+    "description": "mm_ss = expires_at − (local_now + skew), skew from server_now",
     "placeholders": {
-      "time": {
+      "mm_ss": {
         "type": "String"
       }
     }
+  },
+  "commonYou": "You",
+  "@commonYou": {
+    "description": "common.you"
   },
   "conflictActionDiscard": "Discard my edits",
   "@conflictActionDiscard": {
@@ -348,30 +356,52 @@
   "@conflictActionReview": {
     "description": "conflict.action.review"
   },
-  "conflictBannerBody": "{actor} saved rev {theirs} at {time}. Your edits are based on rev {base} and have not been saved.",
+  "conflictBannerBody": "Saved as rev {current_rev}. Your edits are based on rev {base_rev} and have not been saved.",
   "@conflictBannerBody": {
-    "description": "conflict.banner.body",
+    "description": "409 body: current_rev, base_rev",
     "placeholders": {
-      "actor": {
+      "base_rev": {
         "type": "String"
       },
-      "base": {
-        "type": "String"
-      },
-      "theirs": {
-        "type": "String"
-      },
-      "time": {
+      "current_rev": {
         "type": "String"
       }
     }
   },
-  "conflictBannerConflicts": "{count, plural, =0 {No overlapping fields — your edits can be merged.} one {# field changed on both sides.} other {# fields changed on both sides.}}",
+  "conflictBannerChangedBy": "Changed by {actor} via {via, select, web {web} mobile {mobile} desktop {desktop} mcp {MCP agent} push {notification} other {app}} on {device} · {changed_at}",
+  "@conflictBannerChangedBy": {
+    "description": "changed_by.actor -> display name (or common.you), changed_by.via enum, changed_by.device model, changed_at -> formatDateTime",
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      },
+      "changed_at": {
+        "type": "String"
+      },
+      "device": {
+        "type": "String"
+      },
+      "via": {
+        "type": "String"
+      }
+    }
+  },
+  "conflictBannerConflicts": "{count,plural,one{{count} field changed on both sides.} other{{count} fields changed on both sides.} =0{No overlapping fields — your edits can be merged.}}",
   "@conflictBannerConflicts": {
     "description": "conflict.banner.conflicts",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "conflictBannerFields": "Changed fields: {fields}",
+  "@conflictBannerFields": {
+    "description": "changed_fields -> localized labels joined with Intl.ListFormat",
+    "placeholders": {
+      "fields": {
+        "type": "String"
       }
     }
   },
@@ -410,18 +440,23 @@
       }
     }
   },
-  "conflictDiscardConfirm": "Discard {count, plural, one {# edit} other {# edits}}? This can’t be undone.",
+  "conflictDiscardConfirm": "Discard {count,plural,one{{count} edit} other{{count} edits}}? This can’t be undone.",
   "@conflictDiscardConfirm": {
     "description": "conflict.discard.confirm",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
-  "conflictRealGuardReconfirm": "A guard change on a Real SOL strategy must be confirmed again after merging.",
+  "conflictGuardChangeCancelled": "Your pending guard change was cancelled because the strategy was edited elsewhere. Request it again.",
+  "@conflictGuardChangeCancelled": {
+    "description": "guard.changed status=cancelled"
+  },
+  "conflictRealGuardReconfirm": "This loosens a guard on a Real SOL strategy. The full confirmation starts over, and the 10-minute cooldown and 24-hour auto-revert restart from the new confirmation.",
   "@conflictRealGuardReconfirm": {
-    "description": "conflict.real_guard.reconfirm"
+    "description": "409 CONFIRMATION_RESTART_REQUIRED"
   },
   "conflictStateMerged": "Merged onto rev {rev}. Review, then publish.",
   "@conflictStateMerged": {
@@ -468,12 +503,13 @@
   "@dashboardKpiCash": {
     "description": "dashboard.kpi.cash"
   },
-  "dashboardKpiExpiringSoon": "{count, plural, one {# expires in under 2 min} other {# expire in under 2 min}}",
+  "dashboardKpiExpiringSoon": "{count,plural,one{{count} expires in under 2 min} other{{count} expire in under 2 min}}",
   "@dashboardKpiExpiringSoon": {
     "description": "dashboard.kpi.expiring_soon",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -533,6 +569,244 @@
   "dashboardTitle": "Team overview",
   "@dashboardTitle": {
     "description": "dashboard.title"
+  },
+  "errorCodeAccountDeletionBlocked": "Close your Real SOL positions and withdraw your trading wallet first.",
+  "@errorCodeAccountDeletionBlocked": {
+    "description": "wire error.code ACCOUNT_DELETION_BLOCKED"
+  },
+  "errorCodeAccountDeletionPending": "Account deletion is already scheduled.",
+  "@errorCodeAccountDeletionPending": {
+    "description": "wire error.code ACCOUNT_DELETION_PENDING"
+  },
+  "errorCodeApprovalAlreadyDecided": "This was already decided on another device.",
+  "@errorCodeApprovalAlreadyDecided": {
+    "description": "wire error.code APPROVAL_ALREADY_DECIDED"
+  },
+  "errorCodeApprovalExpired": "This proposal expired: {reason}",
+  "@errorCodeApprovalExpired": {
+    "description": "wire error.code APPROVAL_EXPIRED",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "errorCodeApprovalTokenInvalid": "This notification action expired. Open the app to continue.",
+  "@errorCodeApprovalTokenInvalid": {
+    "description": "wire error.code APPROVAL_TOKEN_INVALID"
+  },
+  "errorCodeAuthTgInvalid": "Telegram login couldn’t be verified. Try again.",
+  "@errorCodeAuthTgInvalid": {
+    "description": "wire error.code AUTH_TG_INVALID"
+  },
+  "errorCodeAuthTgNoProfile": "Allow Telegram to share your profile to sign in.",
+  "@errorCodeAuthTgNoProfile": {
+    "description": "wire error.code AUTH_TG_NO_PROFILE"
+  },
+  "errorCodeAuthTgReplay": "This Telegram login was already used. Start again.",
+  "@errorCodeAuthTgReplay": {
+    "description": "wire error.code AUTH_TG_REPLAY"
+  },
+  "errorCodeConfirmationRestartRequired": "The strategy changed during confirmation. Start the confirmation again.",
+  "@errorCodeConfirmationRestartRequired": {
+    "description": "wire error.code CONFIRMATION_RESTART_REQUIRED"
+  },
+  "errorCodeGuardCooldownActive": "This guard change is in its cooldown.",
+  "@errorCodeGuardCooldownActive": {
+    "description": "wire error.code GUARD_COOLDOWN_ACTIVE"
+  },
+  "errorCodeHoldTooShort": "Released too early. Hold until the bar is full.",
+  "@errorCodeHoldTooShort": {
+    "description": "wire error.code HOLD_TOO_SHORT"
+  },
+  "errorCodeInternal": "Something went wrong. Try again.",
+  "@errorCodeInternal": {
+    "description": "wire error.code INTERNAL"
+  },
+  "errorCodeLastLoginMethod": "This is your only sign-in method. Link another one before unlinking.",
+  "@errorCodeLastLoginMethod": {
+    "description": "wire error.code LAST_LOGIN_METHOD"
+  },
+  "errorCodeOtpInvalid": "Wrong or expired code.",
+  "@errorCodeOtpInvalid": {
+    "description": "wire error.code OTP_INVALID"
+  },
+  "errorCodeOtpLocked": "Too many attempts. Try again in 15 minutes.",
+  "@errorCodeOtpLocked": {
+    "description": "wire error.code OTP_LOCKED"
+  },
+  "errorCodeRateLimited": "Too many requests. Try again in {retry_after_s,plural,one{{retry_after_s} second} other{{retry_after_s} seconds}}.",
+  "@errorCodeRateLimited": {
+    "description": "wire error.code RATE_LIMITED",
+    "placeholders": {
+      "retry_after_s": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "errorCodeRealSolDisabled": "Real SOL isn’t available yet.",
+  "@errorCodeRealSolDisabled": {
+    "description": "wire error.code REAL_SOL_DISABLED"
+  },
+  "errorCodeReauthRequired": "Please confirm it’s you again to continue.",
+  "@errorCodeReauthRequired": {
+    "description": "wire error.code REAUTH_REQUIRED"
+  },
+  "errorCodeResetCooldown": "Practice can be reset once a day. Next: {next_allowed_at}",
+  "@errorCodeResetCooldown": {
+    "description": "wire error.code RESET_COOLDOWN",
+    "placeholders": {
+      "next_allowed_at": {
+        "type": "String"
+      }
+    }
+  },
+  "errorCodeSiwsNonceInvalid": "This sign-in request expired. Try again.",
+  "@errorCodeSiwsNonceInvalid": {
+    "description": "wire error.code SIWS_NONCE_INVALID"
+  },
+  "errorCodeSiwsSignatureInvalid": "The wallet signature couldn’t be verified.",
+  "@errorCodeSiwsSignatureInvalid": {
+    "description": "wire error.code SIWS_SIGNATURE_INVALID"
+  },
+  "errorCodeStrategyRevConflict": "This strategy changed while you were editing.",
+  "@errorCodeStrategyRevConflict": {
+    "description": "wire error.code STRATEGY_REV_CONFLICT"
+  },
+  "errorCodeTwoFactorRequired": "Enter your two-factor code to continue.",
+  "@errorCodeTwoFactorRequired": {
+    "description": "wire error.code TWO_FACTOR_REQUIRED"
+  },
+  "errorCodeTypedConfirmationMismatch": "The name doesn’t match exactly.",
+  "@errorCodeTypedConfirmationMismatch": {
+    "description": "wire error.code TYPED_CONFIRMATION_MISMATCH"
+  },
+  "errorCodeUnavailable": "Service is temporarily unavailable. Retrying…",
+  "@errorCodeUnavailable": {
+    "description": "wire error.code UNAVAILABLE"
+  },
+  "errorCodeWalletRoleConflict": "A sign-in wallet can’t also be your trading wallet.",
+  "@errorCodeWalletRoleConflict": {
+    "description": "wire error.code WALLET_ROLE_CONFLICT"
+  },
+  "exitReasonDrawdownHalt": "Drawdown halt",
+  "@exitReasonDrawdownHalt": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonIdle": "No-trade exit",
+  "@exitReasonIdle": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonLossGuard": "Stop loss",
+  "@exitReasonLossGuard": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonManual": "Manual sell",
+  "@exitReasonManual": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonMaxHold": "Time stop",
+  "@exitReasonMaxHold": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonNoNewHigh": "No new high",
+  "@exitReasonNoNewHigh": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonPeakTrail": "Trailing stop",
+  "@exitReasonPeakTrail": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonPracticeReset": "Practice reset",
+  "@exitReasonPracticeReset": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonProfitTarget": "Take profit",
+  "@exitReasonProfitTarget": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonRugDetected": "Rug detected",
+  "@exitReasonRugDetected": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonSellFloor": "Sell floor",
+  "@exitReasonSellFloor": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonSellPressure": "Sell pressure",
+  "@exitReasonSellPressure": {
+    "description": "wire ExitReason"
+  },
+  "exitReasonStrategyRetired": "Strategy retired",
+  "@exitReasonStrategyRetired": {
+    "description": "wire ExitReason"
+  },
+  "expireReasonAccountDeletedBadge": "Account deleted",
+  "@expireReasonAccountDeletedBadge": {
+    "description": "queue chip for proposal.expired reason=account_deleted"
+  },
+  "expireReasonAccountDeletedDetail": "The account was deleted",
+  "@expireReasonAccountDeletedDetail": {
+    "description": "detail line / N-07 body for reason=account_deleted"
+  },
+  "expireReasonGuardFailedBadge": "Guard failed",
+  "@expireReasonGuardFailedBadge": {
+    "description": "queue chip for proposal.expired reason=guard_failed"
+  },
+  "expireReasonGuardFailedDetail": "A guard check failed while waiting",
+  "@expireReasonGuardFailedDetail": {
+    "description": "detail line / N-07 body for reason=guard_failed"
+  },
+  "expireReasonPracticeResetBadge": "Practice reset",
+  "@expireReasonPracticeResetBadge": {
+    "description": "queue chip for proposal.expired reason=practice_reset"
+  },
+  "expireReasonPracticeResetDetail": "Practice was reset; pending buys were cleared",
+  "@expireReasonPracticeResetDetail": {
+    "description": "detail line / N-07 body for reason=practice_reset"
+  },
+  "expireReasonPriceMovedBadge": "Price moved",
+  "@expireReasonPriceMovedBadge": {
+    "description": "queue chip for proposal.expired reason=price_moved"
+  },
+  "expireReasonPriceMovedDetail": "Price moved past the entry limit",
+  "@expireReasonPriceMovedDetail": {
+    "description": "detail line / N-07 body for reason=price_moved"
+  },
+  "expireReasonStrategyArchivedBadge": "Strategy archived",
+  "@expireReasonStrategyArchivedBadge": {
+    "description": "queue chip for proposal.expired reason=strategy_archived"
+  },
+  "expireReasonStrategyArchivedDetail": "{strategy} was archived while this waited",
+  "@expireReasonStrategyArchivedDetail": {
+    "description": "detail line / N-07 body for reason=strategy_archived",
+    "placeholders": {
+      "strategy": {
+        "type": "String"
+      }
+    }
+  },
+  "expireReasonStrategyDeletedBadge": "Strategy deleted",
+  "@expireReasonStrategyDeletedBadge": {
+    "description": "queue chip for proposal.expired reason=strategy_deleted"
+  },
+  "expireReasonStrategyDeletedDetail": "{strategy} was deleted while this waited",
+  "@expireReasonStrategyDeletedDetail": {
+    "description": "detail line / N-07 body for reason=strategy_deleted",
+    "placeholders": {
+      "strategy": {
+        "type": "String"
+      }
+    }
+  },
+  "expireReasonTimeoutBadge": "Timed out",
+  "@expireReasonTimeoutBadge": {
+    "description": "queue chip for proposal.expired reason=timeout"
+  },
+  "expireReasonTimeoutDetail": "Approval window ended",
+  "@expireReasonTimeoutDetail": {
+    "description": "detail line / N-07 body for reason=timeout"
   },
   "feedActorEntry": "Entry",
   "@feedActorEntry": {
@@ -627,6 +901,54 @@
         "type": "String"
       }
     }
+  },
+  "guardImpactEstimateBody": "Up to {max_extra_passes} more coins could pass per {window}. Based on rules, not a replay.",
+  "@guardImpactEstimateBody": {
+    "description": "POST …/guard-impact/estimate",
+    "placeholders": {
+      "max_extra_passes": {
+        "type": "String"
+      },
+      "window": {
+        "type": "String"
+      }
+    }
+  },
+  "guardImpactEstimateLabel": "Estimate",
+  "@guardImpactEstimateLabel": {
+    "description": "method static_v1; always visible until replay result arrives"
+  },
+  "guardImpactReplayBody": "{newly_passing} more would have passed, {newly_passing_rugged} of them rugged ({samples} samples).",
+  "@guardImpactReplayBody": {
+    "description": "guard.impact.replay_body",
+    "placeholders": {
+      "newly_passing": {
+        "type": "String"
+      },
+      "newly_passing_rugged": {
+        "type": "String"
+      },
+      "samples": {
+        "type": "String"
+      }
+    }
+  },
+  "guardImpactReplayLabel": "Replay · {window}",
+  "@guardImpactReplayLabel": {
+    "description": "GUARD_REPLAY_ENABLED on",
+    "placeholders": {
+      "window": {
+        "type": "String"
+      }
+    }
+  },
+  "guardImpactReplayLoading": "Running replay… showing the estimate meanwhile",
+  "@guardImpactReplayLoading": {
+    "description": "guard.impact.replay_loading"
+  },
+  "guardImpactReplayUnavailable": "Replay unavailable right now. Showing the estimate.",
+  "@guardImpactReplayUnavailable": {
+    "description": "503 REPLAY_UNAVAILABLE"
   },
   "guardWeakenAfterAudit": "Recorded in the audit log (who, when, device, diff)",
   "@guardWeakenAfterAudit": {
@@ -764,12 +1086,13 @@
   "@loginOtpTitle": {
     "description": "login.otp.title"
   },
-  "loginOtpWrong": "{remaining, plural, one {Wrong code. # attempt left.} other {Wrong code. # attempts left.}}",
+  "loginOtpWrong": "{remaining,plural,one{Wrong code. {remaining} attempt left.} other{Wrong code. {remaining} attempts left.}}",
   "@loginOtpWrong": {
     "description": "login.otp.wrong",
     "placeholders": {
       "remaining": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -781,19 +1104,27 @@
   "@loginSubtitle": {
     "description": "login.subtitle"
   },
-  "loginTelegramExpired": "This link expired. Request a new one.",
-  "@loginTelegramExpired": {
-    "description": "login.telegram.expired"
+  "loginTelegramCancelled": "Telegram login was cancelled. Nothing changed.",
+  "@loginTelegramCancelled": {
+    "description": "login.telegram.cancelled"
   },
-  "loginTelegramReopen": "Open Telegram again",
-  "@loginTelegramReopen": {
-    "description": "login.telegram.reopen"
+  "loginTelegramConsent": "Telegram shares your name, username and photo with Sentra.",
+  "@loginTelegramConsent": {
+    "description": "login.telegram.consent"
   },
-  "loginTelegramTitle": "Continue in Telegram",
+  "loginTelegramRetry": "Try Telegram again",
+  "@loginTelegramRetry": {
+    "description": "login.telegram.retry"
+  },
+  "loginTelegramTitle": "Log in with Telegram",
   "@loginTelegramTitle": {
     "description": "login.telegram.title"
   },
-  "loginTelegramWaiting": "Waiting for confirmation…",
+  "loginTelegramUnavailable": "Telegram login is not available yet. Use another method.",
+  "@loginTelegramUnavailable": {
+    "description": "flag AUTH_TELEGRAM_OIDC_ENABLED=false"
+  },
+  "loginTelegramWaiting": "Confirm in Telegram…",
   "@loginTelegramWaiting": {
     "description": "login.telegram.waiting"
   },
@@ -899,36 +1230,57 @@
   },
   "notifActionApprove": "Approve",
   "@notifActionApprove": {
-    "description": "Practice only, valid approval token"
+    "description": "Practice buy_pick only, valid token"
   },
   "notifActionCancelChange": "Cancel change",
   "@notifActionCancelChange": {
     "description": "notif.action.cancel_change"
   },
-  "notifActionOpenPick": "Open pick",
-  "@notifActionOpenPick": {
-    "description": "Real SOL: replaces Approve"
+  "notifActionOpen": "Open",
+  "@notifActionOpen": {
+    "description": "only action for Real, guard changes, team actions"
   },
   "notifActionSkip": "Skip",
   "@notifActionSkip": {
-    "description": "notif.action.skip"
+    "description": "Practice buy_pick only (push); Real: in-app only"
   },
   "notifApprovedBody": "Order is being placed",
   "@notifApprovedBody": {
-    "description": "notif.approved.body"
+    "description": "N-03"
   },
   "notifApprovedTitle": "Approved: {coin}",
   "@notifApprovedTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-03; placeholders = push vars (snake_case)",
     "placeholders": {
       "coin": {
         "type": "String"
       }
     }
   },
+  "notifDeletionCancelledBody": "Your account stays active.",
+  "@notifDeletionCancelledBody": {
+    "description": "N-22"
+  },
+  "notifDeletionCancelledTitle": "Account deletion cancelled",
+  "@notifDeletionCancelledTitle": {
+    "description": "N-22; placeholders = push vars (snake_case)"
+  },
+  "notifDeletionScheduledBody": "Your account will be deleted on {scheduled_for}. Cancel in Settings if this wasn’t you.",
+  "@notifDeletionScheduledBody": {
+    "description": "N-21",
+    "placeholders": {
+      "scheduled_for": {
+        "type": "String"
+      }
+    }
+  },
+  "notifDeletionScheduledTitle": "Account deletion scheduled",
+  "@notifDeletionScheduledTitle": {
+    "description": "N-21; placeholders = push vars (snake_case)"
+  },
   "notifExpiredBody": "{reason}",
   "@notifExpiredBody": {
-    "description": "notif.expired.body",
+    "description": "N-07",
     "placeholders": {
       "reason": {
         "type": "String"
@@ -937,7 +1289,7 @@
   },
   "notifExpiredTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} expired",
   "@notifExpiredTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-07; placeholders = push vars (snake_case)",
     "placeholders": {
       "coin": {
         "type": "String"
@@ -947,33 +1299,39 @@
       }
     }
   },
-  "notifFailedBody": "{reason}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}",
+  "notifFailedBody": "{reason_code} · {amount_lamports}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}",
   "@notifFailedBody": {
-    "description": "notif.failed.body",
+    "description": "N-05",
     "placeholders": {
+      "amount_lamports": {
+        "type": "String"
+      },
       "mode": {
         "type": "String"
       },
-      "reason": {
+      "reason_code": {
         "type": "String"
       }
     }
   },
-  "notifFailedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy {coin} failed",
+  "notifFailedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {side, select, sell {Sell} other {Buy}} {symbol} failed",
   "@notifFailedTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-05; placeholders = push vars (snake_case)",
     "placeholders": {
-      "coin": {
+      "mode": {
         "type": "String"
       },
-      "mode": {
+      "side": {
+        "type": "String"
+      },
+      "symbol": {
         "type": "String"
       }
     }
   },
   "notifFilledBody": "{sol} at {price} · exit plan armed",
   "@notifFilledBody": {
-    "description": "notif.filled.body",
+    "description": "N-04",
     "placeholders": {
       "price": {
         "type": "String"
@@ -985,7 +1343,7 @@
   },
   "notifFilledTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {coin}",
   "@notifFilledTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-04; placeholders = push vars (snake_case)",
     "placeholders": {
       "coin": {
         "type": "String"
@@ -995,10 +1353,13 @@
       }
     }
   },
-  "notifFirstBuyBody": "This strategy hasn’t bought yet. Review before it starts · {sol}",
+  "notifFirstBuyBody": "This strategy hasn’t bought yet. Review before it starts · {sol} · {mm_ss} left",
   "@notifFirstBuyBody": {
-    "description": "notif.first_buy.body",
+    "description": "N-02",
     "placeholders": {
+      "mm_ss": {
+        "type": "String"
+      },
       "sol": {
         "type": "String"
       }
@@ -1006,7 +1367,7 @@
   },
   "notifFirstBuyTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {coin}",
   "@notifFirstBuyTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-02; placeholders = push vars (snake_case)",
     "placeholders": {
       "coin": {
         "type": "String"
@@ -1021,32 +1382,33 @@
   },
   "notifGroupedBody": "Open the queue to review",
   "@notifGroupedBody": {
-    "description": "notif.grouped.body"
+    "description": "N-18"
   },
-  "notifGroupedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {count, plural, one {# pick awaits approval} other {# picks await approval}}",
+  "notifGroupedTitle": "[{mode,select,other{PRACTICE} real{REAL SOL}}] {count,plural,one{{count} pick awaits approval} other{{count} picks await approval}}",
   "@notifGroupedTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-18; placeholders = push vars (snake_case)",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       },
       "mode": {
         "type": "String"
       }
     }
   },
-  "notifGuardActiveBody": "Auto-reverts {time}",
+  "notifGuardActiveBody": "Auto-reverts {auto_revert_at}",
   "@notifGuardActiveBody": {
-    "description": "notif.guard_active.body",
+    "description": "N-12",
     "placeholders": {
-      "time": {
+      "auto_revert_at": {
         "type": "String"
       }
     }
   },
   "notifGuardActiveTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} guard is now looser",
   "@notifGuardActiveTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-12; placeholders = push vars (snake_case)",
     "placeholders": {
       "mode": {
         "type": "String"
@@ -1056,25 +1418,43 @@
       }
     }
   },
-  "notifGuardCooldownBody": "{strategy}: effective {time}. Cancel if this wasn’t you.",
-  "@notifGuardCooldownBody": {
-    "description": "notif.guard_cooldown.body",
+  "notifGuardCancelledBody": "{strategy} was edited elsewhere. Request the change again.",
+  "@notifGuardCancelledBody": {
+    "description": "N-19",
     "placeholders": {
       "strategy": {
         "type": "String"
+      }
+    }
+  },
+  "notifGuardCancelledTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change cancelled",
+  "@notifGuardCancelledTitle": {
+    "description": "N-19; placeholders = push vars (snake_case)",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "notifGuardCooldownBody": "{strategy}: effective {cooldown_until}. Cancel if this wasn’t you.",
+  "@notifGuardCooldownBody": {
+    "description": "N-11",
+    "placeholders": {
+      "cooldown_until": {
+        "type": "String"
       },
-      "time": {
+      "strategy": {
         "type": "String"
       }
     }
   },
   "notifGuardCooldownTitle": "[REAL SOL] Guard loosens in 10 min",
   "@notifGuardCooldownTitle": {
-    "description": "mode = real | practice (select); labels never translated"
+    "description": "N-11; placeholders = push vars (snake_case)"
   },
   "notifGuardRequestedBody": "{strategy}: {setting} {from} → {to} loosens a guard",
   "@notifGuardRequestedBody": {
-    "description": "notif.guard_requested.body",
+    "description": "N-10",
     "placeholders": {
       "from": {
         "type": "String"
@@ -1092,7 +1472,7 @@
   },
   "notifGuardRequestedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change pending",
   "@notifGuardRequestedTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-10; placeholders = push vars (snake_case)",
     "placeholders": {
       "mode": {
         "type": "String"
@@ -1101,7 +1481,7 @@
   },
   "notifGuardRevertedBody": "{setting} back to {from}",
   "@notifGuardRevertedBody": {
-    "description": "notif.guard_reverted.body",
+    "description": "N-13",
     "placeholders": {
       "from": {
         "type": "String"
@@ -1113,7 +1493,7 @@
   },
   "notifGuardRevertedTitle": "[REAL SOL] {strategy} guard restored",
   "@notifGuardRevertedTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-13; placeholders = push vars (snake_case)",
     "placeholders": {
       "strategy": {
         "type": "String"
@@ -1122,7 +1502,7 @@
   },
   "notifLossStopBody": "Down {pct} from peak. Re-arm needs approval.",
   "@notifLossStopBody": {
-    "description": "notif.loss_stop.body",
+    "description": "N-15",
     "placeholders": {
       "pct": {
         "type": "String"
@@ -1131,7 +1511,7 @@
   },
   "notifLossStopTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} paused",
   "@notifLossStopTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-15; placeholders = push vars (snake_case)",
     "placeholders": {
       "mode": {
         "type": "String"
@@ -1143,46 +1523,46 @@
   },
   "notifModePracticeBody": "Orders use paper SOL",
   "@notifModePracticeBody": {
-    "description": "notif.mode_practice.body"
+    "description": "N-14b"
   },
   "notifModePracticeTitle": "Back to PRACTICE",
   "@notifModePracticeTitle": {
-    "description": "mode = real | practice (select); labels never translated"
+    "description": "N-14b; placeholders = push vars (snake_case)"
   },
   "notifModeRealBody": "Next orders use real SOL",
   "@notifModeRealBody": {
-    "description": "notif.mode_real.body"
+    "description": "N-14"
   },
   "notifModeRealTitle": "Now in REAL SOL",
   "@notifModeRealTitle": {
-    "description": "mode = real | practice (select); labels never translated"
+    "description": "N-14; placeholders = push vars (snake_case)"
   },
   "notifOfflineBody": "Data may be delayed. Retrying…",
   "@notifOfflineBody": {
-    "description": "notif.offline.body"
+    "description": "N-16"
   },
   "notifOfflineTitle": "Lost connection to server",
   "@notifOfflineTitle": {
-    "description": "mode = real | practice (select); labels never translated"
+    "description": "N-16; placeholders = push vars (snake_case)"
   },
-  "notifPickPendingBody": "{strategy} · {sol} · {time} left",
+  "notifPickPendingBody": "{strategy} · {sol} · {mm_ss} left",
   "@notifPickPendingBody": {
-    "description": "notif.pick_pending.body",
+    "description": "N-01",
     "placeholders": {
+      "mm_ss": {
+        "type": "String"
+      },
       "sol": {
         "type": "String"
       },
       "strategy": {
-        "type": "String"
-      },
-      "time": {
         "type": "String"
       }
     }
   },
   "notifPickPendingTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} awaits approval",
   "@notifPickPendingTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-01; placeholders = push vars (snake_case)",
     "placeholders": {
       "coin": {
         "type": "String"
@@ -1192,9 +1572,22 @@
       }
     }
   },
+  "notifPracticeResetBody": "Balance back to {sol}. Pending buys were cleared.",
+  "@notifPracticeResetBody": {
+    "description": "N-20",
+    "placeholders": {
+      "sol": {
+        "type": "String"
+      }
+    }
+  },
+  "notifPracticeResetTitle": "[PRACTICE] Practice reset",
+  "@notifPracticeResetTitle": {
+    "description": "N-20; placeholders = push vars (snake_case)"
+  },
   "notifSkippedBody": "Reason: {reason}",
   "@notifSkippedBody": {
-    "description": "notif.skipped.body",
+    "description": "N-06",
     "placeholders": {
       "reason": {
         "type": "String"
@@ -1203,7 +1596,7 @@
   },
   "notifSkippedTitle": "Skipped: {coin}",
   "@notifSkippedTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-06; placeholders = push vars (snake_case)",
     "placeholders": {
       "coin": {
         "type": "String"
@@ -1212,7 +1605,7 @@
   },
   "notifSlHitBody": "{stop_type} · {pnl} ({pct})",
   "@notifSlHitBody": {
-    "description": "notif.sl_hit.body",
+    "description": "N-09",
     "placeholders": {
       "pct": {
         "type": "String"
@@ -1227,7 +1620,7 @@
   },
   "notifSlHitTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {coin}",
   "@notifSlHitTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-09; placeholders = push vars (snake_case)",
     "placeholders": {
       "coin": {
         "type": "String"
@@ -1239,15 +1632,15 @@
   },
   "notifTokenInvalidBody": "Open the app to continue",
   "@notifTokenInvalidBody": {
-    "description": "notif.token_invalid.body"
+    "description": "N-17"
   },
   "notifTokenInvalidTitle": "Notification action expired",
   "@notifTokenInvalidTitle": {
-    "description": "mode = real | practice (select); labels never translated"
+    "description": "N-17; placeholders = push vars (snake_case)"
   },
-  "notifTpHitBody": "Sold {pct_sold} at +{pct} · {pnl}",
+  "notifTpHitBody": "Sold {pct_sold} at {pct} · {pnl}",
   "@notifTpHitBody": {
-    "description": "notif.tp_hit.body",
+    "description": "N-08",
     "placeholders": {
       "pct": {
         "type": "String"
@@ -1262,7 +1655,7 @@
   },
   "notifTpHitTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {coin}",
   "@notifTpHitTitle": {
-    "description": "mode = real | practice (select); labels never translated",
+    "description": "N-08; placeholders = push vars (snake_case)",
     "placeholders": {
       "coin": {
         "type": "String"
@@ -1271,6 +1664,30 @@
         "type": "String"
       }
     }
+  },
+  "orderFailReasonGuardFailed": "A guard check failed right before the order",
+  "@orderFailReasonGuardFailed": {
+    "description": "order.failed reason_code=GUARD_FAILED"
+  },
+  "orderFailReasonInsufficientPracticeBalance": "Not enough paper SOL",
+  "@orderFailReasonInsufficientPracticeBalance": {
+    "description": "order.failed reason_code=INSUFFICIENT_PRACTICE_BALANCE"
+  },
+  "orderFailReasonPoolStale": "Pool data was out of date; the order was not sent",
+  "@orderFailReasonPoolStale": {
+    "description": "order.failed reason_code=POOL_STALE"
+  },
+  "orderFailReasonSlippageExceeded": "Price moved more than your slippage limit",
+  "@orderFailReasonSlippageExceeded": {
+    "description": "order.failed reason_code=SLIPPAGE_EXCEEDED"
+  },
+  "orderFailReasonUnknown": "The order couldn’t be completed",
+  "@orderFailReasonUnknown": {
+    "description": "order.failed reason_code=UNKNOWN; fallback for any unknown reason_code"
+  },
+  "orderFailReasonUnsupportedQuoteMint": "This coin has no SOL pair, so it can’t be traded",
+  "@orderFailReasonUnsupportedQuoteMint": {
+    "description": "order.failed reason_code=UNSUPPORTED_QUOTE_MINT"
   },
   "positionsEquityHwm": "High-water mark",
   "@positionsEquityHwm": {
@@ -1300,12 +1717,13 @@
       }
     }
   },
-  "positionsOpenCount": "{count, plural, one {# open} other {# open}}",
+  "positionsOpenCount": "{count,plural,one{{count} open} other{{count} open}}",
   "@positionsOpenCount": {
     "description": "positions.open_count",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -1360,21 +1778,23 @@
   "@positionsTitle": {
     "description": "positions.title"
   },
-  "queueBatchApprove": "{count, plural, one {Approve # pick} other {Approve # picks}}",
+  "queueBatchApprove": "{count,plural,one{Approve {count} pick} other{Approve {count} picks}}",
   "@queueBatchApprove": {
     "description": "queue.batch.approve",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
-  "queueBatchSelected": "{count, plural, one {# selected} other {# selected}}",
+  "queueBatchSelected": "{count,plural,one{{count} selected} other{{count} selected}}",
   "@queueBatchSelected": {
     "description": "queue.batch.selected",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -1386,36 +1806,6 @@
         "type": "String"
       }
     }
-  },
-  "queueExpiredReasonGuardFailed": "Guard failed while waiting: {reason}",
-  "@queueExpiredReasonGuardFailed": {
-    "description": "queue.expired.reason.guard_failed",
-    "placeholders": {
-      "reason": {
-        "type": "String"
-      }
-    }
-  },
-  "queueExpiredReasonPriceRan": "Price ran {pct} past the entry limit",
-  "@queueExpiredReasonPriceRan": {
-    "description": "queue.expired.reason.price_ran",
-    "placeholders": {
-      "pct": {
-        "type": "String"
-      }
-    }
-  },
-  "queueExpiredReasonStrategyArchived": "Strategy was archived",
-  "@queueExpiredReasonStrategyArchived": {
-    "description": "queue.expired.reason.strategy_archived"
-  },
-  "queueExpiredReasonStrategyDeleted": "Strategy was deleted",
-  "@queueExpiredReasonStrategyDeleted": {
-    "description": "queue.expired.reason.strategy_deleted"
-  },
-  "queueExpiredReasonTimedOut": "Approval window ended",
-  "@queueExpiredReasonTimedOut": {
-    "description": "queue.expired.reason.timed_out"
   },
   "queueGuardReject": "Reject change",
   "@queueGuardReject": {
@@ -1429,11 +1819,11 @@
   "@queuePickCannotApprove": {
     "description": "queue.pick.cannot_approve"
   },
-  "queuePickExpiresIn": "Expires in {time}",
+  "queuePickExpiresIn": "Expires in {mm_ss}",
   "@queuePickExpiresIn": {
     "description": "queue.pick.expires_in",
     "placeholders": {
-      "time": {
+      "mm_ss": {
         "type": "String"
       }
     }
@@ -1462,12 +1852,13 @@
   "@queueRealApproveButton": {
     "description": "queue.real.approve_button"
   },
-  "queueRealBatchConfirmTitle": "{count, plural, one {Approve # buy with REAL SOL?} other {Approve # buys with REAL SOL?}}",
+  "queueRealBatchConfirmTitle": "{count,plural,one{Approve {count} buy with REAL SOL?} other{Approve {count} buys with REAL SOL?}}",
   "@queueRealBatchConfirmTitle": {
     "description": "queue.real.batch_confirm.title",
     "placeholders": {
       "count": {
-        "type": "int"
+        "type": "int",
+        "format": "decimalPattern"
       }
     }
   },
@@ -1544,6 +1935,14 @@
   "@queueWhyTitle": {
     "description": "queue.why.title"
   },
+  "screenerNotTradeableBadge": "Not tradeable",
+  "@screenerNotTradeableBadge": {
+    "description": "neutral chip (text.tertiary on surface.sunken), not loss/error red"
+  },
+  "screenerNotTradeableDetail": "No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved.",
+  "@screenerNotTradeableDetail": {
+    "description": "shown instead of Approve/Skip; reason_code UNSUPPORTED_QUOTE_MINT"
+  },
   "settingsAppearanceDensityComfortable": "Comfortable",
   "@settingsAppearanceDensityComfortable": {
     "description": "settings.appearance.density.comfortable"
@@ -1571,6 +1970,90 @@
   "settingsAppearanceThemeSystem": "Match system",
   "@settingsAppearanceThemeSystem": {
     "description": "settings.appearance.theme.system"
+  },
+  "settingsDeleteAuditNote": "Audit records are kept but anonymized; your name, devices and sign-in methods are removed.",
+  "@settingsDeleteAuditNote": {
+    "description": "settings.delete.audit_note"
+  },
+  "settingsDeleteCancel": "Cancel deletion",
+  "@settingsDeleteCancel": {
+    "description": "settings.delete.cancel"
+  },
+  "settingsDeleteCheckRealPositions": "Close all Real SOL positions",
+  "@settingsDeleteCheckRealPositions": {
+    "description": "settings.delete.check.real_positions"
+  },
+  "settingsDeleteCheckReauth": "Confirm it’s you (last 5 min)",
+  "@settingsDeleteCheckReauth": {
+    "description": "settings.delete.check.reauth"
+  },
+  "settingsDeleteCheckTwoFactor": "Two-factor code (if enabled)",
+  "@settingsDeleteCheckTwoFactor": {
+    "description": "settings.delete.check.two_factor"
+  },
+  "settingsDeleteCheckWalletWithdrawn": "Withdraw your trading wallet",
+  "@settingsDeleteCheckWalletWithdrawn": {
+    "description": "settings.delete.check.wallet_withdrawn"
+  },
+  "settingsDeleteConfirm": "Schedule deletion",
+  "@settingsDeleteConfirm": {
+    "description": "settings.delete.confirm"
+  },
+  "settingsDeleteGrace": "Grace period: {count,plural,one{{count} day} other{{count} days}}",
+  "@settingsDeleteGrace": {
+    "description": "grace_days from GET /me/deletion (server-side ACCOUNT_DELETION_GRACE_DAYS, default 7, range 7–30 per Apex Rev 4.1); read-only, client cannot choose",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "settingsDeleteIntro": "Your account is deleted after a grace period. You can cancel until then.",
+  "@settingsDeleteIntro": {
+    "description": "settings.delete.intro"
+  },
+  "settingsDeleteScheduled": "Deletion scheduled for {scheduled_for}. We sent a confirmation email.",
+  "@settingsDeleteScheduled": {
+    "description": "settings.delete.scheduled",
+    "placeholders": {
+      "scheduled_for": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsDeleteTitle": "Delete account",
+  "@settingsDeleteTitle": {
+    "description": "settings.delete.title"
+  },
+  "settingsDevicesLastSeen": "Last seen {when}",
+  "@settingsDevicesLastSeen": {
+    "description": "settings.devices.last_seen",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsDevicesNote": "Each device registers its own push token. Removing a device signs it out and stops its notifications.",
+  "@settingsDevicesNote": {
+    "description": "settings.devices.note"
+  },
+  "settingsDevicesPushOff": "Push off",
+  "@settingsDevicesPushOff": {
+    "description": "settings.devices.push_off"
+  },
+  "settingsDevicesPushOn": "Push on",
+  "@settingsDevicesPushOn": {
+    "description": "settings.devices.push_on"
+  },
+  "settingsDevicesRevoke": "Remove device",
+  "@settingsDevicesRevoke": {
+    "description": "settings.devices.revoke"
+  },
+  "settingsDevicesTitle": "Devices & push",
+  "@settingsDevicesTitle": {
+    "description": "settings.devices.title"
   },
   "settingsLanguageLabel": "Language",
   "@settingsLanguageLabel": {
@@ -1636,6 +2119,14 @@
   "settingsSectionAppearance": "Appearance",
   "@settingsSectionAppearance": {
     "description": "settings.section.appearance"
+  },
+  "settingsSectionDanger": "Delete account",
+  "@settingsSectionDanger": {
+    "description": "settings.section.danger"
+  },
+  "settingsSectionDevices": "Devices & push",
+  "@settingsSectionDevices": {
+    "description": "settings.section.devices"
   },
   "settingsSectionLanguage": "Language",
   "@settingsSectionLanguage": {

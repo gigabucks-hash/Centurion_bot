@@ -23,8 +23,7 @@ extension type const Lamports(BigInt raw) {
   }
 
   /// From a SOL decimal string (`"0.25"`), exact; sub-lamport digits rounded half-up.
-  static Lamports fromSol(String sol) =>
-      Lamports((Decimal.parse(sol.trim()) * _perSolD).round().toBigInt());
+  static Lamports fromSol(String sol) => Lamports((Decimal.parse(sol.trim()) * _perSolD).round().toBigInt());
 
   static Lamports fromInt(int lamports) => Lamports(BigInt.from(lamports));
 
@@ -62,8 +61,7 @@ Lamports sumLamports(Iterable<Lamports> xs) => xs.fold(Lamports.zero, (a, b) => 
 Decimal ratio(Decimal a, Decimal b) => (a / b).toDecimal(scaleOnInfinitePrecision: 18);
 
 /// Decimal × a display factor (mock random walk only), rounded to 18 dp.
-Decimal scaleDecimal(Decimal a, num factor) =>
-    (a * Decimal.parse(factor.toStringAsFixed(9))).round(scale: 18);
+Decimal scaleDecimal(Decimal a, num factor) => (a * Decimal.parse(factor.toStringAsFixed(9))).round(scale: 18);
 
 /// Percent change between two prices, as a display number.
 double pctChange(Decimal from, Decimal to) => (ratio(to, from) - Decimal.one).toDouble() * 100;

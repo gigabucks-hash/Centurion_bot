@@ -32,14 +32,15 @@ class StrategyToggleController extends Notifier<Map<String, bool>> {
   }
 }
 
-final strategyToggleProvider =
-    NotifierProvider<StrategyToggleController, Map<String, bool>>(StrategyToggleController.new);
+final strategyToggleProvider = NotifierProvider<StrategyToggleController, Map<String, bool>>(
+  StrategyToggleController.new,
+);
 
 String approvalModeLabel(ApprovalMode m) => switch (m) {
-      ApprovalMode.off => 'Auto',
-      ApprovalMode.askFirstBuy => 'Tanya buy pertama',
-      ApprovalMode.askEveryBuy => 'Tanya tiap buy',
-    };
+  ApprovalMode.off => 'Auto',
+  ApprovalMode.askFirstBuy => 'Tanya buy pertama',
+  ApprovalMode.askEveryBuy => 'Tanya tiap buy',
+};
 
 class StatusChip extends StatelessWidget {
   const StatusChip(this.running, {super.key});
@@ -68,24 +69,35 @@ class StrategySummaryCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(AppSpace.s4),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Text(s.name, style: text.titleMedium, overflow: TextOverflow.ellipsis)),
-              PnlText(s.realizedPnlLamports, size: 15),
-            ]),
-            const SizedBox(height: AppSpace.s2),
-            Row(children: [
-              StatusChip(s.isRunning),
-              const SizedBox(width: AppSpace.s2),
-              Expanded(
-                child: Text(
-                  'WR ${s.winRatePct.round()}% · DD −${s.maxDrawdownPct.toStringAsFixed(1).replaceAll('.', ',')}% · hold ${s.avgHold.inMinutes}m',
-                  style: text.bodySmall!.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  overflow: TextOverflow.ellipsis,
-                ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(s.name, style: text.titleMedium, overflow: TextOverflow.ellipsis),
+                  ),
+                  PnlText(s.realizedPnlLamports, size: 15),
+                ],
               ),
-            ]),
-          ]),
+              const SizedBox(height: AppSpace.s2),
+              Row(
+                children: [
+                  StatusChip(s.isRunning),
+                  const SizedBox(width: AppSpace.s2),
+                  Expanded(
+                    child: Text(
+                      'WR ${s.winRatePct.round()}% · '
+                      'DD −${s.maxDrawdownPct.toStringAsFixed(1).replaceAll('.', ',')}% · '
+                      'hold ${s.avgHold.inMinutes}m',
+                      style: text.bodySmall!.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -129,44 +141,58 @@ class StrategiesScreen extends ConsumerWidget {
             return Card(
               margin: EdgeInsets.zero,
               clipBehavior: Clip.antiAlias,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpace.s4, AppSpace.s4, AppSpace.s4, AppSpace.s2),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Expanded(child: Text(s.name, style: text.titleMedium, overflow: TextOverflow.ellipsis)),
-                      ModeChip(s.mode),
-                    ]),
-                    const SizedBox(height: AppSpace.s1),
-                    Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-                      Text('Realized ', style: text.bodySmall!.copyWith(color: muted)),
-                      PnlText(s.realizedPnlLamports, size: 13),
-                      Text('  ·  rev ${s.rev}', style: text.bodySmall!.copyWith(color: muted)),
-                    ]),
-                    const SizedBox(height: AppSpace.s1),
-                    Text(
-                      '${fmtSol(s.ticketLamports, unit: true)}/coin · max ${s.maxOpen} · exit ${ExitPresets.label(s.exitPlan)} · ${approvalModeLabel(s.approvalMode)}',
-                      style: text.bodySmall!.copyWith(color: muted),
-                    ),
-                  ]),
-                ),
-                const Divider(height: 1),
-                // SPEC: toggle row is fully tappable, 48dp, with a status label.
-                MergeSemantics(
-                  child: ListTile(
-                    minTileHeight: AppDensity.tapMin,
-                    enabled: !busy,
-                    onTap: busy ? null : () => _onToggle(context, ref, s, !running),
-                    leading: StatusChip(running),
-                    title: Text(running ? 'Strategi berjalan' : 'Strategi dijeda', style: text.bodyMedium),
-                    trailing: Switch(
-                      key: Key('toggle_${s.id}'),
-                      value: running,
-                      onChanged: busy ? null : (v) => _onToggle(context, ref, s, v),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(AppSpace.s4, AppSpace.s4, AppSpace.s4, AppSpace.s2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(s.name, style: text.titleMedium, overflow: TextOverflow.ellipsis),
+                            ),
+                            ModeChip(s.mode),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpace.s1),
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text('Realized ', style: text.bodySmall!.copyWith(color: muted)),
+                            PnlText(s.realizedPnlLamports, size: 13),
+                            Text('  ·  rev ${s.rev}', style: text.bodySmall!.copyWith(color: muted)),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpace.s1),
+                        Text(
+                          '${fmtSol(s.ticketLamports, unit: true)}/coin · max ${s.maxOpen} · '
+                          'exit ${ExitPresets.label(s.exitPlan)} · ${approvalModeLabel(s.approvalMode)}',
+                          style: text.bodySmall!.copyWith(color: muted),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ]),
+                  const Divider(height: 1),
+                  // SPEC: toggle row is fully tappable, 48dp, with a status label.
+                  MergeSemantics(
+                    child: ListTile(
+                      minTileHeight: AppDensity.tapMin,
+                      enabled: !busy,
+                      onTap: busy ? null : () => _onToggle(context, ref, s, !running),
+                      leading: StatusChip(running),
+                      title: Text(running ? 'Strategi berjalan' : 'Strategi dijeda', style: text.bodyMedium),
+                      trailing: Switch(
+                        key: Key('toggle_${s.id}'),
+                        value: running,
+                        onChanged: busy ? null : (v) => _onToggle(context, ref, s, v),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),

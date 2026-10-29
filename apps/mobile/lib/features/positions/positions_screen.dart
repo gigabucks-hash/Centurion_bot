@@ -18,10 +18,9 @@ String fmtHold(Duration d) {
   return '${d.inHours} j ${d.inMinutes % 60} mnt';
 }
 
-
-final _strategyNamesProvider = Provider<Map<String, String>>((ref) => {
-      for (final s in ref.watch(strategiesProvider).valueOrNull ?? const <Strategy>[]) s.id: s.name,
-    });
+final _strategyNamesProvider = Provider<Map<String, String>>(
+  (ref) => {for (final s in ref.watch(strategiesProvider).valueOrNull ?? const <Strategy>[]) s.id: s.name},
+);
 
 /// SPEC §6 + wireframe 12-positions-mobile (lives under the Lainnya tab).
 class PositionsScreen extends ConsumerWidget {
@@ -55,10 +54,7 @@ class PositionsScreen extends ConsumerWidget {
               if (openList.isEmpty)
                 const EmptyState(icon: Icons.inbox_outlined, text: 'Belum ada posisi terbuka')
               else
-                for (final p in openList) ...[
-                  PositionCard(position: p),
-                  const SizedBox(height: AppSpace.s2),
-                ],
+                for (final p in openList) ...[PositionCard(position: p), const SizedBox(height: AppSpace.s2)],
               if (closed.isNotEmpty) ...[
                 const SectionHeader('Closed'),
                 for (final p in closed) _ClosedRow(position: p),
@@ -89,40 +85,65 @@ class PositionCard extends ConsumerWidget {
         onTap: () => context.go('/positions/${Uri.encodeComponent(p.id)}'),
         child: Padding(
           padding: const EdgeInsets.all(AppSpace.s3),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('\$${p.symbol}', style: tt.titleMedium, overflow: TextOverflow.ellipsis),
-                  Text('${names[p.strategyId] ?? p.strategyId} · ${fmtSol(p.sizeLamports)} SOL',
-                      style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant), overflow: TextOverflow.ellipsis),
-                ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('\$${p.symbol}', style: tt.titleMedium, overflow: TextOverflow.ellipsis),
+                        Text(
+                          '${names[p.strategyId] ?? p.strategyId} · ${fmtSol(p.sizeLamports)} SOL',
+                          style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      PnlText(p.pnlLamports, size: 14),
+                      Text(
+                        '(${fmtPct(p.pnlPct, arrow: false)})',
+                        style: AppText.num(12, color: context.pnlColor(p.pnlPct)),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                PnlText(p.pnlLamports, size: 14),
-                Text('(${fmtPct(p.pnlPct, arrow: false)})',
-                    style: AppText.num(12, color: context.pnlColor(p.pnlPct, epsilon: 0.05))),
-              ]),
-            ]),
-            const SizedBox(height: AppSpace.s2),
-            ExitProgressBar(position: p),
-            const SizedBox(height: AppSpace.s1),
-            Row(children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(exitCaption(p), style: tt.bodySmall),
-                  Text('${fmtUsd(p.entryPriceUsd)} → ${fmtUsd(p.markPriceUsd)} · ${fmtHold(p.holdAt(DateTime.now()))}',
-                      style: AppText.num(11, color: cs.onSurfaceVariant)),
-                ]),
+              const SizedBox(height: AppSpace.s2),
+              ExitProgressBar(position: p),
+              const SizedBox(height: AppSpace.s1),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(exitCaption(p), style: tt.bodySmall),
+                        Text(
+                          '${fmtUsd(p.entryPriceUsd)} → ${fmtUsd(p.markPriceUsd)} · '
+                          '${fmtHold(p.holdAt(DateTime.now()))}',
+                          style: AppText.num(11, color: cs.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton(
+                    key: Key('sell_${p.id}'),
+                    style: AppButtons.secondary(context),
+                    onPressed: () => showSellSheet(context, p),
+                    child: const Text('Sell'),
+                  ),
+                ],
               ),
-              OutlinedButton(
-                key: Key('sell_${p.id}'),
-                style: AppButtons.secondary(context),
-                onPressed: () => showSellSheet(context, p),
-                child: const Text('Sell'),
-              ),
-            ]),
-          ]),
+            ],
+          ),
         ),
       ),
     );
@@ -164,49 +185,65 @@ class PositionDetailScreen extends ConsumerWidget {
           final tt = Theme.of(context).textTheme;
           final cs = Theme.of(context).colorScheme;
           final now = DateTime.now();
-          return ListView(padding: const EdgeInsets.all(AppSpace.s4), children: [
-            Row(children: [
-              ModeChip(p.mode),
-              const SizedBox(width: AppSpace.s2),
-              Expanded(
-                  child: Text(names[p.strategyId] ?? p.strategyId,
-                      style: tt.bodyMedium, overflow: TextOverflow.ellipsis)),
-              PnlText(p.pnlLamports, size: 18, unit: true),
-            ]),
-            const SizedBox(height: AppSpace.s2),
-            Wrap(spacing: AppSpace.s4, runSpacing: AppSpace.s1, children: [
-              _Kv('Size', '${fmtSol(p.sizeLamports)} SOL'),
-              _Kv('Entry → now', '${fmtUsd(p.entryPriceUsd)} → ${fmtUsd(p.markPriceUsd)}'),
-              _Kv('Hold', fmtHold(p.holdAt(now))),
-              _Kv('Terjual', '${p.soldPct.round()}%'),
-              _Kv('Mint', shortMint(p.mint)),
-            ]),
-            const SizedBox(height: AppSpace.s4),
-            if (p.exitPlan != null) ...[
-              Text('Exit plan · ${p.exitPlan!.name}', style: tt.titleSmall),
+          return ListView(
+            padding: const EdgeInsets.all(AppSpace.s4),
+            children: [
+              Row(
+                children: [
+                  ModeChip(p.mode),
+                  const SizedBox(width: AppSpace.s2),
+                  Expanded(
+                    child: Text(
+                      names[p.strategyId] ?? p.strategyId,
+                      style: tt.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  PnlText(p.pnlLamports, size: 18, unit: true),
+                ],
+              ),
               const SizedBox(height: AppSpace.s2),
-              ExitLadder(position: p),
-              const SizedBox(height: AppSpace.s3),
-              if (p.isOpen) _NextAction(position: p, now: now),
+              Wrap(
+                spacing: AppSpace.s4,
+                runSpacing: AppSpace.s1,
+                children: [
+                  _Kv('Size', '${fmtSol(p.sizeLamports)} SOL'),
+                  _Kv('Entry → now', '${fmtUsd(p.entryPriceUsd)} → ${fmtUsd(p.markPriceUsd)}'),
+                  _Kv('Hold', fmtHold(p.holdAt(now))),
+                  _Kv('Terjual', '${p.soldPct.round()}%'),
+                  _Kv('Mint', shortMint(p.mint)),
+                ],
+              ),
+              const SizedBox(height: AppSpace.s4),
+              if (p.exitPlan != null) ...[
+                Text('Exit plan · ${p.exitPlan!.name}', style: tt.titleSmall),
+                const SizedBox(height: AppSpace.s2),
+                ExitLadder(position: p),
+                const SizedBox(height: AppSpace.s3),
+                if (p.isOpen) _NextAction(position: p, now: now),
+              ],
+              if (!p.isOpen)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.flag_outlined),
+                  title: Text(p.exitReason ?? 'Closed'),
+                  subtitle: p.closedAt == null ? null : Text('Ditutup ${fmtTime(p.closedAt!)} WIB'),
+                ),
+              const SizedBox(height: AppSpace.s4),
+              if (p.isOpen)
+                FilledButton.tonal(
+                  key: const Key('detailSell'),
+                  onPressed: () => showSellSheet(context, p),
+                  child: const Text('Sell'),
+                ),
+              const SizedBox(height: AppSpace.s2),
+              Text(
+                'Sell tidak pernah tersedia dari notifikasi.',
+                style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant),
+                textAlign: TextAlign.center,
+              ),
             ],
-            if (!p.isOpen)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.flag_outlined),
-                title: Text(p.exitReason ?? 'Closed'),
-                subtitle: p.closedAt == null ? null : Text('Ditutup ${fmtTime(p.closedAt!)} WIB'),
-              ),
-            const SizedBox(height: AppSpace.s4),
-            if (p.isOpen)
-              FilledButton.tonal(
-                key: const Key('detailSell'),
-                onPressed: () => showSellSheet(context, p),
-                child: const Text('Sell'),
-              ),
-            const SizedBox(height: AppSpace.s2),
-            Text('Sell tidak pernah tersedia dari notifikasi.',
-                style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant), textAlign: TextAlign.center),
-          ]);
+          );
         },
       ),
     );
@@ -219,10 +256,14 @@ class _Kv extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-      Text(k, style: Theme.of(context).textTheme.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
-      Text(v, style: AppText.num(13)),
-    ]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(k, style: Theme.of(context).textTheme.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
+        Text(v, style: AppText.num(13)),
+      ],
+    );
   }
 }
 
@@ -249,14 +290,14 @@ class ExitLadder extends StatelessWidget {
           plan.rungs[i].filled
               ? _RowKind.tpFilled
               : identical(plan.rungs[i], next)
-                  ? _RowKind.tpNext
-                  : _RowKind.tpPending,
+              ? _RowKind.tpNext
+              : _RowKind.tpPending,
           'TP${i + 1} · jual ${plan.rungs[i].sellPct.round()}%',
           plan.rungs[i].filled
               ? 'terisi ${fmtTime(plan.rungs[i].filledAt!)}'
               : identical(plan.rungs[i], next)
-                  ? 'berikutnya'
-                  : 'menunggu',
+              ? 'berikutnya'
+              : 'menunggu',
         ),
       (p.changePct, _RowKind.now, 'Sekarang', fmtUsd(p.markPriceUsd)),
       (
@@ -319,39 +360,51 @@ class _LadderRow extends StatelessWidget {
     final filledDot = kind == _RowKind.tpFilled || isNow || kind == _RowKind.sl;
     return SizedBox(
       height: 44,
-      child: Row(children: [
-        SizedBox(
-          width: 24,
-          child: Stack(alignment: Alignment.center, children: [
-            Column(children: [
-              Expanded(child: Container(width: 2, color: first ? Colors.transparent : line)),
-              Expanded(child: Container(width: 2, color: last ? Colors.transparent : line)),
-            ]),
-            Container(
-              width: isNow ? 14 : 10,
-              height: isNow ? 14 : 10,
-              decoration: BoxDecoration(
-                shape: kind == _RowKind.sl || kind == _RowKind.trail ? BoxShape.rectangle : BoxShape.circle,
-                color: filledDot ? color : Theme.of(context).colorScheme.surface,
-                border: Border.all(color: color, width: kind == _RowKind.tpNext ? 2.5 : 1.5),
-              ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Column(
+                  children: [
+                    Expanded(child: Container(width: 2, color: first ? Colors.transparent : line)),
+                    Expanded(child: Container(width: 2, color: last ? Colors.transparent : line)),
+                  ],
+                ),
+                Container(
+                  width: isNow ? 14 : 10,
+                  height: isNow ? 14 : 10,
+                  decoration: BoxDecoration(
+                    shape: kind == _RowKind.sl || kind == _RowKind.trail ? BoxShape.rectangle : BoxShape.circle,
+                    color: filledDot ? color : Theme.of(context).colorScheme.surface,
+                    border: Border.all(color: color, width: kind == _RowKind.tpNext ? 2.5 : 1.5),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ),
-        const SizedBox(width: AppSpace.s2),
-        Expanded(
-          child: Text(label,
+          ),
+          const SizedBox(width: AppSpace.s2),
+          Expanded(
+            child: Text(
+              label,
               style: (isNow ? tt.titleSmall : tt.bodyMedium)!.copyWith(color: isNow ? color : null),
-              overflow: TextOverflow.ellipsis),
-        ),
-        Text(status, style: tt.bodySmall!.copyWith(color: color)),
-        const SizedBox(width: AppSpace.s3),
-        SizedBox(
-          width: 64,
-          child: Text(fmtPct(pct, arrow: false),
-              textAlign: TextAlign.right, style: AppText.num(13, weight: FontWeight.w600, color: color)),
-        ),
-      ]),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(status, style: tt.bodySmall!.copyWith(color: color)),
+          const SizedBox(width: AppSpace.s3),
+          SizedBox(
+            width: 64,
+            child: Text(
+              fmtPct(pct, arrow: false),
+              textAlign: TextAlign.right,
+              style: AppText.num(13, weight: FontWeight.w600, color: color),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -372,14 +425,18 @@ class _NextAction extends StatelessWidget {
       margin: EdgeInsets.zero,
       child: ListTile(
         leading: const Icon(Icons.schedule),
-        title: Text(next == null
-            ? 'Berikutnya: trailing −${plan.trailPct.round()}% dari high'
-            : 'Berikutnya: TP${idx + 1} di +${next.gainPct.round()}% (jual ${next.sellPct.round()}%)'),
+        title: Text(
+          next == null
+              ? 'Berikutnya: trailing −${plan.trailPct.round()}% dari high'
+              : 'Berikutnya: TP${idx + 1} di +${next.gainPct.round()}% (jual ${next.sellPct.round()}%)',
+        ),
         subtitle: ts == null
             ? null
-            : Text(left!.isNegative
-                ? 'Time stop lewat · keluar di tick berikutnya'
-                : 'Time stop ${fmtTime(ts)} WIB (${fmtCountdown(left)} lagi)'),
+            : Text(
+                left!.isNegative
+                    ? 'Time stop lewat · keluar di tick berikutnya'
+                    : 'Time stop ${fmtTime(ts)} WIB (${fmtCountdown(left)} lagi)',
+              ),
       ),
     );
   }

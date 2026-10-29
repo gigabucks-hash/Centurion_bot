@@ -26,8 +26,7 @@ abstract final class SolbotTheme {
 }
 
 extension PnlColorX on BuildContext {
-  /// Color for a PnL value *as displayed*: values that format to `±0`
-  /// get the neutral color (TOKENS_REVIEW T-15: `TradeColors.pnl` compares
-  /// with exact 0, so 0.0001 would be green while the label says ±0).
-  Color pnlColor(double v, {double epsilon = 0.0005}) => tradeColors.pnl(v.abs() < epsilon ? 0 : v);
+  /// PnL color. T-15 resolved (Apex decision): neutral only for EXACT zero,
+  /// matching the formatter (`0,000`, no arrow/sign); any non-zero is profit/loss.
+  Color pnlColor(num v) => tradeColors.pnl(v);
 }

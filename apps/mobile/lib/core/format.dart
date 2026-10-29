@@ -1,37 +1,33 @@
 import 'package:intl/intl.dart';
 
 import '../data/money.dart';
+import 'l10n_format.dart' show pnlSol, pnlPct;
 
 // SPEC §1: id-ID number format (comma decimal), mono tabular in UI.
-final _pct = NumberFormat('#,##0.0', 'id');
 final _time = DateFormat('HH:mm');
-
-/// |v| below this formats as `±0` (and is colored neutral): 0,0005 SOL.
-final Lamports pnlZeroEpsilon = Lamports.fromInt(500000);
-
-String _sol3(Lamports v) => formatDecimalAbs(v.toSol(), 'id', minDp: 3, maxDp: 3);
 
 /// Unsigned amount, e.g. `27,494`. Negative values get a real minus sign. Exact (BigInt).
 String fmtSol(Lamports v, {bool unit = false}) {
-  final s = _sol3(v) + (unit ? ' SOL' : '');
+  final s = formatDecimalAbs(v.toSol(), 'id', minDp: 3, maxDp: 3) + (unit ? ' SOL' : '');
   return v.isNegative ? '−$s' : s;
 }
 
-/// SPEC §1: PnL never by color alone: ▲/▼ + sign + number; zero = `±0`.
+/// SPEC §1: PnL never by color alone. T-15 (Apex decision): delegates to [pnlSol]
+/// (@sentra/i18n 0.4.2 rule): exact 0 → `0,00` (neutral, no arrow/sign); any
+/// non-zero → `▲ +…` / `▼ −…`, never shown as 0.
 String fmtPnl(Lamports v, {bool unit = false}) {
-  if (v.abs() < pnlZeroEpsilon) return '±0${unit ? ' SOL' : ''}';
-  final s = _sol3(v) + (unit ? ' SOL' : '');
-  return v.isNegative ? '▼ −$s' : '▲ +$s';
+  final p = pnlSol(v, 'id', unit: false);
+  final s = '${p.text}${unit ? ' SOL' : ''}';
+  return p.arrow.isEmpty ? s : '${p.arrow} $s';
 }
 
 /// USD price with 4 significant digits, id-ID separators.
 String fmtUsd(Decimal v) => '\$${formatDecimalAbs(v, 'id', minDp: 0, maxDp: decimalsForSignificant(v, 4))}';
 
+/// Percent PnL via [pnlPct] (T-15): exact 0 → `0,0%`; non-zero → sign (+ arrow).
 String fmtPct(double v, {bool arrow = true}) {
-  if (v.abs() < 0.05) return '±0%';
-  final s = '${_pct.format(v.abs())}%';
-  if (!arrow) return v > 0 ? '+$s' : '−$s';
-  return v > 0 ? '▲ +$s' : '▼ −$s';
+  final p = pnlPct(v, 'id');
+  return arrow && p.arrow.isNotEmpty ? '${p.arrow} ${p.text}' : p.text;
 }
 
 String fmtTime(DateTime t) => _time.format(t);

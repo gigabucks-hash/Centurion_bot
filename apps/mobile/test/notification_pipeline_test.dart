@@ -20,16 +20,16 @@ void main() {
   });
 
   Map<String, String> pick(Approval a, {String mode = 'practice', DateTime? exp}) => {
-        'v': '1',
-        'event': 'N-01',
-        'mode': mode,
-        'approval_id': a.id,
-        'token': a.token,
-        'exp': '${(exp ?? a.expiresAt).millisecondsSinceEpoch ~/ 1000}',
-        'coin': r'$KEPL',
-        'strategy': 'Pullback v2',
-        'sol': '0.25',
-      };
+    'v': '1',
+    'event': 'N-01',
+    'mode': mode,
+    'approval_id': a.id,
+    'token': a.token,
+    'exp': '${(exp ?? a.expiresAt).millisecondsSinceEpoch ~/ 1000}',
+    'coin': r'$KEPL',
+    'strategy': 'Pullback v2',
+    'sol': '0.25',
+  };
 
   test('backend push stream → parse → shade (mock local notification)', () async {
     c.read(pushPipelineProvider);
@@ -81,8 +81,13 @@ void main() {
   });
 
   test('view buttons navigate to the deep link', () async {
-    c.read(localNotifierProvider.notifier).receive(
-        {'v': '1', 'event': 'N-04', 'mode': 'practice', 'position_id': 'ck100.0', 'coin': r'$GLOW'}, DateTime.now());
+    c.read(localNotifierProvider.notifier).receive({
+      'v': '1',
+      'event': 'N-04',
+      'mode': 'practice',
+      'position_id': 'ck100.0',
+      'coin': r'$GLOW',
+    }, DateTime.now());
     final shown = c.read(localNotifierProvider).single;
     final out = await handleNotificationAction(ContainerReader(c), shown, NotifAction.viewPosition, DateTime.now());
     expect(out, isA<Navigate>().having((n) => n.route, 'route', '/positions/ck100.0'));
@@ -90,15 +95,15 @@ void main() {
 
   group('seq: dedupe + ordering', () {
     Map<String, Object?> ev(String event, int seq, {String? approval, String ws = 'ws1'}) => {
-          'v': 1,
-          'event': event,
-          'mode': 'practice',
-          'workspace_id': ws,
-          'seq': seq,
-          'approval_id': ?approval,
-          'actions': ['open'],
-          'vars': {'coin': 'EXM'},
-        };
+      'v': 1,
+      'event': event,
+      'mode': 'practice',
+      'workspace_id': ws,
+      'seq': seq,
+      'approval_id': ?approval,
+      'actions': ['open'],
+      'vars': {'coin': 'EXM'},
+    };
 
     test('duplicate (workspace, seq) is shown once', () {
       final n = c.read(localNotifierProvider.notifier);
@@ -128,8 +133,10 @@ void main() {
 
     test('server_now feeds the clock skew', () {
       final now = DateTime.utc(2026, 10, 29, 8, 0);
-      c.read(localNotifierProvider.notifier)
-          .receive({...ev('N-04', 30), 'server_now': '2026-10-29T08:00:05.000Z'}, now);
+      c.read(localNotifierProvider.notifier).receive({
+        ...ev('N-04', 30),
+        'server_now': '2026-10-29T08:00:05.000Z',
+      }, now);
       expect(c.read(serverClockProvider), const Duration(seconds: 5));
     });
   });

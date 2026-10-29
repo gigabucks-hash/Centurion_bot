@@ -21,13 +21,13 @@ sealed class MarksMessage {
     if (now == null) return null;
     return switch (msg['event']) {
       'mark' => MarkMessage(
-          mint: p['mint']! as String,
-          // Decimal string on the wire; never parsed as double.
-          priceUsd: Decimal.parse(p['price_usd']! as String),
-          ts: DateTime.parse(p['ts']! as String),
-          positionIds: [...?(p['position_ids'] as List?)?.cast<String>()],
-          serverNow: now,
-        ),
+        mint: p['mint']! as String,
+        // Decimal string on the wire; never parsed as double.
+        priceUsd: Decimal.parse(p['price_usd']! as String),
+        ts: DateTime.parse(p['ts']! as String),
+        positionIds: [...?(p['position_ids'] as List?)?.cast<String>()],
+        serverNow: now,
+      ),
       'clock' => ClockMessage(safeSeq: (p['safe_seq'] as num?)?.toInt() ?? 0, serverNow: now),
       _ => null,
     };
@@ -35,9 +35,13 @@ sealed class MarksMessage {
 }
 
 class MarkMessage extends MarksMessage {
-  const MarkMessage(
-      {required this.mint, required this.priceUsd, required this.ts, required this.positionIds, required DateTime serverNow})
-      : super(serverNow);
+  const MarkMessage({
+    required this.mint,
+    required this.priceUsd,
+    required this.ts,
+    required this.positionIds,
+    required DateTime serverNow,
+  }) : super(serverNow);
   final String mint;
   final Decimal priceUsd;
   final DateTime ts;

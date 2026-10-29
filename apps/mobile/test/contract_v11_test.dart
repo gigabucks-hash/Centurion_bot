@@ -18,8 +18,18 @@ void main() {
       expect(Wire.approvalKind(ApprovalKind.buyPick), 'buy_pick');
       expect(Wire.modeOf('paper'), isNull, reason: 'paper/live are not wire modes');
       expect(Wire.approvalMode(ApprovalMode.askFirstBuy), 'ask_first_buy');
-      expect([for (final r in ExpireReason.values) Wire.expireReason(r)],
-          ['timeout', 'strategy_deleted', 'strategy_archived', 'guard_failed', 'price_moved', 'practice_reset', 'account_deleted']);
+      expect(
+        [for (final r in ExpireReason.values) Wire.expireReason(r)],
+        [
+          'timeout',
+          'strategy_deleted',
+          'strategy_archived',
+          'guard_failed',
+          'price_moved',
+          'practice_reset',
+          'account_deleted',
+        ],
+      );
       expect(Wire.expireReasonOf('timed_out'), isNull, reason: 'spec spelling is not a wire value');
     });
 
@@ -44,7 +54,11 @@ void main() {
       expect(pg.rawCode, 'STRATEGY_REV_CONFLICT');
       expect(pg.isConflict, isTrue);
       final rest = ApiException.fromRestBody({
-        'error': {'code': 'RESET_COOLDOWN', 'message': 'wait', 'details': {'next_allowed_at': 'x'}},
+        'error': {
+          'code': 'RESET_COOLDOWN',
+          'message': 'wait',
+          'details': {'next_allowed_at': 'x'},
+        },
       });
       expect(rest.code.http, 429);
       expect(rest.details['next_allowed_at'], 'x');
@@ -58,22 +72,26 @@ void main() {
     });
 
     test('marks broadcast: decimal price, never double', () {
-      final m = MarksMessage.fromBroadcast({
-        'event': 'mark',
-        'payload': {
-          'mint': 'M',
-          'price_usd': '0.000041230000',
-          'ts': '2026-10-29T08:42:01.020Z',
-          'position_ids': ['p1'],
-          'server_now': '2026-10-29T08:42:01.031Z',
-        },
-      })! as MarkMessage;
+      final m =
+          MarksMessage.fromBroadcast({
+                'event': 'mark',
+                'payload': {
+                  'mint': 'M',
+                  'price_usd': '0.000041230000',
+                  'ts': '2026-10-29T08:42:01.020Z',
+                  'position_ids': ['p1'],
+                  'server_now': '2026-10-29T08:42:01.031Z',
+                },
+              })!
+              as MarkMessage;
       expect(m.priceUsd, Decimal.parse('0.00004123'));
       expect(marksChannel('ws1', TradeMode.practice), 'marks:ws1:practice');
-      final c = MarksMessage.fromBroadcast({
-        'event': 'clock',
-        'payload': {'server_now': '2026-10-29T08:42:15.000Z', 'safe_seq': 18240},
-      })! as ClockMessage;
+      final c =
+          MarksMessage.fromBroadcast({
+                'event': 'clock',
+                'payload': {'server_now': '2026-10-29T08:42:15.000Z', 'safe_seq': 18240},
+              })!
+              as ClockMessage;
       expect(c.safeSeq, 18240);
     });
   });
@@ -89,24 +107,44 @@ void main() {
 
     test('decide_approval params: no device_id, p_* names', () async {
       final pick = b.debugApprovals.firstWhere((a) => a.isPending && a.mode == TradeMode.practice);
-      await rpc.decideApproval(DecideApprovalRequest(
-          approvalId: pick.id, token: pick.token, approve: true, expectedRev: pick.version, idempotencyKey: 'k'));
+      await rpc.decideApproval(
+        DecideApprovalRequest(
+          approvalId: pick.id,
+          token: pick.token,
+          approve: true,
+          expectedRev: pick.version,
+          idempotencyKey: 'k',
+        ),
+      );
       final (name, params) = rpc.lastCall!;
       expect(name, 'decide_approval');
-      expect(params.keys.toSet(),
-          {'p_approval_id', 'p_token', 'p_decision', 'p_expected_rev', 'p_client', 'p_idempotency_key'});
+      expect(params.keys.toSet(), {
+        'p_approval_id',
+        'p_token',
+        'p_decision',
+        'p_expected_rev',
+        'p_client',
+        'p_idempotency_key',
+      });
     });
 
     test('set_strategy_status + update_strategy (snake_case patch only)', () async {
       final s = (await b.watchStrategies().first).firstWhere((s) => s.isRunning);
       final r1 = await rpc.setStrategyStatus(
-          SetStrategyStatusRequest(strategyId: s.id, status: StrategyStatus.paused, expectedRev: s.rev));
+        SetStrategyStatusRequest(strategyId: s.id, status: StrategyStatus.paused, expectedRev: s.rev),
+      );
       expect(rpc.lastCall!.$2, {'p_strategy': s.id, 'p_status': 'paused', 'p_expected_rev': s.rev});
-      final r2 = await rpc.updateStrategy(UpdateStrategyRequest(strategyId: s.id, expectedRev: r1.rev, patch: {
-        SettingsKeys.approvalMode.current: 'ask_every_buy',
-        SettingsKeys.ticketLamports.current: '300000000',
-        SettingsKeys.exitPreset.current: ExitPresets.ratchet.current,
-      }));
+      final r2 = await rpc.updateStrategy(
+        UpdateStrategyRequest(
+          strategyId: s.id,
+          expectedRev: r1.rev,
+          patch: {
+            SettingsKeys.approvalMode.current: 'ask_every_buy',
+            SettingsKeys.ticketLamports.current: '300000000',
+            SettingsKeys.exitPreset.current: ExitPresets.ratchet.current,
+          },
+        ),
+      );
       expect(r2.rev, r1.rev + 1);
       final after = (await b.watchStrategies().first).firstWhere((x) => x.id == s.id);
       expect(after.approvalMode, ApprovalMode.askEveryBuy);
@@ -114,9 +152,11 @@ void main() {
       expect(after.exitPlan, 'ratchet');
       // v1.0 camelCase keys are rejected.
       expect(
-          () => rpc.updateStrategy(
-              UpdateStrategyRequest(strategyId: s.id, expectedRev: r2.rev, patch: {'tradeLamports': '1'})),
-          throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'SETTINGS_SCHEMA_INVALID')));
+        () => rpc.updateStrategy(
+          UpdateStrategyRequest(strategyId: s.id, expectedRev: r2.rev, patch: {'tradeLamports': '1'}),
+        ),
+        throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'SETTINGS_SCHEMA_INVALID')),
+      );
     });
 
     test('reset_practice, register_device / revoke_device', () async {
@@ -124,23 +164,39 @@ void main() {
       expect(rpc.lastCall!.$2, {'p_workspace': MockBackend.workspaceId});
       expect(r.startingBalance.toWire(), '30000000000');
       const req = RegisterDeviceRequest(
-          deviceId: 'install_ABC123',
-          platform: DevicePlatform.android,
-          provider: PushProvider.fcm,
-          token: 'fcm-token',
-          appVersion: '0.1.0',
-          locale: 'id-ID');
+        deviceId: 'install_ABC123',
+        platform: DevicePlatform.android,
+        provider: PushProvider.fcm,
+        token: 'fcm-token',
+        appVersion: '0.1.0',
+        locale: 'id-ID',
+      );
       final d1 = await rpc.registerDevice(req);
       final d2 = await rpc.registerDevice(req); // rotation bumps rev
       expect(d2.rev, d1.rev + 1);
-      expect(rpc.lastCall!.$2.keys.toSet(),
-          {'p_device_id', 'p_platform', 'p_provider', 'p_token', 'p_app_version', 'p_locale'});
+      expect(rpc.lastCall!.$2.keys.toSet(), {
+        'p_device_id',
+        'p_platform',
+        'p_provider',
+        'p_token',
+        'p_app_version',
+        'p_locale',
+      });
       await rpc.revokeDevice('install_ABC123');
       expect(b.devices, isEmpty);
       expect(
-          () => rpc.registerDevice(const RegisterDeviceRequest(
-              deviceId: 'x', platform: DevicePlatform.ios, provider: PushProvider.apns, token: 't', appVersion: '1', locale: 'en')),
-          throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'DEVICE_TOKEN_INVALID')));
+        () => rpc.registerDevice(
+          const RegisterDeviceRequest(
+            deviceId: 'x',
+            platform: DevicePlatform.ios,
+            provider: PushProvider.apns,
+            token: 't',
+            appVersion: '1',
+            locale: 'en',
+          ),
+        ),
+        throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'DEVICE_TOKEN_INVALID')),
+      );
     });
 
     test('portfolio_latest (lamport strings) and exit_stats()', () async {
@@ -157,20 +213,25 @@ void main() {
 
   group('events feed', () {
     Map<String, Object?> env(int seq, String id, {String mode = 'practice'}) => {
-          'id': id,
-          'seq': seq,
-          'type': 'proposal.created',
-          'version': 1,
-          'workspace_id': 'ws',
-          'ts': '2026-10-29T08:42:00.123Z',
-          'actor': 'entry',
-          'mode': mode,
-          'payload': {},
-        };
+      'id': id,
+      'seq': seq,
+      'type': 'proposal.created',
+      'version': 1,
+      'workspace_id': 'ws',
+      'ts': '2026-10-29T08:42:00.123Z',
+      'actor': 'entry',
+      'mode': mode,
+      'payload': {},
+    };
 
     test('dedupe by id, order by seq, watermark only from safe_seq', () {
       final s = EventSequencer();
-      final page = [env(12, 'c'), env(10, 'a'), env(11, 'b'), env(10, 'a')].map(EventEnvelope.tryParse).cast<EventEnvelope>();
+      final page = [
+        env(12, 'c'),
+        env(10, 'a'),
+        env(11, 'b'),
+        env(10, 'a'),
+      ].map(EventEnvelope.tryParse).cast<EventEnvelope>();
       expect(s.acceptAll(page).map((e) => e.seq), [10, 11, 12]);
       expect(s.watermark, 0, reason: 'raw rows never move the watermark');
       s.advanceSafe(11);
@@ -184,7 +245,9 @@ void main() {
       final got = <EventEnvelope>[];
       final sub = b.watchEvents(MockBackend.workspaceId, TradeMode.practice).listen(got.add);
       final pick = b.debugApprovals.firstWhere((a) => a.isPending && a.mode == TradeMode.practice);
-      await b.decide(DecideApprovalRequest(approvalId: pick.id, token: pick.token, approve: false, expectedRev: pick.version));
+      await b.decide(
+        DecideApprovalRequest(approvalId: pick.id, token: pick.token, approve: false, expectedRev: pick.version),
+      );
       await b.resetPractice(idempotencyKey: 'k');
       await Future<void>.delayed(Duration.zero);
       expect(got.map((e) => e.type), containsAllInOrder(['proposal.rejected', 'practice.reset']));

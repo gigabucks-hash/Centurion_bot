@@ -9,6 +9,7 @@ library;
 
 import 'dart:ui' show Locale;
 
+import '../../data/models/models.dart' show unsupportedQuoteMint;
 import '../../l10n/gen/app_localizations.dart';
 
 enum NotifLocale { id, en }
@@ -61,54 +62,152 @@ const _pushInApp = [NotifChannel.push, NotifChannel.inApp];
 const _inApp = [NotifChannel.inApp];
 
 enum NotifEvent {
-  n01PickPending('N-01', EventSpec(
-      channels: _pushInAppPopup, priority: NotifPriority.high,
-      practiceActions: [NotifAction.approve, NotifAction.skip], realActions: [NotifAction.skip])),
-  n02FirstBuyPending('N-02', EventSpec(
-      channels: _pushInAppPopup, priority: NotifPriority.high,
-      practiceActions: [NotifAction.approve, NotifAction.skip], realActions: [NotifAction.skip])),
-  n03Approved('N-03', EventSpec(
-      channels: _inApp, priority: NotifPriority.normal, practiceActions: [], realActions: [], requiresMode: false)),
-  n04Filled('N-04', EventSpec(
-      channels: _pushInApp, priority: NotifPriority.normal,
-      practiceActions: [NotifAction.viewPosition], realActions: [NotifAction.viewPosition])),
-  n05Failed('N-05', EventSpec(
-      channels: _pushInApp, priority: NotifPriority.high,
-      practiceActions: [NotifAction.detail], realActions: [NotifAction.detail])),
-  n06Skipped('N-06', EventSpec(
-      channels: _inApp, priority: NotifPriority.low,
-      practiceActions: [NotifAction.undo], realActions: [NotifAction.undo], requiresMode: false)),
-  n07Expired('N-07', EventSpec(
-      channels: _inApp, priority: NotifPriority.low, practiceActions: [], realActions: [])),
-  n08TpHit('N-08', EventSpec(
-      channels: _pushInApp, priority: NotifPriority.normal,
-      practiceActions: [NotifAction.view], realActions: [NotifAction.view])),
-  n09StopHit('N-09', EventSpec(
-      channels: _pushInApp, priority: NotifPriority.normal,
-      practiceActions: [NotifAction.view], realActions: [NotifAction.view])),
-  n10GuardWeakeningRequested('N-10', EventSpec(
-      channels: _pushInApp, priority: NotifPriority.high,
-      practiceActions: [NotifAction.review], realActions: [NotifAction.review])),
-  n11CooldownStarted('N-11', EventSpec(
-      channels: [NotifChannel.push, NotifChannel.email, NotifChannel.inApp], priority: NotifPriority.high,
-      practiceActions: [], realActions: [NotifAction.cancel], realOnly: true)),
-  n12WeakeningActive('N-12', EventSpec(
-      channels: _inApp, priority: NotifPriority.normal, practiceActions: [], realActions: [NotifAction.view])),
-  n13AutoRevertDone('N-13', EventSpec(
-      channels: _pushInApp, priority: NotifPriority.normal,
-      practiceActions: [], realActions: [NotifAction.view], realOnly: true)),
-  n14ModeSwitch('N-14', EventSpec(
-      channels: [NotifChannel.inApp, NotifChannel.push], priority: NotifPriority.normal,
-      practiceActions: [], realActions: [])),
-  n15LossStopPaused('N-15', EventSpec(
-      channels: _pushInApp, priority: NotifPriority.high,
-      practiceActions: [NotifAction.view], realActions: [NotifAction.view])),
-  n16ConnectionError('N-16', EventSpec(
-      channels: [NotifChannel.banner], priority: NotifPriority.high,
-      practiceActions: [NotifAction.retry], realActions: [NotifAction.retry], requiresMode: false)),
-  n17TokenInvalid('N-17', EventSpec(
-      channels: _inApp, priority: NotifPriority.normal,
-      practiceActions: [NotifAction.open], realActions: [NotifAction.open], requiresMode: false));
+  n01PickPending(
+    'N-01',
+    EventSpec(
+      channels: _pushInAppPopup,
+      priority: NotifPriority.high,
+      practiceActions: [NotifAction.approve, NotifAction.skip],
+      realActions: [NotifAction.skip],
+    ),
+  ),
+  n02FirstBuyPending(
+    'N-02',
+    EventSpec(
+      channels: _pushInAppPopup,
+      priority: NotifPriority.high,
+      practiceActions: [NotifAction.approve, NotifAction.skip],
+      realActions: [NotifAction.skip],
+    ),
+  ),
+  n03Approved(
+    'N-03',
+    EventSpec(
+      channels: _inApp,
+      priority: NotifPriority.normal,
+      practiceActions: [],
+      realActions: [],
+      requiresMode: false,
+    ),
+  ),
+  n04Filled(
+    'N-04',
+    EventSpec(
+      channels: _pushInApp,
+      priority: NotifPriority.normal,
+      practiceActions: [NotifAction.viewPosition],
+      realActions: [NotifAction.viewPosition],
+    ),
+  ),
+  n05Failed(
+    'N-05',
+    EventSpec(
+      channels: _pushInApp,
+      priority: NotifPriority.high,
+      practiceActions: [NotifAction.detail],
+      realActions: [NotifAction.detail],
+    ),
+  ),
+  n06Skipped(
+    'N-06',
+    EventSpec(
+      channels: _inApp,
+      priority: NotifPriority.low,
+      practiceActions: [NotifAction.undo],
+      realActions: [NotifAction.undo],
+      requiresMode: false,
+    ),
+  ),
+  n07Expired('N-07', EventSpec(channels: _inApp, priority: NotifPriority.low, practiceActions: [], realActions: [])),
+  n08TpHit(
+    'N-08',
+    EventSpec(
+      channels: _pushInApp,
+      priority: NotifPriority.normal,
+      practiceActions: [NotifAction.view],
+      realActions: [NotifAction.view],
+    ),
+  ),
+  n09StopHit(
+    'N-09',
+    EventSpec(
+      channels: _pushInApp,
+      priority: NotifPriority.normal,
+      practiceActions: [NotifAction.view],
+      realActions: [NotifAction.view],
+    ),
+  ),
+  n10GuardWeakeningRequested(
+    'N-10',
+    EventSpec(
+      channels: _pushInApp,
+      priority: NotifPriority.high,
+      practiceActions: [NotifAction.review],
+      realActions: [NotifAction.review],
+    ),
+  ),
+  n11CooldownStarted(
+    'N-11',
+    EventSpec(
+      channels: [NotifChannel.push, NotifChannel.email, NotifChannel.inApp],
+      priority: NotifPriority.high,
+      practiceActions: [],
+      realActions: [NotifAction.cancel],
+      realOnly: true,
+    ),
+  ),
+  n12WeakeningActive(
+    'N-12',
+    EventSpec(channels: _inApp, priority: NotifPriority.normal, practiceActions: [], realActions: [NotifAction.view]),
+  ),
+  n13AutoRevertDone(
+    'N-13',
+    EventSpec(
+      channels: _pushInApp,
+      priority: NotifPriority.normal,
+      practiceActions: [],
+      realActions: [NotifAction.view],
+      realOnly: true,
+    ),
+  ),
+  n14ModeSwitch(
+    'N-14',
+    EventSpec(
+      channels: [NotifChannel.inApp, NotifChannel.push],
+      priority: NotifPriority.normal,
+      practiceActions: [],
+      realActions: [],
+    ),
+  ),
+  n15LossStopPaused(
+    'N-15',
+    EventSpec(
+      channels: _pushInApp,
+      priority: NotifPriority.high,
+      practiceActions: [NotifAction.view],
+      realActions: [NotifAction.view],
+    ),
+  ),
+  n16ConnectionError(
+    'N-16',
+    EventSpec(
+      channels: [NotifChannel.banner],
+      priority: NotifPriority.high,
+      practiceActions: [NotifAction.retry],
+      realActions: [NotifAction.retry],
+      requiresMode: false,
+    ),
+  ),
+  n17TokenInvalid(
+    'N-17',
+    EventSpec(
+      channels: _inApp,
+      priority: NotifPriority.normal,
+      practiceActions: [NotifAction.open],
+      realActions: [NotifAction.open],
+      requiresMode: false,
+    ),
+  );
 
   const NotifEvent(this.code, this.spec);
   final String code;
@@ -125,25 +224,52 @@ enum NotifEvent {
 
   /// Copy variants (map keys in [notificationCopy]) for this event.
   List<String> get copyKeys => switch (this) {
-        n05Failed => ['N-05', 'N-05.real'],
-        n07Expired => ['N-07a', 'N-07b', 'N-07c', 'N-07d', 'N-07e'],
-        n12WeakeningActive => ['N-12', 'N-12.real'],
-        n14ModeSwitch => ['N-14.real', 'N-14.practice'],
-        _ => [code],
-      };
+    n05Failed => ['N-05', 'N-05.real'],
+    n07Expired => [for (final r in expireReasonsWire) 'N-07.$r'],
+    n12WeakeningActive => ['N-12', 'N-12.real'],
+    n14ModeSwitch => ['N-14.real', 'N-14.practice'],
+    _ => [code],
+  };
 }
 
-/// N-07 `expire_reason` (wire values, contract v1.1 `ProposalExpiredReason`) → copy key.
-/// `practice_reset` / `account_deleted` have no UX copy yet → generic N-07a
-/// (reported to UX). Unknown values also fall back to N-07a.
-const expireReasonKeys = {
-  'timeout': 'N-07a',
-  'strategy_deleted': 'N-07b',
-  'guard_failed': 'N-07c',
-  'price_moved': 'N-07d',
-  'strategy_archived': 'N-07e',
-  'practice_reset': 'N-07a',
-  'account_deleted': 'N-07a',
+/// N-07 `expire_reason` wire values (contract v1.1 `ProposalExpiredReason`).
+/// Copy key = `N-07.<reason>`; body `{reason}` = `expire_reason.<r>.detail`
+/// (@sentra/i18n 0.4.x). Unknown values fall back to `timeout`.
+const expireReasonsWire = [
+  'timeout',
+  'strategy_deleted',
+  'strategy_archived',
+  'guard_failed',
+  'price_moved',
+  'practice_reset',
+  'account_deleted',
+];
+
+String expireReasonCopyKey(String? reason) =>
+    'N-07.${expireReasonsWire.contains(reason) ? reason : expireReasonsWire.first}';
+
+/// `expire_reason.<r>.detail` (strategy-aware for deleted/archived).
+String expireReasonDetail(AppLocalizations l, String reason, String strategy) => switch (reason) {
+  'strategy_deleted' => l.expireReasonStrategyDeletedDetail(strategy),
+  'strategy_archived' => l.expireReasonStrategyArchivedDetail(strategy),
+  'guard_failed' => l.expireReasonGuardFailedDetail,
+  'price_moved' => l.expireReasonPriceMovedDetail,
+  'practice_reset' => l.expireReasonPracticeResetDetail,
+  'account_deleted' => l.expireReasonAccountDeletedDetail,
+  _ => l.expireReasonTimeoutDetail,
+};
+
+/// Screener / order reason code for coins without a SOL quote pair (i18n 0.4.1).
+const reasonUnsupportedQuoteMint = unsupportedQuoteMint;
+
+/// `order.fail_reason.<code lower>` → copy; unknown codes → `.unknown` (never the raw code).
+String orderFailReason(AppLocalizations l, String? code) => switch (code) {
+  'SLIPPAGE_EXCEEDED' => l.orderFailReasonSlippageExceeded,
+  'INSUFFICIENT_PRACTICE_BALANCE' => l.orderFailReasonInsufficientPracticeBalance,
+  'GUARD_FAILED' => l.orderFailReasonGuardFailed,
+  reasonUnsupportedQuoteMint => l.orderFailReasonUnsupportedQuoteMint,
+  'POOL_STALE' => l.orderFailReasonPoolStale,
+  _ => l.orderFailReasonUnknown,
 };
 
 typedef Copy = ({String title, String body});
@@ -155,31 +281,49 @@ AppLocalizations l10nFor(NotifLocale l) => lookupAppLocalizations(Locale(l.name)
 Copy notifCopy(AppLocalizations l, String key, String mode, Map<String, String> v, {int count = 0}) {
   String x(String k) => v[k] ?? '–';
   return switch (key) {
-    'N-01' => (title: l.notifPickPendingTitle(x('coin'), mode), body: l.notifPickPendingBody(x('sol'), x('strategy'), x('mm:ss'))),
-    'N-02' => (title: l.notifFirstBuyTitle(x('coin'), mode, x('strategy')), body: l.notifFirstBuyBody(x('sol'))),
+    'N-01' => (
+      title: l.notifPickPendingTitle(x('coin'), mode),
+      body: l.notifPickPendingBody(x('mm_ss'), x('sol'), x('strategy')),
+    ),
+    'N-02' => (
+      title: l.notifFirstBuyTitle(x('coin'), mode, x('strategy')),
+      body: l.notifFirstBuyBody(x('mm_ss'), x('sol')),
+    ),
     'N-03' => (title: l.notifApprovedTitle(x('coin')), body: l.notifApprovedBody),
     'N-04' => (title: l.notifFilledTitle(x('coin'), mode), body: l.notifFilledBody(x('price'), x('sol'))),
-    'N-05' || 'N-05.real' => (title: l.notifFailedTitle(x('coin'), mode), body: l.notifFailedBody(mode, x('reason'))),
+    // i18n 0.4.1 (contracts 1.1.2 `order.failed`): {side} {symbol} {reason_code} {amount_lamports}.
+    // [v] already holds the localized reason text and the formatted lamports.
+    'N-05' || 'N-05.real' => (
+      title: l.notifFailedTitle(mode, v['side'] ?? 'buy', x('symbol')),
+      body: l.notifFailedBody(x('amount_lamports'), mode, x('reason_code')),
+    ),
     'N-06' => (title: l.notifSkippedTitle(x('coin')), body: l.notifSkippedBody(x('reason'))),
-    'N-07a' => (title: l.notifExpiredTitle(x('coin'), mode), body: l.notifExpiredBody(l.queueExpiredReasonTimedOut)),
-    'N-07b' => (title: l.notifExpiredTitle(x('coin'), mode), body: l.notifExpiredBody(l.queueExpiredReasonStrategyDeleted)),
-    'N-07c' => (title: l.notifExpiredTitle(x('coin'), mode), body: l.notifExpiredBody(l.queueExpiredReasonGuardFailed(x('reason')))),
-    'N-07d' => (title: l.notifExpiredTitle(x('coin'), mode), body: l.notifExpiredBody(l.queueExpiredReasonPriceRan(x('pct')))),
-    'N-07e' => (title: l.notifExpiredTitle(x('coin'), mode), body: l.notifExpiredBody(l.queueExpiredReasonStrategyArchived)),
+    final k when k.startsWith('N-07.') => (
+      title: l.notifExpiredTitle(x('coin'), mode),
+      body: l.notifExpiredBody(expireReasonDetail(l, k.substring(5), x('strategy'))),
+    ),
     'N-08' => (title: l.notifTpHitTitle(x('coin'), mode), body: l.notifTpHitBody(x('pct'), x('pct_sold'), x('pnl'))),
     'N-09' => (title: l.notifSlHitTitle(x('coin'), mode), body: l.notifSlHitBody(x('pct'), x('pnl'), x('stop_type'))),
-    'N-10' => (title: l.notifGuardRequestedTitle(mode), body: l.notifGuardRequestedBody(x('from'), x('setting'), x('strategy'), x('to'))),
-    'N-11' => (title: l.notifGuardCooldownTitle, body: l.notifGuardCooldownBody(x('strategy'), x('time'))),
-    'N-12' || 'N-12.real' => (title: l.notifGuardActiveTitle(mode, x('strategy')), body: l.notifGuardActiveBody(x('time'))),
-    'N-13' => (title: l.notifGuardRevertedTitle(x('strategy')), body: l.notifGuardRevertedBody(x('from'), x('setting'))),
+    'N-10' => (
+      title: l.notifGuardRequestedTitle(mode),
+      body: l.notifGuardRequestedBody(x('from'), x('setting'), x('strategy'), x('to')),
+    ),
+    'N-11' => (title: l.notifGuardCooldownTitle, body: l.notifGuardCooldownBody(x('cooldown_until'), x('strategy'))),
+    'N-12' || 'N-12.real' => (
+      title: l.notifGuardActiveTitle(mode, x('strategy')),
+      body: l.notifGuardActiveBody(x('auto_revert_at')),
+    ),
+    'N-13' => (
+      title: l.notifGuardRevertedTitle(x('strategy')),
+      body: l.notifGuardRevertedBody(x('from'), x('setting')),
+    ),
     'N-14.real' => (title: l.notifModeRealTitle, body: l.notifModeRealBody),
     'N-14.practice' => (title: l.notifModePracticeTitle, body: l.notifModePracticeBody),
     'N-15' => (title: l.notifLossStopTitle(mode, x('strategy')), body: l.notifLossStopBody(x('pct'))),
     'N-16' => (title: l.notifOfflineTitle, body: l.notifOfflineBody),
     'N-17' => (title: l.notifTokenInvalidTitle, body: l.notifTokenInvalidBody),
-    // UX-BUG (reported): Flutter gen-l10n does not substitute ICU `#` in plural
-    // branches; the ARB should use `{count}`. Remove once the ARB is fixed.
-    'group' => (title: l.notifGroupedTitle(count, mode).replaceAll('#', '$count'), body: l.notifGroupedBody),
+    // i18n 0.4.2 fixed the plural `#` (explicit {count}); workaround removed.
+    'group' => (title: l.notifGroupedTitle(count, mode), body: l.notifGroupedBody),
     _ => throw ArgumentError.value(key, 'key', 'unknown notification copy key'),
   };
 }
@@ -187,12 +331,12 @@ Copy notifCopy(AppLocalizations l, String key, String mode, Map<String, String> 
 /// Button label from the ARB. GAP: the ARB has no dedicated "View position" /
 /// "Details" / "Open" labels for notifications, so those reuse common keys.
 String actionLabel(AppLocalizations l, NotifAction a) => switch (a) {
-      NotifAction.approve => l.notifActionApprove,
-      NotifAction.skip => l.notifActionSkip,
-      NotifAction.cancel => l.notifActionCancelChange,
-      NotifAction.open => l.notifActionOpenPick,
-      NotifAction.undo => l.commonActionUndo,
-      NotifAction.retry => l.commonActionRetry,
-      NotifAction.review => l.commonActionReview,
-      NotifAction.view || NotifAction.viewPosition || NotifAction.detail => l.commonActionView,
-    };
+  NotifAction.approve => l.notifActionApprove,
+  NotifAction.skip => l.notifActionSkip,
+  NotifAction.cancel => l.notifActionCancelChange,
+  NotifAction.open => l.notifActionOpen,
+  NotifAction.undo => l.commonActionUndo,
+  NotifAction.retry => l.commonActionRetry,
+  NotifAction.review => l.commonActionReview,
+  NotifAction.view || NotifAction.viewPosition || NotifAction.detail => l.commonActionView,
+};

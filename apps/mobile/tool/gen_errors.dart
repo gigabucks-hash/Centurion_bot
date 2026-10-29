@@ -22,7 +22,8 @@ String _camel(String code) {
   return parts.first + parts.skip(1).map((p) => p.isEmpty ? '' : p[0].toUpperCase() + p.substring(1)).join();
 }
 
-String _lit(String? s) => s == null ? 'null' : "'${s.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll(r'$', r'\$')}'";
+String _lit(String? s) =>
+    s == null ? 'null' : "'${s.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll(r'$', r'\$')}'";
 
 /// Pure function: JSON text → Dart source. Used by the CLI and by the sync test.
 String generate(String jsonText) {
@@ -46,15 +47,19 @@ String generate(String jsonText) {
     final msgs = (c['messages'] as Map?)?.cast<String, dynamic>();
     final en = (msgs?['en'] ?? c['message']) as String?;
     final id = (msgs?['id'] ?? c['message_id']) as String?;
-    b.writeln('  ${_camel(code)}(${_lit(code)}, http: ${c['http'] ?? 0}, retryable: ${c['retryable'] ?? false}, '
-        'messageEn: ${_lit(en)}, messageId: ${_lit(id)}, sqlState: ${_lit(c['sqlstate'] as String?)}),');
+    b.writeln(
+      '  ${_camel(code)}(${_lit(code)}, http: ${c['http'] ?? 0}, retryable: ${c['retryable'] ?? false}, '
+      'messageEn: ${_lit(en)}, messageId: ${_lit(id)}, sqlState: ${_lit(c['sqlstate'] as String?)}),',
+    );
   }
   b
     ..writeln("  /// Not (yet) in errors.json: keep [ApiException.rawCode] and regenerate.")
     ..writeln("  unknown('', http: 0, retryable: false, messageEn: null, messageId: null, sqlState: null);")
     ..writeln()
-    ..writeln('  const ApiErrorCode(this.wire, {required this.http, required this.retryable, '
-        'required this.messageEn, required this.messageId, required this.sqlState});')
+    ..writeln(
+      '  const ApiErrorCode(this.wire, {required this.http, required this.retryable, '
+      'required this.messageEn, required this.messageId, required this.sqlState});',
+    )
     ..writeln('  final String wire;')
     ..writeln('  final int http;')
     ..writeln('  final bool retryable;')
@@ -66,7 +71,9 @@ String generate(String jsonText) {
     ..writeln('  /// Specific SQLSTATE when errors.json provides it (contract today: any `P04xx`).')
     ..writeln('  final String? sqlState;')
     ..writeln()
-    ..writeln('  static final Map<String, ApiErrorCode> _byWire = {for (final c in values) if (c != unknown) c.wire: c};')
+    ..writeln(
+      '  static final Map<String, ApiErrorCode> _byWire = {for (final c in values) if (c != unknown) c.wire: c};',
+    )
     ..writeln('  static final Map<String, ApiErrorCode> _bySqlState = {')
     ..writeln('    for (final c in values) if (c.sqlState != null) c.sqlState!: c,')
     ..writeln('  };')

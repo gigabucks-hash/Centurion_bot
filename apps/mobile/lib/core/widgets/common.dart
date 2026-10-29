@@ -11,13 +11,12 @@ import '../theme/solbot_theme.dart';
 
 /// PnL: arrow + sign + color + mono tabular number (SPEC §1).
 class PnlText extends StatelessWidget {
-  /// SOL PnL (exact lamports): ▲/▼ + sign; |v| < 0,0005 SOL → `±0`, neutral color.
+  /// SOL PnL (exact lamports). T-15: exact 0 → `0,000` neutral, no arrow/sign;
+  /// any non-zero (even 1 lamport) → ▲/▼ + sign + profit/loss color.
   const PnlText(Lamports this.value, {super.key, this.size = 14, this.unit = false}) : pctValue = null;
 
   /// Percent PnL (display number).
-  const PnlText.pct(double this.pctValue, {super.key, this.size = 14})
-      : value = null,
-        unit = false;
+  const PnlText.pct(double this.pctValue, {super.key, this.size = 14}) : value = null, unit = false;
   final Lamports? value;
   final double? pctValue;
   final double size;
@@ -27,14 +26,17 @@ class PnlText extends StatelessWidget {
   Widget build(BuildContext context) {
     final v = value;
     final text = v == null ? fmtPct(pctValue!) : fmtPnl(v, unit: unit);
-    final color = v == null ? context.pnlColor(pctValue!, epsilon: 0.05) : context.lamportsColor(v);
-    return Text(text, style: AppText.num(size, weight: FontWeight.w600, color: color));
+    final color = v == null ? context.pnlColor(pctValue!) : context.lamportsColor(v);
+    return Text(
+      text,
+      style: AppText.num(size, weight: FontWeight.w600, color: color),
+    );
   }
 }
 
 extension LamportsColor on BuildContext {
-  /// PnL color for an exact amount; within [pnlZeroEpsilon] is neutral (matches `±0`).
-  Color lamportsColor(Lamports v) => pnlColor(v.abs() < pnlZeroEpsilon ? 0 : v.sign.toDouble());
+  /// PnL color for an exact amount: neutral only when exactly 0 lamports (T-15).
+  Color lamportsColor(Lamports v) => pnlColor(v.sign);
 }
 
 /// Non-dismissable mode banner on every screen (SPEC §1 "Mode banner").
@@ -103,11 +105,13 @@ class TagChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.full),
         border: Border.all(color: color.withValues(alpha: 0.7)),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (icon != null) ...[Icon(icon, size: 12, color: color), const SizedBox(width: 4)],
-        Text(label,
-            style: Theme.of(context).textTheme.labelSmall!.copyWith(color: color, letterSpacing: 0.4)),
-      ]),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[Icon(icon, size: 12, color: color), const SizedBox(width: 4)],
+          Text(label, style: Theme.of(context).textTheme.labelSmall!.copyWith(color: color, letterSpacing: 0.4)),
+        ],
+      ),
     );
   }
 }
@@ -173,25 +177,32 @@ class _ExpiryCountdownState extends ConsumerState<ExpiryCountdown> {
     final total = max(1, widget.expiresAt.difference(widget.createdAt).inMilliseconds);
     final urgent = left.inSeconds < 120;
     final c = urgent ? context.tradeColors.loss : Theme.of(context).colorScheme.onSurfaceVariant;
-    return Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(urgent ? Icons.timer_outlined : Icons.schedule, size: 14, color: c),
-        const SizedBox(width: 4),
-        Text(fmtCountdown(left), style: AppText.num(13, color: c)),
-      ]),
-      if (widget.showBar) ...[
-        const SizedBox(height: 4),
-        SizedBox(
-          width: 72,
-          child: LinearProgressIndicator(
-            value: (left.inMilliseconds / total).clamp(0.0, 1.0),
-            color: c,
-            minHeight: 3,
-            borderRadius: BorderRadius.circular(AppRadius.full),
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(urgent ? Icons.timer_outlined : Icons.schedule, size: 14, color: c),
+            const SizedBox(width: 4),
+            Text(fmtCountdown(left), style: AppText.num(13, color: c)),
+          ],
         ),
+        if (widget.showBar) ...[
+          const SizedBox(height: 4),
+          SizedBox(
+            width: 72,
+            child: LinearProgressIndicator(
+              value: (left.inMilliseconds / total).clamp(0.0, 1.0),
+              color: c,
+              minHeight: 3,
+              borderRadius: BorderRadius.circular(AppRadius.full),
+            ),
+          ),
+        ],
       ],
-    ]);
+    );
   }
 }
 
@@ -253,9 +264,12 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton> with SingleTi
               ),
             ),
             alignment: Alignment.center,
-            child: Text(widget.label,
-                style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                    color: widget.enabled ? cs.onSurface : cs.onSurface.withValues(alpha: 0.4))),
+            child: Text(
+              widget.label,
+              style: Theme.of(context).textTheme.titleSmall!.copyWith(
+                color: widget.enabled ? cs.onSurface : cs.onSurface.withValues(alpha: 0.4),
+              ),
+            ),
           ),
         ),
       ),
@@ -270,12 +284,14 @@ class SectionHeader extends StatelessWidget {
   final VoidCallback? onAction;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: AppSpace.s5, bottom: AppSpace.s2),
-        child: Row(children: [
-          Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
-          if (action != null) TextButton(onPressed: onAction, child: Text('$action ›')),
-        ]),
-      );
+    padding: const EdgeInsets.only(top: AppSpace.s5, bottom: AppSpace.s2),
+    child: Row(
+      children: [
+        Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
+        if (action != null) TextButton(onPressed: onAction, child: Text('$action ›')),
+      ],
+    ),
+  );
 }
 
 /// Renders loading / error / data for an [AsyncValue] consistently.
@@ -305,11 +321,14 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme.onSurfaceVariant;
     return Center(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 48, color: c),
-        const SizedBox(height: AppSpace.s2),
-        Text(text, style: TextStyle(color: c)),
-      ]),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 48, color: c),
+          const SizedBox(height: AppSpace.s2),
+          Text(text, style: TextStyle(color: c)),
+        ],
+      ),
     );
   }
 }

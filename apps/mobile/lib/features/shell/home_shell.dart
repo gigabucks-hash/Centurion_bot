@@ -20,7 +20,12 @@ class HomeShell extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: Column(children: [ModeBanner(mode), Expanded(child: shell)]),
+        child: Column(
+          children: [
+            ModeBanner(mode),
+            Expanded(child: shell),
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: shell.currentIndex,

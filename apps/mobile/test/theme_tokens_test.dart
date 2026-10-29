@@ -29,10 +29,10 @@ void main() {
   test('pnl color + format never rely on color alone', () {
     expect(TradeColors.dark.pnl(0), AppColorsDark.semanticNeutralPnl);
     expect(TradeColors.dark.pnl(1), AppColorsDark.semanticProfit);
-    expect(fmtPnl(Lamports.zero), '±0');
-    expect(fmtPnl(Lamports.fromInt(400000)), '±0'); // < 0,0005 SOL
+    expect(fmtPnl(Lamports.zero), '0,00'); // T-15: exact zero, no arrow/sign
+    expect(fmtPnl(Lamports.fromInt(400000)), '▲ +0,0004'); // non-zero always signed
     expect(fmtPnl(Lamports.fromSol('0.412')), '▲ +0,412');
-    expect(fmtPnl(Lamports.fromSol('-2.506')), '▼ −2,506');
+    expect(fmtPnl(Lamports.fromSol('-2.506')), '▼ −2,51');
     expect(fmtCountdown(const Duration(minutes: 1, seconds: 42)), '01:42');
   });
 }

@@ -21,10 +21,23 @@ const sampleVars = {
   'time': '1793260000',
   'price': '0.000412',
   'stop_type': 'Trailing stop',
+  // i18n 0.4.1 N-05 (`order.failed`) vars.
+  'symbol': 'KEPL',
+  'side': 'buy',
+  'reason_code': 'SLIPPAGE_EXCEEDED',
+  'amount_lamports': '250000000',
+  // i18n 0.4.0 timestamps (N-11 / N-12).
+  'cooldown_until': '2026-10-29T03:10:00Z',
+  'auto_revert_at': '2026-10-30T03:00:00Z',
 };
 
-PushMessage msg(NotifEvent e, NotifMode? mode,
-    {String? expireReason, bool validToken = true, Map<String, String> vars = sampleVars}) {
+PushMessage msg(
+  NotifEvent e,
+  NotifMode? mode, {
+  String? expireReason,
+  bool validToken = true,
+  Map<String, String> vars = sampleVars,
+}) {
   return PushMessage(
     event: e,
     mode: mode,
@@ -48,8 +61,8 @@ List<NotifMode?> modesFor(NotifEvent e) {
 List<NotifAction> expectedActions(NotifEvent e, NotifMode? mode) {
   final real = mode == NotifMode.real;
   return switch (e) {
-    NotifEvent.n01PickPending || NotifEvent.n02FirstBuyPending =>
-      real ? const [] : const [NotifAction.approve, NotifAction.skip],
+    NotifEvent.n01PickPending ||
+    NotifEvent.n02FirstBuyPending => real ? const [] : const [NotifAction.approve, NotifAction.skip],
     NotifEvent.n04Filled => const [NotifAction.viewPosition],
     NotifEvent.n05Failed => const [NotifAction.detail],
     NotifEvent.n06Skipped => const [NotifAction.undo],
@@ -68,14 +81,13 @@ void main() {
 
   test('catalog has exactly the 17 spec events N-01…N-17', () {
     expect(NotifEvent.values.length, 17);
-    expect(NotifEvent.values.map((e) => e.code),
-        [for (var i = 1; i <= 17; i++) 'N-${i.toString().padLeft(2, '0')}']);
+    expect(NotifEvent.values.map((e) => e.code), [for (var i = 1; i <= 17; i++) 'N-${i.toString().padLeft(2, '0')}']);
   });
 
   const unprefixed = {'N-03', 'N-06', 'N-14.real', 'N-14.practice', 'N-16', 'N-17'};
 
   test('every event and variant has non-empty ID and EN copy from the ARB', () {
-    final formatted = {for (final k in sampleVars.keys) k: 'x', 'mm:ss': '01:42'};
+    final formatted = {for (final k in sampleVars.keys) k: 'x', 'mm_ss': '01:42'};
     for (final e in NotifEvent.values) {
       for (final key in e.copyKeys) {
         for (final mode in ['practice', 'real']) {
@@ -106,7 +118,7 @@ void main() {
   test('every event renders fully in ID and EN, with mode prefix and correct buttons', () {
     for (final e in NotifEvent.values) {
       for (final mode in modesFor(e)) {
-        final reasons = e == NotifEvent.n07Expired ? expireReasonKeys.keys.toList() : [null];
+        final reasons = e == NotifEvent.n07Expired ? expireReasonsWire : [null];
         for (final reason in reasons) {
           for (final l in NotifLocale.values) {
             final n = r.render(msg(e, mode, expireReason: reason), l, now);
@@ -128,8 +140,10 @@ void main() {
 
   test('Approve only for Practice picks with a valid token; never for Real', () {
     for (final e in [NotifEvent.n01PickPending, NotifEvent.n02FirstBuyPending]) {
-      expect(r.render(msg(e, NotifMode.practice), NotifLocale.id, now).actions,
-          [NotifAction.approve, NotifAction.skip]);
+      expect(r.render(msg(e, NotifMode.practice), NotifLocale.id, now).actions, [
+        NotifAction.approve,
+        NotifAction.skip,
+      ]);
       // Expired token → no buttons, tap opens the card.
       final late = r.render(msg(e, NotifMode.practice), NotifLocale.id, exp.add(const Duration(seconds: 1)));
       expect(late.actions, isEmpty);
@@ -154,26 +168,50 @@ void main() {
     expect(id.body, 'Pullback v2 · 0,24\u00A0paper SOL · sisa 01:42');
     final en = r.render(msg(NotifEvent.n01PickPending, NotifMode.real), NotifLocale.en, now);
     // Server clock skew (server_now − device now) shifts the countdown.
-    final skewed = r.render(msg(NotifEvent.n01PickPending, NotifMode.practice), NotifLocale.id, now,
-        clockSkew: const Duration(seconds: 40));
+    final skewed = r.render(
+      msg(NotifEvent.n01PickPending, NotifMode.practice),
+      NotifLocale.id,
+      now,
+      clockSkew: const Duration(seconds: 40),
+    );
     expect(skewed.body, endsWith('sisa 01:02'));
     expect(en.title, r'[REAL SOL] $KEPL awaits approval');
     expect(en.body, 'Pullback v2 · 0.24\u00A0SOL · 01:42 left');
     final tp = r.render(msg(NotifEvent.n08TpHit, NotifMode.practice), NotifLocale.id, now);
     expect(tp.body, 'Terjual 33% di +12,5% · ▲ +0,031\u00A0paper SOL');
     final stop = r.render(
-        msg(NotifEvent.n09StopHit, NotifMode.practice, vars: {...sampleVars, 'pnl': '-0.05', 'pct': '-20'}),
-        NotifLocale.en, now);
-    expect(stop.body, 'Trailing stop · ▼ −0.050\u00A0paper SOL (−20%)');
+      msg(NotifEvent.n09StopHit, NotifMode.practice, vars: {...sampleVars, 'pnl': '-0.05', 'pct': '-20'}),
+      NotifLocale.en,
+      now,
+    );
+    expect(stop.body, 'Trailing stop · ▼ −0.050\u00A0paper SOL (−20.0%)');
   });
 
   test('variants: N-05 Real fee note, N-07 reasons, N-14 direction + priority', () {
-    expect(r.render(msg(NotifEvent.n05Failed, NotifMode.real), NotifLocale.id, now).body,
-        endsWith('Biaya jaringan mungkin terpakai.'));
-    expect(r.render(msg(NotifEvent.n05Failed, NotifMode.practice), NotifLocale.en, now).body,
-        endsWith('No SOL was spent.'));
-    expect(r.render(msg(NotifEvent.n07Expired, NotifMode.practice, expireReason: 'strategy_deleted'), NotifLocale.id, now).body,
-        'Strategi dihapus');
+    expect(
+      r.render(msg(NotifEvent.n05Failed, NotifMode.real), NotifLocale.id, now).body,
+      endsWith('Biaya jaringan mungkin terpakai.'),
+    );
+    expect(
+      r.render(msg(NotifEvent.n05Failed, NotifMode.practice), NotifLocale.en, now).body,
+      endsWith('No SOL was spent.'),
+    );
+    expect(
+      r
+          .render(msg(NotifEvent.n07Expired, NotifMode.practice, expireReason: 'strategy_deleted'), NotifLocale.en, now)
+          .body,
+      'Pullback v2 was deleted while this waited',
+    );
+    expect(
+      r
+          .render(msg(NotifEvent.n07Expired, NotifMode.practice, expireReason: 'practice_reset'), NotifLocale.en, now)
+          .body,
+      'Practice was reset; pending buys were cleared',
+    );
+    expect(
+      r.render(msg(NotifEvent.n07Expired, NotifMode.practice, expireReason: 'bogus'), NotifLocale.en, now).copyKey,
+      'N-07.timeout',
+    );
     final toReal = r.render(msg(NotifEvent.n14ModeSwitch, NotifMode.real), NotifLocale.id, now);
     expect(toReal.title, 'Sekarang di REAL SOL');
     expect(toReal.priority, NotifPriority.high);
@@ -192,11 +230,67 @@ void main() {
     final n = r.render(msg(NotifEvent.n01PickPending, NotifMode.practice), NotifLocale.id, now, groupCount: count);
     expect(n.grouped, isTrue);
     expect(n.title, '[PRACTICE] 4 pick menunggu approval');
-    expect(r.render(msg(NotifEvent.n01PickPending, NotifMode.real), NotifLocale.en, now, groupCount: 5).title,
-        '[REAL SOL] 5 picks await approval');
+    expect(
+      r.render(msg(NotifEvent.n01PickPending, NotifMode.real), NotifLocale.en, now, groupCount: 5).title,
+      '[REAL SOL] 5 picks await approval',
+    );
     expect(n.actions, isEmpty);
     expect(n.tapRoute, '/approvals');
     // Window slides: a pick 2 min later starts fresh.
     expect(g.record(NotifMode.practice, now.add(const Duration(minutes: 3))), 1);
+  });
+
+  test('N-05 (i18n 0.4.1): {side} {symbol} {reason_code} {amount_lamports}, lamports via the Lamports formatter', () {
+    Map<String, String> v(String code, {String side = 'buy', String amount = '250000000'}) => {
+      'symbol': 'KEPL',
+      'side': side,
+      'reason_code': code,
+      'amount_lamports': amount,
+      'mint': 'Mint111',
+    };
+    final en = r.render(
+      msg(NotifEvent.n05Failed, NotifMode.practice, vars: v('SLIPPAGE_EXCEEDED')),
+      NotifLocale.en,
+      now,
+    );
+    expect(en.title, r'[PRACTICE] Buy $KEPL failed');
+    expect(en.body, 'Price moved more than your slippage limit · 0.25\u00A0paper SOL. No SOL was spent.');
+    final id = r.render(
+      msg(
+        NotifEvent.n05Failed,
+        NotifMode.real,
+        vars: v('POOL_STALE', side: 'sell', amount: '1234567890'),
+      ),
+      NotifLocale.id,
+      now,
+    );
+    expect(id.title, r'[REAL SOL] Jual $KEPL gagal');
+    expect(id.body, startsWith('Data pool'));
+    expect(id.body, contains('1,23\u00A0SOL'));
+    // Unknown reason code → generic copy, never the raw code.
+    final unk = r.render(msg(NotifEvent.n05Failed, NotifMode.practice, vars: v('SOMETHING_NEW')), NotifLocale.en, now);
+    expect(unk.body, startsWith('The order couldn’t be completed'));
+    expect(unk.body, isNot(contains('SOMETHING_NEW')));
+    expect(unk.actions, isNot(contains(NotifAction.approve)));
+  });
+
+  test('UNSUPPORTED_QUOTE_MINT (not tradeable): no Approve/Skip on any notification', () {
+    final vars = {...sampleVars, 'reason_code': reasonUnsupportedQuoteMint};
+    for (final e in NotifEvent.values) {
+      for (final mode in modesFor(e)) {
+        final m = msg(e, mode, vars: vars);
+        expect(m.notTradeable, isTrue);
+        final acts = r.render(m, NotifLocale.en, now).actions;
+        expect(acts, isNot(contains(NotifAction.approve)), reason: '${e.code}/$mode');
+        expect(acts, isNot(contains(NotifAction.skip)), reason: '${e.code}/$mode');
+      }
+    }
+    // Same pick without the code keeps its buttons (control).
+    expect(r.render(msg(NotifEvent.n01PickPending, NotifMode.practice), NotifLocale.en, now).actions, [
+      NotifAction.approve,
+      NotifAction.skip,
+    ]);
+    final n05 = r.render(msg(NotifEvent.n05Failed, NotifMode.practice, vars: vars), NotifLocale.en, now);
+    expect(n05.body, startsWith('This coin has no SOL pair'));
   });
 }

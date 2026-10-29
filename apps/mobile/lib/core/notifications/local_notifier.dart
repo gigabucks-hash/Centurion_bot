@@ -102,8 +102,7 @@ class MockLocalNotifier extends Notifier<List<ShownNotification>> implements Loc
   void dismiss(ShownNotification n) => state = [...state]..remove(n);
 }
 
-final localNotifierProvider =
-    NotifierProvider<MockLocalNotifier, List<ShownNotification>>(MockLocalNotifier.new);
+final localNotifierProvider = NotifierProvider<MockLocalNotifier, List<ShownNotification>>(MockLocalNotifier.new);
 
 /// Wires the backend's push stream into the notifier. Watched by HomeShell.
 final pushPipelineProvider = Provider<void>((ref) {
@@ -133,7 +132,11 @@ class Done extends ActionOutcome {
 /// (the token may have expired since display); a stale/rejected action is
 /// answered with N-17 "Notification action expired".
 Future<ActionOutcome> handleNotificationAction(
-    ProviderContainerLike ref, ShownNotification shown, NotifAction action, DateTime now) async {
+  ProviderContainerLike ref,
+  ShownNotification shown,
+  NotifAction action,
+  DateTime now,
+) async {
   final m = shown.message;
   final renderer = ref.read(notificationRendererProvider);
   final notifier = ref.read(localNotifierProvider.notifier);
@@ -151,13 +154,17 @@ Future<ActionOutcome> handleNotificationAction(
       final approve = action == NotifAction.approve;
       try {
         // Push payload carries no approval version → p_expected_rev null (reported to Backend).
-        final res = await ref.read(approvalRepositoryProvider).decide(DecideApprovalRequest(
-              approvalId: m.approvalId!,
-              token: m.token ?? '',
-              approve: approve,
-              client: Wire.clientPush,
-              idempotencyKey: 'push:${m.approvalId}:${m.token}:${Wire.decision(approve: approve)}',
-            ));
+        final res = await ref
+            .read(approvalRepositoryProvider)
+            .decide(
+              DecideApprovalRequest(
+                approvalId: m.approvalId!,
+                token: m.token ?? '',
+                approve: approve,
+                client: Wire.clientPush,
+                idempotencyKey: 'push:${m.approvalId}:${m.token}:${Wire.decision(approve: approve)}',
+              ),
+            );
         ref.read(serverClockProvider.notifier).observe(res.serverNow, localNow: now);
         notifier.dismiss(shown);
         return Done(action == NotifAction.approve ? 'Disetujui dari notifikasi' : 'Dilewati dari notifikasi');

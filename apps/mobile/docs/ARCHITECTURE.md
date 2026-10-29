@@ -41,7 +41,7 @@ app/lib/
       local_notifier.dart         # pipeline push → parse → render → shade (mock flutter_local_notifications) + handler aksi
     approval_guard.dart     # gate biometrik (interface; mock = dialog)
     feature_flags.dart      # realSolEnabled=false (Fase 7), telegramOidcEnabled=false
-    format.dart             # id-ID, ▲/▼, ±0, mm:ss (Lamports/Decimal)
+    format.dart             # id-ID, ▲/▼ + tanda (T-15: 0 persis = 0,00 netral), mm:ss (Lamports/Decimal)
   data/
     money.dart              # Lamports (extension type BigInt) + Decimal helper; tanpa double untuk uang/harga
     models/models.dart      # Strategy, Position (lamports, soldBps, harga Decimal), ActivityEvent, Approval(version), PortfolioSummary
@@ -64,19 +64,22 @@ app/lib/
   features/
     positions/ positions_screen.dart (list + detail ladder) · widgets/ equity_card · exit_progress_bar · sell_sheet
     settings/ settings_screen.dart (Lainnya: Reset Practice, status flag Real) · practice_reset_tile.dart · notifications_screen.dart
+    coins/ coins_screen.dart (screener list + detail, WF-20/21: `UNSUPPORTED_QUOTE_MINT` = kartu netral tanpa aksi)
     dashboard · activity · approvals (+guard_review) · strategies · shell
-  l10n/ app_en.arb app_id.arb (verbatim dari UX) · gen/ (gen-l10n output)
+  l10n/ app_en.arb app_id.arb (verbatim dari @sentra/i18n 0.4.2) · gen/ (gen-l10n output)
   core/l10n_format.dart     # mirror format.mjs
 test/  flutter_test_config · mock_backend · push_payload · notification_catalog · notification_pipeline · l10n_format · positions
-       theme_tokens · widget_flows · contract_v11 · api_errors_gen · settings_keys
+       theme_tokens · widget_flows · contract_v11 · api_errors_gen · settings_keys · pnl_zero · i18n_042_reference
+       fonts_bundled · line_length
+assets/google_fonts/  Inter + JetBrains Mono statis (OFL) + *-OFL.txt
 tool/  gen_errors.dart · ci_check_errors.sh · contracts/errors.json (salinan verbatim)
-.github/workflows/mobile.yml   # pub get → ci_check_errors → analyze → test
+.github/workflows/mobile.yml   # pub get → dart format check → ci_check_errors → analyze → test
 ```
 
 ### 3a. Design tokens dan font
 - **Vendoring, bukan dependency.** `/workspace/sentra/packages/design-tokens` bukan paket Dart (tidak ada `pubspec.yaml`; output `tokens/app_tokens.dart` di-generate oleh `scripts/build.py`). File itu disalin **verbatim** ke `core/theme/app_tokens.dart` (md5 `454ec83c…`, sama dengan sumber). Update: salin ulang, lalu `flutter analyze && flutter test`. Setelah pindah ke monorepo, langkah ini jadi skrip CI (salin + cek md5) supaya salinan tidak drift.
 - API yang dipakai: `context.tradeColors`, `AppText.num()`, `AppSpace.sHalf`, `AppDensity`, `AppMotion.of(context)`/`*Base`, `AppButtons.*`, `AppTheme.dark/light()`. Status temuan token ada di `TOKENS_REVIEW.md`.
-- **Font MVP: `google_fonts` ^9** (Inter + JetBrains Mono) lewat `AppText`/`AppTheme`. Di test, `allowRuntimeFetching=false` (tanpa jaringan).
+- **Font: `google_fonts` ^9** (Inter + JetBrains Mono) lewat `AppText`/`AppTheme`. File statis OFL sudah dibundel di `assets/google_fonts/` (lihat TOKENS_REVIEW T-17) dan dimuat dari aset; di test `allowRuntimeFetching=false` dan `test/fonts_bundled_test.dart` membuktikan pemuatan lokal.
 - **Sebelum rilis store: font dibundel sebagai aset lokal** (milestone D8–9, Kam 5 – Jum 6 Nov 2026). Langkahnya: `.ttf` OFL Inter 400/500/600 + JetBrains Mono 500/600 di `assets/google_fonts/`, deklarasi `assets:` di pubspec, `GoogleFonts.config.allowRuntimeFetching = false` di `main()`, file lisensi OFL ditampilkan di `LicenseRegistry`, lalu verifikasi offline (mode pesawat) + golden test. Alasan: tidak ada fetch font saat runtime (privasi, startup offline, review store).
 
 ## 4. Routing (go_router)
@@ -87,7 +90,7 @@ tool/  gen_errors.dart · ci_check_errors.sh · contracts/errors.json (salinan v
 
 ## 5. Data layer
 - Interface: `PortfolioRepository.watchSummary/watchPositions/equityHistory/sellPosition(pct:int) → Lamports`, `ActivityRepository.watchFeed`, `StrategyRepository.watchStrategies/setPaused(expectedRev)`, `ApprovalRepository.watchPending/watchAll/decide(DecideApprovalRequest) → DecideApprovalResult`, `PracticeResetRepository.resetPractice`, `PushSource`, `EventsFeed`, `MarksSource`, `SentraRpc`, `AuthRepository`.
-- **Uang:** semua jumlah SOL = `Lamports` (BigInt, wire string integer), harga = `Decimal` (wire string desimal), persen/rasio/bps = `num` (JSON number). `double` hanya untuk koordinat chart (`plotValue`) dan persen tampilan. PnL `±0` bila |v| < 500 000 lamports.
+- **Uang:** semua jumlah SOL = `Lamports` (BigInt, wire string integer), harga = `Decimal` (wire string desimal), persen/rasio/bps = `num` (JSON number). `double` hanya untuk koordinat chart (`plotValue`) dan persen tampilan. PnL: tepat 0 lamport → `0,00` netral tanpa panah/tanda; non-nol apa pun → ▲/▼ + tanda (T-15, port `pnlSol`/`pnlPct` @sentra/i18n 0.4.2).
 - **Error:** satu tipe `ApiException` (kode dari `api_errors.g.dart`). `ConflictException` lama dihapus; `isConflict` = HTTP 409.
 - **Mock** (`MockBackend`): satu objek mengimplementasikan semua interface, jadi state konsisten (approve pick membuat posisi dan event). `tick()` menggerakkan harga dan menjalankan **exit plan sebagai data** per posisi (rung TP jual sebagian dari ukuran awal, trailing armed setelah TP1, stop loss, time stop bila belum ada TP; fee 125 bps), lalu memunculkan pick baru. Mock juga mengirim payload push (N-01/02/04/08/09) lewat `PushSource`, dengan bentuk yang sama seperti FCM `data`. Idempotensi token, expiry, dan konflik `rev` sudah disimulasikan.
 - **Swap ke Supabase:** buat `data/supabase/*_repository.dart`, lalu di `main_supabase.dart` panggil `ProviderScope(overrides: [portfolioRepositoryProvider.overrideWithValue(...), ...])`. Folder `features/` tidak berubah.
@@ -124,7 +127,7 @@ tool/  gen_errors.dart · ci_check_errors.sh · contracts/errors.json (salinan v
 - **FCM** untuk Android dan iOS (iOS via APNs key di Firebase). Paket: `firebase_messaging` + `flutter_local_notifications`, yang menyediakan action button (Android `actions`, iOS `UNNotificationCategory`).
 - **Payload data-only, tanpa copy** (PushPayload v1, EVENTS_SCHEMA §6, diadopsi Backend di v1.1): `v=1, event=N-xx, mode, approval_id?, position_id?, token?, exp? (ISO), expire_reason?` + `type, workspace_id, seq, deep_link (sentra://…), actions, vars{…}, server_now`. Parser menerima bentuk JSON kanonik **dan** bentuk FCM `data` (semua string; `actions`/`vars` JSON-encoded; `v`/`seq` string) serta bentuk flat lama. `seq` dipakai untuk **dedupe** (`workspace:seq`), **urutan shade** (by seq, bukan waktu tiba), dan **staleness** per approval (event lebih lama untuk approval yang sama dibuang; N-03/N-06/N-07 menghapus notifikasi pick-nya). `actions` dari server hanya bisa **dipersempit** client. Real: token diabaikan walau ada, `actions=["open"]`. `vars.mm_ss` diabaikan; countdown selalu dihitung client dari `exp` dan skew `server_now`. `expire_reason` memakai nilai wire (`timeout guard_failed price_moved strategy_deleted strategy_archived practice_reset account_deleted`); `practice_reset`/`account_deleted` belum punya copy UX → copy generik N-07a. Copy di-render **di client** dari katalog sesuai bahasa user. Payload yang versi/event-nya tidak dikenal, pick tanpa `approval_id`, atau event wajib-mode tanpa `mode` akan ditolak (**fail closed**). Event Real-only (N-11, N-13) ditolak bila mode-nya Practice. `coin` tetap untrusted: hanya teks.
 - **Katalog typed** (`core/notifications/notification_catalog.dart`): `enum NotifEvent` N-01…N-17 (N-07 punya 5 varian alasan a–e, termasuk `strategy_archived` dari ARB/kontrak; N-05/N-12/N-14 punya varian mode/arah). Setiap event membawa kanal, prioritas, dan aksi Practice/Real persis seperti tabel spec. Prefix mode berasal dari ICU `select` di ARB. Angka mengikuti locale, unit `paper SOL`/`SOL`, PnL diberi ▲/▼ (ARB tidak memuat glyph), `{time}` = countdown `expires_at − (now + skew server)`. Variabel yang hilang tampil sebagai `–`, tidak pernah sebagai `{x}` mentah.
-- **Lokalisasi: ARB UX + `flutter_localizations`/gen-l10n.** `lib/l10n/app_{en,id}.arb` disalin **verbatim** dari `/workspace/ux-solbot/locales/arb` (313 key, md5 sama; jangan diedit di sini). `l10n.yaml` menghasilkan `lib/l10n/gen/app_localizations*.dart` (di-commit, deterministik, dan juga di-regenerate otomatis oleh `flutter pub get`/build karena `generate: true`). Copy 17 event diambil dari key `notif*` (+ `queueExpiredReason*` untuk N-07, `commonAction*`/`notifAction*` untuk tombol). Background isolate memakai `lookupAppLocalizations(Locale)` tanpa `BuildContext`. *Pendekatan const-map awal sudah dibuang.* Bahasa app = bahasa notifikasi = locale angka (aturan `format.mjs`); formatter Dart mirror-nya ada di `core/l10n_format.dart` (SOL 2 dp bila ≥1, NBSP + `paper SOL`, minus U+2212, USD 4 digit signifikan, waktu id `16.05` / en `4:05 PM`).
+- **Lokalisasi: ARB UX + `flutter_localizations`/gen-l10n.** `lib/l10n/app_{en,id}.arb` disalin **verbatim** dari `@sentra/i18n` 0.4.2 (`sentra/packages/i18n/arb`, 408 key, md5 sama; jangan diedit di sini). `l10n.yaml` menghasilkan `lib/l10n/gen/app_localizations*.dart` (di-commit, deterministik, dan juga di-regenerate otomatis oleh `flutter pub get`/build karena `generate: true`). Copy 17 event diambil dari key `notif*` (+ `expireReason*Detail` untuk N-07 per nilai wire `expire_reason`, `orderFailReason*` untuk N-05 `{reason_code}`, `commonAction*`/`notifAction*` untuk tombol). Background isolate memakai `lookupAppLocalizations(Locale)` tanpa `BuildContext`. *Pendekatan const-map awal sudah dibuang.* Bahasa app = bahasa notifikasi = locale angka (aturan `format.mjs`); formatter Dart mirror-nya ada di `core/l10n_format.dart` (SOL 2 dp bila ≥1, NBSP + `paper SOL`, minus U+2212, USD 4 digit signifikan, waktu id `16.05` / en `4:05 PM`).
   - Bug ARB (dilaporkan ke UX): 13 key plural memakai `#`, padahal gen-l10n tidak mensubstitusi `#` (tampil literal "# pick"). Saat ini di-workaround hanya untuk `notifGroupedTitle`. Perbaikan yang benar: ganti `#` dengan `{count}` di ARB.
 - **Aturan keamanan aksi** (renderer + dicek ulang saat tombol ditekan):
   - Approve **hanya** untuk pick Practice dengan token sekali pakai yang valid (`now < exp`). Kalau token tidak valid/kedaluwarsa, semua tombol pick disembunyikan dan tap membuka kartu.

@@ -19,6 +19,7 @@ library;
 
 import 'dart:convert';
 
+import '../../data/models/models.dart' show unsupportedQuoteMint;
 import '../notifications/notification_catalog.dart';
 
 class PushMessage {
@@ -66,6 +67,10 @@ class PushMessage {
   final String? workspaceId;
   final int? seq;
   final String? deepLink;
+
+  /// Screener/order says the coin has no SOL quote pair: informational only,
+  /// never Approve/Skip (i18n 0.4.1 `screener.not_tradeable`).
+  bool get notTradeable => vars['reason_code'] == unsupportedQuoteMint;
 
   /// Single-use approval token present and not yet expired.
   bool tokenValidAt(DateTime now) =>
@@ -119,8 +124,8 @@ class PushMessage {
     final actions = rawActions is List
         ? rawActions.map((e) => '$e').toSet()
         : data['actions'] is String && rawActions == null
-            ? '${data['actions']}'.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet()
-            : null;
+        ? '${data['actions']}'.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toSet()
+        : null;
     final varsJson = _json(data['vars']);
     final vars = <String, String>{
       // Legacy flat vars first; nested `vars` wins.
@@ -157,15 +162,14 @@ class PushMessage {
       NotifEvent.n01PickPending || NotifEvent.n02FirstBuyPending => '/approvals/${enc(approvalId)}',
       NotifEvent.n10GuardWeakeningRequested =>
         approvalId == null ? '/approvals' : '/approvals/${enc(approvalId)}/review',
-      NotifEvent.n04Filled || NotifEvent.n08TpHit || NotifEvent.n09StopHit =>
-        positionId == null ? '/positions' : '/positions/${enc(positionId)}',
-      NotifEvent.n05Failed || NotifEvent.n07Expired || NotifEvent.n03Approved || NotifEvent.n06Skipped =>
-        '/activity',
+      NotifEvent.n04Filled ||
+      NotifEvent.n08TpHit ||
+      NotifEvent.n09StopHit => positionId == null ? '/positions' : '/positions/${enc(positionId)}',
+      NotifEvent.n05Failed || NotifEvent.n07Expired || NotifEvent.n03Approved || NotifEvent.n06Skipped => '/activity',
       NotifEvent.n11CooldownStarted ||
       NotifEvent.n12WeakeningActive ||
       NotifEvent.n13AutoRevertDone ||
-      NotifEvent.n15LossStopPaused =>
-        '/strategies',
+      NotifEvent.n15LossStopPaused => '/strategies',
       NotifEvent.n14ModeSwitch => '/',
       NotifEvent.n16ConnectionError => null,
       NotifEvent.n17TokenInvalid => '/approvals',

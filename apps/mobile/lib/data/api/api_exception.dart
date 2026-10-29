@@ -8,15 +8,19 @@ export 'api_errors.g.dart';
 
 class ApiException implements Exception {
   ApiException(this.code, {String? rawCode, String? message, this.sqlState, this.details = const {}})
-      : rawCode = rawCode ?? code.wire,
-        message = message ?? code.messageEn ?? rawCode ?? 'Unknown error';
+    : rawCode = rawCode ?? code.wire,
+      message = message ?? code.messageEn ?? rawCode ?? 'Unknown error';
 
   /// From a code string (REST `error.code`, RPC MESSAGE). Unknown codes keep [rawCode].
   factory ApiException.fromCode(String code, {String? message, Map<String, Object?> details = const {}}) =>
       ApiException(ApiErrorCode.fromWire(code), rawCode: code, message: message, details: details);
 
   /// Supabase RPC error: SQLSTATE `P04xx`, MESSAGE = code, DETAIL = JSON details.
-  factory ApiException.fromPostgres({required String? sqlState, required String? message, Map<String, Object?>? details}) {
+  factory ApiException.fromPostgres({
+    required String? sqlState,
+    required String? message,
+    Map<String, Object?>? details,
+  }) {
     final code = ApiErrorCode.fromPostgres(sqlState, message);
     return ApiException(code, rawCode: message ?? '', sqlState: sqlState, details: details ?? const {});
   }

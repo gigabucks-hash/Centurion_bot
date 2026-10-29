@@ -62,8 +62,7 @@ import 'app_localizations_id.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -71,8 +70,7 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate =
-      _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -84,8 +82,7 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
-      <LocalizationsDelegate<dynamic>>[
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
     delegate,
     GlobalMaterialLocalizations.delegate,
     GlobalCupertinoLocalizations.delegate,
@@ -93,10 +90,7 @@ abstract class AppLocalizations {
   ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[
-    Locale('en'),
-    Locale('id')
-  ];
+  static const List<Locale> supportedLocales = <Locale>[Locale('en'), Locale('id')];
 
   /// builder.approval_mode.real_note
   ///
@@ -275,7 +269,7 @@ abstract class AppLocalizations {
   /// builder.step.weakened
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one {# setting loosened} other {# settings loosened}}'**
+  /// **'{count,plural,one{{count} setting loosened} other{{count} settings loosened}}'**
   String builderStepWeakened(int count);
 
   /// builder.title.edit
@@ -413,19 +407,19 @@ abstract class AppLocalizations {
   /// common.duration.hours
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one {# hour} other {# hours}}'**
+  /// **'{count,plural,one{{count} hour} other{{count} hours}}'**
   String commonDurationHours(int count);
 
   /// common.duration.minutes
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one {# min} other {# min}}'**
+  /// **'{count,plural,one{{count} min} other{{count} min}}'**
   String commonDurationMinutes(int count);
 
   /// common.duration.seconds
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one {# s} other {# s}}'**
+  /// **'{count,plural,one{{count} s} other{{count} s}}'**
   String commonDurationSeconds(int count);
 
   /// screen-reader label
@@ -458,11 +452,17 @@ abstract class AppLocalizations {
   /// **'Saving…'**
   String get commonStateSaving;
 
-  /// time = mm:ss from expires_at
+  /// mm_ss = expires_at − (local_now + skew), skew from server_now
   ///
   /// In en, this message translates to:
-  /// **'{time} left'**
-  String commonTimerLeft(String time);
+  /// **'{mm_ss} left'**
+  String commonTimerLeft(String mm_ss);
+
+  /// common.you
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get commonYou;
 
   /// conflict.action.discard
   ///
@@ -482,18 +482,29 @@ abstract class AppLocalizations {
   /// **'Review changes'**
   String get conflictActionReview;
 
-  /// conflict.banner.body
+  /// 409 body: current_rev, base_rev
   ///
   /// In en, this message translates to:
-  /// **'{actor} saved rev {theirs} at {time}. Your edits are based on rev {base} and have not been saved.'**
-  String conflictBannerBody(
-      String actor, String base, String theirs, String time);
+  /// **'Saved as rev {current_rev}. Your edits are based on rev {base_rev} and have not been saved.'**
+  String conflictBannerBody(String base_rev, String current_rev);
+
+  /// changed_by.actor -> display name (or common.you), changed_by.via enum, changed_by.device model, changed_at -> formatDateTime
+  ///
+  /// In en, this message translates to:
+  /// **'Changed by {actor} via {via, select, web {web} mobile {mobile} desktop {desktop} mcp {MCP agent} push {notification} other {app}} on {device} · {changed_at}'**
+  String conflictBannerChangedBy(String actor, String changed_at, String device, String via);
 
   /// conflict.banner.conflicts
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =0 {No overlapping fields — your edits can be merged.} one {# field changed on both sides.} other {# fields changed on both sides.}}'**
+  /// **'{count,plural,one{{count} field changed on both sides.} other{{count} fields changed on both sides.} =0{No overlapping fields — your edits can be merged.}}'**
   String conflictBannerConflicts(int count);
+
+  /// changed_fields -> localized labels joined with Intl.ListFormat
+  ///
+  /// In en, this message translates to:
+  /// **'Changed fields: {fields}'**
+  String conflictBannerFields(String fields);
 
   /// conflict.banner.title
   ///
@@ -528,13 +539,19 @@ abstract class AppLocalizations {
   /// conflict.discard.confirm
   ///
   /// In en, this message translates to:
-  /// **'Discard {count, plural, one {# edit} other {# edits}}? This can’t be undone.'**
+  /// **'Discard {count,plural,one{{count} edit} other{{count} edits}}? This can’t be undone.'**
   String conflictDiscardConfirm(int count);
 
-  /// conflict.real_guard.reconfirm
+  /// guard.changed status=cancelled
   ///
   /// In en, this message translates to:
-  /// **'A guard change on a Real SOL strategy must be confirmed again after merging.'**
+  /// **'Your pending guard change was cancelled because the strategy was edited elsewhere. Request it again.'**
+  String get conflictGuardChangeCancelled;
+
+  /// 409 CONFIRMATION_RESTART_REQUIRED
+  ///
+  /// In en, this message translates to:
+  /// **'This loosens a guard on a Real SOL strategy. The full confirmation starts over, and the 10-minute cooldown and 24-hour auto-revert restart from the new confirmation.'**
   String get conflictRealGuardReconfirm;
 
   /// conflict.state.merged
@@ -600,7 +617,7 @@ abstract class AppLocalizations {
   /// dashboard.kpi.expiring_soon
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one {# expires in under 2 min} other {# expire in under 2 min}}'**
+  /// **'{count,plural,one{{count} expires in under 2 min} other{{count} expire in under 2 min}}'**
   String dashboardKpiExpiringSoon(int count);
 
   /// dashboard.kpi.open_positions
@@ -681,6 +698,324 @@ abstract class AppLocalizations {
   /// **'Team overview'**
   String get dashboardTitle;
 
+  /// wire error.code ACCOUNT_DELETION_BLOCKED
+  ///
+  /// In en, this message translates to:
+  /// **'Close your Real SOL positions and withdraw your trading wallet first.'**
+  String get errorCodeAccountDeletionBlocked;
+
+  /// wire error.code ACCOUNT_DELETION_PENDING
+  ///
+  /// In en, this message translates to:
+  /// **'Account deletion is already scheduled.'**
+  String get errorCodeAccountDeletionPending;
+
+  /// wire error.code APPROVAL_ALREADY_DECIDED
+  ///
+  /// In en, this message translates to:
+  /// **'This was already decided on another device.'**
+  String get errorCodeApprovalAlreadyDecided;
+
+  /// wire error.code APPROVAL_EXPIRED
+  ///
+  /// In en, this message translates to:
+  /// **'This proposal expired: {reason}'**
+  String errorCodeApprovalExpired(String reason);
+
+  /// wire error.code APPROVAL_TOKEN_INVALID
+  ///
+  /// In en, this message translates to:
+  /// **'This notification action expired. Open the app to continue.'**
+  String get errorCodeApprovalTokenInvalid;
+
+  /// wire error.code AUTH_TG_INVALID
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram login couldn’t be verified. Try again.'**
+  String get errorCodeAuthTgInvalid;
+
+  /// wire error.code AUTH_TG_NO_PROFILE
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Telegram to share your profile to sign in.'**
+  String get errorCodeAuthTgNoProfile;
+
+  /// wire error.code AUTH_TG_REPLAY
+  ///
+  /// In en, this message translates to:
+  /// **'This Telegram login was already used. Start again.'**
+  String get errorCodeAuthTgReplay;
+
+  /// wire error.code CONFIRMATION_RESTART_REQUIRED
+  ///
+  /// In en, this message translates to:
+  /// **'The strategy changed during confirmation. Start the confirmation again.'**
+  String get errorCodeConfirmationRestartRequired;
+
+  /// wire error.code GUARD_COOLDOWN_ACTIVE
+  ///
+  /// In en, this message translates to:
+  /// **'This guard change is in its cooldown.'**
+  String get errorCodeGuardCooldownActive;
+
+  /// wire error.code HOLD_TOO_SHORT
+  ///
+  /// In en, this message translates to:
+  /// **'Released too early. Hold until the bar is full.'**
+  String get errorCodeHoldTooShort;
+
+  /// wire error.code INTERNAL
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Try again.'**
+  String get errorCodeInternal;
+
+  /// wire error.code LAST_LOGIN_METHOD
+  ///
+  /// In en, this message translates to:
+  /// **'This is your only sign-in method. Link another one before unlinking.'**
+  String get errorCodeLastLoginMethod;
+
+  /// wire error.code OTP_INVALID
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong or expired code.'**
+  String get errorCodeOtpInvalid;
+
+  /// wire error.code OTP_LOCKED
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Try again in 15 minutes.'**
+  String get errorCodeOtpLocked;
+
+  /// wire error.code RATE_LIMITED
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Try again in {retry_after_s,plural,one{{retry_after_s} second} other{{retry_after_s} seconds}}.'**
+  String errorCodeRateLimited(int retry_after_s);
+
+  /// wire error.code REAL_SOL_DISABLED
+  ///
+  /// In en, this message translates to:
+  /// **'Real SOL isn’t available yet.'**
+  String get errorCodeRealSolDisabled;
+
+  /// wire error.code REAUTH_REQUIRED
+  ///
+  /// In en, this message translates to:
+  /// **'Please confirm it’s you again to continue.'**
+  String get errorCodeReauthRequired;
+
+  /// wire error.code RESET_COOLDOWN
+  ///
+  /// In en, this message translates to:
+  /// **'Practice can be reset once a day. Next: {next_allowed_at}'**
+  String errorCodeResetCooldown(String next_allowed_at);
+
+  /// wire error.code SIWS_NONCE_INVALID
+  ///
+  /// In en, this message translates to:
+  /// **'This sign-in request expired. Try again.'**
+  String get errorCodeSiwsNonceInvalid;
+
+  /// wire error.code SIWS_SIGNATURE_INVALID
+  ///
+  /// In en, this message translates to:
+  /// **'The wallet signature couldn’t be verified.'**
+  String get errorCodeSiwsSignatureInvalid;
+
+  /// wire error.code STRATEGY_REV_CONFLICT
+  ///
+  /// In en, this message translates to:
+  /// **'This strategy changed while you were editing.'**
+  String get errorCodeStrategyRevConflict;
+
+  /// wire error.code TWO_FACTOR_REQUIRED
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your two-factor code to continue.'**
+  String get errorCodeTwoFactorRequired;
+
+  /// wire error.code TYPED_CONFIRMATION_MISMATCH
+  ///
+  /// In en, this message translates to:
+  /// **'The name doesn’t match exactly.'**
+  String get errorCodeTypedConfirmationMismatch;
+
+  /// wire error.code UNAVAILABLE
+  ///
+  /// In en, this message translates to:
+  /// **'Service is temporarily unavailable. Retrying…'**
+  String get errorCodeUnavailable;
+
+  /// wire error.code WALLET_ROLE_CONFLICT
+  ///
+  /// In en, this message translates to:
+  /// **'A sign-in wallet can’t also be your trading wallet.'**
+  String get errorCodeWalletRoleConflict;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Drawdown halt'**
+  String get exitReasonDrawdownHalt;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'No-trade exit'**
+  String get exitReasonIdle;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Stop loss'**
+  String get exitReasonLossGuard;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Manual sell'**
+  String get exitReasonManual;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Time stop'**
+  String get exitReasonMaxHold;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'No new high'**
+  String get exitReasonNoNewHigh;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Trailing stop'**
+  String get exitReasonPeakTrail;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Practice reset'**
+  String get exitReasonPracticeReset;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Take profit'**
+  String get exitReasonProfitTarget;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Rug detected'**
+  String get exitReasonRugDetected;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Sell floor'**
+  String get exitReasonSellFloor;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Sell pressure'**
+  String get exitReasonSellPressure;
+
+  /// wire ExitReason
+  ///
+  /// In en, this message translates to:
+  /// **'Strategy retired'**
+  String get exitReasonStrategyRetired;
+
+  /// queue chip for proposal.expired reason=account_deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Account deleted'**
+  String get expireReasonAccountDeletedBadge;
+
+  /// detail line / N-07 body for reason=account_deleted
+  ///
+  /// In en, this message translates to:
+  /// **'The account was deleted'**
+  String get expireReasonAccountDeletedDetail;
+
+  /// queue chip for proposal.expired reason=guard_failed
+  ///
+  /// In en, this message translates to:
+  /// **'Guard failed'**
+  String get expireReasonGuardFailedBadge;
+
+  /// detail line / N-07 body for reason=guard_failed
+  ///
+  /// In en, this message translates to:
+  /// **'A guard check failed while waiting'**
+  String get expireReasonGuardFailedDetail;
+
+  /// queue chip for proposal.expired reason=practice_reset
+  ///
+  /// In en, this message translates to:
+  /// **'Practice reset'**
+  String get expireReasonPracticeResetBadge;
+
+  /// detail line / N-07 body for reason=practice_reset
+  ///
+  /// In en, this message translates to:
+  /// **'Practice was reset; pending buys were cleared'**
+  String get expireReasonPracticeResetDetail;
+
+  /// queue chip for proposal.expired reason=price_moved
+  ///
+  /// In en, this message translates to:
+  /// **'Price moved'**
+  String get expireReasonPriceMovedBadge;
+
+  /// detail line / N-07 body for reason=price_moved
+  ///
+  /// In en, this message translates to:
+  /// **'Price moved past the entry limit'**
+  String get expireReasonPriceMovedDetail;
+
+  /// queue chip for proposal.expired reason=strategy_archived
+  ///
+  /// In en, this message translates to:
+  /// **'Strategy archived'**
+  String get expireReasonStrategyArchivedBadge;
+
+  /// detail line / N-07 body for reason=strategy_archived
+  ///
+  /// In en, this message translates to:
+  /// **'{strategy} was archived while this waited'**
+  String expireReasonStrategyArchivedDetail(String strategy);
+
+  /// queue chip for proposal.expired reason=strategy_deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Strategy deleted'**
+  String get expireReasonStrategyDeletedBadge;
+
+  /// detail line / N-07 body for reason=strategy_deleted
+  ///
+  /// In en, this message translates to:
+  /// **'{strategy} was deleted while this waited'**
+  String expireReasonStrategyDeletedDetail(String strategy);
+
+  /// queue chip for proposal.expired reason=timeout
+  ///
+  /// In en, this message translates to:
+  /// **'Timed out'**
+  String get expireReasonTimeoutBadge;
+
+  /// detail line / N-07 body for reason=timeout
+  ///
+  /// In en, this message translates to:
+  /// **'Approval window ended'**
+  String get expireReasonTimeoutDetail;
+
   /// feed.actor.entry
   ///
   /// In en, this message translates to:
@@ -758,6 +1093,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sold {coin} · {pnl}'**
   String feedEventSold(String coin, String pnl);
+
+  /// POST …/guard-impact/estimate
+  ///
+  /// In en, this message translates to:
+  /// **'Up to {max_extra_passes} more coins could pass per {window}. Based on rules, not a replay.'**
+  String guardImpactEstimateBody(String max_extra_passes, String window);
+
+  /// method static_v1; always visible until replay result arrives
+  ///
+  /// In en, this message translates to:
+  /// **'Estimate'**
+  String get guardImpactEstimateLabel;
+
+  /// guard.impact.replay_body
+  ///
+  /// In en, this message translates to:
+  /// **'{newly_passing} more would have passed, {newly_passing_rugged} of them rugged ({samples} samples).'**
+  String guardImpactReplayBody(String newly_passing, String newly_passing_rugged, String samples);
+
+  /// GUARD_REPLAY_ENABLED on
+  ///
+  /// In en, this message translates to:
+  /// **'Replay · {window}'**
+  String guardImpactReplayLabel(String window);
+
+  /// guard.impact.replay_loading
+  ///
+  /// In en, this message translates to:
+  /// **'Running replay… showing the estimate meanwhile'**
+  String get guardImpactReplayLoading;
+
+  /// 503 REPLAY_UNAVAILABLE
+  ///
+  /// In en, this message translates to:
+  /// **'Replay unavailable right now. Showing the estimate.'**
+  String get guardImpactReplayUnavailable;
 
   /// guard.weaken.after.audit
   ///
@@ -924,7 +1295,7 @@ abstract class AppLocalizations {
   /// login.otp.wrong
   ///
   /// In en, this message translates to:
-  /// **'{remaining, plural, one {Wrong code. # attempt left.} other {Wrong code. # attempts left.}}'**
+  /// **'{remaining,plural,one{Wrong code. {remaining} attempt left.} other{Wrong code. {remaining} attempts left.}}'**
   String loginOtpWrong(int remaining);
 
   /// login.practice_default
@@ -939,28 +1310,40 @@ abstract class AppLocalizations {
   /// **'One account, many sign-in methods. You can link more later.'**
   String get loginSubtitle;
 
-  /// login.telegram.expired
+  /// login.telegram.cancelled
   ///
   /// In en, this message translates to:
-  /// **'This link expired. Request a new one.'**
-  String get loginTelegramExpired;
+  /// **'Telegram login was cancelled. Nothing changed.'**
+  String get loginTelegramCancelled;
 
-  /// login.telegram.reopen
+  /// login.telegram.consent
   ///
   /// In en, this message translates to:
-  /// **'Open Telegram again'**
-  String get loginTelegramReopen;
+  /// **'Telegram shares your name, username and photo with Sentra.'**
+  String get loginTelegramConsent;
+
+  /// login.telegram.retry
+  ///
+  /// In en, this message translates to:
+  /// **'Try Telegram again'**
+  String get loginTelegramRetry;
 
   /// login.telegram.title
   ///
   /// In en, this message translates to:
-  /// **'Continue in Telegram'**
+  /// **'Log in with Telegram'**
   String get loginTelegramTitle;
+
+  /// flag AUTH_TELEGRAM_OIDC_ENABLED=false
+  ///
+  /// In en, this message translates to:
+  /// **'Telegram login is not available yet. Use another method.'**
+  String get loginTelegramUnavailable;
 
   /// login.telegram.waiting
   ///
   /// In en, this message translates to:
-  /// **'Waiting for confirmation…'**
+  /// **'Confirm in Telegram…'**
   String get loginTelegramWaiting;
 
   /// login.terms
@@ -1113,7 +1496,7 @@ abstract class AppLocalizations {
   /// **'Strategies'**
   String get navStrategies;
 
-  /// Practice only, valid approval token
+  /// Practice buy_pick only, valid token
   ///
   /// In en, this message translates to:
   /// **'Approve'**
@@ -1125,246 +1508,329 @@ abstract class AppLocalizations {
   /// **'Cancel change'**
   String get notifActionCancelChange;
 
-  /// Real SOL: replaces Approve
+  /// only action for Real, guard changes, team actions
   ///
   /// In en, this message translates to:
-  /// **'Open pick'**
-  String get notifActionOpenPick;
+  /// **'Open'**
+  String get notifActionOpen;
 
-  /// notif.action.skip
+  /// Practice buy_pick only (push); Real: in-app only
   ///
   /// In en, this message translates to:
   /// **'Skip'**
   String get notifActionSkip;
 
-  /// notif.approved.body
+  /// N-03
   ///
   /// In en, this message translates to:
   /// **'Order is being placed'**
   String get notifApprovedBody;
 
-  /// mode = real | practice (select); labels never translated
+  /// N-03; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'Approved: {coin}'**
   String notifApprovedTitle(String coin);
 
-  /// notif.expired.body
+  /// N-22
+  ///
+  /// In en, this message translates to:
+  /// **'Your account stays active.'**
+  String get notifDeletionCancelledBody;
+
+  /// N-22; placeholders = push vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'Account deletion cancelled'**
+  String get notifDeletionCancelledTitle;
+
+  /// N-21
+  ///
+  /// In en, this message translates to:
+  /// **'Your account will be deleted on {scheduled_for}. Cancel in Settings if this wasn’t you.'**
+  String notifDeletionScheduledBody(String scheduled_for);
+
+  /// N-21; placeholders = push vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'Account deletion scheduled'**
+  String get notifDeletionScheduledTitle;
+
+  /// N-07
   ///
   /// In en, this message translates to:
   /// **'{reason}'**
   String notifExpiredBody(String reason);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-07; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} expired'**
   String notifExpiredTitle(String coin, String mode);
 
-  /// notif.failed.body
+  /// N-05
   ///
   /// In en, this message translates to:
-  /// **'{reason}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}'**
-  String notifFailedBody(String mode, String reason);
+  /// **'{reason_code} · {amount_lamports}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}'**
+  String notifFailedBody(String amount_lamports, String mode, String reason_code);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-05; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy {coin} failed'**
-  String notifFailedTitle(String coin, String mode);
+  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {side, select, sell {Sell} other {Buy}} {symbol} failed'**
+  String notifFailedTitle(String mode, String side, String symbol);
 
-  /// notif.filled.body
+  /// N-04
   ///
   /// In en, this message translates to:
   /// **'{sol} at {price} · exit plan armed'**
   String notifFilledBody(String price, String sol);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-04; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {coin}'**
   String notifFilledTitle(String coin, String mode);
 
-  /// notif.first_buy.body
+  /// N-02
   ///
   /// In en, this message translates to:
-  /// **'This strategy hasn’t bought yet. Review before it starts · {sol}'**
-  String notifFirstBuyBody(String sol);
+  /// **'This strategy hasn’t bought yet. Review before it starts · {sol} · {mm_ss} left'**
+  String notifFirstBuyBody(String mm_ss, String sol);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-02; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {coin}'**
   String notifFirstBuyTitle(String coin, String mode, String strategy);
 
-  /// notif.grouped.body
+  /// N-18
   ///
   /// In en, this message translates to:
   /// **'Open the queue to review'**
   String get notifGroupedBody;
 
-  /// mode = real | practice (select); labels never translated
+  /// N-18; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {count, plural, one {# pick awaits approval} other {# picks await approval}}'**
+  /// **'[{mode,select,other{PRACTICE} real{REAL SOL}}] {count,plural,one{{count} pick awaits approval} other{{count} picks await approval}}'**
   String notifGroupedTitle(int count, String mode);
 
-  /// notif.guard_active.body
+  /// N-12
   ///
   /// In en, this message translates to:
-  /// **'Auto-reverts {time}'**
-  String notifGuardActiveBody(String time);
+  /// **'Auto-reverts {auto_revert_at}'**
+  String notifGuardActiveBody(String auto_revert_at);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-12; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} guard is now looser'**
   String notifGuardActiveTitle(String mode, String strategy);
 
-  /// notif.guard_cooldown.body
+  /// N-19
   ///
   /// In en, this message translates to:
-  /// **'{strategy}: effective {time}. Cancel if this wasn’t you.'**
-  String notifGuardCooldownBody(String strategy, String time);
+  /// **'{strategy} was edited elsewhere. Request the change again.'**
+  String notifGuardCancelledBody(String strategy);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-19; placeholders = push vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change cancelled'**
+  String notifGuardCancelledTitle(String mode);
+
+  /// N-11
+  ///
+  /// In en, this message translates to:
+  /// **'{strategy}: effective {cooldown_until}. Cancel if this wasn’t you.'**
+  String notifGuardCooldownBody(String cooldown_until, String strategy);
+
+  /// N-11; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[REAL SOL] Guard loosens in 10 min'**
   String get notifGuardCooldownTitle;
 
-  /// notif.guard_requested.body
+  /// N-10
   ///
   /// In en, this message translates to:
   /// **'{strategy}: {setting} {from} → {to} loosens a guard'**
-  String notifGuardRequestedBody(
-      String from, String setting, String strategy, String to);
+  String notifGuardRequestedBody(String from, String setting, String strategy, String to);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-10; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change pending'**
   String notifGuardRequestedTitle(String mode);
 
-  /// notif.guard_reverted.body
+  /// N-13
   ///
   /// In en, this message translates to:
   /// **'{setting} back to {from}'**
   String notifGuardRevertedBody(String from, String setting);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-13; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[REAL SOL] {strategy} guard restored'**
   String notifGuardRevertedTitle(String strategy);
 
-  /// notif.loss_stop.body
+  /// N-15
   ///
   /// In en, this message translates to:
   /// **'Down {pct} from peak. Re-arm needs approval.'**
   String notifLossStopBody(String pct);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-15; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} paused'**
   String notifLossStopTitle(String mode, String strategy);
 
-  /// notif.mode_practice.body
+  /// N-14b
   ///
   /// In en, this message translates to:
   /// **'Orders use paper SOL'**
   String get notifModePracticeBody;
 
-  /// mode = real | practice (select); labels never translated
+  /// N-14b; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'Back to PRACTICE'**
   String get notifModePracticeTitle;
 
-  /// notif.mode_real.body
+  /// N-14
   ///
   /// In en, this message translates to:
   /// **'Next orders use real SOL'**
   String get notifModeRealBody;
 
-  /// mode = real | practice (select); labels never translated
+  /// N-14; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'Now in REAL SOL'**
   String get notifModeRealTitle;
 
-  /// notif.offline.body
+  /// N-16
   ///
   /// In en, this message translates to:
   /// **'Data may be delayed. Retrying…'**
   String get notifOfflineBody;
 
-  /// mode = real | practice (select); labels never translated
+  /// N-16; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'Lost connection to server'**
   String get notifOfflineTitle;
 
-  /// notif.pick_pending.body
+  /// N-01
   ///
   /// In en, this message translates to:
-  /// **'{strategy} · {sol} · {time} left'**
-  String notifPickPendingBody(String sol, String strategy, String time);
+  /// **'{strategy} · {sol} · {mm_ss} left'**
+  String notifPickPendingBody(String mm_ss, String sol, String strategy);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-01; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} awaits approval'**
   String notifPickPendingTitle(String coin, String mode);
 
-  /// notif.skipped.body
+  /// N-20
+  ///
+  /// In en, this message translates to:
+  /// **'Balance back to {sol}. Pending buys were cleared.'**
+  String notifPracticeResetBody(String sol);
+
+  /// N-20; placeholders = push vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[PRACTICE] Practice reset'**
+  String get notifPracticeResetTitle;
+
+  /// N-06
   ///
   /// In en, this message translates to:
   /// **'Reason: {reason}'**
   String notifSkippedBody(String reason);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-06; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'Skipped: {coin}'**
   String notifSkippedTitle(String coin);
 
-  /// notif.sl_hit.body
+  /// N-09
   ///
   /// In en, this message translates to:
   /// **'{stop_type} · {pnl} ({pct})'**
   String notifSlHitBody(String pct, String pnl, String stop_type);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-09; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {coin}'**
   String notifSlHitTitle(String coin, String mode);
 
-  /// notif.token_invalid.body
+  /// N-17
   ///
   /// In en, this message translates to:
   /// **'Open the app to continue'**
   String get notifTokenInvalidBody;
 
-  /// mode = real | practice (select); labels never translated
+  /// N-17; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'Notification action expired'**
   String get notifTokenInvalidTitle;
 
-  /// notif.tp_hit.body
+  /// N-08
   ///
   /// In en, this message translates to:
-  /// **'Sold {pct_sold} at +{pct} · {pnl}'**
+  /// **'Sold {pct_sold} at {pct} · {pnl}'**
   String notifTpHitBody(String pct, String pct_sold, String pnl);
 
-  /// mode = real | practice (select); labels never translated
+  /// N-08; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
   /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {coin}'**
   String notifTpHitTitle(String coin, String mode);
+
+  /// order.failed reason_code=GUARD_FAILED
+  ///
+  /// In en, this message translates to:
+  /// **'A guard check failed right before the order'**
+  String get orderFailReasonGuardFailed;
+
+  /// order.failed reason_code=INSUFFICIENT_PRACTICE_BALANCE
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough paper SOL'**
+  String get orderFailReasonInsufficientPracticeBalance;
+
+  /// order.failed reason_code=POOL_STALE
+  ///
+  /// In en, this message translates to:
+  /// **'Pool data was out of date; the order was not sent'**
+  String get orderFailReasonPoolStale;
+
+  /// order.failed reason_code=SLIPPAGE_EXCEEDED
+  ///
+  /// In en, this message translates to:
+  /// **'Price moved more than your slippage limit'**
+  String get orderFailReasonSlippageExceeded;
+
+  /// order.failed reason_code=UNKNOWN; fallback for any unknown reason_code
+  ///
+  /// In en, this message translates to:
+  /// **'The order couldn’t be completed'**
+  String get orderFailReasonUnknown;
+
+  /// order.failed reason_code=UNSUPPORTED_QUOTE_MINT
+  ///
+  /// In en, this message translates to:
+  /// **'This coin has no SOL pair, so it can’t be traded'**
+  String get orderFailReasonUnsupportedQuoteMint;
 
   /// positions.equity.hwm
   ///
@@ -1387,7 +1853,7 @@ abstract class AppLocalizations {
   /// positions.open_count
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one {# open} other {# open}}'**
+  /// **'{count,plural,one{{count} open} other{{count} open}}'**
   String positionsOpenCount(int count);
 
   /// positions.sell.estimate
@@ -1447,13 +1913,13 @@ abstract class AppLocalizations {
   /// queue.batch.approve
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one {Approve # pick} other {Approve # picks}}'**
+  /// **'{count,plural,one{Approve {count} pick} other{Approve {count} picks}}'**
   String queueBatchApprove(int count);
 
   /// queue.batch.selected
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one {# selected} other {# selected}}'**
+  /// **'{count,plural,one{{count} selected} other{{count} selected}}'**
   String queueBatchSelected(int count);
 
   /// queue.batch.total
@@ -1461,36 +1927,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Total {sol}'**
   String queueBatchTotal(String sol);
-
-  /// queue.expired.reason.guard_failed
-  ///
-  /// In en, this message translates to:
-  /// **'Guard failed while waiting: {reason}'**
-  String queueExpiredReasonGuardFailed(String reason);
-
-  /// queue.expired.reason.price_ran
-  ///
-  /// In en, this message translates to:
-  /// **'Price ran {pct} past the entry limit'**
-  String queueExpiredReasonPriceRan(String pct);
-
-  /// queue.expired.reason.strategy_archived
-  ///
-  /// In en, this message translates to:
-  /// **'Strategy was archived'**
-  String get queueExpiredReasonStrategyArchived;
-
-  /// queue.expired.reason.strategy_deleted
-  ///
-  /// In en, this message translates to:
-  /// **'Strategy was deleted'**
-  String get queueExpiredReasonStrategyDeleted;
-
-  /// queue.expired.reason.timed_out
-  ///
-  /// In en, this message translates to:
-  /// **'Approval window ended'**
-  String get queueExpiredReasonTimedOut;
 
   /// guard change rows use Reject, not Skip
   ///
@@ -1513,8 +1949,8 @@ abstract class AppLocalizations {
   /// queue.pick.expires_in
   ///
   /// In en, this message translates to:
-  /// **'Expires in {time}'**
-  String queuePickExpiresIn(String time);
+  /// **'Expires in {mm_ss}'**
+  String queuePickExpiresIn(String mm_ss);
 
   /// queue.pick.kind.buy
   ///
@@ -1555,7 +1991,7 @@ abstract class AppLocalizations {
   /// queue.real.batch_confirm.title
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, one {Approve # buy with REAL SOL?} other {Approve # buys with REAL SOL?}}'**
+  /// **'{count,plural,one{Approve {count} buy with REAL SOL?} other{Approve {count} buys with REAL SOL?}}'**
   String queueRealBatchConfirmTitle(int count);
 
   /// queue.real.hold
@@ -1648,6 +2084,18 @@ abstract class AppLocalizations {
   /// **'Why does this need approval?'**
   String get queueWhyTitle;
 
+  /// neutral chip (text.tertiary on surface.sunken), not loss/error red
+  ///
+  /// In en, this message translates to:
+  /// **'Not tradeable'**
+  String get screenerNotTradeableBadge;
+
+  /// shown instead of Approve/Skip; reason_code UNSUPPORTED_QUOTE_MINT
+  ///
+  /// In en, this message translates to:
+  /// **'No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved.'**
+  String get screenerNotTradeableDetail;
+
   /// settings.appearance.density.comfortable
   ///
   /// In en, this message translates to:
@@ -1689,6 +2137,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Match system'**
   String get settingsAppearanceThemeSystem;
+
+  /// settings.delete.audit_note
+  ///
+  /// In en, this message translates to:
+  /// **'Audit records are kept but anonymized; your name, devices and sign-in methods are removed.'**
+  String get settingsDeleteAuditNote;
+
+  /// settings.delete.cancel
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel deletion'**
+  String get settingsDeleteCancel;
+
+  /// settings.delete.check.real_positions
+  ///
+  /// In en, this message translates to:
+  /// **'Close all Real SOL positions'**
+  String get settingsDeleteCheckRealPositions;
+
+  /// settings.delete.check.reauth
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm it’s you (last 5 min)'**
+  String get settingsDeleteCheckReauth;
+
+  /// settings.delete.check.two_factor
+  ///
+  /// In en, this message translates to:
+  /// **'Two-factor code (if enabled)'**
+  String get settingsDeleteCheckTwoFactor;
+
+  /// settings.delete.check.wallet_withdrawn
+  ///
+  /// In en, this message translates to:
+  /// **'Withdraw your trading wallet'**
+  String get settingsDeleteCheckWalletWithdrawn;
+
+  /// settings.delete.confirm
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule deletion'**
+  String get settingsDeleteConfirm;
+
+  /// grace_days from GET /me/deletion (server-side ACCOUNT_DELETION_GRACE_DAYS, default 7, range 7–30 per Apex Rev 4.1); read-only, client cannot choose
+  ///
+  /// In en, this message translates to:
+  /// **'Grace period: {count,plural,one{{count} day} other{{count} days}}'**
+  String settingsDeleteGrace(int count);
+
+  /// settings.delete.intro
+  ///
+  /// In en, this message translates to:
+  /// **'Your account is deleted after a grace period. You can cancel until then.'**
+  String get settingsDeleteIntro;
+
+  /// settings.delete.scheduled
+  ///
+  /// In en, this message translates to:
+  /// **'Deletion scheduled for {scheduled_for}. We sent a confirmation email.'**
+  String settingsDeleteScheduled(String scheduled_for);
+
+  /// settings.delete.title
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get settingsDeleteTitle;
+
+  /// settings.devices.last_seen
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen {when}'**
+  String settingsDevicesLastSeen(String when);
+
+  /// settings.devices.note
+  ///
+  /// In en, this message translates to:
+  /// **'Each device registers its own push token. Removing a device signs it out and stops its notifications.'**
+  String get settingsDevicesNote;
+
+  /// settings.devices.push_off
+  ///
+  /// In en, this message translates to:
+  /// **'Push off'**
+  String get settingsDevicesPushOff;
+
+  /// settings.devices.push_on
+  ///
+  /// In en, this message translates to:
+  /// **'Push on'**
+  String get settingsDevicesPushOn;
+
+  /// settings.devices.revoke
+  ///
+  /// In en, this message translates to:
+  /// **'Remove device'**
+  String get settingsDevicesRevoke;
+
+  /// settings.devices.title
+  ///
+  /// In en, this message translates to:
+  /// **'Devices & push'**
+  String get settingsDevicesTitle;
 
   /// settings.language.label
   ///
@@ -1779,6 +2329,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Appearance'**
   String get settingsSectionAppearance;
+
+  /// settings.section.danger
+  ///
+  /// In en, this message translates to:
+  /// **'Delete account'**
+  String get settingsSectionDanger;
+
+  /// settings.section.devices
+  ///
+  /// In en, this message translates to:
+  /// **'Devices & push'**
+  String get settingsSectionDevices;
 
   /// settings.section.language
   ///
@@ -1979,8 +2541,7 @@ abstract class AppLocalizations {
   String get tableMobileScrollHint;
 }
 
-class _AppLocalizationsDelegate
-    extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -1989,8 +2550,7 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'id'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>['en', 'id'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -2006,8 +2566,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

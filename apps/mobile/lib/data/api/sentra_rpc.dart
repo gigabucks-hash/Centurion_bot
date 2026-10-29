@@ -28,18 +28,21 @@ abstract final class Rpc {
 
 /// Strategy status wire values for `set_strategy_status`.
 String strategyStatusWire(StrategyStatus s) => switch (s) {
-      StrategyStatus.running => 'running',
-      StrategyStatus.paused => 'paused',
-      StrategyStatus.stopped => 'stopped',
-    };
+  StrategyStatus.running => 'running',
+  StrategyStatus.paused => 'paused',
+  StrategyStatus.stopped => 'stopped',
+};
 
 class SetStrategyStatusRequest {
   const SetStrategyStatusRequest({required this.strategyId, required this.status, required this.expectedRev});
   final String strategyId;
   final StrategyStatus status;
   final int expectedRev;
-  Map<String, Object?> toRpcParams() =>
-      {'p_strategy': strategyId, 'p_status': strategyStatusWire(status), 'p_expected_rev': expectedRev};
+  Map<String, Object?> toRpcParams() => {
+    'p_strategy': strategyId,
+    'p_status': strategyStatusWire(status),
+    'p_expected_rev': expectedRev,
+  };
 }
 
 /// `update_strategy(p_strategy, p_expected_rev, p_patch, p_name, p_status, p_actor, p_via, p_device, p_challenge_id)`.
@@ -68,20 +71,25 @@ class UpdateStrategyRequest {
   final String? challengeId;
 
   Map<String, Object?> toRpcParams() => {
-        'p_strategy': strategyId,
-        'p_expected_rev': expectedRev,
-        'p_patch': patch,
-        'p_name': name,
-        'p_status': status == null ? null : strategyStatusWire(status!),
-        'p_actor': null, // server fills from JWT
-        'p_via': via,
-        'p_device': deviceId,
-        'p_challenge_id': challengeId,
-      };
+    'p_strategy': strategyId,
+    'p_expected_rev': expectedRev,
+    'p_patch': patch,
+    'p_name': name,
+    'p_status': status == null ? null : strategyStatusWire(status!),
+    'p_actor': null, // server fills from JWT
+    'p_via': via,
+    'p_device': deviceId,
+    'p_challenge_id': challengeId,
+  };
 }
 
 class StrategyWriteResult {
-  const StrategyWriteResult({required this.strategyId, required this.rev, required this.status, required this.serverNow});
+  const StrategyWriteResult({
+    required this.strategyId,
+    required this.rev,
+    required this.status,
+    required this.serverNow,
+  });
   final String strategyId;
   final int rev;
   final StrategyStatus status;
@@ -117,18 +125,23 @@ class RegisterDeviceRequest {
   bool get validDeviceId => _idPattern.hasMatch(deviceId);
 
   Map<String, Object?> toRpcParams() => {
-        'p_device_id': deviceId,
-        'p_platform': platform.name,
-        'p_provider': provider.name,
-        'p_token': token,
-        'p_app_version': appVersion,
-        'p_locale': locale,
-      };
+    'p_device_id': deviceId,
+    'p_platform': platform.name,
+    'p_provider': provider.name,
+    'p_token': token,
+    'p_app_version': appVersion,
+    'p_locale': locale,
+  };
 }
 
 class DeviceRecord {
-  const DeviceRecord(
-      {required this.id, required this.deviceId, required this.platform, required this.rev, required this.lastSeenAt});
+  const DeviceRecord({
+    required this.id,
+    required this.deviceId,
+    required this.platform,
+    required this.rev,
+    required this.lastSeenAt,
+  });
   final String id;
   final String deviceId;
   final DevicePlatform platform;
@@ -187,11 +200,11 @@ class ExitStat {
   final double winRatePct;
 
   static ExitStat fromJson(Map<String, Object?> j) => ExitStat(
-        reason: j['reason']! as String,
-        count: (j['count'] as num).toInt(),
-        pnl: Lamports.parse(j['pnl_lamports']! as String),
-        winRatePct: (j['win_rate_pct'] as num?)?.toDouble() ?? 0,
-      );
+    reason: j['reason']! as String,
+    count: (j['count'] as num).toInt(),
+    pnl: Lamports.parse(j['pnl_lamports']! as String),
+    winRatePct: (j['win_rate_pct'] as num?)?.toDouble() ?? 0,
+  );
 }
 
 /// All v1.1 RPCs/reads the app calls. Mock: `MockSentraRpc`; prod: Supabase client (D5–6).

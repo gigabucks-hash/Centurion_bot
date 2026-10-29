@@ -24,9 +24,17 @@ void main() {
       expect(b.debugPositions.length, before + 1);
       // Different key, already decided → typed error.
       expect(
-          () => b.decide(DecideApprovalRequest(
-              approvalId: pick.id, token: pick.token, approve: true, expectedRev: r1.version, idempotencyKey: 'other')),
-          _api('APPROVAL_ALREADY_DECIDED'));
+        () => b.decide(
+          DecideApprovalRequest(
+            approvalId: pick.id,
+            token: pick.token,
+            approve: true,
+            expectedRev: r1.version,
+            idempotencyKey: 'other',
+          ),
+        ),
+        _api('APPROVAL_ALREADY_DECIDED'),
+      );
       b.dispose();
     });
 
@@ -45,13 +53,39 @@ void main() {
       final b = MockBackend(clock: () => now);
       final pick = b.debugApprovals.firstWhere((a) => a.isPending);
       expect(
-          () => b.decide(DecideApprovalRequest(approvalId: pick.id, token: 'forged', approve: true, expectedRev: 1)),
-          _api('APPROVAL_TOKEN_INVALID'));
+        () => b.decide(DecideApprovalRequest(approvalId: pick.id, token: 'forged', approve: true, expectedRev: 1)),
+        _api('APPROVAL_TOKEN_INVALID'),
+      );
       expect(
-          () => b.decide(DecideApprovalRequest(approvalId: pick.id, token: pick.token, approve: true, expectedRev: 99)),
-          _api('VERSION_CONFLICT'));
+        () => b.decide(DecideApprovalRequest(approvalId: pick.id, token: pick.token, approve: true, expectedRev: 99)),
+        _api('VERSION_CONFLICT'),
+      );
       now = now.add(const Duration(hours: 3));
       expect(() => b.decide(decideRequest(pick, approve: true)), _api('APPROVAL_EXPIRED'));
+      b.dispose();
+    });
+
+    test('UNSUPPORTED_QUOTE_MINT pick: not tradeable, approve rejected, not swipeable', () async {
+      final now = DateTime(2026, 10, 29, 15);
+      final b = MockBackend(clock: () => now)
+        ..debugAddApproval(
+          Approval(
+            id: 'apv_nt',
+            kind: ApprovalKind.buyPick,
+            status: ApprovalStatus.pending,
+            title: 'Buy NOPAIR',
+            detail: 'x',
+            createdAt: now,
+            expiresAt: now.add(const Duration(minutes: 10)),
+            token: 'tok_nt',
+            reasonCode: unsupportedQuoteMint,
+          ),
+        );
+      final a = b.debugApprovals.firstWhere((a) => a.id == 'apv_nt');
+      expect(a.notTradeable, isTrue);
+      expect(a.swipeable, isFalse);
+      expect(a.copyWith(version: 2).notTradeable, isTrue, reason: 'copyWith keeps reason_code');
+      expect(() => b.decide(decideRequest(a, approve: true)), _api('VALIDATION_FAILED'));
       b.dispose();
     });
 

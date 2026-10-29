@@ -51,21 +51,24 @@ void main() {
   });
 
   group('PushPayload v1 (contract v1.1, EVENTS_SCHEMA §6)', () {
-    Map<String, Object?> canonical({String mode = 'practice', List<String> actions = const ['approve', 'skip', 'open']}) => {
-          'v': 1,
-          'event': 'N-01',
-          'type': 'proposal.created',
-          'mode': mode,
-          'workspace_id': 'ws1',
-          'seq': 18301,
-          'deep_link': 'sentra://approvals/apv1',
-          'approval_id': 'apv1',
-          'token': 'apt_Q2x',
-          'exp': '2026-10-29T08:52:00.000Z',
-          'actions': actions,
-          'vars': {'coin': 'EXM', 'strategy': 'Yumi · AMM', 'sol': '0.25', 'mm_ss': '09:58'},
-          'server_now': '2026-10-29T08:42:00.151Z',
-        };
+    Map<String, Object?> canonical({
+      String mode = 'practice',
+      List<String> actions = const ['approve', 'skip', 'open'],
+    }) => {
+      'v': 1,
+      'event': 'N-01',
+      'type': 'proposal.created',
+      'mode': mode,
+      'workspace_id': 'ws1',
+      'seq': 18301,
+      'deep_link': 'sentra://approvals/apv1',
+      'approval_id': 'apv1',
+      'token': 'apt_Q2x',
+      'exp': '2026-10-29T08:52:00.000Z',
+      'actions': actions,
+      'vars': {'coin': 'EXM', 'strategy': 'Yumi · AMM', 'sol': '0.25', 'mm_ss': '09:58'},
+      'server_now': '2026-10-29T08:42:00.151Z',
+    };
 
     test('canonical JSON: numeric v/seq, nested vars, ISO exp, server_now, actions, deep_link', () {
       final p = PushMessage.tryParse(canonical())!;
@@ -115,12 +118,20 @@ void main() {
     });
 
     test('expire_reason uses wire values', () {
-      PushMessage m(String reason) => PushMessage.tryParse(
-          {'v': 1, 'event': 'N-07', 'mode': 'practice', 'approval_id': 'a', 'expire_reason': reason})!;
-      expect(NotificationRenderer.copyKeyFor(m('timeout')), 'N-07a');
-      expect(NotificationRenderer.copyKeyFor(m('price_moved')), 'N-07d');
-      expect(NotificationRenderer.copyKeyFor(m('strategy_archived')), 'N-07e');
-      expect(NotificationRenderer.copyKeyFor(m('practice_reset')), 'N-07a');
+      PushMessage m(String reason) => PushMessage.tryParse({
+        'v': 1,
+        'event': 'N-07',
+        'mode': 'practice',
+        'approval_id': 'a',
+        'expire_reason': reason,
+      })!;
+      expect(NotificationRenderer.copyKeyFor(m('timeout')), 'N-07.timeout');
+      expect(NotificationRenderer.copyKeyFor(m('price_moved')), 'N-07.price_moved');
+      expect(NotificationRenderer.copyKeyFor(m('strategy_archived')), 'N-07.strategy_archived');
+      // i18n 0.4.0+ has copy for every wire value (no more generic fallback).
+      expect(NotificationRenderer.copyKeyFor(m('practice_reset')), 'N-07.practice_reset');
+      expect(NotificationRenderer.copyKeyFor(m('account_deleted')), 'N-07.account_deleted');
+      expect(NotificationRenderer.copyKeyFor(m('nope')), 'N-07.timeout');
     });
   });
 }

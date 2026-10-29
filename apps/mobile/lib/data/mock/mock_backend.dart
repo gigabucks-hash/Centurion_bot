@@ -25,11 +25,12 @@ class MockBackend
         ApprovalRepository,
         PushSource,
         PracticeResetRepository,
+        ScreenerRepository,
         MarksSource,
         EventsFeed {
   MockBackend({int seed = 7, DateTime Function()? clock, this.realSolEnabled = false})
-      : _rng = Random(seed),
-        _clock = clock ?? DateTime.now {
+    : _rng = Random(seed),
+      _clock = clock ?? DateTime.now {
     _seed();
   }
 
@@ -65,6 +66,7 @@ class MockBackend
   final List<ActivityEvent> _events = [];
   final List<Approval> _approvals = [];
   final List<PnlPoint> _history = [];
+
   /// p_idempotency_key → first result (replayed on retry).
   final Map<String, DecideApprovalResult> _idempotent = {};
 
@@ -99,8 +101,7 @@ class MockBackend
     for (var i = 0; i < _approvals.length; i++) {
       final a = _approvals[i];
       if (a.status == ApprovalStatus.pending && a.isExpiredAt(now)) {
-        _approvals[i] = a.copyWith(
-            status: ApprovalStatus.expired, expireReason: ExpireReason.timedOut, decidedAt: now);
+        _approvals[i] = a.copyWith(status: ApprovalStatus.expired, expireReason: ExpireReason.timedOut, decidedAt: now);
       }
     }
     if (_rng.nextDouble() < 0.25) _newPick(now);
@@ -115,12 +116,13 @@ class MockBackend
 
   @override
   Stream<List<Position>> watchPositions() => _watch(() {
-        final list = [..._positions]..sort((a, b) {
-            if (a.state != b.state) return a.state == PositionState.open ? -1 : 1;
-            return b.openedAt.compareTo(a.openedAt);
-          });
-        return List.unmodifiable(list);
+    final list = [..._positions]
+      ..sort((a, b) {
+        if (a.state != b.state) return a.state == PositionState.open ? -1 : 1;
+        return b.openedAt.compareTo(a.openedAt);
       });
+    return List.unmodifiable(list);
+  });
 
   @override
   Future<List<PnlPoint>> equityHistory(EquityRange range) async {
@@ -141,8 +143,7 @@ class MockBackend
     }
     final ordered = pts.reversed.toList();
     return [
-      for (var i = 0; i < ordered.length; i++)
-        PnlPoint(now.subtract(step * (ordered.length - 1 - i)), ordered[i]),
+      for (var i = 0; i < ordered.length; i++) PnlPoint(now.subtract(step * (ordered.length - 1 - i)), ordered[i]),
     ];
   }
 
@@ -166,8 +167,14 @@ class MockBackend
       closedAt: full ? _clock() : null,
       exitReason: full ? 'You sold 100% manually' : null,
     );
-    _emitEvent(ActivityKind.sold, Actor.you, '${p.symbol}: you sold $share%',
-        strategyId: p.strategyId, symbol: p.symbol, pnlLamports: proceeds - p.costLamports.bps(soldNowBps));
+    _emitEvent(
+      ActivityKind.sold,
+      Actor.you,
+      '${p.symbol}: you sold $share%',
+      strategyId: p.strategyId,
+      symbol: p.symbol,
+      pnlLamports: proceeds - p.costLamports.bps(soldNowBps),
+    );
     _notify();
     return proceeds;
   }
@@ -185,8 +192,14 @@ class MockBackend
       .cast<EventEnvelope>();
 
   /// Emits an EVENTS_SCHEMA §2 envelope; returns its seq.
-  int _emitEnvelope(String type, String subject, Map<String, Object?> payload,
-      {TradeMode mode = TradeMode.practice, String? strategyId, String actor = 'system'}) {
+  int _emitEnvelope(
+    String type,
+    String subject,
+    Map<String, Object?> payload, {
+    TradeMode mode = TradeMode.practice,
+    String? strategyId,
+    String actor = 'system',
+  }) {
     final now = _clock();
     final seq = ++_eventSeq;
     if (!_envelopes.isClosed) {
@@ -210,22 +223,29 @@ class MockBackend
 
   /// `update_strategy` semantics: rev check (STRATEGY_REV_CONFLICT, P0409 + 409 body),
   /// patch keys must be v1.1 snake_case (`SettingsKeys.*.current`), else SETTINGS_SCHEMA_INVALID.
-  Future<Strategy> updateStrategy(String strategyId,
-      {required int expectedRev, Map<String, Object?> patch = const {}, String? name, StrategyStatus? status}) async {
+  Future<Strategy> updateStrategy(
+    String strategyId, {
+    required int expectedRev,
+    Map<String, Object?> patch = const {},
+    String? name,
+    StrategyStatus? status,
+  }) async {
     await Future<void>.delayed(const Duration(milliseconds: 50));
     final i = _strategies.indexWhere((s) => s.id == strategyId);
     if (i < 0) throw ApiException.fromCode('NOT_FOUND');
     final s = _strategies[i];
     if (s.rev != expectedRev) {
-      throw ApiException(ApiErrorCode.fromWire('STRATEGY_REV_CONFLICT'),
-          sqlState: 'P0409',
-          details: {
-            'current_rev': s.rev,
-            'base_rev': expectedRev,
-            'changed_fields': const <String>[],
-            'changed_by': 'mock',
-            'changed_at': _clock().toUtc().toIso8601String(),
-          });
+      throw ApiException(
+        ApiErrorCode.fromWire('STRATEGY_REV_CONFLICT'),
+        sqlState: 'P0409',
+        details: {
+          'current_rev': s.rev,
+          'base_rev': expectedRev,
+          'changed_fields': const <String>[],
+          'changed_by': 'mock',
+          'changed_at': _clock().toUtc().toIso8601String(),
+        },
+      );
     }
     final known = {for (final k in SettingsKeys.all) k.current};
     final bad = patch.keys.where((k) => !known.contains(k)).toList();
@@ -245,8 +265,14 @@ class MockBackend
       exitPlan: patch[SettingsKeys.exitPreset.current] as String?,
     );
     _strategies[i] = updated;
-    _emitEnvelope('strategy.updated', s.id, {'strategy_id': s.id, 'rev': updated.rev, 'changed_fields': patch.keys.toList()},
-        mode: s.mode, strategyId: s.id, actor: 'user');
+    _emitEnvelope(
+      'strategy.updated',
+      s.id,
+      {'strategy_id': s.id, 'rev': updated.rev, 'changed_fields': patch.keys.toList()},
+      mode: s.mode,
+      strategyId: s.id,
+      actor: 'user',
+    );
     _notify();
     return updated;
   }
@@ -286,7 +312,9 @@ class MockBackend
     final peak = _history.isEmpty
         ? s.equityLamports
         : _history.map((h) => h.equityLamports).reduce((a, b) => a > b ? a : b);
-    final ddBps = peak.isZero || s.equityLamports > peak ? 0 : ((peak - s.equityLamports).ratioTo(peak) * 10000).round();
+    final ddBps = peak.isZero || s.equityLamports > peak
+        ? 0
+        : ((peak - s.equityLamports).ratioTo(peak) * 10000).round();
     return {
       'mode': 'practice',
       'epoch': _epoch,
@@ -306,22 +334,24 @@ class MockBackend
   }
 
   @override
-  Stream<MarksMessage> watchMarks(String workspaceId, TradeMode mode) =>
-      _marks.stream.where((m) => m is ClockMessage || _positions.any((p) =>
-          p.mode == mode && (m as MarkMessage).positionIds.contains(p.id)));
+  Stream<MarksMessage> watchMarks(String workspaceId, TradeMode mode) => _marks.stream.where(
+    (m) => m is ClockMessage || _positions.any((p) => p.mode == mode && (m as MarkMessage).positionIds.contains(p.id)),
+  );
 
   void _emitMark(Position p, DateTime now) {
     if (_marks.isClosed) return;
-    _marks.add(MarksMessage.fromBroadcast({
-      'event': 'mark',
-      'payload': {
-        'mint': p.mint,
-        'price_usd': p.markPriceUsd.toStringAsFixed(12),
-        'ts': now.toUtc().toIso8601String(),
-        'position_ids': [p.id],
-        'server_now': now.toUtc().toIso8601String(),
-      },
-    })!);
+    _marks.add(
+      MarksMessage.fromBroadcast({
+        'event': 'mark',
+        'payload': {
+          'mint': p.mint,
+          'price_usd': p.markPriceUsd.toStringAsFixed(12),
+          'ts': now.toUtc().toIso8601String(),
+          'position_ids': [p.id],
+          'server_now': now.toUtc().toIso8601String(),
+        },
+      })!,
+    );
   }
 
   @override
@@ -330,8 +360,10 @@ class MockBackend
     final now = _clock();
     final last = _lastResetAt;
     if (last != null && now.difference(last) < resetCooldown) {
-      throw ApiException.fromCode('RESET_COOLDOWN',
-          details: {'next_allowed_at': last.add(resetCooldown).toUtc().toIso8601String()});
+      throw ApiException.fromCode(
+        'RESET_COOLDOWN',
+        details: {'next_allowed_at': last.add(resetCooldown).toUtc().toIso8601String()},
+      );
     }
     final archivedPositions = _positions.where((p) => p.mode == TradeMode.practice).length;
     _positions.removeWhere((p) => p.mode == TradeMode.practice);
@@ -340,7 +372,11 @@ class MockBackend
       final a = _approvals[i];
       if (a.mode == TradeMode.practice && a.isPending) {
         archivedApprovals++;
-        _approvals[i] = a.copyWith(status: ApprovalStatus.expired, expireReason: ExpireReason.practiceReset, decidedAt: now);
+        _approvals[i] = a.copyWith(
+          status: ApprovalStatus.expired,
+          expireReason: ExpireReason.practiceReset,
+          decidedAt: now,
+        );
       }
     }
     for (var i = 0; i < _strategies.length; i++) {
@@ -393,8 +429,16 @@ class MockBackend
 
   /// Emits a PushPayload v1 (EVENTS_SCHEMA §6) in canonical JSON shape.
   /// Real SOL: never a token, actions = ["open"].
-  void _push(String event, String type, TradeMode mode,
-      {String? approvalId, String? positionId, String? token, DateTime? exp, Map<String, Object?> vars = const {}}) {
+  void _push(
+    String event,
+    String type,
+    TradeMode mode, {
+    String? approvalId,
+    String? positionId,
+    String? token,
+    DateTime? exp,
+    Map<String, Object?> vars = const {},
+  }) {
     if (_pushes.isClosed) return;
     final real = mode == TradeMode.real;
     final pick = event == 'N-01' || event == 'N-02';
@@ -420,16 +464,45 @@ class MockBackend
   }
 
   @override
-  Stream<List<ActivityEvent>> watchFeed({String? strategyId}) => _watch(() => List.unmodifiable(
-      _events.reversed.where((e) => strategyId == null || e.strategyId == strategyId).take(200)));
+  Stream<List<ActivityEvent>> watchFeed({String? strategyId}) => _watch(
+    () => List.unmodifiable(_events.reversed.where((e) => strategyId == null || e.strategyId == strategyId).take(200)),
+  );
 
   @override
   Stream<List<Strategy>> watchStrategies() => _watch(() => List.unmodifiable(_strategies));
 
   /// Sorted soonest-expiry first (SPEC §3 default sort).
   @override
-  Stream<List<Approval>> watchPending() => _watch(() => List.unmodifiable(
-      _approvals.where((a) => a.isPending).toList()..sort((a, b) => a.expiresAt.compareTo(b.expiresAt))));
+  Stream<List<Approval>> watchPending() => _watch(
+    () => List.unmodifiable(
+      _approvals.where((a) => a.isPending).toList()..sort((a, b) => a.expiresAt.compareTo(b.expiresAt)),
+    ),
+  );
+
+  /// Screener seed per WF-21: passed picks, a guard reject, and one coin with
+  /// no SOL quote pair (USDC) that never enters the queue.
+  final _screener = <ScreenerCoin>[
+    const ScreenerCoin(symbol: 'MOON', strategyId: 'stg_pull', score: 82, outcome: ScreenerOutcome.passed),
+    const ScreenerCoin(
+      symbol: 'USDX',
+      strategyId: 'stg_pull',
+      score: 71,
+      outcome: ScreenerOutcome.notTradeable,
+      reasonCode: unsupportedQuoteMint,
+      quoteSymbol: 'USDC',
+    ),
+    const ScreenerCoin(
+      symbol: 'RUGZ',
+      strategyId: 'stg_pull',
+      score: 64,
+      outcome: ScreenerOutcome.rejected,
+      reasonCode: 'GUARD_FAILED',
+    ),
+    const ScreenerCoin(symbol: 'KIRA', strategyId: 'stg_pull', score: 77, outcome: ScreenerOutcome.passed),
+  ];
+
+  @override
+  Stream<List<ScreenerCoin>> watchScreener() => _watch(() => List.unmodifiable(_screener));
 
   @override
   Stream<List<Approval>> watchAll() => _watch(() => List.unmodifiable(_approvals.reversed));
@@ -438,11 +511,17 @@ class MockBackend
   @override
   Future<Strategy> setPaused(String strategyId, {required bool paused, required int expectedRev}) async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
-    final updated = await updateStrategy(strategyId,
-        expectedRev: expectedRev, status: paused ? StrategyStatus.paused : StrategyStatus.running);
-    _emitEvent(paused ? ActivityKind.paused : ActivityKind.resumed, Actor.you,
-        '${paused ? 'Paused' : 'Resumed'} ${updated.name}',
-        strategyId: updated.id);
+    final updated = await updateStrategy(
+      strategyId,
+      expectedRev: expectedRev,
+      status: paused ? StrategyStatus.paused : StrategyStatus.running,
+    );
+    _emitEvent(
+      paused ? ActivityKind.paused : ActivityKind.resumed,
+      Actor.you,
+      '${paused ? 'Paused' : 'Resumed'} ${updated.name}',
+      strategyId: updated.id,
+    );
     _notify();
     return updated;
   }
@@ -456,7 +535,12 @@ class MockBackend
     final prior = key == null ? null : _idempotent[key];
     if (prior != null) {
       return DecideApprovalResult(
-          proposalId: prior.proposalId, status: prior.status, version: prior.version, replayed: true, serverNow: _clock());
+        proposalId: prior.proposalId,
+        status: prior.status,
+        version: prior.version,
+        replayed: true,
+        serverNow: _clock(),
+      );
     }
     final i = _approvals.indexWhere((a) => a.id == r.approvalId);
     if (i < 0) throw ApiException.fromCode('NOT_FOUND');
@@ -470,25 +554,45 @@ class MockBackend
       throw ApiException.fromCode('VERSION_CONFLICT', details: {'current_rev': a.version, 'base_rev': r.expectedRev});
     }
     if (a.isExpiredAt(_clock())) {
-      _approvals[i] = a.copyWith(status: ApprovalStatus.expired, expireReason: ExpireReason.timedOut, decidedAt: _clock());
+      _approvals[i] = a.copyWith(
+        status: ApprovalStatus.expired,
+        expireReason: ExpireReason.timedOut,
+        decidedAt: _clock(),
+      );
       _notify();
       throw ApiException.fromCode('APPROVAL_EXPIRED');
     }
     if (a.mode == TradeMode.real && r.approve && !realSolEnabled) throw ApiException.fromCode('REAL_SOL_DISABLED');
+    // errors.json has no dedicated code yet; mock uses VALIDATION_FAILED + reason_code.
+    if (a.notTradeable && r.approve) {
+      throw ApiException.fromCode('VALIDATION_FAILED', details: {'reason_code': unsupportedQuoteMint});
+    }
     final status = r.approve ? ApprovalStatus.approved : ApprovalStatus.skipped;
     _approvals[i] = a.copyWith(status: status, decidedAt: _clock(), version: a.version + 1);
-    _emitEnvelope(r.approve ? 'proposal.approved' : 'proposal.rejected', a.id, {
-      'proposal_id': a.id,
-      'kind': Wire.approvalKind(a.kind),
-      'version': a.version + 1,
-      'decided_by': 'mock_user',
-      'decided_via': r.client,
-      'reason': null,
-    }, mode: a.mode, strategyId: a.strategyId, actor: 'user');
+    _emitEnvelope(
+      r.approve ? 'proposal.approved' : 'proposal.rejected',
+      a.id,
+      {
+        'proposal_id': a.id,
+        'kind': Wire.approvalKind(a.kind),
+        'version': a.version + 1,
+        'decided_by': 'mock_user',
+        'decided_via': r.client,
+        'reason': null,
+      },
+      mode: a.mode,
+      strategyId: a.strategyId,
+      actor: 'user',
+    );
     _applyDecision(a, r.approve);
     _notify();
     final result = DecideApprovalResult(
-        proposalId: a.id, status: status, version: a.version + 1, replayed: false, serverNow: _clock());
+      proposalId: a.id,
+      status: status,
+      version: a.version + 1,
+      replayed: false,
+      serverNow: _clock(),
+    );
     if (key != null) _idempotent[key] = result;
     return result;
   }
@@ -515,43 +619,51 @@ class MockBackend
 
   String _id(String prefix) => '$prefix${(++_seq).toString().padLeft(4, '0')}';
 
-  void _emitEvent(ActivityKind kind, Actor actor, String msg,
-      {String? strategyId, String? symbol, Lamports? pnlLamports}) {
+  void _emitEvent(
+    ActivityKind kind,
+    Actor actor,
+    String msg, {
+    String? strategyId,
+    String? symbol,
+    Lamports? pnlLamports,
+  }) {
     final now = _clock();
-    _events.add(ActivityEvent(
-      id: '${symbol ?? 'sys'}:${now.millisecondsSinceEpoch}:${kind.name}:${_seq++}',
-      at: now,
-      kind: kind,
-      actor: actor,
-      message: msg,
-      strategyId: strategyId,
-      symbol: symbol,
-      pnlLamports: pnlLamports,
-    ));
+    _events.add(
+      ActivityEvent(
+        id: '${symbol ?? 'sys'}:${now.millisecondsSinceEpoch}:${kind.name}:${_seq++}',
+        at: now,
+        kind: kind,
+        actor: actor,
+        message: msg,
+        strategyId: strategyId,
+        symbol: symbol,
+        pnlLamports: pnlLamports,
+      ),
+    );
     if (_events.length > 500) _events.removeAt(0);
   }
 
   /// Exit preset id (current or v1.0 alias, see [ExitPresets]) → simulated plan.
   static ExitPlanState planFor(String presetId, DateTime openedAt) => switch (ExitPresets.normalize(presetId)) {
-        final id when id == ExitPresets.fastHalf.current => ExitPlanState(
-            name: 'Quick scalp',
-            stopLossPct: -15,
-            trailPct: 10,
-            rungs: const [TpRung(gainPct: 20, sellPct: 50), TpRung(gainPct: 45, sellPct: 50)],
-            timeStopAt: openedAt.add(const Duration(minutes: 5)),
-          ),
-        _ => ExitPlanState(
-            name: 'Ladder 3-rung',
-            stopLossPct: -35,
-            trailPct: 20,
-            rungs: const [
-              TpRung(gainPct: 50, sellPct: 33),
-              TpRung(gainPct: 100, sellPct: 33),
-              TpRung(gainPct: 200, sellPct: 34),
-            ],
-            timeStopAt: openedAt.add(const Duration(minutes: 30)),
-          ),
-      };
+    final id when id == ExitPresets.fastHalf.current => ExitPlanState(
+      name: 'Quick scalp',
+      stopLossPct: -15,
+      trailPct: 10,
+      rungs: const [TpRung(gainPct: 20, sellPct: 50), TpRung(gainPct: 45, sellPct: 50)],
+      timeStopAt: openedAt.add(const Duration(minutes: 5)),
+    ),
+    _ => ExitPlanState(
+      name: 'Ladder 3-rung',
+      stopLossPct: -35,
+      trailPct: 20,
+      rungs: const [
+        TpRung(gainPct: 50, sellPct: 33),
+        TpRung(gainPct: 100, sellPct: 33),
+        TpRung(gainPct: 200, sellPct: 34),
+      ],
+      timeStopAt: openedAt.add(const Duration(minutes: 30)),
+    ),
+  };
 
   /// Applies mark → TP rungs → trailing → stop loss, in that order.
   Position _runExitPlan(Position p, Decimal mark, DateTime now) {
@@ -575,14 +687,26 @@ class MockBackend
         exitPlan: plan.copyWith(rungs: rungs, trailArmed: true),
       );
       final msg = 'Took profit: ${(sellBps / 100).round()}% at +${rung.gainPct.round()}%';
-      _emitEvent(ActivityKind.sold, Actor.exit, '${p.symbol}: $msg',
-          strategyId: p.strategyId, symbol: p.symbol, pnlLamports: pnl);
-      _push('N-08', 'exit.triggered', p.mode, positionId: p.id, vars: {
-        'coin': p.symbol,
-        'pct_sold': (sellBps / 100).round(),
-        'pct': rung.gainPct.round(),
-        'pnl': pnl.toSol().toString(),
-      });
+      _emitEvent(
+        ActivityKind.sold,
+        Actor.exit,
+        '${p.symbol}: $msg',
+        strategyId: p.strategyId,
+        symbol: p.symbol,
+        pnlLamports: pnl,
+      );
+      _push(
+        'N-08',
+        'exit.triggered',
+        p.mode,
+        positionId: p.id,
+        vars: {
+          'coin': p.symbol,
+          'pct_sold': (sellBps / 100).round(),
+          'pct': rung.gainPct.round(),
+          'pnl': pnl.toSol().toString(),
+        },
+      );
     }
     String? stop;
     final armed = next.exitPlan!.trailArmed;
@@ -604,15 +728,27 @@ class MockBackend
         closedAt: now,
         exitReason: stop,
       );
-      _emitEvent(ActivityKind.sold, Actor.exit, '${p.symbol}: $stop',
-          strategyId: p.strategyId, symbol: p.symbol, pnlLamports: next.pnlLamports);
+      _emitEvent(
+        ActivityKind.sold,
+        Actor.exit,
+        '${p.symbol}: $stop',
+        strategyId: p.strategyId,
+        symbol: p.symbol,
+        pnlLamports: next.pnlLamports,
+      );
       if (rest > 0) {
-        _push('N-09', 'exit.triggered', p.mode, positionId: p.id, vars: {
-          'coin': p.symbol,
-          'stop_type': stop,
-          'pnl': next.pnlLamports.toSol().toString(),
-          'pct': double.parse(next.pnlPct.toStringAsFixed(1)),
-        });
+        _push(
+          'N-09',
+          'exit.triggered',
+          p.mode,
+          positionId: p.id,
+          vars: {
+            'coin': p.symbol,
+            'stop_type': stop,
+            'pnl': next.pnlLamports.toSol().toString(),
+            'pct': double.parse(next.pnlPct.toStringAsFixed(1)),
+          },
+        );
       }
     }
     return next;
@@ -655,33 +791,44 @@ class MockBackend
     final s = running[_rng.nextInt(running.length)];
     final sym = _symbols[_rng.nextInt(_symbols.length)];
     final score = 70 + _rng.nextInt(40);
-    _emitEvent(ActivityKind.passed, Actor.screener, '$sym passed screening · fit $score/70',
-        strategyId: s.id, symbol: sym);
-    _emitEvent(ActivityKind.proposal, Actor.entry, '$sym waiting for your approval',
-        strategyId: s.id, symbol: sym);
+    _emitEvent(
+      ActivityKind.passed,
+      Actor.screener,
+      '$sym passed screening · fit $score/70',
+      strategyId: s.id,
+      symbol: sym,
+    );
+    _emitEvent(ActivityKind.proposal, Actor.entry, '$sym waiting for your approval', strategyId: s.id, symbol: sym);
     final id = _id('apv_');
     final pickType = _rng.nextBool() ? PickType.firstBuy : PickType.buy;
     final token = 'tok_${_fakeMint().substring(0, 16)}';
     final exp = now.add(const Duration(minutes: 10));
-    _push(pickType == PickType.firstBuy ? 'N-01' : 'N-02', 'proposal.created', s.mode,
-        approvalId: id,
-        token: token,
-        exp: exp,
-        vars: {'coin': sym, 'strategy': s.name, 'sol': s.ticketLamports.toSol().toString(), 'reason': 'fit $score/70'});
-    _approvals.add(Approval(
-      id: id,
-      kind: ApprovalKind.buyPick,
-      status: ApprovalStatus.pending,
-      title: 'Buy $sym',
-      detail: '${s.name} · fit $score/70 · guard ${6 + _rng.nextInt(3)}/8 · mcap \$${(40 + _rng.nextInt(400))}k',
-      pickType: pickType,
-      mode: s.mode,
-      createdAt: now,
-      expiresAt: exp,
+    // notifications.map.json: N-02 = first_buy=true, N-01 otherwise.
+    _push(
+      pickType == PickType.firstBuy ? 'N-02' : 'N-01',
+      'proposal.created',
+      s.mode,
+      approvalId: id,
       token: token,
-      strategyId: s.id,
-      amountLamports: s.ticketLamports,
-    ));
+      exp: exp,
+      vars: {'coin': sym, 'strategy': s.name, 'sol': s.ticketLamports.toSol().toString(), 'reason': 'fit $score/70'},
+    );
+    _approvals.add(
+      Approval(
+        id: id,
+        kind: ApprovalKind.buyPick,
+        status: ApprovalStatus.pending,
+        title: 'Buy $sym',
+        detail: '${s.name} · fit $score/70 · guard ${6 + _rng.nextInt(3)}/8 · mcap \$${(40 + _rng.nextInt(400))}k',
+        pickType: pickType,
+        mode: s.mode,
+        createdAt: now,
+        expiresAt: exp,
+        token: token,
+        strategyId: s.id,
+        amountLamports: s.ticketLamports,
+      ),
+    );
   }
 
   void _applyDecision(Approval a, bool approve) {
@@ -695,41 +842,55 @@ class MockBackend
           final opened = _clock();
           final pid = '${_id('ck')}.0';
           final preset = stg?.exitPlan ?? ExitPresets.threeStepLadder.current;
-          _push('N-04', 'position.opened', a.mode, positionId: pid, vars: {
-            'coin': sym,
-            'sol': amount.toSol().toString(),
-            'price': price.toString(),
-            'exit_plan': planFor(preset, opened).name,
-          });
-          _positions.add(Position(
-            id: pid,
-            exitPlan: planFor(preset, opened),
-            strategyId: a.strategyId!,
+          _push(
+            'N-04',
+            'position.opened',
+            a.mode,
+            positionId: pid,
+            vars: {
+              'coin': sym,
+              'sol': amount.toSol().toString(),
+              'price': price.toString(),
+              'exit_plan': planFor(preset, opened).name,
+            },
+          );
+          _positions.add(
+            Position(
+              id: pid,
+              exitPlan: planFor(preset, opened),
+              strategyId: a.strategyId!,
+              symbol: sym,
+              mint: _fakeMint(),
+              mode: TradeMode.practice,
+              state: PositionState.open,
+              costLamports: amount,
+              entryPriceUsd: price,
+              markPriceUsd: price,
+              peakPriceUsd: price,
+              openedAt: opened,
+            ),
+          );
+          _emitEvent(
+            ActivityKind.bought,
+            Actor.executor,
+            'Bought $sym for ${amount.toSol()} SOL',
+            strategyId: a.strategyId,
             symbol: sym,
-            mint: _fakeMint(),
-            mode: TradeMode.practice,
-            state: PositionState.open,
-            costLamports: amount,
-            entryPriceUsd: price,
-            markPriceUsd: price,
-            peakPriceUsd: price,
-            openedAt: opened,
-          ));
-          _emitEvent(ActivityKind.bought, Actor.executor, 'Bought $sym for ${amount.toSol()} SOL',
-              strategyId: a.strategyId, symbol: sym);
+          );
         } else {
-          _emitEvent(ActivityKind.skipped, Actor.you, 'You skipped $sym',
-              strategyId: a.strategyId, symbol: sym);
+          _emitEvent(ActivityKind.skipped, Actor.you, 'You skipped $sym', strategyId: a.strategyId, symbol: sym);
         }
       case ApprovalKind.guardChange:
         final i = _strategies.indexWhere((s) => s.id == a.strategyId);
         if (approve && i >= 0) _strategies[i] = _strategies[i].copyWith(rev: _strategies[i].rev + 1);
-        _emitEvent(approve ? ActivityKind.approved : ActivityKind.skipped, Actor.you,
-            '${approve ? 'Approved' : 'Rejected'} guard change: ${a.title}',
-            strategyId: a.strategyId);
+        _emitEvent(
+          approve ? ActivityKind.approved : ActivityKind.skipped,
+          Actor.you,
+          '${approve ? 'Approved' : 'Rejected'} guard change: ${a.title}',
+          strategyId: a.strategyId,
+        );
       case ApprovalKind.teamAction:
-        _emitEvent(ActivityKind.proposal, Actor.you,
-            '${approve ? 'Approved' : 'Rejected'} ${a.title}');
+        _emitEvent(ActivityKind.proposal, Actor.you, '${approve ? 'Approved' : 'Rejected'} ${a.title}');
     }
   }
 
@@ -737,43 +898,46 @@ class MockBackend
     final now = _clock();
     _strategies.addAll([
       Strategy(
-          id: 'stg_pullback',
-          name: 'Pullback v2',
-          mode: TradeMode.practice,
-          status: StrategyStatus.running,
-          rev: 4,
-          exitPlan: ExitPresets.threeStepLadder.current,
-          ticketLamports: _sol('0.25'),
-          maxOpen: 5,
-          realizedPnlLamports: _sol('0.412'),
-          winRatePct: 58,
-          maxDrawdownPct: 6.1,
-          avgHold: const Duration(minutes: 4)),
+        id: 'stg_pullback',
+        name: 'Pullback v2',
+        mode: TradeMode.practice,
+        status: StrategyStatus.running,
+        rev: 4,
+        exitPlan: ExitPresets.threeStepLadder.current,
+        ticketLamports: _sol('0.25'),
+        maxOpen: 5,
+        realizedPnlLamports: _sol('0.412'),
+        winRatePct: 58,
+        maxDrawdownPct: 6.1,
+        avgHold: const Duration(minutes: 4),
+      ),
       Strategy(
-          id: 'stg_newpairs',
-          name: 'New Pairs Scout',
-          mode: TradeMode.practice,
-          status: StrategyStatus.running,
-          rev: 11,
-          exitPlan: ExitPresets.fastHalf.current,
-          ticketLamports: _sol('0.2'),
-          maxOpen: 3,
-          realizedPnlLamports: _sol('-0.118'),
-          approvalMode: ApprovalMode.askEveryBuy,
-          winRatePct: 41,
-          maxDrawdownPct: 12.4,
-          avgHold: const Duration(minutes: 1)),
+        id: 'stg_newpairs',
+        name: 'New Pairs Scout',
+        mode: TradeMode.practice,
+        status: StrategyStatus.running,
+        rev: 11,
+        exitPlan: ExitPresets.fastHalf.current,
+        ticketLamports: _sol('0.2'),
+        maxOpen: 3,
+        realizedPnlLamports: _sol('-0.118'),
+        approvalMode: ApprovalMode.askEveryBuy,
+        winRatePct: 41,
+        maxDrawdownPct: 12.4,
+        avgHold: const Duration(minutes: 1),
+      ),
       Strategy(
-          id: 'stg_grad',
-          name: 'Graduated Momentum',
-          mode: TradeMode.real,
-          status: StrategyStatus.paused,
-          rev: 2,
-          exitPlan: ExitPresets.ratchet.current,
-          ticketLamports: _sol('0.1'),
-          maxOpen: 2,
-          realizedPnlLamports: Lamports.zero,
-          approvalMode: ApprovalMode.askEveryBuy),
+        id: 'stg_grad',
+        name: 'Graduated Momentum',
+        mode: TradeMode.real,
+        status: StrategyStatus.paused,
+        rev: 2,
+        exitPlan: ExitPresets.ratchet.current,
+        ticketLamports: _sol('0.1'),
+        maxOpen: 2,
+        realizedPnlLamports: Lamports.zero,
+        approvalMode: ApprovalMode.askEveryBuy,
+      ),
     ]);
     // Seeds mirror wireframe 12: one with TP1 filled + trail armed, one red
     // near SL, one green before TP1, one fresh scalp.
@@ -795,54 +959,72 @@ class MockBackend
       var proceeds = Lamports.zero;
       if (tp1) {
         final r0 = ep.rungs.first;
-        ep = ep.copyWith(rungs: [r0.fill(opened.add(const Duration(minutes: 9))), ...ep.rungs.skip(1)], trailArmed: true);
+        ep = ep.copyWith(
+          rungs: [r0.fill(opened.add(const Duration(minutes: 9))), ...ep.rungs.skip(1)],
+          trailArmed: true,
+        );
         soldBps = (r0.sellPct * 100).round();
         proceeds = cost.bps(soldBps).times(_d('${1 + r0.gainPct / 100}')).bps(10000 - 125);
       }
-      _positions.add(Position(
-        id: 'ck${100 + i}.0',
-        strategyId: stg,
-        symbol: sym,
+      _positions.add(
+        Position(
+          id: 'ck${100 + i}.0',
+          strategyId: stg,
+          symbol: sym,
+          mint: _fakeMint(),
+          mode: TradeMode.practice,
+          state: PositionState.open,
+          costLamports: cost,
+          entryPriceUsd: price,
+          markPriceUsd: scaleDecimal(price, 1 + chg / 100),
+          peakPriceUsd: scaleDecimal(price, 1 + peak / 100),
+          openedAt: opened,
+          exitPlan: ep,
+          soldBps: soldBps,
+          proceedsLamports: proceeds,
+        ),
+      );
+    }
+    _positions.add(
+      Position(
+        id: 'ck099.0',
+        strategyId: 'stg_newpairs',
+        symbol: 'FERN',
         mint: _fakeMint(),
         mode: TradeMode.practice,
-        state: PositionState.open,
-        costLamports: cost,
-        entryPriceUsd: price,
-        markPriceUsd: scaleDecimal(price, 1 + chg / 100),
-        peakPriceUsd: scaleDecimal(price, 1 + peak / 100),
-        openedAt: opened,
-        exitPlan: ep,
-        soldBps: soldBps,
-        proceedsLamports: proceeds,
-      ));
-    }
-    _positions.add(Position(
-      id: 'ck099.0',
-      strategyId: 'stg_newpairs',
-      symbol: 'FERN',
-      mint: _fakeMint(),
-      mode: TradeMode.practice,
-      state: PositionState.closed,
-      costLamports: _sol('0.2'),
-      proceedsLamports: _sol('0.262'),
-      soldBps: 10000,
-      entryPriceUsd: _d('0.0004'),
-      markPriceUsd: _d('0.00053'),
-      peakPriceUsd: _d('0.00058'),
-      openedAt: now.subtract(const Duration(hours: 1)),
-      closedAt: now.subtract(const Duration(minutes: 41)),
-      exitReason: 'Took profit: 40% at +20%',
-    ));
+        state: PositionState.closed,
+        costLamports: _sol('0.2'),
+        proceedsLamports: _sol('0.262'),
+        soldBps: 10000,
+        entryPriceUsd: _d('0.0004'),
+        markPriceUsd: _d('0.00053'),
+        peakPriceUsd: _d('0.00058'),
+        openedAt: now.subtract(const Duration(hours: 1)),
+        closedAt: now.subtract(const Duration(minutes: 41)),
+        exitReason: 'Took profit: 40% at +20%',
+      ),
+    );
     var equity = startLamports;
     for (var i = 60; i > 0; i--) {
       equity += Lamports.fromInt(((_rng.nextDouble() - 0.48) * 50000000).round());
       _history.add(PnlPoint(now.subtract(Duration(minutes: i)), equity));
     }
     _emitEvent(ActivityKind.found, Actor.screener, 'Screener checked 312 coins in the last hour');
-    _emitEvent(ActivityKind.sold, Actor.executor, 'FERN: Took profit: 40% at +20%',
-        strategyId: 'stg_newpairs', symbol: 'FERN', pnlLamports: _sol('0.062'));
-    _emitEvent(ActivityKind.blocked, Actor.guard, 'MOTH blocked: bundled launch (31% supply)',
-        strategyId: 'stg_pullback', symbol: 'MOTH');
+    _emitEvent(
+      ActivityKind.sold,
+      Actor.executor,
+      'FERN: Took profit: 40% at +20%',
+      strategyId: 'stg_newpairs',
+      symbol: 'FERN',
+      pnlLamports: _sol('0.062'),
+    );
+    _emitEvent(
+      ActivityKind.blocked,
+      Actor.guard,
+      'MOTH blocked: bundled launch (31% supply)',
+      strategyId: 'stg_pullback',
+      symbol: 'MOTH',
+    );
     _approvals.addAll([
       Approval(
         id: 'apv_seed1',

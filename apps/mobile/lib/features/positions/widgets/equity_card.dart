@@ -12,7 +12,8 @@ import '../../../data/providers.dart';
 final equityRangeProvider = StateProvider<EquityRange>((_) => EquityRange.d7);
 
 final equityHistoryProvider = FutureProvider.family<List<PnlPoint>, EquityRange>(
-    (ref, range) => ref.watch(portfolioRepositoryProvider).equityHistory(range));
+  (ref, range) => ref.watch(portfolioRepositoryProvider).equityHistory(range),
+);
 
 const _monthsId = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 
@@ -43,58 +44,69 @@ class EquityCard extends ConsumerWidget {
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(AppSpace.s3, AppSpace.s3, AppSpace.s3, AppSpace.s2),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text('Equity · ${_labels[range]!.$2}', style: tt.titleSmall)),
-            if (hist.valueOrNull case final pts? when pts.length > 1)
-              PnlText(pts.last.equityLamports - pts.first.equityLamports, size: 15),
-          ]),
-          const SizedBox(height: AppSpace.s2),
-          SizedBox(
-            height: 96,
-            child: hist.when(
-              loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              error: (e, _) => Center(child: Text('$e')),
-              data: (pts) => Semantics(
-                label: 'Kurva equity ${_labels[range]!.$2}',
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: _EquityPainter(
-                    pts.map((p) => p.equityLamports.plotValue).toList(),
-                    line: cs.primary,
-                    hwm: cs.outline,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text('Equity · ${_labels[range]!.$2}', style: tt.titleSmall)),
+                if (hist.valueOrNull case final pts? when pts.length > 1)
+                  PnlText(pts.last.equityLamports - pts.first.equityLamports, size: 15),
+              ],
+            ),
+            const SizedBox(height: AppSpace.s2),
+            SizedBox(
+              height: 96,
+              child: hist.when(
+                loading: () => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                error: (e, _) => Center(child: Text('$e')),
+                data: (pts) => Semantics(
+                  label: 'Kurva equity ${_labels[range]!.$2}',
+                  child: CustomPaint(
+                    size: Size.infinite,
+                    painter: _EquityPainter(
+                      pts.map((p) => p.equityLamports.plotValue).toList(),
+                      line: cs.primary,
+                      hwm: cs.outline,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          if (hist.valueOrNull case final pts? when pts.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpace.sHalf),
-              child: Row(children: [
-                Text(_axisLabel(pts.first.at, range), style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
-                Expanded(
-                  child: Text(
-                      '- - high-water ${fmtSol(pts.map((p) => p.equityLamports).reduce((a, b) => a > b ? a : b))}',
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
+            if (hist.valueOrNull case final pts? when pts.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpace.sHalf),
+                child: Row(
+                  children: [
+                    Text(_axisLabel(pts.first.at, range), style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
+                    Expanded(
+                      child: Text(
+                        '- - high-water ${fmtSol(pts.map((p) => p.equityLamports).reduce((a, b) => a > b ? a : b))}',
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant),
+                      ),
+                    ),
+                    Text(_axisLabel(pts.last.at, range), style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
+                  ],
                 ),
-                Text(_axisLabel(pts.last.at, range), style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
-              ]),
-            ),
-          const SizedBox(height: AppSpace.s1),
-          Wrap(spacing: AppSpace.s1, children: [
-            for (final r in EquityRange.values)
-              ChoiceChip(
-                key: Key('range_${r.name}'),
-                label: Text(_labels[r]!.$1),
-                selected: r == range,
-                visualDensity: VisualDensity.compact,
-                onSelected: (_) => ref.read(equityRangeProvider.notifier).state = r,
               ),
-          ]),
-        ]),
+            const SizedBox(height: AppSpace.s1),
+            Wrap(
+              spacing: AppSpace.s1,
+              children: [
+                for (final r in EquityRange.values)
+                  ChoiceChip(
+                    key: Key('range_${r.name}'),
+                    label: Text(_labels[r]!.$1),
+                    selected: r == range,
+                    visualDensity: VisualDensity.compact,
+                    onSelected: (_) => ref.read(equityRangeProvider.notifier).state = r,
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -125,12 +137,13 @@ class _EquityPainter extends CustomPainter {
       i == 0 ? path.moveTo(x, y(values[i])) : path.lineTo(x, y(values[i]));
     }
     canvas.drawPath(
-        path,
-        Paint()
-          ..color = line
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..strokeJoin = StrokeJoin.round);
+      path,
+      Paint()
+        ..color = line
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeJoin = StrokeJoin.round,
+    );
   }
 
   @override

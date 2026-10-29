@@ -68,17 +68,22 @@ class PracticeResetResult {
   final DateTime serverNow;
 
   static PracticeResetResult fromJson(Map<String, Object?> j) => PracticeResetResult(
-        epoch: (j['epoch']! as num).toInt(),
-        startingBalance: Lamports.parse(j['starting_balance_lamports']! as String),
-        archived: {for (final e in ((j['archived'] as Map?) ?? const {}).entries) '${e.key}': (e.value as num).toInt()},
-        nextAllowedAt: DateTime.parse(j['next_allowed_at']! as String),
-        serverNow: DateTime.parse(j['server_now']! as String),
-      );
+    epoch: (j['epoch']! as num).toInt(),
+    startingBalance: Lamports.parse(j['starting_balance_lamports']! as String),
+    archived: {for (final e in ((j['archived'] as Map?) ?? const {}).entries) '${e.key}': (e.value as num).toInt()},
+    nextAllowedAt: DateTime.parse(j['next_allowed_at']! as String),
+    serverNow: DateTime.parse(j['server_now']! as String),
+  );
 }
 
 /// `POST /workspaces/{ws}/practice/reset` (contract v1.1): back to 30 SOL,
 /// at most once per 24 h; otherwise 429 RESET_COOLDOWN with
 /// `details.next_allowed_at`. Practice only; Real is never resettable.
+/// Strategy screener results ("Coins", WF-20/21).
+abstract interface class ScreenerRepository {
+  Stream<List<ScreenerCoin>> watchScreener();
+}
+
 abstract interface class PracticeResetRepository {
   Future<PracticeResetResult> resetPractice({required String idempotencyKey});
 }

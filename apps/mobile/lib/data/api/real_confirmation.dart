@@ -44,18 +44,22 @@ class ProofOfConfirmation {
   final Map<String, String?> device;
 
   Map<String, Object?> toJson() => {
-        'challenge_id': challengeId,
-        'challenge': challenge,
-        'webauthn': webauthnAssertion,
-        'typed_confirmation': typedConfirmation,
-        'hold_duration_ms': holdDuration.inMilliseconds,
-        'device': device,
-      };
+    'challenge_id': challengeId,
+    'challenge': challenge,
+    'webauthn': webauthnAssertion,
+    'typed_confirmation': typedConfirmation,
+    'hold_duration_ms': holdDuration.inMilliseconds,
+    'device': device,
+  };
 }
 
 abstract interface class RealConfirmationService {
   /// Errors REAL_SOL_DISABLED (until Phase 7), CONFIRMATION_INVALID.
-  Future<ConfirmationChallenge> challenge({required String action, required String target, required String payloadHash});
+  Future<ConfirmationChallenge> challenge({
+    required String action,
+    required String target,
+    required String payloadHash,
+  });
 
   /// Runs passkey assertion (local_auth/passkeys) + TOTP prompt; never stores secrets.
   Future<ProofOfConfirmation> confirm(ConfirmationChallenge c, {required String typedName, required Duration held});

@@ -19,7 +19,8 @@ class ExitProgressBar extends StatelessWidget {
     final t = context.tradeColors;
     final cs = Theme.of(context).colorScheme;
     final next = plan.nextRung;
-    final semantic = 'Exit plan: stop loss ${plan.stopLossPct.round()}%, '
+    final semantic =
+        'Exit plan: stop loss ${plan.stopLossPct.round()}%, '
         'sekarang ${position.changePct.round()}%, '
         '${plan.filledCount} dari ${plan.rungs.length} take profit terisi'
         '${next == null ? '' : ', berikutnya +${next.gainPct.round()}%'}';
@@ -73,8 +74,7 @@ class _ExitBarPainter extends CustomPainter {
 
     final barH = max(4.0, size.height * 0.28);
     final r = Radius.circular(barH / 2);
-    canvas.drawRRect(
-        RRect.fromLTRBR(pad, cy - barH / 2, pad + w, cy + barH / 2, r), Paint()..color = track);
+    canvas.drawRRect(RRect.fromLTRBR(pad, cy - barH / 2, pad + w, cy + barH / 2, r), Paint()..color = track);
     final now = x(changePct);
     canvas.drawRRect(RRect.fromLTRBR(pad, cy - barH / 2, now, cy + barH / 2, r), Paint()..color = fill);
     // SL marker.
@@ -99,8 +99,7 @@ class _ExitBarPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ExitBarPainter old) =>
-      old.changePct != changePct || old.plan != plan || old.fill != fill;
+  bool shouldRepaint(_ExitBarPainter old) => old.changePct != changePct || old.plan != plan || old.fill != fill;
 }
 
 /// Short caption under the bar: "TP1 ✓ · next TP2 +100%" / "SL −35% · trail armed".

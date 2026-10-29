@@ -20,6 +20,8 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      - name: dart format (page_width 120 from analysis_options.yaml, T-16)
+        run: dart format --output=none --set-exit-if-changed .
       - name: errors.json → api_errors.g.dart in sync
         run: tool/ci_check_errors.sh
       - run: flutter analyze

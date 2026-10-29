@@ -39,6 +39,7 @@ class Strategy {
   /// Optimistic version of the settings document. Every mutation must send
   /// the rev it was based on; the backend rejects stale writes.
   final int rev;
+
   /// Exit preset id (see `SettingsKeys.exitPresets`).
   final String exitPlan;
   final Lamports ticketLamports;
@@ -128,13 +129,13 @@ class ExitPlanState {
   double get maxGainPct => rungs.isEmpty ? 100 : rungs.last.gainPct;
 
   ExitPlanState copyWith({List<TpRung>? rungs, bool? trailArmed}) => ExitPlanState(
-        name: name,
-        stopLossPct: stopLossPct,
-        trailPct: trailPct,
-        rungs: rungs ?? this.rungs,
-        trailArmed: trailArmed ?? this.trailArmed,
-        timeStopAt: timeStopAt,
-      );
+    name: name,
+    stopLossPct: stopLossPct,
+    trailPct: trailPct,
+    rungs: rungs ?? this.rungs,
+    trailArmed: trailArmed ?? this.trailArmed,
+    timeStopAt: timeStopAt,
+  );
 }
 
 class Position {
@@ -205,10 +206,8 @@ class Position {
   double get pnlPct => pnlLamports.ratioTo(costLamports) * 100;
 
   /// Estimated SOL received for selling [pct]% of the CURRENT remainder, after fees.
-  Lamports estimateSell(int pct) => sizeLamports
-      .bps(pct * 100)
-      .times(ratio(markPriceUsd, entryPriceUsd))
-      .bps(10000 - feeBps);
+  Lamports estimateSell(int pct) =>
+      sizeLamports.bps(pct * 100).times(ratio(markPriceUsd, entryPriceUsd)).bps(10000 - feeBps);
 
   Position copyWith({
     Decimal? markPriceUsd,
@@ -313,6 +312,7 @@ class Approval {
     this.riskLevel,
     this.riskImpact = const {},
     this.decidedAt,
+    this.reasonCode,
   });
 
   final String id;
@@ -346,14 +346,22 @@ class Approval {
   final Map<String, String> riskImpact;
   final DateTime? decidedAt;
 
+  /// Screener reason code (wire, e.g. `UNSUPPORTED_QUOTE_MINT`), null when tradeable.
+  final String? reasonCode;
+
   bool get isPending => status == ApprovalStatus.pending;
 
-  /// SPEC §3: swipe disabled for guard changes and Real SOL.
-  bool get swipeable => kind == ApprovalKind.buyPick && mode == TradeMode.practice;
+  /// i18n 0.4.1 `screener.not_tradeable`: no SOL quote pair → informational
+  /// only, neutral color, never Approve/Skip (cards, swipe, notifications).
+  bool get notTradeable => reasonCode == unsupportedQuoteMint;
+
+  /// SPEC §3: swipe disabled for guard changes, Real SOL and not-tradeable picks.
+  bool get swipeable => kind == ApprovalKind.buyPick && mode == TradeMode.practice && !notTradeable;
 
   bool isExpiredAt(DateTime now) => now.isAfter(expiresAt);
 
-  Approval copyWith({ApprovalStatus? status, ExpireReason? expireReason, DateTime? decidedAt, int? version}) => Approval(
+  Approval copyWith({ApprovalStatus? status, ExpireReason? expireReason, DateTime? decidedAt, int? version}) =>
+      Approval(
         id: id,
         kind: kind,
         status: status ?? this.status,
@@ -373,7 +381,46 @@ class Approval {
         riskLevel: riskLevel,
         riskImpact: riskImpact,
         decidedAt: decidedAt ?? this.decidedAt,
+        reasonCode: reasonCode,
       );
+}
+
+/// Wire reason code for coins without a SOL quote pair (screener + `order.failed`).
+const unsupportedQuoteMint = 'UNSUPPORTED_QUOTE_MINT';
+
+enum ScreenerOutcome { passed, rejected, notTradeable }
+
+/// One row of the strategy screener ("Coins", WF-20/21).
+class ScreenerCoin {
+  const ScreenerCoin({
+    required this.symbol,
+    required this.strategyId,
+    required this.score,
+    required this.outcome,
+    this.reasonCode,
+    this.quoteSymbol = 'SOL',
+    this.approvalId,
+    this.note,
+  });
+  final String symbol;
+  final String strategyId;
+
+  /// Screener score 0–100.
+  final int score;
+  final ScreenerOutcome outcome;
+
+  /// Wire reason (e.g. `UNSUPPORTED_QUOTE_MINT`, `GUARD_FAILED`).
+  final String? reasonCode;
+
+  /// Quote asset of the coin's pool (`USDC` → not tradeable).
+  final String quoteSymbol;
+
+  /// Pending pick in the queue, if the coin passed.
+  final String? approvalId;
+  final String? note;
+
+  /// No SOL quote pair: never enters the queue, no Approve/Skip anywhere (WF-21).
+  bool get notTradeable => outcome == ScreenerOutcome.notTradeable || reasonCode == unsupportedQuoteMint;
 }
 
 class PnlPoint {

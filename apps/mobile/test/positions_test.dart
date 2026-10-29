@@ -14,13 +14,13 @@ import 'package:solbot_mobile/features/positions/widgets/exit_progress_bar.dart'
 
 /// [realSol] flips the Phase 7 flag (client + mock server) for tests that exercise Real flows.
 Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderScope(
-      overrides: [
-        mockBackendProvider.overrideWithValue(b..realSolEnabled = realSol),
-        featureFlagsProvider.overrideWithValue(FeatureFlags(realSolEnabled: realSol)),
-        approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
-      ],
-      child: SolBotApp(initialLocation: location),
-    );
+  overrides: [
+    mockBackendProvider.overrideWithValue(b..realSolEnabled = realSol),
+    featureFlagsProvider.overrideWithValue(FeatureFlags(realSolEnabled: realSol)),
+    approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
+  ],
+  child: SolBotApp(initialLocation: location),
+);
 
 Future<void> _phone(WidgetTester tester) async {
   tester.view.physicalSize = const Size(412 * 3, 915 * 3);
@@ -104,7 +104,10 @@ void main() {
       await b.sellPosition('ck101.0', pct: 100);
       p = (await b.watchPositions().first).firstWhere((p) => p.id == 'ck101.0');
       expect(p.isOpen, isFalse);
-      expect(() => b.sellPosition('ck101.0', pct: 25), throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'VALIDATION_FAILED')));
+      expect(
+        () => b.sellPosition('ck101.0', pct: 25),
+        throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'VALIDATION_FAILED')),
+      );
       b.dispose();
     });
 
@@ -177,7 +180,11 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
     expect(find.text('Tahan untuk jual 50% (Real SOL)'), findsOneWidget);
     await _hold(tester, find.byKey(const Key('sellHold')), const Duration(milliseconds: 1300));
-    expect(b.debugPositions.firstWhere((p) => p.id == 'ckR1.0').soldPct, 0, reason: 'Practice duration must not sell Real');
+    expect(
+      b.debugPositions.firstWhere((p) => p.id == 'ckR1.0').soldPct,
+      0,
+      reason: 'Practice duration must not sell Real',
+    );
     await tester.pump(const Duration(milliseconds: 1500));
     await _hold(tester, find.byKey(const Key('sellHold')), const Duration(milliseconds: 2700));
     await tester.pump(const Duration(milliseconds: 200));
@@ -200,8 +207,10 @@ void main() {
     expect(b.debugPositions.firstWhere((p) => p.id == 'ckR1.0').soldBps, 0);
     // Server gate too (mock mirrors REAL_SOL_DISABLED).
     await tester.runAsync(() async {
-      await expectLater(b.sellPosition('ckR1.0', pct: 50),
-          throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'REAL_SOL_DISABLED')));
+      await expectLater(
+        b.sellPosition('ckR1.0', pct: 50),
+        throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', 'REAL_SOL_DISABLED')),
+      );
     });
     b.dispose();
   });

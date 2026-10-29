@@ -32,8 +32,10 @@ class DashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(AppSpace.s4, AppSpace.s4, AppSpace.s4, AppSpace.s8),
             children: [
               Text('Team overview', style: text.headlineSmall),
-              Text('${s.mode == TradeMode.real ? 'Real SOL' : 'Practice'} · update realtime',
-                  style: text.bodySmall!.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              Text(
+                '${s.mode == TradeMode.real ? 'Real SOL' : 'Practice'} · update realtime',
+                style: text.bodySmall!.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
               const SizedBox(height: AppSpace.s4),
               GridView.count(
                 crossAxisCount: 2,
@@ -43,10 +45,14 @@ class DashboardScreen extends ConsumerWidget {
                 crossAxisSpacing: AppSpace.s3,
                 childAspectRatio: 1.9,
                 children: [
-                  _Kpi(label: 'Cash', child: Text(fmtSol(s.cashLamports), style: AppText.num(22))),
                   _Kpi(
-                      label: 'Realized PnL',
-                      child: PnlText(s.realizedPnlLamports, size: 22, key: const Key('realizedPnl'))),
+                    label: 'Cash',
+                    child: Text(fmtSol(s.cashLamports), style: AppText.num(22)),
+                  ),
+                  _Kpi(
+                    label: 'Realized PnL',
+                    child: PnlText(s.realizedPnlLamports, size: 22, key: const Key('realizedPnl')),
+                  ),
                   _Kpi(
                     label: 'Open',
                     onTap: () => context.go('/positions'),
@@ -55,9 +61,11 @@ class DashboardScreen extends ConsumerWidget {
                   _Kpi(
                     label: 'Approvals',
                     onTap: () => context.go('/approvals'),
-                    child: Text('$pending',
-                        key: const Key('pendingKpi'),
-                        style: AppText.num(22, color: pending > 0 ? t.warning : null)),
+                    child: Text(
+                      '$pending',
+                      key: const Key('pendingKpi'),
+                      style: AppText.num(22, color: pending > 0 ? t.warning : null),
+                    ),
                   ),
                 ],
               ),
@@ -65,21 +73,27 @@ class DashboardScreen extends ConsumerWidget {
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpace.s4),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Text('Total PnL', style: text.labelLarge),
-                      const Spacer(),
-                      PnlText(s.totalPnlLamports, key: const Key('totalPnl'), unit: true),
-                    ]),
-                    const SizedBox(height: AppSpace.s3),
-                    Sparkline(
-                      height: 72,
-                      values: s.history.map((p) => p.equityLamports.plotValue).toList(),
-                      color: context.lamportsColor(s.totalPnlLamports),
-                    ),
-                  ]),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text('Total PnL', style: text.labelLarge),
+                          const Spacer(),
+                          PnlText(s.totalPnlLamports, key: const Key('totalPnl'), unit: true),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpace.s3),
+                      Sparkline(
+                        height: 72,
+                        values: s.history.map((p) => p.equityLamports.plotValue).toList(),
+                        color: context.lamportsColor(s.totalPnlLamports),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              SectionHeader('Coins · screener', action: 'Lihat', onAction: () => context.go('/coins')),
               SectionHeader('Strategi', action: 'Lihat semua', onAction: () => context.go('/strategies')),
               for (final st in strategies.take(2)) ...[
                 StrategySummaryCard(st, onTap: () => context.go('/strategies')),
@@ -87,9 +101,9 @@ class DashboardScreen extends ConsumerWidget {
               ],
               SectionHeader('Activity', action: 'Semua', onAction: () => context.go('/activity')),
               Card(
-                child: Column(children: [
-                  for (final e in feed.take(4)) ActivityTile(e, now: DateTime.now(), dense: true),
-                ]),
+                child: Column(
+                  children: [for (final e in feed.take(4)) ActivityTile(e, now: DateTime.now(), dense: true)],
+                ),
               ),
               const SizedBox(height: AppSpace.s4),
               if (s.mode == TradeMode.practice) const _RealSolCta(),
@@ -116,10 +130,14 @@ class _Kpi extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(AppSpace.s3),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-            FittedBox(fit: BoxFit.scaleDown, child: child),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.labelMedium),
+              FittedBox(fit: BoxFit.scaleDown, child: child),
+            ],
+          ),
         ),
       ),
     );
@@ -140,11 +158,15 @@ class _RealSolCta extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.s4, vertical: AppSpace.s2),
-        title: Text('Ganti ke Real SOL', style: TextStyle(color: t.real, fontWeight: FontWeight.w600)),
+        title: Text(
+          'Ganti ke Real SOL',
+          style: TextStyle(color: t.real, fontWeight: FontWeight.w600),
+        ),
         subtitle: const Text('Butuh wallet terhubung, 2FA, konfirmasi hold 2,5 dtk. Tidak pernah via swipe.'),
         trailing: Icon(Icons.chevron_right, color: t.real),
-        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Setup wizard Real SOL belum ada di prototype (Fase 7)'))),
+        onTap: () => ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Setup wizard Real SOL belum ada di prototype (Fase 7)'))),
       ),
     );
   }

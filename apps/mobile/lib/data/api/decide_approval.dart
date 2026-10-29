@@ -27,13 +27,13 @@ class DecideApprovalRequest {
   final String? idempotencyKey;
 
   Map<String, Object?> toRpcParams() => {
-        'p_approval_id': approvalId,
-        'p_token': token,
-        'p_decision': Wire.decision(approve: approve),
-        'p_expected_rev': expectedRev,
-        'p_client': client,
-        'p_idempotency_key': idempotencyKey,
-      };
+    'p_approval_id': approvalId,
+    'p_token': token,
+    'p_decision': Wire.decision(approve: approve),
+    'p_expected_rev': expectedRev,
+    'p_client': client,
+    'p_idempotency_key': idempotencyKey,
+  };
 }
 
 class DecideApprovalResult {
@@ -65,10 +65,10 @@ class DecideApprovalResult {
   }
 
   Map<String, Object?> toJson() => {
-        'proposal_id': proposalId,
-        'status': Wire.approvalStatus(status),
-        'version': version,
-        'replayed': replayed,
-        'server_now': serverNow.toUtc().toIso8601String(),
-      };
+    'proposal_id': proposalId,
+    'status': Wire.approvalStatus(status),
+    'version': version,
+    'replayed': replayed,
+    'server_now': serverNow.toUtc().toIso8601String(),
+  };
 }

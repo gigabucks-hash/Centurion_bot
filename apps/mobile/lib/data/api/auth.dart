@@ -94,13 +94,20 @@ class UnimplementedAuthRepository implements AuthRepository {
   Future<String> telegramNonce({required String deviceId, required String platform}) async =>
       telegramEnabled ? _todo() : throw const TelegramLoginDisabled();
   @override
-  Future<AuthSession> verifyTelegramIdToken({required String nonce, required String idToken, required String deviceId}) async =>
-      telegramEnabled ? _todo() : throw const TelegramLoginDisabled();
+  Future<AuthSession> verifyTelegramIdToken({
+    required String nonce,
+    required String idToken,
+    required String deviceId,
+  }) async => telegramEnabled ? _todo() : throw const TelegramLoginDisabled();
   @override
-  Future<SiwsChallenge> siwsNonce({required String address, required String domain, required String uri}) async => _todo();
-  @override
-  Future<AuthSession> siwsVerify({required String address, required String message, required String signatureBase58}) async =>
+  Future<SiwsChallenge> siwsNonce({required String address, required String domain, required String uri}) async =>
       _todo();
+  @override
+  Future<AuthSession> siwsVerify({
+    required String address,
+    required String message,
+    required String signatureBase58,
+  }) async => _todo();
   @override
   Future<DateTime> reauth() async => _todo();
   @override
