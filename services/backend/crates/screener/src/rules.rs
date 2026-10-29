@@ -1,29 +1,34 @@
 use std::collections::HashSet;
 
-use common::{CoinMetrics, Stream};
+use common::{CoinMetrics, Venue};
 use serde::{Deserialize, Serialize};
 
-/// Metrics a rule can reference. JSON names are camelCase.
+/// Metrics a rule can reference. JSON names are snake_case.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum Metric {
     LiquidityUsd,
-    MarketCapUsd,
+    McapUsd,
+    #[serde(rename = "volume_1h_usd")]
     Volume1hUsd,
+    #[serde(rename = "volume_24h_usd")]
     Volume24hUsd,
-    Holders,
-    Buyers1h,
-    BuySellRatio,
-    Turnover1h,
-    Top10Pct,
-    LpBurnPct,
-    Move1hPct,
-    DrawdownPct,
-    DevPct,
-    BundlersPct,
-    SnipersPct,
+    HolderCount,
+    #[serde(rename = "unique_buyers_1h")]
+    UniqueBuyers1h,
+    BuyToSellRatio,
+    #[serde(rename = "volume_to_mcap_1h")]
+    VolumeToMcap1h,
+    TopHoldersSharePct,
+    LpBurnedPct,
+    #[serde(rename = "change_1h_pct")]
+    Change1hPct,
+    OffHighPct,
+    CreatorSharePct,
+    BundledSharePct,
+    SniperSharePct,
     AgeMinutes,
-    GraduatedSeconds,
+    SinceMigrationSeconds,
     CurveProgressPct,
 }
 
@@ -31,22 +36,22 @@ impl Metric {
     pub fn read(self, m: &CoinMetrics) -> Option<f64> {
         match self {
             Metric::LiquidityUsd => m.liquidity_usd,
-            Metric::MarketCapUsd => m.market_cap_usd,
+            Metric::McapUsd => m.mcap_usd,
             Metric::Volume1hUsd => m.volume_1h_usd,
             Metric::Volume24hUsd => m.volume_24h_usd,
-            Metric::Holders => m.holders.map(|v| v as f64),
-            Metric::Buyers1h => m.buyers_1h.map(|v| v as f64),
-            Metric::BuySellRatio => m.buy_sell_ratio(),
-            Metric::Turnover1h => m.turnover_1h(),
-            Metric::Top10Pct => m.top10_pct,
-            Metric::LpBurnPct => m.lp_burn_pct,
-            Metric::Move1hPct => m.move_1h_pct,
-            Metric::DrawdownPct => m.drawdown_pct,
-            Metric::DevPct => m.dev_pct,
-            Metric::BundlersPct => m.bundlers_pct,
-            Metric::SnipersPct => m.snipers_pct,
+            Metric::HolderCount => m.holder_count.map(|v| v as f64),
+            Metric::UniqueBuyers1h => m.unique_buyers_1h.map(|v| v as f64),
+            Metric::BuyToSellRatio => m.buy_to_sell_ratio(),
+            Metric::VolumeToMcap1h => m.volume_to_mcap_1h(),
+            Metric::TopHoldersSharePct => m.top_holders_share_pct,
+            Metric::LpBurnedPct => m.lp_burned_pct,
+            Metric::Change1hPct => m.change_1h_pct,
+            Metric::OffHighPct => m.off_high_pct,
+            Metric::CreatorSharePct => m.creator_share_pct,
+            Metric::BundledSharePct => m.bundled_share_pct,
+            Metric::SniperSharePct => m.sniper_share_pct,
             Metric::AgeMinutes => m.age_minutes,
-            Metric::GraduatedSeconds => m.graduated_seconds,
+            Metric::SinceMigrationSeconds => m.since_migration_seconds,
             Metric::CurveProgressPct => m.curve_progress_pct,
         }
         .filter(|v| !v.is_nan())
@@ -54,7 +59,7 @@ impl Metric {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum Op {
     Gte,
     Gt,
@@ -76,7 +81,7 @@ pub enum Threshold {
 
 /// What to do when the metric is unavailable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum MissingPolicy {
     /// Treat as a failed check (hard: reject; weighted: 0 pts / penalty).
     #[default]
@@ -86,7 +91,7 @@ pub enum MissingPolicy {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Rule {
     pub id: String,
     pub metric: Metric,
@@ -98,7 +103,7 @@ pub struct Rule {
     /// Weighted rules only: points subtracted on fail.
     #[serde(default)]
     pub penalty: Option<f64>,
-    /// Weighted `gte`/`gt`/`lte`/`lt` only: linear partial credit. At `zeroAt` the rule
+    /// Weighted `gte`/`gt`/`lte`/`lt` only: linear partial credit. At `zero_at` the rule
     /// is worth 0, at `value` it is worth full points.
     #[serde(default)]
     pub zero_at: Option<f64>,
@@ -107,13 +112,13 @@ pub struct Rule {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct RuleSet {
     pub version: u32,
     pub name: String,
-    #[serde(default = "default_streams")]
-    pub streams: Vec<Stream>,
-    pub pass_mark: f64,
+    #[serde(default = "default_venues")]
+    pub venues: Vec<Venue>,
+    pub score_threshold: f64,
     #[serde(default)]
     pub on_missing: MissingPolicy,
     #[serde(default)]
@@ -122,8 +127,8 @@ pub struct RuleSet {
     pub weighted: Vec<Rule>,
 }
 
-fn default_streams() -> Vec<Stream> {
-    vec![Stream::Bonding, Stream::Graduated]
+fn default_venues() -> Vec<Venue> {
+    vec![Venue::Curve, Venue::Amm]
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -135,7 +140,7 @@ pub enum RuleSetError {
 }
 
 pub const SUPPORTED_VERSION: u32 = 1;
-pub const PASS_MARK_RANGE: (f64, f64) = (50.0, 125.0);
+pub const SCORE_THRESHOLD_RANGE: (f64, f64) = (50.0, 125.0);
 
 impl RuleSet {
     pub fn from_json(s: &str) -> Result<Self, RuleSetError> {
@@ -153,12 +158,15 @@ impl RuleSet {
         if self.version != SUPPORTED_VERSION {
             return bad(format!("unsupported version {}", self.version));
         }
-        let (lo, hi) = PASS_MARK_RANGE;
-        if !(lo..=hi).contains(&self.pass_mark) {
-            return bad(format!("passMark {} outside {lo}–{hi}", self.pass_mark));
+        let (lo, hi) = SCORE_THRESHOLD_RANGE;
+        if !(lo..=hi).contains(&self.score_threshold) {
+            return bad(format!(
+                "score_threshold {} outside {lo}–{hi}",
+                self.score_threshold
+            ));
         }
-        if self.streams.is_empty() {
-            return bad("streams must not be empty".into());
+        if self.venues.is_empty() {
+            return bad("venues must not be empty".into());
         }
         let mut seen = HashSet::new();
         for (class, rules) in [("hard", &self.hard), ("weighted", &self.weighted)] {
@@ -177,7 +185,7 @@ impl RuleSet {
                 if class == "hard" {
                     if r.points.is_some() || r.penalty.is_some() || r.zero_at.is_some() {
                         return bad(format!(
-                            "{}: hard rules take no points/penalty/zeroAt",
+                            "{}: hard rules take no points/penalty/zero_at",
                             r.id
                         ));
                     }
@@ -193,7 +201,7 @@ impl RuleSet {
                     }
                     if let Some(z) = r.zero_at {
                         let Threshold::Scalar(v) = r.value else {
-                            return bad(format!("{}: zeroAt needs a scalar op", r.id));
+                            return bad(format!("{}: zero_at needs a scalar op", r.id));
                         };
                         let ok = match r.op {
                             Op::Gte | Op::Gt => z < v,
@@ -202,7 +210,7 @@ impl RuleSet {
                         };
                         if !ok {
                             return bad(format!(
-                                "{}: zeroAt must lie on the failing side of value",
+                                "{}: zero_at must lie on the failing side of value",
                                 r.id
                             ));
                         }
@@ -210,10 +218,10 @@ impl RuleSet {
                 }
             }
         }
-        if self.max_score() < self.pass_mark && !self.weighted.is_empty() {
+        if self.max_score() < self.score_threshold && !self.weighted.is_empty() {
             return bad(format!(
-                "passMark {} unreachable: max weighted score is {}",
-                self.pass_mark,
+                "score_threshold {} unreachable: max weighted score is {}",
+                self.score_threshold,
                 self.max_score()
             ));
         }

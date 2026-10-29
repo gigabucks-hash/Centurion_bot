@@ -382,11 +382,16 @@ pub struct FillWire {
     pub token_amount_raw: common::RawAmount,
     pub exec_price_sol: common::Dec,
     pub mid_price_sol: common::Dec,
-    pub price_impact_bps: common::Dec,
-    pub slippage_bps: common::Dec,
+    /// bps are JSON numbers (2 dp).
+    pub price_impact_bps: f64,
+    pub slippage_bps: f64,
     pub swap_fee_lamports: common::Lamports,
     pub network_fee_lamports: common::Lamports,
     pub latency_ms: u64,
+}
+
+fn round2(x: f64) -> f64 {
+    (x * 100.0).round() / 100.0
 }
 
 impl Fill {
@@ -400,8 +405,8 @@ impl Fill {
             token_amount_raw: RawAmount::from_ui_f64(self.token_amount, decimals)?,
             exec_price_sol: Dec::from_f64(self.exec_price, 12)?,
             mid_price_sol: Dec::from_f64(self.mid_price_before, 12)?,
-            price_impact_bps: Dec::from_f64(self.price_impact_bps, 6)?,
-            slippage_bps: Dec::from_f64(self.slippage_vs_quote_bps, 6)?,
+            price_impact_bps: round2(self.price_impact_bps),
+            slippage_bps: round2(self.slippage_vs_quote_bps),
             swap_fee_lamports: Lamports::from_sol_f64(self.swap_fee_sol)?,
             network_fee_lamports: Lamports::from_sol_f64(self.network_fee_sol)?,
             latency_ms: self.latency_ms,
@@ -439,9 +444,10 @@ mod wire_tests {
             "token_amount_raw",
             "exec_price_sol",
             "swap_fee_lamports",
-            "slippage_bps",
         ] {
             assert!(v[k].is_string(), "{k} must be a string on the wire");
         }
+        assert!(v["slippage_bps"].is_number(), "bps are JSON numbers");
+        common::units::assert_wire_numbers(&v);
     }
 }

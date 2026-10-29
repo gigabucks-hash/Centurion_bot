@@ -233,7 +233,7 @@ mod tests {
     }
 }
 
-/// `#[serde(with = "common::units::f64_dec")]`: engines compute in f64 internally, but the value
+/// `#[serde(with = "common::units::f64_dec")]` (prices only): engines compute in f64, but the value
 /// crosses the wire as a decimal string (12 significant digits). Accepts strings only on input.
 pub mod f64_dec {
     use super::Dec;
@@ -276,12 +276,62 @@ pub mod opt_f64_dec {
     }
 }
 
-/// Test helper: assert a JSON value contains no floating point numbers.
-pub fn assert_no_floats(v: &serde_json::Value) {
+/// Wire number rule (contracts v1.1):
+/// * `*_lamports` and `*_raw` are integer strings,
+/// * keys containing `price` are decimal strings,
+/// * percentages, ratios, bps, USD notionals, scores and measured values are JSON numbers,
+/// * any other number must be an integer (counts, ms, seq, version).
+pub fn assert_wire_numbers(v: &serde_json::Value) {
+    walk(v, "");
+}
+
+/// Keys whose value may be a fractional JSON number.
+pub fn fractional_number_allowed(key: &str) -> bool {
+    const SUFFIX: [&str; 5] = ["_pct", "_ratio", "_bps", "_usd", "_mcap_1h"];
+    const EXACT: [&str; 7] = [
+        "score",
+        "score_threshold",
+        "max_score",
+        "points",
+        "measured",
+        "weight",
+        "value",
+    ];
+    SUFFIX.iter().any(|s| key.ends_with(s)) || EXACT.contains(&key) || key.contains("ratio")
+}
+
+fn walk(v: &serde_json::Value, key: &str) {
+    use serde_json::Value;
+    let is_int_str = |s: &str| {
+        let d = s.strip_prefix('-').unwrap_or(s);
+        !d.is_empty() && d.bytes().all(|b| b.is_ascii_digit())
+    };
+    if key.ends_with("_lamports") || key.ends_with("_raw") {
+        match v {
+            Value::String(s) => assert!(is_int_str(s), "{key} must be an integer string, got {s}"),
+            Value::Null => {}
+            other => panic!("{key} must be an integer string, got {other}"),
+        }
+        return;
+    }
+    if key.contains("price") && !fractional_number_allowed(key) {
+        match v {
+            Value::String(s) => assert!(
+                s.parse::<f64>().is_ok() && !s.contains(['e', 'E']),
+                "{key}: bad decimal {s}"
+            ),
+            Value::Null => {}
+            other => panic!("{key} must be a decimal string, got {other}"),
+        }
+        return;
+    }
     match v {
-        serde_json::Value::Number(n) => assert!(!n.is_f64(), "float on the wire: {n}"),
-        serde_json::Value::Array(a) => a.iter().for_each(assert_no_floats),
-        serde_json::Value::Object(o) => o.values().for_each(assert_no_floats),
+        Value::Number(n) => assert!(
+            !n.is_f64() || fractional_number_allowed(key),
+            "fractional number under `{key}`: {n} (only pct/ratio/bps/usd/score keys may be fractional)"
+        ),
+        Value::Array(a) => a.iter().for_each(|x| walk(x, key)),
+        Value::Object(o) => o.iter().for_each(|(k, x)| walk(x, k)),
         _ => {}
     }
 }

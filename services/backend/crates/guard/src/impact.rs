@@ -12,7 +12,7 @@ use crate::{assess, GuardConfig, GuardInput, Verdict};
 pub struct Outcome {
     /// Labelled as a rug (liquidity pulled / -90% within 24h of observation).
     pub rugged: bool,
-    pub max_drawdown_pct: f64,
+    pub worst_drawdown_pct: f64,
     pub peak_gain_pct: f64,
 }
 
@@ -34,7 +34,6 @@ pub struct ImpactReport {
     pub newly_passing_rugged: usize,
     pub newly_passing_labelled: usize,
     /// Mean max drawdown (%) of newly passing coins with a known outcome.
-    #[serde(with = "common::units::opt_f64_dec")]
     pub newly_passing_avg_drawdown_pct: Option<f64>,
     /// Which config fields got weaker (empty = strengthening/neutral change).
     pub weakened_fields: Vec<String>,
@@ -56,77 +55,95 @@ pub fn weakened_fields(old: &GuardConfig, new: &GuardConfig) -> Vec<String> {
     // "higher threshold = weaker"; 0 means disabled = weakest
     let up = |o: f64, n: f64| o > 0.0 && (n == 0.0 || n > o);
     flag(
-        "allowMintAuthority",
+        "allow_mint_authority",
         new.allow_mint_authority && !old.allow_mint_authority,
     );
     flag(
-        "allowFreezeAuthority",
+        "allow_freeze_authority",
         new.allow_freeze_authority && !old.allow_freeze_authority,
     );
     flag(
-        "minLpSafePctWarn",
+        "min_lp_safe_pct_warn",
         new.min_lp_safe_pct_warn < old.min_lp_safe_pct_warn,
     );
     flag(
-        "minLpSafePctFail",
+        "min_lp_safe_pct_fail",
         new.min_lp_safe_pct_fail < old.min_lp_safe_pct_fail,
     );
-    flag("top10PctWarn", up(old.top10_pct_warn, new.top10_pct_warn));
-    flag("top10PctFail", up(old.top10_pct_fail, new.top10_pct_fail));
     flag(
-        "singleHolderPctFail",
+        "top_holders_share_pct_warn",
+        up(
+            old.top_holders_share_pct_warn,
+            new.top_holders_share_pct_warn,
+        ),
+    );
+    flag(
+        "top_holders_share_pct_fail",
+        up(
+            old.top_holders_share_pct_fail,
+            new.top_holders_share_pct_fail,
+        ),
+    );
+    flag(
+        "single_holder_pct_fail",
         up(old.single_holder_pct_fail, new.single_holder_pct_fail),
     );
-    flag("devPctWarn", up(old.dev_pct_warn, new.dev_pct_warn));
-    flag("devPctFail", up(old.dev_pct_fail, new.dev_pct_fail));
     flag(
-        "bundlersPctWarn",
-        up(old.bundlers_pct_warn, new.bundlers_pct_warn),
+        "creator_share_pct_warn",
+        up(old.creator_share_pct_warn, new.creator_share_pct_warn),
     );
     flag(
-        "bundlersPctFail",
-        up(old.bundlers_pct_fail, new.bundlers_pct_fail),
+        "creator_share_pct_fail",
+        up(old.creator_share_pct_fail, new.creator_share_pct_fail),
     );
     flag(
-        "snipersPctWarn",
-        up(old.snipers_pct_warn, new.snipers_pct_warn),
+        "bundled_share_pct_warn",
+        up(old.bundled_share_pct_warn, new.bundled_share_pct_warn),
     );
     flag(
-        "snipersPctFail",
-        up(old.snipers_pct_fail, new.snipers_pct_fail),
+        "bundled_share_pct_fail",
+        up(old.bundled_share_pct_fail, new.bundled_share_pct_fail),
     );
     flag(
-        "transferFeeBpsFail",
+        "sniper_share_pct_warn",
+        up(old.sniper_share_pct_warn, new.sniper_share_pct_warn),
+    );
+    flag(
+        "sniper_share_pct_fail",
+        up(old.sniper_share_pct_fail, new.sniper_share_pct_fail),
+    );
+    flag(
+        "transfer_fee_bps_fail",
         new.transfer_fee_bps_fail > old.transfer_fee_bps_fail,
     );
     flag(
-        "sellTaxBpsWarn",
+        "sell_tax_bps_warn",
         new.sell_tax_bps_warn > old.sell_tax_bps_warn,
     );
     flag(
-        "sellTaxBpsFail",
+        "sell_tax_bps_fail",
         new.sell_tax_bps_fail > old.sell_tax_bps_fail,
     );
     flag(
-        "serialCreatorWarn",
+        "serial_creator_warn",
         up(
             f64::from(old.serial_creator_warn),
             f64::from(new.serial_creator_warn),
         ),
     );
     flag(
-        "creatorRugRateFail",
+        "creator_rug_rate_fail",
         new.creator_rug_rate_fail > old.creator_rug_rate_fail,
     );
     flag(
-        "warnScoreFail",
+        "warn_score_fail",
         up(
             f64::from(old.warn_score_fail),
             f64::from(new.warn_score_fail),
         ),
     );
     flag(
-        "requireSellSim",
+        "require_sell_sim",
         old.require_sell_sim && !new.require_sell_sim,
     );
     out
@@ -149,7 +166,7 @@ pub fn impact(old: &GuardConfig, new: &GuardConfig, samples: &[Sample]) -> Impac
             if let Some(o) = &s.outcome {
                 r.newly_passing_labelled += 1;
                 r.newly_passing_rugged += usize::from(o.rugged);
-                dd_sum += o.max_drawdown_pct;
+                dd_sum += o.worst_drawdown_pct;
             }
         } else if b && !a {
             r.newly_blocked += 1;
@@ -165,18 +182,18 @@ pub fn impact(old: &GuardConfig, new: &GuardConfig, samples: &[Sample]) -> Impac
 mod tests {
     use super::*;
     use crate::{Authority, SellSimulation};
-    use common::Stream;
+    use common::Venue;
 
     fn input(dev: f64) -> GuardInput {
         GuardInput {
-            stream: Some(Stream::Graduated),
+            venue: Some(Venue::Amm),
             mint_authority: Some(Authority::Revoked),
             freeze_authority: Some(Authority::Revoked),
             lp_burned_pct: Some(100.0),
             holder_pcts: Some(vec![3.0; 10]),
-            dev_pct: Some(dev),
-            bundlers_pct: Some(1.0),
-            snipers_pct: Some(1.0),
+            creator_share_pct: Some(dev),
+            bundled_share_pct: Some(1.0),
+            sniper_share_pct: Some(1.0),
             transfer_fee_bps: Some(0),
             sell_sim: Some(SellSimulation {
                 can_sell: true,
@@ -195,7 +212,7 @@ mod tests {
                 input: input(f64::from(i % 30)),
                 outcome: Some(Outcome {
                     rugged: i % 30 >= 20,
-                    max_drawdown_pct: f64::from(i % 30) * 3.0,
+                    worst_drawdown_pct: f64::from(i % 30) * 3.0,
                     peak_gain_pct: 50.0,
                 }),
             })
@@ -206,11 +223,11 @@ mod tests {
     fn weakening_dev_threshold_lets_more_through() {
         let old = GuardConfig::default();
         let new = GuardConfig {
-            dev_pct_fail: 25.0,
+            creator_share_pct_fail: 25.0,
             ..old.clone()
         };
         let r = impact(&old, &new, &samples());
-        assert_eq!(r.weakened_fields, vec!["devPctFail"]);
+        assert_eq!(r.weakened_fields, vec!["creator_share_pct_fail"]);
         assert!(r.newly_passing > 0 && r.newly_blocked == 0);
         assert!(r.newly_passing_rugged > 0, "{r:?}");
         assert!(r.pass_after > r.pass_before);
@@ -220,7 +237,7 @@ mod tests {
     fn strengthening_is_not_weakening() {
         let old = GuardConfig::default();
         let new = GuardConfig {
-            dev_pct_fail: 10.0,
+            creator_share_pct_fail: 10.0,
             allow_mint_authority: false,
             ..old.clone()
         };
@@ -234,13 +251,13 @@ mod tests {
     fn disabling_a_check_counts_as_weakening() {
         let old = GuardConfig::default();
         let new = GuardConfig {
-            bundlers_pct_fail: 0.0,
+            bundled_share_pct_fail: 0.0,
             require_sell_sim: false,
             ..old.clone()
         };
         assert_eq!(
             weakened_fields(&old, &new),
-            vec!["bundlersPctFail", "requireSellSim"]
+            vec!["bundled_share_pct_fail", "require_sell_sim"]
         );
     }
 
@@ -257,7 +274,7 @@ mod tests {
         let r = impact(
             &GuardConfig::default(),
             &GuardConfig {
-                dev_pct_fail: 25.0,
+                creator_share_pct_fail: 25.0,
                 ..Default::default()
             },
             &s,

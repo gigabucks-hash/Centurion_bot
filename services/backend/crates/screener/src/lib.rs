@@ -3,7 +3,7 @@
 //! A [`RuleSet`] (loaded from JSON) contains:
 //! * **hard** rules: every one must pass, otherwise the coin is rejected;
 //! * **weighted** rules: each awards points (optionally partial, optionally a penalty
-//!   on failure); the coin passes when `score >= passMark`.
+//!   on failure); the coin passes when `score >= score_threshold`.
 //!
 //! Evaluation is a pure function of a [`CoinSnapshot`] so it is trivially testable and
 //! replayable. Missing data is never treated as zero: each rule declares what happens

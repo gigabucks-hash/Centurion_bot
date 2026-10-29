@@ -18,7 +18,7 @@ Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS type
 4. **Funnel.** Precomputed hourly in `strategy_funnel_hourly` from events (detected, screened,
    guard_passed, picked, proposed, approved, opened, closed); `GET .../strategies/{id}/funnel?window=`
    with `1h|24h (default)|7d|30d|all`.
-5. **Exit stats server-side with same filters?** Yes: `GET .../stats/exits` -> SQL `exit_stats()`, using the
+5. **Exit stats server-side with same filters?** Yes: `GET .../stats/exit-reasons` -> SQL `exit_stats()`, using the
    same filter parser as `/positions` (`mode`, `strategy_id`, `window`/`from`/`to`), so numbers match.
 6. **Approval endpoint.** `POST .../approvals/{id}/decision` with `Idempotency-Key` header +
    `{decision, token, expected_version, client}`. Server owns `expires_at` (pick 10 min, guard change

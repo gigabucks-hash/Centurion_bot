@@ -1,6 +1,6 @@
 [package]
 name = "guard"
-description = "Anti-rug safety checks (ShieldBot-equivalent): PASS/WARN/FAIL with reasons"
+description = "Anti-rug safety checks: PASS/WARN/FAIL with reasons"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

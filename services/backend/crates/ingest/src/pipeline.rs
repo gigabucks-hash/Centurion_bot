@@ -74,7 +74,7 @@ impl Pipeline {
         let ck = CoinKey::derive(&self.strategy_id, &c.mint);
         let snap = CoinSnapshot {
             mint: c.mint.clone(),
-            stream: c.stream,
+            venue: c.venue,
             launchpad: c.launchpad,
             creator: c.creator.clone(),
             observed_at: c.ts,
@@ -91,7 +91,7 @@ impl Pipeline {
                 c.ts,
                 EventKind::CoinDetected,
                 Actor::Ingest,
-                json!({ "mint": c.mint.to_string(), "stream": c.stream, "launchpad": c.launchpad, "creator": c.creator.as_ref().map(|m| m.to_string()) }),
+                json!({ "mint": c.mint.to_string(), "venue": c.venue, "launchpad": c.launchpad, "creator": c.creator.as_ref().map(|m| m.to_string()) }),
             )
             .with_untrusted_symbol(&c.name, &c.symbol);
         self.repo.append_event(&found).await?;
@@ -103,7 +103,7 @@ impl Pipeline {
             mint: c.mint.clone(),
             stage: PickStage::Found,
             score: None,
-            pass_mark: None,
+            score_threshold: None,
             checks: json!([]),
             guard: json!(null),
             updated_at: c.ts,
@@ -112,7 +112,7 @@ impl Pipeline {
         // 1) screener
         let sr = evaluate(&self.rules, &snap);
         pick.score = Some(sr.score);
-        pick.pass_mark = Some(sr.pass_mark);
+        pick.score_threshold = Some(sr.score_threshold);
         pick.checks = serde_json::to_value(&sr.checks).unwrap_or_default();
         if !sr.passed {
             self.stats.rejected += 1;
@@ -144,7 +144,7 @@ impl Pipeline {
             },
         };
         let gi = GuardInput {
-            stream: gi.stream.or(Some(c.stream)),
+            venue: gi.venue.or(Some(c.venue)),
             ..gi
         };
         let report = assess(&self.guard_cfg, &gi);
@@ -210,7 +210,7 @@ impl Pipeline {
                                 exec_price_sol: w.exec_price_sol.clone(),
                                 swap_fee_lamports: w.swap_fee_lamports,
                                 network_fee_lamports: w.network_fee_lamports,
-                                slippage_bps: w.slippage_bps.clone(),
+                                slippage_bps: w.slippage_bps,
                                 latency_ms: w.latency_ms,
                                 ts: c.ts + 3,
                             })
@@ -292,7 +292,7 @@ mod tests {
         // contract: every event serializes with no floats and the v1 envelope
         for e in repo.all_events().await {
             let v = serde_json::to_value(&e).expect("ser");
-            common::units::assert_no_floats(&v);
+            common::units::assert_wire_numbers(&v);
             assert_eq!(v["mode"], "practice");
             assert!(v["seq"].is_i64());
         }

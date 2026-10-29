@@ -6,7 +6,7 @@ use crate::rules::{MissingPolicy, Op, Rule, RuleSet, Threshold};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RuleClass {
-    Stream,
+    Venue,
     Hard,
     Weighted,
 }
@@ -17,10 +17,8 @@ pub struct CheckResult {
     pub id: String,
     pub class: RuleClass,
     pub passed: bool,
-    #[serde(with = "common::units::opt_f64_dec")]
     pub measured: Option<f64>,
     /// Points contributed (weighted only; may be negative).
-    #[serde(with = "common::units::f64_dec")]
     pub points: f64,
     pub reason: String,
 }
@@ -28,11 +26,8 @@ pub struct CheckResult {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScreenResult {
     pub passed: bool,
-    #[serde(with = "common::units::f64_dec")]
     pub score: f64,
-    #[serde(with = "common::units::f64_dec")]
-    pub pass_mark: f64,
-    #[serde(with = "common::units::f64_dec")]
+    pub score_threshold: f64,
     pub max_score: f64,
     pub checks: Vec<CheckResult>,
 }
@@ -40,7 +35,7 @@ pub struct ScreenResult {
 impl ScreenResult {
     /// Short human summary such as `Fit 85 / 70`.
     pub fn summary(&self) -> String {
-        format!("Fit {:.0} / {:.0}", self.score, self.pass_mark)
+        format!("Fit {:.0} / {:.0}", self.score, self.score_threshold)
     }
     pub fn failed_hard(&self) -> impl Iterator<Item = &CheckResult> {
         self.checks
@@ -90,17 +85,17 @@ fn partial_fraction(r: &Rule, x: f64) -> f64 {
 pub fn evaluate(rs: &RuleSet, coin: &CoinSnapshot) -> ScreenResult {
     let mut checks = Vec::with_capacity(rs.hard.len() + rs.weighted.len() + 1);
 
-    let stream_ok = rs.streams.contains(&coin.stream);
+    let venue_ok = rs.venues.contains(&coin.venue);
     checks.push(CheckResult {
-        id: "stream".into(),
-        class: RuleClass::Stream,
-        passed: stream_ok,
+        id: "venue".into(),
+        class: RuleClass::Venue,
+        passed: venue_ok,
         measured: None,
         points: 0.0,
         reason: format!(
             "stream {:?} {}",
-            coin.stream,
-            if stream_ok { "allowed" } else { "not enabled" }
+            coin.venue,
+            if venue_ok { "allowed" } else { "not enabled" }
         ),
     });
 
@@ -166,11 +161,11 @@ pub fn evaluate(rs: &RuleSet, coin: &CoinSnapshot) -> ScreenResult {
         .iter()
         .filter(|c| c.class != RuleClass::Weighted)
         .all(|c| c.passed);
-    let weighted_ok = rs.weighted.is_empty() || score >= rs.pass_mark;
+    let weighted_ok = rs.weighted.is_empty() || score >= rs.score_threshold;
     ScreenResult {
         passed: hard_ok && weighted_ok,
         score,
-        pass_mark: rs.pass_mark,
+        score_threshold: rs.score_threshold,
         max_score: rs.max_score(),
         checks,
     }
@@ -180,28 +175,28 @@ pub fn evaluate(rs: &RuleSet, coin: &CoinSnapshot) -> ScreenResult {
 mod tests {
     use super::*;
     use crate::rules::RuleSet;
-    use common::{CoinMetrics, CoinSnapshot, Launchpad, Mint, Stream, Untrusted};
+    use common::{CoinMetrics, CoinSnapshot, Launchpad, Mint, Untrusted, Venue};
 
     const RULES: &str = r#"{
       "version": 1,
       "name": "test",
-      "streams": ["graduated"],
-      "passMark": 60,
+      "venues": ["amm"],
+      "score_threshold": 60,
       "hard": [
-        { "id": "liquidity", "metric": "liquidityUsd", "op": "gte", "value": 10000 },
-        { "id": "age",       "metric": "ageMinutes",   "op": "between", "value": [5, 600] }
+        { "id": "liquidity", "metric": "liquidity_usd", "op": "gte", "value": 10000 },
+        { "id": "age",       "metric": "age_minutes",   "op": "between", "value": [5, 600] }
       ],
       "weighted": [
-        { "id": "top10",   "metric": "top10Pct",   "op": "lte", "value": 25, "points": 40, "zeroAt": 50 },
-        { "id": "holders", "metric": "holders",    "op": "gte", "value": 300, "points": 30 },
-        { "id": "move1h",  "metric": "move1hPct",  "op": "between", "value": [5, 80], "points": 30, "penalty": 15 }
+        { "id": "top_holders", "metric": "top_holders_share_pct",   "op": "lte", "value": 25, "points": 40, "zero_at": 50 },
+        { "id": "holder_count", "metric": "holder_count",    "op": "gte", "value": 300, "points": 30 },
+        { "id": "change_1h", "metric": "change_1h_pct",  "op": "between", "value": [5, 80], "points": 30, "penalty": 15 }
       ]
     }"#;
 
-    fn coin(stream: Stream, m: CoinMetrics) -> CoinSnapshot {
+    fn coin(venue: Venue, m: CoinMetrics) -> CoinSnapshot {
         CoinSnapshot {
             mint: Mint::parse("So11111111111111111111111111111111111111112").expect("mint"),
-            stream,
+            venue,
             launchpad: Launchpad::PumpSwap,
             creator: None,
             observed_at: 0,
@@ -216,9 +211,9 @@ mod tests {
         CoinMetrics {
             liquidity_usd: Some(25_000.0),
             age_minutes: Some(30.0),
-            top10_pct: Some(20.0),
-            holders: Some(500),
-            move_1h_pct: Some(40.0),
+            top_holders_share_pct: Some(20.0),
+            holder_count: Some(500),
+            change_1h_pct: Some(40.0),
             ..Default::default()
         }
     }
@@ -229,7 +224,7 @@ mod tests {
 
     #[test]
     fn all_pass_gets_full_score() {
-        let r = evaluate(&rs(), &coin(Stream::Graduated, good()));
+        let r = evaluate(&rs(), &coin(Venue::Amm, good()));
         assert!(r.passed, "{r:#?}");
         assert_eq!(r.score, 100.0);
         assert_eq!(r.summary(), "Fit 100 / 60");
@@ -241,7 +236,7 @@ mod tests {
             liquidity_usd: Some(5_000.0),
             ..good()
         };
-        let r = evaluate(&rs(), &coin(Stream::Graduated, m));
+        let r = evaluate(&rs(), &coin(Venue::Amm, m));
         assert!(!r.passed);
         assert_eq!(
             r.failed_hard().map(|c| c.id.as_str()).collect::<Vec<_>>(),
@@ -252,12 +247,9 @@ mod tests {
 
     #[test]
     fn wrong_stream_rejects() {
-        let r = evaluate(&rs(), &coin(Stream::Bonding, good()));
+        let r = evaluate(&rs(), &coin(Venue::Curve, good()));
         assert!(!r.passed);
-        assert_eq!(
-            r.failed_hard().next().map(|c| c.id.as_str()),
-            Some("stream")
-        );
+        assert_eq!(r.failed_hard().next().map(|c| c.id.as_str()), Some("venue"));
     }
 
     #[test]
@@ -266,19 +258,23 @@ mod tests {
             liquidity_usd: None,
             ..good()
         };
-        let r = evaluate(&rs(), &coin(Stream::Graduated, m));
+        let r = evaluate(&rs(), &coin(Venue::Amm, m));
         assert!(!r.passed);
     }
 
     #[test]
     fn partial_credit_is_linear() {
-        // top10 = 37.5 is halfway between value 25 (full) and zeroAt 50 (zero) -> 20 pts
+        // top_holders = 37.5 is halfway between value 25 (full) and zero_at 50 (zero) -> 20 pts
         let m = CoinMetrics {
-            top10_pct: Some(37.5),
+            top_holders_share_pct: Some(37.5),
             ..good()
         };
-        let r = evaluate(&rs(), &coin(Stream::Graduated, m));
-        let c = r.checks.iter().find(|c| c.id == "top10").expect("check");
+        let r = evaluate(&rs(), &coin(Venue::Amm, m));
+        let c = r
+            .checks
+            .iter()
+            .find(|c| c.id == "top_holders")
+            .expect("check");
         assert!(!c.passed);
         assert!((c.points - 20.0).abs() < 1e-9);
         assert!((r.score - 80.0).abs() < 1e-9);
@@ -286,29 +282,29 @@ mod tests {
     }
 
     #[test]
-    fn penalty_can_drop_below_pass_mark() {
+    fn penalty_can_drop_below_score_threshold() {
         let m = CoinMetrics {
-            move_1h_pct: Some(200.0),
-            holders: Some(10),
+            change_1h_pct: Some(200.0),
+            holder_count: Some(10),
             ..good()
         };
-        let r = evaluate(&rs(), &coin(Stream::Graduated, m));
-        // 40 (top10) + 0 (holders) - 15 (move1h penalty) = 25 < 60
+        let r = evaluate(&rs(), &coin(Venue::Amm, m));
+        // 40 (top_holders) + 0 (holder_count) - 15 (change_1h penalty) = 25 < 60
         assert!((r.score - 25.0).abs() < 1e-9);
         assert!(!r.passed);
     }
 
     #[test]
     fn validation_catches_bad_sets() {
-        let bad_mark = RULES.replace("\"passMark\": 60", "\"passMark\": 10");
+        let bad_mark = RULES.replace("\"score_threshold\": 60", "\"score_threshold\": 10");
         assert!(RuleSet::from_json(&bad_mark).is_err());
-        let unreachable = RULES.replace("\"passMark\": 60", "\"passMark\": 120");
+        let unreachable = RULES.replace("\"score_threshold\": 60", "\"score_threshold\": 120");
         assert!(RuleSet::from_json(&unreachable).is_err());
-        let dup = RULES.replace("\"id\": \"holders\"", "\"id\": \"top10\"");
+        let dup = RULES.replace("\"id\": \"holder_count\"", "\"id\": \"top_holders\"");
         assert!(RuleSet::from_json(&dup).is_err());
         let bad_range = RULES.replace("[5, 600]", "[600, 5]");
         assert!(RuleSet::from_json(&bad_range).is_err());
-        let bad_zero = RULES.replace("\"zeroAt\": 50", "\"zeroAt\": 10");
+        let bad_zero = RULES.replace("\"zero_at\": 50", "\"zero_at\": 10");
         assert!(RuleSet::from_json(&bad_zero).is_err());
         let unknown = RULES.replace("\"name\": \"test\"", "\"name\": \"t\", \"bogus\": 1");
         assert!(RuleSet::from_json(&unknown).is_err());
@@ -318,6 +314,6 @@ mod tests {
     fn example_config_is_valid() {
         let s = include_str!("../../../config/screener.example.json");
         let rs = RuleSet::from_json(s).expect("example config must validate");
-        assert!(rs.max_score() >= rs.pass_mark);
+        assert!(rs.max_score() >= rs.score_threshold);
     }
 }

@@ -20,7 +20,7 @@ pub use approval::{
     buy_needs_approval, decide, expire, Approval, ApprovalKind, ApprovalMode, ApprovalStatus,
     ApprovalTtls, DecidedVia, Decision, DecisionOutcome, DecisionRequest,
 };
-pub use coin::{CoinMetrics, CoinSnapshot, Launchpad, Stream};
+pub use coin::{CoinMetrics, CoinSnapshot, Launchpad, Venue};
 pub use error_codes::ErrorCode;
 pub use event::{Actor, Event, EventKind, ExpireReason, EVENT_SCHEMA_VERSION};
 pub use ids::{CoinKey, Mint, PositionKey};

@@ -1,5 +1,5 @@
 // GENERATED from errors.json by scripts/gen-errors.mjs. Do not edit.
-export const ERROR_CODES_VERSION = 1 as const;
+export const ERROR_CODES_VERSION = 2 as const;
 export type ErrorCode =
   | "UNAUTHENTICATED"
   | "FORBIDDEN_SCOPE"
@@ -15,7 +15,7 @@ export type ErrorCode =
   | "APPROVAL_EXPIRED"
   | "APPROVAL_TOKEN_INVALID"
   | "STRATEGY_RETIRED"
-  | "LAST_IDENTITY"
+  | "LAST_LOGIN_METHOD"
   | "SIWS_NONCE_INVALID"
   | "SIWS_SIGNATURE_INVALID"
   | "TELEGRAM_AUTH_INVALID"
@@ -34,6 +34,17 @@ export type ErrorCode =
   | "TYPED_CONFIRMATION_MISMATCH"
   | "HOLD_TOO_SHORT"
   | "REPLAY_UNAVAILABLE"
+  | "PRECONDITION_REQUIRED"
+  | "CONFIRMATION_RESTART_REQUIRED"
+  | "REAUTH_REQUIRED"
+  | "WALLET_ROLE_CONFLICT"
+  | "RESET_COOLDOWN"
+  | "ACCOUNT_DELETION_PENDING"
+  | "ACCOUNT_DELETION_BLOCKED"
+  | "DEVICE_TOKEN_INVALID"
+  | "AUTH_TG_INVALID"
+  | "AUTH_TG_REPLAY"
+  | "AUTH_TG_NO_PROFILE"
   | "RATE_LIMITED"
   | "UNAVAILABLE"
   | "INTERNAL";
@@ -53,10 +64,10 @@ export const ERROR_CODES: Record<ErrorCode, ErrorCodeInfo> = {
   APPROVAL_EXPIRED: { http: 409, retryable: false, message: "Approval expired; see reason" },
   APPROVAL_TOKEN_INVALID: { http: 403, retryable: false, message: "Decision token is invalid for this approval" },
   STRATEGY_RETIRED: { http: 409, retryable: false, message: "Strategy is archived or deleted" },
-  LAST_IDENTITY: { http: 409, retryable: false, message: "Cannot remove the last sign-in method" },
+  LAST_LOGIN_METHOD: { http: 422, retryable: false, message: "The last login method cannot be unlinked" },
   SIWS_NONCE_INVALID: { http: 401, retryable: false, message: "SIWS nonce unknown, used or expired" },
   SIWS_SIGNATURE_INVALID: { http: 401, retryable: false, message: "SIWS signature does not verify" },
-  TELEGRAM_AUTH_INVALID: { http: 401, retryable: false, message: "Telegram login hash invalid or expired" },
+  TELEGRAM_AUTH_INVALID: { http: 401, retryable: false, message: "Legacy Telegram widget payload invalid (superseded by AUTH_TG_INVALID)" },
   OTP_INVALID: { http: 401, retryable: false, message: "Email code is wrong or expired" },
   OTP_LOCKED: { http: 429, retryable: true, message: "Too many attempts; locked for 15 minutes" },
   TWO_FACTOR_REQUIRED: { http: 403, retryable: false, message: "Second factor required for this action" },
@@ -72,6 +83,17 @@ export const ERROR_CODES: Record<ErrorCode, ErrorCodeInfo> = {
   TYPED_CONFIRMATION_MISMATCH: { http: 422, retryable: false, message: "Typed confirmation does not match the strategy name" },
   HOLD_TOO_SHORT: { http: 422, retryable: false, message: "Hold-to-confirm duration below the required minimum" },
   REPLAY_UNAVAILABLE: { http: 503, retryable: true, message: "Full replay disabled or over its 2 s budget; use the static estimate" },
+  PRECONDITION_REQUIRED: { http: 428, retryable: false, message: "Write needs If-Match: <rev> or expected_rev / expected_version" },
+  CONFIRMATION_RESTART_REQUIRED: { http: 409, retryable: false, message: "Resource changed under a Real SOL confirmation; the full confirmation must be redone" },
+  REAUTH_REQUIRED: { http: 401, retryable: false, message: "Re-authenticate (within the last 5 minutes) to continue" },
+  WALLET_ROLE_CONFLICT: { http: 409, retryable: false, message: "A login wallet cannot be a trading wallet (and vice versa)" },
+  RESET_COOLDOWN: { http: 429, retryable: true, message: "Practice reset allowed once per 24 h; see details.next_allowed_at" },
+  ACCOUNT_DELETION_PENDING: { http: 409, retryable: false, message: "Account deletion already scheduled" },
+  ACCOUNT_DELETION_BLOCKED: { http: 409, retryable: false, message: "Close Real SOL positions and withdraw the trading wallet first" },
+  DEVICE_TOKEN_INVALID: { http: 422, retryable: false, message: "Device registration payload invalid" },
+  AUTH_TG_INVALID: { http: 401, retryable: false, message: "Telegram id_token failed verification (signature, iss, aud, exp, iat or nonce)" },
+  AUTH_TG_REPLAY: { http: 401, retryable: false, message: "Telegram nonce or id_token already used" },
+  AUTH_TG_NO_PROFILE: { http: 422, retryable: false, message: "Telegram id_token lacks the profile claims (id); request the profile scope" },
   RATE_LIMITED: { http: 429, retryable: true, message: "Rate limit exceeded" },
   UNAVAILABLE: { http: 503, retryable: true, message: "Dependency temporarily unavailable" },
   INTERNAL: { http: 500, retryable: true, message: "Unexpected server error" },

@@ -40,8 +40,9 @@ pub struct Snapshot {
 
 impl Snapshot {
     /// `drawdown_pct` wire value, e.g. 841 bps -> "8.41".
-    pub fn drawdown_pct_string(&self) -> String {
-        format!("{}.{:02}", self.drawdown_bps / 100, self.drawdown_bps % 100)
+    /// Percent as a JSON number (wire rule v1.1: percentages are numbers), e.g. 8.4.
+    pub fn drawdown_pct(&self) -> f64 {
+        self.drawdown_bps as f64 / 100.0
     }
 }
 
@@ -104,7 +105,7 @@ mod tests {
         assert_eq!(s.equity, Lamports(27_478_000_000));
         assert_eq!(s.unrealized_pnl, SignedLamports(-16_000_000));
         assert_eq!(s.drawdown_bps, 840); // integer division, same as SQL ::int cast of (30e9-27.478e9)*1e4/30e9
-        assert_eq!(s.drawdown_pct_string(), "8.40");
+        assert!((s.drawdown_pct() - 8.4).abs() < 1e-9);
     }
 
     #[test]

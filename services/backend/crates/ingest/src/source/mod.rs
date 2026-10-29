@@ -6,7 +6,7 @@ pub mod replay;
 pub mod yellowstone;
 
 use async_trait::async_trait;
-use common::{CoinMetrics, Launchpad, Mint, Stream, TsMs, Untrusted};
+use common::{CoinMetrics, Launchpad, Mint, TsMs, Untrusted, Venue};
 use guard::GuardInput;
 use papersim::{PoolState, Side};
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use tokio::sync::{mpsc, watch};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NewCoin {
     pub mint: Mint,
-    pub stream: Stream,
+    pub venue: Venue,
     pub launchpad: Launchpad,
     pub creator: Option<String>,
     pub ts: TsMs,

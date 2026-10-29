@@ -1,24 +1,118 @@
 {
   "version": 1,
-  "name": "graduated-momentum-example",
-  "streams": ["graduated"],
-  "passMark": 70,
-  "onMissing": "fail",
+  "name": "amm-momentum-example",
+  "venues": [
+    "amm"
+  ],
+  "score_threshold": 70,
+  "on_missing": "fail",
   "hard": [
-    { "id": "liquidity",  "metric": "liquidityUsd",  "op": "gte",     "value": 15000 },
-    { "id": "volume24h",  "metric": "volume24hUsd",  "op": "gte",     "value": 50000 },
-    { "id": "marketCap",  "metric": "marketCapUsd",  "op": "between", "value": [60000, 3000000] },
-    { "id": "age",        "metric": "ageMinutes",    "op": "between", "value": [10, 1440] },
-    { "id": "lpBurn",     "metric": "lpBurnPct",     "op": "gte",     "value": 90 }
+    {
+      "id": "liquidity",
+      "metric": "liquidity_usd",
+      "op": "gte",
+      "value": 15000
+    },
+    {
+      "id": "volume_24h",
+      "metric": "volume_24h_usd",
+      "op": "gte",
+      "value": 50000
+    },
+    {
+      "id": "mcap",
+      "metric": "mcap_usd",
+      "op": "between",
+      "value": [
+        60000,
+        3000000
+      ]
+    },
+    {
+      "id": "age",
+      "metric": "age_minutes",
+      "op": "between",
+      "value": [
+        10,
+        1440
+      ]
+    },
+    {
+      "id": "lp_burned",
+      "metric": "lp_burned_pct",
+      "op": "gte",
+      "value": 90
+    }
   ],
   "weighted": [
-    { "id": "top10",      "metric": "top10Pct",      "op": "lte",     "value": 25,  "points": 25, "zeroAt": 45 },
-    { "id": "holders",    "metric": "holders",       "op": "gte",     "value": 400, "points": 15, "zeroAt": 100 },
-    { "id": "buyers1h",   "metric": "buyers1h",      "op": "gte",     "value": 80,  "points": 15, "zeroAt": 20 },
-    { "id": "buySell",    "metric": "buySellRatio",  "op": "gte",     "value": 1.2, "points": 10, "onMissing": "skip" },
-    { "id": "sweetMove",  "metric": "move1hPct",     "op": "between", "value": [8, 60], "points": 15, "penalty": 10 },
-    { "id": "drawdown",   "metric": "drawdownPct",   "op": "lte",     "value": 30,  "points": 10, "zeroAt": 60 },
-    { "id": "dev",        "metric": "devPct",        "op": "lte",     "value": 3,   "points": 5,  "penalty": 10, "onMissing": "skip" },
-    { "id": "bundlers",   "metric": "bundlersPct",   "op": "lte",     "value": 10,  "points": 5,  "penalty": 15, "onMissing": "skip" }
+    {
+      "id": "top_holders",
+      "metric": "top_holders_share_pct",
+      "op": "lte",
+      "value": 25,
+      "points": 25,
+      "zero_at": 45
+    },
+    {
+      "id": "holders",
+      "metric": "holder_count",
+      "op": "gte",
+      "value": 400,
+      "points": 15,
+      "zero_at": 100
+    },
+    {
+      "id": "unique_buyers",
+      "metric": "unique_buyers_1h",
+      "op": "gte",
+      "value": 80,
+      "points": 15,
+      "zero_at": 20
+    },
+    {
+      "id": "buy_to_sell",
+      "metric": "buy_to_sell_ratio",
+      "op": "gte",
+      "value": 1.2,
+      "points": 10,
+      "on_missing": "skip"
+    },
+    {
+      "id": "preferred_change",
+      "metric": "change_1h_pct",
+      "op": "between",
+      "value": [
+        8,
+        60
+      ],
+      "points": 15,
+      "penalty": 10
+    },
+    {
+      "id": "off_high",
+      "metric": "off_high_pct",
+      "op": "lte",
+      "value": 30,
+      "points": 10,
+      "zero_at": 60
+    },
+    {
+      "id": "creator_share",
+      "metric": "creator_share_pct",
+      "op": "lte",
+      "value": 3,
+      "points": 5,
+      "penalty": 10,
+      "on_missing": "skip"
+    },
+    {
+      "id": "bundled_share",
+      "metric": "bundled_share_pct",
+      "op": "lte",
+      "value": 10,
+      "points": 5,
+      "penalty": 15,
+      "on_missing": "skip"
+    }
   ]
 }

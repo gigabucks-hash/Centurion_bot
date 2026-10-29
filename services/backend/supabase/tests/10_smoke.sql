@@ -22,13 +22,13 @@ insert into public.workspaces (id, name, owner_id) values
   ('10000000-0000-0000-0000-00000000000b', 'ws B', '00000000-0000-0000-0000-00000000000b');
 insert into public.strategies (id, workspace_id, name, status, settings) values
   ('20000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-00000000000a', 'A1', 'running',
-   '{"name":"A1","budgetLamports":"5000000000","tradeLamports":"250000000","maxOpen":3,"streams":["graduated"],"passMark":70,
-     "exitPlan":"ladder","takeProfits":[{"gainPct":50,"sellPct":33}],"stopLossPct":15,"tradingDays":[1,2,3],
-     "approvalMode":"ask_first_buy","sellFloors":{"enabled":true,"maxLossPct":35,"liquidityDropPct":80},
-     "askFirst":true,"shield":{"bundlers":true}}'),
+   '{"name":"A1","bankroll_lamports":"5000000000","ticket_lamports":"250000000","max_concurrent_positions":3,"venues":["amm"],"score_threshold":70,
+     "exit_preset":"three_step_ladder","profit_targets":[{"at_gain_pct":50,"sell_portion_pct":33}],"peak_trail_pct":15,"entry_weekdays_utc":[1,2,3],
+     "approval_mode":"ask_first_buy","sell_floors":{"enabled":true,"max_loss_pct":35,"liquidity_drop_pct":80},
+     "buy_to_sell_ratio_min":1.25,"guard_checks":{"bundled_share":true}}'),
   ('20000000-0000-0000-0000-00000000000c', '10000000-0000-0000-0000-00000000000a', 'A2', 'running', '{}');
-insert into public.coins (mint, stream, decimals) values ('7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', 'graduated', 6);
-insert into public.picks (ck, workspace_id, strategy_id, mint, stage, score, pass_mark)
+insert into public.coins (mint, venue, decimals) values ('7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', 'amm', 6);
+insert into public.picks (ck, workspace_id, strategy_id, mint, stage, score, score_threshold)
   values ('abc123', '10000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-00000000000a',
           '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', 'passed', 85, 70);
 insert into public.events (id, workspace_id, strategy_id, ck, mint, ts, type, actor, payload)
@@ -54,21 +54,23 @@ do $$ begin
 end $$;
 
 -- ---------------- settings validation ----------------
-select pg_temp.expect_error($$update public.strategies set settings = '{"maxOpen":50}' where name='A1'$$, 'maxOpen > 20');
-select pg_temp.expect_error($$update public.strategies set settings = '{"passMark":10}' where name='A1'$$, 'passMark < 50');
-select pg_temp.expect_error($$update public.strategies set settings = '{"budgetLamports":"1000000000","tradeLamports":"2000000000"}' where name='A1'$$, 'trade > budget');
-select pg_temp.expect_error($$update public.strategies set settings = '{"tradeLamports":0.25}' where name='A1'$$, 'lamports as float');
-select pg_temp.expect_error($$update public.strategies set settings = '{"bogusKey":1}' where name='A1'$$, 'unknown key');
-select pg_temp.expect_error($$update public.strategies set settings = '{"exitPlan":"yolo"}' where name='A1'$$, 'unknown exit plan');
-select pg_temp.expect_error($$update public.strategies set settings = '{"stopLossPct":3}' where name='A1'$$, 'stopLossPct 3');
-select pg_temp.expect_error($$update public.strategies set settings = '{"streams":["moon"]}' where name='A1'$$, 'bad stream');
-select pg_temp.expect_error($$update public.strategies set settings = '{"tradingDays":[7]}' where name='A1'$$, 'bad weekday');
-select pg_temp.expect_error($$update public.strategies set settings = '{"takeProfits":[{"gainPct":10}]}' where name='A1'$$, 'rung missing sellPct');
-select pg_temp.expect_error($$update public.strategies set settings = '{"approvalMode":"yolo"}' where name='A1'$$, 'bad approvalMode');
-select pg_temp.expect_error($$update public.strategies set settings = '{"sellFloors":{"maxLossPct":150}}' where name='A1'$$, 'sellFloors range');
-select pg_temp.expect_error($$update public.strategies set settings = '{"sellFloors":{"foo":1}}' where name='A1'$$, 'sellFloors unknown key');
+select pg_temp.expect_error($$update public.strategies set settings = '{"max_concurrent_positions":50}' where name='A1'$$, 'max_concurrent_positions > 20');
+select pg_temp.expect_error($$update public.strategies set settings = '{"score_threshold":10}' where name='A1'$$, 'score_threshold < 50');
+select pg_temp.expect_error($$update public.strategies set settings = '{"bankroll_lamports":"1000000000","ticket_lamports":"2000000000"}' where name='A1'$$, 'ticket > bankroll');
+select pg_temp.expect_error($$update public.strategies set settings = '{"ticket_lamports":0.25}' where name='A1'$$, 'lamports as float');
+select pg_temp.expect_error($$update public.strategies set settings = '{"bogus_key":1}' where name='A1'$$, 'unknown key');
+select pg_temp.expect_error($$update public.strategies set settings = '{"exit_preset":"yolo"}' where name='A1'$$, 'unknown exit preset');
+select pg_temp.expect_error($$update public.strategies set settings = '{"maxOpen":3}' where name='A1'$$, 'v1.0 camelCase key rejected');
+select pg_temp.expect_error($$update public.strategies set settings = '{"exit_preset":"ladder"}' where name='A1'$$, 'v1.0 preset id rejected');
+select pg_temp.expect_error($$update public.strategies set settings = '{"peak_trail_pct":3}' where name='A1'$$, 'peak_trail_pct 3');
+select pg_temp.expect_error($$update public.strategies set settings = '{"venues":["moon"]}' where name='A1'$$, 'bad venue');
+select pg_temp.expect_error($$update public.strategies set settings = '{"entry_weekdays_utc":[7]}' where name='A1'$$, 'bad weekday');
+select pg_temp.expect_error($$update public.strategies set settings = '{"profit_targets":[{"at_gain_pct":10}]}' where name='A1'$$, 'target missing sell_portion_pct');
+select pg_temp.expect_error($$update public.strategies set settings = '{"approval_mode":"yolo"}' where name='A1'$$, 'bad approval_mode');
+select pg_temp.expect_error($$update public.strategies set settings = '{"sell_floors":{"max_loss_pct":150}}' where name='A1'$$, 'sell_floors range');
+select pg_temp.expect_error($$update public.strategies set settings = '{"sell_floors":{"foo":1}}' where name='A1'$$, 'sell_floors unknown key');
 select pg_temp.expect_error($$update public.strategies set settings = '"x"' where name='A1'$$, 'settings not object');
-update public.strategies set settings = settings || '{"maxOpen":5}' where name = 'A1';
+update public.strategies set settings = settings || '{"max_concurrent_positions":5}' where name = 'A1';
 do $$ begin assert (select rev from public.strategies where name = 'A1') = 2, 'rev not bumped'; end $$;
 
 -- ---------------- paper-only invariants ----------------
@@ -85,11 +87,11 @@ insert into public.fills (position_id, workspace_id, side, sol_lamports, token_a
   values ('40000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-00000000000a', 'buy', 250000000, 1000000000, 0.00025, 3125000, 25000);
 select pg_temp.expect_error($$insert into public.fills (position_id, workspace_id, side, simulated, tx_sig, sol_lamports, token_amount_raw, exec_price_sol) values ('40000000-0000-0000-0000-00000000000a','10000000-0000-0000-0000-00000000000a','buy',false,'sig',1,1,1)$$, 'real fill');
 select pg_temp.expect_error($$update public.positions set status = 'closed', closed_at = now() where position_key = 'abc123.0'$$, 'close without exit_reason');
-update public.positions set status = 'closed', closed_at = opened_at + interval '90 seconds', sol_out_lamports = 300000000, exit_reason = 'take_profit'
+update public.positions set status = 'closed', closed_at = opened_at + interval '90 seconds', sol_out_lamports = 300000000, exit_reason = 'profit_target'
  where position_key = 'abc123.0';
 do $$ declare r record; begin
   select * into r from public.exit_stats('10000000-0000-0000-0000-00000000000a');
-  assert r.reason = 'take_profit' and r.count = 1 and r.wins = 1 and r.total_pnl_lamports = 50000000 and r.avg_hold_seconds = 90,
+  assert r.reason = 'profit_target' and r.count = 1 and r.wins = 1 and r.total_pnl_lamports = 50000000 and r.avg_hold_seconds = 90,
     format('exit_stats wrong: %s', r);
 end $$;
 
@@ -230,7 +232,11 @@ do $$ begin
   assert (select count(*) from public.exit_stats('10000000-0000-0000-0000-00000000000a')) = 0, 'B exit_stats leak';
   assert (select count(*) from public.auth_identities) = 0, 'B must not see A identities';
 end $$;
-update public.strategies set name = 'hacked';  -- affects 0 rows under RLS
+do $$ begin
+  update public.strategies set name = 'hacked';
+  raise exception 'direct strategy UPDATE must be revoked (writes go through update_strategy)';
+exception when insufficient_privilege then null;
+end $$;
 reset role;
 do $$ begin
   assert (select name from public.strategies where id = '20000000-0000-0000-0000-00000000000a') = 'A1', 'B modified A';

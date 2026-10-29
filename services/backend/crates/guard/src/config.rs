@@ -1,24 +1,24 @@
 use serde::{Deserialize, Serialize};
 
 /// Thresholds. `*_warn` < `*_fail`. A value of 0 for a `*_fail` disables the FAIL tier.
-/// Mirrors blueprint keys `maxDevPercent`, `maxBundlersPercent`, `maxSnipersPercent`.
+/// Wire/JSON keys are the snake_case field names (contracts v1.1).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", default)]
+#[serde(default)]
 pub struct GuardConfig {
     pub allow_mint_authority: bool,
     pub allow_freeze_authority: bool,
-    /// LP burned + locked % (graduated pools only).
+    /// LP burned + locked % (AMM pools only).
     pub min_lp_safe_pct_warn: f64,
     pub min_lp_safe_pct_fail: f64,
-    pub top10_pct_warn: f64,
-    pub top10_pct_fail: f64,
+    pub top_holders_share_pct_warn: f64,
+    pub top_holders_share_pct_fail: f64,
     pub single_holder_pct_fail: f64,
-    pub dev_pct_warn: f64,
-    pub dev_pct_fail: f64,
-    pub bundlers_pct_warn: f64,
-    pub bundlers_pct_fail: f64,
-    pub snipers_pct_warn: f64,
-    pub snipers_pct_fail: f64,
+    pub creator_share_pct_warn: f64,
+    pub creator_share_pct_fail: f64,
+    pub bundled_share_pct_warn: f64,
+    pub bundled_share_pct_fail: f64,
+    pub sniper_share_pct_warn: f64,
+    pub sniper_share_pct_fail: f64,
     pub transfer_fee_bps_fail: u32,
     pub sell_tax_bps_warn: u32,
     pub sell_tax_bps_fail: u32,
@@ -39,15 +39,15 @@ impl Default for GuardConfig {
             allow_freeze_authority: false,
             min_lp_safe_pct_warn: 95.0,
             min_lp_safe_pct_fail: 50.0,
-            top10_pct_warn: 30.0,
-            top10_pct_fail: 50.0,
+            top_holders_share_pct_warn: 30.0,
+            top_holders_share_pct_fail: 50.0,
             single_holder_pct_fail: 20.0,
-            dev_pct_warn: 5.0,
-            dev_pct_fail: 15.0,
-            bundlers_pct_warn: 10.0,
-            bundlers_pct_fail: 25.0,
-            snipers_pct_warn: 10.0,
-            snipers_pct_fail: 30.0,
+            creator_share_pct_warn: 5.0,
+            creator_share_pct_fail: 15.0,
+            bundled_share_pct_warn: 10.0,
+            bundled_share_pct_fail: 25.0,
+            sniper_share_pct_warn: 10.0,
+            sniper_share_pct_fail: 30.0,
             transfer_fee_bps_fail: 100,
             sell_tax_bps_warn: 300,
             sell_tax_bps_fail: 1_000,

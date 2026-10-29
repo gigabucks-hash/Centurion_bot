@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .cloned();
 
     let rules = RuleSet::from_json(&tokio::fs::read_to_string(&cfg.screener_rules_path).await?)?;
-    tracing::info!(rules = %rules.name, pass_mark = rules.pass_mark, mode = %cfg.trading_mode, "starting ingest");
+    tracing::info!(rules = %rules.name, score_threshold = rules.score_threshold, mode = %cfg.trading_mode, "starting ingest");
 
     let mut sources: Vec<Arc<dyn CoinSource>> = Vec::new();
     if let Some(path) = replay {

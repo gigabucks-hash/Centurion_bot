@@ -1,4 +1,4 @@
-//! `guard` — ShieldBot-equivalent anti-rug checks.
+//! `guard` — anti-rug safety checks.
 //!
 //! Input is a [`GuardInput`] gathered by a [`GuardDataSource`] (RPC/DAS/indexer —
 //! stubbed in Phase 1). Each check yields PASS / WARN / FAIL / UNKNOWN with a reason

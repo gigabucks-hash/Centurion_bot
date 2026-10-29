@@ -63,6 +63,10 @@ event_kinds! {
     StrategyResumed => "strategy.resumed",
     StrategyArchived => "strategy.archived",
     StrategyDeleted => "strategy.deleted",
+    PracticeReset => "practice.reset",
+    AccountDeletionScheduled => "account.deletion_scheduled",
+    AccountDeletionCancelled => "account.deletion_cancelled",
+    AccountDeleted => "account.deleted",
     SystemNotice => "system.notice",
 }
 
@@ -75,6 +79,8 @@ pub enum ExpireReason {
     StrategyArchived,
     GuardFailed,
     PriceMoved,
+    PracticeReset,
+    AccountDeleted,
 }
 
 /// One immutable row of `public.events`: activity feed, coin trail and transactional outbox.
@@ -199,6 +205,10 @@ mod tests {
             "exit.triggered",
             "portfolio.snapshot",
             "guard.changed",
+            "practice.reset",
+            "account.deletion_scheduled",
+            "account.deletion_cancelled",
+            "account.deleted",
         ] {
             assert!(
                 EventKind::ALL.iter().any(|k| k.as_str() == t),

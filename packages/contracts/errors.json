@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "codes": [
     {
       "code": "UNAUTHENTICATED",
@@ -86,10 +86,10 @@
       "message": "Strategy is archived or deleted"
     },
     {
-      "code": "LAST_IDENTITY",
-      "http": 409,
+      "code": "LAST_LOGIN_METHOD",
+      "http": 422,
       "retryable": false,
-      "message": "Cannot remove the last sign-in method"
+      "message": "The last login method cannot be unlinked"
     },
     {
       "code": "SIWS_NONCE_INVALID",
@@ -107,7 +107,7 @@
       "code": "TELEGRAM_AUTH_INVALID",
       "http": 401,
       "retryable": false,
-      "message": "Telegram login hash invalid or expired"
+      "message": "Legacy Telegram widget payload invalid (superseded by AUTH_TG_INVALID)"
     },
     {
       "code": "OTP_INVALID",
@@ -198,6 +198,72 @@
       "http": 503,
       "retryable": true,
       "message": "Full replay disabled or over its 2 s budget; use the static estimate"
+    },
+    {
+      "code": "PRECONDITION_REQUIRED",
+      "http": 428,
+      "retryable": false,
+      "message": "Write needs If-Match: <rev> or expected_rev / expected_version"
+    },
+    {
+      "code": "CONFIRMATION_RESTART_REQUIRED",
+      "http": 409,
+      "retryable": false,
+      "message": "Resource changed under a Real SOL confirmation; the full confirmation must be redone"
+    },
+    {
+      "code": "REAUTH_REQUIRED",
+      "http": 401,
+      "retryable": false,
+      "message": "Re-authenticate (within the last 5 minutes) to continue"
+    },
+    {
+      "code": "WALLET_ROLE_CONFLICT",
+      "http": 409,
+      "retryable": false,
+      "message": "A login wallet cannot be a trading wallet (and vice versa)"
+    },
+    {
+      "code": "RESET_COOLDOWN",
+      "http": 429,
+      "retryable": true,
+      "message": "Practice reset allowed once per 24 h; see details.next_allowed_at"
+    },
+    {
+      "code": "ACCOUNT_DELETION_PENDING",
+      "http": 409,
+      "retryable": false,
+      "message": "Account deletion already scheduled"
+    },
+    {
+      "code": "ACCOUNT_DELETION_BLOCKED",
+      "http": 409,
+      "retryable": false,
+      "message": "Close Real SOL positions and withdraw the trading wallet first"
+    },
+    {
+      "code": "DEVICE_TOKEN_INVALID",
+      "http": 422,
+      "retryable": false,
+      "message": "Device registration payload invalid"
+    },
+    {
+      "code": "AUTH_TG_INVALID",
+      "http": 401,
+      "retryable": false,
+      "message": "Telegram id_token failed verification (signature, iss, aud, exp, iat or nonce)"
+    },
+    {
+      "code": "AUTH_TG_REPLAY",
+      "http": 401,
+      "retryable": false,
+      "message": "Telegram nonce or id_token already used"
+    },
+    {
+      "code": "AUTH_TG_NO_PROFILE",
+      "http": 422,
+      "retryable": false,
+      "message": "Telegram id_token lacks the profile claims (id); request the profile scope"
     },
     {
       "code": "RATE_LIMITED",

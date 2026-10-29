@@ -39,7 +39,7 @@ pub struct PickRecord {
     pub mint: Mint,
     pub stage: PickStage,
     pub score: Option<f64>,
-    pub pass_mark: Option<f64>,
+    pub score_threshold: Option<f64>,
     pub checks: Value,
     pub guard: Value,
     pub updated_at: TsMs,
@@ -58,7 +58,7 @@ pub struct FillRecord {
     pub exec_price_sol: Dec,
     pub swap_fee_lamports: Lamports,
     pub network_fee_lamports: Lamports,
-    pub slippage_bps: Dec,
+    pub slippage_bps: f64,
     pub latency_ms: u64,
     pub ts: TsMs,
 }

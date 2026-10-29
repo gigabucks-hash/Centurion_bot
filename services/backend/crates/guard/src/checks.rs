@@ -1,4 +1,4 @@
-use common::Stream;
+use common::Venue;
 use serde::{Deserialize, Serialize};
 
 use crate::{Authority, GuardConfig, GuardInput};
@@ -24,7 +24,6 @@ pub enum Verdict {
 pub struct GuardCheck {
     pub name: String,
     pub status: CheckStatus,
-    #[serde(with = "common::units::opt_f64_dec")]
     pub measured: Option<f64>,
     pub reason: String,
     /// Contribution to `risk_score` when WARN / UNKNOWN.
@@ -55,7 +54,7 @@ fn chk(
     }
 }
 
-/// Higher-is-worse threshold check (e.g. top10 %, dev %).
+/// Higher-is-worse threshold check (e.g. top-holder share %, creator share %).
 fn upper(
     name: &'static str,
     v: Option<f64>,
@@ -143,10 +142,10 @@ pub fn assess(cfg: &GuardConfig, input: &GuardInput) -> GuardReport {
         ),
     ];
 
-    // LP burn/lock only meaningful once graduated to an AMM pool.
+    // LP burn/lock only meaningful once migrated to an AMM pool.
     checks.push(
-        match (input.stream, input.lp_burned_pct, input.lp_locked_pct) {
-            (Some(Stream::Bonding), _, _) => {
+        match (input.venue, input.lp_burned_pct, input.lp_locked_pct) {
+            (Some(Venue::Curve), _, _) => {
                 chk("lp_safety", Pass, None, 0, "on bonding curve: no LP yet")
             }
             (_, None, None) => chk("lp_safety", Unknown, None, 1, "LP burn/lock: no data"),
@@ -181,16 +180,16 @@ pub fn assess(cfg: &GuardConfig, input: &GuardInput) -> GuardReport {
         },
     );
 
-    let top10 = input
+    let top_share = input
         .holder_pcts
         .as_ref()
         .map(|h| h.iter().take(10).sum::<f64>());
     let top1 = input.holder_pcts.as_ref().and_then(|h| h.first().copied());
     checks.push(upper(
-        "top10",
-        top10,
-        cfg.top10_pct_warn,
-        cfg.top10_pct_fail,
+        "top_holders_share",
+        top_share,
+        cfg.top_holders_share_pct_warn,
+        cfg.top_holders_share_pct_fail,
         2,
         "top-10 holders",
     ));
@@ -203,28 +202,28 @@ pub fn assess(cfg: &GuardConfig, input: &GuardInput) -> GuardReport {
         "largest holder",
     ));
     checks.push(upper(
-        "dev",
-        input.dev_pct,
-        cfg.dev_pct_warn,
-        cfg.dev_pct_fail,
+        "creator_share",
+        input.creator_share_pct,
+        cfg.creator_share_pct_warn,
+        cfg.creator_share_pct_fail,
         2,
         "dev wallet",
     ));
     checks.push(upper(
-        "bundlers",
-        input.bundlers_pct,
-        cfg.bundlers_pct_warn,
-        cfg.bundlers_pct_fail,
+        "bundled_share",
+        input.bundled_share_pct,
+        cfg.bundled_share_pct_warn,
+        cfg.bundled_share_pct_fail,
         2,
         "bundled buys",
     ));
     checks.push(upper(
-        "snipers",
-        input.snipers_pct,
-        cfg.snipers_pct_warn,
-        cfg.snipers_pct_fail,
+        "sniper_share",
+        input.sniper_share_pct,
+        cfg.sniper_share_pct_warn,
+        cfg.sniper_share_pct_fail,
         1,
-        "snipers",
+        "sniper_share",
     ));
 
     checks.push(match input.transfer_fee_bps {
@@ -379,15 +378,15 @@ mod tests {
 
     fn clean() -> GuardInput {
         GuardInput {
-            stream: Some(Stream::Graduated),
+            venue: Some(Venue::Amm),
             mint_authority: Some(Authority::Revoked),
             freeze_authority: Some(Authority::Revoked),
             lp_burned_pct: Some(100.0),
             lp_locked_pct: None,
             holder_pcts: Some(vec![4.0, 3.0, 2.0, 2.0, 1.0]),
-            dev_pct: Some(1.0),
-            bundlers_pct: Some(2.0),
-            snipers_pct: Some(1.0),
+            creator_share_pct: Some(1.0),
+            bundled_share_pct: Some(2.0),
+            sniper_share_pct: Some(1.0),
             transfer_fee_bps: Some(0),
             sell_sim: Some(SellSimulation {
                 can_sell: true,
@@ -433,7 +432,7 @@ mod tests {
     #[test]
     fn single_warning_is_warn() {
         let i = GuardInput {
-            dev_pct: Some(7.0),
+            creator_share_pct: Some(7.0),
             ..clean()
         };
         let r = assess(&GuardConfig::default(), &i);
@@ -444,8 +443,8 @@ mod tests {
     #[test]
     fn many_warnings_escalate_to_fail() {
         let i = GuardInput {
-            dev_pct: Some(7.0),
-            bundlers_pct: Some(12.0),
+            creator_share_pct: Some(7.0),
+            bundled_share_pct: Some(12.0),
             lp_burned_pct: Some(80.0),
             ..clean()
         };
@@ -457,7 +456,7 @@ mod tests {
     #[test]
     fn bonding_curve_skips_lp_check() {
         let i = GuardInput {
-            stream: Some(Stream::Bonding),
+            venue: Some(Venue::Curve),
             lp_burned_pct: None,
             ..clean()
         };

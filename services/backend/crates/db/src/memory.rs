@@ -140,7 +140,7 @@ mod tests {
             exec_price_sol: common::Dec::from_f64(1.0, 6).expect("dec"),
             swap_fee_lamports: common::Lamports(0),
             network_fee_lamports: common::Lamports(0),
-            slippage_bps: common::Dec::from_f64(0.0, 6).expect("dec"),
+            slippage_bps: 0.0,
             latency_ms: 0,
             ts: 0,
         };

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common::{Mint, Stream};
+use common::{Mint, Venue};
 use serde::{Deserialize, Serialize};
 
 /// Result of simulating a small buy-then-sell (honeypot check). Produced by
@@ -23,16 +23,16 @@ pub enum Authority {
 /// Everything the guard needs. Absent fields => that check reports UNKNOWN.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct GuardInput {
-    pub stream: Option<Stream>,
+    pub venue: Option<Venue>,
     pub mint_authority: Option<Authority>,
     pub freeze_authority: Option<Authority>,
     pub lp_burned_pct: Option<f64>,
     pub lp_locked_pct: Option<f64>,
     /// Holder balances as % of supply, descending, excluding pool/burn accounts.
     pub holder_pcts: Option<Vec<f64>>,
-    pub dev_pct: Option<f64>,
-    pub bundlers_pct: Option<f64>,
-    pub snipers_pct: Option<f64>,
+    pub creator_share_pct: Option<f64>,
+    pub bundled_share_pct: Option<f64>,
+    pub sniper_share_pct: Option<f64>,
     /// Token-2022 transfer-fee extension, if any.
     pub transfer_fee_bps: Option<u32>,
     pub sell_sim: Option<SellSimulation>,

@@ -42,7 +42,7 @@ MCP, does auth glue and mints tokens. (3) **Supabase**: Postgres, RLS, Auth, Rea
 1. Source event -> `CoinCandidate` (mint, stream, pool, creator, untrusted metadata). Dedupe on
    `(mint, stream)`. Emit `coin.detected`.
 2. Screener: rules from strategy settings (JSON, validated by schema + DB CHECK). Stream rules gate,
-   hard rules must pass, weighted rules add points against `pass_mark`. Emit `screener.scored`.
+   hard rules must pass, weighted rules add points against `score_threshold`. Emit `screener.scored`.
 3. Guard: input snapshot (authorities, LP, holder concentration, dev/bundler/sniper %, transfer fee, sell
    simulation, creator history). Saved to `guard_input_snapshots` for replay. Emit `guard.result`.
 4. Pick + entry state machine (section 3). Then the approval gate (section 6), then the executor.

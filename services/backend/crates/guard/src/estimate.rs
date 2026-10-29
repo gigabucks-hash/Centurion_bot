@@ -31,19 +31,21 @@ pub struct StaticEstimate {
     pub reasons: Vec<String>,
 }
 
-/// Map a config field (`devPctFail`) to the guard check / rejection reason key it controls.
+/// Map a config field (`creator_share_pct_fail`) to the guard check / rejection reason key it controls.
 fn check_of(field: &str) -> &str {
     match field {
-        "allowMintAuthority" => "mint_authority",
-        "allowFreezeAuthority" => "freeze_authority",
-        "minLpSafePctWarn" | "minLpSafePctFail" => "lp_safe",
-        "top10PctWarn" | "top10PctFail" | "singleHolderPctFail" => "top_holders",
-        "devPctWarn" | "devPctFail" => "dev",
-        "bundlersPctWarn" | "bundlersPctFail" => "bundlers",
-        "snipersPctWarn" | "snipersPctFail" => "snipers",
-        "transferFeeBpsFail" => "transfer_fee",
-        "sellTaxBpsWarn" | "sellTaxBpsFail" | "requireSellSim" => "sell_simulation",
-        "serialCreatorWarn" | "creatorRugRateFail" => "serial_creator",
+        "allow_mint_authority" => "mint_authority",
+        "allow_freeze_authority" => "freeze_authority",
+        "min_lp_safe_pct_warn" | "min_lp_safe_pct_fail" => "lp_safety",
+        "top_holders_share_pct_warn" | "top_holders_share_pct_fail" | "single_holder_pct_fail" => {
+            "top_holders_share"
+        }
+        "creator_share_pct_warn" | "creator_share_pct_fail" => "creator_share",
+        "bundled_share_pct_warn" | "bundled_share_pct_fail" => "bundled_share",
+        "sniper_share_pct_warn" | "sniper_share_pct_fail" => "sniper_share",
+        "transfer_fee_bps_fail" => "transfer_fee",
+        "sell_tax_bps_warn" | "sell_tax_bps_fail" | "require_sell_sim" => "honeypot",
+        "serial_creator_warn" | "creator_rug_rate_fail" => "serial_creator",
         _ => "warn_score",
     }
 }
@@ -60,10 +62,10 @@ pub fn static_estimate(
     let critical = fields.iter().any(|f| {
         matches!(
             f.as_str(),
-            "allowMintAuthority" | "allowFreezeAuthority" | "requireSellSim"
+            "allow_mint_authority" | "allow_freeze_authority" | "require_sell_sim"
         )
     });
-    let fail_level = fields.iter().filter(|f| f.ends_with("Fail")).count();
+    let fail_level = fields.iter().filter(|f| f.ends_with("_fail")).count();
     let risk_level = if fields.is_empty() {
         RiskLevel::Low
     } else if critical {
@@ -103,8 +105,8 @@ mod tests {
 
     fn stats() -> BTreeMap<String, u64> {
         BTreeMap::from([
-            ("dev".into(), 40),
-            ("bundlers".into(), 25),
+            ("creator_share".into(), 40),
+            ("bundled_share".into(), 25),
             ("sell_simulation".into(), 5),
         ])
     }
@@ -122,7 +124,7 @@ mod tests {
     fn fail_threshold_is_high_and_bounded_by_block_counts() {
         let old = GuardConfig::default();
         let new = GuardConfig {
-            dev_pct_fail: 25.0,
+            creator_share_pct_fail: 25.0,
             ..old.clone()
         };
         let e = static_estimate(&old, &new, &stats(), 1000);
@@ -141,7 +143,7 @@ mod tests {
         assert_eq!(e.risk_level, RiskLevel::Critical);
         assert!(serde_json::to_value(&e)
             .map(|v| {
-                common::units::assert_no_floats(&v);
+                common::units::assert_wire_numbers(&v);
                 true
             })
             .unwrap_or(false));
