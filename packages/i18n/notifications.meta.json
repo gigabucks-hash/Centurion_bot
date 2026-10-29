@@ -8,7 +8,8 @@
   "computed": {
     "mm_ss": "formatCountdown(remainingMs(exp, skewFrom(server_now)))",
     "mode": "push top-level `mode` (select)",
-    "count": "client grouping count (N-18)"
+    "count": "client grouping count (N-18)",
+    "address_short": "formatAddressShort(payload.address) — first 4 … last 4; never on the wire"
   },
   "var_format": {
     "amount_lamports": "formatLamports (integer string → SOL text)",
@@ -17,12 +18,30 @@
     "pct": "N-08: formatPct unsigned (copy adds '+'); N-09/N-15: pnlPct signed",
     "pct_sold": "formatPct unsigned",
     "price": "formatUsd",
-    "reason": "expire_reason.<r>.detail",
+    "reason": "N-07: expire_reason.<r>.detail · N-29: select policy_mismatch|loss_velocity|other (raw enum, unknown → other) · N-24: select kill_switch|expiry|user",
     "reason_code": "order.fail_reason.<lower>",
     "stop_type": "exit_reason.<rule>",
     "cooldown_until": "formatTime",
     "auto_revert_at": "formatTime",
-    "scheduled_for": "formatDateTime"
+    "scheduled_for": "formatDateTime",
+    "balance_lamports": "formatLamports",
+    "cap_lamports": "formatLamports",
+    "expires_at": "formatDateTime",
+    "activates_at": "formatDateTime",
+    "at": "formatDateTime",
+    "usable_at": "formatDateTime",
+    "clears_at": "formatDateTime",
+    "cancel_until": "formatDateTime",
+    "setting": "wallet.limits.setting.<key>",
+    "from": "formatLimitValue(setting, v)",
+    "to": "formatLimitValue(setting, v)",
+    "device_label": "plain text, untrusted",
+    "version": "plain integer",
+    "actor_type": "select user|rule|system",
+    "scope": "select global|workspace|strategy",
+    "reason_code@N-42": "errors.map codes[code].key, unknown → wallet.withdraw.fail_reason.unknown",
+    "sold_count": "int (plural)",
+    "failed_count": "int (plural; =0 → no failure clause)"
   },
   "silent_events": {
     "proposal.updated": {
@@ -30,7 +49,58 @@
       "toast": false,
       "inline_key": "review.quote.updated_inline",
       "hold_reset_key": "review.quote.changed_during_hold",
-      "why": "quote refresh (rev+1) is routine, every ~15 s in practice; a push or toast would be noise. Client: merge quote fields, store new rev for expected_rev, show the inline label only if the review sheet is open; if a Real hold is in progress, cancel it and show hold_reset_key"
+      "reset_on": "quote_id",
+      "rev_bump": false,
+      "max_rate": "1 per proposal per 3 s, pending only",
+      "client_debounce_ms": 300,
+      "why": "quote refresh is routine; a push or toast would be noise. 1.1.5: a refresh does NOT bump rev (push tokens stay valid), it sets a new quote_id. Client: merge quote fields; if quoteChanged(prev, next) (quote_id differs) show the inline label only while the review sheet is open, and if a Real hold is in progress cancel it first, then render, then show hold_reset_key. Real approve sends expected_quote_id (Practice ignores it). A rev change still means the proposal itself changed (VERSION_CONFLICT handling)"
+    }
+  },
+  "reserved_real": {
+    "phase": "7 (Real SOL)",
+    "range": "N-23..N-46 (gaps = dropped, never reused)",
+    "dropped": {
+      "N-30": "real.kill_switch.clear_requested (Backend final set)",
+      "N-35": "real.owner_wallet.added",
+      "N-36": "real.owner_wallet.usable",
+      "N-37": "real.owner_wallet.cancelled (owner_wallet.* dropped)",
+      "N-38": "real.limit.reverted (auto-revert removed, lead decision)"
+    },
+    "source": "ux-solbot/docs/REAL_MONEY_FLOWS.md §7 (confirmed by Backend)",
+    "rules": "Real stream only; informational, never actionable (tap = open app); payload amounts are lamport strings, times ISO UTC; address_short is client-derived",
+    "provisional": {},
+    "decisions": {
+      "N-28": "final; new limit applies on activates_at and stays until changed (no auto-revert)",
+      "manual_stop": "real.buys.paused / real.buys.resumed (exit plans keep running)",
+      "auto_trip": "real.kill_switch.tripped / cleared only",
+      "sell_all": "confirm dialog + 2.5 s hold, no Phantom step-up; guards (simulation, slippage cap) still apply"
+    },
+    "enums": {
+      "kill_switch_reason": [
+        "policy_mismatch",
+        "loss_velocity",
+        "other"
+      ],
+      "actor_type": [
+        "user",
+        "rule",
+        "system"
+      ],
+      "scope": [
+        "global",
+        "workspace",
+        "strategy"
+      ],
+      "signer_revoked_reason": [
+        "kill_switch",
+        "expiry",
+        "user"
+      ]
+    },
+    "flattening": "wire actor{actor_type,user_id} / device{device_id,device_label} → flat ICU vars actor_type, device_label (confirm with Backend)",
+    "activity_only": {
+      "real.order.*": "Activity feed only, no push",
+      "real.presign.denied": "Activity feed only, no push"
     }
   }
 }

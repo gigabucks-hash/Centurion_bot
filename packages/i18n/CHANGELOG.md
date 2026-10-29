@@ -2,6 +2,50 @@
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
+## 0.4.7 · 29 Okt 2026 (UX Rev 4.7) · aligned to Backend's 1.1.5 spec, pre-merge
+672 key (+134). Tidak ada key dihapus/di-rename → **tidak ada breaking change**. contracts 1.1.5 **belum** masuk repo
+(`CONTRACTS_VERSION` masih 1.1.4): field 1.1.5 (`quote_id`, `est_ata_rent_lamports`, `expire_reason=kill_switch`, `mcap_source`,
+`decimals`/`token_program` di proposal, close preview, event `real.*`) diambil dari jawaban Backend; build mencatatnya sebagai *pending 1.1.5*.
+
+### Brand
+- Nama produk = **Centurion Trade** (Boss). Satu konstanta `APP_NAME` di `build_locales.py` (ICU tidak bisa mereferensikan key lain, jadi
+  disubstitusi saat build). Key baru `app.name`, `app.title`, `app.splash.loading`, `app.about.{title,version}`, `auth.siws.statement`
+  ("Masuk ke Centurion Trade", copy tampilan; statement SIWS yang ditandatangani ditentukan server).
+- Copy berubah: `screener.not_tradeable.detail`, `login.telegram.consent`. Build gagal bila nama kerja lama muncul di copy EN/ID.
+- **Tidak** diubah: nama paket `@sentra/*`, nama key, skema `sentra://`, logo, tokens.
+
+### Ditambahkan (contracts 1.1.5, jawaban Backend 1–8)
+- Quote: `review.quote.{id,auto_refreshing,loading}`, `review.ata_rent` (disembunyikan bila "0"), `review.network_fee_breakdown`
+  (`{base}`, `{priority}`; priority hanya rincian, tidak dijumlah dua kali), `review.swap_fee_from_input`, `review.total_max_hint`.
+- `token.program.token_2022`; `coin.mcap_source.{curve,pool,unavailable}`; catatan "indikatif" hanya untuk curve/pool (`mcapView`).
+- Sell preview `close.preview.{you_sell,expected_out,min_received,swap_fee_from_output,valid,refreshing,expired,refresh,unavailable}`.
+- `expire_reason.kill_switch.{badge,detail}`.
+- `errors.map.json`: `QUOTE_MISSING_OR_STALE` + `details` `{missing, quote_ts, quote_expires_at, current}` + `on_current` (render `current`
+  sebagai Updated); `GUARD_WEAKEN_REQUIRES_APPROVAL` `client_visible: false` (RPC saja; klien pakai REST 202).
+- `format.mjs`: `REQUIRED_QUOTE_FIELDS`, `quoteState` (+`complete`; Real diblokir sampai fresh **dan** lengkap), `quoteChanged` (quote_id,
+  bukan rev), `networkFeeParts`, `showAtaRent`, `totalMaxCheck`, `isToken2022`, `formatIdShort`, `formatAddressShort`, `formatCountdownHms`,
+  `formatLimitValue`, `mcapView`. Tes 9/9.
+
+### Ditambahkan (Real money, Phase 7 RESERVED)
+- `notif.real.*`: 39 key = 19 event × title/body (N-23..N-29, N-31..N-34, N-39..N-46) + `notif.real.sell_all.completed.total`
+  (baris ekstra bila `amount_lamports` tidak null). `notifications.map.json`: `reserved: true`, `channels`, `payload` (field wire di luar copy), `extra_lines`.
+  Event final Backend: henti manual = `real.buys.paused`/`resumed` (N-43/44), auto trip = `real.kill_switch.tripped`/`cleared`
+  (`reason` select `policy_mismatch|loss_velocity|other`), `real.sell_all.requested`/`completed` (N-45/46, plural, varian gagal sebagian).
+  **Dibuang** (nomor tidak dipakai ulang): N-30 `clear_requested`, N-35..37 `owner_wallet.*`, N-38 `limit.reverted` (auto-revert dihapus).
+  N-28 `loosen_requested` final: "berlaku mulai {activates_at} sampai kamu ubah".
+- `notifications.meta.json` → `reserved_real` (rules, dropped, decisions, enums, flattening actor/device, activity-only `real.order.*`,
+  `real.presign.denied`); `computed.address_short`; `var_format` untuk var baru.
+- Layar: `stepup.*` (24), `wallet.owner.*` (9), `wallet.limits.setting.*` (5, nama setting = usulan), `wallet.withdraw.fail_reason.unknown`,
+  `kill_switch.*` (28: action, dialog, option, sell_all (konfirmasi + hold 2,5 dtk, tanpa Phantom), status, reenable, offline,
+  revoke_pending, scope, reason).
+
+### Diubah
+- `proposal.updated` (`silent_events`): refresh quote **tidak** menaikkan rev; reset hold Real berdasarkan `quote_id` (`reset_on`).
+- Deskripsi: `review.quote.{updated_inline,changed_during_hold,refresh,stale}`, `review.{total_max,priority_fee,swap_fee,min_received_value}`,
+  `mcap.usd_indicative`.
+- Nama dari REAL_MONEY_FLOWS §9 yang direkonsiliasi: `killswitch.*` → `kill_switch.*`; `positions.sell.preview_valid` → `close.preview.valid`;
+  `positions.sell.preview_pending` → `close.preview.unavailable` (lihat `key-migrations.json` `releases[1]`).
+
 ## 0.4.6 · 29 Okt 2026 (UX Rev 4.6, contracts 1.1.4)
 538 key (+23). Tidak ada key dihapus/di-rename → **tidak ada breaking change**. Satu perubahan copy (lihat "Diubah").
 

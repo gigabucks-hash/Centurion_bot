@@ -229,6 +229,34 @@
         "review.estimate_note",
         "exit_reason.max_hold"
       ]
+    },
+    {
+      "version": "0.4.7",
+      "renamed": [],
+      "removed": [],
+      "copy_changed": [],
+      "description_changed": [
+        "review.quote.updated_inline",
+        "review.quote.changed_during_hold",
+        "review.quote.refresh",
+        "review.quote.stale",
+        "review.total_max",
+        "review.priority_fee",
+        "review.swap_fee",
+        "review.min_received_value",
+        "mcap.usd_indicative"
+      ],
+      "copy_changed_brand": [
+        "screener.not_tradeable.detail",
+        "login.telegram.consent"
+      ],
+      "doc_names_reconciled": {
+        "killswitch.*": "kill_switch.*",
+        "positions.sell.preview_valid": "close.preview.valid",
+        "positions.sell.preview_pending": "close.preview.unavailable",
+        "notif.real.<event>": "notif.real.<event>.title|body",
+        "coin.mcap_source.*": "coin.mcap_source.{curve,pool,unavailable}"
+      }
     }
   ]
 }

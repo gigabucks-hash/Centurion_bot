@@ -485,5 +485,633 @@
       "practice": false,
       "real": false
     }
+  },
+  "N-23": {
+    "type": "real.signer.granted",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.signer.granted.title",
+    "body_key": "notif.real.signer.granted.body",
+    "vars": [
+      "expires_at"
+    ],
+    "payload": [
+      "signer_id",
+      "provider"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-24": {
+    "type": "real.signer.revoked",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.signer.revoked.title",
+    "body_key": "notif.real.signer.revoked.body",
+    "vars": [
+      "reason"
+    ],
+    "payload": [
+      "signer_id",
+      "provider"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-25": {
+    "type": "real.policy.activated",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.policy.activated.title",
+    "body_key": "notif.real.policy.activated.body",
+    "vars": [
+      "version"
+    ],
+    "payload": [
+      "policy_hash"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-26": {
+    "type": "real.policy.mismatch",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.policy.mismatch.title",
+    "body_key": "notif.real.policy.mismatch.body",
+    "vars": [
+      "version"
+    ],
+    "payload": [
+      "policy_hash",
+      "expected_hash",
+      "actual_hash"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-27": {
+    "type": "real.limit.changed",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.limit.changed.title",
+    "body_key": "notif.real.limit.changed.body",
+    "vars": [
+      "setting",
+      "from",
+      "to"
+    ],
+    "payload": [
+      "policy_version"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-28": {
+    "type": "real.limit.loosen_requested",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.limit.loosen_requested.title",
+    "body_key": "notif.real.limit.loosen_requested.body",
+    "vars": [
+      "setting",
+      "from",
+      "to",
+      "activates_at"
+    ],
+    "payload": [
+      "policy_version"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-29": {
+    "type": "real.kill_switch.tripped",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.kill_switch.tripped.title",
+    "body_key": "notif.real.kill_switch.tripped.body",
+    "vars": [
+      "reason"
+    ],
+    "payload": [
+      "rule_id",
+      "scope",
+      "target_id",
+      "at"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-31": {
+    "type": "real.kill_switch.cleared",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.kill_switch.cleared.title",
+    "body_key": "notif.real.kill_switch.cleared.body",
+    "vars": [],
+    "payload": [
+      "at",
+      "scope",
+      "target_id",
+      "actor_type",
+      "user_id",
+      "device_id",
+      "device_label"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-32": {
+    "type": "real.withdraw_address.added",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.withdraw_address.added.title",
+    "body_key": "notif.real.withdraw_address.added.body",
+    "vars": [
+      "usable_at",
+      "cancel_until"
+    ],
+    "payload": [
+      "address"
+    ],
+    "computed": [
+      "address_short"
+    ],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-33": {
+    "type": "real.withdraw_address.usable",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.withdraw_address.usable.title",
+    "body_key": "notif.real.withdraw_address.usable.body",
+    "vars": [],
+    "payload": [
+      "address",
+      "at"
+    ],
+    "computed": [
+      "address_short"
+    ],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-34": {
+    "type": "real.withdraw_address.cancelled",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.withdraw_address.cancelled.title",
+    "body_key": "notif.real.withdraw_address.cancelled.body",
+    "vars": [],
+    "payload": [
+      "address",
+      "at"
+    ],
+    "computed": [
+      "address_short"
+    ],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-39": {
+    "type": "real.deposit.detected",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.deposit.detected.title",
+    "body_key": "notif.real.deposit.detected.body",
+    "vars": [
+      "amount_lamports",
+      "balance_lamports",
+      "cap_lamports"
+    ],
+    "payload": [
+      "tx_signature"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-40": {
+    "type": "real.withdraw.requested",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.withdraw.requested.title",
+    "body_key": "notif.real.withdraw.requested.body",
+    "vars": [
+      "amount_lamports"
+    ],
+    "payload": [
+      "withdraw_id",
+      "address",
+      "tx_signature"
+    ],
+    "computed": [
+      "address_short"
+    ],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-41": {
+    "type": "real.withdraw.confirmed",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.withdraw.confirmed.title",
+    "body_key": "notif.real.withdraw.confirmed.body",
+    "vars": [
+      "amount_lamports"
+    ],
+    "payload": [
+      "withdraw_id",
+      "address",
+      "tx_signature",
+      "slot"
+    ],
+    "computed": [
+      "address_short"
+    ],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-42": {
+    "type": "real.withdraw.failed",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.withdraw.failed.title",
+    "body_key": "notif.real.withdraw.failed.body",
+    "vars": [
+      "amount_lamports",
+      "reason_code"
+    ],
+    "payload": [
+      "withdraw_id",
+      "address",
+      "tx_signature"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-43": {
+    "type": "real.buys.paused",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.buys.paused.title",
+    "body_key": "notif.real.buys.paused.body",
+    "vars": [
+      "actor_type",
+      "device_label"
+    ],
+    "payload": [
+      "user_id",
+      "device_id",
+      "scope",
+      "target_id",
+      "at"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-44": {
+    "type": "real.buys.resumed",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.buys.resumed.title",
+    "body_key": "notif.real.buys.resumed.body",
+    "vars": [
+      "actor_type",
+      "device_label"
+    ],
+    "payload": [
+      "user_id",
+      "device_id",
+      "scope",
+      "target_id",
+      "at"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-45": {
+    "type": "real.sell_all.requested",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.sell_all.requested.title",
+    "body_key": "notif.real.sell_all.requested.body",
+    "vars": [
+      "count"
+    ],
+    "payload": [
+      "actor_type",
+      "user_id",
+      "device_id",
+      "device_label",
+      "at"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false
+  },
+  "N-46": {
+    "type": "real.sell_all.completed",
+    "when": "mode=real only (fail closed in practice)",
+    "title_key": "notif.real.sell_all.completed.title",
+    "body_key": "notif.real.sell_all.completed.body",
+    "vars": [
+      "failed_count",
+      "sold_count"
+    ],
+    "payload": [
+      "amount_lamports",
+      "at"
+    ],
+    "computed": [],
+    "push": true,
+    "channels": [
+      "push",
+      "in_app",
+      "email"
+    ],
+    "actions": {
+      "real": [
+        "open"
+      ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
+    },
+    "reserved": true,
+    "provisional": false,
+    "extra_lines": [
+      {
+        "key": "notif.real.sell_all.completed.total",
+        "when": "amount_lamports != null",
+        "vars": [
+          "amount_lamports"
+        ]
+      }
+    ]
   }
 }

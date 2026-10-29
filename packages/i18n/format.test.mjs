@@ -33,6 +33,8 @@ test('manual sell: percent UI ↔ fraction_bps wire', () => {
 // ---- Rev 4.6 (contracts 1.1.4): quote fields + market cap
 import {
   DASH, formatLamportsOrDash, formatBps, formatRawQty, quoteState, formatMcapUsd, formatMcapSol, formatRelativeSeconds,
+  quoteChanged, networkFeeParts, showAtaRent, totalMaxCheck, isToken2022, formatAddressShort, formatCountdownHms,
+  formatLimitValue, formatIdShort, mcapView,
 } from './format.mjs';
 test('quote fields: missing → em dash, lamports strings via BigInt, bps → %', () => {
   for (const m of [null, undefined, '']) {
@@ -48,21 +50,56 @@ test('quote fields: missing → em dash, lamports strings via BigInt, bps → %'
   assert.equal(formatRawQty('1234', 6, 'en'), '0.001234'); assert.equal(formatRawQty('99', null, 'en'), DASH);
   assert.equal(formatRawQty(null, 6, 'en'), DASH);
 });
-test('quoteState: server clock, Real blocks, Practice never blocks', () => {
+test('quoteState: server clock, Real blocks until fresh + complete, Practice never blocks', () => {
   const now = Date.parse('2026-10-29T08:42:10.000Z');
-  const q = { quote_ts: '2026-10-29T08:42:05.000Z', quote_expires_at: '2026-10-29T08:42:20.000Z' };
+  const q = { quote_id: 'q_01', est_network_fee_lamports: '105000', est_ata_rent_lamports: '0', min_out_raw: '1000',
+    total_max_lamports: '50105000', quote_ts: '2026-10-29T08:42:05.000Z',
+    quote_expires_at: '2026-10-29T08:42:20.000Z' };
   const real = (skew, quote = q) => quoteState(quote, skew, { mode: 'real', localNowMs: now });
-  assert.deepEqual(real(0), { state: 'fresh', ageS: 5, expiresInS: 10, blocksApprove: false });
+  assert.deepEqual(real(0), { state: 'fresh', ageS: 5, expiresInS: 10, complete: true, blocksApprove: false });
   // device clock 20 s behind the server → already stale
-  assert.deepEqual(real(20000), { state: 'stale', ageS: 25, expiresInS: 0, blocksApprove: true });
+  assert.deepEqual(real(20000), { state: 'stale', ageS: 25, expiresInS: 0, complete: true, blocksApprove: true });
   assert.equal(quoteState(q, 20000, { mode: 'practice', localNowMs: now }).blocksApprove, false);
-  assert.deepEqual(real(0, {}), { state: 'missing', ageS: null, expiresInS: null, blocksApprove: true });
+  assert.equal(real(0, { ...q, quote_id: null }).blocksApprove, true); // fresh but incomplete (no quote_id)
+  assert.equal(real(0, { ...q, est_ata_rent_lamports: '0' }).complete, true); // "0" counts as present
+  assert.equal(real(0, {}).state, 'missing'); assert.equal(real(0, {}).blocksApprove, true);
   assert.equal(quoteState(null, 0, { localNowMs: now }).blocksApprove, false);
-  assert.equal(real(10000, { quote_expires_at: q.quote_expires_at }).state, 'stale'); // server now == exp → stale
+  assert.equal(real(10000).state, 'stale'); // server now == exp → stale
   assert.equal(typeof formatRelativeSeconds(-5, 'id'), 'string');
+});
+test('1.1.5: quote_id change (not rev), fee breakdown, ATA rent, total check', () => {
+  assert.equal(quoteChanged({ quote_id: 'a', rev: 3 }, { quote_id: 'b', rev: 3 }), true);
+  assert.equal(quoteChanged({ quote_id: 'a', rev: 3 }, { quote_id: 'a', rev: 4 }), false);
+  assert.equal(quoteChanged({ quote_id: 'a' }, { quote_id: null }), false);
+  assert.deepEqual(networkFeeParts('105000', '100000'), { base: '5000', priority: '100000' });
+  assert.equal(networkFeeParts('5000', '100000'), null); assert.equal(networkFeeParts(null, '1'), null);
+  assert.equal(showAtaRent('0'), false); assert.equal(showAtaRent('2039280'), true);
+  assert.equal(showAtaRent(null), false);
+  assert.deepEqual(totalMaxCheck({ est_network_fee_lamports: '105000', est_ata_rent_lamports: '2039280',
+    total_max_lamports: '52144280' }, '50000000'), { expected: '52144280', matches: true });
+  const noAta = { est_network_fee_lamports: '105000', total_max_lamports: '50105000' };
+  assert.equal(totalMaxCheck(noAta, '50000000').matches, true);
+  assert.equal(isToken2022('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'), true);
+  assert.equal(formatAddressShort('9wQeAbCdEfGhIjKlMnOpk2Lm'), '9wQe\u2026k2Lm');
+  assert.equal(formatAddressShort(null), DASH);
+  assert.equal(formatCountdownHms(47 * 3600e3 + 58 * 60e3 + 12e3), '47:58:12');
+  assert.equal(formatLimitValue('per_trade_lamports', '50000000', 'id'), `0,05${NB}SOL`);
+  assert.equal(formatLimitValue('max_slippage_bps', 200, 'en'), '2%');
+  assert.equal(formatLimitValue('max_positions', 3, 'en'), '3');
+  assert.equal(formatIdShort('q_01J9XYZ'), 'q_01J9');
 });
 test('market cap: compact USD / SOL, null → em dash', () => {
   assert.equal(formatMcapUsd('1234567.89', 'en'), '$1.2M'); assert.equal(formatMcapUsd(null, 'id'), DASH);
   assert.equal(formatMcapSol('8400000000000', 'en'), `8.4K${NB}SOL`); assert.equal(formatMcapSol(null, 'en'), DASH);
   assert.match(formatMcapUsd('1234567.89', 'id'), /^\$1,2\s?jt$/);
 });
+test('1.1.5 mcapView: indicative note depends on mcap_source', () => {
+  const c = { market_cap_lamports: '8400000000000', mcap_usd: '1234567.89', mcap_as_of: 'x' };
+  assert.deepEqual(mcapView({ ...c, mcap_source: 'curve' }, 'en').tooltipKeys, ['mcap.as_of', 'mcap.usd_indicative']);
+  assert.equal(mcapView({ ...c, mcap_source: 'pool' }, 'en').sourceKey, 'coin.mcap_source.pool');
+  const u = mcapView({ market_cap_lamports: null, mcap_usd: '5', mcap_source: 'unavailable' }, 'en');
+  assert.equal(u.primary, DASH); assert.deepEqual(u.tooltipKeys, ['common.value.unavailable']);
+  assert.equal(mcapView({ ...c, mcap_source: 'curve' }, 'en').primary, '$1.2M');
+  assert.equal(mcapView({ ...c, mcap_source: 'curve' }, 'en').secondary, `8.4K${NB}SOL`);
+});
+

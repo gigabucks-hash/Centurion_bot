@@ -100,19 +100,69 @@ export function formatRawQty(raw, decimals, loc) {
   const s = nf(loc, { minimumFractionDigits: 0, maximumFractionDigits: v >= 1 ? 2 : 6 }).format(v);
   return neg ? '\u2212' + s : s;
 }
+/** Fields a Real quote needs before the hold can start (contracts 1.1.5). est_ata_rent_lamports is "0" when no new
+ *  token account is needed, so "0" counts as present. */
+export const REQUIRED_QUOTE_FIELDS = ['quote_id', 'est_network_fee_lamports', 'est_ata_rent_lamports', 'min_out_raw',
+  'total_max_lamports', 'quote_expires_at'];
 /** Quote freshness from server time (skew), never the device clock alone.
  *  state: 'missing' (no quote_expires_at) | 'fresh' (server now < quote_expires_at) | 'stale'.
- *  blocksApprove: Real only (409 QUOTE_MISSING_OR_STALE); Practice is never blocked.
+ *  complete: every REQUIRED_QUOTE_FIELDS value present (Real only; review.quote.loading while false).
+ *  blocksApprove: Real only (409 QUOTE_MISSING_OR_STALE); Practice is never blocked and ignores quote_id.
  *  ageS → review.quote.updated_ago {seconds}; expiresInS → review.quote.expires_in {seconds}. */
 export function quoteState(q, skewMs = 0, { mode = 'practice', localNowMs = Date.now() } = {}) {
   const serverNow = localNowMs + skewMs;
   const ts = missing(q?.quote_ts) ? null : Date.parse(q.quote_ts);
   const exp = missing(q?.quote_expires_at) ? null : Date.parse(q.quote_expires_at);
   const ageS = ts === null ? null : Math.max(0, Math.floor((serverNow - ts) / 1000));
-  if (exp === null) return { state: 'missing', ageS, expiresInS: null, blocksApprove: mode === 'real' };
+  const complete = REQUIRED_QUOTE_FIELDS.every((f) => !missing(q?.[f]));
+  const real = mode === 'real';
+  if (exp === null) return { state: 'missing', ageS, expiresInS: null, complete, blocksApprove: real };
   const fresh = serverNow < exp;
   return { state: fresh ? 'fresh' : 'stale', ageS, expiresInS: fresh ? Math.ceil((exp - serverNow) / 1000) : 0,
-    blocksApprove: mode === 'real' && !fresh };
+    complete, blocksApprove: real && (!fresh || !complete) };
+}
+/** 1.1.5: a quote refresh sets a new quote_id and does NOT bump rev. Reset a Real hold and show
+ *  review.quote.updated_inline / changed_during_hold only when this returns true. Approve sends expected_quote_id. */
+export const quoteChanged = (prev, next) => !missing(next?.quote_id) && prev?.quote_id !== next.quote_id;
+/** Network fee breakdown: est_network_fee_lamports already includes priority (base + priority). Returns lamport
+ *  strings {base, priority} for review.network_fee_breakdown, or null when either is missing or inconsistent. */
+export function networkFeeParts(estNetworkFee, priorityFee) {
+  if (missing(estNetworkFee) || missing(priorityFee)) return null;
+  const t = BigInt(estNetworkFee), pr = BigInt(priorityFee);
+  if (pr < 0n || pr > t) return null;
+  return { base: (t - pr).toString(), priority: pr.toString() };
+}
+/** review.ata_rent row is shown only for a non-zero est_ata_rent_lamports. */
+export const showAtaRent = (v) => !missing(v) && BigInt(v) > 0n;
+/** total_max_lamports = amount_lamports + est_network_fee_lamports + est_ata_rent_lamports
+ *  (swap fee is taken from SOL in; priority fee is inside the network fee, never added twice).
+ *  matches=false → log + still show the server total. */
+export function totalMaxCheck(q, amountLamports) {
+  const parts = [amountLamports, q?.est_network_fee_lamports, q?.est_ata_rent_lamports ?? '0'];
+  if (parts.some(missing) || missing(q?.total_max_lamports)) return null;
+  const expected = parts.reduce((a, v) => a + BigInt(v), 0n);
+  return { expected: expected.toString(), matches: expected === BigInt(q.total_max_lamports) };
+}
+/** Token-2022 program id → show token.program.token_2022 chip. */
+export const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+export const isToken2022 = (tokenProgram) => tokenProgram === TOKEN_2022_PROGRAM;
+/** Short display form of an id (quote_id, withdraw_id): first 6 chars. */
+export const formatIdShort = (id) => missing(id) ? DASH : String(id).slice(0, 6);
+/** Wallet address → "9wQe…k2Lm" (first 4 … last 4). Client-derived `address_short`;
+ *  the wire always sends the full address. Users match these 4+4 characters against Phantom. */
+export const formatAddressShort = (address) => missing(address) ? DASH :
+  (String(address).length <= 10 ? String(address) : `${String(address).slice(0, 4)}\u2026${String(address).slice(-4)}`);
+/** hh:mm:ss countdown (48 h owner-wallet delay). Digits + colons, not localized. */
+export const formatCountdownHms = (ms) => {
+  const s = Math.max(0, Math.round(ms / 1000)); const p = (n) => String(n).padStart(2, '0');
+  return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
+};
+/** real.limit.* from/to: *_lamports → SOL, *_bps → %, other (counts) → integer. */
+export function formatLimitValue(setting, v, loc) {
+  if (missing(v)) return DASH;
+  if (String(setting).endsWith('_lamports')) return formatLamports(String(v), loc);
+  if (String(setting).endsWith('_bps')) return formatBps(Number(v), loc);
+  return formatInt(Number(v), loc);
 }
 /** Web-only alternative to the ICU plural keys: Intl.RelativeTimeFormat ("5 sec. ago" / "5 dtk. yang lalu",
  *  "in 9 sec." / "dalam 9 dtk."). Flutter has no RelativeTimeFormat → use review.quote.* ICU keys (ARB). */
@@ -126,3 +176,19 @@ export const formatMcapUsd = (usd, loc) => missing(usd) || !Number.isFinite(Numb
 /** Market cap (lamports integer string) → compact SOL: "8.4K SOL" (en) / "8,4 rb SOL" (id). null → DASH. */
 export const formatMcapSol = (lamports, loc) => missing(lamports) ? DASH :
   formatCompact(lamportsToSol(lamports), loc) + '\u00A0SOL';
+/** Mcap cell + tooltip keys (1.1.5 mcap_source = curve | pool | unavailable). The "indicative USD" note only shows when
+ *  the value was computed by us (curve/pool) and mcap_usd is set. */
+export function mcapView(c, loc) {
+  const src = c?.mcap_source ?? (missing(c?.market_cap_lamports) ? 'unavailable' : null);
+  if (src === 'unavailable' || (missing(c?.mcap_usd) && missing(c?.market_cap_lamports))) {
+    return { primary: DASH, secondary: null, sourceKey: 'coin.mcap_source.unavailable',
+      tooltipKeys: ['common.value.unavailable'] };
+  }
+  const tooltipKeys = ['mcap.as_of'];
+  if ((src === 'curve' || src === 'pool') && !missing(c?.mcap_usd)) tooltipKeys.push('mcap.usd_indicative');
+  return { primary: missing(c?.mcap_usd) ? formatMcapSol(c.market_cap_lamports, loc) : formatMcapUsd(c.mcap_usd, loc),
+    secondary: missing(c?.mcap_usd) || missing(c?.market_cap_lamports) ? null
+      : formatMcapSol(c.market_cap_lamports, loc),
+    sourceKey: src ? `coin.mcap_source.${src}` : null, tooltipKeys };
+}
+

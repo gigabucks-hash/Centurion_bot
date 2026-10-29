@@ -91,4 +91,23 @@ void main() {
     expect(en.guardWeakenPendingTitle, 'Change waiting for approval');
     expect(id.mcapAsOf('18.42'), 'Per 18.42');
   });
+  test('Rev 4.7: brand, Real notif plurals (=0 empty branch), selects, sell preview', () {
+    expect(en.appName, 'Centurion Trade');
+    expect(id.authSiwsStatement, 'Masuk ke Centurion Trade');
+    expect(en.screenerNotTradeableDetail, contains('Centurion Trade only trades SOL pairs'));
+    expect(en.notifRealSellAllCompletedTitle(0), '[REAL SOL] Sell all done');
+    expect(id.notifRealSellAllCompletedTitle(2), '[REAL SOL] Jual semua: 2 gagal');
+    expect(en.notifRealSellAllCompletedBody(0, 3), '3 sold');
+    expect(en.notifRealSellAllCompletedBody(1, 2), '2 sold · 1 failed and is still open');
+    expect(id.notifRealSellAllCompletedBody(2, 1), '1 terjual · 2 gagal, masih terbuka');
+    expect(id.notifRealKillSwitchTrippedBody('loss_velocity'), startsWith('Dihentikan otomatis: kerugian naik terlalu cepat'));
+    expect(en.notifRealKillSwitchTrippedBody('new_reason_x'), contains('a safety rule triggered'));
+    expect(id.notifRealBuysPausedTitle, '[REAL SOL] Pembelian baru dihentikan');
+    expect(id.notifRealBuysPausedBody('user', 'MacBook'), 'Exit plan posisi tetap jalan · olehmu di MacBook');
+    expect(en.notifRealSellAllRequestedBody(1), 'Selling 1 position at market. Guards still apply.');
+    expect(id.notifRealLimitLoosenRequestedBody('Maks. per trade', '0,05 SOL', '0,1 SOL', '30 Okt 19.02'), contains('berlaku sampai kamu ubah'));
+    expect(id.expireReasonKillSwitchBadge, 'Real dihentikan');
+    expect(id.closePreviewValid(9), 'Preview berlaku 9 dtk');
+    expect(id.killSwitchOptionSellAll(3), 'Jual juga 3 posisi sekarang');
+  });
 }

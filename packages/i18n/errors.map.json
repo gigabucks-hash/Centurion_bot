@@ -73,7 +73,9 @@
       "retryable": false,
       "tone": "pending",
       "title_key": "guard.weaken.pending.title",
-      "cta_key": "guard.weaken.pending.open"
+      "cta_key": "guard.weaken.pending.open",
+      "client_visible": false,
+      "note": "RPC update_strategy only (1.1.5): clients use REST PATCH → 202 {proposal, guard_change} → guard.weaken.pending.*; Real = same flow + 2500 ms hold"
     },
     "IDEMPOTENCY_KEY_REUSED": {
       "key": "error.code.internal",
@@ -244,7 +246,14 @@
       "inline_key": "review.quote.stale",
       "modes": [
         "real"
-      ]
+      ],
+      "details": [
+        "missing",
+        "quote_ts",
+        "quote_expires_at",
+        "current"
+      ],
+      "on_current": "error.current (ApprovalWire) present → render it as Updated (review.quote.updated_inline), no error toast; also sent when expected_quote_id mismatches (1.1.5)"
     },
     "REPLAY_UNAVAILABLE": {
       "key": "error.code.replay_unavailable",

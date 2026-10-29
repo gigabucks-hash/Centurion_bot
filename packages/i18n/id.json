@@ -1,4 +1,20 @@
 {
+  "app": {
+    "about": {
+      "title": "Tentang Centurion Trade",
+      "version": "Versi {version} ({build})"
+    },
+    "name": "Centurion Trade",
+    "splash": {
+      "loading": "Memulai Centurion Trade…"
+    },
+    "title": "Centurion Trade · bot trading Solana"
+  },
+  "auth": {
+    "siws": {
+      "statement": "Masuk ke Centurion Trade"
+    }
+  },
   "builder": {
     "approval_mode": {
       "real_note": "Real SOL: “Off” tidak tersedia di MVP."
@@ -61,6 +77,26 @@
   },
   "chart": {
     "title": "Chart"
+  },
+  "close": {
+    "preview": {
+      "expected_out": "Estimasi SOL keluar",
+      "expired": "Preview kedaluwarsa — perbarui untuk lanjut",
+      "min_received": "Minimal diterima",
+      "refresh": "Perbarui preview",
+      "refreshing": "Memperbarui preview…",
+      "swap_fee_from_output": "diambil dari hasil jual",
+      "unavailable": "Preview belum tersedia, jadi jual Real tetap nonaktif.",
+      "valid": "{seconds, plural, other {Preview berlaku # dtk}}",
+      "you_sell": "Kamu jual"
+    }
+  },
+  "coin": {
+    "mcap_source": {
+      "curve": "(curve)",
+      "pool": "(pool)",
+      "unavailable": "Sumber tidak tersedia"
+    }
   },
   "coin_trail": {
     "snapshot_note": "Nilai dan threshold saat itu (rev {rev}).",
@@ -263,6 +299,10 @@
       "badge": "Guard gagal",
       "detail": "Cek guard gagal saat menunggu"
     },
+    "kill_switch": {
+      "badge": "Real dihentikan",
+      "detail": "Trading Real dihentikan"
+    },
     "practice_reset": {
       "badge": "Practice di-reset",
       "detail": "Practice di-reset; buy tertunda dihapus"
@@ -351,6 +391,54 @@
       "type_name": "Ketik nama strategi untuk konfirmasi"
     }
   },
+  "kill_switch": {
+    "action": {
+      "engage": "Stop sekarang",
+      "open": "Stop semua trading Real"
+    },
+    "dialog": {
+      "effect": {
+        "buys": "Buy baru diblokir dan semua strategi Real dijeda.",
+        "inflight": "Order yang sudah terkirim tidak bisa ditarik.",
+        "proposals": "Proposal Real tertunda kedaluwarsa.",
+        "unsigned": "Order belum diteken dibatalkan."
+      },
+      "title": "Stop semua trading Real?"
+    },
+    "offline": "Server tidak terjangkau. Stop belum terkonfirmasi. Mencoba lagi…",
+    "option": {
+      "exits_freeze": "Bekukan exit plan juga: posisi TANPA stop loss otomatis",
+      "exits_run": "Exit plan tetap jalan (disarankan)",
+      "revoke": "Cabut izin bot di provider (hard stop)",
+      "sell_all": "{count, plural, other {Jual juga # posisi sekarang}}"
+    },
+    "reason": {
+      "loss_velocity": "kerugian naik terlalu cepat",
+      "other": "aturan keamanan terpicu",
+      "policy_mismatch": "aturan wallet tidak cocok"
+    },
+    "reenable": {
+      "action": "Aktifkan lagi trading Real",
+      "resume_note": "Strategi tetap dijeda. Lanjutkan satu per satu."
+    },
+    "revoke_pending": "Trading dihentikan. Pencabutan izin tertunda; akan dicoba lagi.",
+    "scope": {
+      "global": "Semua trading Real",
+      "strategy": "Satu strategi",
+      "workspace": "Workspace ini"
+    },
+    "sell_all": {
+      "body": "Jual di harga pasar sekarang. Cek keamanan tetap berlaku: simulasi dan batas slippage.",
+      "hold": "Tahan 2,5 dtk untuk jual semua",
+      "title": "{count, plural, other {Jual # posisi Real sekarang?}}"
+    },
+    "status": {
+      "authority": "{state, select, revoked {Izin bot dicabut} other {Izin bot masih aktif}}",
+      "by": "Dihentikan {actor_type, select, user {olehmu di {device_label}} rule {otomatis} other {oleh sistem}} pada {at}",
+      "exits": "{state, select, running {Exit plan berjalan} other {Exit plan dibekukan}}",
+      "title": "Pembelian baru dihentikan"
+    }
+  },
   "login": {
     "button": {
       "apple": "Lanjutkan dengan Apple",
@@ -374,7 +462,7 @@
     "subtitle": "Satu akun, banyak metode masuk. Bisa ditambah nanti.",
     "telegram": {
       "cancelled": "Login Telegram dibatalkan. Tidak ada yang berubah.",
-      "consent": "Telegram membagikan nama, username, dan foto ke Sentra.",
+      "consent": "Telegram membagikan nama, username, dan foto ke Centurion Trade.",
       "retry": "Coba Telegram lagi",
       "title": "Masuk dengan Telegram",
       "unavailable": "Login Telegram belum tersedia. Pakai metode lain.",
@@ -511,6 +599,103 @@
       "body": "Saldo kembali ke {amount_lamports}. Buy tertunda dihapus.",
       "title": "[PRACTICE] Practice di-reset"
     },
+    "real": {
+      "buys": {
+        "paused": {
+          "body": "Exit plan posisi tetap jalan · {actor_type, select, user {olehmu di {device_label}} other {oleh sistem}}",
+          "title": "[REAL SOL] Pembelian baru dihentikan"
+        },
+        "resumed": {
+          "body": "{actor_type, select, user {Olehmu di {device_label}.} other {Oleh sistem.}} Strategi tetap dijeda sampai kamu melanjutkannya.",
+          "title": "[REAL SOL] Pembelian baru dilanjutkan"
+        }
+      },
+      "deposit": {
+        "detected": {
+          "body": "+{amount_lamports} · saldo {balance_lamports} dari {cap_lamports}",
+          "title": "[REAL SOL] Deposit masuk"
+        }
+      },
+      "kill_switch": {
+        "cleared": {
+          "body": "Trading Real bisa jalan lagi. Strategi tetap dijeda sampai kamu melanjutkannya.",
+          "title": "[REAL SOL] Henti otomatis dicabut"
+        },
+        "tripped": {
+          "body": "Dihentikan otomatis: {reason, select, policy_mismatch {aturan wallet tidak cocok} loss_velocity {kerugian naik terlalu cepat} other {aturan keamanan terpicu}}. Buy baru diblokir.",
+          "title": "[REAL SOL] Trading Real dihentikan otomatis"
+        }
+      },
+      "limit": {
+        "changed": {
+          "body": "{setting}: {from} → {to}",
+          "title": "[REAL SOL] Batas diperbarui"
+        },
+        "loosen_requested": {
+          "body": "{setting}: {from} → {to} mulai {activates_at} dan berlaku sampai kamu ubah. Batalkan jika bukan kamu.",
+          "title": "[REAL SOL] Perubahan batas menunggu"
+        }
+      },
+      "policy": {
+        "activated": {
+          "body": "Sesuai yang kamu setujui.",
+          "title": "[REAL SOL] Aturan wallet v{version} aktif"
+        },
+        "mismatch": {
+          "body": "Trading Real dihentikan demi keamanan. Buka app untuk membandingkan v{version}.",
+          "title": "[REAL SOL] Aturan wallet tidak cocok"
+        }
+      },
+      "sell_all": {
+        "completed": {
+          "body": "{sold_count, plural, other {# terjual}}{failed_count, plural, =0 {} other { · # gagal, masih terbuka}}",
+          "title": "[REAL SOL] {failed_count, plural, =0 {Jual semua selesai} other {Jual semua: # gagal}}",
+          "total": "Total keluar: {amount_lamports}"
+        },
+        "requested": {
+          "body": "{count, plural, other {Menjual # posisi di harga pasar.}} Guard tetap berlaku.",
+          "title": "[REAL SOL] Menjual semua posisi"
+        }
+      },
+      "signer": {
+        "granted": {
+          "body": "Bot bisa swap sesuai batasmu sampai {expires_at}. Bot tidak bisa transfer atau menarik dana.",
+          "title": "[REAL SOL] Izin trading diberikan"
+        },
+        "revoked": {
+          "body": "{reason, select, kill_switch {Dicabut oleh kill switch.} expiry {Izinnya sudah habis.} user {Kamu mencabutnya.} other {Dicabut.}} Trading Real tidak bisa menandatangani sampai kamu otorisasi lagi.",
+          "title": "[REAL SOL] Izin bot dicabut"
+        }
+      },
+      "withdraw": {
+        "confirmed": {
+          "body": "{amount_lamports} masuk ke wallet utama {address_short}.",
+          "title": "[REAL SOL] Penarikan diterima"
+        },
+        "failed": {
+          "body": "{amount_lamports} tidak terkirim: {reason_code}. Saldo tetap.",
+          "title": "[REAL SOL] Penarikan gagal"
+        },
+        "requested": {
+          "body": "{amount_lamports} → wallet utama {address_short}",
+          "title": "[REAL SOL] Penarikan dikirim"
+        }
+      },
+      "withdraw_address": {
+        "added": {
+          "body": "{address_short} aktif {usable_at}. Batalkan sebelum {cancel_until} jika bukan kamu.",
+          "title": "[REAL SOL] Wallet utama baru didaftarkan"
+        },
+        "cancelled": {
+          "body": "{address_short} tidak akan ditambahkan.",
+          "title": "[REAL SOL] Penggantian wallet utama dibatalkan"
+        },
+        "usable": {
+          "body": "{address_short} kini wallet utama dan tujuan penarikanmu.",
+          "title": "[REAL SOL] Wallet utama aktif"
+        }
+      }
+    },
     "skipped": {
       "body": "Alasan: {reason}",
       "title": "Dilewati: {symbol}"
@@ -642,18 +827,23 @@
     "user_declined": "Dilewati olehmu"
   },
   "review": {
+    "ata_rent": "Sewa akun token (baru)",
     "details_toggle": "Biaya & slippage",
     "estimate_note": "Estimasi per {time}. Nilai akhir bisa berubah mengikuti harga.",
     "min_received": "Minimal diterima",
     "min_received_value": "≥ {min_out} {symbol}",
     "network_fee": "Perkiraan biaya jaringan",
+    "network_fee_breakdown": "dasar {base} + prioritas {priority}",
     "practice_note": "Practice: fill simulasi. Tidak ada SOL nyata yang bergerak.",
     "price": "Harga",
     "price_moved": "Harga bergerak {pct} sejak pick ini. Tinjau ulang sebelum approve.",
     "priority_fee": "Priority fee",
     "quote": {
+      "auto_refreshing": "Memperbarui otomatis…",
       "changed_during_hold": "Quote berubah. Cek nilai baru lalu tahan lagi.",
       "expires_in": "{seconds, plural, other {Berakhir dalam # dtk}}",
+      "id": "Quote {quote_id}",
+      "loading": "Hold nonaktif sampai quote lengkap.",
       "missing": "Quote belum ada — perbarui untuk lanjut",
       "practice_stale": "Estimasi kedaluwarsa. Practice tetap bisa approve; nilai bisa berbeda.",
       "refresh": "Perbarui quote",
@@ -665,8 +855,10 @@
     "real_note": "Real SOL: biaya jaringan tetap terpakai walau order gagal.",
     "slippage": "Slippage maks.",
     "swap_fee": "Biaya swap",
+    "swap_fee_from_input": "dipotong dari SOL masuk",
     "title": "{side, select, sell {Tinjau penjualan} other {Tinjau pembelian}}",
     "total_max": "Total (maks.)",
+    "total_max_hint": "= SOL masuk + biaya jaringan + sewa akun token",
     "you_pay": "Kamu bayar"
   },
   "screener": {
@@ -714,7 +906,7 @@
     "legend": "Merah menandai risiko (guard gagal, rug, loss). Koin abu-abu “Tidak bisa ditradingkan” tidak punya pair SOL: tidak bisa di-approve, tapi bisa dilewati.",
     "not_tradeable": {
       "badge": "Tidak bisa ditradingkan",
-      "detail": "Koin ini tidak punya pair quote SOL. Sentra hanya trading pair SOL, jadi tidak bisa di-approve."
+      "detail": "Koin ini tidak punya pair quote SOL. Centurion Trade hanya trading pair SOL, jadi tidak bisa di-approve."
     },
     "status": {
       "passed": "Lolos",
@@ -822,6 +1014,40 @@
     "space": "Detail / quick-look",
     "x": "Pilih / batal pilih"
   },
+  "stepup": {
+    "both_required": "Dua tanda tangan, keduanya wajib",
+    "browser": {
+      "continue": "Lanjutkan di browser",
+      "done": "Terkonfirmasi. Kamu kembali di app.",
+      "expired": "Konfirmasi kedaluwarsa. Mulai lagi.",
+      "reopen": "Buka browser lagi",
+      "state_mismatch": "Diblokir: konfirmasi ini bukan dari app ini.",
+      "timeout": "Tidak ada jawaban dari browser dalam 5 mnt, jadi dibatalkan.",
+      "waiting": "Selesaikan di browser, lalu kembali."
+    },
+    "cancelled": "Tak ada yang berubah.",
+    "field": {
+      "action": "Aksi",
+      "amount": "Jumlah",
+      "expires": "Berakhir",
+      "from": "Dari",
+      "nonce": "Nonce",
+      "payload_hash": "Payload hash",
+      "to": "Ke"
+    },
+    "passkey": {
+      "step": "2 · Passkey pemilik",
+      "use": "Pakai passkey",
+      "waiting": "Menunggu passkey…"
+    },
+    "phantom": {
+      "open": "Tanda tangani di Phantom",
+      "step": "1 · Tanda tangan Phantom",
+      "waiting": "Menunggu Phantom… sisa {mm_ss}"
+    },
+    "title": "Konfirmasi aksi uang",
+    "totp_optional": "TOTP opsional dan tidak menggantikan tanda tangan mana pun."
+  },
   "strategy": {
     "approval_mode": {
       "ask_every_buy": "Tanya: setiap buy",
@@ -839,6 +1065,38 @@
       "collapse": "Sembunyikan detail",
       "expand": "Tampilkan detail",
       "scroll_hint": "Geser untuk kolom lain"
+    }
+  },
+  "token": {
+    "program": {
+      "token_2022": "Token-2022"
+    }
+  },
+  "wallet": {
+    "limits": {
+      "setting": {
+        "cap_lamports": "Batas total",
+        "daily_lamports": "Maks. 24 jam",
+        "max_positions": "Maks. posisi terbuka",
+        "max_slippage_bps": "Slippage maks.",
+        "per_trade_lamports": "Maks. per trade"
+      }
+    },
+    "owner": {
+      "add_backup": "Tambah wallet cadangan…",
+      "backup": "Wallet pemilik cadangan · bukan tujuan penarikan",
+      "cancel": "Batalkan",
+      "change_main": "Ganti…",
+      "delay_note": "Perubahan butuh minimal 48 jam dan bisa dibatalkan.",
+      "main": "Wallet utama · login dan satu-satunya tujuan penarikan",
+      "pending": "Aktif {usable_at} · sisa {hh_mm_ss}",
+      "title": "Wallet pemilik",
+      "type_last4": "Ketik 4 karakter terakhir alamat baru"
+    },
+    "withdraw": {
+      "fail_reason": {
+        "unknown": "Error tak dikenal"
+      }
     }
   }
 }

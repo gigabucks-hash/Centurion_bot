@@ -1,4 +1,20 @@
 {
+  "app": {
+    "about": {
+      "title": "About Centurion Trade",
+      "version": "Version {version} ({build})"
+    },
+    "name": "Centurion Trade",
+    "splash": {
+      "loading": "Starting Centurion Trade…"
+    },
+    "title": "Centurion Trade · Solana trading bot"
+  },
+  "auth": {
+    "siws": {
+      "statement": "Sign in to Centurion Trade"
+    }
+  },
   "builder": {
     "approval_mode": {
       "real_note": "Real SOL: “Off” is not available in the MVP."
@@ -61,6 +77,26 @@
   },
   "chart": {
     "title": "Chart"
+  },
+  "close": {
+    "preview": {
+      "expected_out": "Expected SOL out",
+      "expired": "Preview expired — refresh to continue",
+      "min_received": "Min. received",
+      "refresh": "Refresh preview",
+      "refreshing": "Refreshing preview…",
+      "swap_fee_from_output": "taken from proceeds",
+      "unavailable": "Preview isn’t available yet, so Real sells stay off.",
+      "valid": "{seconds, plural, one {Preview valid for # s} other {Preview valid for # s}}",
+      "you_sell": "You sell"
+    }
+  },
+  "coin": {
+    "mcap_source": {
+      "curve": "(curve)",
+      "pool": "(pool)",
+      "unavailable": "Source unavailable"
+    }
   },
   "coin_trail": {
     "snapshot_note": "Values and thresholds as read at that moment (rev {rev}).",
@@ -263,6 +299,10 @@
       "badge": "Guard failed",
       "detail": "A guard check failed while waiting"
     },
+    "kill_switch": {
+      "badge": "Real stopped",
+      "detail": "Real trading was stopped"
+    },
     "practice_reset": {
       "badge": "Practice reset",
       "detail": "Practice was reset; pending buys were cleared"
@@ -351,6 +391,54 @@
       "type_name": "Type the strategy name to confirm"
     }
   },
+  "kill_switch": {
+    "action": {
+      "engage": "Stop now",
+      "open": "Stop all Real trading"
+    },
+    "dialog": {
+      "effect": {
+        "buys": "New buys are blocked and all Real strategies pause.",
+        "inflight": "Orders already sent can’t be recalled.",
+        "proposals": "Pending Real proposals expire.",
+        "unsigned": "Unsigned orders are cancelled."
+      },
+      "title": "Stop all Real trading?"
+    },
+    "offline": "Can’t reach the server. Stop isn’t confirmed yet. Retrying…",
+    "option": {
+      "exits_freeze": "Freeze exit plans too: positions have NO automatic stop loss",
+      "exits_run": "Exit plan keeps running (recommended)",
+      "revoke": "Revoke the bot’s authority at the provider (hard stop)",
+      "sell_all": "{count, plural, one {Also sell # position now} other {Also sell # positions now}}"
+    },
+    "reason": {
+      "loss_velocity": "losses grew too fast",
+      "other": "a safety rule triggered",
+      "policy_mismatch": "wallet rules don’t match"
+    },
+    "reenable": {
+      "action": "Re-enable Real trading",
+      "resume_note": "Strategies stay paused. Resume them one by one."
+    },
+    "revoke_pending": "Trading stopped. Revoking authority is pending; we’ll retry.",
+    "scope": {
+      "global": "All Real trading",
+      "strategy": "One strategy",
+      "workspace": "This workspace"
+    },
+    "sell_all": {
+      "body": "Sells at market now. Safety checks still apply: simulation and your slippage cap.",
+      "hold": "Hold 2.5 s to sell all",
+      "title": "{count, plural, one {Sell # Real position now?} other {Sell # Real positions now?}}"
+    },
+    "status": {
+      "authority": "{state, select, revoked {Bot authority revoked} other {Bot authority still active}}",
+      "by": "Stopped {actor_type, select, user {by you on {device_label}} rule {automatically} other {by the system}} at {at}",
+      "exits": "{state, select, running {Exit plan running} other {Exit plan frozen}}",
+      "title": "New buys stopped"
+    }
+  },
   "login": {
     "button": {
       "apple": "Continue with Apple",
@@ -374,7 +462,7 @@
     "subtitle": "One account, many sign-in methods. You can link more later.",
     "telegram": {
       "cancelled": "Telegram login was cancelled. Nothing changed.",
-      "consent": "Telegram shares your name, username and photo with Sentra.",
+      "consent": "Telegram shares your name, username and photo with Centurion Trade.",
       "retry": "Try Telegram again",
       "title": "Log in with Telegram",
       "unavailable": "Telegram login is not available yet. Use another method.",
@@ -511,6 +599,103 @@
       "body": "Balance back to {amount_lamports}. Pending buys were cleared.",
       "title": "[PRACTICE] Practice reset"
     },
+    "real": {
+      "buys": {
+        "paused": {
+          "body": "Open positions keep their exit plan · {actor_type, select, user {by you on {device_label}} other {by the system}}",
+          "title": "[REAL SOL] New buys stopped"
+        },
+        "resumed": {
+          "body": "{actor_type, select, user {By you on {device_label}.} other {By the system.}} Strategies stay paused until you resume them.",
+          "title": "[REAL SOL] New buys resumed"
+        }
+      },
+      "deposit": {
+        "detected": {
+          "body": "+{amount_lamports} · balance {balance_lamports} of {cap_lamports}",
+          "title": "[REAL SOL] Deposit received"
+        }
+      },
+      "kill_switch": {
+        "cleared": {
+          "body": "Real trading can run again. Strategies stay paused until you resume them.",
+          "title": "[REAL SOL] Automatic stop cleared"
+        },
+        "tripped": {
+          "body": "Stopped automatically: {reason, select, policy_mismatch {wallet rules don’t match} loss_velocity {losses grew too fast} other {a safety rule triggered}}. New buys are blocked.",
+          "title": "[REAL SOL] Real trading stopped automatically"
+        }
+      },
+      "limit": {
+        "changed": {
+          "body": "{setting}: {from} → {to}",
+          "title": "[REAL SOL] Limits updated"
+        },
+        "loosen_requested": {
+          "body": "{setting}: {from} → {to} from {activates_at}, and it stays until you change it. Cancel if this wasn’t you.",
+          "title": "[REAL SOL] Limit change pending"
+        }
+      },
+      "policy": {
+        "activated": {
+          "body": "Matches what you approved.",
+          "title": "[REAL SOL] Wallet rules v{version} active"
+        },
+        "mismatch": {
+          "body": "Real trading stopped for safety. Open the app to compare v{version}.",
+          "title": "[REAL SOL] Wallet rules don’t match"
+        }
+      },
+      "sell_all": {
+        "completed": {
+          "body": "{sold_count, plural, one {# sold} other {# sold}}{failed_count, plural, =0 {} one { · # failed and is still open} other { · # failed and are still open}}",
+          "title": "[REAL SOL] {failed_count, plural, =0 {Sell all done} other {Sell all: # failed}}",
+          "total": "Total out: {amount_lamports}"
+        },
+        "requested": {
+          "body": "{count, plural, one {Selling # position at market.} other {Selling # positions at market.}} Guards still apply.",
+          "title": "[REAL SOL] Selling all positions"
+        }
+      },
+      "signer": {
+        "granted": {
+          "body": "The bot can swap within your limits until {expires_at}. It can’t transfer or withdraw.",
+          "title": "[REAL SOL] Trading authority granted"
+        },
+        "revoked": {
+          "body": "{reason, select, kill_switch {Revoked by the kill switch.} expiry {The authority expired.} user {You revoked it.} other {Revoked.}} Real trading can’t sign until you authorize it again.",
+          "title": "[REAL SOL] Bot authority revoked"
+        }
+      },
+      "withdraw": {
+        "confirmed": {
+          "body": "{amount_lamports} arrived in your main wallet {address_short}.",
+          "title": "[REAL SOL] Withdrawal received"
+        },
+        "failed": {
+          "body": "{amount_lamports} wasn’t sent: {reason_code}. Your balance is unchanged.",
+          "title": "[REAL SOL] Withdrawal failed"
+        },
+        "requested": {
+          "body": "{amount_lamports} → main wallet {address_short}",
+          "title": "[REAL SOL] Withdrawal sent"
+        }
+      },
+      "withdraw_address": {
+        "added": {
+          "body": "{address_short} becomes active {usable_at}. Cancel before {cancel_until} if this wasn’t you.",
+          "title": "[REAL SOL] New main wallet registered"
+        },
+        "cancelled": {
+          "body": "{address_short} won’t be added.",
+          "title": "[REAL SOL] Main wallet change cancelled"
+        },
+        "usable": {
+          "body": "{address_short} is now your main wallet and withdraw destination.",
+          "title": "[REAL SOL] Main wallet active"
+        }
+      }
+    },
     "skipped": {
       "body": "Reason: {reason}",
       "title": "Skipped: {symbol}"
@@ -642,18 +827,23 @@
     "user_declined": "Skipped by you"
   },
   "review": {
+    "ata_rent": "Token account rent (new)",
     "details_toggle": "Fees & slippage",
     "estimate_note": "Estimates as of {time}. Final values can change with the price.",
     "min_received": "Min. received",
     "min_received_value": "≥ {min_out} {symbol}",
     "network_fee": "Est. network fee",
+    "network_fee_breakdown": "base {base} + priority {priority}",
     "practice_note": "Practice: simulated fill. No real SOL moves.",
     "price": "Price",
     "price_moved": "Price moved {pct} since this pick. Review again before approving.",
     "priority_fee": "Priority fee",
     "quote": {
+      "auto_refreshing": "Refreshing automatically…",
       "changed_during_hold": "Quote changed. Check the new values and hold again.",
       "expires_in": "{seconds, plural, one {Expires in # s} other {Expires in # s}}",
+      "id": "Quote {quote_id}",
+      "loading": "Hold is off until the quote is complete.",
       "missing": "No quote yet — refresh to continue",
       "practice_stale": "Estimate expired. Practice can still approve; values may differ.",
       "refresh": "Refresh quote",
@@ -665,8 +855,10 @@
     "real_note": "Real SOL: network fees are paid even if the order fails.",
     "slippage": "Max slippage",
     "swap_fee": "Swap fee",
+    "swap_fee_from_input": "taken from SOL in, not added",
     "title": "{side, select, sell {Review sell} other {Review buy}}",
     "total_max": "Total (max)",
+    "total_max_hint": "= SOL in + network fee + token account rent",
     "you_pay": "You pay"
   },
   "screener": {
@@ -714,7 +906,7 @@
     "legend": "Red marks risk (guard fail, rug, loss). Grey “Not tradeable” coins have no SOL pair: they can’t be approved, but you can skip them.",
     "not_tradeable": {
       "badge": "Not tradeable",
-      "detail": "No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved."
+      "detail": "No SOL quote pair for this coin. Centurion Trade only trades SOL pairs, so it can’t be approved."
     },
     "status": {
       "passed": "Passed",
@@ -822,6 +1014,40 @@
     "space": "Details / quick look",
     "x": "Select / deselect"
   },
+  "stepup": {
+    "both_required": "Two signatures, both required",
+    "browser": {
+      "continue": "Continue in browser",
+      "done": "Confirmed. You’re back in the app.",
+      "expired": "The confirmation expired. Start again.",
+      "reopen": "Reopen browser",
+      "state_mismatch": "Blocked: this confirmation didn’t come from this app.",
+      "timeout": "No answer from the browser in 5 min, so it was cancelled.",
+      "waiting": "Finish in your browser, then come back."
+    },
+    "cancelled": "Nothing changed.",
+    "field": {
+      "action": "Action",
+      "amount": "Amount",
+      "expires": "Expires",
+      "from": "From",
+      "nonce": "Nonce",
+      "payload_hash": "Payload hash",
+      "to": "To"
+    },
+    "passkey": {
+      "step": "2 · Owner passkey",
+      "use": "Use passkey",
+      "waiting": "Waiting for passkey…"
+    },
+    "phantom": {
+      "open": "Open Phantom to sign",
+      "step": "1 · Phantom signature",
+      "waiting": "Waiting for Phantom… {mm_ss} left"
+    },
+    "title": "Confirm money action",
+    "totp_optional": "TOTP is optional and doesn’t replace either signature."
+  },
   "strategy": {
     "approval_mode": {
       "ask_every_buy": "Ask: every buy",
@@ -839,6 +1065,38 @@
       "collapse": "Hide details",
       "expand": "Show details",
       "scroll_hint": "Scroll for more columns"
+    }
+  },
+  "token": {
+    "program": {
+      "token_2022": "Token-2022"
+    }
+  },
+  "wallet": {
+    "limits": {
+      "setting": {
+        "cap_lamports": "Total cap",
+        "daily_lamports": "Max per 24 h",
+        "max_positions": "Max open positions",
+        "max_slippage_bps": "Max slippage",
+        "per_trade_lamports": "Max per trade"
+      }
+    },
+    "owner": {
+      "add_backup": "Add backup wallet…",
+      "backup": "Backup owner wallet · not a withdraw destination",
+      "cancel": "Cancel",
+      "change_main": "Change…",
+      "delay_note": "Changes take at least 48 h and can be cancelled.",
+      "main": "Main wallet · sign-in and the only withdraw destination",
+      "pending": "Active {usable_at} · {hh_mm_ss} left",
+      "title": "Owner wallets",
+      "type_last4": "Type the last 4 characters of the new address"
+    },
+    "withdraw": {
+      "fail_reason": {
+        "unknown": "Unknown error"
+      }
     }
   }
 }
