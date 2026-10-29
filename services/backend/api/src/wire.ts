@@ -77,11 +77,20 @@ export function approvalWire(r: Record<string, unknown>) {
     created_at: iso(r.created_at),
     expires_at: iso(r.expires_at),
     decided_at: iso(r.decided_at),
+    // 1.1.4 quote (UX WF-22): integer strings / numbers / ISO, null until set
+    est_network_fee_lamports: str(r.est_network_fee_lamports),
+    priority_fee_lamports: str(r.priority_fee_lamports),
+    swap_fee_bps: r.swap_fee_bps ?? null,
+    max_slippage_bps: r.max_slippage_bps ?? null,
+    min_out_raw: str(r.min_out_raw),
+    total_max_lamports: str(r.total_max_lamports),
+    quote_ts: iso(r.quote_ts),
+    quote_expires_at: iso(r.quote_expires_at),
   };
 }
 
 export const APPROVAL_COLUMNS =
-  "id, workspace_id, strategy_id, kind::text as kind, mode::text as mode, subject, mint, amount_lamports, is_first_buy, risk, weakening, status::text as status, rev, expire_reason::text as expire_reason, base_rev, decision, reject_reason::text as reject_reason, decided_via::text as decided_via, decided_by, payload, created_at, expires_at, decided_at";
+  "id, workspace_id, strategy_id, kind::text as kind, mode::text as mode, subject, mint, amount_lamports, is_first_buy, risk, weakening, status::text as status, rev, expire_reason::text as expire_reason, base_rev, decision, reject_reason::text as reject_reason, decided_via::text as decided_via, decided_by, payload, created_at, expires_at, decided_at, est_network_fee_lamports, priority_fee_lamports, swap_fee_bps, max_slippage_bps, min_out_raw, total_max_lamports, quote_ts, quote_expires_at";
 
 export function portfolioWire(r: Record<string, unknown>) {
   return {

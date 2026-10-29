@@ -146,7 +146,8 @@ creator_share bundled_share sniper_share transfer_fee honeypot serial_creator`.
 | `guard.result` | guard | `{mint, verdict, risk_score, reasons[], checks: [{name, status: PASS\|WARN\|FAIL\|UNKNOWN, measured, reason, weight}]}` |
 | `pick.created` | screener | `{mint, summary, score: <screener result>, guard_verdict, guard_reasons[], market_cap_lamports, mcap_usd, mcap_as_of}` (market cap fields 1.1.4) |
 | `entry.armed` / `entry.expired` | entry | `{pick_id, condition, expires_at}` / `{pick_id, reason}` |
-| `proposal.created` | entry\|user\|system | `{proposal_id, kind, rev, mint, symbol (untrusted text, same as envelope untrusted.symbol), price_sol (decimal string), expires_at, first_buy, approval_mode, amount_lamports, risk_level, summary, base_rev, weakening, diff: [{field, before, after, weakening}]\|null, estimate}` |
+| `proposal.created` | entry\|user\|system | `{proposal_id, kind, rev, mint, symbol (untrusted text, same as envelope untrusted.symbol), price_sol (decimal string), expires_at, first_buy, approval_mode, amount_lamports, risk_level, summary, base_rev, weakening, diff: [{field, before, after, weakening}]\|null, estimate}` + optional nullable quote fields (1.1.4, below) |
+| `proposal.updated` | system | 1.1.4. A pending proposal's quote was set or refreshed (`set_approval_quote`): `{proposal_id, kind, rev, est_network_fee_lamports, priority_fee_lamports, swap_fee_bps, max_slippage_bps, min_out_raw, total_max_lamports, quote_ts, quote_expires_at}`. `rev` is the new approval rev (send it as `expected_rev`). Nothing else on the proposal changes. |
 | `proposal.approved` / `proposal.rejected` | user | `{proposal_id, kind, rev, decided_by, decided_via: web\|mobile\|desktop\|mcp\|push, reason, reject_reason}`. `reject_reason` (1.1.3): `user_declined\|not_tradeable\|price_moved\|other` on `proposal.rejected` (default `user_declined`), `null` on `proposal.approved` (UI label for rejected: "Skipped") |
 | `proposal.expired` | system | `{proposal_id, kind, rev, reason, at}` — `reason` is exactly one of the canonical wire values `timeout`, `strategy_deleted`, `strategy_archived`, `guard_failed`, `price_moved`, `practice_reset`, `account_deleted`. `reset_practice()` expires pending/approved buys with `practice_reset`; account finalization expires every open proposal with `account_deleted` (both SQL-tested) |
 | `order.submitted` | user | `{order: OrderWire, position_id, position_rev, practice_epoch}` (manual close accepted) |
@@ -164,6 +165,15 @@ creator_share bundled_share sniper_share transfer_fee honeypot serial_creator`.
 | `account.deletion_scheduled` | user | `{scheduled_for, grace_days, at}` (emitted into every workspace the user owns) |
 | `account.deletion_cancelled` / `account.deleted` | user | `{at}` |
 | `system.notice` | system | `{code, message}`; `code` is an errors.json code with `kind: "notice"` (e.g. `PRACTICE_CASH_INSUFFICIENT`, `JOB_DEAD_LETTERED`, `SOURCE_DEGRADED`) |
+
+**Quote fields (1.1.4, UX WF-22 transaction review sheet)** on `proposal.created`, `proposal.updated` and
+`ApprovalWire` (TS `ProposalQuoteFields`; all optional and nullable): `est_network_fee_lamports`,
+`priority_fee_lamports`, `min_out_raw` (raw token units), `total_max_lamports` are integer strings; `swap_fee_bps`,
+`max_slippage_bps` are JSON numbers; `quote_ts`, `quote_expires_at` are ISO timestamps. Practice values are papersim
+estimates (`papersim::quote::estimate_buy`): network fee = base + priority (CU limit x CU price), `min_out_raw` =
+CPMM tokens out after the swap fee x (1 - max slippage), `total_max_lamports` = SOL in + network fee, validity 15 s.
+Rule: for `mode=real`, approving with a missing quote or `quote_expires_at <= server now` -> `409
+QUOTE_MISSING_OR_STALE` (SQL `approval_quote_check` inside `decide_approval`); practice is never blocked.
 
 ### proposal.expired example
 ```json

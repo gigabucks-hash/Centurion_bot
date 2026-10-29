@@ -2,7 +2,7 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { OWNER, WS, call, startHarness, token, type Harness } from "./helpers.ts";
+import { APPROVAL, OWNER, WS, call, startHarness, token, type Harness } from "./helpers.ts";
 
 let h: Harness;
 const S1 = "20000000-0000-0000-0000-0000000000a1";
@@ -40,6 +40,22 @@ describe("contracts 1.1.4", () => {
     assert.equal(pk.mcap_usd, "212500");
     const list = await call(h.base, "GET", `/v1/workspaces/${WS}/coins?window=all`, { token: owner() });
     assert.equal(list.body.items.find((x: any) => x.mint === M1).market_cap_lamports, "425000000000");
+  });
+
+  test("approvals carry the quote fields (null until set; set_approval_quote fills them)", async () => {
+    const a = await call(h.base, "GET", `/v1/workspaces/${WS}/approvals/${APPROVAL}`, { token: owner() });
+    assert.equal(a.status, 200, JSON.stringify(a.body));
+    for (const k of ["est_network_fee_lamports", "priority_fee_lamports", "swap_fee_bps", "max_slippage_bps", "min_out_raw", "total_max_lamports", "quote_ts", "quote_expires_at"]) {
+      assert.ok(k in a.body.data && a.body.data[k] === null, k);
+    }
+    const st = await h.db.query("select status from public.approvals where id = $1", [APPROVAL]);
+    if (st.rows[0].status !== "pending") return;
+    await h.db.query(`select public.set_approval_quote($1, '{"est_network_fee_lamports":"25000","swap_fee_bps":125,"quote_ts":"2026-10-29T11:00:00Z","quote_expires_at":"2026-10-29T11:00:15Z"}')`, [APPROVAL]);
+    const b = await call(h.base, "GET", `/v1/workspaces/${WS}/approvals/${APPROVAL}`, { token: owner() });
+    assert.equal(b.body.data.est_network_fee_lamports, "25000");
+    assert.equal(b.body.data.swap_fee_bps, 125);
+    assert.equal(b.body.data.quote_expires_at, "2026-10-29T11:00:15.000Z");
+    assert.equal(b.body.data.rev, a.body.data.rev + 1);
   });
 
   test("time_stop_s / stall_exit validate like the SQL schema", async () => {

@@ -1,7 +1,7 @@
 // GENERATED from packages/contracts/errors.json by scripts/gen-errors.mjs. Do not edit.
 use serde::{Deserialize, Serialize};
 
-pub const ERROR_CODES_VERSION: u32 = 5;
+pub const ERROR_CODES_VERSION: u32 = 6;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -38,6 +38,7 @@ pub enum ErrorCode {
     WebauthnInvalid,
     TypedConfirmationMismatch,
     HoldTooShort,
+    QuoteMissingOrStale,
     ReplayUnavailable,
     PreconditionRequired,
     ConfirmationRestartRequired,
@@ -99,6 +100,7 @@ impl ErrorCode {
         ErrorCode::WebauthnInvalid,
         ErrorCode::TypedConfirmationMismatch,
         ErrorCode::HoldTooShort,
+        ErrorCode::QuoteMissingOrStale,
         ErrorCode::ReplayUnavailable,
         ErrorCode::PreconditionRequired,
         ErrorCode::ConfirmationRestartRequired,
@@ -160,6 +162,7 @@ impl ErrorCode {
             ErrorCode::WebauthnInvalid => "WEBAUTHN_INVALID",
             ErrorCode::TypedConfirmationMismatch => "TYPED_CONFIRMATION_MISMATCH",
             ErrorCode::HoldTooShort => "HOLD_TOO_SHORT",
+            ErrorCode::QuoteMissingOrStale => "QUOTE_MISSING_OR_STALE",
             ErrorCode::ReplayUnavailable => "REPLAY_UNAVAILABLE",
             ErrorCode::PreconditionRequired => "PRECONDITION_REQUIRED",
             ErrorCode::ConfirmationRestartRequired => "CONFIRMATION_RESTART_REQUIRED",
@@ -222,6 +225,7 @@ impl ErrorCode {
             ErrorCode::WebauthnInvalid => 403,
             ErrorCode::TypedConfirmationMismatch => 422,
             ErrorCode::HoldTooShort => 422,
+            ErrorCode::QuoteMissingOrStale => 409,
             ErrorCode::ReplayUnavailable => 503,
             ErrorCode::PreconditionRequired => 428,
             ErrorCode::ConfirmationRestartRequired => 409,
@@ -285,6 +289,7 @@ impl ErrorCode {
             ErrorCode::WebauthnInvalid => "P0403",
             ErrorCode::TypedConfirmationMismatch => "P0422",
             ErrorCode::HoldTooShort => "P0422",
+            ErrorCode::QuoteMissingOrStale => "P0409",
             ErrorCode::ReplayUnavailable => "P0503",
             ErrorCode::PreconditionRequired => "P0428",
             ErrorCode::ConfirmationRestartRequired => "P0409",
@@ -348,6 +353,7 @@ impl ErrorCode {
             ErrorCode::WebauthnInvalid => "error",
             ErrorCode::TypedConfirmationMismatch => "error",
             ErrorCode::HoldTooShort => "error",
+            ErrorCode::QuoteMissingOrStale => "error",
             ErrorCode::ReplayUnavailable => "error",
             ErrorCode::PreconditionRequired => "error",
             ErrorCode::ConfirmationRestartRequired => "error",
@@ -410,6 +416,7 @@ impl ErrorCode {
             ErrorCode::WebauthnInvalid => "WebAuthn assertion failed verification",
             ErrorCode::TypedConfirmationMismatch => "Typed confirmation does not match the strategy name",
             ErrorCode::HoldTooShort => "Hold-to-confirm duration below the required minimum",
+            ErrorCode::QuoteMissingOrStale => "The trade quote is missing or expired; refresh the quote and review it again before approving",
             ErrorCode::ReplayUnavailable => "Full replay disabled or over its 2 s budget; use the static estimate",
             ErrorCode::PreconditionRequired => "Write needs If-Match: <rev> or expected_rev",
             ErrorCode::ConfirmationRestartRequired => "Resource changed under a Real SOL confirmation; the full confirmation must be redone",
@@ -472,6 +479,7 @@ impl ErrorCode {
             ErrorCode::WebauthnInvalid => "Verifikasi WebAuthn gagal",
             ErrorCode::TypedConfirmationMismatch => "Teks konfirmasi tidak sama dengan nama strategi",
             ErrorCode::HoldTooShort => "Durasi tahan-untuk-konfirmasi kurang dari batas minimum",
+            ErrorCode::QuoteMissingOrStale => "Kuotasi transaksi tidak ada atau sudah kedaluwarsa; perbarui kuotasi dan tinjau lagi sebelum menyetujui",
             ErrorCode::ReplayUnavailable => "Replay penuh tidak tersedia atau melebihi 2 detik; gunakan estimasi statis",
             ErrorCode::PreconditionRequired => "Penulisan butuh If-Match: <rev> atau expected_rev",
             ErrorCode::ConfirmationRestartRequired => "Data berubah saat konfirmasi Real SOL; ulangi konfirmasi dari awal",
@@ -538,6 +546,7 @@ impl ErrorCode {
             ErrorCode::WebauthnInvalid => false,
             ErrorCode::TypedConfirmationMismatch => false,
             ErrorCode::HoldTooShort => false,
+            ErrorCode::QuoteMissingOrStale => true,
             ErrorCode::ReplayUnavailable => true,
             ErrorCode::PreconditionRequired => false,
             ErrorCode::ConfirmationRestartRequired => false,

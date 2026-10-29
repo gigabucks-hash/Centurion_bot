@@ -1,5 +1,5 @@
 // GENERATED from errors.json by scripts/gen-errors.mjs. Do not edit.
-export const ERROR_CODES_VERSION = 5 as const;
+export const ERROR_CODES_VERSION = 6 as const;
 export type ErrorCode =
   | "UNAUTHENTICATED"
   | "FORBIDDEN_SCOPE"
@@ -33,6 +33,7 @@ export type ErrorCode =
   | "WEBAUTHN_INVALID"
   | "TYPED_CONFIRMATION_MISMATCH"
   | "HOLD_TOO_SHORT"
+  | "QUOTE_MISSING_OR_STALE"
   | "REPLAY_UNAVAILABLE"
   | "PRECONDITION_REQUIRED"
   | "CONFIRMATION_RESTART_REQUIRED"
@@ -95,6 +96,7 @@ export const ERROR_CODES: Record<ErrorCode, ErrorCodeInfo> = {
   WEBAUTHN_INVALID: { kind: "error", http: 403, sqlstate: "P0403", retryable: false, messages: { en: "WebAuthn assertion failed verification", id: "Verifikasi WebAuthn gagal" } },
   TYPED_CONFIRMATION_MISMATCH: { kind: "error", http: 422, sqlstate: "P0422", retryable: false, messages: { en: "Typed confirmation does not match the strategy name", id: "Teks konfirmasi tidak sama dengan nama strategi" } },
   HOLD_TOO_SHORT: { kind: "error", http: 422, sqlstate: "P0422", retryable: false, messages: { en: "Hold-to-confirm duration below the required minimum", id: "Durasi tahan-untuk-konfirmasi kurang dari batas minimum" } },
+  QUOTE_MISSING_OR_STALE: { kind: "error", http: 409, sqlstate: "P0409", retryable: true, messages: { en: "The trade quote is missing or expired; refresh the quote and review it again before approving", id: "Kuotasi transaksi tidak ada atau sudah kedaluwarsa; perbarui kuotasi dan tinjau lagi sebelum menyetujui" } },
   REPLAY_UNAVAILABLE: { kind: "error", http: 503, sqlstate: "P0503", retryable: true, messages: { en: "Full replay disabled or over its 2 s budget; use the static estimate", id: "Replay penuh tidak tersedia atau melebihi 2 detik; gunakan estimasi statis" } },
   PRECONDITION_REQUIRED: { kind: "error", http: 428, sqlstate: "P0428", retryable: false, messages: { en: "Write needs If-Match: <rev> or expected_rev", id: "Penulisan butuh If-Match: <rev> atau expected_rev" } },
   CONFIRMATION_RESTART_REQUIRED: { kind: "error", http: 409, sqlstate: "P0409", retryable: false, messages: { en: "Resource changed under a Real SOL confirmation; the full confirmation must be redone", id: "Data berubah saat konfirmasi Real SOL; ulangi konfirmasi dari awal" } },

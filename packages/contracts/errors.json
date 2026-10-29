@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "sqlstate_rule": "P0 + HTTP status (P0401..P0429, P0500/P0503). SQL raises MESSAGE = code, DETAIL = JSON.",
   "codes": [
     {
@@ -352,6 +352,17 @@
       "messages": {
         "en": "Hold-to-confirm duration below the required minimum",
         "id": "Durasi tahan-untuk-konfirmasi kurang dari batas minimum"
+      }
+    },
+    {
+      "code": "QUOTE_MISSING_OR_STALE",
+      "kind": "error",
+      "http": 409,
+      "sqlstate": "P0409",
+      "retryable": true,
+      "messages": {
+        "en": "The trade quote is missing or expired; refresh the quote and review it again before approving",
+        "id": "Kuotasi transaksi tidak ada atau sudah kedaluwarsa; perbarui kuotasi dan tinjau lagi sebelum menyetujui"
       }
     },
     {

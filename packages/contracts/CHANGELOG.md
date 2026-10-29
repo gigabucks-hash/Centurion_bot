@@ -3,8 +3,9 @@
 ## 1.1.4 (2026-10-29)
 
 Additive. `CONTRACTS_VERSION` = `1.1.4` (`healthz.contracts_version` too); per-event `version` stays `1`;
-`ERROR_CODES_VERSION` = `5`. Migrations `0007_guard_weaken_requires_approval.sql`, `0008_guard_change_proposals.sql`,
-`0009_contracts_v1_1_4.sql`.
+`ERROR_CODES_VERSION` = `6` (5 added GUARD_WEAKEN_REQUIRES_APPROVAL, 6 added QUOTE_MISSING_OR_STALE). Migrations
+`0007_guard_weaken_requires_approval.sql`, `0008_guard_change_proposals.sql`, `0009_contracts_v1_1_4.sql`,
+`0010_proposal_quote.sql`.
 
 ### Time-based exits
 - Settings **`time_stop_s`** (integer seconds 1-604800, `null`/absent = off): sell the whole position once held that
@@ -28,6 +29,19 @@ Additive. `CONTRACTS_VERSION` = `1.1.4` (`healthz.contracts_version` too); per-e
   `picks`). One computation (`common::mcap`) feeds both these fields and the screener's `mcap_usd` metric, so the
   column and the check agree; when both exist, the computed value replaces a data source's own `mcap_usd`.
   Mint accounts now also yield `supply` (raw).
+
+### Proposal quote (UX WF-22 transaction review sheet)
+- Optional, nullable quote fields on `ApprovalWire` (TS alias `ProposalWire`), `proposal.created` and the new event
+  **`proposal.updated`** (`{proposal_id, kind, rev, ...quote}`, emitted when a pending quote is set/refreshed):
+  `est_network_fee_lamports`, `priority_fee_lamports`, `min_out_raw`, `total_max_lamports` (integer strings),
+  `swap_fee_bps`, `max_slippage_bps` (JSON numbers), `quote_ts`, `quote_expires_at` (ISO). TS `ProposalQuoteFields`,
+  `ProposalUpdated`; Rust `EventKind::ProposalUpdated`. Papersim fills them with estimates
+  (`papersim::quote::estimate_buy`, 15 s validity). Migration `0010_proposal_quote.sql` (approvals columns,
+  `set_approval_quote`, `approvals_guard` allows pending->pending quote-only refreshes and freezes quotes once decided).
+- **New error `QUOTE_MISSING_OR_STALE`** (kind `error`, HTTP **409**, `P0409`, retryable; `ERROR_CODES_VERSION` = `6`):
+  for `mode=real`, approve is refused when the quote is missing or `quote_expires_at <= server now`. Checked in SQL
+  `decide_approval` (`approval_quote_check`, tested directly since Real rows are still schema-rejected). Practice is
+  never blocked by a missing quote.
 
 ### Docs
 - Flat error envelope wording: `RESET_COOLDOWN` carries `error.next_allowed_at` (not `details.next_allowed_at`),

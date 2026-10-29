@@ -10,6 +10,7 @@ mod executor;
 pub mod exits;
 mod failure;
 mod model;
+pub mod quote;
 
 pub use executor::{ExecError, Executor, PaperExecutor};
 pub use exits::{StallExit, TimeExitClock, TimeExitDecision, TimeExits};

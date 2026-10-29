@@ -196,7 +196,23 @@ export interface SettingsDiffEntry { field: string; before: JsonValue; after: Js
 // ---------------------------------------------------------------------------
 // proposals
 // ---------------------------------------------------------------------------
-export interface ProposalCreated {
+/** 1.1.4 transaction quote for the review sheet (UX WF-22). All optional and nullable; practice values are
+ *  papersim estimates (never a signed transaction). For mode=real, approve -> 409 QUOTE_MISSING_OR_STALE when
+ *  the quote is missing or quote_expires_at <= server now; practice is never blocked by a missing quote. */
+export interface ProposalQuoteFields {
+  /** Base fee + priority fee. */
+  est_network_fee_lamports?: Lamports | null;
+  priority_fee_lamports?: Lamports | null;
+  swap_fee_bps?: number | null;
+  max_slippage_bps?: number | null;
+  /** Minimum tokens out after max slippage, raw units (integer string). */
+  min_out_raw?: RawQty | null;
+  /** Most the buy can cost: SOL in + estimated network fee. */
+  total_max_lamports?: Lamports | null;
+  quote_ts?: IsoTs | null;
+  quote_expires_at?: IsoTs | null;
+}
+export interface ProposalCreated extends ProposalQuoteFields {
   proposal_id: Uuid; kind: ProposalKind;
   /** Approval rev (send as expected_rev). */
   rev: number;
@@ -208,6 +224,8 @@ export interface ProposalCreated {
   approval_mode: ApprovalMode; amount_lamports: Lamports | null; risk_level: RiskLevel | null; summary: string;
   base_rev: number | null; weakening: boolean; diff: SettingsDiffEntry[] | null; estimate: StaticEstimate | null;
 }
+/** proposal.updated (1.1.4): a pending proposal's quote was set or refreshed (rev + 1; send the new rev). */
+export interface ProposalUpdated extends ProposalQuoteFields { proposal_id: Uuid; kind: ProposalKind; rev: number }
 /** 1.1.3: why a proposal was rejected. Closed enum; only with decision=reject; default user_declined. */
 export type ApprovalRejectReason = "user_declined" | "not_tradeable" | "price_moved" | "other";
 export const APPROVAL_REJECT_REASONS: readonly ApprovalRejectReason[] = ["user_declined", "not_tradeable", "price_moved", "other"] as const;
@@ -343,6 +361,7 @@ export interface EventPayloads {
   "entry.armed": EntryArmed;
   "entry.expired": EntryExpired;
   "proposal.created": ProposalCreated;
+  "proposal.updated": ProposalUpdated;
   "proposal.approved": ProposalDecided;
   "proposal.rejected": ProposalDecided;
   "proposal.expired": ProposalExpired;
@@ -425,7 +444,9 @@ export interface ApprovalDecisionResponse {
   proposal_id: Uuid; status: ProposalStatus; rev: number; reject_reason: ApprovalRejectReason | null; replayed: boolean; server_now: IsoTs;
 }
 /** Approval resource (= SQL public.approval_wire(); also the `current` of an approval 409). */
-export interface ApprovalWire {
+/** = ApprovalWire (the proposal/approval resource). Quote fields (1.1.4) are always present, null when unset. */
+export type ProposalWire = ApprovalWire;
+export interface ApprovalWire extends Required<ProposalQuoteFields> {
   id: Uuid; proposal_id: Uuid; workspace_id: Uuid; strategy_id: Uuid | null; kind: ProposalKind; mode: Mode;
   subject: string | null; mint: Base58 | null; amount_lamports: Lamports | null; is_first_buy: boolean;
   risk: "low" | "medium" | "high" | "critical"; weakening: boolean; status: ProposalStatus; rev: number;

@@ -222,6 +222,21 @@ event context, and as `proposal` in the 202 guard-change response. Every field i
 | `created_at` | ISO ts | Created (ms precision, `Z`) |
 | `expires_at` | ISO ts | Server-owned deadline (guard_change: created + 24 h) |
 | `decided_at` | ISO ts \| null | When approved/rejected/expired |
+| `est_network_fee_lamports` | integer string \| null | 1.1.4 quote: base + priority fee (estimate in practice) |
+| `priority_fee_lamports` | integer string \| null | 1.1.4 quote: CU limit x CU price |
+| `swap_fee_bps` | number \| null | 1.1.4 quote: swap fee |
+| `max_slippage_bps` | number \| null | 1.1.4 quote: slippage cap |
+| `min_out_raw` | integer string \| null | 1.1.4 quote: minimum tokens out, raw units |
+| `total_max_lamports` | integer string \| null | 1.1.4 quote: SOL in + network fee (most the buy can cost) |
+| `quote_ts` | ISO ts \| null | 1.1.4 quote: when estimated |
+| `quote_expires_at` | ISO ts \| null | 1.1.4 quote: valid while `server_now < quote_expires_at` (papersim: +15 s) |
+
+`ProposalWire` (TS) is the same type. Quotes are set or refreshed only while pending (`set_approval_quote`, backend
+only; rev + 1, `proposal.updated`) and frozen once decided. **Real approve rule (1.1.4):** `decision: "approve"`
+with `mode=real` and a missing quote or `quote_expires_at <= server now` -> `409 QUOTE_MISSING_OR_STALE
+{quote_ts, quote_expires_at, missing, hint}` (retryable: refresh the quote, review, approve with the new rev).
+Implemented in SQL `decide_approval` via `approval_quote_check(mode, quote_ts, quote_expires_at, now)`, so it
+applies once Real exists; practice is never blocked by a missing or stale quote.
 
 `GET /{id}` adds `decision_token`, `decision_token_expires_at` (with trade scope) and `server_now`.
 
