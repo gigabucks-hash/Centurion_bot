@@ -80,7 +80,9 @@ pub fn open_approval_window<R: Runtime>(app: AppHandle<R>) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub fn set_settings<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>, settings: Settings) -> AppResult<Settings> {
+pub fn set_settings<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>, mut settings: Settings) -> AppResult<Settings> {
+    // C19: popup cannot be enabled where the no-focus-steal test has not passed yet.
+    settings.approval_popup &= crate::windows::POPUP_SUPPORTED;
     crate::hotkeys::apply(&app, &settings.shortcuts)?;
     state.engine.lock().unwrap().settings = settings.clone();
     if !settings.approval_popup {

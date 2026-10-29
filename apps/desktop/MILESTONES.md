@@ -21,6 +21,8 @@ Dependencies: **UX** = design tokens and specs; **BE** = backend API/WS and cont
 | D10 | Hardening, CSP for the backend origin, QA (incl. **W-NOFOCUS** below on a Windows VM), demo | UX + BE review; Windows test machine |
 
 ## Test plan item W-NOFOCUS — popup must not steal focus (Windows; also macOS)
+**Release gate (C19):** the approval popup ships **disabled on Windows and macOS**. `windows::POPUP_SUPPORTED = cfg!(target_os = "linux")` in Rust is the enforcement, and the UI greys out the setting with an explanation. It is enabled per OS only after every case below passes on that OS: flip the cfg for that target, re-run the cases, and record the result here. Until then those OSes use OS notifications only.
+
 This cannot be tested on the Linux build box (Xvfb has no window manager).
 
 **Test cases**
@@ -43,4 +45,4 @@ This cannot be tested on the Linux build box (Xvfb has no window manager).
 - Code signing: Windows Authenticode, macOS Developer ID + notarization.
 - Tauri updater (signed update manifests, release channel).
 - Windows and macOS installers as release artifacts.
-- Real-mode trading from the desktop (backend signer; 2.5 s hold; per-trade caps).
+- **Phase 7:** Real SOL trading from the desktop (backend signer, server `expires_at`, 2.5 s hold, per-trade caps). The Real UI and guards already exist as a mock-flag-only reference (C15).

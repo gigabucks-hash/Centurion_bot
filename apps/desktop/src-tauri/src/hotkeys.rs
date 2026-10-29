@@ -42,7 +42,7 @@ fn handle<R: Runtime>(app: &AppHandle<R>, a: Action) {
         Action::Focus => crate::windows::focus_main(app),
         Action::OpenApprovals => {
             let popup = app.state::<AppState>().engine.lock().unwrap().settings.approval_popup;
-            if popup {
+            if popup && crate::windows::POPUP_SUPPORTED {
                 if let Err(e) = crate::windows::open_approval_popup(app, true) {
                     log::warn!("open approval popup failed: {e}");
                 }

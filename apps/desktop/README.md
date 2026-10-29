@@ -28,17 +28,17 @@ npm run sync:tokens         # pull tokens from packages/design-tokens (falls bac
 | S | Skip |
 | X | Select |
 | ⇧A | Approve selected (Practice only) |
-| ⇧X | Sell: opens the dialog, then hold Enter (1.2 s Practice / 2.5 s Real) |
-| Space | Quick-look: toggle the detail panel for the focused row (row click also opens it) |
-| ↵ | Detach the chart |
+| ⇧X | Sell: opens the dialog, then hold the confirm button with the mouse, Space or ↵ (1.2 s Practice / 2.5 s Real) |
+| Space | Quick-look for the **focused row** (J/K focuses rows; row click also opens it). On buttons/checkboxes Space works natively |
+| ↵ | Pop out the chart (only from a focused row, no dialog open) |
 | L | Activity window |
-| P | Approval popup (360×232, bottom-right; PRACTICE: Approve/Skip; REAL: Skip + "Buka untuk approve ↗") |
+| P | Approval popup (Linux only for now; disabled on Windows/macOS until W-NOFOCUS passes; 360×232, bottom-right; PRACTICE: Approve/Skip; REAL: Skip + "Buka untuk approve ↗") |
 | , | Settings |
 | Esc | Close |
 
 Global shortcuts: Ctrl/Cmd+Shift+H focuses the terminal; Ctrl/Cmd+Shift+A opens approvals. They never trade.
 
-## Preview REAL SOL chrome (still mock)
+## Preview REAL SOL chrome (Phase 7 reference, still mock)
 ```bash
 SENTRA_MOCK_MODE=real cargo tauri dev   # desktop
 # browser: http://localhost:1420/?mode=real

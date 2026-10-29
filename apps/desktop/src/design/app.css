@@ -214,3 +214,5 @@ button.primary kbd, button.real kbd, button.success kbd, button.danger kbd { col
 .quicklook dd { margin: 0; overflow-wrap: anywhere; }
 .quicklook .close { position: absolute; top: 6px; right: 6px; min-height: 24px; padding: 0 6px; }
 .warn { color: var(--color-semantic-warning); }
+.badge-mock { color: var(--color-semantic-warning); border-color: var(--color-semantic-warning); background: var(--color-semantic-warningContainer); font-size: var(--text-caption); }
+[data-row]:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -2px; }

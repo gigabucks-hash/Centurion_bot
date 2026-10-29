@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { core, EVT, runtime, type Position, type SellQuote, type Signal } from "../api";
 import { ApproveConfirm } from "../components/ApproveConfirm";
+import { MockTtlBadge } from "../components/MockTtlBadge";
+import { popupSupported, POPUP_DISABLED_REASON } from "../components/platform";
 import { QuickLook, type QuickLookTarget } from "../components/QuickLook";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { ModeChrome } from "../components/ModeChrome";
@@ -46,11 +48,8 @@ export function TerminalView() {
     const s = st.signals.find((x) => x.mint === ql.mint);
     return s ? { kind: "signal", item: s } : null;
   })();
-  const toggleQuickLook = () => {
-    if (ql) return setQl(null);
-    if (cursorSig) setQl({ kind: "signal", mint: cursorSig.mint });
-    else if (cursorPos) setQl({ kind: "position", mint: cursorPos.mint });
-  };
+  const toggleQuickLook = (row: { kind: "signal" | "position"; mint: string }) =>
+    setQl((cur) => (cur && cur.kind === row.kind && cur.mint === row.mint ? null : row));
   // Row click = cursor + quick-look (C2); while open, the panel follows the cursor.
   const clickSignal = (mint: string) => { st.setCursor(mint); setQl({ kind: "signal", mint }); };
   const clickPosition = (mint: string) => { st.setCursor(mint); setQl({ kind: "position", mint }); };
@@ -81,7 +80,15 @@ export function TerminalView() {
   const move = (d: number) => {
     if (!pending.length) return;
     const i = Math.max(0, pending.findIndex((s) => s.mint === st.cursorMint));
-    st.setCursor(pending[(i + d + pending.length) % pending.length].mint);
+    const mint = pending[(i + d + pending.length) % pending.length].mint;
+    st.setCursor(mint);
+    // Roving focus: J/K moves real DOM focus onto the row so Space/↵ have a row context (C13/C14).
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-row="signal"][data-mint="${mint}"]`)?.focus());
+  };
+  /** Row under keyboard focus, if any (C13/C14: Space/↵ only act in list context). */
+  const focusedRow = (e: KeyboardEvent) => {
+    const r = (e.target as HTMLElement | null)?.closest<HTMLElement>("[data-row]");
+    return r ? { kind: r.dataset.row as "signal" | "position", mint: r.dataset.mint! } : null;
   };
 
   // Keymap = UX SPEC §3 (J/K, A, S, X select, ⇧A approve selected, Enter detail, Esc) + desktop extras.
@@ -96,12 +103,22 @@ export function TerminalView() {
       s: () => skip(cursorSig),
       x: () => cursorSig && st.toggleSelected(cursorSig.id),
       "shift+a": approveSelected,
-      enter: () => chartMint && run(() => core.openChartWindow(chartMint)),
+      // C13: ↵ pops out the chart only from a focused row (list context); modals disable this map.
+      enter: (e) => {
+        const r = focusedRow(e);
+        if (!r) return false;
+        run(() => core.openChartWindow(r.mint));
+      },
       escape: () => (ql ? setQl(null) : st.clearSelected()),
-      space: toggleQuickLook,
+      // C14: Space = quick-look only when focus is on a row; elsewhere native Space (scroll/activate).
+      space: (e) => {
+        const r = focusedRow(e);
+        if (!r) return false;
+        toggleQuickLook(r);
+      },
       "shift+x": () => sell(cursorPos),
       l: () => run(() => core.openActivityWindow()),
-      p: () => run(() => core.openApprovalWindow()),
+      p: () => (popupSupported ? run(() => core.openApprovalWindow()) : setErr(POPUP_DISABLED_REASON)),
       ",": () => setSettingsOpen(true),
     },
     !quote && !settingsOpen && !realApprove,
@@ -121,7 +138,7 @@ export function TerminalView() {
       <div className="grid">
         <section className="panel area-queue">
           <header>
-            Approval queue <span>{pending.length} pending{st.selectedIds.size ? ` · ${st.selectedIds.size} dipilih` : ""}</span>
+            Approval queue <MockTtlBadge sample={pending[0]} /> <span>{pending.length} pending{st.selectedIds.size ? ` · ${st.selectedIds.size} dipilih` : ""}</span>
           </header>
           <div className="body">
             <SignalQueue
@@ -129,6 +146,7 @@ export function TerminalView() {
               cursorMint={st.cursorMint}
               selectedIds={st.selectedIds}
               onCursor={clickSignal}
+              onFocusRow={st.setCursor}
               onToggleSelect={st.toggleSelected}
               onApprove={approve}
               onSkip={skip}
@@ -152,13 +170,13 @@ export function TerminalView() {
         <section className="panel area-positions">
           <header>Positions (paper) <PositionsSummary positions={st.positions} /></header>
           <div className="body">
-            <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onSell={(p) => sell(p)} />
+            <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onFocusRow={st.setCursor} onSell={(p) => sell(p)} />
           </div>
         </section>
       </div>
       <div className="statusbar">
         <span className={st.connected ? "pos" : "neg"}>● {st.connected ? "engine online" : "offline"}</span>
-        <span className="dim">runtime: {runtime} · density: {st.settings.density} · popup: {st.settings.approvalPopup ? "on" : "off"}</span>
+        <span className="dim">runtime: {runtime} · density: {st.settings.density} · popup: {!popupSupported ? "n/a (OS)" : st.settings.approvalPopup ? "on" : "off"}</span>
         <span className="dim">global: focus {sc.focusTerminal}{sc.openApprovals ? ` · approvals ${sc.openApprovals}` : ""}</span>
         {(err ?? st.lastError) && <span className="neg" style={{ marginLeft: "auto" }}>{err ?? st.lastError}</span>}
       </div>

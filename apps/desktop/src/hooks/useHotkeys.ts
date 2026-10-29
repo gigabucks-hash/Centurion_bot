@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 
 /** Keys: "a", "shift+a", "enter", "escape", "arrowdown", "space", ",". */
-export type KeyMap = Record<string, (e: KeyboardEvent) => void>;
+/** Return `false` to leave the event unconsumed (native behaviour continues). */
+export type KeyMap = Record<string, (e: KeyboardEvent) => unknown>;
 
 export function keyName(e: KeyboardEvent): string {
   if (e.key === " ") return "space";
@@ -22,11 +23,12 @@ export function useHotkeys(map: KeyMap, enabled = true) {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
-      const fn = ref.current[keyName(e)];
-      if (fn) {
-        e.preventDefault();
-        fn(e);
-      }
+      const name = keyName(e);
+      // C13/C14: Space/Enter on a focused control keep their native meaning (activate button,
+      // toggle checkbox, follow link) — never hijacked by window hotkeys.
+      if ((name === "space" || name === "enter") && t?.closest("button, a, summary, [role=button], [role=checkbox], [role=switch]")) return;
+      const fn = ref.current[name];
+      if (fn && fn(e) !== false) e.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

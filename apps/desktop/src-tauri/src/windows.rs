@@ -46,7 +46,14 @@ pub fn open_activity<R: Runtime>(app: &AppHandle<R>) -> AppResult<()> {
 /// the user's other app; popup shortcuts only work after the user clicks it.
 /// Approve/Skip only — never Sell/batch (capabilities/approval.json) and no Approve in REAL
 /// (`state::check_approve_origin`).
+/// C19 test gate: the no-activation popup is only verified on Linux. Windows/macOS keep it
+/// disabled until MILESTONES W-NOFOCUS passes there (fallback: OS notifications only).
+pub const POPUP_SUPPORTED: bool = cfg!(target_os = "linux");
+
 pub fn open_approval_popup<R: Runtime>(app: &AppHandle<R>, focus: bool) -> AppResult<()> {
+    if !POPUP_SUPPORTED {
+        return Err(AppError::Invalid("popup dinonaktifkan di OS ini sampai tes W-NOFOCUS lulus".into()));
+    }
     let w = match app.get_webview_window(APPROVAL_LABEL) {
         Some(w) => w,
         None => {

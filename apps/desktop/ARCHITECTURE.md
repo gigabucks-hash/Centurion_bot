@@ -7,7 +7,7 @@
 ## 1. Goals and non-goals
 - A multi-window trading terminal with an approval queue, a chart, an activity feed, positions, native notifications and keyboard-first actions (Approve / Skip / Sell).
 - It is a **thin client**. Strategy, signing and the order flow live in the backend (Phase 3–5). The desktop never holds private keys.
-- Non-goals for the MVP: code signing, notarization, auto-updater (see §8 and §12), and real-mode trading from the desktop.
+- Non-goals for the MVP: code signing, notarization, auto-updater (see §8 and §12), and Real SOL trading from the desktop (Phase 7, C15).
 
 ## 2. Monorepo layout
 ```
@@ -20,12 +20,11 @@
 ```
 - **Contracts:** the TS types live in `packages/contracts/src/index.ts`. The desktop imports them as `@sentra/contracts` (tsconfig `paths` + a Vite alias; no workspace install is needed). The Rust mirror stays in `src-tauri/src/model.rs`, because Rust cannot import TS. Once Backend publishes a schema (JSON Schema/OpenAPI), both sides will be generated from it (milestone W2-D6).
 - **Design tokens:** `npm run sync:tokens` copies the first file it finds from this list into `src/design/sentra-tokens.css`:
-  1. `packages/design-tokens/tokens/tauri.css` (**used now**: UX v0.2.0, dark + Compact default)
+  1. `packages/design-tokens/tokens/tauri.css` (**used now**: UX v0.2.1, dark + Compact default)
   2. `packages/design-tokens/tokens/tokens.css`
   3. `/workspace/ux-solbot/tokens/tauri.css` (legacy)
 
-  `app.css` uses the v0.2.0 names: `--text-*`, `--density-*`, `--duration-*`, `--shadow-e*`. The old Phase 0 names (`--type-*`, `--size-control-*`, `--motion-*`, `--elevation-*`) are gone.
-  **Upstream bug** (TODO: remove the guard at design-tokens v0.2.1, which UX will release with the fix; the guard is a no-op without a stray brace): `tauri.css` v0.2.0 has one stray `}` after the light-theme block, so lightningcss fails with "Invalid empty selector". The sync script drops unmatched closing braces and prints a warning. UX should fix `scripts/build.py`.
+  `app.css` uses the v0.2.x names: `--text-*`, `--density-*`, `--duration-*`, `--shadow-e*`. Currently synced: **v0.2.1**. The v0.2.0 stray `}` (C18) is fixed upstream, so the workaround has been removed and the script is a plain copy again.
 
 ## 3. Windows
 | Label | Route | Purpose | Capability |
@@ -39,7 +38,7 @@
 - `single-instance` focuses the existing window instead of starting a second one.
 - Every window has a 4px mode strip and a "◇ PRACTICE" label, and its title is prefixed `[PRACTICE]`.
 
-**Keymap (main window):** J/K or ↑/↓ move · A approve (REAL → dialog + hold 2.5 s) · S skip · X select · ⇧A approve selected (Practice only) · ⇧X sell (dialog + hold 1.2 s / 2.5 s) · **Space quick-look** (row click also opens it) · ↵ detach chart · L activity · P popup · , settings · Esc closes quick-look, else clears the selection.
+**Keymap (main window):** J/K or ↑/↓ move (roving focus onto the row) · A approve (REAL → dialog + hold 2.5 s) · S skip · X select · ⇧A approve selected (Practice only) · ⇧X sell (dialog + hold 1.2 s / 2.5 s via mouse press, held Space or held ↵ on the hold button) · **Space quick-look, only when a row has focus** (C14; row click also opens it) · **↵ pop-out chart, only from a focused row with no modal open** (C13) · Space/↵ on buttons and checkboxes keep their native behaviour · L activity · P popup · , settings · Esc closes quick-look, else clears the selection.
 **Popup:** J/K, A (Practice only), S, Esc hide.
 **Global (open-only):** Ctrl/Cmd+Shift+H, Ctrl/Cmd+Shift+A.
 
@@ -153,6 +152,13 @@
 | C10 | Popup label `approval-popup`, url `/popup`, 360×232, `focus:false` … | Implemented as specified | Aligned |
 | C11 | Real in popup: no Approve, "Buka untuk approve ↗" | Implemented, plus a Rust-side guard | Aligned |
 | C12 | Theme dark default, Compact default, ⇧X Sell, popup opt-in OFF | Same as D1–D4 | Aligned |
+| C13 | D1 said "hold **Enter**" while ↵ = pop-out chart | ↵ pops out the chart **only in list context** (focused row, no modal). In the Sell dialog the hold runs on **mouse/touch press, held Space or held ↵** on the hold button (keydown starts, keyup before full = cancel). Pop-out is blocked while any dialog is open (the window keymap is disabled) | **DECIDED** (Apex + UX); implemented |
+| C14 | Space quick-look vs native Space (scroll, activate button/checkbox) | Space = quick-look **only when focus is on a row** (`data-row`, roving `tabindex`; J/K move DOM focus). On buttons, checkboxes and links, Space/↵ stay native; elsewhere Space is not consumed. X stays select | **DECIDED**; implemented |
+| C15 | WF-11 is drawn in Real, but Real is not MVP | **Real SOL on desktop = Phase 7 (out of MVP).** The MVP build is Practice. The Real guards stay in code (popup cannot approve, Rust label check, 2.5 s hold, "Buka untuk approve ↗") as a post-MVP reference, reachable only through the mock flag `SENTRA_MOCK_MODE=real`, with a "Phase 7 preview · mock" badge | **DECIDED** |
+| C16 | Mock TTL 90 s vs UX default 10 min | OK for the demo. A **"MOCK TTL 90s"** badge shows in the queue header and the popup while the source is the mock. Production uses server `expires_at` (C6, before Real) | **DECIDED**; implemented |
+| C17 | Theme "system" | "Ikuti OS" optional; explicit `data-theme="dark"` default; no media query in `tauri.css` | **DECIDED**; already so |
+| C18 | `tauri.css` v0.2.0 stray `}` | Fixed in design-tokens **v0.2.1** (UX adds brace and lightningcss validation). The desktop workaround is removed | **DECIDED**; done |
+| C19 | D11 no-activation popup untested on Windows/macOS | Popup **disabled on Windows and macOS** until W-NOFOCUS passes. Rust: `windows::POPUP_SUPPORTED = cfg!(target_os = "linux")` gates `open_approval_popup`, `set_settings` (forces off) and the global shortcut (falls back to focusing main). UI: runtime OS check greys out the setting with an explanation, and P shows the reason. **Linux: enabled (opt-in)**. Fallback: OS notifications | **DECIDED**; implemented |
 
 ### 11.2 Older UX Tauri README conflicts
 - Tokens come from `@sentra/design-tokens` v0.2.0 `tauri.css` (dark + Compact default): colours, `--text-*` type ramp, space, radius, `--duration-hold*`, `--density-*`.
@@ -164,8 +170,8 @@
 ## 12. Decisions
 | # | Topic | Decision | Status |
 |---|---|---|---|
-| D1 | Sell hotkey | **⇧X opens a confirmation dialog, then hold Enter** (1.2 s Practice / 2.5 s Real). The hold is kept in Practice too (C1) | **DECIDED** (Apex + UX) |
-| D12 | Row detail | **Space** toggles a non-modal quick-look for the focused row (signal or position), row click opens it, Esc closes; `↵` stays "detach chart" (C2). The quick-look is read-only | **DECIDED** (Apex + UX) |
+| D1 | Sell hotkey | **⇧X opens a confirmation dialog, then hold to confirm**: mouse/touch press, held Space or held ↵ on the hold button (1.2 s Practice / 2.5 s Real; release early = cancel). The hold is kept in Practice too (C1). ↵ does not pop out the chart while the dialog is open (C13) | **DECIDED** (Apex + UX) |
+| D12 | Row detail | **Space** toggles a non-modal quick-look for the **focused row** (signal or position; C14), row click opens it, Esc closes; `↵` stays "pop-out chart" in list context (C2/C13). The quick-look is read-only | **DECIDED** (Apex + UX) |
 | D2 | Theme | **Dark is the default**; light and system are optional | **DECIDED** |
 | D3 | Density | **Compact "Signal Terminal" is the desktop default** | **DECIDED** |
 | D4 | Approval popup | Small always-on-top window, **opt-in, OFF by default** | **DECIDED** |
@@ -174,5 +180,5 @@
 | D7 | Identity | Product name `Sentra`, identifier `com.sentra.app` (placeholder) | **DECIDED** (identifier may change before signing) |
 | D8 | Contracts | TS in `packages/contracts`; Rust mirror hand-written until codegen | Open — Backend to own the schema |
 | D10 | Popup in REAL SOL | No Approve; "Buka untuk approve ↗" hands off to main (dialog + hold 2.5 s). Enforced in Rust by window label | **DECIDED** (UX, via Apex) |
-| D11 | Popup focus | Shown without activation; shortcuts only after a click. Windows/macOS behaviour is **untested** (Linux box only) — see MILESTONES W-NOFOCUS | DECIDED / verification pending |
-| D9 | Real mode on desktop | Not in MVP; needs backend signer + 2.5 s hold + per-trade cap | Open |
+| D11 | Popup focus | Shown without activation; shortcuts only after a click. **Enabled on Linux only**; Windows/macOS are disabled until W-NOFOCUS passes (C19) | **DECIDED** (test gate) |
+| D9 | Real mode on desktop | **Real SOL on desktop = Phase 7 (out of MVP).** It needs the backend signer, server `expires_at` (C6), 2.5 s hold and per-trade caps. The Real code paths remain as a mock-flag-only reference (C15) | **DECIDED** |

@@ -8,6 +8,8 @@ interface Props {
   selectedIds?: Set<string>;
   compactActions?: boolean;
   onCursor: (mint: string) => void;
+  /** Keyboard focus landed on a row (roving tabindex) — moves the cursor, no quick-look. */
+  onFocusRow?: (mint: string) => void;
   onToggleSelect?: (id: string) => void;
   onApprove: (s: Signal) => void;
   onSkip: (s: Signal) => void;
@@ -35,7 +37,17 @@ export function SignalQueue(p: Props) {
         const pct = (left / Math.max(1, s.expiresAt - s.createdAt)) * 100;
         const urgent = left < URGENT_MS;
         return (
-          <div key={s.id} className={`signal ${s.mint === p.cursorMint ? "cursor" : ""}`} onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) p.onCursor(s.mint); }} role="listitem">
+          <div
+            key={s.id}
+            className={`signal ${s.mint === p.cursorMint ? "cursor" : ""}`}
+            onClick={(e) => { if (!(e.target as HTMLElement).closest("button, input")) p.onCursor(s.mint); }}
+            onFocus={(e) => e.target === e.currentTarget && p.onFocusRow?.(s.mint)}
+            role="listitem"
+            tabIndex={s.mint === p.cursorMint ? 0 : -1}
+            data-row="signal"
+            data-mint={s.mint}
+            aria-current={s.mint === p.cursorMint || undefined}
+          >
             <div className="row">
               {p.onToggleSelect && (
                 <input

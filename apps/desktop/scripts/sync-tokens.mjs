@@ -1,7 +1,7 @@
 // Copy Sentra design tokens into the desktop app.
 // Source priority: @sentra/design-tokens tokens/tauri.css (UX: "use tauri.css for apps/desktop";
 // dark + Compact default) → legacy fallbacks. Fails (exit 1) and keeps the current copy if none found.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
@@ -16,16 +16,6 @@ if (!src) {
   process.exit(1);
 }
 const dst = here("../src/design/sentra-tokens.css");
-// TODO(design-tokens v0.2.1): remove this guard once UX ships v0.2.1 (fixes the stray "}" in tauri.css).
-// It only fires when an unmatched "}" exists, so it is a no-op on fixed releases.
-// Guard: drop unmatched closing braces (tauri.css v0.2.0 has one stray "}" after the light theme
-// block — reported to UX). Anything else malformed is left for the CSS build to reject.
-let depth = 0, dropped = 0, css = "";
-for (const ch of readFileSync(src, "utf8")) {
-  if (ch === "{") depth++;
-  if (ch === "}") { if (depth === 0) { dropped++; continue; } depth--; }
-  css += ch;
-}
-if (dropped) console.warn(`warning: removed ${dropped} unmatched "}" from ${src} (fix upstream in design-tokens build.py)`);
-writeFileSync(dst, `/* SYNCED COPY of ${src} — do not edit, run \`npm run sync:tokens\`. */\n` + css);
+copyFileSync(src, dst);
+writeFileSync(dst, `/* SYNCED COPY of ${src} — do not edit, run \`npm run sync:tokens\`. */\n` + readFileSync(dst, "utf8"));
 console.log(`tokens synced from ${src}`);

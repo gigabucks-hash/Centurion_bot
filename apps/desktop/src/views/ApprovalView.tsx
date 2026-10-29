@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { core, type Signal } from "../api";
 import { fmtMmSs } from "../components/format";
+import { MockTtlBadge } from "../components/MockTtlBadge";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { pendingSorted, useTerm } from "../state/store";
 
@@ -80,6 +81,7 @@ export function ApprovalView() {
       <div className="mode-strip" aria-hidden />
       <div className="popup-bar" data-tauri-drag-region>
         <span className="mode-label" role="status">{mode === "practice" ? "◇ PRACTICE" : "● REAL SOL"}</span>
+        <MockTtlBadge sample={shown} />
         <span className="num" style={{ marginLeft: "auto" }}>{pending.length} menunggu</span>
       </div>
       {shown ? (

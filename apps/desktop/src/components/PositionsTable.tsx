@@ -43,10 +43,11 @@ export function PositionsSummary({ positions }: { positions: Position[] }) {
 }
 
 /** Compact positions table (UX WF-11): row 32, header 28 overline, numbers mono right-aligned, Sell ⇧X sm button. */
-export function PositionsTable({ positions, cursorMint, onCursor, onSell, now = Date.now() }: {
+export function PositionsTable({ positions, cursorMint, onCursor, onFocusRow, onSell, now = Date.now() }: {
   positions: Position[];
   cursorMint: string | null;
   onCursor: (mint: string) => void;
+  onFocusRow?: (mint: string) => void;
   onSell: (p: Position) => void;
   now?: number;
 }) {
@@ -61,7 +62,9 @@ export function PositionsTable({ positions, cursorMint, onCursor, onSell, now = 
           const ps = pnlSol(p);
           const cls = (n: number) => (n > 0 ? "pos" : n < 0 ? "neg" : "muted");
           return (
-            <tr key={p.mint} className={p.mint === cursorMint ? "cursor" : ""} aria-selected={p.mint === cursorMint} onClick={() => onCursor(p.mint)}>
+            <tr key={p.mint} className={p.mint === cursorMint ? "cursor" : ""} aria-selected={p.mint === cursorMint} tabIndex={0} data-row="position" data-mint={p.mint}
+              onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) onCursor(p.mint); }}
+              onFocus={(e) => e.target === e.currentTarget && onFocusRow?.(p.mint)}>
               <td><b>${p.symbol}</b></td>
               <td className="muted">{p.strategy.replace(/^Mock · /, "")}</td>
               <td className="num">{p.solIn.toFixed(2).replace(".", ",")}</td>

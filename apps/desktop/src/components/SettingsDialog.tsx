@@ -1,3 +1,4 @@
+import { popupSupported, POPUP_DISABLED_REASON } from "./platform";
 import { useState } from "react";
 import { core, type Settings } from "../api";
 import { useTerm } from "../state/store";
@@ -40,12 +41,19 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <option value="comfortable">Comfortable · Calm Ledger</option>
           </select>
         </label>
-        <label className="toggle-row">
+        <label className="toggle-row" aria-disabled={!popupSupported || undefined} style={popupSupported ? undefined : { opacity: 0.6 }}>
           <span>
-            <div>Popup approval selalu di atas</div>
-            <div className="dim" style={{ fontSize: "var(--d-small)" }}>Window kecil di atas app lain; muncul saat ada pick baru. Approve/Skip saja, tanpa Sell.</div>
+            <div>Popup approval selalu di atas{popupSupported ? "" : " (tidak tersedia)"}</div>
+            <div className="dim" style={{ fontSize: "var(--d-small)" }}>
+              {popupSupported ? "Window kecil di atas app lain; muncul saat ada pick baru. Approve/Skip saja, tanpa Sell." : POPUP_DISABLED_REASON}
+            </div>
           </span>
-          <input type="checkbox" checked={cfg.approvalPopup} onChange={(e) => setCfg({ ...cfg, approvalPopup: e.target.checked })} />
+          <input
+            type="checkbox"
+            disabled={!popupSupported}
+            checked={popupSupported && cfg.approvalPopup}
+            onChange={(e) => setCfg({ ...cfg, approvalPopup: e.target.checked })}
+          />
         </label>
         <label>
           <div className="muted">Global shortcut: fokus terminal</div>
