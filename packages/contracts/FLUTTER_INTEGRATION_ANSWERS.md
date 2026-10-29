@@ -125,5 +125,4 @@ are JSON-encoded strings.
 WebAuthn + typed strategy name + 2.5 s hold + TOTP via `confirmations/challenge`. Nothing in practice needs it.
 
 ## 12. Account deletion
-`GET/POST/DELETE /me/deletion`. Grace is server-side (default 7 days, currently 1–30, pending Apex's final
-decision) and cancellable until `scheduled_for`.
+`GET/POST/DELETE /me/deletion`. Grace is server-side: 7–30 days, default 7 (decided by Apex as lead) and cancellable until `scheduled_for`.

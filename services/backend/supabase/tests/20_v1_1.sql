@@ -144,22 +144,28 @@ insert into public.auth_identities (user_id, provider, subject, email, verified_
 insert into public.audit_log (actor_user, actor_kind, actor_via, action, target_type, target, ip, user_agent)
   values ('00000000-0000-0000-0000-0000000000d1', 'user', 'mobile', 'strategy.update', 'strategy', 'x', '10.1.2.3', 'Sentra/1.0 iOS');
 select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', null)$$, 'REAUTH_REQUIRED', 'deletion re-auth');
-select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 0)$$, 'VALIDATION_FAILED', 'grace < 1');
+select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 0)$$, 'VALIDATION_FAILED', 'grace 0');
+do $$ declare d jsonb; begin
+  d := pg_temp.expect_code($q$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 6)$q$, 'VALIDATION_FAILED', 'grace 6 < 7')::jsonb;
+  assert d->>'range' = '7-30', format('detail range %s', d);
+end $$;
+select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 1)$$, 'VALIDATION_FAILED', 'grace 1 (old lower bound) rejected');
 select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 31)$$, 'VALIDATION_FAILED', 'grace > 30');
 select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), null)$$, 'VALIDATION_FAILED', 'grace null');
--- bounds 1 and 30 are accepted (then cancelled again)
+-- bounds 7 and 30 are accepted (then cancelled again)
 do $$ begin
-  perform public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 1);
-  assert (select deletion_scheduled_for - deletion_requested_at from public.users where id = '00000000-0000-0000-0000-0000000000d1') = interval '1 day', '1-day grace';
+  perform public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 7);
+  assert (select deletion_scheduled_for - deletion_requested_at from public.users where id = '00000000-0000-0000-0000-0000000000d1') = interval '7 days', '7-day grace';
   perform public.cancel_account_deletion('00000000-0000-0000-0000-0000000000d1');
   perform public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 30);
   assert (select deletion_scheduled_for - deletion_requested_at from public.users where id = '00000000-0000-0000-0000-0000000000d1') = interval '30 days', '30-day grace';
   perform public.cancel_account_deletion('00000000-0000-0000-0000-0000000000d1');
   assert (select deletion_cancelled_at is not null and deletion_scheduled_for is null from public.users where id = '00000000-0000-0000-0000-0000000000d1'), 'cancel clears schedule';
 end $$;
--- a direct write outside 1-30 days is rejected by the table CHECK too
+-- a direct write outside 7-30 days is rejected by the table CHECK too
 select pg_temp.expect_error($$update public.users set deletion_state = 'pending_deletion', deletion_requested_at = now(), deletion_scheduled_for = now() + interval '31 days' where id = '00000000-0000-0000-0000-0000000000d1'$$, 'CHECK grace > 30');
 select pg_temp.expect_error($$update public.users set deletion_state = 'pending_deletion', deletion_requested_at = now(), deletion_scheduled_for = now() + interval '1 hour' where id = '00000000-0000-0000-0000-0000000000d1'$$, 'CHECK grace < 1 day');
+select pg_temp.expect_error($$update public.users set deletion_state = 'pending_deletion', deletion_requested_at = now(), deletion_scheduled_for = now() + interval '6 days' where id = '00000000-0000-0000-0000-0000000000d1'$$, 'CHECK grace 6 days < 7');
 do $$
 declare r jsonb;
 begin

@@ -166,8 +166,8 @@ insert into public.approvals (id, workspace_id, strategy_id, kind, subject, amou
   ('30000000-0000-0000-0000-0000000000e3', '10000000-0000-0000-0000-0000000000e1', '20000000-0000-0000-0000-0000000000e1',
    'buy_pick', 'e1pick3', 100000000, false, now() + interval '10 minutes');
 do $$ begin
-  perform public.request_account_deletion('00000000-0000-0000-0000-0000000000e1', now(), 1);
-  update public.users set deletion_requested_at = now() - interval '2 days', deletion_scheduled_for = now() - interval '1 day'
+  perform public.request_account_deletion('00000000-0000-0000-0000-0000000000e1', now(), 7);
+  update public.users set deletion_requested_at = now() - interval '8 days', deletion_scheduled_for = now() - interval '1 day'
    where id = '00000000-0000-0000-0000-0000000000e1';
   perform public.finalize_account_deletion('00000000-0000-0000-0000-0000000000e1');
   assert (select status = 'expired' and expire_reason = 'account_deleted' from public.approvals where id = '30000000-0000-0000-0000-0000000000e3'), 'deletion expires with account_deleted';

@@ -74,6 +74,11 @@ Migrations 0001/0002 were edited in place (never applied outside local test DBs)
   separate from `peak_trail_pct` (trail from **peak**). `exit_rules.loss_guards[]` items are defined:
   `{at_loss_pct 1-99, sell_portion_pct 0.01-100}` (schema, SQL CHECK, TS `LossGuard`) (Q14).
 
+### Changed
+- **Account deletion grace: 7–30 days, default 7**, decided by Apex as lead (matches UX i18n v0.4.1). Migration
+  `0004_deletion_grace_7_30.sql` replaces the 1–30 check in `request_account_deletion()` (detail `"range":"7-30"`)
+  and the `users_deletion_consistent` table CHECK. Grace 6 -> `422 VALIDATION_FAILED`; 7 and 30 accepted.
+
 ### Removed
 - `TELEGRAM_AUTH_INVALID` (the Login Widget HMAC path is retired; use `AUTH_TG_*`).
 
@@ -85,7 +90,7 @@ Migrations 0001/0002 were edited in place (never applied outside local test DBs)
 
 ### Changed
 - Account deletion grace period: default 7 days, **server-side** setting `ACCOUNT_DELETION_GRACE_DAYS`, allowed
-  range **1–30 days** (was 7–30, Apex's decision as lead; the 1–30 range is pending Apex's final decision). `POST /me/deletion` no longer accepts `grace_days` from the client; the
+  range **1–30 days**. (Superseded in 1.1.2: the range is **7–30 days**, default 7, decided by Apex as lead.) `POST /me/deletion` no longer accepts `grace_days` from the client; the
   value is reported in `GET /me/deletion` and `account.deletion_scheduled {scheduled_for, grace_days}`. Cancel is
   allowed at any time until `scheduled_for`; afterwards credentials are hard-deleted and personal data anonymized,
   `audit_log` is retained (actor ip / user agent / device nulled).
