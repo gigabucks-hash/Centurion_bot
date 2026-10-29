@@ -1,4 +1,5 @@
-// Vendored verbatim from @sentra/i18n 0.4.2 test/flutter/l10n_plural_test.dart (YOUR_APP → solbot_mobile).
+// Vendored verbatim from @sentra/i18n 0.4.3 test/flutter/l10n_plural_test.dart (YOUR_APP → solbot_mobile).
+// Reference test (verified in scratch project with flutter 3.47.8). Replace solbot_mobile with the app package name.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:solbot_mobile/l10n/gen/app_localizations_en.dart';
 import 'package:solbot_mobile/l10n/gen/app_localizations_id.dart';
@@ -44,5 +45,18 @@ void main() {
     expect(TradeColors.pnlArrow(0.0002), '\u25B2');
     expect(TradeColors.pnlSign(-1e-9), '\u2212');
     expect(t.pnl(-1e-9), t.loss);
+  });
+  test('Rev 4.3: wire-named vars {symbol}/{amount_lamports}, TP +, new fail reasons, WF-21 labels', () {
+    expect(en.notifPickPendingTitle('real', 'EXM'), '[REAL SOL] EXM awaits approval');
+    expect(id.notifPickPendingBody('0,25 SOL', '04:52', 'Yumi'), 'Yumi · 0,25 SOL · sisa 04:52');
+    expect(en.notifTpHitBody('40.0%', '50%', '+0.12 SOL'), 'Sold 50% at +40.0% · +0.12 SOL');
+    expect(id.notifPracticeResetBody('10 paper SOL'), 'Saldo kembali ke 10 paper SOL. Buy tertunda dihapus.');
+    expect(en.orderFailReasonPositionAlreadyClosed, 'This position was already closed');
+    expect(id.orderFailReasonModeNotAllowed, contains('Real SOL belum aktif'));
+    expect(en.orderFailReasonValidationFailed, isNotEmpty);
+    expect(id.errorCodeInvalidFraction, 'Pilih porsi jual dari 0,01% sampai 100%.');
+    expect(id.screenerDetailQuoteNotSol('USDC'), 'USDC · bukan SOL');
+    expect(id.screenerStatusRejectedScore('60'), 'Ditolak · skor < 60');
+    expect(en.screenerDetailApproveUnavailable, 'Approve — not available');
   });
 }

@@ -152,8 +152,8 @@ class AppLocalizationsId extends AppLocalizations {
   String get coinTrailStepTrail => 'Trailing stop';
 
   @override
-  String coinTrailTitle(String coin, String strategy) {
-    return 'Jejak koin · $coin ($strategy)';
+  String coinTrailTitle(String strategy, String symbol) {
+    return 'Jejak koin · $symbol ($strategy)';
   }
 
   @override
@@ -424,6 +424,9 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get errorCodeApprovalRequiresApp => 'Putuskan ini di aplikasi resmi, bukan lewat MCP.';
+
+  @override
   String get errorCodeApprovalTokenInvalid => 'Aksi notifikasi ini kedaluwarsa. Buka app untuk melanjutkan.';
 
   @override
@@ -436,7 +439,19 @@ class AppLocalizationsId extends AppLocalizations {
   String get errorCodeAuthTgReplay => 'Login Telegram ini sudah dipakai. Mulai lagi.';
 
   @override
+  String get errorCodeConfirmationInvalid => 'Konfirmasi ini kedaluwarsa atau sudah dipakai. Mulai lagi.';
+
+  @override
+  String get errorCodeConfirmationRequired => 'Perubahan ini perlu konfirmasi: passkey, ketik nama, lalu tahan.';
+
+  @override
   String get errorCodeConfirmationRestartRequired => 'Strategi berubah saat konfirmasi. Ulangi konfirmasi dari awal.';
+
+  @override
+  String get errorCodeForbiddenRole => 'Peran di workspace tidak mengizinkan tindakan ini.';
+
+  @override
+  String get errorCodeForbiddenScope => 'Token ini tidak punya izin untuk tindakan ini.';
 
   @override
   String get errorCodeGuardCooldownActive => 'Perubahan guard ini sedang cooldown.';
@@ -448,13 +463,33 @@ class AppLocalizationsId extends AppLocalizations {
   String get errorCodeInternal => 'Terjadi kesalahan. Coba lagi.';
 
   @override
+  String get errorCodeInvalidFraction => 'Pilih porsi jual dari 0,01% sampai 100%.';
+
+  @override
+  String get errorCodeJobDeadLettered =>
+      'Tugas latar belakang gagal setelah semua percobaan. Tim support sudah diberi tahu.';
+
+  @override
   String get errorCodeLastLoginMethod => 'Ini satu-satunya metode masuk. Hubungkan metode lain sebelum memutus.';
+
+  @override
+  String get errorCodeModeNotAllowed => 'Hanya Practice yang tersedia. Real SOL belum aktif.';
+
+  @override
+  String get errorCodeNotFound => 'Data tidak ditemukan atau tidak dapat diakses.';
 
   @override
   String get errorCodeOtpInvalid => 'Kode salah atau kedaluwarsa.';
 
   @override
   String get errorCodeOtpLocked => 'Terlalu banyak percobaan. Coba lagi dalam 15 menit.';
+
+  @override
+  String get errorCodePositionAlreadyClosed => 'Posisi ini sudah ditutup.';
+
+  @override
+  String get errorCodePracticeCashInsufficient =>
+      'Saldo practice tidak cukup untuk entry berikutnya. Entry dijeda sampai saldo pulih atau practice direset.';
 
   @override
   String errorCodeRateLimited(int retry_after_s) {
@@ -472,15 +507,27 @@ class AppLocalizationsId extends AppLocalizations {
   String get errorCodeReauthRequired => 'Konfirmasi ulang identitasmu untuk melanjutkan.';
 
   @override
+  String get errorCodeReplayUnavailable => 'Replay sedang tidak tersedia. Menampilkan estimasi.';
+
+  @override
   String errorCodeResetCooldown(String next_allowed_at) {
     return 'Practice bisa di-reset sekali sehari. Berikutnya: $next_allowed_at';
   }
+
+  @override
+  String get errorCodeSettingsSchemaInvalid => 'Pengaturan strategi tidak sesuai skema. Cek kolom yang ditandai.';
 
   @override
   String get errorCodeSiwsNonceInvalid => 'Permintaan masuk kedaluwarsa. Coba lagi.';
 
   @override
   String get errorCodeSiwsSignatureInvalid => 'Tanda tangan wallet tidak bisa diverifikasi.';
+
+  @override
+  String get errorCodeSourceDegraded => 'Sumber data pasar sedang terganggu. Pick baru mungkin tertunda.';
+
+  @override
+  String get errorCodeStrategyRetired => 'Strategi ini sudah diarsipkan atau dihapus.';
 
   @override
   String get errorCodeStrategyRevConflict => 'Strategi ini berubah saat kamu mengedit.';
@@ -492,10 +539,22 @@ class AppLocalizationsId extends AppLocalizations {
   String get errorCodeTypedConfirmationMismatch => 'Nama tidak sama persis.';
 
   @override
+  String get errorCodeUnauthenticated => 'Sesi berakhir. Masuk lagi.';
+
+  @override
   String get errorCodeUnavailable => 'Layanan sementara tidak tersedia. Mencoba lagi…';
 
   @override
+  String get errorCodeValidationFailed => 'Ada nilai yang tidak valid. Cek kolom yang ditandai.';
+
+  @override
+  String get errorCodeVersionConflict => 'Data sudah berubah. Muat ulang lalu coba lagi.';
+
+  @override
   String get errorCodeWalletRoleConflict => 'Wallet login tidak bisa sekaligus menjadi trading wallet.';
+
+  @override
+  String get errorCodeWebauthnInvalid => 'Verifikasi passkey gagal. Coba lagi.';
 
   @override
   String get exitReasonDrawdownHalt => 'Henti drawdown';
@@ -604,33 +663,33 @@ class AppLocalizationsId extends AppLocalizations {
   String get feedActorYou => 'Kamu';
 
   @override
-  String feedEventBlocked(String coin) {
-    return 'Memblokir $coin';
+  String feedEventBlocked(String symbol) {
+    return 'Memblokir $symbol';
   }
 
   @override
-  String feedEventBought(String coin, String sol) {
-    return 'Membeli $coin · $sol';
+  String feedEventBought(String amount_lamports, String symbol) {
+    return 'Membeli $symbol · $amount_lamports';
   }
 
   @override
-  String feedEventExpired(String coin) {
-    return 'Proposal $coin kedaluwarsa';
+  String feedEventExpired(String symbol) {
+    return 'Proposal $symbol kedaluwarsa';
   }
 
   @override
-  String feedEventPassed(String coin, String pass, String score) {
-    return 'Lolos $coin · fit $score/$pass';
+  String feedEventPassed(String pass, String score, String symbol) {
+    return 'Lolos $symbol · fit $score/$pass';
   }
 
   @override
-  String feedEventSkipped(String coin) {
-    return 'Melewati pick $coin';
+  String feedEventSkipped(String symbol) {
+    return 'Melewati pick $symbol';
   }
 
   @override
-  String feedEventSold(String coin, String pnl) {
-    return 'Menjual $coin · $pnl';
+  String feedEventSold(String pnl, String symbol) {
+    return 'Menjual $symbol · $pnl';
   }
 
   @override
@@ -882,8 +941,8 @@ class AppLocalizationsId extends AppLocalizations {
   String get notifApprovedBody => 'Order sedang diproses';
 
   @override
-  String notifApprovedTitle(String coin) {
-    return 'Disetujui: $coin';
+  String notifApprovedTitle(String symbol) {
+    return 'Disetujui: $symbol';
   }
 
   @override
@@ -906,9 +965,9 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String notifExpiredTitle(String coin, String mode) {
+  String notifExpiredTitle(String mode, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] $coin kedaluwarsa';
+    return '[$_temp0] $symbol kedaluwarsa';
   }
 
   @override
@@ -928,25 +987,25 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String notifFilledBody(String price, String sol) {
-    return '$sol di $price · exit plan aktif';
+  String notifFilledBody(String amount_lamports, String price) {
+    return '$amount_lamports di $price · exit plan aktif';
   }
 
   @override
-  String notifFilledTitle(String coin, String mode) {
+  String notifFilledTitle(String mode, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Terbeli $coin';
+    return '[$_temp0] Terbeli $symbol';
   }
 
   @override
-  String notifFirstBuyBody(String mm_ss, String sol) {
-    return 'Strategi ini belum pernah beli. Cek sebelum mulai · $sol · sisa $mm_ss';
+  String notifFirstBuyBody(String amount_lamports, String mm_ss) {
+    return 'Strategi ini belum pernah beli. Cek sebelum mulai · $amount_lamports · sisa $mm_ss';
   }
 
   @override
-  String notifFirstBuyTitle(String coin, String mode, String strategy) {
+  String notifFirstBuyTitle(String mode, String strategy, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Buy pertama $strategy: $coin';
+    return '[$_temp0] Buy pertama $strategy: $symbol';
   }
 
   @override
@@ -1043,19 +1102,19 @@ class AppLocalizationsId extends AppLocalizations {
   String get notifOfflineTitle => 'Koneksi ke server terputus';
 
   @override
-  String notifPickPendingBody(String mm_ss, String sol, String strategy) {
-    return '$strategy · $sol · sisa $mm_ss';
+  String notifPickPendingBody(String amount_lamports, String mm_ss, String strategy) {
+    return '$strategy · $amount_lamports · sisa $mm_ss';
   }
 
   @override
-  String notifPickPendingTitle(String coin, String mode) {
+  String notifPickPendingTitle(String mode, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] $coin menunggu approval';
+    return '[$_temp0] $symbol menunggu approval';
   }
 
   @override
-  String notifPracticeResetBody(String sol) {
-    return 'Saldo kembali ke $sol. Buy tertunda dihapus.';
+  String notifPracticeResetBody(String amount_lamports) {
+    return 'Saldo kembali ke $amount_lamports. Buy tertunda dihapus.';
   }
 
   @override
@@ -1067,8 +1126,8 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String notifSkippedTitle(String coin) {
-    return 'Dilewati: $coin';
+  String notifSkippedTitle(String symbol) {
+    return 'Dilewati: $symbol';
   }
 
   @override
@@ -1077,9 +1136,9 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String notifSlHitTitle(String coin, String mode) {
+  String notifSlHitTitle(String mode, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Stop $coin';
+    return '[$_temp0] Stop $symbol';
   }
 
   @override
@@ -1090,13 +1149,13 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String notifTpHitBody(String pct, String pct_sold, String pnl) {
-    return 'Terjual $pct_sold di $pct · $pnl';
+    return 'Terjual $pct_sold di +$pct · $pnl';
   }
 
   @override
-  String notifTpHitTitle(String coin, String mode) {
+  String notifTpHitTitle(String mode, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Take profit $coin';
+    return '[$_temp0] Take profit $symbol';
   }
 
   @override
@@ -1106,7 +1165,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get orderFailReasonInsufficientPracticeBalance => 'Saldo paper SOL tidak cukup';
 
   @override
+  String get orderFailReasonModeNotAllowed => 'Hanya order Practice yang jalan; Real SOL belum aktif';
+
+  @override
   String get orderFailReasonPoolStale => 'Data pool sudah usang; order tidak dikirim';
+
+  @override
+  String get orderFailReasonPositionAlreadyClosed => 'Posisi ini sudah ditutup';
 
   @override
   String get orderFailReasonSlippageExceeded => 'Harga bergerak melebihi batas slippage';
@@ -1116,6 +1181,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get orderFailReasonUnsupportedQuoteMint => 'Koin ini tidak punya pair SOL, jadi tidak bisa ditradingkan';
+
+  @override
+  String get orderFailReasonValidationFailed => 'Order tidak lolos validasi';
 
   @override
   String get positionsEquityHwm => 'High-water mark';
@@ -1165,8 +1233,8 @@ class AppLocalizationsId extends AppLocalizations {
   String get positionsSellRemainingPlan => 'Sisa posisi tetap memakai exit plan';
 
   @override
-  String positionsSellTitle(String coin) {
-    return 'Jual $coin';
+  String positionsSellTitle(String symbol) {
+    return 'Jual $symbol';
   }
 
   @override
@@ -1191,8 +1259,8 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String queueBatchTotal(String sol) {
-    return 'Total $sol';
+  String queueBatchTotal(String amount_lamports) {
+    return 'Total $amount_lamports';
   }
 
   @override
@@ -1241,8 +1309,8 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String queueRealHold(String sol) {
-    return 'Tahan untuk setujui $sol';
+  String queueRealHold(String amount_lamports) {
+    return 'Tahan untuk setujui $amount_lamports';
   }
 
   @override
@@ -1290,11 +1358,125 @@ class AppLocalizationsId extends AppLocalizations {
   String get queueWhyTitle => 'Kenapa butuh approval?';
 
   @override
+  String get screenerActionOpenQueue => 'Buka antrean';
+
+  @override
+  String screenerCardGuardFailed(String score) {
+    return 'Guard gagal · skor $score';
+  }
+
+  @override
+  String screenerCardNotTradeable(String score) {
+    return 'Skor $score · tanpa pair SOL';
+  }
+
+  @override
+  String screenerCardPassed(String score) {
+    return 'Lolos · skor $score';
+  }
+
+  @override
+  String get screenerColAction => 'Aksi';
+
+  @override
+  String get screenerColCoin => 'Koin';
+
+  @override
+  String get screenerColGuard => 'Guard';
+
+  @override
+  String get screenerColLiquidity => 'Likuiditas';
+
+  @override
+  String get screenerColMcap => 'Mcap';
+
+  @override
+  String get screenerColScore => 'Skor';
+
+  @override
+  String get screenerColStatus => 'Status';
+
+  @override
+  String get screenerColVenue => 'Venue';
+
+  @override
+  String get screenerDetailApproveUnavailable => 'Approve — tidak tersedia';
+
+  @override
+  String get screenerDetailChartReadonly => 'Chart harga (read-only)';
+
+  @override
+  String get screenerDetailGuard => 'Guard';
+
+  @override
+  String get screenerDetailGuardNotRun => 'tidak dijalankan';
+
+  @override
+  String get screenerDetailInfoOnly => '(informasi saja)';
+
+  @override
+  String get screenerDetailNone => 'tidak ada';
+
+  @override
+  String screenerDetailQuoteNotSol(String quote_symbol) {
+    return '$quote_symbol · bukan SOL';
+  }
+
+  @override
+  String get screenerDetailQuotePair => 'Pair quote';
+
+  @override
+  String get screenerDetailReasonCode => 'Kode alasan';
+
+  @override
+  String get screenerDetailScore => 'Skor screener';
+
+  @override
+  String screenerDetailScoreValue(String max_score, String score) {
+    return '$score / $max_score';
+  }
+
+  @override
+  String get screenerDetailSolPair => 'Pair SOL';
+
+  @override
+  String get screenerFilterAll => 'Semua';
+
+  @override
+  String get screenerFilterPassed => 'Lolos';
+
+  @override
+  String get screenerFilterRejected => 'Ditolak';
+
+  @override
   String get screenerNotTradeableBadge => 'Tidak bisa ditradingkan';
 
   @override
   String get screenerNotTradeableDetail =>
       'Koin ini tidak punya pair quote SOL. Sentra hanya trading pair SOL, jadi tidak bisa di-approve.';
+
+  @override
+  String get screenerStatusPassed => 'Lolos';
+
+  @override
+  String get screenerStatusPickQueued => 'Pick · di antrean';
+
+  @override
+  String get screenerStatusPickQueuedShort => 'Pick · antrean';
+
+  @override
+  String get screenerStatusRejected => 'Ditolak';
+
+  @override
+  String get screenerStatusRejectedGuard => 'Ditolak · guard gagal';
+
+  @override
+  String screenerStatusRejectedScore(String score_threshold) {
+    return 'Ditolak · skor < $score_threshold';
+  }
+
+  @override
+  String get screenerTitle => 'Koin · screener';
 
   @override
   String get settingsAppearanceDensityComfortable => 'Comfortable';

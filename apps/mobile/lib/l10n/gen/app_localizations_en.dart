@@ -157,8 +157,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get coinTrailStepTrail => 'Trailing stop';
 
   @override
-  String coinTrailTitle(String coin, String strategy) {
-    return 'Coin trail · $coin ($strategy)';
+  String coinTrailTitle(String strategy, String symbol) {
+    return 'Coin trail · $symbol ($strategy)';
   }
 
   @override
@@ -450,6 +450,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get errorCodeApprovalRequiresApp => 'Decide this in the official app, not via MCP.';
+
+  @override
   String get errorCodeApprovalTokenInvalid => 'This notification action expired. Open the app to continue.';
 
   @override
@@ -462,8 +465,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorCodeAuthTgReplay => 'This Telegram login was already used. Start again.';
 
   @override
+  String get errorCodeConfirmationInvalid => 'This confirmation expired or was already used. Start again.';
+
+  @override
+  String get errorCodeConfirmationRequired => 'This change needs confirmation: passkey, typed name and hold.';
+
+  @override
   String get errorCodeConfirmationRestartRequired =>
       'The strategy changed during confirmation. Start the confirmation again.';
+
+  @override
+  String get errorCodeForbiddenRole => 'Your workspace role doesn’t allow this action.';
+
+  @override
+  String get errorCodeForbiddenScope => 'This token doesn’t have permission for this action.';
 
   @override
   String get errorCodeGuardCooldownActive => 'This guard change is in its cooldown.';
@@ -475,13 +490,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorCodeInternal => 'Something went wrong. Try again.';
 
   @override
+  String get errorCodeInvalidFraction => 'Choose a sell amount from 0.01% to 100%.';
+
+  @override
+  String get errorCodeJobDeadLettered => 'A background task failed after all retries. Support has been notified.';
+
+  @override
   String get errorCodeLastLoginMethod => 'This is your only sign-in method. Link another one before unlinking.';
+
+  @override
+  String get errorCodeModeNotAllowed => 'Only Practice is available. Real SOL isn’t enabled yet.';
+
+  @override
+  String get errorCodeNotFound => 'Not found, or you don’t have access.';
 
   @override
   String get errorCodeOtpInvalid => 'Wrong or expired code.';
 
   @override
   String get errorCodeOtpLocked => 'Too many attempts. Try again in 15 minutes.';
+
+  @override
+  String get errorCodePositionAlreadyClosed => 'This position is already closed.';
+
+  @override
+  String get errorCodePracticeCashInsufficient =>
+      'Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.';
 
   @override
   String errorCodeRateLimited(int retry_after_s) {
@@ -504,15 +538,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorCodeReauthRequired => 'Please confirm it’s you again to continue.';
 
   @override
+  String get errorCodeReplayUnavailable => 'Replay isn’t available right now. Showing the estimate.';
+
+  @override
   String errorCodeResetCooldown(String next_allowed_at) {
     return 'Practice can be reset once a day. Next: $next_allowed_at';
   }
+
+  @override
+  String get errorCodeSettingsSchemaInvalid => 'These strategy settings aren’t valid. Check the highlighted fields.';
 
   @override
   String get errorCodeSiwsNonceInvalid => 'This sign-in request expired. Try again.';
 
   @override
   String get errorCodeSiwsSignatureInvalid => 'The wallet signature couldn’t be verified.';
+
+  @override
+  String get errorCodeSourceDegraded => 'A market data source is degraded. New picks may be delayed.';
+
+  @override
+  String get errorCodeStrategyRetired => 'This strategy was archived or deleted.';
 
   @override
   String get errorCodeStrategyRevConflict => 'This strategy changed while you were editing.';
@@ -524,10 +570,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorCodeTypedConfirmationMismatch => 'The name doesn’t match exactly.';
 
   @override
+  String get errorCodeUnauthenticated => 'Your session ended. Sign in again.';
+
+  @override
   String get errorCodeUnavailable => 'Service is temporarily unavailable. Retrying…';
 
   @override
+  String get errorCodeValidationFailed => 'Some values aren’t valid. Check the highlighted fields.';
+
+  @override
+  String get errorCodeVersionConflict => 'This changed elsewhere. Reload and try again.';
+
+  @override
   String get errorCodeWalletRoleConflict => 'A sign-in wallet can’t also be your trading wallet.';
+
+  @override
+  String get errorCodeWebauthnInvalid => 'Passkey check failed. Try again.';
 
   @override
   String get exitReasonDrawdownHalt => 'Drawdown halt';
@@ -636,33 +694,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedActorYou => 'You';
 
   @override
-  String feedEventBlocked(String coin) {
-    return 'Blocked $coin';
+  String feedEventBlocked(String symbol) {
+    return 'Blocked $symbol';
   }
 
   @override
-  String feedEventBought(String coin, String sol) {
-    return 'Bought $coin · $sol';
+  String feedEventBought(String amount_lamports, String symbol) {
+    return 'Bought $symbol · $amount_lamports';
   }
 
   @override
-  String feedEventExpired(String coin) {
-    return 'Proposal for $coin expired';
+  String feedEventExpired(String symbol) {
+    return 'Proposal for $symbol expired';
   }
 
   @override
-  String feedEventPassed(String coin, String pass, String score) {
-    return 'Passed $coin · fit $score/$pass';
+  String feedEventPassed(String pass, String score, String symbol) {
+    return 'Passed $symbol · fit $score/$pass';
   }
 
   @override
-  String feedEventSkipped(String coin) {
-    return 'Skipped pick $coin';
+  String feedEventSkipped(String symbol) {
+    return 'Skipped pick $symbol';
   }
 
   @override
-  String feedEventSold(String coin, String pnl) {
-    return 'Sold $coin · $pnl';
+  String feedEventSold(String pnl, String symbol) {
+    return 'Sold $symbol · $pnl';
   }
 
   @override
@@ -915,8 +973,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifApprovedBody => 'Order is being placed';
 
   @override
-  String notifApprovedTitle(String coin) {
-    return 'Approved: $coin';
+  String notifApprovedTitle(String symbol) {
+    return 'Approved: $symbol';
   }
 
   @override
@@ -939,9 +997,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String notifExpiredTitle(String coin, String mode) {
+  String notifExpiredTitle(String mode, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] $coin expired';
+    return '[$_temp0] $symbol expired';
   }
 
   @override
@@ -958,25 +1016,25 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String notifFilledBody(String price, String sol) {
-    return '$sol at $price · exit plan armed';
+  String notifFilledBody(String amount_lamports, String price) {
+    return '$amount_lamports at $price · exit plan armed';
   }
 
   @override
-  String notifFilledTitle(String coin, String mode) {
+  String notifFilledTitle(String mode, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Bought $coin';
+    return '[$_temp0] Bought $symbol';
   }
 
   @override
-  String notifFirstBuyBody(String mm_ss, String sol) {
-    return 'This strategy hasn’t bought yet. Review before it starts · $sol · $mm_ss left';
+  String notifFirstBuyBody(String amount_lamports, String mm_ss) {
+    return 'This strategy hasn’t bought yet. Review before it starts · $amount_lamports · $mm_ss left';
   }
 
   @override
-  String notifFirstBuyTitle(String coin, String mode, String strategy) {
+  String notifFirstBuyTitle(String mode, String strategy, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] First buy for $strategy: $coin';
+    return '[$_temp0] First buy for $strategy: $symbol';
   }
 
   @override
@@ -1078,19 +1136,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifOfflineTitle => 'Lost connection to server';
 
   @override
-  String notifPickPendingBody(String mm_ss, String sol, String strategy) {
-    return '$strategy · $sol · $mm_ss left';
+  String notifPickPendingBody(String amount_lamports, String mm_ss, String strategy) {
+    return '$strategy · $amount_lamports · $mm_ss left';
   }
 
   @override
-  String notifPickPendingTitle(String coin, String mode) {
+  String notifPickPendingTitle(String mode, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] $coin awaits approval';
+    return '[$_temp0] $symbol awaits approval';
   }
 
   @override
-  String notifPracticeResetBody(String sol) {
-    return 'Balance back to $sol. Pending buys were cleared.';
+  String notifPracticeResetBody(String amount_lamports) {
+    return 'Balance back to $amount_lamports. Pending buys were cleared.';
   }
 
   @override
@@ -1102,8 +1160,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String notifSkippedTitle(String coin) {
-    return 'Skipped: $coin';
+  String notifSkippedTitle(String symbol) {
+    return 'Skipped: $symbol';
   }
 
   @override
@@ -1112,9 +1170,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String notifSlHitTitle(String coin, String mode) {
+  String notifSlHitTitle(String mode, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Stopped out of $coin';
+    return '[$_temp0] Stopped out of $symbol';
   }
 
   @override
@@ -1125,13 +1183,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifTpHitBody(String pct, String pct_sold, String pnl) {
-    return 'Sold $pct_sold at $pct · $pnl';
+    return 'Sold $pct_sold at +$pct · $pnl';
   }
 
   @override
-  String notifTpHitTitle(String coin, String mode) {
+  String notifTpHitTitle(String mode, String symbol) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Took profit on $coin';
+    return '[$_temp0] Took profit on $symbol';
   }
 
   @override
@@ -1141,7 +1199,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orderFailReasonInsufficientPracticeBalance => 'Not enough paper SOL';
 
   @override
+  String get orderFailReasonModeNotAllowed => 'Only Practice orders run; Real SOL isn’t enabled yet';
+
+  @override
   String get orderFailReasonPoolStale => 'Pool data was out of date; the order was not sent';
+
+  @override
+  String get orderFailReasonPositionAlreadyClosed => 'This position was already closed';
 
   @override
   String get orderFailReasonSlippageExceeded => 'Price moved more than your slippage limit';
@@ -1151,6 +1215,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get orderFailReasonUnsupportedQuoteMint => 'This coin has no SOL pair, so it can’t be traded';
+
+  @override
+  String get orderFailReasonValidationFailed => 'The order didn’t pass validation';
 
   @override
   String get positionsEquityHwm => 'High-water mark';
@@ -1205,8 +1272,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get positionsSellRemainingPlan => 'Remaining position keeps its exit plan';
 
   @override
-  String positionsSellTitle(String coin) {
-    return 'Sell $coin';
+  String positionsSellTitle(String symbol) {
+    return 'Sell $symbol';
   }
 
   @override
@@ -1241,8 +1308,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String queueBatchTotal(String sol) {
-    return 'Total $sol';
+  String queueBatchTotal(String amount_lamports) {
+    return 'Total $amount_lamports';
   }
 
   @override
@@ -1292,8 +1359,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String queueRealHold(String sol) {
-    return 'Hold to approve $sol';
+  String queueRealHold(String amount_lamports) {
+    return 'Hold to approve $amount_lamports';
   }
 
   @override
@@ -1341,11 +1408,125 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queueWhyTitle => 'Why does this need approval?';
 
   @override
+  String get screenerActionOpenQueue => 'Open queue';
+
+  @override
+  String screenerCardGuardFailed(String score) {
+    return 'Guard failed · score $score';
+  }
+
+  @override
+  String screenerCardNotTradeable(String score) {
+    return 'Score $score · no SOL pair';
+  }
+
+  @override
+  String screenerCardPassed(String score) {
+    return 'Passed · score $score';
+  }
+
+  @override
+  String get screenerColAction => 'Action';
+
+  @override
+  String get screenerColCoin => 'Coin';
+
+  @override
+  String get screenerColGuard => 'Guard';
+
+  @override
+  String get screenerColLiquidity => 'Liquidity';
+
+  @override
+  String get screenerColMcap => 'Mcap';
+
+  @override
+  String get screenerColScore => 'Score';
+
+  @override
+  String get screenerColStatus => 'Status';
+
+  @override
+  String get screenerColVenue => 'Venue';
+
+  @override
+  String get screenerDetailApproveUnavailable => 'Approve — not available';
+
+  @override
+  String get screenerDetailChartReadonly => 'Price chart (read-only)';
+
+  @override
+  String get screenerDetailGuard => 'Guard';
+
+  @override
+  String get screenerDetailGuardNotRun => 'not run';
+
+  @override
+  String get screenerDetailInfoOnly => '(info only)';
+
+  @override
+  String get screenerDetailNone => 'none';
+
+  @override
+  String screenerDetailQuoteNotSol(String quote_symbol) {
+    return '$quote_symbol · not SOL';
+  }
+
+  @override
+  String get screenerDetailQuotePair => 'Quote pair';
+
+  @override
+  String get screenerDetailReasonCode => 'Reason code';
+
+  @override
+  String get screenerDetailScore => 'Screener score';
+
+  @override
+  String screenerDetailScoreValue(String max_score, String score) {
+    return '$score / $max_score';
+  }
+
+  @override
+  String get screenerDetailSolPair => 'SOL pair';
+
+  @override
+  String get screenerFilterAll => 'All';
+
+  @override
+  String get screenerFilterPassed => 'Passed';
+
+  @override
+  String get screenerFilterRejected => 'Rejected';
+
+  @override
   String get screenerNotTradeableBadge => 'Not tradeable';
 
   @override
   String get screenerNotTradeableDetail =>
       'No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved.';
+
+  @override
+  String get screenerStatusPassed => 'Passed';
+
+  @override
+  String get screenerStatusPickQueued => 'Pick · in queue';
+
+  @override
+  String get screenerStatusPickQueuedShort => 'Pick · queue';
+
+  @override
+  String get screenerStatusRejected => 'Rejected';
+
+  @override
+  String get screenerStatusRejectedGuard => 'Rejected · guard failed';
+
+  @override
+  String screenerStatusRejectedScore(String score_threshold) {
+    return 'Rejected · score < $score_threshold';
+  }
+
+  @override
+  String get screenerTitle => 'Coins · screener';
 
   @override
   String get settingsAppearanceDensityComfortable => 'Comfortable';

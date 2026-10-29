@@ -77,15 +77,15 @@ void main() {
       PushMessage m(String pnl, String pct) => PushMessage(
         event: NotifEvent.n08TpHit,
         mode: NotifMode.practice,
-        vars: {'coin': 'KEPL', 'pct': pct, 'pct_sold': '33', 'pnl': pnl},
+        vars: {'symbol': 'KEPL', 'pct': pct, 'pct_sold': '33', 'pnl': pnl},
         positionId: 'ck1.0',
       );
       final now = DateTime.utc(2026, 10, 29);
-      expect(r.render(m('0', '0'), NotifLocale.en, now).body, 'Sold 33% at 0.0% · 0.00${nb}paper SOL');
-      expect(
-        r.render(m('0.000000001', '0.01'), NotifLocale.en, now).body,
-        'Sold 33% at +<0.1% · ▲ +<0.000001${nb}paper SOL',
-      );
+      // i18n 0.4.3: the copy carries the literal '+' and {pct} is unsigned; {pnl}
+      // is a lamports string formatted with pnlSol (T-15).
+      expect(r.render(m('0', '30'), NotifLocale.en, now).body, 'Sold 33% at +30% · 0.00${nb}paper SOL');
+      expect(r.render(m('1', '30'), NotifLocale.en, now).body, 'Sold 33% at +30% · ▲ +<0.000001${nb}paper SOL');
+      expect(r.render(m('-1', '30'), NotifLocale.en, now).body, contains('▼ −<0.000001'));
     });
   });
 

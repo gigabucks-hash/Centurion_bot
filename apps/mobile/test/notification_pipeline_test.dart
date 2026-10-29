@@ -27,9 +27,9 @@ void main() {
     'version': '${a.rev}', // 1.1.2: approval rev → p_expected_rev
     'token': a.token,
     'exp': '${(exp ?? a.expiresAt).millisecondsSinceEpoch ~/ 1000}',
-    'coin': r'$KEPL',
+    'symbol': 'KEPL',
     'strategy': 'Pullback v2',
-    'sol': '0.25',
+    'amount_lamports': '250000000',
   };
 
   test('backend push stream → parse → shade (mock local notification)', () async {
@@ -113,7 +113,7 @@ void main() {
       'event': 'N-04',
       'mode': 'practice',
       'position_id': 'ck100.0',
-      'coin': r'$GLOW',
+      'symbol': 'GLOW',
     }, DateTime.now());
     final shown = c.read(localNotifierProvider).single;
     final out = await handleNotificationAction(ContainerReader(c), shown, NotifAction.viewPosition, DateTime.now());

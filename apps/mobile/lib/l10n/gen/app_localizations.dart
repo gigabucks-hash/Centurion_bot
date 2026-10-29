@@ -341,8 +341,8 @@ abstract class AppLocalizations {
   /// coin_trail.title
   ///
   /// In en, this message translates to:
-  /// **'Coin trail · {coin} ({strategy})'**
-  String coinTrailTitle(String coin, String strategy);
+  /// **'Coin trail · {symbol} ({strategy})'**
+  String coinTrailTitle(String strategy, String symbol);
 
   /// common.action.approve
   ///
@@ -722,6 +722,12 @@ abstract class AppLocalizations {
   /// **'This proposal expired: {reason}'**
   String errorCodeApprovalExpired(String reason);
 
+  /// wire error.code APPROVAL_REQUIRES_APP
+  ///
+  /// In en, this message translates to:
+  /// **'Decide this in the official app, not via MCP.'**
+  String get errorCodeApprovalRequiresApp;
+
   /// wire error.code APPROVAL_TOKEN_INVALID
   ///
   /// In en, this message translates to:
@@ -746,11 +752,35 @@ abstract class AppLocalizations {
   /// **'This Telegram login was already used. Start again.'**
   String get errorCodeAuthTgReplay;
 
+  /// wire error.code CONFIRMATION_INVALID
+  ///
+  /// In en, this message translates to:
+  /// **'This confirmation expired or was already used. Start again.'**
+  String get errorCodeConfirmationInvalid;
+
+  /// wire error.code CONFIRMATION_REQUIRED
+  ///
+  /// In en, this message translates to:
+  /// **'This change needs confirmation: passkey, typed name and hold.'**
+  String get errorCodeConfirmationRequired;
+
   /// wire error.code CONFIRMATION_RESTART_REQUIRED
   ///
   /// In en, this message translates to:
   /// **'The strategy changed during confirmation. Start the confirmation again.'**
   String get errorCodeConfirmationRestartRequired;
+
+  /// wire error.code FORBIDDEN_ROLE
+  ///
+  /// In en, this message translates to:
+  /// **'Your workspace role doesn’t allow this action.'**
+  String get errorCodeForbiddenRole;
+
+  /// wire error.code FORBIDDEN_SCOPE
+  ///
+  /// In en, this message translates to:
+  /// **'This token doesn’t have permission for this action.'**
+  String get errorCodeForbiddenScope;
 
   /// wire error.code GUARD_COOLDOWN_ACTIVE
   ///
@@ -770,11 +800,35 @@ abstract class AppLocalizations {
   /// **'Something went wrong. Try again.'**
   String get errorCodeInternal;
 
+  /// wire error.code INVALID_FRACTION
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a sell amount from 0.01% to 100%.'**
+  String get errorCodeInvalidFraction;
+
+  /// wire error.code JOB_DEAD_LETTERED
+  ///
+  /// In en, this message translates to:
+  /// **'A background task failed after all retries. Support has been notified.'**
+  String get errorCodeJobDeadLettered;
+
   /// wire error.code LAST_LOGIN_METHOD
   ///
   /// In en, this message translates to:
   /// **'This is your only sign-in method. Link another one before unlinking.'**
   String get errorCodeLastLoginMethod;
+
+  /// wire error.code MODE_NOT_ALLOWED
+  ///
+  /// In en, this message translates to:
+  /// **'Only Practice is available. Real SOL isn’t enabled yet.'**
+  String get errorCodeModeNotAllowed;
+
+  /// wire error.code NOT_FOUND
+  ///
+  /// In en, this message translates to:
+  /// **'Not found, or you don’t have access.'**
+  String get errorCodeNotFound;
 
   /// wire error.code OTP_INVALID
   ///
@@ -787,6 +841,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Too many attempts. Try again in 15 minutes.'**
   String get errorCodeOtpLocked;
+
+  /// wire error.code POSITION_ALREADY_CLOSED
+  ///
+  /// In en, this message translates to:
+  /// **'This position is already closed.'**
+  String get errorCodePositionAlreadyClosed;
+
+  /// wire error.code PRACTICE_CASH_INSUFFICIENT
+  ///
+  /// In en, this message translates to:
+  /// **'Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.'**
+  String get errorCodePracticeCashInsufficient;
 
   /// wire error.code RATE_LIMITED
   ///
@@ -806,11 +872,23 @@ abstract class AppLocalizations {
   /// **'Please confirm it’s you again to continue.'**
   String get errorCodeReauthRequired;
 
+  /// wire error.code REPLAY_UNAVAILABLE
+  ///
+  /// In en, this message translates to:
+  /// **'Replay isn’t available right now. Showing the estimate.'**
+  String get errorCodeReplayUnavailable;
+
   /// wire error.code RESET_COOLDOWN
   ///
   /// In en, this message translates to:
   /// **'Practice can be reset once a day. Next: {next_allowed_at}'**
   String errorCodeResetCooldown(String next_allowed_at);
+
+  /// wire error.code SETTINGS_SCHEMA_INVALID
+  ///
+  /// In en, this message translates to:
+  /// **'These strategy settings aren’t valid. Check the highlighted fields.'**
+  String get errorCodeSettingsSchemaInvalid;
 
   /// wire error.code SIWS_NONCE_INVALID
   ///
@@ -823,6 +901,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The wallet signature couldn’t be verified.'**
   String get errorCodeSiwsSignatureInvalid;
+
+  /// wire error.code SOURCE_DEGRADED
+  ///
+  /// In en, this message translates to:
+  /// **'A market data source is degraded. New picks may be delayed.'**
+  String get errorCodeSourceDegraded;
+
+  /// wire error.code STRATEGY_RETIRED
+  ///
+  /// In en, this message translates to:
+  /// **'This strategy was archived or deleted.'**
+  String get errorCodeStrategyRetired;
 
   /// wire error.code STRATEGY_REV_CONFLICT
   ///
@@ -842,17 +932,41 @@ abstract class AppLocalizations {
   /// **'The name doesn’t match exactly.'**
   String get errorCodeTypedConfirmationMismatch;
 
+  /// wire error.code UNAUTHENTICATED
+  ///
+  /// In en, this message translates to:
+  /// **'Your session ended. Sign in again.'**
+  String get errorCodeUnauthenticated;
+
   /// wire error.code UNAVAILABLE
   ///
   /// In en, this message translates to:
   /// **'Service is temporarily unavailable. Retrying…'**
   String get errorCodeUnavailable;
 
+  /// wire error.code VALIDATION_FAILED
+  ///
+  /// In en, this message translates to:
+  /// **'Some values aren’t valid. Check the highlighted fields.'**
+  String get errorCodeValidationFailed;
+
+  /// wire error.code VERSION_CONFLICT
+  ///
+  /// In en, this message translates to:
+  /// **'This changed elsewhere. Reload and try again.'**
+  String get errorCodeVersionConflict;
+
   /// wire error.code WALLET_ROLE_CONFLICT
   ///
   /// In en, this message translates to:
   /// **'A sign-in wallet can’t also be your trading wallet.'**
   String get errorCodeWalletRoleConflict;
+
+  /// wire error.code WEBAUTHN_INVALID
+  ///
+  /// In en, this message translates to:
+  /// **'Passkey check failed. Try again.'**
+  String get errorCodeWebauthnInvalid;
 
   /// wire ExitReason
   ///
@@ -1061,38 +1175,38 @@ abstract class AppLocalizations {
   /// feed.event.blocked
   ///
   /// In en, this message translates to:
-  /// **'Blocked {coin}'**
-  String feedEventBlocked(String coin);
+  /// **'Blocked {symbol}'**
+  String feedEventBlocked(String symbol);
 
   /// feed.event.bought
   ///
   /// In en, this message translates to:
-  /// **'Bought {coin} · {sol}'**
-  String feedEventBought(String coin, String sol);
+  /// **'Bought {symbol} · {amount_lamports}'**
+  String feedEventBought(String amount_lamports, String symbol);
 
   /// feed.event.expired
   ///
   /// In en, this message translates to:
-  /// **'Proposal for {coin} expired'**
-  String feedEventExpired(String coin);
+  /// **'Proposal for {symbol} expired'**
+  String feedEventExpired(String symbol);
 
   /// feed.event.passed
   ///
   /// In en, this message translates to:
-  /// **'Passed {coin} · fit {score}/{pass}'**
-  String feedEventPassed(String coin, String pass, String score);
+  /// **'Passed {symbol} · fit {score}/{pass}'**
+  String feedEventPassed(String pass, String score, String symbol);
 
   /// feed.event.skipped
   ///
   /// In en, this message translates to:
-  /// **'Skipped pick {coin}'**
-  String feedEventSkipped(String coin);
+  /// **'Skipped pick {symbol}'**
+  String feedEventSkipped(String symbol);
 
   /// feed.event.sold
   ///
   /// In en, this message translates to:
-  /// **'Sold {coin} · {pnl}'**
-  String feedEventSold(String coin, String pnl);
+  /// **'Sold {symbol} · {pnl}'**
+  String feedEventSold(String pnl, String symbol);
 
   /// POST …/guard-impact/estimate
   ///
@@ -1529,8 +1643,8 @@ abstract class AppLocalizations {
   /// N-03; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'Approved: {coin}'**
-  String notifApprovedTitle(String coin);
+  /// **'Approved: {symbol}'**
+  String notifApprovedTitle(String symbol);
 
   /// N-22
   ///
@@ -1565,8 +1679,8 @@ abstract class AppLocalizations {
   /// N-07; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} expired'**
-  String notifExpiredTitle(String coin, String mode);
+  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} expired'**
+  String notifExpiredTitle(String mode, String symbol);
 
   /// N-05
   ///
@@ -1583,26 +1697,26 @@ abstract class AppLocalizations {
   /// N-04
   ///
   /// In en, this message translates to:
-  /// **'{sol} at {price} · exit plan armed'**
-  String notifFilledBody(String price, String sol);
+  /// **'{amount_lamports} at {price} · exit plan armed'**
+  String notifFilledBody(String amount_lamports, String price);
 
   /// N-04; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {coin}'**
-  String notifFilledTitle(String coin, String mode);
+  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {symbol}'**
+  String notifFilledTitle(String mode, String symbol);
 
   /// N-02
   ///
   /// In en, this message translates to:
-  /// **'This strategy hasn’t bought yet. Review before it starts · {sol} · {mm_ss} left'**
-  String notifFirstBuyBody(String mm_ss, String sol);
+  /// **'This strategy hasn’t bought yet. Review before it starts · {amount_lamports} · {mm_ss} left'**
+  String notifFirstBuyBody(String amount_lamports, String mm_ss);
 
   /// N-02; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {coin}'**
-  String notifFirstBuyTitle(String coin, String mode, String strategy);
+  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {symbol}'**
+  String notifFirstBuyTitle(String mode, String strategy, String symbol);
 
   /// N-18
   ///
@@ -1727,20 +1841,20 @@ abstract class AppLocalizations {
   /// N-01
   ///
   /// In en, this message translates to:
-  /// **'{strategy} · {sol} · {mm_ss} left'**
-  String notifPickPendingBody(String mm_ss, String sol, String strategy);
+  /// **'{strategy} · {amount_lamports} · {mm_ss} left'**
+  String notifPickPendingBody(String amount_lamports, String mm_ss, String strategy);
 
   /// N-01; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} awaits approval'**
-  String notifPickPendingTitle(String coin, String mode);
+  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} awaits approval'**
+  String notifPickPendingTitle(String mode, String symbol);
 
   /// N-20
   ///
   /// In en, this message translates to:
-  /// **'Balance back to {sol}. Pending buys were cleared.'**
-  String notifPracticeResetBody(String sol);
+  /// **'Balance back to {amount_lamports}. Pending buys were cleared.'**
+  String notifPracticeResetBody(String amount_lamports);
 
   /// N-20; placeholders = push vars (snake_case)
   ///
@@ -1757,8 +1871,8 @@ abstract class AppLocalizations {
   /// N-06; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'Skipped: {coin}'**
-  String notifSkippedTitle(String coin);
+  /// **'Skipped: {symbol}'**
+  String notifSkippedTitle(String symbol);
 
   /// N-09
   ///
@@ -1769,8 +1883,8 @@ abstract class AppLocalizations {
   /// N-09; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {coin}'**
-  String notifSlHitTitle(String coin, String mode);
+  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {symbol}'**
+  String notifSlHitTitle(String mode, String symbol);
 
   /// N-17
   ///
@@ -1787,14 +1901,14 @@ abstract class AppLocalizations {
   /// N-08
   ///
   /// In en, this message translates to:
-  /// **'Sold {pct_sold} at {pct} · {pnl}'**
+  /// **'Sold {pct_sold} at +{pct} · {pnl}'**
   String notifTpHitBody(String pct, String pct_sold, String pnl);
 
   /// N-08; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {coin}'**
-  String notifTpHitTitle(String coin, String mode);
+  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {symbol}'**
+  String notifTpHitTitle(String mode, String symbol);
 
   /// order.failed reason_code=GUARD_FAILED
   ///
@@ -1808,11 +1922,23 @@ abstract class AppLocalizations {
   /// **'Not enough paper SOL'**
   String get orderFailReasonInsufficientPracticeBalance;
 
+  /// order.failed reason_code=MODE_NOT_ALLOWED
+  ///
+  /// In en, this message translates to:
+  /// **'Only Practice orders run; Real SOL isn’t enabled yet'**
+  String get orderFailReasonModeNotAllowed;
+
   /// order.failed reason_code=POOL_STALE
   ///
   /// In en, this message translates to:
   /// **'Pool data was out of date; the order was not sent'**
   String get orderFailReasonPoolStale;
+
+  /// order.failed reason_code=POSITION_ALREADY_CLOSED
+  ///
+  /// In en, this message translates to:
+  /// **'This position was already closed'**
+  String get orderFailReasonPositionAlreadyClosed;
 
   /// order.failed reason_code=SLIPPAGE_EXCEEDED
   ///
@@ -1831,6 +1957,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This coin has no SOL pair, so it can’t be traded'**
   String get orderFailReasonUnsupportedQuoteMint;
+
+  /// order.failed reason_code=VALIDATION_FAILED
+  ///
+  /// In en, this message translates to:
+  /// **'The order didn’t pass validation'**
+  String get orderFailReasonValidationFailed;
 
   /// positions.equity.hwm
   ///
@@ -1862,7 +1994,7 @@ abstract class AppLocalizations {
   /// **'Estimated proceeds'**
   String get positionsSellEstimate;
 
-  /// Practice, all platforms; no single-press confirm
+  /// Practice, all platforms; no single-press confirm. pct = formatFractionBps(fraction_bps); wire fraction_bps = pctToFractionBps(ui %)
   ///
   /// In en, this message translates to:
   /// **'Hold 1.2 s to sell {pct}'**
@@ -1901,8 +2033,8 @@ abstract class AppLocalizations {
   /// positions.sell.title
   ///
   /// In en, this message translates to:
-  /// **'Sell {coin}'**
-  String positionsSellTitle(String coin);
+  /// **'Sell {symbol}'**
+  String positionsSellTitle(String symbol);
 
   /// positions.title
   ///
@@ -1925,8 +2057,8 @@ abstract class AppLocalizations {
   /// queue.batch.total
   ///
   /// In en, this message translates to:
-  /// **'Total {sol}'**
-  String queueBatchTotal(String sol);
+  /// **'Total {amount_lamports}'**
+  String queueBatchTotal(String amount_lamports);
 
   /// guard change rows use Reject, not Skip
   ///
@@ -1997,8 +2129,8 @@ abstract class AppLocalizations {
   /// queue.real.hold
   ///
   /// In en, this message translates to:
-  /// **'Hold to approve {sol}'**
-  String queueRealHold(String sol);
+  /// **'Hold to approve {amount_lamports}'**
+  String queueRealHold(String amount_lamports);
 
   /// queue.skip_reason.already_pumped
   ///
@@ -2084,6 +2216,168 @@ abstract class AppLocalizations {
   /// **'Why does this need approval?'**
   String get queueWhyTitle;
 
+  /// screener.action.open_queue
+  ///
+  /// In en, this message translates to:
+  /// **'Open queue'**
+  String get screenerActionOpenQueue;
+
+  /// WF-21 card subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Guard failed · score {score}'**
+  String screenerCardGuardFailed(String score);
+
+  /// WF-21 card subtitle, neutral
+  ///
+  /// In en, this message translates to:
+  /// **'Score {score} · no SOL pair'**
+  String screenerCardNotTradeable(String score);
+
+  /// WF-21 card subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Passed · score {score}'**
+  String screenerCardPassed(String score);
+
+  /// WF-20 table column
+  ///
+  /// In en, this message translates to:
+  /// **'Action'**
+  String get screenerColAction;
+
+  /// WF-20 table column
+  ///
+  /// In en, this message translates to:
+  /// **'Coin'**
+  String get screenerColCoin;
+
+  /// WF-20 table column
+  ///
+  /// In en, this message translates to:
+  /// **'Guard'**
+  String get screenerColGuard;
+
+  /// WF-20 table column
+  ///
+  /// In en, this message translates to:
+  /// **'Liquidity'**
+  String get screenerColLiquidity;
+
+  /// WF-20 table column
+  ///
+  /// In en, this message translates to:
+  /// **'Mcap'**
+  String get screenerColMcap;
+
+  /// WF-20 table column
+  ///
+  /// In en, this message translates to:
+  /// **'Score'**
+  String get screenerColScore;
+
+  /// WF-20 table column
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get screenerColStatus;
+
+  /// WF-20 table column
+  ///
+  /// In en, this message translates to:
+  /// **'Venue'**
+  String get screenerColVenue;
+
+  /// disabled, labelled CTA; never hidden
+  ///
+  /// In en, this message translates to:
+  /// **'Approve — not available'**
+  String get screenerDetailApproveUnavailable;
+
+  /// screener.detail.chart_readonly
+  ///
+  /// In en, this message translates to:
+  /// **'Price chart (read-only)'**
+  String get screenerDetailChartReadonly;
+
+  /// screener.detail.guard
+  ///
+  /// In en, this message translates to:
+  /// **'Guard'**
+  String get screenerDetailGuard;
+
+  /// screener.detail.guard_not_run
+  ///
+  /// In en, this message translates to:
+  /// **'not run'**
+  String get screenerDetailGuardNotRun;
+
+  /// appended to score_value when not tradeable
+  ///
+  /// In en, this message translates to:
+  /// **'(info only)'**
+  String get screenerDetailInfoOnly;
+
+  /// screener.detail.none
+  ///
+  /// In en, this message translates to:
+  /// **'none'**
+  String get screenerDetailNone;
+
+  /// quote_symbol = known symbol for quote_mint (e.g. USDC) or short mint
+  ///
+  /// In en, this message translates to:
+  /// **'{quote_symbol} · not SOL'**
+  String screenerDetailQuoteNotSol(String quote_symbol);
+
+  /// screener.detail.quote_pair
+  ///
+  /// In en, this message translates to:
+  /// **'Quote pair'**
+  String get screenerDetailQuotePair;
+
+  /// value = skip_reason verbatim (support)
+  ///
+  /// In en, this message translates to:
+  /// **'Reason code'**
+  String get screenerDetailReasonCode;
+
+  /// screener.detail.score
+  ///
+  /// In en, this message translates to:
+  /// **'Screener score'**
+  String get screenerDetailScore;
+
+  /// result.score / result.max_score
+  ///
+  /// In en, this message translates to:
+  /// **'{score} / {max_score}'**
+  String screenerDetailScoreValue(String max_score, String score);
+
+  /// screener.detail.sol_pair
+  ///
+  /// In en, this message translates to:
+  /// **'SOL pair'**
+  String get screenerDetailSolPair;
+
+  /// screener.filter.all
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get screenerFilterAll;
+
+  /// screener.filter.passed
+  ///
+  /// In en, this message translates to:
+  /// **'Passed'**
+  String get screenerFilterPassed;
+
+  /// screener.filter.rejected
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get screenerFilterRejected;
+
   /// neutral chip (text.tertiary on surface.sunken), not loss/error red
   ///
   /// In en, this message translates to:
@@ -2095,6 +2389,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved.'**
   String get screenerNotTradeableDetail;
+
+  /// screener.status.passed
+  ///
+  /// In en, this message translates to:
+  /// **'Passed'**
+  String get screenerStatusPassed;
+
+  /// WF-20 status chip
+  ///
+  /// In en, this message translates to:
+  /// **'Pick · in queue'**
+  String get screenerStatusPickQueued;
+
+  /// WF-21 mobile chip (narrow)
+  ///
+  /// In en, this message translates to:
+  /// **'Pick · queue'**
+  String get screenerStatusPickQueuedShort;
+
+  /// screener.status.rejected
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get screenerStatusRejected;
+
+  /// screener.status.rejected_guard
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected · guard failed'**
+  String get screenerStatusRejectedGuard;
+
+  /// score_threshold = result.score_threshold
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected · score < {score_threshold}'**
+  String screenerStatusRejectedScore(String score_threshold);
+
+  /// WF-20 header
+  ///
+  /// In en, this message translates to:
+  /// **'Coins · screener'**
+  String get screenerTitle;
 
   /// settings.appearance.density.comfortable
   ///

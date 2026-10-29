@@ -8,6 +8,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/sparkline.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';
+import '../../l10n/gen/app_localizations.dart';
 import '../activity/activity_screen.dart';
 import '../strategies/strategies_screen.dart';
 
@@ -93,7 +94,11 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              SectionHeader('Coins · screener', action: 'Lihat', onAction: () => context.go('/coins')),
+              SectionHeader(
+                AppLocalizations.of(context).screenerTitle,
+                action: 'Lihat',
+                onAction: () => context.go('/coins'),
+              ),
               SectionHeader('Strategi', action: 'Lihat semua', onAction: () => context.go('/strategies')),
               for (final st in strategies.take(2)) ...[
                 StrategySummaryCard(st, onTap: () => context.go('/strategies')),

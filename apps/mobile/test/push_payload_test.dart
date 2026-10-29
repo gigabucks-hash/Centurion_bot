@@ -14,13 +14,13 @@ void main() {
       'mode': 'practice',
       'token': 'tok_abc',
       'exp': '1793260000',
-      'coin': r'$KEPL',
-      'sol': '0.25',
+      'symbol': 'KEPL',
+      'amount_lamports': '250000000',
     });
     expect(p, isNotNull);
     expect(p!.event, NotifEvent.n01PickPending);
     expect(p.route, '/approvals/apv_0012');
-    expect(p.vars, {'coin': r'$KEPL', 'sol': '0.25'});
+    expect(p.vars, {'symbol': 'KEPL', 'amount_lamports': '250000000'});
     expect(p.tokenValidAt(DateTime.utc(2026, 10, 29)), isTrue);
     expect(p.tokenValidAt(DateTime.utc(2027, 1, 1)), isFalse);
   });
@@ -123,7 +123,7 @@ void main() {
       expect(renderer.actionsFor(noRev, at), isEmpty, reason: 'p_expected_rev is required (1.1.2)');
     });
 
-    test('renderer: amount_lamports → lamport-exact SOL, symbol → coin, countdown from exp', () {
+    test('renderer: wire vars go straight into the ARB (symbol, amount_lamports); mm_ss computed', () {
       final p = PushMessage.tryParse(canonical())!;
       final r = const NotificationRenderer().render(p, NotifLocale.en, DateTime.utc(2026, 10, 29, 8, 50));
       expect(r.title, contains(r'$EXM'));

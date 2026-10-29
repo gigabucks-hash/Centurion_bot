@@ -262,13 +262,18 @@ String expireReasonDetail(AppLocalizations l, String reason, String strategy) =>
 /// Screener / order reason code for coins without a SOL quote pair (i18n 0.4.1).
 const reasonUnsupportedQuoteMint = unsupportedQuoteMint;
 
-/// `order.fail_reason.<code lower>` → copy; unknown codes → `.unknown` (never the raw code).
+/// `order.fail_reason.<code lower>` → copy (all 8 order.failed codes, i18n 0.4.3); unknown
+/// codes → `.unknown` (never the raw code).
 String orderFailReason(AppLocalizations l, String? code) => switch (code) {
   'SLIPPAGE_EXCEEDED' => l.orderFailReasonSlippageExceeded,
   'INSUFFICIENT_PRACTICE_BALANCE' => l.orderFailReasonInsufficientPracticeBalance,
   'GUARD_FAILED' => l.orderFailReasonGuardFailed,
   reasonUnsupportedQuoteMint => l.orderFailReasonUnsupportedQuoteMint,
   'POOL_STALE' => l.orderFailReasonPoolStale,
+  // i18n 0.4.3: full 1.1.2 `order.failed` reason_code set (8 codes).
+  'POSITION_ALREADY_CLOSED' => l.orderFailReasonPositionAlreadyClosed,
+  'VALIDATION_FAILED' => l.orderFailReasonValidationFailed,
+  'MODE_NOT_ALLOWED' => l.orderFailReasonModeNotAllowed,
   _ => l.orderFailReasonUnknown,
 };
 
@@ -276,34 +281,40 @@ typedef Copy = ({String title, String body});
 
 AppLocalizations l10nFor(NotifLocale l) => lookupAppLocalizations(Locale(l.name));
 
-/// Copy for a variant key, from the ARB. [v] holds already-formatted vars;
+/// Copy for a variant key, from the ARB (@sentra/i18n 0.4.3: placeholder names =
+/// wire var names, e.g. `{symbol}`, `{amount_lamports}`; gen-l10n orders the
+/// positional params alphabetically). [v] holds already-formatted vars;
 /// a missing var renders as `–`. [mode] is `practice`/`real` (ICU select).
 Copy notifCopy(AppLocalizations l, String key, String mode, Map<String, String> v, {int count = 0}) {
   String x(String k) => v[k] ?? '–';
   return switch (key) {
     'N-01' => (
-      title: l.notifPickPendingTitle(x('coin'), mode),
-      body: l.notifPickPendingBody(x('mm_ss'), x('sol'), x('strategy')),
+      title: l.notifPickPendingTitle(mode, x('symbol')),
+      body: l.notifPickPendingBody(x('amount_lamports'), x('mm_ss'), x('strategy')),
     ),
     'N-02' => (
-      title: l.notifFirstBuyTitle(x('coin'), mode, x('strategy')),
-      body: l.notifFirstBuyBody(x('mm_ss'), x('sol')),
+      title: l.notifFirstBuyTitle(mode, x('strategy'), x('symbol')),
+      body: l.notifFirstBuyBody(x('amount_lamports'), x('mm_ss')),
     ),
-    'N-03' => (title: l.notifApprovedTitle(x('coin')), body: l.notifApprovedBody),
-    'N-04' => (title: l.notifFilledTitle(x('coin'), mode), body: l.notifFilledBody(x('price'), x('sol'))),
-    // i18n 0.4.1 (contracts 1.1.2 `order.failed`): {side} {symbol} {reason_code} {amount_lamports}.
+    'N-03' => (title: l.notifApprovedTitle(x('symbol')), body: l.notifApprovedBody),
+    'N-04' => (title: l.notifFilledTitle(mode, x('symbol')), body: l.notifFilledBody(x('amount_lamports'), x('price'))),
+    // contracts 1.1.2 `order.failed`: {side} {symbol} {reason_code} {amount_lamports}.
     // [v] already holds the localized reason text and the formatted lamports.
     'N-05' || 'N-05.real' => (
       title: l.notifFailedTitle(mode, v['side'] ?? 'buy', x('symbol')),
       body: l.notifFailedBody(x('amount_lamports'), mode, x('reason_code')),
     ),
-    'N-06' => (title: l.notifSkippedTitle(x('coin')), body: l.notifSkippedBody(x('reason'))),
+    'N-06' => (title: l.notifSkippedTitle(x('symbol')), body: l.notifSkippedBody(x('reason'))),
     final k when k.startsWith('N-07.') => (
-      title: l.notifExpiredTitle(x('coin'), mode),
+      title: l.notifExpiredTitle(mode, x('symbol')),
       body: l.notifExpiredBody(expireReasonDetail(l, k.substring(5), x('strategy'))),
     ),
-    'N-08' => (title: l.notifTpHitTitle(x('coin'), mode), body: l.notifTpHitBody(x('pct'), x('pct_sold'), x('pnl'))),
-    'N-09' => (title: l.notifSlHitTitle(x('coin'), mode), body: l.notifSlHitBody(x('pct'), x('pnl'), x('stop_type'))),
+    'N-08' => (
+      title: l.notifTpHitTitle(mode, x('symbol')),
+      // i18n 0.4.3: the copy has the literal '+'; {pct} is UNSIGNED (see renderer).
+      body: l.notifTpHitBody(x('pct'), x('pct_sold'), x('pnl')),
+    ),
+    'N-09' => (title: l.notifSlHitTitle(mode, x('symbol')), body: l.notifSlHitBody(x('pct'), x('pnl'), x('stop_type'))),
     'N-10' => (
       title: l.notifGuardRequestedTitle(mode),
       body: l.notifGuardRequestedBody(x('from'), x('setting'), x('strategy'), x('to')),

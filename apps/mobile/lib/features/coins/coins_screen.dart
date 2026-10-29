@@ -23,15 +23,17 @@ class CoinsScreen extends ConsumerWidget {
     final coins = ref.watch(screenerProvider).valueOrNull ?? const <ScreenerCoin>[];
     final names = {for (final s in ref.watch(strategiesProvider).valueOrNull ?? const <Strategy>[]) s.id: s.name};
     final strategy = coins.isEmpty ? '' : names[coins.first.strategyId] ?? coins.first.strategyId;
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Coins')),
+      appBar: AppBar(title: Text(l10n.screenerTitle)),
       body: ListView(
         padding: const EdgeInsets.all(AppSpace.s4),
         children: [
           if (strategy.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpace.s3),
-              child: Text('$strategy · live', style: Theme.of(context).textTheme.bodySmall),
+              // GAP (UX): no ARB key for the "<strategy> · live" caption; strategy name only.
+              child: Text(strategy, style: Theme.of(context).textTheme.bodySmall),
             ),
           for (final c in coins)
             Padding(
@@ -54,6 +56,7 @@ class _CoinCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final passed = c.outcome == ScreenerOutcome.passed;
+    final l10n = AppLocalizations.of(context);
     return Card(
       key: Key('coin_${c.symbol}'),
       margin: EdgeInsets.zero,
@@ -70,16 +73,16 @@ class _CoinCard extends StatelessWidget {
                   children: [
                     Text('\$${c.symbol}', style: text.titleMedium),
                     Text(
-                      passed ? 'Lolos · skor ${c.score}' : 'Guard gagal · skor ${c.score}',
+                      passed ? l10n.screenerCardPassed('${c.score}') : l10n.screenerCardGuardFailed('${c.score}'),
                       style: text.bodySmall!.copyWith(color: cs.onSurfaceVariant),
                     ),
                   ],
                 ),
               ),
               if (passed)
-                TextButton(onPressed: () => context.go('/approvals'), child: const Text('Buka antrean ›'))
+                TextButton(onPressed: () => context.go('/approvals'), child: Text('${l10n.screenerActionOpenQueue} ›'))
               else
-                TagChip('Ditolak', color: t.loss),
+                TagChip(l10n.screenerStatusRejected, color: t.loss),
             ],
           ),
         ),
@@ -117,7 +120,10 @@ class NotTradeableCoinCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('\$${c.symbol}', style: text.titleMedium!.copyWith(color: t.neutral)),
-                      Text('Skor ${c.score} · tanpa pair SOL', style: text.bodySmall!.copyWith(color: t.neutral)),
+                      Text(
+                        l10n.screenerCardNotTradeable('${c.score}'),
+                        style: text.bodySmall!.copyWith(color: t.neutral),
+                      ),
                       const SizedBox(height: AppSpace.s2),
                       NotTradeableChip(key: Key('notTradeable_${c.symbol}')),
                     ],
@@ -148,6 +154,9 @@ class CoinDetailScreen extends ConsumerWidget {
   const CoinDetailScreen(this.symbol, {super.key});
   final String symbol;
 
+  /// `screener.scored.max_score` (mock: the strategy score scale is 0–100).
+  static const maxScore = 100;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final coins = ref.watch(screenerProvider).valueOrNull ?? const <ScreenerCoin>[];
@@ -159,7 +168,7 @@ class CoinDetailScreen extends ConsumerWidget {
     if (c == null) {
       return Scaffold(
         appBar: AppBar(title: Text('\$$symbol')),
-        body: const Center(child: Text('Coin tidak ditemukan')),
+        body: Center(child: Text(l10n.errorCodeNotFound)),
       );
     }
     Widget row(String k, String v) => Card(
@@ -198,21 +207,29 @@ class CoinDetailScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: AppSpace.s4),
-            // GAP (reported to UX): these WF-21 labels have no ARB keys yet.
-            row('Pair quote', '${c.quoteSymbol} · bukan SOL'),
-            row('Pair SOL', 'tidak ada'),
-            row('Skor screener', '${c.score} / 100'),
-            row('Guard', 'tidak dijalankan'),
+            // WF-21 detail rows (i18n 0.4.3 `screener.detail.*`).
+            row(l10n.screenerDetailQuotePair, l10n.screenerDetailQuoteNotSol(c.quoteSymbol)),
+            row(l10n.screenerDetailSolPair, l10n.screenerDetailNone),
+            row(l10n.screenerDetailScore, l10n.screenerDetailScoreValue('$maxScore', '${c.score}')),
+            row(l10n.screenerDetailGuard, l10n.screenerDetailGuardNotRun),
+            row(l10n.screenerDetailReasonCode, c.reasonCode ?? ''),
             const SizedBox(height: AppSpace.s4),
             // Disabled, labelled CTA; no Skip (it never entered the queue).
-            const FilledButton(key: Key('approve_disabled'), onPressed: null, child: Text('Approve — tidak tersedia')),
+            FilledButton(
+              key: const Key('approve_disabled'),
+              onPressed: null,
+              child: Text(l10n.screenerDetailApproveUnavailable),
+            ),
           ] else ...[
-            row('Pair quote', c.quoteSymbol),
-            row('Skor screener', '${c.score} / 100'),
-            row('Status', c.outcome == ScreenerOutcome.passed ? 'Lolos' : 'Ditolak'),
+            row(l10n.screenerDetailQuotePair, c.quoteSymbol),
+            row(l10n.screenerDetailScore, l10n.screenerDetailScoreValue('$maxScore', '${c.score}')),
+            row(
+              l10n.screenerColStatus,
+              c.outcome == ScreenerOutcome.passed ? l10n.screenerStatusPassed : l10n.screenerStatusRejectedGuard,
+            ),
             if (c.outcome == ScreenerOutcome.passed) ...[
               const SizedBox(height: AppSpace.s4),
-              OutlinedButton(onPressed: () => context.go('/approvals'), child: const Text('Buka antrean')),
+              OutlinedButton(onPressed: () => context.go('/approvals'), child: Text(l10n.screenerActionOpenQueue)),
             ],
           ],
         ],

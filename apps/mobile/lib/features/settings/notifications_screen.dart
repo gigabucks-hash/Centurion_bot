@@ -115,10 +115,9 @@ class NotificationsScreen extends ConsumerWidget {
     expiresAt: now.toUtc().add(const Duration(minutes: 1, seconds: 42)),
     expireReason: 'timeout',
     vars: {
-      'coin': r'$MOON',
       'strategy': 'Pullback v2',
-      'sol': '0.24',
-      'pnl': e == NotifEvent.n09StopHit ? '-0.019' : '0.031',
+      // i18n 0.4.3: wire var names; `pnl`/`amount_lamports` are lamports strings.
+      'pnl': e == NotifEvent.n09StopHit ? '-19000000' : '31000000',
       'pct': e == NotifEvent.n09StopHit ? '-9.5' : '50',
       'pct_sold': '33',
       'reason': 'Holder terlalu terkonsentrasi',

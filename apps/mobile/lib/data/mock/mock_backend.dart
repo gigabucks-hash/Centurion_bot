@@ -843,7 +843,7 @@ class MockBackend
           'symbol': p.symbol,
           'pct_sold': (sellBps / 100).round(),
           'pct': rung.gainPct.round(),
-          'pnl': pnl.toSol().toString(),
+          'pnl': pnl.toWire(), // lamports integer string (i18n 0.4.3 var_format)
         },
       );
     }
@@ -884,7 +884,7 @@ class MockBackend
           vars: {
             'symbol': p.symbol,
             'stop_type': stop,
-            'pnl_lamports': next.pnlLamports.toWire(),
+            'pnl': next.pnlLamports.toWire(),
             'pct': double.parse(next.pnlPct.toStringAsFixed(1)),
           },
         );

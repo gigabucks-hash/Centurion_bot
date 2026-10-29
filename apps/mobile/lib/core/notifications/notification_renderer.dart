@@ -115,66 +115,43 @@ class NotificationRenderer {
     );
   }
 
-  /// Formats raw payload vars per `format.mjs`. [now] is server-corrected.
-  /// Wire: `sol`/`pnl` are SOL decimal strings (or `*_lamports` integer
-  /// strings), `price` a USD decimal string, pct values JSON numbers.
-  /// Money is parsed to [Lamports]/[Decimal], never double.
-  /// i18n 0.4.1 N-05: `amount_lamports` → Lamports formatter, `reason_code` →
-  /// `order.fail_reason.*` copy (unknown → `.unknown`), `symbol` like `coin`,
-  /// `side` passed through for the ICU select. Timestamps (`cooldown_until`,
-  /// `auto_revert_at`, `scheduled_for`) → local time + zone.
+  /// Formats raw push vars per @sentra/i18n 0.4.3 `notifications.meta.json`
+  /// `var_format`. Var names ARE the ARB placeholder names (no mapping):
+  /// `symbol` plain untrusted text (shown as `$SYM`), `amount_lamports` /
+  /// `pnl` lamports integer strings → [Lamports] formatter (`pnl` signed per
+  /// T-15), `price` USD decimal string, `pct` N-08 unsigned (the copy has the
+  /// `+`) and N-09/N-15 signed, `pct_sold` unsigned, `reason_code` →
+  /// `order.fail_reason.*`, timestamps → local time + zone. Money is never double.
+  /// Computed on device: `mm_ss` from `exp` − (now + skew).
   Map<String, String> _formatVars(PushMessage m, NotifLocale locale, DateTime now) {
     final loc = locale.name;
     final paper = m.mode != NotifMode.real;
     final out = <String, String>{};
-    Lamports? lamports(String k) =>
-        Lamports.tryParse(m.vars['${k}_lamports']) ?? _tryOr(() => Lamports.fromSol(m.vars[k]!), m.vars[k]);
     String pnl(Lamports v) {
       final p = pnlSol(v, loc, paper: paper);
       return p.arrow.isEmpty ? p.text : '${p.arrow} ${p.text}';
     }
 
+    final signedPct = m.event == NotifEvent.n09StopHit || m.event == NotifEvent.n15LossStopPaused;
     m.vars.forEach((k, raw) {
       out[k] = switch (k) {
-        'coin' || 'symbol' => raw.startsWith(r'$') ? raw : '\$$raw',
+        'symbol' => raw.startsWith(r'$') ? raw : '\$$raw',
         'amount_lamports' => _or(Lamports.tryParse(raw), raw, (v) => formatSol(v, loc, paper: paper)),
         'reason_code' => orderFailReason(l10nFor(locale), raw),
-        'sol' || 'sol_lamports' => _or(lamports('sol'), raw, (v) => formatSol(v, loc, paper: paper)),
         // ARB has no glyph: SPEC §1 requires ▲/▼ + sign on every PnL.
-        'pnl' || 'pnl_lamports' => _or(lamports('pnl'), raw, pnl),
-        'pct' => _or(
-          num.tryParse(raw),
-          raw,
-          (v) => formatPct(v, loc, signed: m.event == NotifEvent.n08TpHit || m.event == NotifEvent.n09StopHit),
-        ),
+        'pnl' => _or(Lamports.tryParse(raw), raw, pnl),
+        'pct' => _or(num.tryParse(raw), raw, (v) => formatPct(v, loc, signed: signedPct)),
         'pct_sold' => _or(num.tryParse(raw), raw, (v) => formatPct(v, loc)),
-        'price' || 'price_usd' => _or(Decimal.tryParse(raw), raw, (v) => formatUsd(v, loc)),
-        'time' ||
+        'price' => _or(Decimal.tryParse(raw), raw, (v) => formatUsd(v, loc)),
         'cooldown_until' ||
         'auto_revert_at' ||
         'scheduled_for' => _or(_parseTime(raw), raw, (t) => formatTime(t.toLocal(), loc, zone: zoneLabel)),
         _ => raw,
       };
     });
-    if (out.containsKey('sol_lamports')) out['sol'] = out.remove('sol_lamports')!;
-    if (out.containsKey('pnl_lamports')) out['pnl'] = out.remove('pnl_lamports')!;
-    if (out.containsKey('price_usd')) out['price'] = out.remove('price_usd')!;
-    // 1.1.2 push vars → ARB placeholders: `symbol` fills {coin}, `amount_lamports`
-    // fills {sol} (there is no `vars.sol` anymore). Originals stay for N-05 copy.
-    if (!out.containsKey('coin') && out.containsKey('symbol')) out['coin'] = out['symbol']!;
-    if (!out.containsKey('sol') && out.containsKey('amount_lamports')) out['sol'] = out['amount_lamports']!;
-    // Countdown is always client-computed from exp − (now + skew); `vars.mm_ss` is ignored.
+    // Countdown is always client-computed from exp − (now + skew); never a push var.
     if (m.expiresAt != null) out['mm_ss'] = formatCountdown(m.expiresAt!.difference(now.toUtc()));
     return out;
-  }
-
-  static T? _tryOr<T>(T Function() f, String? raw) {
-    if (raw == null) return null;
-    try {
-      return f();
-    } on FormatException {
-      return null;
-    }
   }
 
   static String _or<T>(T? v, String raw, String Function(T) fmt) => v == null ? raw : fmt(v);

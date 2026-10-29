@@ -8,10 +8,8 @@ final exp = now.add(const Duration(minutes: 1, seconds: 42));
 
 /// Sample vars covering every placeholder in the spec.
 const sampleVars = {
-  'coin': r'$KEPL',
   'strategy': 'Pullback v2',
-  'sol': '0.24',
-  'pnl': '0.031',
+  'pnl': '31000000', // lamports (i18n 0.4.3 var_format)
   'pct': '12.5',
   'pct_sold': '33',
   'reason': 'Slippage terlalu tinggi',
@@ -21,11 +19,11 @@ const sampleVars = {
   'time': '1793260000',
   'price': '0.000412',
   'stop_type': 'Trailing stop',
-  // i18n 0.4.1 N-05 (`order.failed`) vars.
+  // i18n 0.4.3: placeholder names = wire var names (no coin/sol/mm_ss).
   'symbol': 'KEPL',
   'side': 'buy',
   'reason_code': 'SLIPPAGE_EXCEEDED',
-  'amount_lamports': '250000000',
+  'amount_lamports': '240000000',
   // i18n 0.4.0 timestamps (N-11 / N-12).
   'cooldown_until': '2026-10-29T03:10:00Z',
   'auto_revert_at': '2026-10-30T03:00:00Z',
@@ -181,7 +179,7 @@ void main() {
     final tp = r.render(msg(NotifEvent.n08TpHit, NotifMode.practice), NotifLocale.id, now);
     expect(tp.body, 'Terjual 33% di +12,5% · ▲ +0,031\u00A0paper SOL');
     final stop = r.render(
-      msg(NotifEvent.n09StopHit, NotifMode.practice, vars: {...sampleVars, 'pnl': '-0.05', 'pct': '-20'}),
+      msg(NotifEvent.n09StopHit, NotifMode.practice, vars: {...sampleVars, 'pnl': '-50000000', 'pct': '-20'}),
       NotifLocale.en,
       now,
     );
@@ -241,7 +239,7 @@ void main() {
     expect(g.record(NotifMode.practice, now.add(const Duration(minutes: 3))), 1);
   });
 
-  test('N-05 (i18n 0.4.1): {side} {symbol} {reason_code} {amount_lamports}, lamports via the Lamports formatter', () {
+  test('N-05: {side} {symbol} {reason_code} {amount_lamports}, lamports via the Lamports formatter', () {
     Map<String, String> v(String code, {String side = 'buy', String amount = '250000000'}) => {
       'symbol': 'KEPL',
       'side': side,
@@ -273,6 +271,24 @@ void main() {
     expect(unk.body, startsWith('The order couldn’t be completed'));
     expect(unk.body, isNot(contains('SOMETHING_NEW')));
     expect(unk.actions, isNot(contains(NotifAction.approve)));
+  });
+
+  test('order.fail_reason covers all 8 order.failed reason codes (i18n 0.4.3)', () {
+    final l = l10nFor(NotifLocale.en);
+    const codes = [
+      'SLIPPAGE_EXCEEDED',
+      'INSUFFICIENT_PRACTICE_BALANCE',
+      'GUARD_FAILED',
+      'UNSUPPORTED_QUOTE_MINT',
+      'POOL_STALE',
+      'POSITION_ALREADY_CLOSED',
+      'VALIDATION_FAILED',
+      'MODE_NOT_ALLOWED',
+    ];
+    final texts = {for (final c in codes) orderFailReason(l, c)};
+    expect(texts, hasLength(8), reason: 'each code has its own copy');
+    expect(texts, isNot(contains(l.orderFailReasonUnknown)));
+    expect(orderFailReason(l, 'POSITION_ALREADY_CLOSED'), 'This position was already closed');
   });
 
   test('UNSUPPORTED_QUOTE_MINT (not tradeable): no Approve/Skip on any notification', () {

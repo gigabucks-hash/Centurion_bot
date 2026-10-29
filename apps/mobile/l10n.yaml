@@ -1,4 +1,4 @@
-# ARB files are copied verbatim from @sentra/i18n 0.4.1 (sentra/packages/i18n/arb; built by UX from
+# ARB files are copied verbatim from @sentra/i18n 0.4.3 (sentra/packages/i18n/arb; built by UX from
 # ux-solbot/scripts/build_locales.py). UX owns them; do not edit here.
 arb-dir: lib/l10n
 template-arb-file: app_en.arb
