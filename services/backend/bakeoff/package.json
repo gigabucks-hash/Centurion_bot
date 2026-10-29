@@ -1,0 +1,20 @@
+{
+  "name": "@sentra/bakeoff",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Devnet-only bake-off harness (Turnkey vs Crossmint). Not part of the production build.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\"",
+    "bench:mock": "node src/runner.ts --provider=all --runs=60",
+    "live:crossmint": "node src/live-crossmint.ts",
+    "redaction-check": "node src/redaction-check.ts"
+  },
+  "dependencies": {
+    "@turnkey/api-key-stamper": "0.6.18"
+  }
+}
