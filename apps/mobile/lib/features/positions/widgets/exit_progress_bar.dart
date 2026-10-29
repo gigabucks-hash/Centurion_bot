@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/solbot_theme.dart';
+import '../../../core/theme/sentra_theme.dart';
 import '../../../data/models/models.dart';
 
 /// SPEC §6 exit progress: SL marker │ fill to current price │ TP rung dots.

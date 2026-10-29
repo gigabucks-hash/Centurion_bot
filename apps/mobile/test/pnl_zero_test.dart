@@ -3,14 +3,14 @@
 // Any non-zero value (even 1 lamport) → ▲/▼ + sign + profit/loss color.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solbot_mobile/core/format.dart';
-import 'package:solbot_mobile/core/l10n_format.dart';
-import 'package:solbot_mobile/core/notifications/notification_catalog.dart';
-import 'package:solbot_mobile/core/notifications/notification_renderer.dart';
-import 'package:solbot_mobile/core/push/push_payload.dart';
-import 'package:solbot_mobile/core/theme/solbot_theme.dart';
-import 'package:solbot_mobile/core/widgets/common.dart';
-import 'package:solbot_mobile/data/money.dart';
+import 'package:sentra_mobile/core/format.dart';
+import 'package:sentra_mobile/core/l10n_format.dart';
+import 'package:sentra_mobile/core/notifications/notification_catalog.dart';
+import 'package:sentra_mobile/core/notifications/notification_renderer.dart';
+import 'package:sentra_mobile/core/push/push_payload.dart';
+import 'package:sentra_mobile/core/theme/sentra_theme.dart';
+import 'package:sentra_mobile/core/widgets/common.dart';
+import 'package:sentra_mobile/data/money.dart';
 
 const nb = '\u00A0';
 bool _hasArrowOrSign(String s) => RegExp('[▲▼+−-]').hasMatch(s);
@@ -93,7 +93,7 @@ void main() {
     Future<(String, Color?)> render(WidgetTester t, Widget w) async {
       await t.pumpWidget(
         MaterialApp(
-          theme: SolbotTheme.dark(),
+          theme: SentraTheme.dark(),
           home: Scaffold(body: w),
         ),
       );

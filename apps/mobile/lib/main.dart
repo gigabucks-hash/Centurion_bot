@@ -14,5 +14,5 @@ void main() {
       yield LicenseEntryWithLineBreaks(['google_fonts'], await rootBundle.loadString('assets/google_fonts/$f'));
     }
   });
-  runApp(const ProviderScope(child: SolBotApp()));
+  runApp(const ProviderScope(child: SentraApp()));
 }

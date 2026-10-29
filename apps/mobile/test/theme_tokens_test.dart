@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solbot_mobile/data/money.dart';
-import 'package:solbot_mobile/core/format.dart';
-import 'package:solbot_mobile/core/theme/solbot_theme.dart';
+import 'package:sentra_mobile/data/money.dart';
+import 'package:sentra_mobile/core/format.dart';
+import 'package:sentra_mobile/core/theme/sentra_theme.dart';
 
 void main() {
   test('dark theme carries TradeColors v0.2.0 and Google Fonts families', () {
-    final t = SolbotTheme.dark();
+    final t = SentraTheme.dark();
     final tc = t.extension<TradeColors>()!;
     expect(tc.neutral, AppColorsDark.semanticNeutralPnl);
     expect(t.colorScheme.outline, const Color(0xFF6B7995)); // T-03 fix

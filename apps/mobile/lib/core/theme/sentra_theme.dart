@@ -8,7 +8,7 @@ export 'app_tokens.dart';
 /// verbatim from /workspace/sentra/packages/design-tokens/tokens/app_tokens.dart).
 /// Token gaps T-01..T-14 are fixed upstream (except font bundling, T-01), so this only adds app-chrome
 /// choices that are not design tokens (nav bar, snackbar, app bar).
-abstract final class SolbotTheme {
+abstract final class SentraTheme {
   static ThemeData dark() => _chrome(AppTheme.dark());
   static ThemeData light() => _chrome(AppTheme.light());
 

@@ -1,5 +1,5 @@
-name: solbot_mobile
-description: SolBot mobile companion app (prototype, mock data).
+name: sentra_mobile
+description: Sentra mobile companion app (Flutter; mock data until the backend is wired).
 publish_to: 'none'
 version: 0.1.0+1
 

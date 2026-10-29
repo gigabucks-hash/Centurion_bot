@@ -2,8 +2,8 @@
 // Regenerate: dart run tool/gen_errors.dart  (CI: tool/ci_check_errors.sh)
 // ignore_for_file: lines_longer_than_80_chars, constant_identifier_names
 
-const int apiErrorCodesVersion = 4;
-const int apiErrorCodesCount = 56;
+const int apiErrorCodesVersion = 5;
+const int apiErrorCodesCount = 57;
 
 /// `error` = API/RPC error body; `notice` = system.notice code; `skip` = screener skip_reason
 /// (may also be an `order.failed` reason_code).
@@ -89,6 +89,15 @@ enum ApiErrorCode {
     retryable: false,
     messageEn: 'Strategy rev changed since this was based on it',
     messageId: 'Strategi sudah berubah sejak usulan ini dibuat',
+    sqlState: 'P0409',
+  ),
+  guardWeakenRequiresApproval(
+    'GUARD_WEAKEN_REQUIRES_APPROVAL',
+    kind: ApiErrorKind.error,
+    http: 409,
+    retryable: false,
+    messageEn: 'This change weakens a guard and needs an approval; it was not applied',
+    messageId: 'Perubahan ini melemahkan pengaman dan memerlukan persetujuan; perubahan tidak diterapkan',
     sqlState: 'P0409',
   ),
   idempotencyKeyReused(

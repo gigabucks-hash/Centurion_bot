@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/feature_flags.dart';
 import '../../../core/format.dart';
-import '../../../core/theme/solbot_theme.dart';
+import '../../../core/theme/sentra_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../data/api/api_exception.dart';
 import '../../../data/models/models.dart';

@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solbot_mobile/core/notifications/local_notifier.dart';
-import 'package:solbot_mobile/core/notifications/notification_catalog.dart';
-import 'package:solbot_mobile/data/api/server_clock.dart';
-import 'package:solbot_mobile/data/mock/mock_backend.dart';
-import 'package:solbot_mobile/data/models/models.dart';
-import 'package:solbot_mobile/data/providers.dart';
+import 'package:sentra_mobile/core/notifications/local_notifier.dart';
+import 'package:sentra_mobile/core/notifications/notification_catalog.dart';
+import 'package:sentra_mobile/data/api/server_clock.dart';
+import 'package:sentra_mobile/data/mock/mock_backend.dart';
+import 'package:sentra_mobile/data/models/models.dart';
+import 'package:sentra_mobile/data/providers.dart';
 
 void main() {
   late MockBackend b;

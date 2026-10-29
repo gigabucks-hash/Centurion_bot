@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
-import '../../core/theme/solbot_theme.dart';
+import '../../core/theme/sentra_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/sparkline.dart';
 import '../../data/models/models.dart';

@@ -3,9 +3,9 @@
 // generator). Deterministic: output depends only on the JSON (source order,
 // no timestamps), so CI can regenerate and `git diff --exit-code`.
 //
-// Usage (from app/):
-//   dart run tool/gen_errors.dart                      # vendored tool/contracts/errors.json
-//   dart run tool/gen_errors.dart --source ../../packages/contracts/errors.json
+// Usage (from apps/mobile/):
+//   dart run tool/gen_errors.dart                      # ../../packages/contracts/errors.json (monorepo)
+//   dart run tool/gen_errors.dart --source path/to/errors.json
 //   dart run tool/gen_errors.dart --check              # exit 1 if the .g.dart is stale
 //
 // errors.json v4 (contracts 1.1.2): per code `code`, `kind` (error|notice|skip),
@@ -15,7 +15,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-const defaultSource = 'tool/contracts/errors.json';
+const defaultSource = '../../packages/contracts/errors.json';
 const defaultOut = 'lib/data/api/api_errors.g.dart';
 
 String _camel(String code) {

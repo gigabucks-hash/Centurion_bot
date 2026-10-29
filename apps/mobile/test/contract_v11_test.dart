@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solbot_mobile/data/api/api_exception.dart';
-import 'package:solbot_mobile/data/api/events_feed.dart';
-import 'package:solbot_mobile/data/api/marks.dart';
-import 'package:solbot_mobile/data/api/sentra_rpc.dart';
-import 'package:solbot_mobile/data/api/settings_keys.dart';
-import 'package:solbot_mobile/data/api/wire.dart';
-import 'package:solbot_mobile/data/mock/mock_backend.dart';
-import 'package:solbot_mobile/data/mock/mock_rpc.dart';
-import 'package:solbot_mobile/data/models/models.dart';
-import 'package:solbot_mobile/data/repositories/repositories.dart';
+import 'package:sentra_mobile/data/api/api_exception.dart';
+import 'package:sentra_mobile/data/api/events_feed.dart';
+import 'package:sentra_mobile/data/api/marks.dart';
+import 'package:sentra_mobile/data/api/sentra_rpc.dart';
+import 'package:sentra_mobile/data/api/settings_keys.dart';
+import 'package:sentra_mobile/data/api/wire.dart';
+import 'package:sentra_mobile/data/mock/mock_backend.dart';
+import 'package:sentra_mobile/data/mock/mock_rpc.dart';
+import 'package:sentra_mobile/data/models/models.dart';
+import 'package:sentra_mobile/data/repositories/repositories.dart';
 
 void main() {
   group('wire mapping (v1.1)', () {

@@ -1,4 +1,4 @@
-/// Dart mirror of the UX reference formatters (`ux-solbot/locales/format.mjs`).
+/// Dart mirror of the UX reference formatters (`packages/i18n/format.mjs`).
 /// Rule: number locale == UI language (never EN copy with id-ID numbers).
 /// Domain values are formatted here and passed to ARB messages as strings.
 /// Amounts are [Lamports] (BigInt) and prices [Decimal]: no double for money.

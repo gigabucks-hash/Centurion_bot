@@ -2,14 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solbot_mobile/data/api/api_exception.dart';
+import 'package:sentra_mobile/data/api/api_exception.dart';
 
 import '../tool/gen_errors.dart' as gen;
 
 /// The generated enum must track `errors.json` exactly. No count is hardcoded
 /// here: everything is read from the JSON the generator consumes.
 void main() {
-  final source = Platform.environment['ERRORS_JSON'] ?? 'tool/contracts/errors.json';
+  final source = Platform.environment['ERRORS_JSON'] ?? '../../packages/contracts/errors.json';
   final json = jsonDecode(File(source).readAsStringSync()) as Map<String, Object?>;
   final codes = [for (final c in json['codes']! as List) (c as Map)['code'] as String];
 

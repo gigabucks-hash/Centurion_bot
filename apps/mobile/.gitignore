@@ -4,3 +4,11 @@ build/
 .flutter-plugins-dependencies
 .idea/
 *.iml
+# Platform caches (from the pre-monorepo root .gitignore)
+android/.gradle/
+android/local.properties
+ios/Pods/
+ios/Flutter/ephemeral/
+*.zip
+# Release symbol maps (--split-debug-info); keep out of git, upload to crash tooling
+build/symbols/

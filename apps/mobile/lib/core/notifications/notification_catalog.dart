@@ -1,8 +1,8 @@
 /// Typed catalog of the 17 notification events in
-/// `ux-solbot/docs/NOTIFICATIONS.md`: channel, priority and per-mode actions.
+/// `ux-solbot/docs/NOTIFICATIONS.md` (UX repo): channel, priority and per-mode actions.
 ///
 /// Copy comes from the UX ARB files (`lib/l10n/app_{id,en}.arb`, copied
-/// verbatim from `ux-solbot/locales/arb`) via gen-l10n `AppLocalizations`.
+/// verbatim from `packages/i18n/arb`) via gen-l10n `AppLocalizations`.
 /// `lookupAppLocalizations(Locale)` needs no BuildContext, so the same code
 /// renders in the FCM background isolate. See [notifCopy].
 library;

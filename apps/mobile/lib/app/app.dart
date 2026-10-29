@@ -7,17 +7,17 @@ import '../core/notifications/local_notifier.dart';
 import '../l10n/gen/app_localizations.dart';
 
 import 'router.dart';
-import '../core/theme/solbot_theme.dart';
+import '../core/theme/sentra_theme.dart';
 
-class SolBotApp extends ConsumerStatefulWidget {
-  const SolBotApp({super.key, this.initialLocation = '/'});
+class SentraApp extends ConsumerStatefulWidget {
+  const SentraApp({super.key, this.initialLocation = '/'});
   final String initialLocation;
 
   @override
-  ConsumerState<SolBotApp> createState() => _SolBotAppState();
+  ConsumerState<SentraApp> createState() => _SentraAppState();
 }
 
-class _SolBotAppState extends ConsumerState<SolBotApp> {
+class _SentraAppState extends ConsumerState<SentraApp> {
   late final GoRouter _router = buildRouter(initialLocation: widget.initialLocation);
 
   @override
@@ -29,12 +29,12 @@ class _SolBotAppState extends ConsumerState<SolBotApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'SolBot',
+      title: 'Sentra',
       debugShowCheckedModeBanner: false,
       // Dark is the default per SPEC; light kept for OS-level switch later.
       themeMode: ThemeMode.dark,
-      theme: SolbotTheme.light(),
-      darkTheme: SolbotTheme.dark(),
+      theme: SentraTheme.light(),
+      darkTheme: SentraTheme.dark(),
       routerConfig: _router,
       // UX ARB (lib/l10n). One language for copy AND numbers (format.mjs rule).
       locale: Locale(ref.watch(notificationLocaleProvider).name),

@@ -1,4 +1,4 @@
-package com.solbot.solbot_mobile
+package com.sentra.app
 
 import io.flutter.embedding.android.FlutterActivity
 

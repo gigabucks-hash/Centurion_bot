@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solbot_mobile/core/l10n_format.dart';
-import 'package:solbot_mobile/data/money.dart';
+import 'package:sentra_mobile/core/l10n_format.dart';
+import 'package:sentra_mobile/data/money.dart';
 
-/// Mirrors the examples in ux-solbot/locales/format.mjs.
+/// Mirrors the examples in packages/i18n/format.mjs.
 void main() {
   const nb = '\u00A0';
   Lamports sol(String v) => Lamports.fromSol(v);

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:solbot_mobile/app/app.dart';
-import 'package:solbot_mobile/core/approval_guard.dart';
-import 'package:solbot_mobile/core/format.dart';
-import 'package:solbot_mobile/core/feature_flags.dart';
-import 'package:solbot_mobile/core/widgets/common.dart';
-import 'package:solbot_mobile/data/api/api_exception.dart';
-import 'package:solbot_mobile/data/api/settings_keys.dart';
-import 'package:solbot_mobile/data/mock/mock_backend.dart';
-import 'package:solbot_mobile/data/models/models.dart';
-import 'package:solbot_mobile/data/providers.dart';
-import 'package:solbot_mobile/data/repositories/repositories.dart';
-import 'package:solbot_mobile/features/positions/widgets/exit_progress_bar.dart';
+import 'package:sentra_mobile/app/app.dart';
+import 'package:sentra_mobile/core/approval_guard.dart';
+import 'package:sentra_mobile/core/format.dart';
+import 'package:sentra_mobile/core/feature_flags.dart';
+import 'package:sentra_mobile/core/widgets/common.dart';
+import 'package:sentra_mobile/data/api/api_exception.dart';
+import 'package:sentra_mobile/data/api/settings_keys.dart';
+import 'package:sentra_mobile/data/mock/mock_backend.dart';
+import 'package:sentra_mobile/data/models/models.dart';
+import 'package:sentra_mobile/data/providers.dart';
+import 'package:sentra_mobile/data/repositories/repositories.dart';
+import 'package:sentra_mobile/features/positions/widgets/exit_progress_bar.dart';
 
 /// [realSol] flips the Phase 7 flag (client + mock server) for tests that exercise Real flows.
 Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderScope(
@@ -21,7 +21,7 @@ Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderS
     featureFlagsProvider.overrideWithValue(FeatureFlags(realSolEnabled: realSol)),
     approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
   ],
-  child: SolBotApp(initialLocation: location),
+  child: SentraApp(initialLocation: location),
 );
 
 Future<void> _phone(WidgetTester tester) async {

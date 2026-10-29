@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/feature_flags.dart';
 import '../../core/format.dart';
-import '../../core/theme/solbot_theme.dart';
+import '../../core/theme/sentra_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../data/api/api_exception.dart';
 import '../../data/api/server_clock.dart';

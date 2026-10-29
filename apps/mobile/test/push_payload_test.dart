@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:convert';
 
-import 'package:solbot_mobile/core/notifications/notification_catalog.dart';
-import 'package:solbot_mobile/core/notifications/notification_renderer.dart';
-import 'package:solbot_mobile/core/push/push_payload.dart';
+import 'package:sentra_mobile/core/notifications/notification_catalog.dart';
+import 'package:sentra_mobile/core/notifications/notification_renderer.dart';
+import 'package:sentra_mobile/core/push/push_payload.dart';
 
 void main() {
   test('parses a valid N-01 Practice pick payload', () {

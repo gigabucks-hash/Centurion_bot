@@ -1,9 +1,9 @@
-# SolBot Mobile: arsitektur Fase 5 (Flutter Android + iOS)
+# Sentra Mobile: arsitektur Fase 5 (Flutter Android + iOS)
 
 **Owner:** Flutter Mobile Specialist · **Untuk:** Apex Dev Lead · 29 Okt 2026
 **Basis:** blueprint "HOTBOT — Architecture & How It Works" (data model Postgres, roadmap Fase 5), SPEC UX (`/workspace/ux-solbot/docs/SPEC.md` Rev 2, `NOTIFICATIONS.md`, wireframe 11/12), token `@sentra/design-tokens` 0.2.1 (vendored, lihat §3a).
 **Prinsip:** perilaku setara, tapi code, UI, dan aset orisinal. Tidak ada code, aset, atau nama HOTBOT di repo ini.
-**Nama:** working name produk **Sentra**, placeholder app ID `com.sentra.app`, package `sentra_mobile`. Rename di app dilakukan saat pindah ke monorepo `/workspace/sentra/apps/mobile`. Prototype ini masih `solbot_mobile`.
+**Nama:** working name produk **Sentra**, placeholder app ID `com.sentra.app`, package `sentra_mobile`. **Sudah di-rename** saat pindah ke monorepo `sentra/apps/mobile` (29 Okt 2026): package `sentra_mobile`, applicationId/namespace `com.sentra.app` (MainActivity `com.sentra.app`), iOS bundle `com.sentra.app` (+ `.RunnerTests`), display name **Sentra**, web title/manifest. Riwayat repo lama `solbot_mobile` dipertahankan (git filter-repo + merge `--allow-unrelated-histories`).
 
 ## 1. Scope Fase 5
 - Push notification untuk approval: pick buy (approve/skip) dan perubahan setting/guard.
@@ -27,12 +27,12 @@ Aturan yang dipakai:
 
 ## 3. Struktur folder (feature-first)
 ```
-app/lib/
+apps/mobile/lib/
   main.dart                 # entry mock; nanti main_supabase.dart (flavor)
   app/  app.dart router.dart
   core/
     theme/ app_tokens.dart (VENDORED verbatim dari @sentra/design-tokens, jangan diedit)
-           solbot_theme.dart (app chrome + pnlColor epsilon, 33 baris)
+           sentra_theme.dart (app chrome + pnlColor epsilon, 33 baris)
     widgets/ common.dart (PnlText, ModeBanner, TagChip, RiskBadge, ExpiryCountdown, HoldToConfirmButton) · sparkline.dart
     push/ push_payload.dart (PushMessage: kontrak payload FCM `event=N-xx`, pure Dart, fail closed)
     notifications/
@@ -105,7 +105,7 @@ tool/  gen_errors.dart · ci_check_errors.sh · contracts/errors.json (salinan v
 
 ### Kontrak 1.1.2 (packages/contracts 1.1.2, monorepo 01427df, ERROR_CODES_VERSION 4)
 Menimpa bagian v1.1 di bawah bila bertentangan. Sumber: `FLUTTER_INTEGRATION_ANSWERS.md` dan `CHANGELOG.md` 1.1.2.
-- **errors.json v4** (56 kode, `tool/contracts/errors.json` verbatim): `kind error|notice|skip`, `sqlstate` = `P0`+HTTP (tidak unik per kode → kode diambil dari MESSAGE), `messages.en/id`. Generator memvalidasi `sqlstate == P0<http>` dan menulis `kind`, `messageEn/messageId`, `sqlState`, `httpFromSqlState()`; output di-`dart format` di dalam paket (`.dart_tool/gen_errors/`) sehingga identik dengan langkah CI format. Body error REST: `{error:{code, message, ...details, server_now}}` → `ApiException.details` (detail tersebar di `error`, `details` bersarang tetap digabung). UI memakai `localizedMessage('id')`.
+- **errors.json v4** (dibaca langsung dari `../../packages/contracts/errors.json`, tanpa salinan vendored; v5 = 57 kode dengan `GUARD_WEAKEN_REQUIRES_APPROVAL`): `kind error|notice|skip`, `sqlstate` = `P0`+HTTP (tidak unik per kode → kode diambil dari MESSAGE), `messages.en/id`. Generator memvalidasi `sqlstate == P0<http>` dan menulis `kind`, `messageEn/messageId`, `sqlState`, `httpFromSqlState()`; output di-`dart format` di dalam paket (`.dart_tool/gen_errors/`) sehingga identik dengan langkah CI format. Body error REST: `{error:{code, message, ...details, server_now}}` → `ApiException.details` (detail tersebar di `error`, `details` bersarang tetap digabung). UI memakai `localizedMessage('id')`.
 - **Penamaan rev seragam:** `rev` / `p_expected_rev` / `If-Match`. `Approval.version` → `Approval.rev`; `DecideApprovalResult.rev`.
 - **`decide_approval(p_approval_id, p_token, p_decision, p_expected_rev, p_idempotency_key?)`**: tanpa `p_client`; `p_expected_rev` wajib (rev approval di app, `version` dari push). Klien/via diambil server dari JWT (`sentra_client`).
 - **`update_strategy`**: tanpa `p_actor`/`p_via`; `p_device` opsional (dikirim hanya bila ada). **`reset_practice(p_workspace)`** via `ResetPracticeRequest(workspaceId)`; event `practice.reset {epoch, previous_epoch, starting_balance_lamports, archived, next_allowed_at, at}`.
@@ -169,9 +169,9 @@ Menimpa bagian v1.1 di bawah bila bertentangan. Sumber: `FLUTTER_INTEGRATION_ANS
 - CI (`.github/workflows/mobile.yml`, working dir `app`): `flutter pub get` → `tool/ci_check_errors.sh` → `flutter analyze` → `flutter test`. Berikutnya: `--coverage`, build `apk --debug` + `ios --no-codesign`.
 
 ### 8a. Generator kode error (`errors.json` → Dart)
-- `app/tool/gen_errors.dart` (Dart murni, deterministik, tanpa timestamp): `errors.json` → `lib/data/api/api_errors.g.dart` berisi `apiErrorCodesVersion`, `apiErrorCodesCount`, `enum ApiErrorCode(wire, http, retryable, messageEn, messageId, sqlState)` + `unknown`, `fromWire`, `fromPostgres(sqlState, message)` (MESSAGE = kode; SQLSTATE harus `P04xx`), `message(lang)`. Memvalidasi format kode dan duplikat. Mendukung `messages.{id,en}`/`message_id`/`sqlstate` per kode bila Backend menambahkannya.
-- Jalankan (dari `app/`): `dart run tool/gen_errors.dart` (sumber default `tool/contracts/errors.json`; atau `--source <path>` / env `ERRORS_JSON`), `--check` untuk verifikasi tanpa menulis. Update kontrak: `cp /workspace/sentra/packages/contracts/errors.json tool/contracts/ && dart run tool/gen_errors.dart`.
-- CI: `tool/ci_check_errors.sh` memilih `$ERRORS_JSON` → `../../packages/contracts/errors.json` (setelah pindah monorepo) → salinan vendored; gagal bila salinan vendored beda dengan upstream; regenerate lalu `git diff --exit-code -- lib/data/api/api_errors.g.dart`.
+- `apps/mobile/tool/gen_errors.dart` (Dart murni, deterministik, tanpa timestamp): `errors.json` → `lib/data/api/api_errors.g.dart` berisi `apiErrorCodesVersion`, `apiErrorCodesCount`, `enum ApiErrorCode(wire, http, retryable, messageEn, messageId, sqlState)` + `unknown`, `fromWire`, `fromPostgres(sqlState, message)` (MESSAGE = kode; SQLSTATE harus `P04xx`), `message(lang)`. Memvalidasi format kode dan duplikat. Mendukung `messages.{id,en}`/`message_id`/`sqlstate` per kode bila Backend menambahkannya.
+- Jalankan (dari `apps/mobile/`): `dart run tool/gen_errors.dart` (sumber default `../../packages/contracts/errors.json`; atau `--source <path>` / env `ERRORS_JSON`), `--check` untuk verifikasi tanpa menulis. Update kontrak: cukup `dart run tool/gen_errors.dart` lalu commit `.g.dart`.
+- CI (`.github/workflows/mobile.yml` di root, `working-directory: apps/mobile`, trigger juga pada `packages/contracts/errors.json`, `packages/i18n/arb/**`, `packages/design-tokens/tokens/app_tokens.dart`): `tool/ci_check_errors.sh` memakai `$ERRORS_JSON` atau `../../packages/contracts/errors.json` (gagal bila tidak ada), regenerate lalu `git diff --exit-code -- lib/data/api/api_errors.g.dart`. `tool/ci_check_vendored.sh` memastikan salinan ARB + `app_tokens.dart` identik byte dengan `packages/`.
 - Test `api_errors_gen_test.dart`: jumlah/versi/setiap kode **dibaca dari JSON** (tidak ada angka 36/47 yang di-hardcode), sync/golden via `--check`, dan fixture kode baru (mis. `RESET_COOLDOWN` dulu) ter-generate otomatis tanpa edit manual.
 
 ## 9. Milestone 2 minggu
