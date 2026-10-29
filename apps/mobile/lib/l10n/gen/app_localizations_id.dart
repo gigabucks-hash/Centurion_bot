@@ -126,6 +126,9 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get chartTitle => 'Chart';
+
+  @override
   String coinTrailSnapshotNote(String rev) {
     return 'Nilai dan threshold saat itu (rev $rev).';
   }
@@ -652,6 +655,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get feedActorGuard => 'Guard';
+
+  @override
+  String get feedActorIngest => 'Ingest';
 
   @override
   String get feedActorScreener => 'Screener';
@@ -1186,6 +1192,15 @@ class AppLocalizationsId extends AppLocalizations {
   String get orderFailReasonValidationFailed => 'Order tidak lolos validasi';
 
   @override
+  String positionsEmpty(String mode) {
+    String _temp0 = intl.Intl.selectLogic(mode, {
+      'real': 'Tidak ada posisi terbuka',
+      'other': 'Tidak ada posisi (paper)',
+    });
+    return '$_temp0';
+  }
+
+  @override
   String get positionsEquityHwm => 'High-water mark';
 
   @override
@@ -1208,6 +1223,9 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get positionsSellConfirmTitle => 'Konfirmasi jual';
+
+  @override
   String get positionsSellEstimate => 'Perkiraan diterima';
 
   @override
@@ -1227,7 +1245,16 @@ class AppLocalizationsId extends AppLocalizations {
   String get positionsSellNeverFromNotification => 'Jual tidak pernah tersedia dari notifikasi atau popup.';
 
   @override
+  String get positionsSellNotTradeableDetail =>
+      'Posisi ini tidak punya pair SOL lagi; jual diblokir sampai pair SOL tersedia.';
+
+  @override
   String get positionsSellPlanCancelled => 'Exit plan dibatalkan (100%)';
+
+  @override
+  String positionsSellQuoteTtl(String seconds) {
+    return 'Quote berlaku $seconds dtk.';
+  }
 
   @override
   String get positionsSellRemainingPlan => 'Sisa posisi tetap memakai exit plan';
@@ -1238,7 +1265,13 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get positionsSellUnavailable => 'Jual — tidak tersedia';
+
+  @override
   String get positionsTitle => 'Posisi';
+
+  @override
+  String get positionsTitlePaper => 'Posisi (paper)';
 
   @override
   String queueBatchApprove(int count) {
@@ -1246,6 +1279,19 @@ class AppLocalizationsId extends AppLocalizations {
     final String countString = countNumberFormat.format(count);
 
     String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: 'Setujui $countString pick');
+    return '$_temp0';
+  }
+
+  @override
+  String queueBatchExcludedNotTradeable(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString pick tidak ikut: tidak bisa ditradingkan',
+    );
     return '$_temp0';
   }
 
@@ -1262,6 +1308,9 @@ class AppLocalizationsId extends AppLocalizations {
   String queueBatchTotal(String amount_lamports) {
     return 'Total $amount_lamports';
   }
+
+  @override
+  String get queueEmpty => 'Tidak ada pick pending';
 
   @override
   String get queueGuardReject => 'Tolak perubahan';
@@ -1317,6 +1366,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get queueSkipReasonAlreadyPumped => 'Sudah pump';
 
   @override
+  String get queueSkipReasonNotTradeable => 'Tidak bisa ditradingkan';
+
+  @override
   String get queueSkipReasonOther => 'Lainnya…';
 
   @override
@@ -1350,6 +1402,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get queueTitle => 'Antrean approval';
+
+  @override
+  String get queueTitleShort => 'Antrean';
 
   @override
   String get queueWhyFirstBuy => 'Mode approval “Tanya: buy pertama”. Ini buy pertama strategi ini.';
@@ -1403,6 +1458,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get screenerDetailApproveUnavailable => 'Approve — tidak tersedia';
 
   @override
+  String get screenerDetailChartNote => 'Chart dan metrik tetap bisa dilihat (read-only).';
+
+  @override
   String get screenerDetailChartReadonly => 'Chart harga (read-only)';
 
   @override
@@ -1437,7 +1495,18 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String screenerDetailScoreValueInfo(String max_score, String score) {
+    return '$score / $max_score (informasi saja)';
+  }
+
+  @override
+  String get screenerDetailSkipHint => 'Tetap bisa dilewati. Melewati bukan trade.';
+
+  @override
   String get screenerDetailSolPair => 'Pair SOL';
+
+  @override
+  String get screenerEmpty => 'Belum ada koin yang di-screen';
 
   @override
   String get screenerFilterAll => 'Semua';
@@ -1449,6 +1518,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get screenerFilterRejected => 'Ditolak';
 
   @override
+  String get screenerLegend =>
+      'Merah menandai risiko (guard gagal, rug, loss). Koin abu-abu “Tidak bisa ditradingkan” tidak punya pair SOL: tidak bisa di-approve, tapi bisa dilewati.';
+
+  @override
   String get screenerNotTradeableBadge => 'Tidak bisa ditradingkan';
 
   @override
@@ -1457,6 +1530,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get screenerStatusPassed => 'Lolos';
+
+  @override
+  String get screenerStatusPendingGuard => 'Menunggu guard';
 
   @override
   String get screenerStatusPickQueued => 'Pick · di antrean';

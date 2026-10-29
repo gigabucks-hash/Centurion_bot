@@ -36,18 +36,19 @@ const skipReasons = ['Likuiditas tipis', 'Sudah pump', 'Dev aneh', 'Lainnya'];
 /// (approval, rev, decision), so a double tap or retry replays instead of
 /// double-deciding. 1.1.2: `p_expected_rev` = the approval `rev` (never null);
 /// no `p_client` (the server takes it from the JWT).
-DecideApprovalRequest decideRequest(Approval a, {required bool approve}) => DecideApprovalRequest(
+DecideApprovalRequest decideRequest(Approval a, {required bool approve, String? reason}) => DecideApprovalRequest(
   approvalId: a.id,
   token: a.token,
   approve: approve,
   expectedRev: a.rev,
   idempotencyKey: '${a.id}:r${a.rev}:${Wire.decision(approve: approve)}',
+  reason: approve ? null : reason,
 );
 
 /// Approve path. Real SOL always passes the biometric gate first (SPEC §3),
 /// and is disabled entirely while [FeatureFlags.realSolEnabled] is false.
 Future<ApprovalStatus?> approveItem(BuildContext context, WidgetRef ref, Approval a) async {
-  if (a.notTradeable) return null; // screener.not_tradeable: never approvable
+  if (!a.approvable) return null; // not tradeable: Approve is off (server: UNSUPPORTED_QUOTE_MINT)
   if (a.mode == TradeMode.real && !ref.read(featureFlagsProvider).realSolEnabled) {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text(realSolDisabledText)));
     return null;
@@ -73,9 +74,11 @@ Future<ApprovalStatus?> approveItem(BuildContext context, WidgetRef ref, Approva
 }
 
 /// Skip path: optimistic hide + Undo 5 s; the decision is only sent after
-/// the undo window closes (so "undo" needs no backend support).
+/// the undo window closes (so "undo" needs no backend support). A not-tradeable
+/// pick CAN be skipped (i18n 0.4.4); its wire reason `not_tradeable` is preselected.
 void skipItem(BuildContext context, WidgetRef ref, Approval a, {String? reason}) {
-  if (a.notTradeable) return; // screener.not_tradeable: no Skip either
+  final wireReason = a.defaultSkipReason;
+  reason ??= wireReason == null ? null : AppLocalizations.of(context).queueSkipReasonNotTradeable;
   final busy = ref.read(skippingApprovalsProvider.notifier)..set(a.id, true);
   final repo = ref.read(approvalRepositoryProvider);
   var undone = false;
@@ -91,7 +94,7 @@ void skipItem(BuildContext context, WidgetRef ref, Approval a, {String? reason})
   Timer(undoWindow, () async {
     if (!undone) {
       try {
-        await repo.decide(decideRequest(a, approve: false));
+        await repo.decide(decideRequest(a, approve: false, reason: wireReason));
       } catch (_) {
         /* surfaced via feed in prod */
       }
@@ -100,7 +103,7 @@ void skipItem(BuildContext context, WidgetRef ref, Approval a, {String? reason})
   });
 }
 
-Future<String?> _askSkipReason(BuildContext context) => showModalBottomSheet<String>(
+Future<String?> _askSkipReason(BuildContext context, Approval a) => showModalBottomSheet<String>(
   context: context,
   showDragHandle: true,
   builder: (ctx) => Padding(
@@ -111,16 +114,35 @@ Future<String?> _askSkipReason(BuildContext context) => showModalBottomSheet<Str
       children: [
         Text('Alasan skip (opsional)', style: Theme.of(ctx).textTheme.titleMedium),
         const SizedBox(height: AppSpace.s3),
-        Wrap(
-          spacing: AppSpace.s2,
-          runSpacing: AppSpace.s2,
-          children: [for (final r in skipReasons) ActionChip(label: Text(r), onPressed: () => Navigator.pop(ctx, r))],
-        ),
-        const SizedBox(height: AppSpace.s3),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(onPressed: () => Navigator.pop(ctx, ''), child: const Text('Skip tanpa alasan')),
-        ),
+        if (a.notTradeable) ...[
+          // i18n 0.4.4: reason `not_tradeable` preselected; one tap confirms it.
+          ChoiceChip(
+            key: const Key('skipReason_not_tradeable'),
+            selected: true,
+            label: Text(AppLocalizations.of(ctx).queueSkipReasonNotTradeable),
+            onSelected: (_) => Navigator.pop(ctx, AppLocalizations.of(ctx).queueSkipReasonNotTradeable),
+          ),
+          const SizedBox(height: AppSpace.s3),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              key: const Key('skipConfirm'),
+              onPressed: () => Navigator.pop(ctx, AppLocalizations.of(ctx).queueSkipReasonNotTradeable),
+              child: Text('Skip · ${AppLocalizations.of(ctx).queueSkipReasonNotTradeable}'),
+            ),
+          ),
+        ] else ...[
+          Wrap(
+            spacing: AppSpace.s2,
+            runSpacing: AppSpace.s2,
+            children: [for (final r in skipReasons) ActionChip(label: Text(r), onPressed: () => Navigator.pop(ctx, r))],
+          ),
+          const SizedBox(height: AppSpace.s3),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(onPressed: () => Navigator.pop(ctx, ''), child: const Text('Skip tanpa alasan')),
+          ),
+        ],
       ],
     ),
   ),
@@ -274,8 +296,7 @@ class ApprovalCard extends ConsumerWidget {
                   style: text.bodySmall,
                 ),
               ] else if (a.isPending && a.notTradeable) ...[
-                // Defensive only: per WF-21 such a coin never enters the queue. Own row:
-                // the ID badge is ~1.8× EN (i18n REPORT) and overflows the header.
+                // Own row: the ID badge is ~1.8× EN (i18n REPORT) and overflows the header.
                 const SizedBox(height: AppSpace.s3),
                 TagChip(
                   l10n.screenerNotTradeableBadge,
@@ -285,6 +306,37 @@ class ApprovalCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpace.s1),
                 Text(l10n.screenerNotTradeableDetail, style: text.bodySmall!.copyWith(color: t.neutral)),
+                Text(l10n.screenerDetailSkipHint, style: text.bodySmall!.copyWith(color: t.neutral)),
+                const SizedBox(height: AppSpace.s3),
+                // i18n 0.4.4 / Apex: Skip allowed (reason preselected), Approve disabled.
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        key: Key('skip_${a.id}'),
+                        onPressed: busy
+                            ? null
+                            : () async {
+                                final r = await _askSkipReason(context, a);
+                                if (r != null && context.mounted) skipItem(context, ref, a, reason: r);
+                              },
+                        child: const Text('Skip'),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpace.s3),
+                    Expanded(
+                      child: FilledButton(
+                        key: Key('approve_${a.id}'),
+                        onPressed: null,
+                        child: Text(l10n.screenerDetailApproveUnavailable, textAlign: TextAlign.center),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpace.s2),
+                  child: Text('‹ geser untuk skip', style: text.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
+                ),
               ] else if (a.isPending) ...[
                 const SizedBox(height: AppSpace.s3),
                 Row(
@@ -295,7 +347,7 @@ class ApprovalCard extends ConsumerWidget {
                         onPressed: busy
                             ? null
                             : () async {
-                                final r = await _askSkipReason(context);
+                                final r = await _askSkipReason(context, a);
                                 if (r != null && context.mounted) {
                                   skipItem(context, ref, a, reason: r.isEmpty ? null : r);
                                 }
@@ -337,9 +389,12 @@ class ApprovalCard extends ConsumerWidget {
     );
 
     if (!a.swipeable || !a.isPending || busy) return card;
-    // SPEC §3: swipe right approve / left skip, 40% threshold + haptic.
+    // SPEC §3: swipe right approve / left skip, 40% threshold + haptic. A
+    // not-tradeable pick only swipes LEFT (skip, reason preselected); a right
+    // swipe is a no-op (the direction is not even offered).
     return Dismissible(
       key: ValueKey('swipe_${a.id}'),
+      direction: a.approvable ? DismissDirection.horizontal : DismissDirection.endToStart,
       dismissThresholds: const {DismissDirection.startToEnd: 0.4, DismissDirection.endToStart: 0.4},
       background: _SwipeBg(color: t.profit, container: t.profitContainer, label: '✓ OK', left: true),
       secondaryBackground: _SwipeBg(
@@ -351,7 +406,7 @@ class ApprovalCard extends ConsumerWidget {
       confirmDismiss: (dir) async {
         HapticFeedback.mediumImpact();
         if (dir == DismissDirection.startToEnd) {
-          unawaited(approveItem(context, ref, a));
+          if (a.approvable) unawaited(approveItem(context, ref, a));
         } else {
           skipItem(context, ref, a);
         }

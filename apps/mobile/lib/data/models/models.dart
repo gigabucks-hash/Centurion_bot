@@ -378,12 +378,20 @@ class Approval {
 
   bool get isPending => status == ApprovalStatus.pending;
 
-  /// i18n 0.4.1 `screener.not_tradeable`: no SOL quote pair → informational
-  /// only, neutral color, never Approve/Skip (cards, swipe, notifications).
+  /// `UNSUPPORTED_QUOTE_MINT` (no SOL quote pair). Apex decision / i18n 0.4.4:
+  /// neutral color, Approve off/disabled, excluded from batch approve, but it
+  /// CAN be skipped (skipping isn't a trade) with reason `not_tradeable` preselected.
   bool get notTradeable => reasonCode == unsupportedQuoteMint;
 
-  /// SPEC §3: swipe disabled for guard changes, Real SOL and not-tradeable picks.
-  bool get swipeable => kind == ApprovalKind.buyPick && mode == TradeMode.practice && !notTradeable;
+  /// Approve possible at all (button, swipe right, notification, batch).
+  bool get approvable => !notTradeable;
+
+  /// SPEC §3: swipe disabled for guard changes and Real SOL. A not-tradeable
+  /// pick is swipeable LEFT only (skip); swipe right (approve) is a no-op.
+  bool get swipeable => kind == ApprovalKind.buyPick && mode == TradeMode.practice;
+
+  /// Wire skip reason preselected for this item (`reason: "not_tradeable"`), else null.
+  String? get defaultSkipReason => notTradeable ? skipReasonNotTradeable : null;
 
   bool isExpiredAt(DateTime now) => now.isAfter(expiresAt);
 
@@ -412,6 +420,9 @@ class Approval {
 }
 
 /// Wire reason code for coins without a SOL quote pair (screener + `order.failed`).
+/// Wire skip reason for not-tradeable picks (i18n 0.4.4 `queue.skip_reason.not_tradeable`).
+const skipReasonNotTradeable = 'not_tradeable';
+
 const unsupportedQuoteMint = 'UNSUPPORTED_QUOTE_MINT';
 
 enum ScreenerOutcome { passed, rejected, notTradeable }
@@ -489,3 +500,12 @@ class PortfolioSummary {
 }
 
 // Errors: see data/api/api_exception.dart (ApiException, typed by errors.json).
+
+/// Batch approve (`POST /batch-decision`, buy_pick only): not-tradeable picks are
+/// left out (i18n 0.4.4 `queue.batch.excluded_not_tradeable`). Returns
+/// (approvable picks, number excluded as not tradeable).
+({List<Approval> items, int excludedNotTradeable}) batchApprovable(Iterable<Approval> picks) {
+  final pending = picks.where((a) => a.isPending && a.kind == ApprovalKind.buyPick).toList();
+  final ok = pending.where((a) => a.approvable).toList();
+  return (items: ok, excludedNotTradeable: pending.length - ok.length);
+}

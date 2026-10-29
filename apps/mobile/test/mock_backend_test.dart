@@ -66,30 +66,51 @@ void main() {
       b.dispose();
     });
 
-    test('UNSUPPORTED_QUOTE_MINT pick: not tradeable, approve rejected, not swipeable', () async {
-      final now = DateTime(2026, 10, 29, 15);
-      final b = MockBackend(clock: () => now)
-        ..debugAddApproval(
-          Approval(
-            id: 'apv_nt',
-            kind: ApprovalKind.buyPick,
-            status: ApprovalStatus.pending,
-            title: 'Buy NOPAIR',
-            detail: 'x',
-            createdAt: now,
-            expiresAt: now.add(const Duration(minutes: 10)),
-            token: 'tok_nt',
-            reasonCode: unsupportedQuoteMint,
-          ),
-        );
-      final a = b.debugApprovals.firstWhere((a) => a.id == 'apv_nt');
-      expect(a.notTradeable, isTrue);
-      expect(a.swipeable, isFalse);
-      expect(a.copyWith(rev: 2).notTradeable, isTrue, reason: 'copyWith keeps reason_code');
-      // 1.1.2 has a real code for it (kind: skip) → no more VALIDATION_FAILED stand-in.
-      expect(() => b.decide(decideRequest(a, approve: true)), _api('UNSUPPORTED_QUOTE_MINT'));
-      b.dispose();
-    });
+    test(
+      'UNSUPPORTED_QUOTE_MINT pick: approve rejected, skip allowed with reason not_tradeable, batch-excluded',
+      () async {
+        final now = DateTime(2026, 10, 29, 15);
+        final b = MockBackend(clock: () => now)
+          ..debugAddApproval(
+            Approval(
+              id: 'apv_nt',
+              kind: ApprovalKind.buyPick,
+              status: ApprovalStatus.pending,
+              title: 'Buy NOPAIR',
+              detail: 'x',
+              createdAt: now,
+              expiresAt: now.add(const Duration(minutes: 10)),
+              token: 'tok_nt',
+              reasonCode: unsupportedQuoteMint,
+            ),
+          );
+        final a = b.debugApprovals.firstWhere((a) => a.id == 'apv_nt');
+        expect(a.notTradeable, isTrue);
+        expect(a.approvable, isFalse);
+        expect(a.swipeable, isTrue, reason: 'left swipe (skip) allowed; right is disabled in the UI');
+        expect(a.defaultSkipReason, 'not_tradeable');
+        expect(a.copyWith(rev: 2).notTradeable, isTrue, reason: 'copyWith keeps reason_code');
+        // Batch approve leaves it out.
+        final batch = batchApprovable(b.debugApprovals);
+        expect(batch.items.map((x) => x.id), isNot(contains('apv_nt')));
+        expect(batch.excludedNotTradeable, 1);
+        // 1.1.2 has a real code for it (kind: skip) → no more VALIDATION_FAILED stand-in.
+        expect(() => b.decide(decideRequest(a, approve: true)), _api('UNSUPPORTED_QUOTE_MINT'));
+        // Skip/reject is allowed; the reason travels in the REST body (not the RPC params).
+        final req = decideRequest(a, approve: false, reason: a.defaultSkipReason);
+        expect(req.toRestBody(), {'decision': 'reject', 'token': 'tok_nt', 'reason': 'not_tradeable'});
+        expect(req.toRpcParams().containsKey('p_reason'), isFalse, reason: 'RPC 1.1.2 has no p_reason');
+        final events = <Map<String, Object?>>[];
+        final sub = b.rawEvents.listen(events.add);
+        final res = await b.decide(req);
+        await Future<void>.delayed(Duration.zero);
+        expect(res.status, ApprovalStatus.skipped);
+        final rejected = events.firstWhere((e) => e['type'] == 'proposal.rejected');
+        expect((rejected['payload']! as Map)['reason'], 'not_tradeable');
+        await sub.cancel();
+        b.dispose();
+      },
+    );
 
     test('Real approve blocked server-side until Phase 7', () async {
       final b = MockBackend();

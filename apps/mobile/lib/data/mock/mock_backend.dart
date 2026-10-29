@@ -660,16 +660,21 @@ class MockBackend
     return updated;
   }
 
+  /// Last decide request received (tests: wire `reason` of a skip).
+  DecideApprovalRequest? debugLastDecide;
+
   /// Mirrors `decide_approval` (1.1.2): `p_expected_rev` required, idempotency
   /// replay / 422 reuse, token check, rev check, expiry, Real gate. Typed [ApiException]s.
   @override
   Future<DecideApprovalResult> decide(DecideApprovalRequest r) async {
+    debugLastDecide = r;
     await Future<void>.delayed(const Duration(milliseconds: 150));
     final body = {
       'approval_id': r.approvalId,
       'token': r.token,
       'decision': Wire.decision(approve: r.approve),
       'expected_rev': r.expectedRev,
+      'reason': r.reason,
     };
     final prior = _replay<DecideApprovalResult>(r.idempotencyKey, body);
     if (prior != null) {
@@ -702,8 +707,11 @@ class MockBackend
       throw ApiException.fromCode('APPROVAL_EXPIRED');
     }
     if (a.mode == TradeMode.real && r.approve && !realSolEnabled) throw ApiException.fromCode('REAL_SOL_DISABLED');
-    // A non-SOL-quote coin never reaches the queue (1.1.2 quote gate); defensive only.
-    if (a.notTradeable && r.approve) throw ApiException.fromCode(unsupportedQuoteMint);
+    // Not tradeable (no SOL quote pair): approve → UNSUPPORTED_QUOTE_MINT; skip/reject is
+    // allowed (Apex decision, i18n 0.4.4), reason defaults to `not_tradeable`.
+    if (a.notTradeable && r.approve) {
+      throw ApiException.fromCode(unsupportedQuoteMint, details: {'reason_code': unsupportedQuoteMint});
+    }
     final status = r.approve ? ApprovalStatus.approved : ApprovalStatus.skipped;
     final rev = a.rev + 1;
     _approvals[i] = a.copyWith(status: status, decidedAt: _clock(), rev: rev);
@@ -717,7 +725,7 @@ class MockBackend
         'decided_by': 'mock_user',
         // From the JWT `sentra_client` claim on the server; never a client param.
         'decided_via': Wire.clientMobile,
-        'reason': null,
+        'reason': r.approve ? null : (r.reason ?? a.defaultSkipReason),
       },
       mode: a.mode,
       strategyId: a.strategyId,

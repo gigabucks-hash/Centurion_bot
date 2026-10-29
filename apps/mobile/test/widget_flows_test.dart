@@ -159,7 +159,9 @@ void main() {
     b.dispose();
   });
 
-  testWidgets('UNSUPPORTED_QUOTE_MINT pick: neutral "not tradeable" badge, no Approve/Skip, no swipe', (tester) async {
+  testWidgets('UNSUPPORTED_QUOTE_MINT pick: neutral badge, Approve disabled, Skip with not_tradeable preselected', (
+    tester,
+  ) async {
     await _phone(tester);
     final now = DateTime.now();
     final b = MockBackend()
@@ -196,10 +198,74 @@ void main() {
           .color,
       ctx.tradeColors.neutral,
     );
-    expect(find.byKey(const Key('approve_apv_nt1'), skipOffstage: false), findsNothing);
-    expect(find.byKey(const Key('skip_apv_nt1'), skipOffstage: false), findsNothing);
-    expect(find.byKey(const ValueKey('swipe_apv_nt1'), skipOffstage: false), findsNothing);
-    expect(find.ancestor(of: badge, matching: find.byType(Dismissible)), findsNothing);
+    expect(find.text(l.screenerDetailSkipHint), findsOneWidget);
+    // Approve present but disabled.
+    final approve = tester.widget<FilledButton>(find.byKey(const Key('approve_apv_nt1')));
+    expect(approve.onPressed, isNull);
+    expect(find.text(l.screenerDetailApproveUnavailable), findsOneWidget);
+    // Swipe: left only (skip); right (approve) is not offered.
+    final dismissible = tester.widget<Dismissible>(find.byKey(const ValueKey('swipe_apv_nt1')));
+    expect(dismissible.direction, DismissDirection.endToStart);
+    // A right swipe is a no-op: card stays, nothing decided.
+    await tester.fling(find.byKey(const ValueKey('swipe_apv_nt1')), const Offset(400, 0), 2000);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(badge, findsOneWidget);
+    expect(b.debugApprovals.firstWhere((a) => a.id == 'apv_nt1').isPending, isTrue);
+    // Skip button → sheet with `not_tradeable` preselected → confirm.
+    await tester.tap(find.byKey(const Key('skip_apv_nt1')));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
+    final chip = tester.widget<ChoiceChip>(find.byKey(const Key('skipReason_not_tradeable')));
+    expect(chip.selected, isTrue);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('skipReason_not_tradeable')),
+        matching: find.text(l.queueSkipReasonNotTradeable),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('skipConfirm')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const Key('notTradeable_apv_nt1'), skipOffstage: false), findsNothing); // hidden optimistically
+    await tester.pump(const Duration(seconds: 6)); // undo window closes → decision sent
+    await tester.pump();
+    expect(b.debugApprovals.firstWhere((a) => a.id == 'apv_nt1').status, ApprovalStatus.skipped);
+    expect(b.debugLastDecide?.reason, 'not_tradeable');
+    b.dispose();
+  });
+
+  testWidgets('UNSUPPORTED_QUOTE_MINT pick: swipe left skips with reason not_tradeable', (tester) async {
+    await _phone(tester);
+    final now = DateTime.now();
+    final b = MockBackend()
+      ..debugAddApproval(
+        Approval(
+          id: 'apv_nt2',
+          kind: ApprovalKind.buyPick,
+          status: ApprovalStatus.pending,
+          title: 'Buy NOPAIR2',
+          detail: 'Pullback v2 · fit 90/70',
+          createdAt: now,
+          expiresAt: now.add(const Duration(minutes: 10)),
+          token: 'tok_nt2',
+          strategyId: 'stg_pull',
+          amountLamports: Lamports.fromSol('0.1'),
+          pickType: PickType.buy,
+          reasonCode: unsupportedQuoteMint,
+        ),
+      );
+    await tester.pumpWidget(_app(b, '/approvals'));
+    await tester.pump();
+    final swipe = find.byKey(const ValueKey('swipe_apv_nt2'), skipOffstage: false);
+    await tester.ensureVisible(swipe);
+    await tester.pump();
+    await tester.fling(swipe, const Offset(-400, 0), 2000);
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump();
+    expect(b.debugApprovals.firstWhere((a) => a.id == 'apv_nt2').status, ApprovalStatus.skipped);
+    expect(b.debugLastDecide?.reason, 'not_tradeable');
+    b.dispose();
   });
 
   testWidgets('WF-21 Coins: not-tradeable card is neutral, has no actions, cannot swipe; detail CTA disabled', (

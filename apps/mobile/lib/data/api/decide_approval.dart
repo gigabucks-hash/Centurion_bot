@@ -16,6 +16,7 @@ class DecideApprovalRequest {
     required this.approve,
     required this.expectedRev,
     this.idempotencyKey,
+    this.reason,
   });
   final String approvalId;
   final String token;
@@ -24,6 +25,14 @@ class DecideApprovalRequest {
   /// The approval `rev` (never null; a missing rev is `428 PRECONDITION_REQUIRED`).
   final int expectedRev;
   final String? idempotencyKey;
+
+  /// Skip reason (wire value, e.g. `not_tradeable`). REST body `reason` only:
+  /// the `decide_approval` RPC (1.1.2, migration 0005) has no `p_reason`, so it
+  /// is NOT sent as an RPC param (reported to Backend).
+  final String? reason;
+
+  /// REST `POST …/approvals/{id}/decision` body (If-Match carries the rev).
+  Map<String, Object?> toRestBody() => {'decision': Wire.decision(approve: approve), 'token': token, 'reason': reason};
 
   Map<String, Object?> toRpcParams() => {
     'p_approval_id': approvalId,

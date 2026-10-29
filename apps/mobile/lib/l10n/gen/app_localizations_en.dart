@@ -131,6 +131,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get chartTitle => 'Chart';
+
+  @override
   String coinTrailSnapshotNote(String rev) {
     return 'Values and thresholds as read at that moment (rev $rev).';
   }
@@ -685,6 +688,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedActorGuard => 'Guard';
 
   @override
+  String get feedActorIngest => 'Ingest';
+
+  @override
   String get feedActorScreener => 'Screener';
 
   @override
@@ -1220,6 +1226,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orderFailReasonValidationFailed => 'The order didn’t pass validation';
 
   @override
+  String positionsEmpty(String mode) {
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'No open positions', 'other': 'No paper positions'});
+    return '$_temp0';
+  }
+
+  @override
   String get positionsEquityHwm => 'High-water mark';
 
   @override
@@ -1247,6 +1259,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get positionsSellConfirmTitle => 'Confirm sell';
+
+  @override
   String get positionsSellEstimate => 'Estimated proceeds';
 
   @override
@@ -1266,7 +1281,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get positionsSellNeverFromNotification => 'Selling is never available from a notification or popup.';
 
   @override
+  String get positionsSellNotTradeableDetail =>
+      'This position no longer has a SOL pair, so selling is blocked until one exists.';
+
+  @override
   String get positionsSellPlanCancelled => 'Exit plan cancelled (100%)';
+
+  @override
+  String positionsSellQuoteTtl(String seconds) {
+    return 'Quote valid for $seconds s.';
+  }
 
   @override
   String get positionsSellRemainingPlan => 'Remaining position keeps its exit plan';
@@ -1277,7 +1301,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get positionsSellUnavailable => 'Sell — not available';
+
+  @override
   String get positionsTitle => 'Positions';
+
+  @override
+  String get positionsTitlePaper => 'Positions (paper)';
 
   @override
   String queueBatchApprove(int count) {
@@ -1289,6 +1319,20 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other: 'Approve $countString picks',
       one: 'Approve $countString pick',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String queueBatchExcludedNotTradeable(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString picks left out: not tradeable',
+      one: '$countString pick left out: not tradeable',
     );
     return '$_temp0';
   }
@@ -1311,6 +1355,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String queueBatchTotal(String amount_lamports) {
     return 'Total $amount_lamports';
   }
+
+  @override
+  String get queueEmpty => 'No pending picks';
 
   @override
   String get queueGuardReject => 'Reject change';
@@ -1367,6 +1414,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queueSkipReasonAlreadyPumped => 'Already pumped';
 
   @override
+  String get queueSkipReasonNotTradeable => 'Not tradeable';
+
+  @override
   String get queueSkipReasonOther => 'Other…';
 
   @override
@@ -1400,6 +1450,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get queueTitle => 'Approval queue';
+
+  @override
+  String get queueTitleShort => 'Queue';
 
   @override
   String get queueWhyFirstBuy => 'Approval mode is “Ask: first buy”. This is the strategy’s first buy.';
@@ -1453,6 +1506,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get screenerDetailApproveUnavailable => 'Approve — not available';
 
   @override
+  String get screenerDetailChartNote => 'Chart and metrics stay visible (read-only).';
+
+  @override
   String get screenerDetailChartReadonly => 'Price chart (read-only)';
 
   @override
@@ -1487,7 +1543,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String screenerDetailScoreValueInfo(String max_score, String score) {
+    return '$score / $max_score (info only)';
+  }
+
+  @override
+  String get screenerDetailSkipHint => 'You can still skip it. Skipping isn’t a trade.';
+
+  @override
   String get screenerDetailSolPair => 'SOL pair';
+
+  @override
+  String get screenerEmpty => 'No screened coins yet';
 
   @override
   String get screenerFilterAll => 'All';
@@ -1499,6 +1566,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get screenerFilterRejected => 'Rejected';
 
   @override
+  String get screenerLegend =>
+      'Red marks risk (guard fail, rug, loss). Grey “Not tradeable” coins have no SOL pair: they can’t be approved, but you can skip them.';
+
+  @override
   String get screenerNotTradeableBadge => 'Not tradeable';
 
   @override
@@ -1507,6 +1578,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get screenerStatusPassed => 'Passed';
+
+  @override
+  String get screenerStatusPendingGuard => 'Awaiting guard';
 
   @override
   String get screenerStatusPickQueued => 'Pick · in queue';

@@ -24,7 +24,7 @@ abstract final class AppColorsDark {
   static const bgSurface = Color(0xFF121722);
   static const bgRaised = Color(0xFF1A2130);
   static const bgOverlay = Color(0xFF222B3D);
-  static const bgInset = Color(0xFF080A0F);
+  static const bgSunken = Color(0xFF080A0F);
   static const borderSubtle = Color(0xFF232C3D);
   static const borderDefault = Color(0xFF34405A);
   static const borderStrong = Color(0xFF6B7995);
@@ -60,6 +60,8 @@ abstract final class AppColorsDark {
   static const inverseOnSurface = Color(0xFF121722);
   static const inversePrimary = Color(0xFF3E4FD6);
   static const scrimOverlay = Color(0xFF000000);
+  @Deprecated('Use bgSunken (design-tokens 0.2.4)')
+  static const bgInset = bgSunken;
 }
 
 abstract final class AppColorsLight {
@@ -67,7 +69,7 @@ abstract final class AppColorsLight {
   static const bgSurface = Color(0xFFFFFFFF);
   static const bgRaised = Color(0xFFFFFFFF);
   static const bgOverlay = Color(0xFFFFFFFF);
-  static const bgInset = Color(0xFFEEF0F5);
+  static const bgSunken = Color(0xFFEEF0F5);
   static const borderSubtle = Color(0xFFE4E7EE);
   static const borderDefault = Color(0xFFCDD3DE);
   static const borderStrong = Color(0xFF7D879B);
@@ -103,6 +105,8 @@ abstract final class AppColorsLight {
   static const inverseOnSurface = Color(0xFFE8ECF4);
   static const inversePrimary = Color(0xFF8B97FF);
   static const scrimOverlay = Color(0xFF000000);
+  @Deprecated('Use bgSunken (design-tokens 0.2.4)')
+  static const bgInset = bgSunken;
 }
 
 abstract final class AppSpace {
@@ -436,7 +440,7 @@ const _darkScheme = ColorScheme(
   surface: AppColorsDark.bgSurface,
   onSurface: AppColorsDark.textPrimary,
   onSurfaceVariant: AppColorsDark.textSecondary,
-  surfaceContainerLowest: AppColorsDark.bgInset,
+  surfaceContainerLowest: AppColorsDark.bgSunken,
   surfaceContainerLow: AppColorsDark.bgCanvas,
   surfaceContainer: AppColorsDark.bgSurface,
   surfaceContainerHigh: AppColorsDark.bgRaised,
@@ -472,7 +476,7 @@ const _lightScheme = ColorScheme(
   surface: AppColorsLight.bgSurface,
   onSurface: AppColorsLight.textPrimary,
   onSurfaceVariant: AppColorsLight.textSecondary,
-  surfaceContainerLowest: AppColorsLight.bgInset,
+  surfaceContainerLowest: AppColorsLight.bgSunken,
   surfaceContainerLow: AppColorsLight.bgCanvas,
   surfaceContainer: AppColorsLight.bgSurface,
   surfaceContainerHigh: AppColorsLight.bgRaised,
@@ -546,7 +550,7 @@ abstract final class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColorsDark.bgInset,
+        fillColor: AppColorsDark.bgSunken,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
           borderSide: const BorderSide(color: AppColorsDark.borderStrong),
@@ -594,7 +598,7 @@ abstract final class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColorsLight.bgInset,
+        fillColor: AppColorsLight.bgSunken,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.sm),
           borderSide: const BorderSide(color: AppColorsLight.borderStrong),

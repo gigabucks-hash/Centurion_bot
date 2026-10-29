@@ -290,6 +290,12 @@ abstract class AppLocalizations {
   /// **'Must be between {min} and {max}'**
   String builderValidationRange(String max, String min);
 
+  /// chart tab / panel title
+  ///
+  /// In en, this message translates to:
+  /// **'Chart'**
+  String get chartTitle;
+
   /// coin_trail.snapshot_note
   ///
   /// In en, this message translates to:
@@ -1154,6 +1160,12 @@ abstract class AppLocalizations {
   /// **'Guard'**
   String get feedActorGuard;
 
+  /// wire actor ingest
+  ///
+  /// In en, this message translates to:
+  /// **'Ingest'**
+  String get feedActorIngest;
+
   /// feed.actor.screener
   ///
   /// In en, this message translates to:
@@ -1964,6 +1976,12 @@ abstract class AppLocalizations {
   /// **'The order didn’t pass validation'**
   String get orderFailReasonValidationFailed;
 
+  /// positions.empty
+  ///
+  /// In en, this message translates to:
+  /// **'{mode, select, real {No open positions} other {No paper positions}}'**
+  String positionsEmpty(String mode);
+
   /// positions.equity.hwm
   ///
   /// In en, this message translates to:
@@ -1987,6 +2005,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count,plural,one{{count} open} other{{count} open}}'**
   String positionsOpenCount(int count);
+
+  /// positions.sell.confirm_title
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm sell'**
+  String get positionsSellConfirmTitle;
 
   /// positions.sell.estimate
   ///
@@ -2018,11 +2042,23 @@ abstract class AppLocalizations {
   /// **'Selling is never available from a notification or popup.'**
   String get positionsSellNeverFromNotification;
 
+  /// positions.sell.not_tradeable_detail
+  ///
+  /// In en, this message translates to:
+  /// **'This position no longer has a SOL pair, so selling is blocked until one exists.'**
+  String get positionsSellNotTradeableDetail;
+
   /// positions.sell.plan_cancelled
   ///
   /// In en, this message translates to:
   /// **'Exit plan cancelled (100%)'**
   String get positionsSellPlanCancelled;
+
+  /// seconds = computed from quote expiry − (now + skew)
+  ///
+  /// In en, this message translates to:
+  /// **'Quote valid for {seconds} s.'**
+  String positionsSellQuoteTtl(String seconds);
 
   /// positions.sell.remaining_plan
   ///
@@ -2036,17 +2072,35 @@ abstract class AppLocalizations {
   /// **'Sell {symbol}'**
   String positionsSellTitle(String symbol);
 
+  /// disabled, labelled CTA (not tradeable)
+  ///
+  /// In en, this message translates to:
+  /// **'Sell — not available'**
+  String get positionsSellUnavailable;
+
   /// positions.title
   ///
   /// In en, this message translates to:
   /// **'Positions'**
   String get positionsTitle;
 
+  /// Practice section header
+  ///
+  /// In en, this message translates to:
+  /// **'Positions (paper)'**
+  String get positionsTitlePaper;
+
   /// queue.batch.approve
   ///
   /// In en, this message translates to:
   /// **'{count,plural,one{Approve {count} pick} other{Approve {count} picks}}'**
   String queueBatchApprove(int count);
+
+  /// batch approve never includes not-tradeable picks
+  ///
+  /// In en, this message translates to:
+  /// **'{count,plural,one{{count} pick left out: not tradeable} other{{count} picks left out: not tradeable}}'**
+  String queueBatchExcludedNotTradeable(int count);
 
   /// queue.batch.selected
   ///
@@ -2059,6 +2113,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Total {amount_lamports}'**
   String queueBatchTotal(String amount_lamports);
+
+  /// dev/mock suffix stays app-local
+  ///
+  /// In en, this message translates to:
+  /// **'No pending picks'**
+  String get queueEmpty;
 
   /// guard change rows use Reject, not Skip
   ///
@@ -2138,6 +2198,12 @@ abstract class AppLocalizations {
   /// **'Already pumped'**
   String get queueSkipReasonAlreadyPumped;
 
+  /// preselected skip reason for UNSUPPORTED_QUOTE_MINT picks; wire reason 'not_tradeable'
+  ///
+  /// In en, this message translates to:
+  /// **'Not tradeable'**
+  String get queueSkipReasonNotTradeable;
+
   /// queue.skip_reason.other
   ///
   /// In en, this message translates to:
@@ -2203,6 +2269,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Approval queue'**
   String get queueTitle;
+
+  /// tab / compact header; full title = queue.title
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get queueTitleShort;
 
   /// queue.why.first_buy
   ///
@@ -2294,6 +2366,12 @@ abstract class AppLocalizations {
   /// **'Approve — not available'**
   String get screenerDetailApproveUnavailable;
 
+  /// screener.detail.chart_note
+  ///
+  /// In en, this message translates to:
+  /// **'Chart and metrics stay visible (read-only).'**
+  String get screenerDetailChartNote;
+
   /// screener.detail.chart_readonly
   ///
   /// In en, this message translates to:
@@ -2354,11 +2432,29 @@ abstract class AppLocalizations {
   /// **'{score} / {max_score}'**
   String screenerDetailScoreValue(String max_score, String score);
 
+  /// not tradeable: score shown for transparency only
+  ///
+  /// In en, this message translates to:
+  /// **'{score} / {max_score} (info only)'**
+  String screenerDetailScoreValueInfo(String max_score, String score);
+
+  /// Rev 4.4 decision: Skip allowed on not-tradeable picks, Approve absent/disabled
+  ///
+  /// In en, this message translates to:
+  /// **'You can still skip it. Skipping isn’t a trade.'**
+  String get screenerDetailSkipHint;
+
   /// screener.detail.sol_pair
   ///
   /// In en, this message translates to:
   /// **'SOL pair'**
   String get screenerDetailSolPair;
+
+  /// screener.empty
+  ///
+  /// In en, this message translates to:
+  /// **'No screened coins yet'**
+  String get screenerEmpty;
 
   /// screener.filter.all
   ///
@@ -2378,6 +2474,12 @@ abstract class AppLocalizations {
   /// **'Rejected'**
   String get screenerFilterRejected;
 
+  /// screener footer legend (user-facing)
+  ///
+  /// In en, this message translates to:
+  /// **'Red marks risk (guard fail, rug, loss). Grey “Not tradeable” coins have no SOL pair: they can’t be approved, but you can skip them.'**
+  String get screenerLegend;
+
   /// neutral chip (text.tertiary on surface.sunken), not loss/error red
   ///
   /// In en, this message translates to:
@@ -2395,6 +2497,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Passed'**
   String get screenerStatusPassed;
+
+  /// passed screener, guard not finished
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting guard'**
+  String get screenerStatusPendingGuard;
 
   /// WF-20 status chip
   ///

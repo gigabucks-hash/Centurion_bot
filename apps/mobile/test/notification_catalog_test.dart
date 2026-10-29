@@ -291,7 +291,7 @@ void main() {
     expect(orderFailReason(l, 'POSITION_ALREADY_CLOSED'), 'This position was already closed');
   });
 
-  test('UNSUPPORTED_QUOTE_MINT (not tradeable): no Approve/Skip on any notification', () {
+  test('UNSUPPORTED_QUOTE_MINT (not tradeable): never Approve; Skip only if the server offers it', () {
     final vars = {...sampleVars, 'reason_code': reasonUnsupportedQuoteMint};
     for (final e in NotifEvent.values) {
       for (final mode in modesFor(e)) {
@@ -299,9 +299,28 @@ void main() {
         expect(m.notTradeable, isTrue);
         final acts = r.render(m, NotifLocale.en, now).actions;
         expect(acts, isNot(contains(NotifAction.approve)), reason: '${e.code}/$mode');
+        // No explicit server `actions` → no Skip either (client never adds buttons).
         expect(acts, isNot(contains(NotifAction.skip)), reason: '${e.code}/$mode');
       }
     }
+    // Server offers approve+skip → client keeps only Skip (practice pick, valid token + version).
+    PushMessage offered(NotifMode mode, {bool validToken = true}) {
+      final m = msg(NotifEvent.n01PickPending, mode, vars: vars, validToken: validToken);
+      return PushMessage(
+        event: m.event,
+        mode: m.mode,
+        vars: m.vars,
+        approvalId: m.approvalId,
+        positionId: m.positionId,
+        token: m.token,
+        version: m.version,
+        expiresAt: m.expiresAt,
+        serverActions: const {'approve', 'skip'},
+      );
+    }
+
+    expect(r.render(offered(NotifMode.practice), NotifLocale.en, now).actions, [NotifAction.skip]);
+    expect(r.render(offered(NotifMode.practice, validToken: false), NotifLocale.en, now).actions, isEmpty);
     // Same pick without the code keeps its buttons (control).
     expect(r.render(msg(NotifEvent.n01PickPending, NotifMode.practice), NotifLocale.en, now).actions, [
       NotifAction.approve,

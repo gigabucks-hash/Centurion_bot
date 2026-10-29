@@ -13,6 +13,7 @@ import '../../data/api/api_exception.dart';
 import '../../data/api/decide_approval.dart';
 import '../../data/api/server_clock.dart';
 import '../../data/api/wire.dart';
+import '../../data/models/models.dart' show skipReasonNotTradeable;
 import '../../data/providers.dart';
 import '../push/push_payload.dart';
 import 'notification_catalog.dart';
@@ -164,6 +165,7 @@ Future<ActionOutcome> handleNotificationAction(
                 approve: approve,
                 expectedRev: m.version!,
                 idempotencyKey: 'push:${m.approvalId}:r${m.version}:${Wire.decision(approve: approve)}',
+                reason: !approve && m.notTradeable ? skipReasonNotTradeable : null,
               ),
             );
         ref.read(serverClockProvider.notifier).observe(res.serverNow, localNow: now);

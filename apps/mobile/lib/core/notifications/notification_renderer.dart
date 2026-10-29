@@ -62,10 +62,10 @@ class NotificationRenderer {
   List<NotifAction> actionsFor(PushMessage m, DateTime now, {bool grouped = false}) {
     final real = m.mode == NotifMode.real;
     final base = real ? m.event.spec.realActions : m.event.spec.practiceActions;
-    if (m.notTradeable) {
-      return List.unmodifiable(base.where((a) => a != NotifAction.approve && a != NotifAction.skip));
+    if (!m.event.isPick) {
+      // Never Approve for a not-tradeable coin on any notification.
+      return List.unmodifiable(base.where((a) => !(m.notTradeable && a == NotifAction.approve)));
     }
-    if (!m.event.isPick) return List.unmodifiable(base);
     if (grouped) return const [];
     if (real) {
       return policy.realSkipFromNotification ? const [NotifAction.skip] : const [];
@@ -76,6 +76,10 @@ class NotificationRenderer {
     if (m.version == null) return const [];
     // The client only narrows what the server offers (`actions`).
     final offered = m.serverActions;
+    if (m.notTradeable) {
+      // i18n 0.4.4 / Apex: Skip only, and only when the server explicitly offers it.
+      return [if (offered != null && offered.contains('skip')) NotifAction.skip];
+    }
     return [
       if (offered == null || offered.contains('approve')) NotifAction.approve,
       if (offered == null || offered.contains('skip')) NotifAction.skip,

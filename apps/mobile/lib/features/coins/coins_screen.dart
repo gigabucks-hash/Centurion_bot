@@ -1,7 +1,8 @@
 // "Coins" screener list + coin detail, per UX wireframes WF-20 (desktop) /
 // WF-21 (mobile). A not-tradeable coin (`UNSUPPORTED_QUOTE_MINT`, no SOL quote
 // pair) is NOT an error: neutral card (dashed border, grey text, ⊘ chip), no
-// action buttons, not swipeable, tap → detail with a disabled, labelled CTA.
+// action buttons, not swipeable, tap → detail with a disabled, labelled CTA. (Queue cards
+// for such coins CAN be skipped since i18n 0.4.4; see approvals_screen.dart.)
 // It never enters the approval queue, so there is no Skip either.
 import 'dart:ui' show PathMetric;
 
@@ -35,11 +36,15 @@ class CoinsScreen extends ConsumerWidget {
               // GAP (UX): no ARB key for the "<strategy> · live" caption; strategy name only.
               child: Text(strategy, style: Theme.of(context).textTheme.bodySmall),
             ),
+          if (coins.isEmpty) Text(l10n.screenerEmpty, key: const Key('screenerEmpty')),
           for (final c in coins)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpace.s3),
               child: c.notTradeable ? NotTradeableCoinCard(c) : _CoinCard(c),
             ),
+          if (coins.any((c) => c.notTradeable))
+            // i18n 0.4.4 legend: grey = no SOL pair, can't be approved but can be skipped.
+            Text(l10n.screenerLegend, key: const Key('screenerLegend'), style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );
@@ -210,7 +215,7 @@ class CoinDetailScreen extends ConsumerWidget {
             // WF-21 detail rows (i18n 0.4.3 `screener.detail.*`).
             row(l10n.screenerDetailQuotePair, l10n.screenerDetailQuoteNotSol(c.quoteSymbol)),
             row(l10n.screenerDetailSolPair, l10n.screenerDetailNone),
-            row(l10n.screenerDetailScore, l10n.screenerDetailScoreValue('$maxScore', '${c.score}')),
+            row(l10n.screenerDetailScore, l10n.screenerDetailScoreValueInfo('$maxScore', '${c.score}')),
             row(l10n.screenerDetailGuard, l10n.screenerDetailGuardNotRun),
             row(l10n.screenerDetailReasonCode, c.reasonCode ?? ''),
             const SizedBox(height: AppSpace.s4),
@@ -220,6 +225,8 @@ class CoinDetailScreen extends ConsumerWidget {
               onPressed: null,
               child: Text(l10n.screenerDetailApproveUnavailable),
             ),
+            const SizedBox(height: AppSpace.s2),
+            Text(l10n.screenerDetailChartNote, style: text.bodySmall!.copyWith(color: cs.onSurfaceVariant)),
           ] else ...[
             row(l10n.screenerDetailQuotePair, c.quoteSymbol),
             row(l10n.screenerDetailScore, l10n.screenerDetailScoreValue('$maxScore', '${c.score}')),
