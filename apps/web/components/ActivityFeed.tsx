@@ -1,5 +1,6 @@
 "use client";
-import { useMemo, useState } from "react";
+import { cmpSeq, minSeq } from "@/lib/seq";
+import { Fragment, useMemo, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import type { TradeEvent } from "@/lib/types";
 import { useRealtime } from "@/components/shell/RealtimeProvider";
@@ -7,14 +8,64 @@ import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { Segmented } from "@/components/ui/client";
 import { EventRow } from "@/components/EventRow";
 import { FEED_FILTERS, filterEvents } from "@/components/OverviewFeed";
-import { useT } from "@/lib/i18n/client";
+import { useFmt, useT } from "@/lib/i18n/client";
+import { request } from "@/lib/client";
+import { envelopeToTradeEvent } from "@/lib/contracts";
+import { errorText } from "@/lib/errors";
+import { TZ } from "@/lib/format";
+import type { AnyEvent, EventPage } from "@sentra/contracts/wire";
 
-export function ActivityFeed({ initial, strategyNames }: { initial: TradeEvent[]; strategyNames: Record<string, string> }) {
+const PAGE = 100;
+const dayKey = (ts: number) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(ts);
+
+/** QA-16: group rows by WIB day (sticky day headers), page older history by seq (before_seq). */
+function groupByDay(events: TradeEvent[]) {
+  const out: { key: string; ts: number; items: TradeEvent[] }[] = [];
+  for (const e of events) {
+    const k = dayKey(e.ts);
+    const last = out[out.length - 1];
+    if (last?.key === k) last.items.push(e);
+    else out.push({ key: k, ts: e.ts, items: [e] });
+  }
+  return out;
+}
+
+export function ActivityFeed({ initial, strategyNames, mode, hasMore: initialHasMore }: { initial: TradeEvent[]; strategyNames: Record<string, string>; mode: "practice" | "real"; hasMore: boolean }) {
   const t = useT();
+  const f = useFmt();
+  const [older, setOlder] = useState<TradeEvent[]>([]);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [loading, setLoading] = useState(false);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
   const { events: live, status, paused, setPaused } = useRealtime();
   const [filter, setFilter] = useState("all");
   const [strategy, setStrategy] = useState("");
-  const merged = useMemo(() => filterEvents([...live, ...initial], filter).filter((e) => !strategy || e.strategyId === strategy), [live, initial, filter, strategy]);
+  const merged = useMemo(() => {
+    // Dedupe by envelope id, then order by seq (int64 string → BigInt compare), newest first; ts breaks ties.
+    const seen = new Set<string>();
+    const all = [...live, ...initial, ...older].filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true))).sort((a, b) => cmpSeq(b.seq, a.seq) || b.ts - a.ts);
+    return filterEvents(all, filter).filter((e) => !strategy || e.strategyId === strategy);
+  }, [live, initial, older, filter, strategy]);
+  const groups = useMemo(() => groupByDay(merged), [merged]);
+  const today = dayKey(Date.parse(new Date().toISOString()));
+  const yesterday = dayKey(Date.parse(new Date().toISOString()) - 86_400_000);
+
+  async function loadMore() {
+    const base = [...initial, ...older];
+    const cursor = minSeq(base.map((e) => e.seq));
+    setLoading(true);
+    setLoadErr(null);
+    try {
+      const { raw } = await request<unknown>(`/events?mode=${mode}&limit=${PAGE}${cursor != null ? `&before_seq=${encodeURIComponent(cursor)}` : ""}`);
+      const page = raw as unknown as EventPage;
+      setOlder((o) => [...o, ...(page.items as AnyEvent[]).map(envelopeToTradeEvent).filter((e): e is TradeEvent => e != null)]);
+      setHasMore(page.has_more);
+    } catch (e) {
+      setLoadErr(errorText(t, e));
+    } finally {
+      setLoading(false);
+    }
+  }
   const liveIds = useMemo(() => new Set(live.slice(0, 2).map((e) => e.id)), [live]);
 
   return (
@@ -25,7 +76,7 @@ export function ActivityFeed({ initial, strategyNames }: { initial: TradeEvent[]
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Segmented label={t("feed.eventType")} value={filter} onChange={setFilter} options={FEED_FILTERS.map((f) => ({ value: f.id, label: t(`feed.${f.id}`) }))} />
-        <select aria-label={t("common.strategy")} value={strategy} onChange={(e) => setStrategy(e.target.value)} className="ml-auto h-8 rounded-md border border-border-default bg-bg-inset px-2 text-caption text-text-primary">
+        <select aria-label={t("common.strategy")} value={strategy} onChange={(e) => setStrategy(e.target.value)} className="ml-auto h-8 rounded-md border border-border-default bg-bg-sunken px-2 text-caption text-text-primary">
           <option value="">{t("common.allStrategies")}</option>
           {Object.entries(strategyNames).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>
@@ -33,10 +84,29 @@ export function ActivityFeed({ initial, strategyNames }: { initial: TradeEvent[]
       {merged.length === 0 ? (
         <EmptyState title={t("feed.noMatch")} detail={t("feed.noMatchDetail")} />
       ) : (
-        <ul aria-live="polite" aria-relevant="additions" className="divide-y divide-border-subtle">
-          {merged.slice(0, 150).map((e) => <EventRow key={e.id} e={e} strategyName={strategyNames[e.strategyId ?? ""]} fresh={liveIds.has(e.id)} />)}
-        </ul>
+        <div aria-live="polite" aria-relevant="additions">
+          {groups.map((g) => (
+            <Fragment key={g.key}>
+              <h3 className="sticky top-22 z-10 -mx-4 flex items-baseline justify-between border-y border-border-subtle bg-bg-surface/95 px-4 py-1.5 text-overline uppercase text-text-tertiary backdrop-blur">
+                <span>{g.key === today ? t("activity.today") : g.key === yesterday ? t("activity.yesterday") : f.day(g.ts)}</span>
+                <span className="num normal-case">{t("activity.dayCount", { n: g.items.length })}</span>
+              </h3>
+              <ul className="divide-y divide-border-subtle">
+                {g.items.map((e) => <EventRow key={e.id} e={e} strategyName={strategyNames[e.strategyId ?? ""]} fresh={liveIds.has(e.id)} />)}
+              </ul>
+            </Fragment>
+          ))}
+        </div>
       )}
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-caption text-text-tertiary">
+        <span className="num">{t("activity.shown", { n: merged.length })}</span>
+        {hasMore ? (
+          <Button size="sm" variant="secondary" onClick={loadMore} loading={loading}>{loading ? t("activity.loading") : t("activity.loadMore")}</Button>
+        ) : (
+          <span>{t("activity.end")}</span>
+        )}
+        {loadErr ? <span role="alert" className="text-semantic-loss">{loadErr}</span> : null}
+      </div>
     </Card>
   );
 }

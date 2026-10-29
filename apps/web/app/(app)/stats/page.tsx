@@ -52,6 +52,7 @@ async function StatsBody({ searchParams }: { searchParams: PageProps<"/stats">["
           rows={stats}
           rowKey={(s) => s.reason}
           minWidth={720}
+          labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
           columns={[
             { key: "r", header: t("stats.colReason"), cell: (s) => <span className="font-medium">{t(`exitReason.${s.reason}`)}</span> },
             { key: "c", header: t("stats.colCount"), numeric: true, cell: (s) => f.int(s.count) },

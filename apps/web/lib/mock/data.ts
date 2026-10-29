@@ -2,6 +2,11 @@
  * Mock dataset (seeded, deterministic). Two separate workspaces — Practice and
  * Real SOL — whose numbers are never mixed. All coins and mints are fictional.
  */
+import { screenerStateOf } from "@/lib/contracts";
+const SPL_TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as const;
+const TOKEN_2022 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb" as const;
+/** Mock non-SOL quote (USDC mint). Display only. */
+const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 import type {
   Alert,
   CheckResult,
@@ -39,13 +44,13 @@ const s = (patch: (x: StrategySettings) => StrategySettings) => patch(blankSetti
 
 const strategySeeds: Seed[] = [
   { name: "Fresh Bonding Scout", mode: "practice", status: "running", settings: s((x) => ({ ...x, approvalMode: "off" })) },
-  { name: "Graduated Momentum", mode: "practice", status: "running", settings: s((x) => applyExitPreset({ ...x, approvalMode: "ask_first_buy", screener: { ...x.screener, streams: ["graduated"], maxAgeMinutes: 1440 } }, "trailOnly")) },
-  { name: "Dip Catcher v2", mode: "practice", status: "paused", settings: s((x) => applyExitPreset({ ...x, approvalMode: "ask_every_buy", entry: { ...x.entry, dipPct: 12 } }, "quickScalp")) },
+  { name: "Graduated Momentum", mode: "practice", status: "running", settings: s((x) => applyExitPreset({ ...x, approvalMode: "ask_first_buy", screener: { ...x.screener, streams: ["amm"], maxAgeMinutes: 1440 } }, "trail_stop_only")) },
+  { name: "Dip Catcher v2", mode: "practice", status: "paused", settings: s((x) => applyExitPreset({ ...x, approvalMode: "ask_every_buy", entry: { ...x.entry, dipPct: 12 } }, "fast_half")) },
   { name: "Breakout Hunter", mode: "practice", status: "running", settings: s((x) => ({ ...x, approvalMode: "ask_first_buy", entry: { ...x.entry, breakout: { enabled: true, minutes: 12, rangePct: 15, buyers: 8 } } })) },
-  { name: "Night Owl", mode: "practice", status: "archived", settings: s((x) => applyExitPreset({ ...x, approvalMode: "off" }, "trailOnly")) },
+  { name: "Night Owl", mode: "practice", status: "archived", settings: s((x) => applyExitPreset({ ...x, approvalMode: "off" }, "trail_stop_only")) },
   { name: "New pairs (draft)", mode: "practice", status: "draft", settings: s((x) => x) },
   { name: "Conservative Real", mode: "real", status: "running", settings: s((x) => applyGuardPreset({ ...x, mode: "real", approvalMode: "ask_every_buy", sizing: { budgetSol: 2, tradeSol: 0.2, maxOpen: 3, lossStopPct: 30 } }, "strict")) },
-  { name: "Graduated scalp", mode: "real", status: "running", settings: s((x) => applyExitPreset({ ...x, mode: "real", approvalMode: "ask_first_buy", sizing: { budgetSol: 1.5, tradeSol: 0.15, maxOpen: 3, lossStopPct: 30 }, screener: { ...x.screener, streams: ["graduated"] } }, "ladder3")) },
+  { name: "Graduated scalp", mode: "real", status: "running", settings: s((x) => applyExitPreset({ ...x, mode: "real", approvalMode: "ask_first_buy", sizing: { budgetSol: 1.5, tradeSol: 0.15, maxOpen: 3, lossStopPct: 30 }, screener: { ...x.screener, streams: ["amm"] } }, "three_step_ladder")) },
 ];
 
 const rejectionReasons = [
@@ -140,10 +145,10 @@ function checksFor(passing: boolean): CheckResult[] {
   ];
 }
 
-const TRAIL_EXIT_REASONS: ExitReason[] = ["take_profit", "stop_loss", "trailing_stop", "time_out", "inactivity", "drain", "rug", "manual"];
+const TRAIL_EXIT_REASONS: ExitReason[] = ["profit_target", "loss_guard", "peak_trail", "max_hold", "idle", "sell_pressure", "rug_detected", "manual"];
 const exitRanges: Partial<Record<ExitReason, [number, number]>> = {
-  take_profit: [20, 120], stop_loss: [-40, -12], trailing_stop: [-15, 40], time_out: [-20, 10],
-  inactivity: [-25, 5], drain: [-45, -10], rug: [-95, -70], manual: [-20, 30],
+  profit_target: [20, 120], loss_guard: [-40, -12], peak_trail: [-15, 40], max_hold: [-20, 10],
+  idle: [-25, 5], sell_pressure: [-45, -10], rug_detected: [-95, -70], manual: [-20, 30],
 };
 
 /** Piecewise path through anchor prices with noise, ~1 point / 5 s. */
@@ -174,8 +179,14 @@ function buildTrail(i: number, strat: Strategy) {
     mint,
     untrusted: { symbol, name: `${symbol.charAt(0)}${symbol.slice(1).toLowerCase()} Token` },
     launchpad: pick(rng, launchpads),
-    stream: pick(rng, st.screener.streams),
+    venue: pick(rng, st.screener.streams),
     createdAt: start - intBetween(rng, 1, 40) * MIN,
+    // Deterministic (no extra rng draws, so the seeded data stays stable). Mixes 6/9 decimals and Token-2022.
+    decimals: i % 3 === 0 ? 9 : 6,
+    tokenProgram: i % 4 === 1 ? TOKEN_2022 : SPL_TOKEN,
+    quoteMint: null,
+    tradeable: true,
+    skipReason: null,
   };
   const outcome = i % 7 === 5 ? "rejected" : i % 7 === 6 ? "watching" : i % 5 === 3 ? "open" : "closed";
   const key = `pk_${mint.slice(0, 8).toLowerCase()}`;
@@ -183,7 +194,7 @@ function buildTrail(i: number, strat: Strategy) {
   let t = start;
   const ev = (kind: TradeEvent["kind"], actor: TradeEvent["actor"], message: string, extra: Partial<TradeEvent> = {}) => {
     t += intBetween(rng, 3, 60) * 1000;
-    events.push({ id: `${key}:${t}:${kind}`, seq: t * 10 + (events.length % 10), ts: t, kind, actor, strategyId: strat.id, mint, symbol, message, rev: strat.rev, ...extra });
+    events.push({ id: `${key}:${t}:${kind}`, seq: String(t * 10 + (events.length % 10)), ts: t, kind, actor, strategyId: strat.id, mint, symbol, message, rev: strat.rev, ...extra });
     return t;
   };
   const p0 = round(between(rng, 0.00002, 0.002), 7);
@@ -192,7 +203,7 @@ function buildTrail(i: number, strat: Strategy) {
   const passing = outcome !== "rejected";
   const scoreValue = passing ? intBetween(rng, passMark + 2, passMark + 40) : intBetween(rng, 30, passMark - 5);
   const checks = checksFor(passing);
-  ev("found", "screener", `Found on ${coin.launchpad}`, { reason: `${coin.stream} stream` });
+  ev("found", "screener", `Found on ${coin.launchpad}`, { reason: `${coin.venue} venue` });
   if (!passing) {
     const failed = checks.find((c) => !c.passed);
     ev("blocked", failed && ["liquidity", "volume_24h", "age"].includes(failed.name) ? "screener" : "guard", `Blocked ${symbol}`, {
@@ -224,7 +235,7 @@ function buildTrail(i: number, strat: Strategy) {
       const part = round(solIn * (tp1.sellPct / 100) * (1 + tp1.gainPct / 100), 4);
       solOut += part;
       const pTp = entryPrice * (1 + tp1.gainPct / 100);
-      const tt = ev("sold", "exit", `Sold ${tp1.sellPct}% ${symbol} +${tp1.gainPct}%`, { reason: "take-profit rung 1", partial: true, solAmount: part, pctChange: tp1.gainPct, priceUsd: pTp, exitReason: "take_profit" });
+      const tt = ev("sold", "exit", `Sold ${tp1.sellPct}% ${symbol} +${tp1.gainPct}%`, { reason: "take-profit rung 1", partial: true, solAmount: part, pctChange: tp1.gainPct, priceUsd: pTp, exitReason: "profit_target" });
       anchors.push({ t: tt, p: pTp });
     }
     if (outcome === "closed") {
@@ -269,13 +280,13 @@ function buildTrail(i: number, strat: Strategy) {
 
 function reasonText(r: ExitReason, st: StrategySettings): string {
   switch (r) {
-    case "take_profit": return "final take-profit rung";
-    case "stop_loss": return `hard stop −${st.exit.stopLossPct}% from entry`;
-    case "trailing_stop": return `trailing stop ${st.exit.trailingPct}% below high`;
-    case "time_out": return `time stop ${st.exit.timeStopMinutes || 10} min`;
-    case "inactivity": return `no trades for ${Math.round(st.exit.noTradeSeconds / 60)} min`;
-    case "drain": return `drain: −${st.exit.drainDropPct}% with sells > buys`;
-    case "rug": return "liquidity pulled";
+    case "profit_target": return "final take-profit rung";
+    case "loss_guard": return `hard stop −${st.exit.stopLossPct}% from entry`;
+    case "peak_trail": return `trailing stop ${st.exit.trailingPct}% below high`;
+    case "max_hold": return `time stop ${st.exit.timeStopMinutes || 10} min`;
+    case "idle": return `no trades for ${Math.round(st.exit.noTradeSeconds / 60)} min`;
+    case "sell_pressure": return `sell_pressure: −${st.exit.drainDropPct}% with sells > buys`;
+    case "rug_detected": return "liquidity pulled";
     case "manual": return "you closed it";
     default: return r.replace("_", " ");
   }
@@ -288,6 +299,20 @@ const built = [
   ...Array.from({ length: 14 }, (_, i) => buildTrail(i, practiceActive[i % practiceActive.length])),
   ...Array.from({ length: 5 }, (_, i) => buildTrail(14 + i, realActive[i % realActive.length])),
 ];
+// One rejected coin per mode is quoted in a non-SOL mint → screener state UNSUPPORTED_QUOTE_MINT ("Not tradeable").
+for (const mode of ["practice", "real"] as const) {
+  const b = built.find((x) => x.trail.mode === mode && x.summary.status === "rejected");
+  const ev = b?.trail.events.find((e) => e.kind === "blocked");
+  if (b) {
+    // Wire truth (1.1.2): tradeable:false + skip_reason; the UI state is derived from it, never set directly.
+    Object.assign(b.trail.coin, { tradeable: false, skipReason: "UNSUPPORTED_QUOTE_MINT", quoteMint: USDC_MINT });
+    const state = screenerStateOf({ tradeable: false, skip_reason: "UNSUPPORTED_QUOTE_MINT" });
+    Object.assign(b.trail, { screenerState: state, quoteSymbol: "USDC" });
+    b.summary.screenerState = state;
+  }
+  if (ev) Object.assign(ev, { actor: "screener", reasonCode: "UNSUPPORTED_QUOTE_MINT", reason: "quote mint is not SOL", message: `Blocked ${ev.symbol}`, checks: undefined });
+}
+export const NOT_TRADEABLE_MINTS = new Set(built.filter((b) => b.trail.events.some((e) => e.reasonCode === "UNSUPPORTED_QUOTE_MINT")).map((b) => b.trail.coin.mint));
 export const trails: CoinTrail[] = built.map((b) => b.trail);
 export const coinSummaries: CoinSummary[] = built.map((b) => b.summary).sort((a, b) => b.lastEventAt - a.lastEventAt);
 export const recentEvents: TradeEvent[] = trails.flatMap((t) => t.events).sort((a, b) => b.ts - a.ts);
@@ -299,18 +324,19 @@ export const recentEvents: TradeEvent[] = trails.flatMap((t) => t.events).sort((
 // ---------------------------------------------------------------------------
 
 const reasonProfile: Record<ExitReason, { weight: number; win: number; pct: [number, number]; hold: [number, number] }> = {
-  take_profit: { weight: 22, win: 0.95, pct: [10, 45], hold: [40, 900] },
-  stop_loss: { weight: 18, win: 0.02, pct: [-40, -12], hold: [20, 600] },
-  trailing_stop: { weight: 30, win: 0.42, pct: [-20, 45], hold: [8, 1200] },
-  time_out: { weight: 12, win: 0.3, pct: [-15, 12], hold: [600, 1200] },
-  inactivity: { weight: 8, win: 0.2, pct: [-25, 8], hold: [300, 900] },
-  drain: { weight: 5, win: 0.05, pct: [-45, -10], hold: [60, 400] },
-  stall: { weight: 3, win: 0.35, pct: [-10, 15], hold: [200, 900] },
-  rug: { weight: 3, win: 0, pct: [-98, -70], hold: [10, 300] },
+  profit_target: { weight: 22, win: 0.95, pct: [10, 45], hold: [40, 900] },
+  loss_guard: { weight: 18, win: 0.02, pct: [-40, -12], hold: [20, 600] },
+  peak_trail: { weight: 30, win: 0.42, pct: [-20, 45], hold: [8, 1200] },
+  max_hold: { weight: 12, win: 0.3, pct: [-15, 12], hold: [600, 1200] },
+  idle: { weight: 8, win: 0.2, pct: [-25, 8], hold: [300, 900] },
+  sell_pressure: { weight: 5, win: 0.05, pct: [-45, -10], hold: [60, 400] },
+  no_new_high: { weight: 3, win: 0.35, pct: [-10, 15], hold: [200, 900] },
+  rug_detected: { weight: 3, win: 0, pct: [-98, -70], hold: [10, 300] },
   sell_floor: { weight: 1, win: 0.1, pct: [-30, 5], hold: [30, 600] },
-  loss_stop: { weight: 1, win: 0, pct: [-35, -5], hold: [60, 1200] },
+  drawdown_halt: { weight: 1, win: 0, pct: [-35, -5], hold: [60, 1200] },
   manual: { weight: 4, win: 0.5, pct: [-20, 30], hold: [60, 3000] },
   strategy_retired: { weight: 0, win: 0.5, pct: [-10, 10], hold: [60, 600] },
+  practice_reset: { weight: 0, win: 0.5, pct: [-10, 10], hold: [60, 600] },
 };
 const weightedReasons: ExitReason[] = EXIT_REASONS.flatMap((r) => Array.from({ length: reasonProfile[r].weight }, () => r));
 

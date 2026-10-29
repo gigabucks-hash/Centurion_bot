@@ -111,7 +111,7 @@ function SearchBox() {
         router.push(`/coins?q=${encodeURIComponent(String(q ?? ""))}`);
       }}
     >
-      <label className="flex h-9 w-56 items-center gap-2 rounded-md border border-border-default bg-bg-inset px-3 text-caption text-text-tertiary focus-within:outline-2 focus-within:outline-border-focus">
+      <label className="flex h-9 w-56 items-center gap-2 rounded-md border border-border-default bg-bg-sunken px-3 text-caption text-text-tertiary focus-within:outline-2 focus-within:outline-border-focus">
         <Search size={14} aria-hidden />
         <input id="global-search" name="q" placeholder={t("nav.search")} className="w-full bg-transparent text-body text-text-primary outline-none placeholder:text-text-tertiary" aria-label={t("nav.searchLabel")} />
       </label>
@@ -148,7 +148,7 @@ export function AppShell({ children, mode, pendingApprovals, walletConnected, ca
 
   useEffect(() => {
     const refresh = () =>
-      fetchApprovals()
+      fetchApprovals(mode)
         .then((list) => setPending(list.filter((a) => a.status === "pending").length))
         .catch(() => {});
     refresh();
@@ -191,9 +191,12 @@ export function AppShell({ children, mode, pendingApprovals, walletConnected, ca
         </div>
 
         <div className="flex flex-1">
-          <aside className="sticky top-22 hidden h-[calc(100vh-88px)] w-[200px] shrink-0 flex-col gap-4 border-r border-border-subtle bg-bg-surface px-2 py-4 lg:flex">
-            <SideNav pending={pending} />
-            <p className="mt-auto px-2 text-caption text-text-tertiary">{t("common.mockBuild")}</p>
+          {/* QA-14: the column background stretches with the content; the nav inside stays sticky. */}
+          <aside className="hidden w-[200px] shrink-0 border-r border-border-subtle bg-bg-surface lg:block">
+            <div className="sticky top-22 flex h-[calc(100dvh-88px)] flex-col gap-4 px-2 py-4">
+              <SideNav pending={pending} />
+              <p className="mt-auto px-2 text-caption text-text-tertiary">{t("common.mockBuild")}</p>
+            </div>
           </aside>
           <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 pt-6 pb-24 sm:px-6 lg:pb-10">{children}</main>
         </div>
@@ -201,7 +204,7 @@ export function AppShell({ children, mode, pendingApprovals, walletConnected, ca
         <BottomNav pending={pending} onMore={() => setMore(true)} />
         {more && (
           <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t("nav.more")}>
-            <button className="absolute inset-0 bg-bg-inset/80" aria-label={t("common.close")} onClick={() => setMore(false)} />
+            <button className="absolute inset-0 bg-bg-sunken/80" aria-label={t("common.close")} onClick={() => setMore(false)} />
             <div className="absolute inset-x-0 bottom-0 rounded-t-xl border-t border-border-default bg-bg-overlay p-4 shadow-e4">
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-titleSm">{t("nav.more")}</span>

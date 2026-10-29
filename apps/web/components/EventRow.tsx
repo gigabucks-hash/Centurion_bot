@@ -1,4 +1,5 @@
 "use client";
+import { NotTradeableChip } from "@/components/NotTradeable";
 import { useFmt } from "@/lib/i18n/client";
 import Link from "next/link";
 import type { TradeEvent } from "@/lib/types";
@@ -29,11 +30,12 @@ export function EventRow({ e, strategyName, fresh }: { e: TradeEvent; strategyNa
           ) : (
             <EventTitle e={e} />
           )}
+          {e.reasonCode === "UNSUPPORTED_QUOTE_MINT" && <NotTradeableChip className="ml-2 align-middle font-normal" label={t("screener.notTradeable")} />}
           {e.pnlSol != null && <Pnl sol={e.pnlSol} className="ml-2 text-caption font-normal" />}
         </span>
         {(e.reason || strategyName) && (
           <span className="block truncate text-caption text-text-secondary">
-            {[strategyName, e.reason].filter(Boolean).join(" · ")}
+            {[strategyName, e.reasonCode === "UNSUPPORTED_QUOTE_MINT" ? t("screener.notTradeableDetail") : e.reason].filter(Boolean).join(" · ")}
           </span>
         )}
       </span>

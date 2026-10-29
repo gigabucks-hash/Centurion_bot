@@ -4,7 +4,7 @@ import { AlertTriangle, Minus, Plus } from "lucide-react";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { Locale } from "@/lib/i18n";
 import { cn } from "./cn";
-import { LOCALES } from "@/lib/i18n/format.mjs";
+import { LOCALES } from "@sentra/i18n/format";
 
 /** Parses input in the UI locale: id uses a decimal comma ("1.234,5"), en a decimal point ("1,234.5"). */
 export function parseLocaleNumber(raw: string, locale: Locale = "en"): number {
@@ -50,7 +50,7 @@ export function NumberInput({ label, value, onChange, unit, min, max, step = 1, 
       </label>
       <div
         className={cn(
-          "flex items-center rounded-md border bg-bg-inset focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-border-focus",
+          "flex items-center rounded-md border bg-bg-sunken focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-border-focus",
           error ? "border-semantic-loss" : weakening ? "border-semantic-warning" : "border-border-default",
         )}
       >

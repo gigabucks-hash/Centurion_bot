@@ -70,22 +70,22 @@ export const NUMBER_FIELDS: NumberField[] = [
 export const fieldByPath = Object.fromEntries(NUMBER_FIELDS.map((f) => [f.path, f]));
 
 export const GUARD_CHECKS: { id: GuardCheck; label: string }[] = [
-  { id: "bundlers", label: "Bundled buys" },
-  { id: "devDump", label: "Dev dumping" },
-  { id: "snipers", label: "Sniper clusters" },
-  { id: "washTrading", label: "Wash trading" },
-  { id: "layeredLaunch", label: "Layered launch" },
-  { id: "serialCreator", label: "Serial creator" },
-  { id: "transferFee", label: "Transfer fee token" },
-  { id: "insiderProfit", label: "Insider profit taking" },
+  { id: "mint_authority", label: "Mint authority revoked" },
+  { id: "freeze_authority", label: "Freeze authority revoked" },
+  { id: "bundled_share", label: "Bundled buys" },
+  { id: "creator_share", label: "Creator dumping" },
+  { id: "sniper_share", label: "Sniper clusters" },
+  { id: "serial_creator", label: "Serial creator" },
+  { id: "transfer_fee", label: "Transfer fee token" },
+  { id: "honeypot", label: "Honeypot (can't sell)" },
 ];
 export const MUST_HAVE: { id: MustHaveRule; label: string }[] = [
-  { id: "liquidity", label: "Liquidity" },
-  { id: "volume", label: "Volume" },
-  { id: "marketCap", label: "Market cap" },
-  { id: "age", label: "Age" },
-  { id: "top10", label: "Top-10" },
-  { id: "lpBurn", label: "LP burn" },
+  { id: "liquidity_usd", label: "Liquidity" },
+  { id: "volume_24h_usd", label: "Volume" },
+  { id: "mcap_usd", label: "Market cap" },
+  { id: "age_minutes_min", label: "Age" },
+  { id: "top_holders_share_pct", label: "Top-10" },
+  { id: "lp_burned_pct", label: "LP burn" },
 ];
 
 export const GUARD_PRESETS: Record<Exclude<GuardPreset, "custom">, { label: string; maxDevPercent: number; maxBundlersPct: number; maxSnipersPct: number; allChecks: boolean }> = {
@@ -96,14 +96,14 @@ export const GUARD_PRESETS: Record<Exclude<GuardPreset, "custom">, { label: stri
 
 /** Original exit-plan presets (names are ours). */
 export const EXIT_PRESETS: Record<Exclude<ExitPlanPreset, "custom">, { label: string; takeProfits: TakeProfitRung[]; trailingPct: number; timeStopMinutes: number; stallExit: boolean }> = {
-  ladder3: { label: "Ladder 3-rung", takeProfits: [{ gainPct: 50, sellPct: 33 }, { gainPct: 100, sellPct: 33 }, { gainPct: 200, sellPct: 34, pullbackPct: 15 }], trailingPct: 20, timeStopMinutes: 30, stallExit: false },
-  trailOnly: { label: "Trailing only", takeProfits: [], trailingPct: 15, timeStopMinutes: 0, stallExit: false },
-  quickScalp: { label: "Quick scalp", takeProfits: [{ gainPct: 20, sellPct: 50 }, { gainPct: 40, sellPct: 50 }], trailingPct: 8, timeStopMinutes: 5, stallExit: true },
-  doubling: { label: "Doubling", takeProfits: [{ gainPct: 100, sellPct: 33 }, { gainPct: 300, sellPct: 33 }, { gainPct: 700, sellPct: 34 }], trailingPct: 25, timeStopMinutes: 60, stallExit: false },
+  three_step_ladder: { label: "Ladder 3-rung", takeProfits: [{ gainPct: 50, sellPct: 33 }, { gainPct: 100, sellPct: 33 }, { gainPct: 200, sellPct: 34, pullbackPct: 15 }], trailingPct: 20, timeStopMinutes: 30, stallExit: false },
+  trail_stop_only: { label: "Trailing only", takeProfits: [], trailingPct: 15, timeStopMinutes: 0, stallExit: false },
+  fast_half: { label: "Quick scalp", takeProfits: [{ gainPct: 20, sellPct: 50 }, { gainPct: 40, sellPct: 50 }], trailingPct: 8, timeStopMinutes: 5, stallExit: true },
+  geometric_ladder: { label: "Doubling", takeProfits: [{ gainPct: 100, sellPct: 33 }, { gainPct: 300, sellPct: 33 }, { gainPct: 700, sellPct: 34 }], trailingPct: 25, timeStopMinutes: 60, stallExit: false },
 };
 
 const allChecks = (on: boolean): Record<GuardCheck, boolean> =>
-  Object.fromEntries(GUARD_CHECKS.map((c) => [c.id, on || ["bundlers", "devDump"].includes(c.id)])) as Record<GuardCheck, boolean>;
+  Object.fromEntries(GUARD_CHECKS.map((c) => [c.id, on || ["mint_authority", "freeze_authority", "bundled_share", "creator_share", "honeypot"].includes(c.id)])) as Record<GuardCheck, boolean>;
 
 export function blankSettings(): StrategySettings {
   return {
@@ -112,7 +112,7 @@ export function blankSettings(): StrategySettings {
     approvalMode: "ask_first_buy",
     sizing: { budgetSol: 3, tradeSol: 0.25, maxOpen: 5, lossStopPct: 50 },
     screener: {
-      streams: ["bonding"],
+      streams: ["curve"],
       minAgeMinutes: 2,
       maxAgeMinutes: 60,
       minMarketCapUsd: 20000,
@@ -125,7 +125,7 @@ export function blankSettings(): StrategySettings {
       maxTop10Percent: 30,
       minLpBurnPct: 90,
       maxDrawdownPct: 40,
-      mustHave: ["liquidity", "volume", "age"],
+      mustHave: ["liquidity_usd", "volume_24h_usd", "age_minutes_min"],
       passMark: 70,
     },
     guard: { preset: "balanced", maxDevPercent: 5, maxBundlersPct: 20, maxSnipersPct: 15, checks: allChecks(true) },
@@ -138,7 +138,10 @@ export function blankSettings(): StrategySettings {
       rebuy: false,
       tradingHoursUtc: { enabled: false, from: 0, to: 23 },
     },
-    exit: { plan: "ladder3", ...structuredClone(EXIT_PRESETS.ladder3), stopLossPct: 30, noTradeSeconds: 300, drainDropPct: 25 },
+    exit: applyExitPresetTo(
+      { plan: "custom", takeProfits: [], trailingPct: 0, timeStopMinutes: 0, stallExit: false, stopLossPct: 30, noTradeSeconds: 300, drainDropPct: 25 },
+      "three_step_ladder",
+    ),
   };
 }
 
@@ -146,8 +149,8 @@ export type StrategyPresetId = "conservative" | "balanced" | "scalper" | "gradua
 export const STRATEGY_PRESETS: { id: StrategyPresetId; label: string; blurb: string; build: () => StrategySettings }[] = [
   { id: "conservative", label: "Conservative", blurb: "Strict guards, older coins, ladder exits", build: () => applyGuardPreset({ ...blankSettings(), name: "Conservative", screener: { ...blankSettings().screener, minAgeMinutes: 10, passMark: 85, minLiquidityUsd: 15000 } }, "strict") },
   { id: "balanced", label: "Balanced", blurb: "Default filters, ask before first buy", build: () => ({ ...blankSettings(), name: "Balanced" }) },
-  { id: "scalper", label: "Scalper", blurb: "Fresh bonding coins, quick scalp exits", build: () => applyExitPreset({ ...blankSettings(), name: "Scalper", sizing: { budgetSol: 2, tradeSol: 0.1, maxOpen: 8, lossStopPct: 40 } }, "quickScalp") },
-  { id: "graduated", label: "Graduated", blurb: "Graduated pools only, trailing exits", build: () => applyExitPreset({ ...blankSettings(), name: "Graduated", screener: { ...blankSettings().screener, streams: ["graduated"], maxAgeMinutes: 1440 } }, "trailOnly") },
+  { id: "scalper", label: "Scalper", blurb: "Fresh bonding coins, quick scalp exits", build: () => applyExitPreset({ ...blankSettings(), name: "Scalper", sizing: { budgetSol: 2, tradeSol: 0.1, maxOpen: 8, lossStopPct: 40 } }, "fast_half") },
+  { id: "graduated", label: "Graduated", blurb: "Graduated pools only, trailing exits", build: () => applyExitPreset({ ...blankSettings(), name: "Graduated", screener: { ...blankSettings().screener, streams: ["amm"], maxAgeMinutes: 1440 } }, "trail_stop_only") },
 ];
 
 export function applyGuardPreset(s: StrategySettings, p: Exclude<GuardPreset, "custom">): StrategySettings {
@@ -155,10 +158,14 @@ export function applyGuardPreset(s: StrategySettings, p: Exclude<GuardPreset, "c
   return { ...s, guard: { preset: p, maxDevPercent: g.maxDevPercent, maxBundlersPct: g.maxBundlersPct, maxSnipersPct: g.maxSnipersPct, checks: allChecks(g.allChecks) } };
 }
 
-export function applyExitPreset(s: StrategySettings, p: ExitPlanPreset): StrategySettings {
-  if (p === "custom") return { ...s, exit: { ...s.exit, plan: "custom" } };
+function applyExitPresetTo(x: StrategySettings["exit"], p: ExitPlanPreset): StrategySettings["exit"] {
+  if (p === "custom") return { ...x, plan: "custom" };
   const e = structuredClone(EXIT_PRESETS[p]);
-  return { ...s, exit: { ...s.exit, plan: p, takeProfits: e.takeProfits, trailingPct: e.trailingPct, timeStopMinutes: e.timeStopMinutes, stallExit: e.stallExit } };
+  return { ...x, plan: p, takeProfits: e.takeProfits, trailingPct: e.trailingPct, timeStopMinutes: e.timeStopMinutes, stallExit: e.stallExit };
+}
+
+export function applyExitPreset(s: StrategySettings, p: ExitPlanPreset): StrategySettings {
+  return { ...s, exit: applyExitPresetTo(s.exit, p) };
 }
 
 // ---------------------------------------------------------------------------

@@ -40,9 +40,9 @@ async function List() {
             </dl>
             {s.status === "draft" ? <p className="mb-2 text-caption text-text-tertiary">{t("strategies.draftNote")}</p> : <Funnel funnel={s.funnel} />}
             <div className="mt-4 flex flex-wrap gap-1.5">
-              {s.settings.screener.streams.map((st) => <Badge key={st}>{st === "bonding" ? t("builder.bonding") : t("builder.graduated")}</Badge>)}
+              {s.settings.screener.streams.map((st) => <Badge key={st}>{st === "curve" ? t("builder.bonding") : t("builder.graduated")}</Badge>)}
               <Badge tone="brand">{t("strategies.exit", { plan })}</Badge>
-              <Badge>{t("strategies.perTrade", { sol: f.sol(s.settings.sizing.tradeSol) })}</Badge>
+              <Badge>{t("strategies.perTrade", { amount_lamports: f.amount(s.settings.sizing.tradeSol) })}</Badge>
               <Badge>{t("strategies.open", { n: s.openPositions, max: s.settings.sizing.maxOpen })}</Badge>
               <Badge tone="guard">{t("strategies.guard", { preset: t(`guardPreset.${s.settings.guard.preset}`) })}</Badge>
             </div>

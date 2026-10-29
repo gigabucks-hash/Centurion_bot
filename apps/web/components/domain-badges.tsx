@@ -13,7 +13,7 @@ export function ModeBadge({ mode, className }: { mode: TradingMode; className?: 
   );
 }
 
-const statusTone: Record<StrategyStatus, Tone> = { draft: "neutral", running: "profit", paused: "warning", stopped: "loss", archived: "neutral" };
+const statusTone: Record<StrategyStatus, Tone> = { draft: "neutral", running: "profit", paused: "warning", archived: "neutral" };
 export function StatusBadge({ status }: { status: StrategyStatus }) {
   const t = useT();
   return <Badge tone={statusTone[status]}>{t(`status.${status}`)}</Badge>;

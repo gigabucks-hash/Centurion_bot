@@ -31,9 +31,9 @@ async function Overview() {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label={t("overview.cash")} value={f.sol(o.cashSol)} hint={t("overview.inPositions", { sol: f.sol(o.inPositionsSol) })} />
+        <StatTile label={t("overview.cash")} value={f.sol(o.cashSol)} hint={t("overview.inPositions", { amount_lamports: f.amount(o.inPositionsSol) })} />
         <StatTile label={t("overview.realized")} value={<Pnl sol={o.realizedPnlSol} unit />} hint={t("overview.vsStart", { pct: f.pct(realizedPct) })} />
-        <StatTile label={t("overview.openPositions")} value={`${o.openPositions} / ${o.openPositionsCap}`} hint={t("overview.openHint", { sol: f.sol(o.inPositionsSol), unreal: f.sol(o.unrealizedPnlSol, { sign: true }) })} />
+        <StatTile label={t("overview.openPositions")} value={`${o.openPositions} / ${o.openPositionsCap}`} hint={t("overview.openHint", { amount_lamports: f.amount(o.inPositionsSol), unreal: f.sol(o.unrealizedPnlSol, { sign: true }) })} />
         <Link href="/approvals" className="rounded-lg focus-visible:outline-2">
           <StatTile
             label={t("overview.waiting")}
@@ -59,12 +59,14 @@ async function Overview() {
               rows={strategies.filter((s) => s.status !== "archived")}
               rowKey={(s) => s.id}
               minWidth={720}
+              mobile="cards"
+              labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
               columns={[
                 { key: "name", header: t("overview.colName"), cell: (s) => <Link href={`/strategies/${s.id}/edit`} className="font-medium text-text-primary hover:underline">{s.name}</Link> },
-                { key: "status", header: t("overview.colStatus"), cell: (s) => <StatusBadge status={s.status} /> },
-                { key: "ap", header: t("overview.colApproval"), cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
-                { key: "pnl", header: t("overview.colPnl"), numeric: true, cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} />) },
-                { key: "wr", header: t("overview.colWin"), numeric: true, cell: (s) => (s.trades ? `${Math.round((s.wins / s.trades) * 100)}%` : "—") },
+                { key: "status", header: t("overview.colStatus"), mobile: "status", nowrap: true, cell: (s) => <StatusBadge status={s.status} /> },
+                { key: "ap", header: t("overview.colApproval"), mobile: "status", nowrap: true, cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
+                { key: "pnl", header: t("overview.colPnl"), numeric: true, mobile: "primary", cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} />) },
+                { key: "wr", header: t("overview.colWin"), numeric: true, cell: (s) => (s.trades ? f.pct((s.wins / s.trades) * 100, 0, false) : "—") },
                 { key: "dd", header: t("overview.colDd"), numeric: true, cell: (s) => (s.trades ? f.pct(-s.maxDrawdownPct) : "—") },
                 { key: "hold", header: t("overview.colHold"), numeric: true, cell: (s) => (s.trades ? f.duration(s.avgHoldSeconds) : "—") },
                 { key: "spark", header: <span className="sr-only">{t("overview.colTrend")}</span>, align: "right", cell: (s) => <Sparkline values={s.pnlSpark} label={t("overview.trend", { name: s.name })} /> },
@@ -75,11 +77,11 @@ async function Overview() {
 
           {trail && (
             <Card
-              title={t("overview.coinTrail", { coin: trail.coin.untrusted.symbol, strategy: trail.strategyName })}
+              title={t("overview.coinTrail", { symbol: trail.coin.untrusted.symbol, strategy: trail.strategyName })}
               action={trail.positions[0] && <Link href={`/coins/${trail.coin.mint}`} className="text-caption"><Pnl sol={trail.positions[0].pnlSol} unit /> · {t("common.details")}</Link>}
             >
               <CoinTrailSteps trail={trail} />
-              <p className="mt-3 rounded-md bg-bg-inset p-3 text-caption text-text-secondary">
+              <p className="mt-3 rounded-md bg-bg-sunken p-3 text-caption text-text-secondary">
                 {t("overview.snapshot", { rev: trail.events[0]?.rev ?? "—" })}
               </p>
             </Card>

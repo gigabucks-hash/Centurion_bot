@@ -1,10 +1,11 @@
 /**
  * Number/date formatting (QA-01). Every value goes through the UX reference formatters in
- * lib/i18n/format.mjs (copied as-is from /workspace/ux-solbot/locales/format.mjs), bound to the UI
+ * @sentra/i18n/format (packages/i18n 0.4.0 format.mjs, workspace dependency; no local copy), bound to the UI
  * locale (en → en-US, id → id-ID) and the mode (Practice amounts read "paper SOL"). No component
  * hardcodes a number locale. Get a formatter with useFmt() (client) or getFmt(mode) (server).
  */
-import { formatCompact, formatCountdown, formatDateTime, formatInt, formatPct, formatSol, formatTime, formatUsd, LOCALES } from "./i18n/format.mjs";
+import { solToLamports } from "./contracts";
+import { formatCompact, formatCountdown, formatDateTime, formatInt, formatLamports, formatPct, formatSol, formatSolVar, formatTime, formatUsd, LOCALES } from "@sentra/i18n/format";
 import type { Locale } from "./i18n/index.ts";
 import type { TradingMode } from "./types.ts";
 
@@ -35,6 +36,15 @@ function build(locale: Locale, mode: TradingMode) {
       const s = formatSol(n, loc, { kind: o.sign ? "pnl" : "amount", paper });
       return o.unit === false ? s.replace(/\u00A0(paper )?SOL$/, "") : s;
     },
+    /** Wire lamport string ("250000000") → "0.25 SOL" (exact BigInt split in format.mjs). */
+    lamports: (l: string, o: { sign?: boolean } = {}) => formatLamports(l, loc, { kind: o.sign ? "pnl" : "amount", paper }),
+    /**
+     * i18n 0.4.3 `{amount_lamports}` var: a UI SOL number → lamport string → formatLamports(v, locale, {paper}).
+     * The var carries formatted SOL text, never raw lamports.
+     */
+    amount: (sol: number) => formatLamports(solToLamports(sol), loc, { kind: "amount", paper }),
+    /** Wire decimal string ("0.25") → SOL text. */
+    solVar: (s: string, o: { sign?: boolean } = {}) => formatSolVar(s, loc, { kind: o.sign ? "pnl" : "amount", paper }),
     /** Percent from a percentage number (8.4 → "+8.4%"). */
     pct: (n: number, digits = 1, sign = true) => formatPct(n / 100, loc, { signed: sign, dp: digits }),
     int: (n: number) => formatInt(n, loc),

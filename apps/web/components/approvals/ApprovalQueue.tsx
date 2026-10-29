@@ -1,9 +1,13 @@
 "use client";
+import { remainingUntil } from "@/lib/clock";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, Ban, Check, Fingerprint, Keyboard, ShieldAlert, Timer, X } from "lucide-react";
-import type { Approval, ApprovalDecision, SkipReason, TradingMode } from "@/lib/types";
-import { decideApprovalClient, fetchApprovals } from "@/lib/client";
+import { NOT_TRADEABLE } from "@/lib/types";
+import type { Approval, SkipReason, TradingMode } from "@/lib/types";
+import { cancelGuardChangeClient, decideApprovalClient, fetchApproval, fetchApprovals, type DecideOptions } from "@/lib/client";
+import { ApiError, errorText } from "@/lib/errors";
 import { fmtCountdown } from "@/lib/format";
 import { useT, useFmt } from "@/lib/i18n/client";
 import { settingLabel } from "@/lib/strategy-schema";
@@ -12,10 +16,11 @@ import { Countdown, Dialog, HoldButton, Segmented, useNow, useToast } from "@/co
 import { ApprovalStatusBadge, ModeBadge } from "@/components/domain";
 import { GuardWeakeningDialog } from "./GuardWeakeningDialog";
 import { SwipeRow } from "./SwipeRow";
+import { NotTradeableChip, NotTradeableCta, NotTradeableReason } from "@/components/NotTradeable";
 
-type Tab = "pending" | "active" | "done" | "expired";
-const TAB_OF = (a: Approval): Tab =>
-  a.status === "pending" ? "pending" : a.status === "approved" || a.status === "executing" ? "active" : a.status === "expired" ? "expired" : "done";
+/** QA-06: one tab per contract ProposalStatus (pending · approved · rejected="Skipped" · expired). executing/filled/failed are approved sub-states. */
+type Tab = "pending" | "approved" | "rejected" | "expired";
+const TAB_OF = (a: Approval): Tab => (a.status === "pending" ? "pending" : a.status === "rejected" ? "rejected" : a.status === "expired" ? "expired" : "approved");
 const KIND_KEY = { buy_pick: "approvals.kindPick", guard_change: "approvals.kindGuard", team_action: "approvals.kindTeam" } as const;
 const PICK_KEY = { first_buy: "approvals.pickFirst", buy: "approvals.pickBuy", rebuy: "approvals.pickRebuy" } as const;
 const HOLD = { practice: 1200, real: 2500 } as const;
@@ -27,7 +32,7 @@ const SKIP_REASONS: SkipReason[] = ["thin_liquidity", "already_pumped", "dev_sus
  * - Real SOL picks: extra confirm dialog (summary + hold 2.5 s), batch shows total SOL.
  * - Guard changes: never batched/swiped → hardened GuardWeakeningDialog.
  * - Team actions on Real: mock passkey + hold 2.5 s.
- * Keyboard: J/K move · A approve · S skip · X select · ⇧A approve selected · Enter open · Esc clear.
+ * Keyboard (QA-12): J/K move · A approve · S skip · X select · ⇧A approve selected · Space details · ↵ chart · Esc clear.
  */
 export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: TradingMode }) {
   const toast = useToast();
@@ -43,15 +48,23 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
   const [realPick, setRealPick] = useState<Approval[] | null>(null);
   const [guardFor, setGuardFor] = useState<Approval | null>(null);
   const [teamFor, setTeamFor] = useState<Approval | null>(null);
+  const [quickLook, setQuickLook] = useState<Approval | null>(null);
+  const router = useRouter();
   const real = mode === "real";
+
+  /** Rejects are sent after the 5 s Undo window (the contract has no undo). */
+  const [skipping, setSkipping] = useState<Map<string, SkipReason | undefined>>(new Map());
+  const skipTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  /** 409 VERSION_CONFLICT banner: the item changed elsewhere; reloaded, user re-decides. */
+  const [conflict, setConflict] = useState<Approval | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      setItems(await fetchApprovals());
+      setItems(await fetchApprovals(mode));
     } catch {
       /* keep last state */
     }
-  }, []);
+  }, [mode]);
   useEffect(() => {
     const id = setInterval(refresh, 4000);
     return () => clearInterval(id);
@@ -59,11 +72,18 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
 
   // Client-side expiry so countdown → expired is immediate (server is authoritative on next poll).
   const view = useMemo(
-    () => items.map((a) => (a.status === "pending" && now != null && now > a.expiresAt ? { ...a, status: "expired" as const, expiredReason: "timeout" as const } : a)),
-    [items, now],
+    () =>
+      items.map((a) =>
+        a.status === "pending" && skipping.has(a.id)
+          ? { ...a, status: "rejected" as const, skipReason: skipping.get(a.id), decidedAt: now ?? a.createdAt }
+          : a.status === "pending" && now != null && now > a.expiresAt
+            ? { ...a, status: "expired" as const, expiredReason: "timeout" as const }
+            : a,
+      ),
+    [items, now, skipping],
   );
   const counts = useMemo(() => {
-    const c: Record<Tab, number> = { pending: 0, active: 0, done: 0, expired: 0 };
+    const c: Record<Tab, number> = { pending: 0, approved: 0, rejected: 0, expired: 0 };
     view.forEach((a) => c[TAB_OF(a)]++);
     return c;
   }, [view]);
@@ -73,56 +93,106 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
   );
   const focused = list.find((a) => a.id === focusId) ?? list[0] ?? null;
   const cooldowns = view.filter((a) => a.kind === "guard_change" && a.status === "approved" && a.cooldownEndsAt);
-  const selPicks = list.filter((a) => selected.has(a.id) && a.kind === "buy_pick" && a.status === "pending");
+  const ntPending = list.filter((a) => a.kind === "buy_pick" && a.status === "pending" && isNotTradeable(a)).length;
+  const selPicks = list.filter((a) => selected.has(a.id) && a.kind === "buy_pick" && a.status === "pending" && !isNotTradeable(a));
   const selTotal = selPicks.reduce((s, a) => s + (a.amountSol ?? 0), 0);
 
   const decide = useCallback(
-    async (a: Approval, d: ApprovalDecision) => {
+    async (a: Approval, d: DecideOptions): Promise<Approval | null> => {
       setBusy(true);
       try {
-        const next = await decideApprovalClient(a.id, d);
+        await decideApprovalClient(a, d);
+        const next = await fetchApproval(a.id);
         setItems((p) => p.map((x) => (x.id === next.id ? next : x)));
         return next;
       } catch (e) {
-        toast({ kind: "error", text: (e as Error).message });
+        if (e instanceof ApiError && e.code === "VERSION_CONFLICT") {
+          const fresh = await fetchApproval(a.id).catch(() => null);
+          if (fresh) {
+            setItems((p) => p.map((x) => (x.id === fresh.id ? fresh : x)));
+            setConflict(fresh);
+          }
+        } else {
+          toast({ kind: "error", text: errorText(t, e) });
+          if (e instanceof ApiError && (e.code === "APPROVAL_ALREADY_DECIDED" || e.code === "APPROVAL_EXPIRED")) refresh();
+        }
         return null;
       } finally {
         setBusy(false);
       }
     },
-    [toast],
+    [toast, t, refresh],
+  );
+
+  const cancelCooldown = useCallback(
+    async (a: Approval) => {
+      try {
+        const next = await cancelGuardChangeClient(a.id);
+        setItems((p) => p.map((x) => (x.id === next.id ? next : x)));
+        toast({ kind: "success", text: t("approvals.cancelled") });
+      } catch (e) {
+        toast({ kind: "error", text: errorText(t, e) });
+      }
+    },
+    [toast, t],
   );
 
   const approve = useCallback(
     (a: Approval) => {
-      if (a.status !== "pending") return;
+      if (a.status !== "pending" || isNotTradeable(a)) return;
       if (a.kind === "guard_change") return setGuardFor(a);
       if (a.kind === "team_action") return setTeamFor(a);
       if (a.mode === "real") return setRealPick([a]);
-      decide(a, { action: "approve" }).then((n) => n && toast({ kind: "success", text: t("approvals.approvedToast", { coin: a.symbol ? `$${a.symbol}` : a.title }) }));
+      decide(a, { decision: "approve" }).then((n) => n && toast({ kind: "success", text: t("approvals.approvedToast", { symbol: a.symbol ? `$${a.symbol}` : a.title }) }));
     },
     [decide, toast, t],
   );
 
   const skip = useCallback(
-    async (a: Approval, reason?: SkipReason) => {
+    (a: Approval, reason?: SkipReason) => {
+      // Not tradeable: Skip is allowed as a plain dismiss (no reason). Approve stays disabled.
+      if (isNotTradeable(a)) reason = undefined;
       setSkipFor(null);
-      const n = await decide(a, { action: "skip", reason });
-      if (n)
-        toast({
-          kind: "info",
-          text: reason ? t("approvals.skippedReason", { coin: a.symbol ? `$${a.symbol}` : a.title, reason: t(`skipReason.${reason}`) }) : t("approvals.skippedToast", { coin: a.symbol ? `$${a.symbol}` : a.title }),
-          action: { label: t("approvals.undo"), run: () => decide(a, { action: "undo_skip" }) },
-          ttl: 5000,
+      setSkipping((m) => new Map(m).set(a.id, reason));
+      const drop = () =>
+        setSkipping((m) => {
+          const n = new Map(m);
+          n.delete(a.id);
+          return n;
         });
+      const timer = setTimeout(async () => {
+        skipTimers.current.delete(a.id);
+        // Not tradeable: dismiss with wire reason "not_tradeable" (i18n queue.skip_reason.not_tradeable); no dialog.
+        await decide(a, { decision: "reject", reason: isNotTradeable(a) ? "not_tradeable" : (reason ?? null) });
+        drop();
+      }, 5000);
+      skipTimers.current.set(a.id, timer);
+      const coin = a.symbol ?? a.title;
+      toast({
+        kind: "info",
+        text: a.kind !== "buy_pick" ? t("approvals.rejectedChange", { title: a.title }) : reason ? t("approvals.skippedReason", { symbol: coin, reason: t(`skipReason.${reason}`) }) : t("approvals.skippedToast", { symbol: coin }),
+        action: {
+          label: t("approvals.undo"),
+          run: () => {
+            clearTimeout(skipTimers.current.get(a.id));
+            skipTimers.current.delete(a.id);
+            drop();
+          },
+        },
+        ttl: 5000,
+      });
     },
     [decide, toast, t],
   );
+  useEffect(() => {
+    const timers = skipTimers.current;
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
   const batchApprove = useCallback(() => {
     if (selPicks.length === 0) return;
     if (real) return setRealPick(selPicks);
-    Promise.all(selPicks.map((a) => decideApprovalClient(a.id, { action: "approve" }).catch(() => null))).then(() => {
+    Promise.all(selPicks.map((a) => decideApprovalClient(a, { decision: "approve" }).catch(() => null))).then(() => {
       toast({ kind: "success", text: t("approvals.approvedMany", { n: selPicks.length }) });
       setSelected(new Set());
       refresh();
@@ -130,7 +200,7 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
   }, [selPicks, real, toast, refresh, t]);
 
   // Keyboard shortcuts
-  const dialogOpen = !!(skipFor || realPick || guardFor || teamFor);
+  const dialogOpen = !!(skipFor || realPick || guardFor || teamFor || quickLook);
   const stateRef = useRef({ list, focused, approve, skip, batchApprove, dialogOpen });
   useEffect(() => {
     stateRef.current = { list, focused, approve, skip, batchApprove, dialogOpen };
@@ -146,16 +216,20 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
       else if (k === "k" || k === "K" || k === "ArrowUp") setFocusId(s.list[Math.max(0, idx - 1)]?.id ?? null);
       else if (k === "A" && e.shiftKey) s.batchApprove();
       else if (k === "a" && s.focused) s.approve(s.focused);
-      else if ((k === "s" || k === "S") && s.focused?.status === "pending") setSkipFor(s.focused);
-      else if ((k === "x" || k === "X") && s.focused?.kind === "buy_pick" && s.focused.status === "pending") toggle(s.focused.id);
-      else if (k === "Enter" && s.focused && s.focused.kind !== "buy_pick") s.approve(s.focused);
+      else if ((k === "s" || k === "S") && s.focused?.status === "pending") {
+        if (isNotTradeable(s.focused)) s.skip(s.focused); // dismiss: no reason dialog
+        else setSkipFor(s.focused);
+      }
+      else if ((k === "x" || k === "X") && s.focused?.kind === "buy_pick" && s.focused.status === "pending" && !isNotTradeable(s.focused)) toggle(s.focused.id);
+      else if (k === " " && s.focused) setQuickLook(s.focused);
+      else if (k === "Enter" && s.focused?.mint) router.push(`/coins/${s.focused.mint}#chart`);
       else if (k === "Escape") setSelected(new Set());
       else return;
       e.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [router]);
 
   function toggle(id: string) {
     setSelected((p) => {
@@ -173,14 +247,25 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
           <Timer size={16} className="text-mode-real" />
           <span>
             {t("approvals.cooldownBanner", { strategy: a.strategyName ?? "", from: a.revFrom ?? "", to: a.revTo ?? "" })}{" "}
-            <span className="num font-semibold">{now ? fmtCountdown((a.cooldownEndsAt ?? 0) - now) : "--:--"}</span>
+            <span className="num font-semibold">{now ? fmtCountdown(remainingUntil(a.cooldownEndsAt ?? 0)) : "--:--"}</span>
             {a.autoRevertAt && <span className="text-text-secondary">{t("approvals.autoReverts", { time: f.dateTime(a.autoRevertAt) })}</span>}
           </span>
-          <Button size="sm" variant="primary" className="ml-auto" onClick={() => decide(a, { action: "cancel_cooldown" }).then((n) => n && toast({ kind: "success", text: t("approvals.cancelled") }))}>
+          <Button size="sm" variant="primary" className="ml-auto" onClick={() => cancelCooldown(a)}>
             {t("approvals.cancelChange")}
           </Button>
         </div>
       ))}
+
+      {conflict && (
+        <div role="alert" className="mb-3 flex flex-wrap items-center gap-3 rounded-md border border-semantic-warning/60 bg-semantic-warningContainer px-4 py-3 text-body">
+          <AlertTriangle size={16} className="text-semantic-warning" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <b>{t("approvals.conflictTitle")}</b> {t("approvals.conflictBody", { title: conflict.symbol ?? conflict.title, version: conflict.rev })}
+          </span>
+          <Button size="sm" variant="primary" onClick={() => { setTab(TAB_OF(conflict)); setFocusId(conflict.id); setConflict(null); }}>{t("conflict.review")}</Button>
+          <Button size="sm" variant="ghost" onClick={() => setConflict(null)}>{t("common.dismiss")}</Button>
+        </div>
+      )}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Segmented
@@ -193,8 +278,8 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
           }}
           options={[
             { value: "pending", label: t("approvals.tabPending"), count: counts.pending },
-            { value: "active", label: t("approvals.tabActive"), count: counts.active },
-            { value: "done", label: t("approvals.tabDone"), count: counts.done },
+            { value: "approved", label: t("approvals.tabApproved"), count: counts.approved },
+            { value: "rejected", label: t("approvals.tabSkipped"), count: counts.rejected },
             { value: "expired", label: t("approvals.tabExpired"), count: counts.expired },
           ]}
         />
@@ -204,18 +289,22 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
       {selPicks.length > 0 && (
         <div className={cn("sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-3 rounded-md border px-4 py-2 shadow-e2", real ? "border-mode-real bg-mode-realContainer" : "border-border-default bg-bg-overlay")}>
           <span className="text-label">{t("approvals.selected", { n: selPicks.length })}</span>
-          {real && <span className="num text-label">{t("approvals.total", { sol: f.sol(selTotal) })}</span>}
+          {real && <span className="num text-label">{t("approvals.total", { amount_lamports: f.amount(selTotal) })}</span>}
+          {ntPending > 0 && <span className="text-caption text-text-tertiary" data-not-tradeable>{t("notTradeable.batchExcluded", { n: ntPending })}</span>}
           <span className="text-caption text-text-tertiary">{t("approvals.batchNote")}</span>
           <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>{t("approvals.clear")}</Button>
-          <Button size="sm" variant={real ? "real" : "success"} onClick={batchApprove}><Check size={14} /> {t("approvals.approveSelected")}</Button>
+          <Button size="sm" variant={real ? "real" : "success"} onClick={batchApprove}><Check size={14} /> {t("approvals.approveSelectedN", { n: selPicks.length })} <kbd className="num hidden text-caption opacity-70 lg:inline">⇧A</kbd></Button>
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
         <div className="flex min-w-0 flex-col gap-2">
+          {tab === "pending" && list.some((a) => a.kind === "buy_pick") && (
+            <p className="text-caption text-text-tertiary lg:hidden">{t(real ? "approvals.swipeDisabledReal" : "approvals.swipeHint")}</p>
+          )}
           {list.length === 0 && <EmptyState title={tab === "pending" ? t("approvals.emptyPending") : t("approvals.empty")} detail={tab === "pending" ? t("approvals.emptyPendingDetail") : undefined} />}
           {list.map((a) => (
-            <SwipeRow key={a.id} enabled={a.mode === "practice" && a.kind === "buy_pick" && a.status === "pending"} onApprove={() => approve(a)} onSkip={() => skip(a)}>
+            <SwipeRow key={a.id} enabled={a.mode === "practice" && a.kind === "buy_pick" && a.status === "pending" && !isNotTradeable(a)} onApprove={() => approve(a)} onSkip={() => skip(a)}>
               <QueueCard
                 a={a}
                 focused={focused?.id === a.id}
@@ -223,17 +312,17 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
                 onFocus={() => setFocusId(a.id)}
                 onToggle={() => toggle(a.id)}
                 onApprove={() => approve(a)}
-                onSkip={() => setSkipFor(a)}
+                onSkip={() => (a.kind === "buy_pick" && !isNotTradeable(a) ? setSkipFor(a) : skip(a))}
                 busy={busy}
               />
             </SwipeRow>
           ))}
         </div>
         <div className="flex min-w-0 flex-col gap-4">
-          {focused && <DetailPane a={focused} onApprove={() => approve(focused)} onSkip={() => setSkipFor(focused)} />}
+          {focused && <DetailPane a={focused} onApprove={() => approve(focused)} onSkip={() => (focused.kind === "buy_pick" && !isNotTradeable(focused) ? setSkipFor(focused) : skip(focused))} />}
           <Card title={<span className="flex items-center gap-2"><Keyboard size={14} /> {t("approvals.shortcuts")}</span>} className="hidden lg:block">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-caption text-text-secondary">
-              {([["J / K", "jk"], ["A", "a"], ["S", "s"], ["X", "x"], ["⇧A", "sa"], ["Enter", "enter"], ["Esc", "esc"]] as const).map(([k, id]) => [k, t(`approvals.sc.${id}`)]).map(([k, v]) => (
+              {([["J / K", "jk"], ["A", "a"], ["S", "s"], ["X", "x"], ["⇧A", "sa"], ["Space", "space"], ["↵", "enter"], ["Esc", "esc"]] as const).map(([k, id]) => [k, t(`approvals.sc.${id}`)]).map(([k, v]) => (
                 <div key={k} className="contents"><dt className="num text-text-primary">{k}</dt><dd>{v}</dd></div>
               ))}
             </dl>
@@ -242,6 +331,11 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
         </div>
       </div>
 
+      {quickLook && (
+        <Dialog open onClose={() => setQuickLook(null)} title={t("approvals.quickLook")}>
+          <DetailPane a={quickLook} onApprove={() => (setQuickLook(null), approve(quickLook))} onSkip={() => (setQuickLook(null), quickLook.kind === "buy_pick" && !isNotTradeable(quickLook) ? setSkipFor(quickLook) : skip(quickLook))} />
+        </Dialog>
+      )}
       <SkipDialog a={skipFor} onClose={() => setSkipFor(null)} onSkip={skip} />
       {realPick && (
         <RealPickDialog
@@ -249,7 +343,7 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
           onClose={() => setRealPick(null)}
           busy={busy}
           onConfirm={async (holdMs) => {
-            const res = await Promise.all(realPick.map((a) => decide(a, { action: "approve", confirmation: { holdMs } })));
+            const res = await Promise.all(realPick.map((a) => decide(a, { decision: "approve", confirmation: { holdMs } })));
             setRealPick(null);
             setSelected(new Set());
             const ok = res.filter(Boolean).length;
@@ -264,7 +358,7 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
           busy={busy}
           onClose={() => setGuardFor(null)}
           onConfirm={async (c) => {
-            const n = await decide(guardFor, { action: "approve", confirmation: c });
+            const n = await decide(guardFor, { decision: "approve", confirmation: { holdMs: c.holdMs, typedName: c.typedName, passkey: c.secondFactor === "mock_passkey" } });
             setGuardFor(null);
             if (n) toast({ kind: "warning", text: n.cooldownEndsAt ? t("approvals.cooldownToast", { strategy: n.strategyName ?? "", time: f.dateTime(n.cooldownEndsAt) }) : t("approvals.appliedPractice", { strategy: n.strategyName ?? "" }) });
           }}
@@ -276,7 +370,7 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
           busy={busy}
           onClose={() => setTeamFor(null)}
           onConfirm={async (c) => {
-            const n = await decide(teamFor, { action: "approve", confirmation: c });
+            const n = await decide(teamFor, { decision: "approve", confirmation: { holdMs: c.holdMs, typedName: teamFor.strategyName, passkey: c.secondFactor === "mock_passkey" } });
             setTeamFor(null);
             if (n) toast({ kind: "success", text: t("approvals.teamApproved", { title: teamFor.title }) });
           }}
@@ -286,15 +380,21 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
   );
 }
 
+const isNotTradeable = (a: Approval) => a.screenerState === NOT_TRADEABLE;
+
 function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip, busy }: {
   a: Approval; focused: boolean; selected: boolean; onFocus: () => void; onToggle: () => void; onApprove: () => void; onSkip: () => void; busy: boolean;
 }) {
   const t = useT();
   const f = useFmt();
+  const blockedCoin = isNotTradeable(a);
   const pending = a.status === "pending";
+  const actionable = pending && !blockedCoin;
   const isPick = a.kind === "buy_pick";
   return (
     <article
+      data-not-tradeable={blockedCoin || undefined}
+      // WF-21 + Apex correction: neutral dashed card, grey text, no swipe; only "Skip" (dismiss), never Approve.
       onClick={onFocus}
       aria-current={focused || undefined}
       className={cn(
@@ -303,10 +403,11 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
         a.kind === "guard_change" && pending && "border-l-4 border-l-semantic-warning",
         a.mode === "real" && pending && "border-l-4 border-l-mode-real",
         a.status === "expired" && "opacity-70",
+        blockedCoin && "border-dashed bg-bg-sunken text-text-tertiary shadow-none",
       )}
     >
-      {isPick && pending ? (
-        <input type="checkbox" checked={selected} onChange={onToggle} onClick={(e) => e.stopPropagation()} aria-label={t("approvals.selectAria", { coin: `$${a.symbol}` })} className="h-4 w-4 accent-[var(--color-brand-primary)]" />
+      {isPick && actionable ? (
+        <input type="checkbox" checked={selected} onChange={onToggle} onClick={(e) => e.stopPropagation()} aria-label={t("approvals.selectAria", { symbol: `$${a.symbol}` })} className="h-4 w-4 accent-[var(--color-brand-primary)]" />
       ) : (
         <span className="w-4" aria-hidden />
       )}
@@ -315,10 +416,12 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
           <span className="text-titleSm">{isPick ? `$${a.symbol}` : a.title}</span>
           <Badge tone={a.kind === "guard_change" ? "warning" : a.kind === "team_action" ? "loss" : "brand"}>{isPick && a.pick ? t(PICK_KEY[a.pick.pickKind]) : t(KIND_KEY[a.kind])}</Badge>
           {a.mode === "real" && <ModeBadge mode="real" />}
+          {blockedCoin && <NotTradeableChip label={t("screener.notTradeable")} />}
           {!pending && <ApprovalStatusBadge status={a.status} />}
         </div>
         <p className="truncate text-caption text-text-secondary">
           {a.strategyName}
+          {blockedCoin && ` · ${t("notTradeable.rowHint", { score: a.pick?.score.value ?? "—" })}`}
           {a.kind === "guard_change" && a.revFrom != null && ` · rev ${a.revFrom} → ${a.revTo}`}
           {a.status === "expired" && a.expiredReason && ` · ${t("approvals.cannotApprove", { reason: t(`expiredReason.${a.expiredReason}`) })}`}
           {a.status === "rejected" && a.skipReason && ` · ${t(`skipReason.${a.skipReason}`)}`}
@@ -328,10 +431,20 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
       {a.amountSol != null && <span className="num hidden text-numSm sm:block">{f.sol(a.amountSol)}</span>}
       <span className="hidden md:block"><RiskBadge level={a.risk} /></span>
       {pending ? <Countdown createdAt={a.createdAt} expiresAt={a.expiresAt} compact /> : <span className="num w-20 text-right text-caption text-text-tertiary">{f.time(a.decidedAt ?? a.expiresAt)}</span>}
-      {pending && (
-        <div className="flex w-full justify-end gap-1.5 sm:w-auto" onClick={(e) => e.stopPropagation()}>
-          <Button size="sm" variant="ghost" onClick={onSkip} disabled={busy} aria-label={t("approvals.skip")}><X size={14} /><span className="hidden xl:inline">{t("approvals.skip")}</span></Button>
-          <Button size="sm" variant={a.mode === "real" ? "real" : a.kind === "buy_pick" ? "success" : "secondary"} onClick={onApprove} disabled={busy}>
+      {pending && blockedCoin && (
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:justify-end" onClick={(e) => e.stopPropagation()}>
+          <Button size="sm" variant="ghost" onClick={onSkip} disabled={busy} className="min-h-12 whitespace-nowrap sm:min-h-0" data-dismiss>
+            <X size={14} aria-hidden /> {t("approvals.skip")}
+          </Button>
+        </div>
+      )}
+      {actionable && (
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:justify-end sm:gap-1.5" onClick={(e) => e.stopPropagation()}>
+          {/* QA-03: always a labelled button (never icon-only), ≥ 48 px tall on touch layouts. QA-07: guard rows say "Reject change". */}
+          <Button size="sm" variant={isPick ? "ghost" : "secondary"} onClick={onSkip} disabled={busy} className="min-h-12 whitespace-nowrap sm:min-h-0">
+            <X size={14} aria-hidden /> {isPick ? t("approvals.skip") : t("approvals.rejectChange")}
+          </Button>
+          <Button size="sm" variant={a.mode === "real" ? "real" : a.kind === "buy_pick" ? "success" : "secondary"} onClick={onApprove} disabled={busy} className="min-h-12 whitespace-nowrap sm:min-h-0">
             {a.kind === "buy_pick" ? <><Check size={14} /> {t("approvals.approve")}</> : <><ShieldAlert size={14} /> {t("approvals.review")}</>}
           </Button>
         </div>
@@ -370,15 +483,26 @@ function DetailPane({ a, onApprove, onSkip }: { a: Approval; onApprove: () => vo
       )}
       {a.kind === "team_action" && <p className="mt-3 flex items-center gap-1.5 text-caption text-semantic-loss"><AlertTriangle size={12} /> {t("approvals.teamNote")}</p>}
       {a.mint && <Link href={`/coins/${a.mint}`} className="mt-3 inline-block text-label text-brand-primary hover:underline">{t("approvals.openTrail")}</Link>}
-      {a.status === "pending" ? (
+      {isNotTradeable(a) ? (
+        <>
+          <NotTradeableReason className="mt-4" text={t("screener.notTradeableDetail")} />
+          <NotTradeableCta label={t("notTradeable.cta")} note={t("notTradeable.ctaNote")} />
+          {a.status === "pending" && (
+            <>
+              <Button onClick={onSkip} className="mt-2 min-h-12 w-full sm:min-h-0" data-dismiss><X size={14} /> {t("approvals.skipKey")}</Button>
+              <p className="mt-1.5 text-caption text-text-tertiary">{t("notTradeable.skipHint")}</p>
+            </>
+          )}
+        </>
+      ) : a.status === "pending" ? (
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button onClick={onSkip}><X size={14} /> {t("approvals.skipKey")}</Button>
-          <Button variant={a.mode === "real" ? "real" : a.kind === "buy_pick" ? "success" : "primary"} onClick={onApprove}>
+          <Button onClick={onSkip} className="min-h-12 sm:min-h-0"><X size={14} /> {a.kind === "buy_pick" ? t("approvals.skipKey") : t("approvals.rejectChange")}</Button>
+          <Button variant={a.mode === "real" ? "real" : a.kind === "buy_pick" ? "success" : "primary"} onClick={onApprove} className="min-h-12 sm:min-h-0">
             {a.kind === "buy_pick" ? t("approvals.approveKey") : t("approvals.reviewKey")}
           </Button>
         </div>
       ) : a.status === "expired" ? (
-        <p className="mt-4 flex items-center gap-1.5 rounded-md bg-bg-inset px-3 py-2 text-label text-text-secondary"><Ban size={14} /> {t("approvals.cannotApprove", { reason: a.expiredReason ? t(`expiredReason.${a.expiredReason}`) : t("approvalStatus.expired") })}</p>
+        <p className="mt-4 flex items-center gap-1.5 rounded-md bg-bg-sunken px-3 py-2 text-label text-text-secondary"><Ban size={14} /> {t("approvals.cannotApprove", { reason: a.expiredReason ? t(`expiredReason.${a.expiredReason}`) : t("approvalStatus.expired") })}</p>
       ) : (
         <p className="mt-4 flex items-center gap-2 text-caption text-text-tertiary"><ApprovalStatusBadge status={a.status} /> {a.auditId && <span className="num">{t("approvals.audit", { id: a.auditId })}</span>}</p>
       )}
@@ -388,7 +512,7 @@ function DetailPane({ a, onApprove, onSkip }: { a: Approval; onApprove: () => vo
 
 function Field({ k, v }: { k: string; v: React.ReactNode }) {
   return (
-    <div className="rounded-md bg-bg-inset px-2 py-1.5">
+    <div className="rounded-md bg-bg-sunken px-2 py-1.5">
       <dt className="text-text-tertiary">{k}</dt>
       <dd className="num break-words text-text-primary">{v}</dd>
     </div>
@@ -400,7 +524,7 @@ function SkipDialog({ a, onClose, onSkip }: { a: Approval | null; onClose: () =>
   const firstRef = useRef<HTMLButtonElement>(null);
   if (!a) return null;
   return (
-    <Dialog open onClose={onClose} title={t("approvals.skipTitle", { coin: a.symbol ? `$${a.symbol}` : a.title })} initialFocusRef={firstRef}>
+    <Dialog open onClose={onClose} title={t("approvals.skipTitle", { symbol: a.symbol ? `$${a.symbol}` : a.title })} initialFocusRef={firstRef}>
       <p className="text-body text-text-secondary">{t("approvals.skipBody")}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {SKIP_REASONS.map((r, i) => (
@@ -433,7 +557,7 @@ function RealPickDialog({ picks, onClose, onConfirm, busy }: { picks: Approval[]
       <p className="num mt-3 flex justify-between text-titleSm"><span>{t("approvals.totalLabel")}</span><span className="text-mode-real">{f.sol(total)}</span></p>
       <p className="mt-2 text-caption text-text-secondary">{t("approvals.realNote")}</p>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <HoldButton durationMs={HOLD.real} variant="real" disabled={busy} onConfirm={onConfirm} hint={t("common.holdSeconds", { s: HOLD.real / 1000 })}>{t("approvals.holdApprove", { sol: f.sol(total) })}</HoldButton>
+        <HoldButton durationMs={HOLD.real} variant="real" disabled={busy} onConfirm={onConfirm} hint={t("common.holdSeconds", { s: HOLD.real / 1000 })}>{t("approvals.holdApprove", { amount_lamports: f.amount(total) })}</HoldButton>
         <Button ref={cancelRef} variant="primary" size="lg" onClick={onClose}>{t("common.cancelEsc")}</Button>
       </div>
     </Dialog>

@@ -10,7 +10,7 @@ import type { PricePoint, TradeEvent } from "@/lib/types";
 import { readToken, tokenVar } from "@/lib/theme";
 
 import { useFmt } from "@/lib/i18n/client";
-import { LOCALES } from "@/lib/i18n/format.mjs";
+import { LOCALES } from "@sentra/i18n/format";
 import { TZ } from "@/lib/format";
 
 const clock = (tag: string, h12: boolean) => (sec: number, withSec: boolean) =>

@@ -1,54 +1,254 @@
 "use client";
 /**
- * Browser-side data helpers. They only talk to this app's own route handlers
- * (/api/*). No wallet, RPC or chain access anywhere in this build.
+ * Browser-side data helpers. They talk only to this app's own mock BFF, which speaks the contract wire
+ * format under /api/v1/workspaces/{ws}/… (API_ENDPOINTS.md v1.1). No wallet, RPC or chain access.
+ * - Every response's `server_now` feeds lib/clock.ts (countdowns never trust the device clock alone).
+ * - Errors become typed ApiError (lib/errors.ts) with contract codes → i18n `apiError.<CODE>`.
+ * - Writes carry an Idempotency-Key; retries reuse the same key.
  */
-import type { Approval, ApprovalDecision, ConnectionState, PublishResult, StrategySettings, TradeEvent, TradingMode } from "@/lib/types";
+import { pctToFractionBps } from "@sentra/i18n/format";
+import type { ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof } from "@sentra/contracts/wire";
+import { observeServerNow } from "./clock";
+import { approvalFromWire, payloadHash, positionFromWire, type PositionWireView, settingsFromWire, settingsPatch, settingsToWire, type ApprovalWire, type WireSettings } from "./contracts";
+import { ApiError, toApiError } from "./errors";
+import type { Approval, ConnectionState, OpenPosition, PublishResult, StrategySettings, TradeEvent, TradingMode } from "./types";
+import { createRealtime } from "./realtime";
 
 /** Window event fired after an approval change so other UI (nav badge) can refresh. */
 export const APPROVALS_CHANGED = "sentra:approvals-changed";
+export const WS = "ws_mock";
+const base = `/api/v1/workspaces/${WS}`;
+
+export const idempotencyKey = () => crypto.randomUUID();
+
+export async function request<T>(path: string, init: { method?: string; body?: unknown; idempotencyKey?: string; headers?: Record<string, string> } = {}): Promise<{ data: T; raw: Record<string, unknown> }> {
+  let res: Response;
+  try {
+    res = await fetch(path.startsWith("/api/") ? path : `${base}${path}`, {
+      method: init.method ?? (init.body ? "POST" : "GET"),
+      cache: "no-store",
+      headers: { "content-type": "application/json", ...(init.body !== undefined || init.method === "POST" ? { "idempotency-key": init.idempotencyKey ?? idempotencyKey() } : {}), ...init.headers },
+      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+    });
+  } catch {
+    throw new ApiError("OFFLINE", 0);
+  }
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  observeServerNow(json.server_now as string | undefined);
+  if (!res.ok) throw toApiError(res.status, json);
+  return { data: (json.data ?? json) as T, raw: json };
+}
+
+// --- Approvals ---------------------------------------------------------------
+
+export async function fetchApprovals(mode: TradingMode): Promise<Approval[]> {
+  const { raw } = await request<unknown>(`/approvals?mode=${mode}`);
+  return (raw.items as ApprovalWire[]).map(approvalFromWire);
+}
+
+/** GET /approvals/{id}: fresh item + single-use decision token. */
+export async function fetchApproval(id: string): Promise<Approval> {
+  return approvalFromWire((await request<ApprovalWire>(`/approvals/${id}`)).data);
+}
+
+/** Confirmation challenge (2 min, single use) bound to sha256 of the exact change. */
+export async function requestChallenge(action: string, target: string, change: unknown, extra: { mode: TradingMode; typed_name?: string }) {
+  return (await request<{ challenge_id: string; challenge: string; expires_at: string }>(`/confirmations/challenge`, { body: { action, target, payload_hash: await payloadHash(change), ...extra } })).data;
+}
+
+export interface DecideOptions {
+  decision: "approve" | "reject";
+  reason?: string | null;
+  /** Hold / typed name / passkey collected by the dialog; turned into a ConfirmationProof here. */
+  confirmation?: { holdMs: number; typedName?: string; passkey?: boolean };
+}
+
+/**
+ * Contract decision: GET item (token + rev) → [challenge] → POST decision with If-Match: "<rev>" + Idempotency-Key.
+ * Throws ApiError; 409 VERSION_CONFLICT / APPROVAL_ALREADY_DECIDED / APPROVAL_EXPIRED are for the caller to show.
+ */
+export async function decideApprovalClient(a: Approval, o: DecideOptions): Promise<{ status: string; rev: number; replayed: boolean }> {
+  const fresh = await fetchApproval(a.id);
+  if (!fresh.decisionToken) throw new ApiError(fresh.status === "expired" ? "APPROVAL_EXPIRED" : "APPROVAL_ALREADY_DECIDED", 409);
+  let confirmation: ConfirmationProof | undefined;
+  if (o.confirmation) {
+    const ch = await requestChallenge(`approval.${o.decision}`, a.id, { id: a.id, decision: o.decision, rev: fresh.rev, diff: a.diff ?? null }, { mode: a.mode, typed_name: a.strategyName });
+    confirmation = {
+      challenge_id: ch.challenge_id,
+      challenge: ch.challenge,
+      // Mock passkey: no authenticator is contacted in this build.
+      webauthn: o.confirmation.passkey ? { credential_id: "mock", client_data_json: "mock", authenticator_data: "mock", signature: "mock", user_handle: null } : null,
+      typed_confirmation: o.confirmation.typedName ?? null,
+      hold_duration_ms: Math.round(o.confirmation.holdMs),
+      device: { platform: "web", app_version: "0.3.0-mock", model: null, attestation: null },
+    } as unknown as ConfirmationProof;
+  }
+  // 1.1.2: approval rev via If-Match (expected_rev mirrors it for RPC parity); no `client` field (channel comes from the JWT).
+  const body: ApprovalDecisionRequest = { decision: o.decision, token: fresh.decisionToken, expected_rev: fresh.rev, reason: o.reason ?? null, ...(confirmation ? { confirmation } : {}) };
+  const { data } = await request<ApprovalDecisionResponse>(`/approvals/${a.id}/decision`, { body, headers: { "If-Match": `"${fresh.rev}"` } });
+  window.dispatchEvent(new Event(APPROVALS_CHANGED));
+  return data;
+}
+
+export async function cancelGuardChangeClient(id: string): Promise<Approval> {
+  const { data } = await request<ApprovalWire>(`/guard-changes/${id}/cancel`, { body: {} });
+  window.dispatchEvent(new Event(APPROVALS_CHANGED));
+  return approvalFromWire(data);
+}
+
+// --- Positions -----------------------------------------------------------------
+
+/**
+ * Manual sell (contracts 1.1.2): POST /positions/{id}/close?mode= with `If-Match: "<position rev>"`, `Idempotency-Key`
+ * and `{fraction_bps}` (UI percent of the remaining quantity × 100). `sell_pct` is gone. Practice only on the server
+ * (Real → 403 MODE_NOT_ALLOWED). The hold-to-confirm gesture stays client-side; it is not sent.
+ */
+export async function closePositionClient(p: OpenPosition, sellPct: number): Promise<{ position: OpenPosition; status: string }> {
+  const { data } = await request<ClosePositionResponse & { position_after?: PositionWireView }>(`/positions/${encodeURIComponent(p.key)}/close?mode=${p.mode}`, {
+    body: { fraction_bps: pctToFractionBps(sellPct) }, // @sentra/i18n 0.4.3 helper; UI stays in percent
+    headers: { "If-Match": `"${p.rev}"` },
+  });
+  const after = data.position_after ? positionFromWire(data.position_after) : { ...p, rev: p.rev + 1 };
+  return { position: after, status: data.status };
+}
+
+// --- Mode, strategies (app routes) ------------------------------------------------------
 
 async function post<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
-  return json as T;
-}
-
-export async function decideApprovalClient(id: string, decision: ApprovalDecision): Promise<Approval> {
-  const a = await post<Approval>("/api/approvals", { id, decision });
-  window.dispatchEvent(new Event(APPROVALS_CHANGED));
-  return a;
-}
-
-export async function fetchApprovals(): Promise<Approval[]> {
-  const res = await fetch("/api/approvals", { cache: "no-store" });
-  return res.json();
+  return (await request<T>(url, { body })).data;
 }
 
 export function switchMode(mode: TradingMode, holdMs: number) {
   return post<{ mode: TradingMode }>("/api/mode", { mode, holdMs });
 }
 
-export function publishStrategyClient(id: string | null, settings: StrategySettings) {
-  return post<PublishResult>("/api/strategies", { id, settings });
+export interface StrategyWire {
+  id: string;
+  rev: number;
+  name: string;
+  status: string;
+  mode: TradingMode;
+  settings: WireSettings;
+  updated_at: string;
+}
+
+/** 409 STRATEGY_REV_CONFLICT / CONFIRMATION_RESTART_REQUIRED body (API_ENDPOINTS.md §2.1). */
+export interface RevConflict {
+  code: "STRATEGY_REV_CONFLICT" | "CONFIRMATION_RESTART_REQUIRED";
+  current_rev: number;
+  base_rev: number;
+  changed_fields: string[];
+  changed_by: { actor: string; via: string; device?: string };
+  changed_at: string;
+  current: StrategyWire;
+}
+
+export function asRevConflict(e: unknown): RevConflict | null {
+  if (!(e instanceof ApiError) || (e.code !== "STRATEGY_REV_CONFLICT" && e.code !== "CONFIRMATION_RESTART_REQUIRED")) return null;
+  // 1.1.2: conflict data lives inside `error` ({error: {code, message, current_rev, base_rev, current, ...}}).
+  const b = e.details as Partial<RevConflict>;
+  return b.current ? ({ ...b, code: e.code } as RevConflict) : null;
+}
+
+export async function fetchRevision(id: string, rev: number): Promise<WireSettings> {
+  return (await request<{ settings: WireSettings }>(`/strategies/${id}/revisions/${rev}`)).data.settings;
 }
 
 /**
- * Subscribe to the realtime activity stream (SSE) for one workspace mode.
- * Returns an unsubscribe function. Transport can be swapped (WS / Supabase).
+ * Save a strategy (v1.1): new → POST /strategies `{mode, name, settings}`; existing → PATCH /strategies/{id} with
+ * `If-Match: "<baseRev>"` and a flat `settings_patch` (only changed keys vs. the base the user started from).
+ * 200 → published; 202 → guard change proposal; 409 → throws ApiError (use asRevConflict for the merge view).
+ */
+export async function publishStrategyClient(id: string | null, settings: StrategySettings, base?: { rev: number; settings: StrategySettings }): Promise<PublishResult> {
+  if (!id || !base) {
+    const { data } = await request<StrategyWire>(`/strategies?mode=${settings.mode}`, { body: { mode: settings.mode, name: settings.name, settings: settingsToWire(settings) } });
+    return { strategyId: data.id, outcome: "published", rev: data.rev };
+  }
+  const patch = settingsPatch(settingsToWire(base.settings), settingsToWire(settings));
+  const res = await request<StrategyWire | { proposal: ApprovalWire; strategy: StrategyWire }>(`/strategies/${id}?mode=${settings.mode}`, {
+    method: "PATCH",
+    body: { settings_patch: patch },
+    headers: { "If-Match": `"${base.rev}"` },
+  });
+  const d = res.data;
+  if ("proposal" in d) {
+    window.dispatchEvent(new Event(APPROVALS_CHANGED));
+    return { strategyId: id, outcome: "needs_approval", rev: d.strategy.rev, approvalId: d.proposal.id };
+  }
+  return { strategyId: id, outcome: "published", rev: d.rev };
+}
+
+export const wireToForm = settingsFromWire;
+
+/** Mock-only demo trigger: a teammate saves the same strategy from mobile. */
+export async function simulateTeammateEditClient(id: string) {
+  return (await request<StrategyWire>(`/strategies/${id}/simulate-teammate-edit`, { body: {} })).data;
+}
+
+// --- Practice reset, account deletion, devices (v1.1 new flows) ---------------------------------
+
+export interface PracticeResetResult {
+  epoch: number;
+  starting_balance_lamports: string;
+  archived?: { positions: number; pending_buys: number };
+  next_allowed_at: string | null;
+}
+
+export async function fetchPracticeReset() {
+  return (await request<PracticeResetResult>(`/practice/reset?mode=practice`)).data;
+}
+
+export async function resetPracticeClient() {
+  return (await request<PracticeResetResult>(`/practice/reset?mode=practice`, { body: {} })).data;
+}
+
+export interface DeletionState {
+  state: "active" | "pending_deletion" | "deleted";
+  scheduled_for: string | null;
+  rev: number;
+  grace_days?: number;
+}
+
+export const fetchDeletion = async () => (await request<DeletionState>("/api/v1/me/deletion")).data;
+export const requestDeletionClient = async () => (await request<DeletionState>("/api/v1/me/deletion", { body: {} })).data;
+export const cancelDeletionClient = async () => (await request<DeletionState>("/api/v1/me/deletion", { method: "DELETE" })).data;
+
+const DEVICE_KEY = "sentra.device_id";
+/** App-generated install id (8–128 [A-Za-z0-9_-]); kept in localStorage on web. Not a secret. */
+export function deviceId(): string {
+  let id = localStorage.getItem(DEVICE_KEY);
+  if (!id) {
+    id = `web_${crypto.randomUUID().replace(/-/g, "")}`;
+    localStorage.setItem(DEVICE_KEY, id);
+  }
+  return id;
+}
+
+export interface DeviceWire {
+  id: string;
+  device_id: string;
+  platform: string;
+  provider: string;
+  app_version: string;
+  locale: string;
+  rev: number;
+  last_seen_at: string;
+}
+
+export const fetchDevices = async () => (await request<unknown>("/api/v1/devices")).raw.items as DeviceWire[];
+
+/** PUT /devices/{device_id} with platform "web", provider "webpush". The token is a mock placeholder, not a push subscription. */
+export async function registerDeviceClient(locale: string) {
+  const token = `mock-webpush-${crypto.randomUUID()}`;
+  return (await request<DeviceWire>(`/api/v1/devices/${deviceId()}`, { method: "PUT", body: { platform: "web", provider: "webpush", token, app_version: "0.3.0", locale } })).data;
+}
+
+export const revokeDeviceClient = async () => (await request<unknown>(`/api/v1/devices/${deviceId()}`, { method: "DELETE" })).data;
+
+/**
+ * Subscribe to the realtime activity stream for one workspace mode (adapter chosen by NEXT_PUBLIC_REALTIME:
+ * mock SSE default, "sse" for a backend SSE URL, "supabase" skeleton). Returns an unsubscribe function.
  */
 export function subscribeActivity(mode: TradingMode, onEvent: (e: TradeEvent) => void, onStatus: (s: ConnectionState) => void): () => void {
-  onStatus("connecting");
-  const es = new EventSource(`/api/stream?mode=${mode}`);
-  es.onopen = () => onStatus("connected");
-  es.onerror = () => onStatus(es.readyState === EventSource.CLOSED ? "disconnected" : "connecting");
-  es.addEventListener("trade", (msg) => {
-    try {
-      onEvent(JSON.parse((msg as MessageEvent).data) as TradeEvent);
-    } catch {
-      /* ignore malformed */
-    }
-  });
-  return () => es.close();
+  return createRealtime({ workspaceId: WS, mode }).subscribe({ onEvent, onStatus });
 }

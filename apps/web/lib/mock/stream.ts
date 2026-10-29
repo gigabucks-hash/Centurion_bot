@@ -1,4 +1,4 @@
-/** Synthetic live-event generator used by the mock SSE route (/api/stream). */
+/** Synthetic live-event generator used by the mock SSE route (/api/v1/workspaces/{ws}/events/stream). */
 import type { EventKind, ExitReason, TradeEvent, TradingMode } from "@/lib/types";
 import { coinSummaries, seedStrategies } from "./data";
 import { between, mulberry32, pick, round } from "./rng";
@@ -22,13 +22,13 @@ export function createEventGenerator(mode: TradingMode, seed = Date.now()) {
     const tpl = pick(rng, bag);
     const coin = pick(rng, coins);
     const strat = seedStrategies.find((s) => s.id === coin.strategyId)!;
-    const base = { seq: ts * 10 + (seq % 10), ts, kind: tpl.kind, actor: tpl.actor, strategyId: strat.id, mint: coin.mint, symbol: coin.symbol, rev: strat.rev };
+    const base = { seq: String(ts * 10 + (seq % 10)), ts, kind: tpl.kind, actor: tpl.actor, strategyId: strat.id, mint: coin.mint, symbol: coin.symbol, rev: strat.rev };
     const n = seq++;
     const id = `live_${n}:${ts}:${tpl.kind}`;
     const sym = coin.symbol;
     switch (tpl.kind) {
       case "found":
-        return { ...base, id, message: `Found ${sym}`, reason: `${pick(rng, ["bonding", "graduated"])} stream` };
+        return { ...base, id, message: `Found ${sym}`, reason: `${pick(rng, ["curve", "amm"])} venue` };
       case "blocked":
         return { ...base, id, message: `Blocked ${sym}`, reason: pick(rng, ["bundlers 31% > limit 20%", "dev share 9% > 5%", "liquidity $4k < $8k", "top-10 44% > 30%"]) };
       case "passed":
@@ -43,8 +43,8 @@ export function createEventGenerator(mode: TradingMode, seed = Date.now()) {
       }
       default: {
         // Sign-consistent: the % in the title, pnlSol and the exit reason always agree.
-        const reason: ExitReason = pick(rng, ["take_profit", "stop_loss", "trailing_stop", "time_out", "drain", "manual"] as ExitReason[]);
-        const range: Record<string, [number, number]> = { take_profit: [15, 60], stop_loss: [-35, -10], trailing_stop: [-12, 35], time_out: [-15, 10], drain: [-40, -10], manual: [-20, 30] };
+        const reason: ExitReason = pick(rng, ["profit_target", "loss_guard", "peak_trail", "max_hold", "sell_pressure", "manual"] as ExitReason[]);
+        const range: Record<string, [number, number]> = { profit_target: [15, 60], loss_guard: [-35, -10], peak_trail: [-12, 35], max_hold: [-15, 10], sell_pressure: [-40, -10], manual: [-20, 30] };
         const pct = round(between(rng, ...range[reason]), 0);
         const pnl = round((strat.settings.sizing.tradeSol * pct) / 100, 4);
         return { ...base, id, pnlSol: pnl, pctChange: pct, exitReason: reason, message: `Sold ${sym} ${pct >= 0 ? "+" : "−"}${Math.abs(pct)}%`, reason: reason.replace("_", " ") };

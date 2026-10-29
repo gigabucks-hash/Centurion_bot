@@ -11,11 +11,11 @@ export const metadata: Metadata = { title: "Activity" };
 async function Feed() {
   const [mode, t] = await Promise.all([getMode(), getT()]);
   const api = getApi();
-  const [events, strategies] = await Promise.all([api.listRecentEvents(mode, 100), api.listStrategies(mode)]);
+  const [events, strategies] = await Promise.all([api.listRecentEvents(mode, 101), api.listStrategies(mode)]);
   return (
     <>
       <PageHeader title={t("activity.title")} subtitle={t("activity.subtitle")} />
-      <ActivityFeed key={mode} initial={events} strategyNames={Object.fromEntries(strategies.map((s) => [s.id, s.name]))} />
+      <ActivityFeed key={mode} mode={mode} initial={events.slice(0, 100)} hasMore={events.length > 100} strategyNames={Object.fromEntries(strategies.map((s) => [s.id, s.name]))} />
     </>
   );
 }

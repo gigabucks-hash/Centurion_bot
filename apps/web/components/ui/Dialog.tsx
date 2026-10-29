@@ -37,7 +37,7 @@ export function Dialog({ open, onClose, title, children, accent, labelledBy = "d
   const bar = { real: "bg-mode-real", practice: "bg-mode-practice stripes-practice", warning: "bg-semantic-warning" };
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
-      <button aria-label={t("common.closeDialog")} className="absolute inset-0 bg-bg-inset/80" onClick={onClose} tabIndex={-1} />
+      <button aria-label={t("common.closeDialog")} className="absolute inset-0 bg-bg-sunken/80" onClick={onClose} tabIndex={-1} />
       <div
         ref={panel}
         role="dialog"

@@ -4,8 +4,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // QA-15: dev-only badge away from the left nav so QA screenshots stay clean.
+  devIndicators: { position: "bottom-right" },
   // Shared workspace packages (@sentra/design-tokens, @sentra/contracts) live in ../../packages.
-  transpilePackages: ["@sentra/contracts"],
+  transpilePackages: ["@sentra/contracts", "@sentra/i18n"],
   outputFileTracingRoot: path.join(__dirname, "../.."),
   turbopack: {
     root: path.join(__dirname, "../.."),

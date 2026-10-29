@@ -1,3 +1,5 @@
+import { NOT_TRADEABLE } from "@/lib/types";
+import { NotTradeableChip, NotTradeableCta, NotTradeableReason } from "@/components/NotTradeable";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -29,21 +31,46 @@ async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] 
   const ordered = [...events].sort((a, b) => a.ts - b.ts);
   const holdS = pos ? Math.round(((pos.closedAt ?? ordered[ordered.length - 1].ts) - pos.openedAt) / 1000) : 0;
 
+  const notTradeable = trail.screenerState === NOT_TRADEABLE || trail.events.some((e) => e.reasonCode === NOT_TRADEABLE);
   return (
     <>
       <Link href="/coins" className="mb-3 inline-flex items-center gap-1 text-caption text-text-secondary hover:text-text-primary"><ArrowLeft size={14} /> {t("trail.all")}</Link>
       <PageHeader
-        title={t("trail.title", { coin: coin.untrusted.symbol })}
+        title={t("trail.title", { symbol: coin.untrusted.symbol })}
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
             <span className="num text-caption" title={coin.mint}>{shortMint(coin.mint)}</span>
             <Badge>{coin.launchpad}</Badge>
-            <Badge>{coin.stream}</Badge>
+            <Badge>{coin.venue}</Badge>
+            {notTradeable && <NotTradeableChip label={t("screener.notTradeable")} />}
             <span>{t("trail.strategy", { name: trail.strategyName })}</span>
           </span>
         }
         actions={<ModeBadge mode={trail.mode} />}
       />
+      {notTradeable && (
+        // WF-20/21 detail: reason first, facts (reason_code for support), chart stays read-only, disabled labelled CTA.
+        <section className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_22rem]" aria-label={t("screener.notTradeable")}>
+          <NotTradeableReason text={t("screener.notTradeableDetail")} />
+          <div className="row-span-2">
+            <dl className="divide-y divide-border-subtle rounded-md border border-border-subtle bg-bg-surface text-body">
+              {[
+                [t("notTradeable.quotePair"), t("notTradeable.quoteValue", { quote_symbol: trail.quoteSymbol ?? "?" })],
+                [t("notTradeable.solPair"), t("notTradeable.none")],
+                [t("notTradeable.score"), trail.score ? t("notTradeable.scoreValueInfo", { score: trail.score.value, max_score: 100 }) : "—"],
+                [t("notTradeable.guard"), t("notTradeable.guardNotRun")],
+                [t("notTradeable.reasonCode"), <span key="rc" className="font-mono text-caption">UNSUPPORTED_QUOTE_MINT</span>],
+              ].map(([k, v], i) => (
+                <div key={i} className="flex min-h-11 items-center justify-between gap-3 px-3">
+                  <dt className="text-text-secondary">{k}</dt>
+                  <dd className="text-right text-text-tertiary">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <NotTradeableCta label={t("notTradeable.cta")} note={t("notTradeable.ctaNote")} />
+          </div>
+        </section>
+      )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label={t("trail.score")} value={trail.score ? `${trail.score.value} / ${trail.score.passMark}` : "—"} tone={trail.score && trail.score.value >= trail.score.passMark ? "profit" : "warning"} />
         <StatTile label={t("trail.size")} value={pos ? f.sol(pos.solIn) : "—"} hint={pos ? t("trail.fee", { bps: pos.feeBps }) : t("trail.notEntered")} />
@@ -53,7 +80,7 @@ async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] 
 
       <Card title={t("trail.trail")} className="mt-4"><CoinTrailSteps trail={trail} /></Card>
 
-      <Card title={t("trail.price")} subtitle={t("trail.priceNote")} className="mt-4">
+      <Card title={notTradeable ? t("notTradeable.chartReadonly") : t("trail.price")} subtitle={notTradeable ? t("notTradeable.chartNote") : t("trail.priceNote")} className="mt-4">
         {trail.prices.length > 1 ? <PriceChart prices={trail.prices} events={ordered} /> : <p className="text-body text-text-secondary">{t("trail.noPrice")}</p>}
         {pos && (
           <p className="num mt-2 text-caption text-text-secondary">
@@ -76,7 +103,7 @@ async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] 
                 <p className="mt-0.5 text-body font-semibold"><EventTitle e={e} /> {e.pnlSol != null && <Pnl sol={e.pnlSol} className="ml-1 text-caption font-normal" />}</p>
                 {e.reason && <p className="text-caption text-text-secondary">{e.reason}</p>}
                 {e.checks && (
-                  <ul className="mt-2 grid gap-1 rounded-md bg-bg-inset p-2 text-caption sm:grid-cols-2">
+                  <ul className="mt-2 grid gap-1 rounded-md bg-bg-sunken p-2 text-caption sm:grid-cols-2">
                     {e.checks.map((c) => (
                       <li key={c.name} className="flex items-center gap-1.5">
                         {c.passed ? <Check size={12} className="text-semantic-profit" aria-label={t("trail.passed")} /> : <X size={12} className="text-semantic-loss" aria-label={t("trail.failed")} />}

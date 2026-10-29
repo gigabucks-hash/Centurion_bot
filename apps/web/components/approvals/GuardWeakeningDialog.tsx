@@ -102,7 +102,7 @@ export function GuardWeakeningDialog({ approval, open, onClose, onConfirm, busy 
                 autoComplete="off"
                 spellCheck={false}
                 placeholder={name}
-                className={cn("h-10 w-full rounded-md border bg-bg-inset px-3 text-body outline-none focus:outline-2 focus:outline-border-focus", nameOk ? "border-semantic-profit" : "border-border-default")}
+                className={cn("h-10 w-full rounded-md border bg-bg-sunken px-3 text-body outline-none focus:outline-2 focus:outline-border-focus", nameOk ? "border-semantic-profit" : "border-border-default")}
               />
               <p className="mt-1 text-caption text-text-tertiary">{t("guardDialog.match", { n: matchCount, total: name.length })}</p>
             </div>

@@ -1,7 +1,7 @@
 /**
  * UI view models for the Sentra dashboard.
  *
- * Shared enums are imported from the official wire contract (@sentra/contracts/wire, v1) so
+ * Shared enums are imported from the official wire contract (@sentra/contracts/wire, v1.1.2) so
  * they cannot drift. Wire payloads (lamport / decimal strings, ISO timestamps, no floats) are
  * decoded into these view models ONLY at the API edge (lib/contracts.ts + lib/http-api.ts);
  * `Sol` numbers here are display values derived from lamport strings via BigInt math.
@@ -9,7 +9,10 @@
 import type {
   Actor as WireActor,
   ApprovalMode as WireApprovalMode,
-  CoinStream as WireCoinStream,
+  Venue as WireVenue,
+  ExitPreset as WireExitPreset,
+  RequiredCheck as WireRequiredCheck,
+  GuardCheckName,
   EventType as WireEventType,
   ExitReason as WireExitReason,
   GuardChanged,
@@ -18,6 +21,8 @@ import type {
   ProposalKind,
   ProposalStatus,
   RiskLevel as WireRiskLevel,
+  TokenProgram,
+  ErrorCode,
 } from "@sentra/contracts/wire";
 
 /** Unix epoch milliseconds. */
@@ -84,13 +89,17 @@ export interface WorkspaceOverview {
 // Strategy settings (subset of the 52-key schema; see lib/strategy-schema.ts)
 // ---------------------------------------------------------------------------
 
-export type CoinStream = WireCoinStream;
+/** Coin venue (wire `Venue`; replaces the deprecated `CoinStream`). */
+export type Venue = WireVenue;
 /** Per-strategy setting (ask-before-first-buy is the default). */
 export type ApprovalMode = WireApprovalMode;
 export type GuardPreset = "strict" | "balanced" | "loose" | "custom";
-export type ExitPlanPreset = "ladder3" | "trailOnly" | "quickScalp" | "doubling" | "custom";
-export type MustHaveRule = "liquidity" | "volume" | "marketCap" | "age" | "top10" | "lpBurn";
-export type GuardCheck = "bundlers" | "devDump" | "snipers" | "washTrading" | "layeredLaunch" | "serialCreator" | "transferFee" | "insiderProfit";
+/** Wire ExitPreset subset offered as builder templates (+ "custom" = edited rungs). */
+export type ExitPlanPreset = Extract<WireExitPreset, "three_step_ladder" | "trail_stop_only" | "fast_half" | "geometric_ladder"> | "custom";
+/** Wire RequiredCheck (settings `required_checks`). */
+export type MustHaveRule = Extract<WireRequiredCheck, "liquidity_usd" | "volume_24h_usd" | "mcap_usd" | "age_minutes_min" | "top_holders_share_pct" | "lp_burned_pct">;
+/** Wire GuardCheckName subset the builder toggles (settings `guard_checks`). */
+export type GuardCheck = Extract<GuardCheckName, "mint_authority" | "freeze_authority" | "bundled_share" | "creator_share" | "sniper_share" | "serial_creator" | "transfer_fee" | "honeypot">;
 
 export interface TakeProfitRung {
   gainPct: number;
@@ -104,7 +113,7 @@ export interface StrategySettings {
   approvalMode: ApprovalMode;
   sizing: { budgetSol: Sol; tradeSol: Sol; maxOpen: number; lossStopPct: number };
   screener: {
-    streams: CoinStream[];
+    streams: Venue[];
     minAgeMinutes: number;
     maxAgeMinutes: number;
     minMarketCapUsd: number;
@@ -152,7 +161,7 @@ export interface StrategySettings {
 // Strategies
 // ---------------------------------------------------------------------------
 
-export type StrategyStatus = "draft" | "running" | "paused" | "stopped" | "archived";
+export type StrategyStatus = "draft" | "running" | "paused" | "archived";
 
 export type FunnelStage = "scanned" | "filtered" | "signaled" | "entered" | "exited";
 export const FUNNEL_STAGES: FunnelStage[] = ["scanned", "filtered", "signaled", "entered", "exited"];
@@ -217,8 +226,16 @@ export interface CoinMeta {
   /** Token metadata is UNTRUSTED. Render as plain text only. */
   untrusted: { symbol: string; name: string };
   launchpad: string;
-  stream: CoinStream;
+  venue: Venue;
   createdAt: Timestamp;
+  /** From the mint account (contracts 1.1.2). Never assume 6; null while the mint account is unreadable. */
+  decimals: number | null;
+  tokenProgram: TokenProgram | null;
+  /** null = SOL quote (or wSOL). */
+  quoteMint: string | null;
+  /** false = practice cannot trade this coin at all; skipReason says why (e.g. UNSUPPORTED_QUOTE_MINT). */
+  tradeable: boolean;
+  skipReason: ErrorCode | null;
 }
 
 export type PositionStatus = "open" | "closed";
@@ -264,7 +281,7 @@ export type EventKind =
 export interface TradeEvent {
   id: string;
   /** Envelope seq: monotonic, NOT gapless. Used for paging / resume (after_seq, safe_seq). */
-  seq: number;
+  seq: string; // int64 string (contracts 1.1.2): compare with BigInt via lib/seq.ts
   /** Wire event type, e.g. "position.closed". */
   type?: WireEventType;
   /** Pick key (1 coin x 1 strategy). */
@@ -279,6 +296,8 @@ export interface TradeEvent {
   message: string;
   /** Reason / detail line, e.g. "dip −8% reached". */
   reason?: string;
+  /** Machine reason code, e.g. UNSUPPORTED_QUOTE_MINT ("Not tradeable"). */
+  reasonCode?: string;
   solAmount?: Sol;
   pnlSol?: Sol;
   pctChange?: number;
@@ -310,10 +329,41 @@ export interface CoinTrail {
   strategyName: string;
   mode: TradingMode;
   score?: { value: number; passMark: number };
+  /** Screener state (UNSUPPORTED_QUOTE_MINT) and the pool's quote token when it is not SOL. */
+  screenerState?: ScreenerState;
+  quoteSymbol?: string;
   positions: Position[];
   events: TradeEvent[];
   /** Mock price series around the trade window. */
   prices: PricePoint[];
+}
+
+/** Positions screen row (GET /positions?state=open view model). */
+export interface OpenPosition {
+  key: string;
+  strategyId: string;
+  strategyName: string;
+  mode: TradingMode;
+  mint: Mint;
+  symbol: string;
+  solIn: Sol;
+  entryPriceUsd: number;
+  nowPriceUsd: number;
+  pnlSol: Sol;
+  pnlPct: number;
+  openedAt: Timestamp;
+  /** Share already sold by manual sells (0–100). */
+  soldPct: number;
+  /** Coin became untradeable (UNSUPPORTED_QUOTE_MINT): Sell is disabled. */
+  screenerState?: ScreenerState;
+  /** Position rev (1.1.2): manual close sends `If-Match: "<rev>"`. */
+  rev: number;
+  decimals: number | null;
+  tokenProgram: TokenProgram | null;
+  practiceEpoch: number;
+  /** Strategy exit plan, for the "next action" line. */
+  stopLossPct: number;
+  trailingPct: number;
 }
 
 export interface CoinSummary {
@@ -325,6 +375,8 @@ export interface CoinSummary {
   lastEventAt: Timestamp;
   status: PositionStatus | "watching" | "rejected";
   pnlSol?: Sol;
+  /** UNSUPPORTED_QUOTE_MINT → "Not tradeable" (WF-20/21). */
+  screenerState?: ScreenerState;
 }
 
 // ---------------------------------------------------------------------------
@@ -334,7 +386,8 @@ export interface CoinSummary {
 /** = @sentra/contracts wire `ExitReason` (v1). */
 export type ExitReason = WireExitReason;
 
-export const EXIT_REASONS: ExitReason[] = ["take_profit", "stop_loss", "trailing_stop", "time_out", "inactivity", "drain", "stall", "rug", "sell_floor", "loss_stop", "manual", "strategy_retired"];
+/** The contract list itself (wire.EXIT_REASONS), re-exported so UI and backend cannot drift. */
+export { EXIT_REASONS } from "@sentra/contracts/wire";
 
 export interface ExitReasonStat {
   reason: ExitReason;
@@ -389,10 +442,16 @@ export interface PickDetail {
   budgetSol: Sol;
 }
 
+/** Screener state that makes a coin untradeable (contracts errors: UNSUPPORTED_QUOTE_MINT, 422). */
+export type ScreenerState = "UNSUPPORTED_QUOTE_MINT";
+export const NOT_TRADEABLE: ScreenerState = "UNSUPPORTED_QUOTE_MINT";
+
 export interface Approval {
   id: string;
-  /** Optimistic-concurrency version (send as expected_version). */
-  version: number;
+  /** Set when the coin cannot be traded (no SOL quote pair): shown as "Not tradeable", never approvable. */
+  screenerState?: ScreenerState;
+  /** Approval rev (contracts 1.1.2): send as `If-Match: "<rev>"` (or expected_rev). expected_version is gone. */
+  rev: number;
   /** Opaque single-use decision token (apt_…), from GET /approvals/{id}. */
   decisionToken?: string;
   kind: ApprovalKind;

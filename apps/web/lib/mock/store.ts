@@ -2,9 +2,19 @@
  * In-memory mutable mock state (server process only; resets on restart).
  * Nothing here touches wallets, RPC, chain or any external service.
  */
-import type { Approval, ApprovalDecision, PublishResult, RiskLevel, Strategy, StrategySettings, TradingMode } from "@/lib/types";
+import type { Approval, ApprovalDecision, OpenPosition, PublishResult, RiskLevel, Strategy, StrategySettings, TradingMode } from "@/lib/types";
 import { diffSettings, validate, weakensGuard } from "@/lib/strategy-schema";
+import { approvalToWire, settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
+import type { ApprovalDecisionRequest, ErrorCode } from "@sentra/contracts/wire";
 import { coinSummaries, seedStrategies, trails } from "./data";
+
+/** Error carrying a contract error code (errors.json); the BFF turns it into the wire error body. */
+export class WireError extends Error {
+  constructor(readonly code: ErrorCode, readonly details?: Record<string, unknown>, readonly extra?: Record<string, unknown>) {
+    super(code);
+  }
+}
+const wireErr = (code: ErrorCode, details?: Record<string, unknown>, extra?: Record<string, unknown>) => new WireError(code, details, extra);
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -25,15 +35,24 @@ interface State {
   approvals: Approval[];
   audit: AuditEntry[];
   seq: number;
+  /** Manual sells per position key (percent sold). */
+  sold: Record<string, number>;
+  /** Position rev per key (1.1.2: manual close uses If-Match: "<position rev>"). Absent = 1. */
+  posRev?: Record<string, number>;
+  /** Settings per strategy and rev (merge base for the 3-way review). */
+  revisions?: Record<string, Record<number, StrategySettings>>;
+  /** Last change per strategy (who/when), for the 409 body. */
+  lastChange?: Record<string, { by: { actor: string; via: "web" | "mobile"; device?: string }; at: number; fields: string[] }>;
+  practice?: { epoch: number; lastResetAt: number | null };
 }
 
 const g = globalThis as unknown as { __sentraMock?: State };
 
 function initApprovals(now: number, strategies: Strategy[]): Approval[] {
-  return seedApprovals(now, strategies).map((a) => ({ ...a, version: 1 }));
+  return seedApprovals(now, strategies).map((a) => ({ ...a, rev: 1 }));
 }
 
-function seedApprovals(now: number, strategies: Strategy[]): Omit<Approval, "version">[] {
+function seedApprovals(now: number, strategies: Strategy[]): Omit<Approval, "rev">[] {
   const byName = (n: string) => strategies.find((x) => x.name === n)!;
   const coin = (mode: TradingMode, k: number) => coinSummaries.filter((c) => c.mode === mode)[k];
   const bh = byName("Breakout Hunter");
@@ -42,7 +61,7 @@ function seedApprovals(now: number, strategies: Strategy[]): Omit<Approval, "ver
   const cr = byName("Conservative Real");
   const gs = byName("Graduated scalp");
   const c1 = coin("practice", 0), c2 = coin("practice", 1), c3 = coin("real", 0), c4 = coin("real", 1);
-  const gsAfter: StrategySettings = { ...structuredClone(gs.settings), guard: { ...gs.settings.guard, maxBundlersPct: 30, checks: { ...gs.settings.guard.checks, washTrading: false } }, exit: { ...gs.settings.exit, trailingPct: 30 } };
+  const gsAfter: StrategySettings = { ...structuredClone(gs.settings), guard: { ...gs.settings.guard, maxBundlersPct: 30, checks: { ...gs.settings.guard.checks, sniper_share: false } }, exit: { ...gs.settings.exit, trailingPct: 30 } };
   const gsBefore: StrategySettings = { ...structuredClone(gs.settings), exit: { ...gs.settings.exit, trailingPct: 20 } };
   const fbAfter: StrategySettings = { ...structuredClone(fb.settings), guard: { ...fb.settings.guard, maxDevPercent: 10, preset: "custom" } };
   return [
@@ -64,6 +83,17 @@ function seedApprovals(now: number, strategies: Strategy[]): Omit<Approval, "ver
       diff: diffSettings(fb.settings, fbAfter), revFrom: fb.rev, revTo: fb.rev + 1,
       riskImpact: { coinsPassedPerDayBefore: 96, coinsPassedPerDayAfter: 121, rugsBefore: 3, rugsAfter: 5, maxDrawdownBeforePct: 9, maxDrawdownAfterPct: 13 },
     },
+    // Race case (WF-21 / N-05): the pick was queued, then the screener saw a non-SOL quote mint. Apex rule:
+    // the card stays, "Skip" works as dismiss, Approve (and Sell) stay disabled; approve → 422 UNSUPPORTED_QUOTE_MINT.
+    ...(() => {
+      const nt = coinSummaries.find((c) => c.mode === "practice" && c.screenerState === "UNSUPPORTED_QUOTE_MINT");
+      return nt ? [{
+        id: "ap_105", kind: "buy_pick" as const, status: "pending" as const, mode: "practice" as const, strategyId: nt.strategyId, strategyName: nt.strategyName, mint: nt.mint, symbol: nt.symbol,
+        title: nt.symbol, detail: "Quote mint changed to USDC after the pick was queued.", amountSol: 0.2, risk: "low" as const, requestedBy: "entry" as const,
+        createdAt: now - 2 * MIN, expiresAt: now + 8 * MIN, screenerState: "UNSUPPORTED_QUOTE_MINT" as const,
+        pick: { pickKind: "buy" as const, score: { value: 71, passMark: 70 }, guard: { passed: 0, total: 8, note: "not run" }, entry: "—", exitPlan: "—", budgetSol: 1 },
+      }] : [];
+    })(),
     {
       id: "ap_104", kind: "buy_pick", status: "expired", expiredReason: "strategy_deleted", mode: "practice", strategyName: "Old pairs test", symbol: "ABC", title: "ABC",
       detail: "Strategy was deleted while this pick was waiting.", amountSol: 0.1, risk: "low", requestedBy: "entry", createdAt: now - 25 * MIN, expiresAt: now - 15 * MIN, decidedAt: now - 13 * MIN,
@@ -104,9 +134,10 @@ function seedApprovals(now: number, strategies: Strategy[]): Omit<Approval, "ver
 }
 
 function state(): State {
+  if (g.__sentraMock && !g.__sentraMock.sold) g.__sentraMock.sold = {};
   if (!g.__sentraMock) {
     const strategies = structuredClone(seedStrategies);
-    g.__sentraMock = { strategies, approvals: initApprovals(Date.now(), strategies), audit: [], seq: 300 };
+    g.__sentraMock = { strategies, approvals: initApprovals(Date.now(), strategies), audit: [], seq: 300, sold: {} };
   }
   return g.__sentraMock;
 }
@@ -149,7 +180,7 @@ export function getStrategy(id: string): Strategy | null {
 export function publishStrategy(id: string | null, settings: StrategySettings): PublishResult {
   const st = state();
   const errors = validate(settings);
-  if (Object.keys(errors).length) throw new Error(`Invalid settings: ${Object.keys(errors).join(", ")}`);
+  if (Object.keys(errors).length) throw wireErr("SETTINGS_SCHEMA_INVALID", { fields: Object.keys(errors) });
   const now = Date.now();
   const existing = id ? st.strategies.find((x) => x.id === id) : undefined;
   if (!existing) {
@@ -169,7 +200,7 @@ export function publishStrategy(id: string | null, settings: StrategySettings): 
   if (weakensGuard(diff)) {
     // Strengthening/neutral parts would apply immediately in the real system; the mock keeps the whole patch together.
     const ap: Approval = {
-      version: 1,
+      rev: 1,
       id: `ap_${++st.seq}`, kind: "guard_change", status: "pending", mode: existing.mode, strategyId: existing.id, strategyName: existing.name,
       title: "Guard change", detail: "Published from the strategy builder; loosens at least one guard.", risk: existing.mode === "real" ? "high" : "medium",
       requestedBy: "user", createdAt: now, expiresAt: now + GUARD_TTL_MS, diff, revFrom: existing.rev, revTo: existing.rev + 1,
@@ -187,6 +218,127 @@ export function publishStrategy(id: string | null, settings: StrategySettings): 
 }
 const pendingSettings = new Map<string, StrategySettings>();
 
+// --- v1.1 PATCH /strategies/{id} (If-Match / expected_rev + flat settings_patch) ---------------------------
+
+function revs(id: string): Record<number, StrategySettings> {
+  const st = state();
+  st.revisions ??= {};
+  st.revisions[id] ??= {};
+  const s = st.strategies.find((x) => x.id === id);
+  if (s && !st.revisions[id][s.rev]) st.revisions[id][s.rev] = structuredClone(s.settings);
+  return st.revisions[id];
+}
+
+export function getRevision(id: string, rev: number): StrategySettings | null {
+  return revs(id)[rev] ?? null;
+}
+
+export function strategyToWire(s: Strategy) {
+  return { id: s.id, rev: s.rev, name: s.name, status: s.status, mode: s.mode, settings: settingsToWire(s.settings), updated_at: new Date(s.updatedAt).toISOString() };
+}
+
+function conflictBody(s: Strategy, baseRev: number) {
+  const st = state();
+  const lc = st.lastChange?.[s.id];
+  return {
+    current_rev: s.rev, base_rev: baseRev, changed_fields: lc?.fields ?? [],
+    changed_by: lc?.by ?? { actor: "teammate", via: "web" }, changed_at: new Date(lc?.at ?? s.updatedAt).toISOString(),
+    current: strategyToWire(s),
+  };
+}
+
+export type PatchOutcome = { status: 200; strategy: ReturnType<typeof strategyToWire> } | { status: 202; proposal: Approval; strategy: ReturnType<typeof strategyToWire> };
+
+/**
+ * JSON-merge `settings_patch` onto the current wire settings. No force-save, no auto-merge:
+ * expectedRev !== rev → 409 STRATEGY_REV_CONFLICT (Real + weakening → CONFIRMATION_RESTART_REQUIRED) with merge data.
+ */
+export function patchStrategy(id: string, expectedRev: number | null, patch: Record<string, unknown>, by: { actor: string; via: "web" | "mobile"; device?: string } = { actor: "you", via: "web" }, now = Date.now()): PatchOutcome {
+  const st = state();
+  const s = st.strategies.find((x) => x.id === id);
+  if (!s) throw wireErr("NOT_FOUND");
+  if (s.status === "archived") throw wireErr("STRATEGY_RETIRED");
+  if (expectedRev == null) throw wireErr("PRECONDITION_REQUIRED");
+  revs(id);
+  const merged: WireSettings = { ...settingsToWire(s.settings) };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) delete merged[k];
+    else merged[k] = v;
+  }
+  const next = { ...settingsFromWire(merged, s.settings), mode: s.mode };
+  const diff = diffSettings(s.settings, next);
+  const weakening = weakensGuard(diff);
+  if (expectedRev !== s.rev) {
+    throw wireErr(s.mode === "real" && weakening ? "CONFIRMATION_RESTART_REQUIRED" : "STRATEGY_REV_CONFLICT", undefined, conflictBody(s, expectedRev));
+  }
+  const errors = validate(next);
+  if (Object.keys(errors).length) throw wireErr("SETTINGS_SCHEMA_INVALID", { fields: Object.keys(errors) });
+  if (weakening) {
+    const ap: Approval = {
+      rev: 1,
+      id: `ap_${++st.seq}`, kind: "guard_change", status: "pending", mode: s.mode, strategyId: s.id, strategyName: s.name,
+      title: "Guard change", detail: "Saved from the strategy builder; loosens at least one guard.", risk: s.mode === "real" ? "high" : "medium",
+      requestedBy: "user", createdAt: now, expiresAt: now + GUARD_TTL_MS, diff, revFrom: s.rev, revTo: s.rev + 1,
+      riskImpact: { coinsPassedPerDayBefore: 100, coinsPassedPerDayAfter: 130, rugsBefore: 4, rugsAfter: 6, maxDrawdownBeforePct: 10, maxDrawdownAfterPct: 14 },
+    };
+    pendingSettings.set(ap.id, next);
+    st.approvals.push(ap);
+    return { status: 202, proposal: ap, strategy: strategyToWire(s) };
+  }
+  s.settings = next;
+  s.name = next.name;
+  s.rev += 1;
+  s.updatedAt = now;
+  revs(id)[s.rev] = structuredClone(next);
+  st.lastChange ??= {};
+  st.lastChange[id] = { by, at: now, fields: Object.keys(patch) };
+  return { status: 200, strategy: strategyToWire(s) };
+}
+
+/** Demo helper for the revision-conflict flow: a teammate on mobile tightens the peak trail and bumps rev. */
+export function simulateTeammateEdit(id: string, now = Date.now()) {
+  const s = getStrategy(id);
+  if (!s) throw wireErr("NOT_FOUND");
+  const trail = Math.max(5, Math.min(49, s.settings.exit.trailingPct - 5 || 15));
+  return patchStrategy(id, s.rev, { peak_trail_pct: trail, liquidity_usd_min: s.settings.screener.minLiquidityUsd + 1000 }, { actor: "Rani", via: "mobile", device: "Pixel 8" }, now);
+}
+
+// --- Practice reset (POST /practice/reset) ---------------------------------------------------------------
+export const PRACTICE_START_LAMPORTS = "30000000000";
+const RESET_COOLDOWN_MS = 24 * HOUR;
+
+export function practiceState() {
+  const st = state();
+  st.practice ??= { epoch: 1, lastResetAt: null };
+  return st.practice;
+}
+
+export function resetPractice(now = Date.now()) {
+  const st = state();
+  const p = practiceState();
+  if (p.lastResetAt != null && now - p.lastResetAt < RESET_COOLDOWN_MS) {
+    throw wireErr("RESET_COOLDOWN", { next_allowed_at: new Date(p.lastResetAt + RESET_COOLDOWN_MS).toISOString() }, { retry_after_s: Math.ceil((p.lastResetAt + RESET_COOLDOWN_MS - now) / 1000) });
+  }
+  const open = listOpenPositions("practice");
+  for (const pos of open) st.sold[pos.key] = 100;
+  let expired = 0;
+  for (const a of st.approvals) {
+    if (a.mode === "practice" && a.status === "pending" && a.kind === "buy_pick") {
+      a.status = "expired";
+      a.expiredReason = "practice_reset";
+      a.rev += 1;
+      expired++;
+    }
+  }
+  p.epoch += 1;
+  p.lastResetAt = now;
+  return {
+    epoch: p.epoch, starting_balance_lamports: PRACTICE_START_LAMPORTS,
+    archived: { positions: open.length, pending_buys: expired },
+    next_allowed_at: new Date(now + RESET_COOLDOWN_MS).toISOString(),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Approvals
 // ---------------------------------------------------------------------------
@@ -200,17 +352,18 @@ export function decideApproval(id: string, d: ApprovalDecision, now = Date.now()
   tick(now);
   const st = state();
   const a = st.approvals.find((x) => x.id === id);
-  if (!a) throw new Error(`Approval ${id} not found`);
+  if (!a) throw wireErr("NOT_FOUND");
+  if (a.screenerState === "UNSUPPORTED_QUOTE_MINT" && d.action === "approve") throw wireErr("UNSUPPORTED_QUOTE_MINT");
 
   if (d.action === "undo_skip") {
-    if (a.status !== "rejected" || !a.decidedAt || now - a.decidedAt > UNDO_MS + 1000) throw new Error("Undo window has passed");
+    if (a.status !== "rejected" || !a.decidedAt || now - a.decidedAt > UNDO_MS + 1000) throw wireErr("APPROVAL_ALREADY_DECIDED");
     a.status = "pending";
     a.skipReason = undefined;
     a.decidedAt = undefined;
     return { ...a };
   }
   if (d.action === "cancel_cooldown") {
-    if (a.kind !== "guard_change" || a.status !== "approved" || !a.cooldownEndsAt) throw new Error("Nothing to cancel");
+    if (a.kind !== "guard_change" || a.status !== "approved" || !a.cooldownEndsAt) throw wireErr("NOT_FOUND");
     a.status = "rejected";
     a.skipNote = "Cooldown cancelled — change not applied";
     a.guardChangeState = "cancelled";
@@ -218,7 +371,7 @@ export function decideApproval(id: string, d: ApprovalDecision, now = Date.now()
     audit(a, "cancel_cooldown", now);
     return { ...a };
   }
-  if (a.status !== "pending") throw new Error(a.status === "expired" ? "Expired — cannot be approved" : `Already ${a.status}`);
+  if (a.status !== "pending") throw wireErr(a.status === "expired" ? "APPROVAL_EXPIRED" : "APPROVAL_ALREADY_DECIDED", { reason: a.expiredReason });
 
   if (d.action === "skip") {
     a.status = "rejected";
@@ -231,12 +384,12 @@ export function decideApproval(id: string, d: ApprovalDecision, now = Date.now()
   // approve
   const c = d.confirmation;
   const needsHold = a.kind !== "buy_pick" || a.mode === "real";
-  if (needsHold && (!c || c.holdMs < HOLD_MS[a.mode])) throw new Error(`Hold-to-confirm ${HOLD_MS[a.mode] / 1000}s required`);
+  if (needsHold && (!c || c.holdMs < HOLD_MS[a.mode])) throw wireErr(c ? "HOLD_TOO_SHORT" : "CONFIRMATION_REQUIRED", { hold_ms: HOLD_MS[a.mode] });
   if (a.kind === "guard_change" && a.mode === "real") {
-    if (c?.typedName !== a.strategyName) throw new Error("Typed strategy name does not match");
-    if (c?.secondFactor !== "mock_passkey") throw new Error("Second factor required");
+    if (c?.typedName !== a.strategyName) throw wireErr("TYPED_CONFIRMATION_MISMATCH");
+    if (c?.secondFactor !== "mock_passkey") throw wireErr("WEBAUTHN_INVALID");
   }
-  if (a.mode === "real" && a.kind === "team_action" && c?.secondFactor !== "mock_passkey") throw new Error("Second factor required");
+  if (a.mode === "real" && a.kind === "team_action" && c?.secondFactor !== "mock_passkey") throw wireErr("WEBAUTHN_INVALID");
   a.decidedAt = now;
   a.status = "approved";
   if (a.kind === "guard_change") {
@@ -258,6 +411,87 @@ export function decideApproval(id: string, d: ApprovalDecision, now = Date.now()
   return { ...a };
 }
 
+// ---------------------------------------------------------------------------
+// Contract v1.1.2 decision flow: decision tokens, approval rev (If-Match / expected_rev), confirmation challenges
+// ---------------------------------------------------------------------------
+
+const tokens = ((globalThis as unknown as { __sentraTokens?: Map<string, { approvalId: string; exp: number; used?: { decision: string; result: unknown } }> }).__sentraTokens ??= new Map());
+const challenges = ((globalThis as unknown as { __sentraChallenges?: Map<string, { action: string; target: string; payloadHash: string; exp: number; used: boolean }> }).__sentraChallenges ??= new Map());
+const TOKEN_TTL_MS = 15 * MIN;
+export const CHALLENGE_TTL_MS = 2 * MIN;
+
+const rand = (n: number) => {
+  const a = new Uint8Array(n);
+  crypto.getRandomValues(a);
+  return Buffer.from(a).toString("base64url");
+};
+
+/** GET /approvals/{id}: mints a single-use decision token, TTL = min(15 min, expires_at). */
+export function issueDecisionToken(id: string, now = Date.now()): { token: string; expiresAt: number } {
+  const a = state().approvals.find((x) => x.id === id);
+  if (!a) throw wireErr("NOT_FOUND");
+  const token = `apt_${rand(16).slice(0, 22)}`;
+  const expiresAt = Math.min(now + TOKEN_TTL_MS, a.expiresAt);
+  tokens.set(token, { approvalId: id, exp: expiresAt });
+  return { token, expiresAt };
+}
+
+/** POST /confirmations/challenge {action, target, payload_hash} → 2 min, single use, bound to the change hash. */
+export function createChallenge(action: string, target: string, payloadHash: string, now = Date.now()) {
+  const id = crypto.randomUUID();
+  challenges.set(id, { action, target, payloadHash, exp: now + CHALLENGE_TTL_MS, used: false });
+  return { challenge_id: id, challenge: rand(32), expires_at: new Date(now + CHALLENGE_TTL_MS).toISOString(), rp_id: "localhost" };
+}
+
+/** POST /approvals/{id}/decision (contract). Same token + same decision → stored result with replayed=true. */
+export function decideApprovalWire(id: string, req: ApprovalDecisionRequest, now = Date.now()) {
+  tick(now);
+  const a = state().approvals.find((x) => x.id === id);
+  if (!a) throw wireErr("NOT_FOUND");
+  // Not tradeable: reject (= Skip as dismiss) is allowed; approve is refused.
+  if (a.screenerState === "UNSUPPORTED_QUOTE_MINT" && req.decision === "approve") throw wireErr("UNSUPPORTED_QUOTE_MINT");
+  const tok = tokens.get(req.token);
+  if (!tok || tok.approvalId !== id) throw wireErr("APPROVAL_TOKEN_INVALID");
+  if (tok.used) {
+    if (tok.used.decision === req.decision) return { ...(tok.used.result as object), replayed: true };
+    throw wireErr("APPROVAL_ALREADY_DECIDED");
+  }
+  if (now > tok.exp && a.status === "pending") throw wireErr("APPROVAL_EXPIRED", { reason: "timeout" });
+  if (a.status === "expired") throw wireErr("APPROVAL_EXPIRED", { reason: a.expiredReason });
+  if (a.status !== "pending") throw wireErr("APPROVAL_ALREADY_DECIDED");
+  if (req.expected_rev == null) throw wireErr("PRECONDITION_REQUIRED");
+  if (req.expected_rev !== a.rev) throw wireErr("VERSION_CONFLICT", { current_rev: a.rev, base_rev: req.expected_rev, current: approvalToWire(a) as unknown as Record<string, unknown> });
+
+  let confirmation: { typedName?: string; secondFactor?: "mock_passkey"; holdMs: number } | undefined;
+  if (req.confirmation) {
+    const c = req.confirmation;
+    const ch = challenges.get(c.challenge_id);
+    if (!ch || ch.used || now > ch.exp || ch.target !== id) throw wireErr("CONFIRMATION_INVALID");
+    ch.used = true;
+    confirmation = { holdMs: c.hold_duration_ms, typedName: c.typed_confirmation ?? undefined, secondFactor: c.webauthn ? "mock_passkey" : undefined };
+  }
+  const next = req.decision === "approve" ? decideApproval(id, { action: "approve", confirmation }, now) : decideApproval(id, { action: "skip", reason: (req.reason ?? undefined) as never }, now);
+  const live = state().approvals.find((x) => x.id === id)!;
+  live.rev += 1;
+  const result = { proposal_id: id, status: next.status === "rejected" ? "rejected" : "approved", rev: live.rev, replayed: false };
+  tok.used = { decision: req.decision, result };
+  return result;
+}
+
+export function getApproval(id: string): Approval | null {
+  tick();
+  const a = state().approvals.find((x) => x.id === id);
+  return a ? { ...a } : null;
+}
+
+/** POST /guard-changes/{id}/cancel: any member can cancel during the cooldown. */
+export function cancelGuardChange(id: string, now = Date.now()): Approval {
+  const a = decideApproval(id, { action: "cancel_cooldown" }, now);
+  state().approvals.find((x) => x.id === id)!.rev += 1;
+  return a;
+}
+
+
 function audit(a: Approval, action: string, now: number): string {
   const st = state();
   const id = `aud_${now.toString(36)}_${st.audit.length}`;
@@ -267,4 +501,54 @@ function audit(a: Approval, action: string, now: number): string {
 
 export function getTrailMode(mint: string): TradingMode | null {
   return trails.find((t) => t.coin.mint === mint)?.mode ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Positions (manual sell = mock job; nothing leaves this process)
+// ---------------------------------------------------------------------------
+
+export function listOpenPositions(mode: TradingMode): OpenPosition[] {
+  const st = state();
+  return trails
+    .filter((t) => t.mode === mode)
+    .flatMap((t) =>
+      t.positions
+        .filter((p) => p.status === "open" && (st.sold[p.key] ?? 0) < 100)
+        .map((p) => {
+          const strat = st.strategies.find((s) => s.id === t.strategyId);
+          return {
+            key: p.key, strategyId: t.strategyId, strategyName: t.strategyName, mode: t.mode, mint: t.coin.mint, symbol: t.coin.untrusted.symbol,
+            solIn: p.solIn, entryPriceUsd: p.entryPriceUsd, nowPriceUsd: p.entryPriceUsd * (1 + p.pnlPct / 100), pnlSol: p.pnlSol, pnlPct: p.pnlPct, openedAt: p.openedAt,
+            soldPct: st.sold[p.key] ?? 0, stopLossPct: strat?.settings.exit.stopLossPct ?? 0, trailingPct: strat?.settings.exit.trailingPct ?? 0,
+            ...(t.screenerState ? { screenerState: t.screenerState } : {}),
+            rev: st.posRev?.[p.key] ?? 1, decimals: t.coin.decimals, tokenProgram: t.coin.tokenProgram, practiceEpoch: t.mode === "practice" ? practiceState().epoch : 0,
+          };
+        }),
+    )
+    .sort((a, b) => b.openedAt - a.openedAt);
+}
+
+/**
+ * POST /positions/{id}/close (contracts 1.1.2). `If-Match: "<position rev>"` + `{fraction_bps}` (1–10000 of the
+ * remaining quantity, default 10000). Practice only: Real → 403 MODE_NOT_ALLOWED. Stale rev → 409 VERSION_CONFLICT
+ * {current_rev, base_rev, current}. The simulated fill completes synchronously here (status "filled", job_id null).
+ */
+export function closePosition(key: string, expectedRev: number | null, fractionBps: number, mode: TradingMode, now = Date.now()) {
+  if (mode !== "practice") throw wireErr("MODE_NOT_ALLOWED");
+  if (!Number.isInteger(fractionBps) || fractionBps < 1 || fractionBps > 10_000) throw wireErr("INVALID_FRACTION", { fraction_bps: fractionBps });
+  const st = state();
+  const pos = listOpenPositions(mode).find((p) => p.key === key);
+  if (!pos) {
+    if (trails.some((t) => t.positions.some((p) => p.key === key))) throw wireErr("POSITION_ALREADY_CLOSED");
+    throw wireErr("NOT_FOUND");
+  }
+  if (pos.screenerState === "UNSUPPORTED_QUOTE_MINT") throw wireErr("UNSUPPORTED_QUOTE_MINT");
+  if (expectedRev == null) throw wireErr("PRECONDITION_REQUIRED");
+  if (expectedRev !== pos.rev) throw wireErr("VERSION_CONFLICT", { current_rev: pos.rev, base_rev: expectedRev, current: { id: pos.key, rev: pos.rev, sold_pct: pos.soldPct } });
+  const before = { ...pos };
+  const remaining = 100 - pos.soldPct;
+  st.sold[key] = fractionBps >= 10_000 ? 100 : Math.min(100, pos.soldPct + remaining * (fractionBps / 10_000));
+  st.posRev ??= {};
+  st.posRev[key] = pos.rev + 1;
+  return { before, after: { ...pos, soldPct: st.sold[key], rev: pos.rev + 1 }, fractionBps, at: now };
 }

@@ -1,13 +1,13 @@
 import { createTranslator } from "next-intl";
-import uxEn from "../../messages/en.json" with { type: "json" };
-import uxId from "../../messages/id.json" with { type: "json" };
+import uxEn from "@sentra/i18n/en.json" with { type: "json" };
+import uxId from "@sentra/i18n/id.json" with { type: "json" };
 import { ALIASES, type AliasKey } from "./aliases.ts";
 import { en } from "./en.ts";
 import { id } from "./id.ts";
 
 /**
- * i18n on next-intl (ICU MessageFormat). Catalog = UX locales (messages/en.json, messages/id.json:
- * copies of /workspace/ux-solbot/locales, 313 keys) + our "app" namespace (lib/i18n/en.ts, id.ts)
+ * i18n on next-intl (ICU MessageFormat). Catalog = @sentra/i18n 0.4.1 (packages/i18n en.json, id.json:
+ * workspace dependency, 398 keys) + our "app" namespace (lib/i18n/en.ts, id.ts)
  * for copy the UX catalog does not have yet. `t("approvals.approve")` resolves to the UX key via
  * lib/i18n/aliases.ts when one exists. English is the default; missing id strings fall back to en.
  */

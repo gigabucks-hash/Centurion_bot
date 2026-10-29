@@ -1,30 +1,90 @@
 /**
- * HTTP adapter placeholder for the real backend (Phases 1–4).
- * Endpoint paths are GUESSES pending the Backend API Specialist's schema.
+ * Server-side HTTP adapter for the real backend (DATA_SOURCE=http), contracts v1.1 (API_ENDPOINTS.md):
+ * - base `${API_BASE_URL}/v1/workspaces/{ws}/…` with `?mode=practice|real` on reads, `mode` in write bodies;
+ * - envelopes `{data, server_now}` / `{items, next_cursor, server_now}` / `{error, server_now}` → ApiError (i18n'd by code);
+ * - strategy saves: POST (new) or PATCH + If-Match + flat `settings_patch` (409 merge body is preserved on ApiError.body);
+ * - decisions: POST …/approvals/{id}/decision (single-use token + If-Match: "<rev>" + Idempotency-Key).
+ * Decoders for overview / coins / timeline / exit-reasons are pass-through until Backend publishes their JSON schemas
+ * (open item). The default build uses the in-process mock (lib/mock) and never calls this.
  */
+import { randomUUID } from "node:crypto";
+import type { AnyEvent, EventPage, ExitStatsRow } from "@sentra/contracts/wire";
 import type { DashboardApi } from "./api";
+import { approvalFromWire, coinSummaryFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalWire, type WireSettings } from "./contracts";
+import { toApiError } from "./errors";
+import { blankSettings } from "./strategy-schema";
+import type { Strategy, TradeEvent, TradingMode } from "./types";
 
 const base = () => process.env.API_BASE_URL ?? "http://localhost:8080";
+const ws = () => process.env.API_WORKSPACE_ID ?? "ws_mock";
+const wsPath = (p: string) => `/v1/workspaces/${encodeURIComponent(ws())}${p}`;
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${base()}${path}`, { ...init, headers: { accept: "application/json", "content-type": "application/json", ...init?.headers } });
-  if (!res.ok) throw new Error(`${init?.method ?? "GET"} ${path} → ${res.status}`);
-  return (await res.json()) as T;
+async function req<T>(path: string, init: RequestInit & { idempotent?: boolean } = {}): Promise<{ data: T; raw: Record<string, unknown> }> {
+  const write = init.method && init.method !== "GET";
+  const res = await fetch(`${base()}${path}`, {
+    ...init,
+    cache: "no-store",
+    headers: { accept: "application/json", "content-type": "application/json", ...(write ? { "Idempotency-Key": randomUUID() } : {}), ...init.headers },
+  });
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) throw toApiError(res.status, json);
+  return { data: (json.data ?? json) as T, raw: json };
+}
+
+const items = async <T>(path: string) => ((await req<unknown>(path)).raw.items ?? []) as T[];
+
+interface StrategyWire { id: string; rev: number; name: string; status: Strategy["status"]; mode: TradingMode; settings: WireSettings; updated_at?: string; created_at?: string; stats?: Record<string, number> }
+
+function strategyFromWire(w: StrategyWire): Strategy {
+  const fb = { ...blankSettings(), mode: w.mode };
+  const ts = (s?: string) => (s ? Date.parse(s) : 0);
+  return {
+    id: w.id, name: w.name, mode: w.mode, status: w.status, rev: w.rev, settings: { ...settingsFromWire(w.settings, fb), mode: w.mode },
+    openPositions: w.stats?.open_positions ?? 0, realizedPnlSol: 0, unrealizedPnlSol: 0, trades: w.stats?.trades ?? 0, wins: w.stats?.wins ?? 0,
+    maxDrawdownPct: w.stats?.max_drawdown_pct ?? 0, avgHoldSeconds: w.stats?.avg_hold_seconds ?? 0, pnlSpark: [],
+    funnel: { scanned: 0, filtered: 0, signaled: 0, entered: 0, exited: 0, rejections: [] }, createdAt: ts(w.created_at), updatedAt: ts(w.updated_at),
+  };
 }
 
 export const httpApi: DashboardApi = {
-  getOverview: (mode) => req(`/v1/workspaces/${mode}/overview`),
-  listStrategies: (mode) => req(`/v1/workspaces/${mode}/strategies`),
-  getStrategy: (id) => req(`/v1/strategies/${encodeURIComponent(id)}`),
-  publishStrategy: (id, settings) =>
-    req(id ? `/v1/strategies/${encodeURIComponent(id)}/revisions` : "/v1/strategies", { method: "POST", body: JSON.stringify({ settings }) }),
-  listRecentEvents: (mode, limit = 50) => req(`/v1/workspaces/${mode}/events?limit=${limit}`),
-  listCoins: (mode) => req(`/v1/workspaces/${mode}/coins`),
-  getCoinTrail: (mint) => req(`/v1/coins/${encodeURIComponent(mint)}/trail`),
-  getExitStats: (f) => {
-    const q = new URLSearchParams(Object.entries(f).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)]));
-    return req(`/v1/stats/exits?${q}`);
+  getOverview: async (mode) => (await req<never>(wsPath(`/overview?mode=${mode}`))).data,
+  listStrategies: async (mode) => (await items<StrategyWire>(wsPath(`/strategies?mode=${mode}`))).map(strategyFromWire),
+  getStrategy: async (id) => strategyFromWire((await req<StrategyWire>(wsPath(`/strategies/${encodeURIComponent(id)}`))).data),
+  publishStrategy: async (id, settings) => {
+    if (!id) {
+      const { data } = await req<StrategyWire>(wsPath(`/strategies`), { method: "POST", body: JSON.stringify({ mode: settings.mode, name: settings.name, settings: settingsToWire(settings) }) });
+      return { strategyId: data.id, outcome: "published", rev: data.rev };
+    }
+    const cur = (await req<StrategyWire>(wsPath(`/strategies/${encodeURIComponent(id)}`))).data;
+    const patch = settingsPatch(cur.settings, settingsToWire(settings));
+    const { data } = await req<StrategyWire | { proposal: ApprovalWire; strategy: StrategyWire }>(wsPath(`/strategies/${encodeURIComponent(id)}`), {
+      method: "PATCH", headers: { "If-Match": `"${cur.rev}"` }, body: JSON.stringify({ settings_patch: patch }),
+    });
+    return "proposal" in data ? { strategyId: id, outcome: "needs_approval", rev: data.strategy.rev, approvalId: data.proposal.id } : { strategyId: id, outcome: "published", rev: data.rev };
   },
-  listApprovals: (mode) => req(`/v1/workspaces/${mode}/approvals`),
-  decideApproval: (id, decision) => req(`/v1/approvals/${encodeURIComponent(id)}/decisions`, { method: "POST", body: JSON.stringify(decision) }),
+  listRecentEvents: async (mode, limit = 50) => {
+    const page = (await req<unknown>(wsPath(`/events?mode=${mode}&limit=${limit}`))).raw as unknown as EventPage;
+    return (page.items as AnyEvent[]).map(envelopeToTradeEvent).filter((e): e is TradeEvent => e != null);
+  },
+  listCoins: async (mode) => (await items<CoinWire>(wsPath(`/coins?mode=${mode}`))).map(coinSummaryFromWire),
+  getCoinTrail: async (mint) => (await req<never>(wsPath(`/coins/${encodeURIComponent(mint)}/timeline`))).data,
+  getExitStats: async (f) => {
+    const q = new URLSearchParams({ mode: f.mode, ...(f.strategyId ? { strategy_id: f.strategyId } : {}), ...(f.windowHours ? { window: `${f.windowHours}h` } : {}) });
+    return (await items<ExitStatsRow>(wsPath(`/stats/exit-reasons?${q}`))).map(exitStatFromWire);
+  },
+  listApprovals: async (mode) => (await items<ApprovalWire>(wsPath(`/approvals?mode=${mode}`))).map(approvalFromWire),
+  decideApproval: async (id, d) => {
+    if (d.action === "cancel_cooldown") {
+      await req(wsPath(`/guard-changes/${encodeURIComponent(id)}/cancel`), { method: "POST", body: "{}" });
+    } else if (d.action !== "undo_skip") {
+      // undo_skip is client-side only (the reject is sent after the 5 s window).
+      const fresh = approvalFromWire((await req<ApprovalWire>(wsPath(`/approvals/${encodeURIComponent(id)}`))).data);
+      await req(wsPath(`/approvals/${encodeURIComponent(id)}/decision`), {
+        method: "POST",
+        headers: { "If-Match": `"${fresh.rev}"` },
+        body: JSON.stringify({ decision: d.action === "approve" ? "approve" : "reject", token: fresh.decisionToken, expected_rev: fresh.rev, reason: d.action === "skip" ? (d.reason ?? null) : null }),
+      });
+    }
+    return approvalFromWire((await req<ApprovalWire>(wsPath(`/approvals/${encodeURIComponent(id)}`))).data);
+  },
 };

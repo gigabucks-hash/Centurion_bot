@@ -3,14 +3,17 @@ import { useFmt } from "@/lib/i18n/client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, CircleDot, Plus, RotateCcw, Trash2 } from "lucide-react";
-import type { ApprovalMode, CoinStream, ExitPlanPreset, GuardPreset, StrategySettings, TradingMode } from "@/lib/types";
+import type { ApprovalMode, Venue, ExitPlanPreset, GuardPreset, StrategySettings, TradingMode } from "@/lib/types";
 import {
   EXIT_PRESETS, GUARD_CHECKS, GUARD_PRESETS, MUST_HAVE, NUMBER_FIELDS, STEPS, type StepId,
   applyExitPreset, applyGuardPreset, diffSettings, getPath, setPath, settingLabel, stepStatus, validate, type Errors,
 } from "@/lib/strategy-schema";
 import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n";
-import { publishStrategyClient } from "@/lib/client";
+import { asRevConflict, publishStrategyClient, simulateTeammateEditClient, type RevConflict } from "@/lib/client";
+import { settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
+import { errorText } from "@/lib/errors";
+import { RevisionConflict } from "./RevisionConflict";
 
 import { Badge, Button, Card, cn } from "@/components/ui";
 import { NumberInput, Segmented, Toggle, useToast } from "@/components/ui/client";
@@ -50,6 +53,10 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
   const [restorable, setRestorable] = useState<StrategySettings | null>(null);
   const [onlyWeak, setOnlyWeak] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  // The revision the user's edits are based on (If-Match). Moves forward after a merge.
+  const [baseRev, setBaseRev] = useState<{ rev: number; settings: StrategySettings } | null>(base && rev != null ? { rev, settings: base } : null);
+  const [conflict, setConflict] = useState<{ c: RevConflict; base: WireSettings; mine: WireSettings } | null>(null);
+  const [mergedNote, setMergedNote] = useState<number | null>(null);
   const first = useRef(true);
 
   // Offer to restore a local draft (non-secret settings only).
@@ -85,7 +92,8 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
 
   const errText = useErrText();
   const errors = useMemo(() => validate(s), [s]);
-  const diff = useMemo(() => (base ? diffSettings(base, s) : []), [base, s]);
+  const diffBase = baseRev?.settings ?? base;
+  const diff = useMemo(() => (diffBase ? diffSettings(diffBase, s) : []), [diffBase, s]);
   const weakKeys = useMemo(() => new Set(diff.filter((r) => r.direction === "weakens").map((r) => r.key)), [diff]);
   const stepWeak = (id: StepId) =>
     [...weakKeys].some((k) => (k.startsWith("guard.") ? id === "guard" : k.startsWith("screener.") ? id === "screener" : k === "approvalMode" ? id === "entry" : k.startsWith("exit.") ? id === "exit" : false));
@@ -100,10 +108,14 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
     setDirty(true);
   };
 
+  // 1.1.2: the hard stop (from ENTRY, stop_loss_pct) and the trailing stop (from PEAK, peak_trail_pct) are two
+  // separate settings; their hints name the wire key and the reference price so they are never confused.
+  const wireHint = (path: string): string | null =>
+    path === "exit.stopLossPct" ? t("builder.hintStopLoss") : path === "exit.trailingPct" ? t("builder.hintTrail") : path === "exit.timeStopMinutes" ? t("builder.notOnWire") : null;
   const field = (path: string) => {
     const f = NUMBER_FIELDS.find((x) => x.path === path)!;
     const v = getPath(s, path) as number;
-    const b = base ? (getPath(base, path) as number) : null;
+    const b = diffBase ? (getPath(diffBase, path) as number) : null;
     const weakening = b != null && f.guard != null && (f.guard === "max" ? v > b : v < b);
     return (
       <NumberInput
@@ -119,7 +131,7 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
         max={f.max}
         step={f.inc ?? 1}
         error={errText(errors[path])}
-        hint={b != null && b !== v ? t("builder.activeValue", { v: fm.num(b, 2, 0) }) : f.path}
+        hint={b != null && b !== v ? t("builder.activeValue", { v: fm.num(b, 2, 0) }) : wireHint(path) ?? f.path}
         weakening={weakening}
       />
     );
@@ -130,9 +142,10 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
       toast({ kind: "error", text: t("builder.fixN", { n: errorCount }) });
       return;
     }
+    if (conflict) return;
     setPublishing(true);
     try {
-      const r = await publishStrategyClient(strategyId, s);
+      const r = await publishStrategyClient(strategyId, s, baseRev ?? undefined);
       localStorage.removeItem(draftKey);
       if (r.outcome === "needs_approval") {
         toast({ kind: "warning", text: t("builder.guardPending", { mode: t(mode === "real" ? "mode.real" : "mode.practice"), strategy: s.name }) });
@@ -143,14 +156,44 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
       }
       router.refresh();
     } catch (e) {
-      toast({ kind: "error", text: (e as Error).message });
+      const c = asRevConflict(e);
+      if (c && baseRev) setConflict({ c, base: settingsToWire(baseRev.settings), mine: settingsToWire(s) });
+      else toast({ kind: "error", text: errorText(t, e) });
     } finally {
       setPublishing(false);
     }
   }
 
+  function resolveConflict(merged: WireSettings | null) {
+    if (!conflict) return;
+    const theirs = settingsFromWire(conflict.c.current.settings, s);
+    setBaseRev({ rev: conflict.c.current_rev, settings: theirs });
+    setS(merged ? { ...settingsFromWire(merged, s), mode: s.mode } : theirs);
+    setMergedNote(merged ? conflict.c.current_rev : null);
+    setConflict(null);
+  }
+
+  async function teammateEdit() {
+    if (!strategyId) return;
+    try {
+      const w = await simulateTeammateEditClient(strategyId);
+      toast({ kind: "info", text: t("builder.teammateEdited", { rev: w.rev }) });
+    } catch (e) {
+      toast({ kind: "error", text: errorText(t, e) });
+    }
+  }
+
   return (
     <div data-mode={mode}>
+      {conflict && (
+        <RevisionConflict conflict={conflict.c} base={conflict.base} mine={conflict.mine} onMerged={(m) => resolveConflict(m)} onDiscard={() => resolveConflict(null)} />
+      )}
+      {mergedNote != null && !conflict && (
+        <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-semantic-info/40 bg-semantic-infoContainer px-4 py-2 text-body">
+          <Check size={14} className="text-semantic-info" /> {t("conflict.merged", { rev: mergedNote })}
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setMergedNote(null)}>{t("common.dismiss")}</Button>
+        </div>
+      )}
       {restorable && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-semantic-info/40 bg-semantic-infoContainer px-4 py-2 text-body">
           <RotateCcw size={14} className="text-semantic-info" /> {t("builder.draftExists", { name: restorable.name })}
@@ -167,13 +210,16 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
             value={s.name}
             onChange={(e) => update("name", e.target.value)}
             maxLength={60}
-            className={cn("h-10 w-full rounded-md border bg-bg-inset px-3 text-bodyLg outline-none focus:outline-2 focus:outline-border-focus", errors.name ? "border-semantic-loss" : "border-border-default")}
+            className={cn("h-10 w-full rounded-md border bg-bg-sunken px-3 text-bodyLg outline-none focus:outline-2 focus:outline-border-focus", errors.name ? "border-semantic-loss" : "border-border-default")}
           />
         </div>
         <ModeBadge mode={mode} />
         <span className="text-caption text-text-tertiary" aria-live="polite">
-          {dirty ? t("builder.saving") : savedAt ? t("builder.saved", { time: fm.time(savedAt) }) : rev != null ? t("builder.activeRev", { rev }) : t("builder.notSaved")}
+          {dirty ? t("builder.saving") : savedAt ? t("builder.saved", { time: fm.time(savedAt) }) : baseRev ? t("builder.activeRev", { rev: baseRev.rev }) : t("builder.notSaved")}
         </span>
+        {strategyId && (
+          <Button size="sm" variant="ghost" onClick={teammateEdit}>{t("builder.simulateTeammate")}</Button>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[13rem_minmax(0,1fr)_20rem]">
@@ -190,7 +236,7 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
                   step === st.id ? "border-brand-primary bg-brand-primaryContainer text-brand-onPrimaryContainer" : "border-border-subtle bg-bg-surface text-text-secondary hover:text-text-primary",
                 )}
               >
-                <span className="num grid h-6 w-6 place-items-center rounded-full bg-bg-inset text-caption">{i + 1}</span>
+                <span className="num grid h-6 w-6 place-items-center rounded-full bg-bg-sunken text-caption">{i + 1}</span>
                 <span className="flex-1">{t(`steps.${st.id}`)}</span>
                 {status === "error" ? <AlertTriangle size={14} className="text-semantic-loss" aria-label={t("builder.hasErrors")} /> : status === "weakened" ? <CircleDot size={14} className="text-semantic-warning" aria-label={t("builder.loosens")} /> : <Check size={14} className="text-semantic-profit" aria-label={t("builder.valid")} />}
               </button>
@@ -204,11 +250,11 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
               <div>
                 <p className="mb-1 text-label text-text-secondary">{t("builder.streams")}</p>
                 <div className="flex gap-2">
-                  {(["bonding", "graduated"] as CoinStream[]).map((c) => {
+                  {(["curve", "amm"] as Venue[]).map((c) => {
                     const on = s.screener.streams.includes(c);
                     return (
                       <Button key={c} size="sm" variant={on ? "primary" : "secondary"} aria-pressed={on} onClick={() => update("screener.streams", on ? s.screener.streams.filter((x) => x !== c) : [...s.screener.streams, c])}>
-                        {c === "bonding" ? t("builder.bonding") : t("builder.graduated")}
+                        {c === "curve" ? t("builder.bonding") : t("builder.graduated")}
                       </Button>
                     );
                   })}
@@ -287,7 +333,7 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
               />
               <Ladder s={s} errors={errors} onChange={(tps) => { update("exit.takeProfits", tps); update("exit.plan", "custom"); }} />
               <div className="grid gap-3 sm:grid-cols-2">{NUMBER_FIELDS.filter((f) => f.step === "exit").map((f) => field(f.path))}</div>
-              <Toggle label={t("builder.stallExit")} hint={t("builder.stallExitHint")} checked={s.exit.stallExit} onChange={(v) => update("exit.stallExit", v)} />
+              <Toggle label={t("builder.stallExit")} hint={`${t("builder.stallExitHint")} · ${t("builder.notOnWire")}`} checked={s.exit.stallExit} onChange={(v) => update("exit.stallExit", v)} />
             </div>
           )}
 
@@ -304,7 +350,7 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
         </Card>
 
         <aside className="flex flex-col gap-4">
-          <Card title={base ? t("builder.changesVs", { rev: rev ?? "—" }) : t("builder.newStrategy")} action={base && diff.length > 0 ? (
+          <Card title={base ? t("builder.changesVs", { rev: baseRev?.rev ?? rev ?? "—" }) : t("builder.newStrategy")} action={base && diff.length > 0 ? (
             <label className="flex items-center gap-1.5 text-caption text-text-secondary"><input type="checkbox" checked={onlyWeak} onChange={(e) => setOnlyWeak(e.target.checked)} className="accent-[var(--color-brand-primary)]" /> {t("builder.onlyWeakening")}</label>
           ) : undefined}>
             {!base ? (
@@ -372,7 +418,7 @@ function Ladder({ s, errors, onChange }: { s: StrategySettings; errors: Errors; 
       {errors["exit.takeProfits"] && <p className="mt-1 text-caption text-semantic-loss">{errText(errors["exit.takeProfits"])}</p>}
       <Button size="sm" className="mt-2" disabled={tps.length >= 8} onClick={() => onChange([...tps, { gainPct: (tps[tps.length - 1]?.gainPct ?? 0) + 50, sellPct: Math.max(1, Math.min(25, 100 - total)) }])}><Plus size={14} /> {t("builder.addRung")}</Button>
       {tps.length > 0 && (
-        <div className="mt-3 flex h-6 overflow-hidden rounded-sm bg-bg-inset" aria-label={t("builder.ladderPreview")}>
+        <div className="mt-3 flex h-6 overflow-hidden rounded-sm bg-bg-sunken" aria-label={t("builder.ladderPreview")}>
           {tps.map((r, i) => (
             <span key={i} className="flex items-center justify-center border-r border-bg-surface bg-semantic-profit/70 text-overline text-bg-canvas" style={{ width: `${Math.min(100, r.sellPct)}%` }}>+{r.gainPct}%</span>
           ))}
@@ -394,14 +440,14 @@ function Review({ s, errors }: { s: StrategySettings; errors: Errors }) {
     <div className="flex flex-col gap-4">
       <dl className="grid gap-2 text-caption sm:grid-cols-2">
         {[
-          [t("builder.sum.streams"), s.screener.streams.map((c) => (c === "bonding" ? t("builder.bonding") : t("builder.graduated"))).join(", ")],
+          [t("builder.sum.streams"), s.screener.streams.map((c) => (c === "curve" ? t("builder.bonding") : t("builder.graduated"))).join(", ")],
           [t("builder.sum.passMark"), `${s.screener.passMark} pts`],
           [t("builder.sum.guard"), t("builder.sumGuard", { preset: t(`guardPreset.${s.guard.preset}`), n: Object.values(s.guard.checks).filter(Boolean).length })],
           [t("builder.sum.approval"), t(`approvalMode.${s.approvalMode}`)],
           [t("builder.sum.sizing"), t("builder.sumSizing", { trade: fm.sol(s.sizing.tradeSol), budget: fm.sol(s.sizing.budgetSol), max: s.sizing.maxOpen })],
           [t("builder.sum.exit"), t("builder.sumExit", { n: s.exit.takeProfits.length, trail: s.exit.trailingPct, sl: s.exit.stopLossPct })],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-md bg-bg-inset px-3 py-2"><dt className="text-text-tertiary">{k}</dt><dd className="num text-text-primary">{v}</dd></div>
+          <div key={k} className="rounded-md bg-bg-sunken px-3 py-2"><dt className="text-text-tertiary">{k}</dt><dd className="num text-text-primary">{v}</dd></div>
         ))}
       </dl>
       <div className="rounded-md border border-border-subtle p-3">

@@ -14,7 +14,7 @@ export function StatsFilters({ strategies }: { strategies: { id: string; name: s
     else q.delete(k);
     router.replace(`${pathname}${q.size ? `?${q}` : ""}`, { scroll: false });
   };
-  const sel = "h-9 rounded-md border border-border-default bg-bg-inset px-2 text-caption text-text-primary";
+  const sel = "h-9 rounded-md border border-border-default bg-bg-sunken px-2 text-caption text-text-primary";
   return (
     <div className="flex flex-wrap gap-2">
       <select aria-label={t("common.strategy")} className={sel} value={sp.get("strategy") ?? ""} onChange={(e) => set("strategy", e.target.value)}>

@@ -60,7 +60,7 @@ export function ModeSwitch({ mode, summary }: { mode: TradingMode; summary: { ca
       </div>
       <Dialog open={open} onClose={() => setOpen(false)} title={t("mode.switchTitle")} accent="real" initialFocusRef={cancelRef}>
         <p className="text-body text-text-secondary">{t("mode.switchBody")}</p>
-        <dl className="mt-4 grid grid-cols-3 gap-3 rounded-md bg-bg-inset p-3 text-caption">
+        <dl className="mt-4 grid grid-cols-3 gap-3 rounded-md bg-bg-sunken p-3 text-caption">
           <div><dt className="text-text-tertiary">{t("mode.realBalance")}</dt><dd className="num text-numSm text-text-primary">{summary.walletConnected ? f.sol(summary.cashSol) : t("mode.balanceMock")}</dd></div>
           <div><dt className="text-text-tertiary">{t("mode.lossStop")}</dt><dd className="num text-numSm text-text-primary">{summary.lossStopPct}%</dd></div>
           <div><dt className="text-text-tertiary">{t("mode.walletTwoFa")}</dt><dd className="text-text-primary">{summary.walletConnected ? t("mode.ready") : t("mode.setupSkipped")}</dd></div>

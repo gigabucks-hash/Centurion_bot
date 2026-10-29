@@ -24,8 +24,8 @@ export function Funnel({ funnel }: { funnel: StrategyFunnel }) {
         return (
           <li key={stage} className="grid grid-cols-[5rem_1fr_6rem] items-center gap-2 text-caption">
             <span className="text-text-secondary">{t(`strategies.stage.${stage}`)}</span>
-            <span className="h-4 rounded-xs bg-bg-inset">
-              <span className="block h-4 rounded-xs bg-brand-primary" style={{ width: `${width(n)}%`, opacity: 1 - i * 0.13 }} />
+            <span className="h-4 rounded-xs bg-bg-sunken">
+              <span className="block h-4 rounded-xs bg-brand-primary" style={{ width: `${width(n).toFixed(2)}%`, opacity: Number((1 - i * 0.13).toFixed(2)) }} />
             </span>
             <span className="num text-right text-numSm text-text-primary">
               {f.int(n)}
