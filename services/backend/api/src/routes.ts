@@ -1,9 +1,8 @@
 // REST endpoints (packages/contracts/API_ENDPOINTS.md, contracts 1.1.3). Practice mode only.
 import { ApiError } from "./errors.ts";
-import type { Config } from "./config.ts";
 import { asService, asUser, requireMember, type Db, type Tx } from "./db.ts";
 import { Router, readJson, send, type Ctx } from "./http.ts";
-import { bearer, principal, verifyJwt, type Principal } from "./jwt.ts";
+import { authenticate, type Deps } from "./deps.ts";
 import {
   expectedRev, idempotencyKey, limitParam, modeParam, requireRev, requireScope, seqParam, timeRange, uuidParam,
 } from "./rules.ts";
@@ -11,22 +10,16 @@ import {
   APPROVAL_COLUMNS, EVENT_COLUMNS, approvalWire, decodeCursor, encodeCursor, eventWire, exitStatsWire,
   portfolioWire, workspaceWire, type EventRow,
 } from "./wire.ts";
-import { streamEvents, type MarkHub } from "./sse.ts";
+import { streamEvents } from "./sse.ts";
+import { registerStrategies } from "./routes_strategies.ts";
+import { registerReads } from "./routes_reads.ts";
+import { registerAccount } from "./routes_account.ts";
 
 export const CONTRACTS_VERSION = "1.1.3";
 /** 1.1.3: closed enum, only with decision=reject (default user_declined, applied in SQL). */
 export const APPROVAL_REJECT_REASONS = ["user_declined", "not_tradeable", "price_moved", "other"] as const;
 
-export interface Deps {
-  cfg: Config;
-  db: Db;
-  marks: MarkHub;
-}
-
-export function authenticate(ctx: Ctx, cfg: Config): Principal {
-  const claims = verifyJwt(bearer(ctx.req.headers.authorization), cfg.jwtSecret, cfg.jwtAudience);
-  return principal(claims);
-}
+export { authenticate, type Deps } from "./deps.ts";
 
 const etag = (rev: unknown) => ({ ETag: `"${String(rev)}"` });
 
@@ -317,6 +310,10 @@ export function buildRouter(d: Deps): Router {
     const mode = modeParam(ctx);
     await streamEvents(ctx, d, p, ws, mode);
   });
+
+  registerStrategies(r, d);
+  registerReads(r, d);
+  registerAccount(r, d);
 
   // removed in 1.1.2 (moved under the workspace)
   r.add("GET", "/v1/events/stream", async () => {

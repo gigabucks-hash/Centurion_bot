@@ -3,6 +3,7 @@
 //   strictly ascending, so a client can always resume from the last `id` (Last-Event-ID or after_seq).
 // - include=marks: `event: mark` frames (MarkMessage, no id), fed by Postgres NOTIFY on SSE_MARKS_CHANNEL.
 // - include=clock: `event: clock` frames every SSE_CLOCK_MS with {server_now, safe_seq} (no id).
+// - one shared service-role poller per (workspace, mode) feeds all streams (feed.ts).
 // - `: hb` comment every SSE_HEARTBEAT_MS. The stream ends when the access token expires.
 import pg from "pg";
 import { ApiError } from "./errors.ts";
@@ -11,7 +12,7 @@ import { baseHeaders, serverNow, type Ctx } from "./http.ts";
 import type { Principal } from "./jwt.ts";
 import { seqParam } from "./rules.ts";
 import { EVENT_COLUMNS, eventWire, type EventRow } from "./wire.ts";
-import type { Deps } from "./routes.ts";
+import type { Deps } from "./deps.ts";
 
 export interface MarkMessage {
   mint: string;
@@ -120,13 +121,13 @@ export async function streamEvents(ctx: Ctx, d: Deps, p: Principal, ws: string, 
 
   let closed = false;
   const timers: NodeJS.Timeout[] = [];
-  let unsubscribe: (() => void) | null = null;
+  const unsubscribers: (() => void)[] = [];
   const close = () => {
     if (closed) return;
     closed = true;
     timers.forEach(clearInterval);
     timers.forEach(clearTimeout);
-    unsubscribe?.();
+    unsubscribers.forEach((u) => u());
     res.end();
   };
   ctx.req.on("close", close);
@@ -136,40 +137,55 @@ export async function streamEvents(ctx: Ctx, d: Deps, p: Principal, ws: string, 
   const msLeft = p.claims.exp * 1000 - Date.now();
   timers.push(setTimeout(close, Math.max(0, Math.min(msLeft, 2_147_000_000))));
 
-  let polling = false;
-  const poll = async () => {
-    if (closed || polling) return;
-    polling = true;
-    try {
-      const { rows, safe } = await asUser(d.db, p.claims, async (c) => {
-        const s = await c.query<{ s: string }>("select public.events_safe_seq()::text as s");
-        const safe = s.rows[0]?.s ?? "0";
-        const r = await c.query(
-          `select ${EVENT_COLUMNS} from public.events
-            where workspace_id = $1 and mode = $2::public.trade_mode and seq > $3::bigint and seq <= $4::bigint
-            order by seq asc limit 500`,
-          [ws, mode, cursor, safe],
-        );
-        return { rows: r.rows as EventRow[], safe };
-      });
-      if (closed) return;
-      const now = serverNow();
-      for (const e of rows) {
-        res.write(frame(e.type, eventWire(e, now), String(e.seq)));
-        cursor = String(e.seq);
-      }
-      if (BigInt(safe) > BigInt(safeSeq)) safeSeq = safe;
-      if (rows.length === 500) setImmediate(poll); // backlog: keep draining
-    } catch (e) {
-      // membership revoked etc.: end the stream; the client reconnects and gets the real status
-      console.error("sse poll failed:", e instanceof Error ? e.message : e);
-      close();
-    } finally {
-      polling = false;
+  // Shared poller: register first (queue), catch up as the user, then drain the queue de-duplicated by seq.
+  let catching = true;
+  let queue: EventRow[] = [];
+  const emit = (rows: EventRow[]) => {
+    const now = serverNow();
+    for (const e of rows) {
+      if (BigInt(e.seq) <= BigInt(cursor)) continue;
+      res.write(frame(e.type, eventWire(e, now), String(e.seq)));
+      cursor = String(e.seq);
     }
   };
-  timers.push(setInterval(poll, d.cfg.ssePollMs));
-  void poll();
+  const sub = await d.feeds.subscribe(ws, mode, (b) => {
+    if (closed) return;
+    if (BigInt(b.safe) > BigInt(safeSeq)) safeSeq = b.safe;
+    if (catching) queue.push(...b.rows);
+    else emit(b.rows);
+  });
+  unsubscribers.push(sub.unsubscribe);
+  if (BigInt(sub.safe) > BigInt(safeSeq)) safeSeq = sub.safe;
+  try {
+    for (;;) {
+      const rows = await asUser(d.db, p.claims, async (c) => {
+        const r = await c.query(
+          `select ${EVENT_COLUMNS} from public.events
+            where workspace_id = $1 and mode = $2::public.trade_mode and seq > $3::bigint and seq <= public.events_safe_seq()
+            order by seq asc limit 500`,
+          [ws, mode, cursor],
+        );
+        return r.rows as EventRow[];
+      });
+      if (closed) return;
+      emit(rows);
+      if (rows.length < 500) break;
+    }
+  } catch (e) {
+    console.error("sse catch-up failed:", e instanceof Error ? e.message : e);
+    close();
+    return;
+  }
+  catching = false;
+  queue.sort((a, b) => (BigInt(a.seq) < BigInt(b.seq) ? -1 : 1));
+  emit(queue);
+  queue = [];
+
+  // membership can be revoked while the stream is open
+  timers.push(setInterval(() => {
+    if (closed) return;
+    asUser(d.db, p.claims, (c) => requireMember(c, ws)).catch(() => close());
+  }, d.cfg.sseMemberCheckMs));
 
   if (include.has("clock")) {
     const tick = () => {
@@ -178,9 +194,9 @@ export async function streamEvents(ctx: Ctx, d: Deps, p: Principal, ws: string, 
     timers.push(setInterval(tick, d.cfg.sseClockMs));
   }
   if (include.has("marks")) {
-    unsubscribe = d.marks.subscribe(ws, mode, (m) => {
+    unsubscribers.push(d.marks.subscribe(ws, mode, (m) => {
       if (!closed) res.write(frame("mark", { ...m, server_now: serverNow() }));
-    });
+    }));
   }
   timers.push(setInterval(() => !closed && res.write(": hb\n\n"), d.cfg.sseHeartbeatMs));
 }

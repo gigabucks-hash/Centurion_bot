@@ -104,3 +104,33 @@ export function timeRange(ctx: Ctx): { from: string | null; to: string | null } 
   const secs = WINDOWS[w];
   return { from: secs == null ? null : new Date(Date.now() - secs * 1000).toISOString(), to: null };
 }
+
+const CONFLICTS = new Set(["VERSION_CONFLICT", "STRATEGY_REV_CONFLICT", "CONFIRMATION_RESTART_REQUIRED"]);
+
+/**
+ * `current` is REQUIRED on every 409 conflict (API_ENDPOINTS 2.1). The SQL functions send it; this is the
+ * server-side guarantee for any path that does not: load the resource as it is now and attach it.
+ */
+export async function withCurrent<T>(fn: () => Promise<T>, load: () => Promise<unknown>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (e instanceof ApiError && CONFLICTS.has(e.code) && e.details.current === undefined) {
+      e.details.current = (await load().catch(() => null)) ?? null;
+    }
+    throw e;
+  }
+}
+
+/** Optional free-form device label (metadata only, like p_device). */
+export function deviceLabel(ctx: Ctx, body: Record<string, unknown>): string | null {
+  const v = body.device ?? ctx.req.headers["x-sentra-device"];
+  if (v === undefined || v === null || v === "") return null;
+  if (typeof v !== "string" || v.length > 64 || /[\u0000-\u001f]/.test(v)) throw new ApiError("VALIDATION_FAILED", { field: "device", max: 64 });
+  return v;
+}
+
+/** "app" endpoints (deletion, unlink, Real switches): first-party apps only, never MCP agents. */
+export function requireApp(p: Principal): void {
+  if (p.via === "mcp") throw new ApiError("FORBIDDEN_SCOPE", { required: "app" });
+}

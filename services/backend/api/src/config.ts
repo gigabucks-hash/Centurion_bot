@@ -13,6 +13,10 @@ export interface Config {
   sseHeartbeatMs: number;
   /** Postgres NOTIFY channel carrying mark prices for `include=marks`. */
   marksChannel: string;
+  /** Account deletion grace, server-side only (7-30, default 7). */
+  accountDeletionGraceDays: number;
+  /** SSE: how often each stream re-checks workspace membership (ms). */
+  sseMemberCheckMs: number;
 }
 
 export class ConfigError extends Error {}
@@ -51,5 +55,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     sseClockMs: int(env, "SSE_CLOCK_MS", 5_000, 50, 60_000),
     sseHeartbeatMs: int(env, "SSE_HEARTBEAT_MS", 15_000, 50, 120_000),
     marksChannel,
+    accountDeletionGraceDays: int(env, "ACCOUNT_DELETION_GRACE_DAYS", 7, 7, 30),
+    sseMemberCheckMs: int(env, "SSE_MEMBER_CHECK_MS", 30_000, 50, 600_000),
   };
 }

@@ -82,6 +82,16 @@ export function send(ctx: Ctx, status: number, body: Record<string, unknown>, he
   ctx.res.end(s);
 }
 
+function retryAfter(e: ApiError): Record<string, string> {
+  if (e.headers["Retry-After"]) return {};
+  const at = e.details.next_allowed_at;
+  if (typeof at === "string" && !Number.isNaN(Date.parse(at))) {
+    return { "Retry-After": String(Math.max(1, Math.ceil((Date.parse(at) - Date.now()) / 1000))) };
+  }
+  const s = e.details.retry_after_s;
+  return typeof s === "number" && s > 0 ? { "Retry-After": String(Math.ceil(s)) } : {};
+}
+
 export function sendError(ctx: Ctx, e: ApiError): void {
   const now = serverNow();
   const s = JSON.stringify(errorBody(e, ctx.requestId, now, ctx.lang));
@@ -93,6 +103,7 @@ export function sendError(ctx: Ctx, e: ApiError): void {
     ...baseHeaders(ctx, now),
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(s).toString(),
+    ...retryAfter(e),
     ...e.headers,
   });
   ctx.res.end(s);

@@ -8,6 +8,7 @@ import { readdirSync } from "node:fs";
 import { loadConfig } from "../src/config.ts";
 import { createPool, type Db } from "../src/db.ts";
 import { signJwt } from "../src/jwt.ts";
+import { FeedHub } from "../src/feed.ts";
 import { MarkHub } from "../src/sse.ts";
 import { createApiServer } from "../src/server.ts";
 
@@ -48,6 +49,7 @@ export interface Harness {
   db: Db;
   server: Server;
   marks: MarkHub;
+  feeds: FeedHub;
   stop(): Promise<void>;
 }
 
@@ -60,11 +62,13 @@ export async function startHarness(): Promise<Harness> {
     SSE_POLL_MS: "40",
     SSE_CLOCK_MS: "100",
     SSE_HEARTBEAT_MS: "1000",
+    SSE_MEMBER_CHECK_MS: "100",
   });
   const db = createPool(cfg.databaseUrl);
   const marks = new MarkHub(cfg.databaseUrl, cfg.marksChannel);
   await marks.start();
-  const server = createApiServer({ cfg, db, marks });
+  const feeds = new FeedHub(db, cfg.ssePollMs);
+  const server = createApiServer({ cfg, db, marks, feeds });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   const { port } = server.address() as AddressInfo;
   return {
@@ -72,16 +76,18 @@ export async function startHarness(): Promise<Harness> {
     db,
     server,
     marks,
+    feeds,
     async stop() {
       server.closeAllConnections();
       await new Promise<void>((r) => server.close(() => r()));
+      feeds.stop();
       await marks.stop();
       await db.end();
     },
   };
 }
 
-export function token(sub: string, opts: { scopes?: string[]; client?: string; exp?: number; secret?: string } = {}): string {
+export function token(sub: string, opts: { scopes?: string[]; client?: string; exp?: number; secret?: string; extra?: Record<string, unknown> } = {}): string {
   return signJwt(
     {
       sub,
@@ -90,6 +96,7 @@ export function token(sub: string, opts: { scopes?: string[]; client?: string; e
       exp: opts.exp ?? Math.floor(Date.now() / 1000) + 600,
       app_scopes: opts.scopes ?? ["read", "trade"],
       ...(opts.client ? { sentra_client: opts.client } : {}),
+      ...(opts.extra ?? {}),
     },
     opts.secret ?? SECRET,
   );

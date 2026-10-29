@@ -1,0 +1,242 @@
+// Strategies (API_ENDPOINTS 4.3) and practice reset (4.2). All writes go through SQL functions that take the
+// actor from auth.uid() and the channel from the JWT claim.
+import { ApiError, fromReturnedError } from "./errors.ts";
+import { asUser, requireMember, type Tx } from "./db.ts";
+import { readJson, send, type Ctx, type Router } from "./http.ts";
+import { idempotent } from "./idem.ts";
+import {
+  deviceLabel, expectedRev, idempotencyKey, limitParam, modeParam, requireRev, requireScope, uuidParam, withCurrent,
+} from "./rules.ts";
+import { authenticate, type Deps } from "./deps.ts";
+import { iso } from "./wire.ts";
+
+const etag = (rev: unknown) => ({ ETag: `"${String(rev)}"` });
+const NAME_MAX = 80;
+
+async function strategyIn(c: Tx, id: string, ws: string): Promise<Record<string, unknown>> {
+  const r = await c.query("select public.strategy_wire(s) as w from public.strategies s where s.id = $1 and s.workspace_id = $2", [id, ws]);
+  const w = r.rows[0]?.w as Record<string, unknown> | undefined;
+  if (!w) throw new ApiError("NOT_FOUND");
+  return w;
+}
+
+function strategyBody(body: Record<string, unknown>) {
+  const { name, settings, settings_patch, status } = body;
+  if (name !== undefined && (typeof name !== "string" || name.length < 1 || name.length > NAME_MAX)) {
+    throw new ApiError("VALIDATION_FAILED", { field: "name", range: `1-${NAME_MAX}` });
+  }
+  for (const [k, v] of [["settings", settings], ["settings_patch", settings_patch]] as const) {
+    if (v !== undefined && (v === null || typeof v !== "object" || Array.isArray(v))) throw new ApiError("VALIDATION_FAILED", { field: k });
+  }
+  if (status !== undefined && typeof status !== "string") throw new ApiError("VALIDATION_FAILED", { field: "status" });
+  return { name: name as string | undefined, settings: settings as object | undefined, patch: settings_patch as object | undefined, status: status as string | undefined };
+}
+
+export function registerStrategies(r: Router, d: Deps): void {
+  const base = "/v1/workspaces/:ws/strategies";
+
+  r.add("GET", base, async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const mode = modeParam(ctx);
+    const status = ctx.url.searchParams.get("status");
+    if (status !== null && !["draft", "running", "paused", "archived"].includes(status)) throw new ApiError("VALIDATION_FAILED", { field: "status" });
+    const limit = limitParam(ctx, 100, 100);
+    const items = await asUser(d.db, p.claims, async (c) => {
+      await requireMember(c, ws);
+      const q = await c.query(
+        `select public.strategy_wire(s) as w from public.strategies s
+          where s.workspace_id = $1 and s.mode = $2::public.trade_mode and ($3::text is null or s.status::text = $3)
+          order by s.created_at desc, s.id desc limit $4`,
+        [ws, mode, status, limit],
+      );
+      return q.rows.map((x) => x.w);
+    });
+    send(ctx, 200, { items, next_cursor: null });
+  });
+
+  r.add("POST", base, async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "trade");
+    const ws = uuidParam(ctx, "ws");
+    const body = await readJson(ctx);
+    modeParam(ctx, body.mode);
+    const b = strategyBody(body);
+    if (b.name === undefined) throw new ApiError("VALIDATION_FAILED", { field: "name", range: `1-${NAME_MAX}` });
+    const status = b.status ?? "draft";
+    if (status !== "draft" && status !== "paused") throw new ApiError("VALIDATION_FAILED", { field: "status", allowed: ["draft", "paused"] });
+    const device = deviceLabel(ctx, body);
+    const key = idempotencyKey(ctx);
+    await idempotent(ctx, d.db, p, key, body, async () => {
+      const w = await asUser(d.db, p.claims, async (c) => {
+        const q = await c.query("select public.create_strategy($1, $2, $3, $4::public.strategy_status, $5) as r", [ws, b.name, JSON.stringify(b.settings ?? {}), status, device]);
+        return q.rows[0]?.r as Record<string, unknown>;
+      });
+      const { server_now, ...data } = w;
+      return { status: 201, body: { data, server_now }, headers: { ...etag(data.rev), Location: `/v1/workspaces/${ws}/strategies/${String(data.id)}` } };
+    });
+  });
+
+  r.add("GET", `${base}/:id`, async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const w = await asUser(d.db, p.claims, (c) => strategyIn(c, id, ws));
+    send(ctx, 200, { data: w }, etag(w.rev));
+  });
+
+  r.add("GET", `${base}/:id/revisions`, async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const items = await asUser(d.db, p.claims, async (c) => {
+      await strategyIn(c, id, ws);
+      const q = await c.query(
+        `select rev, name, status::text as status, changed_by, changed_via, device, created_at
+           from public.strategy_revisions where strategy_id = $1 order by rev desc limit 200`,
+        [id],
+      );
+      return q.rows.map((x) => ({ ...x, created_at: iso(x.created_at) }));
+    });
+    send(ctx, 200, { items, next_cursor: null });
+  });
+
+  /** Merge base for the 3-way conflict review. */
+  r.add("GET", `${base}/:id/revisions/:rev`, async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const rev = Number(ctx.params.rev);
+    if (!Number.isInteger(rev) || rev < 1) throw new ApiError("NOT_FOUND");
+    const row = await asUser(d.db, p.claims, async (c) => {
+      await strategyIn(c, id, ws);
+      const q = await c.query(
+        `select strategy_id as id, rev, name, status::text as status, settings, changed_by, changed_via, device, created_at
+           from public.strategy_revisions where strategy_id = $1 and rev = $2`,
+        [id, rev],
+      );
+      return q.rows[0] as Record<string, unknown> | undefined;
+    });
+    if (!row) throw new ApiError("NOT_FOUND");
+    send(ctx, 200, { data: { ...row, created_at: iso(row.created_at) } });
+  });
+
+  const load = (p: ReturnType<typeof authenticate>, id: string, ws: string) => () => asUser(d.db, p.claims, (c) => strategyIn(c, id, ws));
+
+  /** PATCH: `{settings_patch?, name?, status?}` + If-Match / expected_rev. JSON merge patch (null removes a key). */
+  r.add("PATCH", `${base}/:id`, async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "trade");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const body = await readJson(ctx);
+    const b = strategyBody(body);
+    if (b.settings !== undefined) throw new ApiError("VALIDATION_FAILED", { field: "settings", hint: "PATCH takes settings_patch" });
+    if (b.status !== undefined && !["draft", "running", "paused"].includes(b.status)) {
+      throw new ApiError("VALIDATION_FAILED", { field: "status", allowed: ["draft", "running", "paused"], hint: "archive/delete have their own endpoints" });
+    }
+    const rev = requireRev(expectedRev(ctx, body));
+    const device = deviceLabel(ctx, body);
+    const key = idempotencyKey(ctx);
+    await idempotent(ctx, d.db, p, key, { ...body, expected_rev: rev }, () =>
+      withCurrent(async () => {
+        const w = await asUser(d.db, p.claims, async (c) => {
+          await strategyIn(c, id, ws);
+          const q = await c.query("select public.update_strategy($1, $2, $3, $4, $5::public.strategy_status, $6, null) as r", [
+            id, rev, b.patch ? JSON.stringify(b.patch) : null, b.name ?? null, b.status ?? null, device,
+          ]);
+          const out = q.rows[0]?.r as Record<string, unknown>;
+          const err = fromReturnedError(out);
+          if (err) throw err;
+          return strategyIn(c, id, ws);
+        });
+        return { status: 200, body: { data: w }, headers: etag(w.rev) };
+      }, load(p, id, ws)),
+    );
+  });
+
+  const status = (to: "running" | "paused") => async (ctx: Ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "trade");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const body = await readJson(ctx);
+    const rev = requireRev(expectedRev(ctx, body));
+    const key = idempotencyKey(ctx);
+    await idempotent(ctx, d.db, p, key, { ...body, expected_rev: rev }, () =>
+      withCurrent(async () => {
+        const w = await asUser(d.db, p.claims, async (c) => {
+          await strategyIn(c, id, ws);
+          const q = await c.query("select public.set_strategy_status($1, $2, $3) as r", [id, to, rev]);
+          const err = fromReturnedError(q.rows[0]?.r as Record<string, unknown>);
+          if (err) throw err;
+          return strategyIn(c, id, ws);
+        });
+        return { status: 200, body: { data: w }, headers: etag(w.rev) };
+      }, load(p, id, ws)),
+    );
+  };
+  r.add("POST", `${base}/:id/pause`, status("paused"));
+  r.add("POST", `${base}/:id/resume`, status("running"));
+
+  const retire = (action: "archive" | "delete") => async (ctx: Ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "trade");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const body = await readJson(ctx);
+    const rev = requireRev(expectedRev(ctx, body));
+    const key = idempotencyKey(ctx);
+    await idempotent(ctx, d.db, p, key, { ...body, expected_rev: rev, action }, () =>
+      withCurrent(async () => {
+        const out = await asUser(d.db, p.claims, async (c) => {
+          await strategyIn(c, id, ws);
+          const q = await c.query("select public.retire_strategy_by_user($1, $2, $3) as r", [id, rev, action]);
+          return q.rows[0]?.r as Record<string, unknown>;
+        });
+        const { server_now, ...data } = out;
+        return { status: 200, body: { data, server_now }, headers: action === "archive" ? etag(data.rev) : {} };
+      }, load(p, id, ws)),
+    );
+  };
+  r.add("POST", `${base}/:id/archive`, retire("archive"));
+  r.add("DELETE", `${base}/:id`, retire("delete"));
+
+  // ---- practice reset (a direct user action, not a proposal) ------------------------------------
+  r.add("POST", "/v1/workspaces/:ws/practice/reset", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "trade");
+    const ws = uuidParam(ctx, "ws");
+    const body = await readJson(ctx);
+    modeParam(ctx, body.mode);
+    const key = idempotencyKey(ctx);
+    await idempotent(ctx, d.db, p, key, body, async () => {
+      const out = await asUser(d.db, p.claims, async (c) => {
+        await requireMember(c, ws);
+        const q = await c.query("select public.reset_practice($1) as r", [ws]);
+        return q.rows[0]?.r as Record<string, unknown>;
+      });
+      return { status: 200, body: out };
+    });
+  });
+
+  r.add("GET", "/v1/workspaces/:ws/practice/resets", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const items = await asUser(d.db, p.claims, async (c) => {
+      await requireMember(c, ws);
+      const q = await c.query(
+        `select id::text as id, from_epoch, to_epoch, starting_lamports::text as starting_lamports, actor_user, archived, created_at
+           from public.practice_resets where workspace_id = $1 order by created_at desc limit 100`,
+        [ws],
+      );
+      return q.rows.map((x) => ({ ...x, created_at: iso(x.created_at) }));
+    });
+    send(ctx, 200, { items, next_cursor: null });
+  });
+}
