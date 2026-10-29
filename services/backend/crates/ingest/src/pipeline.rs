@@ -47,17 +47,25 @@ pub struct Pipeline {
 
 /// `market_cap_lamports` (integer string), `mcap_usd` (decimal string, display-only, = the screener's
 /// `mcap_usd` metric) and `mcap_as_of`, merged into coin.detected / screener.scored / pick.created.
+/// 1.1.5 `mcap_source`: `curve` | `pool` (where the price came from), `unavailable` when market_cap_lamports is null.
 pub fn mcap_fields(
     mc: Option<&common::MarketCap>,
     mcap_usd: Option<f64>,
     observed_at: common::TsMs,
+    venue: common::Venue,
 ) -> serde_json::Value {
+    let source = match (mc, venue) {
+        (None, _) => "unavailable",
+        (Some(_), common::Venue::Curve) => "curve",
+        (Some(_), common::Venue::Amm) => "pool",
+    };
     let usd = mcap_usd.filter(|v| v.is_finite() && *v >= 0.0);
     let as_of = mc.map(|m| m.as_of).or(usd.map(|_| observed_at));
     json!({
         "market_cap_lamports": mc.map(|m| m.lamports.to_string()),
         "mcap_usd": usd.map(|v| crate::marks::decimal(v, 2)),
         "mcap_as_of": as_of.map(crate::marks::rfc3339_ms),
+        "mcap_source": source,
     })
 }
 
@@ -176,7 +184,7 @@ impl Pipeline {
         if let Some(usd) = market_cap.and_then(|m| m.usd) {
             metrics.mcap_usd = Some(usd);
         }
-        let mcap = mcap_fields(market_cap.as_ref(), metrics.mcap_usd, c.ts);
+        let mcap = mcap_fields(market_cap.as_ref(), metrics.mcap_usd, c.ts, c.venue);
         let snap = CoinSnapshot {
             mint: c.mint.clone(),
             venue: c.venue,
@@ -662,6 +670,10 @@ pub(crate) mod tests {
             assert_eq!(pl["market_cap_lamports"], "425000000000", "{kind}");
             assert_eq!(pl["mcap_usd"], "212500", "{kind}");
             assert_eq!(pl["mcap_as_of"], "2025-10-29T01:06:40.000Z", "{kind}");
+            assert!(
+                pl["mcap_source"] == "curve" || pl["mcap_source"] == "pool",
+                "{kind}"
+            );
         }
         // the screener measured the same value (fixture said 350000; the computed value wins)
         let pick = &events_of(&repo, "pick.created").await[0]["payload"]["score"]["checks"];
@@ -714,6 +726,7 @@ pub(crate) mod tests {
         assert_eq!(d["market_cap_lamports"], serde_json::Value::Null);
         assert_eq!(d["mcap_usd"], serde_json::Value::Null);
         assert_eq!(d["mcap_as_of"], serde_json::Value::Null);
+        assert_eq!(d["mcap_source"], "unavailable");
     }
 
     #[tokio::test]

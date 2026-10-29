@@ -7,7 +7,7 @@ import type { ErrorCode } from "./errors";
 import type { Base58, DecimalString, Int64String, IsoTs, Lamports, RawQty, Uuid } from "./units";
 
 export const EVENT_SCHEMA_VERSION = 1 as const;
-export const CONTRACTS_VERSION = "1.1.4" as const;
+export const CONTRACTS_VERSION = "1.1.5" as const;
 
 /** Any JSON value (used instead of `unknown` on the wire). */
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
@@ -21,12 +21,15 @@ export type Venue = "curve" | "amm";
 export type CoinStream = Venue;
 export type GuardVerdict = "PASS" | "WARN" | "FAIL";
 export type GuardCheckStatus = "PASS" | "WARN" | "FAIL" | "UNKNOWN";
-export type ProposalKind = "buy_pick" | "guard_change" | "team_action";
+/** 1.1.5 adds sell_position (sell proposals with a sell quote). */
+export type ProposalKind = "buy_pick" | "guard_change" | "team_action" | "sell_position";
 /** UI label for "rejected" is "Skipped". */
 export type ProposalStatus = "pending" | "approved" | "rejected" | "expired";
 /** Canonical wire values (exact strings). */
 export type ProposalExpiredReason =
-  | "timeout" | "strategy_deleted" | "strategy_archived" | "guard_failed" | "price_moved" | "practice_reset" | "account_deleted";
+  | "timeout" | "strategy_deleted" | "strategy_archived" | "guard_failed" | "price_moved" | "practice_reset" | "account_deleted"
+  /** phase7: reserved, never emitted before Phase 7 (buys paused / safety trip). */
+  | "kill_switch";
 export type ApprovalMode = "off" | "ask_first_buy" | "ask_every_buy";
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 /** Derived server-side from the token / JWT claim; clients never send it. */
@@ -153,7 +156,10 @@ export interface MarketCapFields {
   mcap_usd: DecimalString | null;
   /** When the inputs were observed; null when both values are null. */
   mcap_as_of: IsoTs | null;
+  /** 1.1.5: price source of market_cap_lamports: bonding curve, AMM pool, or unavailable (market_cap_lamports null). */
+  mcap_source: McapSource;
 }
+export type McapSource = "curve" | "pool" | "unavailable";
 export interface CoinDetected extends MarketCapFields {
   mint: Base58; venue: Venue; launchpad: string | null; creator: Base58 | null;
   /** From the mint account (never assumed). null only while the mint account is unreadable; such coins are not filled. */
@@ -207,13 +213,23 @@ export interface ProposalQuoteFields {
   max_slippage_bps?: number | null;
   /** Minimum tokens out after max slippage, raw units (integer string). */
   min_out_raw?: RawQty | null;
-  /** Most the buy can cost: SOL in + estimated network fee. */
+  /** 1.1.5: rent for the owner's token account (2,039,280) when it does not exist yet, else "0". */
+  est_ata_rent_lamports?: Lamports | null;
+  /** Buy: the most it can cost = SOL in + est_network_fee_lamports + est_ata_rent_lamports. The network fee already
+   *  includes the priority fee; the swap fee is taken from SOL in (not added). Sell: = est_network_fee_lamports. */
   total_max_lamports?: Lamports | null;
+  /** 1.1.5 sell quotes: SOL out after the swap fee (taken from SOL out), and that x (1 - max slippage). */
+  expected_out_lamports?: Lamports | null;
+  min_out_lamports?: Lamports | null;
+  /** 1.1.5: counts quote refreshes (int64 string). A refresh bumps this, never the approval rev. */
+  quote_id?: Int64String;
   quote_ts?: IsoTs | null;
   quote_expires_at?: IsoTs | null;
 }
 export interface ProposalCreated extends ProposalQuoteFields {
   proposal_id: Uuid; kind: ProposalKind;
+  /** 1.1.5: the mint's decimals and token program (null on guard_change, which has no mint). */
+  decimals?: number | null; token_program?: TokenProgram | null;
   /** Approval rev (send as expected_rev). */
   rev: number;
   mint: Base58 | null;
@@ -224,8 +240,12 @@ export interface ProposalCreated extends ProposalQuoteFields {
   approval_mode: ApprovalMode; amount_lamports: Lamports | null; risk_level: RiskLevel | null; summary: string;
   base_rev: number | null; weakening: boolean; diff: SettingsDiffEntry[] | null; estimate: StaticEstimate | null;
 }
-/** proposal.updated (1.1.4): a pending proposal's quote was set or refreshed (rev + 1; send the new rev). */
-export interface ProposalUpdated extends ProposalQuoteFields { proposal_id: Uuid; kind: ProposalKind; rev: number }
+/** proposal.updated: a pending proposal's quote was set or refreshed. 1.1.5: `rev` is UNCHANGED (push decision
+ *  tokens stay valid); `quote_id` increments. At most one per proposal per 3 s, only while pending. */
+export interface ProposalUpdated extends ProposalQuoteFields {
+  proposal_id: Uuid; kind: ProposalKind; rev: number; quote_id: Int64String;
+  decimals: number | null; token_program: TokenProgram | null;
+}
 /** 1.1.3: why a proposal was rejected. Closed enum; only with decision=reject; default user_declined. */
 export type ApprovalRejectReason = "user_declined" | "not_tradeable" | "price_moved" | "other";
 export const APPROVAL_REJECT_REASONS: readonly ApprovalRejectReason[] = ["user_declined", "not_tradeable", "price_moved", "other"] as const;
@@ -447,6 +467,8 @@ export interface ApprovalDecisionResponse {
 /** = ApprovalWire (the proposal/approval resource). Quote fields (1.1.4) are always present, null when unset. */
 export type ProposalWire = ApprovalWire;
 export interface ApprovalWire extends Required<ProposalQuoteFields> {
+  /** 1.1.5 */
+  decimals: number | null; token_program: TokenProgram | null; position_id: Uuid | null;
   id: Uuid; proposal_id: Uuid; workspace_id: Uuid; strategy_id: Uuid | null; kind: ProposalKind; mode: Mode;
   subject: string | null; mint: Base58 | null; amount_lamports: Lamports | null; is_first_buy: boolean;
   risk: "low" | "medium" | "high" | "critical"; weakening: boolean; status: ProposalStatus; rev: number;
@@ -465,6 +487,14 @@ export interface ConfirmationProof {
   typed_confirmation: string;
   hold_duration_ms: number;
   device: { platform: "ios" | "android" | "web" | "macos" | "windows" | "linux"; app_version: string; model?: string; attestation?: string | null };
+}
+
+/** 1.1.5 POST .../positions/{id}/close/preview (paper estimate, 15 s TTL). */
+export interface ClosePreview {
+  position_id: Uuid; mint: Base58; fraction_bps: number; qty_raw: RawQty; decimals: number; token_program: TokenProgram | null;
+  est_network_fee_lamports: Lamports; priority_fee_lamports: Lamports; swap_fee_bps: number; max_slippage_bps: number;
+  expected_out_lamports: Lamports; min_out_lamports: Lamports; total_max_lamports: Lamports;
+  quote_ts: IsoTs; quote_expires_at: IsoTs;
 }
 
 /** Standard REST wrappers: every response carries server_now. */
@@ -486,6 +516,21 @@ export interface ConflictError<T = JsonValue> {
     changed_at?: IsoTs | null;
     /** REQUIRED on every 409 conflict: the resource as it is now (1f24d28). */
     current: T;
+  };
+  server_now: IsoTs;
+}
+
+/** 1.1.5: 409 QUOTE_MISSING_OR_STALE (Real approve only): details inside `error`, like the other 409s. */
+export interface QuoteMissingOrStaleError {
+  error: {
+    code: "QUOTE_MISSING_OR_STALE"; message: string; request_id: string; server_now: IsoTs;
+    reason: "missing" | "stale" | "mismatch";
+    /** true when the proposal has no quote at all. */
+    missing: boolean;
+    quote_ts: IsoTs | null; quote_expires_at: IsoTs | null;
+    quote_id: Int64String; expected_quote_id: Int64String | null;
+    /** The proposal as it is now. */
+    current: ApprovalWire;
   };
   server_now: IsoTs;
 }
@@ -534,3 +579,72 @@ export function decodePushData(d: Record<string, string>): PushPayload {
     vars: JSON.parse(d.vars ?? "{}") as Record<string, string>,
   };
 }
+
+// ---------------------------------------------------------------------------
+// phase7: RESERVED for Phase 7 (Real SOL). Never emitted before Phase 7; types only (contracts 1.1.5).
+// Flat fields: actor_type/user_id/device_id/device_label. Lamports integer strings, ISO UTC, full addresses.
+// ---------------------------------------------------------------------------
+/** phase7 */ export type Phase7ActorType = "user" | "rule" | "system";
+/** phase7 */ export interface Phase7Actor { actor_type: Phase7ActorType; user_id?: Uuid | null }
+/** phase7 */ export interface Phase7Device { device_id: string | null; device_label: string | null }
+/** phase7 */ export type KillSwitchScope = "global" | "workspace" | "strategy";
+/** phase7 */ export type KillSwitchReason = "policy_mismatch" | "loss_velocity" | "provider_error" | "other";
+/** phase7: limit setting keys (daily = rolling 24 h). */
+export type RealLimitSetting = "per_trade_lamports" | "daily_lamports" | "cap_lamports" | "max_positions" | "max_slippage_bps";
+/** phase7: reserved reason codes for real.withdraw.failed (documented, not yet in errors.json). */
+export type WithdrawFailReason =
+  | "withdraw_simulation_failed" | "insufficient_balance" | "destination_not_owned" | "tx_expired" | "provider_error"
+  | "user_rejected" | "other";
+/** phase7 */ export interface RealSignerGranted extends Phase7Actor, Phase7Device { signer_id: string; provider: string; expires_at: IsoTs | null }
+/** phase7 */ export interface RealSignerRevoked extends Phase7Actor { signer_id: string; provider: string; reason: "kill_switch" | "expiry" | "user" }
+/** phase7 */ export interface RealPolicyActivated extends Phase7Actor { version: number; policy_hash: string }
+/** phase7 */ export interface RealPolicyMismatch { version: number; policy_hash: string; expected_hash: string; actual_hash: string }
+/** phase7: from/to typed per setting (integer strings for *_lamports, numbers otherwise). */
+export interface RealLimitChanged extends Phase7Actor { setting: RealLimitSetting; from: Lamports | number; to: Lamports | number; policy_version: number }
+/** phase7: a raise was requested; it activates at activates_at (24 h) and then stays (no auto-revert). Final. */
+export interface RealLimitLoosenRequested extends Phase7Actor, Phase7Device {
+  setting: RealLimitSetting; from: Lamports | number; to: Lamports | number; policy_version: number; activates_at: IsoTs;
+}
+/** phase7 */ export interface RealKillSwitchTripped extends Phase7Actor {
+  scope: KillSwitchScope; target_id: Uuid | null; reason: KillSwitchReason | null; rule_id: string | null; at: IsoTs;
+}
+/** phase7: resume after a trip (immediate). After policy_mismatch the signer stays revoked until a manual re-grant. */
+export interface RealKillSwitchCleared extends Phase7Actor, Phase7Device {
+  scope: KillSwitchScope; target_id: Uuid | null; reason: KillSwitchReason | null; at: IsoTs; signer_state: "active" | "revoked";
+}
+/** phase7: Stop / Resume (pause new buys only; exits keep running). */
+export interface RealBuysToggled extends Phase7Actor, Phase7Device { scope: KillSwitchScope; target_id: Uuid | null; at: IsoTs }
+/** phase7 */ export interface RealSellAllRequested extends Phase7Actor, Phase7Device { sell_all_id: Uuid; requested_count: number; at: IsoTs }
+/** phase7: failed positions stay open and keep their exit plans. */
+export interface RealSellAllCompleted {
+  sell_all_id: Uuid; requested_count: number; sold_count: number; failed_count: number;
+  amount_out_lamports: Lamports | null; failures: { position_id: Uuid; mint: Base58; reason_code: string }[]; completed_at: IsoTs;
+}
+/** phase7: main-wallet change (48 h). */
+export interface RealWithdrawAddressAdded extends Phase7Actor, Phase7Device { address: Base58; usable_at: IsoTs; cancel_until: IsoTs }
+/** phase7 */ export interface RealWithdrawAddressEvent extends Phase7Actor { address: Base58; at: IsoTs }
+/** phase7 */ export interface RealDepositDetected { amount_lamports: Lamports; balance_lamports: Lamports; tx_signature: string; slot: Int64String; at: IsoTs }
+/** phase7 */ export interface RealWithdrawRequested extends Phase7Actor, Phase7Device { withdraw_id: Uuid; amount_lamports: Lamports; address: Base58; tx_signature: null }
+/** phase7 */ export interface RealWithdrawConfirmed { withdraw_id: Uuid; amount_lamports: Lamports; address: Base58; tx_signature: string; slot: Int64String }
+/** phase7 */ export interface RealWithdrawFailed { withdraw_id: Uuid; amount_lamports: Lamports; address: Base58; tx_signature: string | null; reason_code: WithdrawFailReason }
+/** phase7: reserved event names -> payloads (NOT part of EventPayloads; nothing emits these before Phase 7). */
+export interface ReservedPhase7Payloads {
+  "real.signer.granted": RealSignerGranted; "real.signer.revoked": RealSignerRevoked;
+  "real.policy.activated": RealPolicyActivated; "real.policy.mismatch": RealPolicyMismatch;
+  "real.limit.changed": RealLimitChanged; "real.limit.loosen_requested": RealLimitLoosenRequested;
+  "real.kill_switch.tripped": RealKillSwitchTripped; "real.kill_switch.cleared": RealKillSwitchCleared;
+  "real.buys.paused": RealBuysToggled; "real.buys.resumed": RealBuysToggled;
+  "real.sell_all.requested": RealSellAllRequested; "real.sell_all.completed": RealSellAllCompleted;
+  "real.withdraw_address.added": RealWithdrawAddressAdded; "real.withdraw_address.usable": RealWithdrawAddressEvent;
+  "real.withdraw_address.cancelled": RealWithdrawAddressEvent;
+  "real.deposit.detected": RealDepositDetected;
+  "real.withdraw.requested": RealWithdrawRequested; "real.withdraw.confirmed": RealWithdrawConfirmed;
+  "real.withdraw.failed": RealWithdrawFailed;
+}
+export const RESERVED_PHASE7_EVENTS = [
+  "real.signer.granted", "real.signer.revoked", "real.policy.activated", "real.policy.mismatch", "real.limit.changed",
+  "real.limit.loosen_requested", "real.kill_switch.tripped", "real.kill_switch.cleared", "real.buys.paused", "real.buys.resumed",
+  "real.sell_all.requested", "real.sell_all.completed", "real.withdraw_address.added", "real.withdraw_address.usable",
+  "real.withdraw_address.cancelled", "real.deposit.detected", "real.withdraw.requested", "real.withdraw.confirmed",
+  "real.withdraw.failed",
+] as const satisfies readonly (keyof ReservedPhase7Payloads)[];

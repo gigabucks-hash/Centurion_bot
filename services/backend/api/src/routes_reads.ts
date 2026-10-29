@@ -44,6 +44,8 @@ function mcapWire(r: Record<string, unknown>) {
     market_cap_lamports: r.market_cap_lamports == null ? null : String(r.market_cap_lamports),
     mcap_usd: r.mcap_usd == null ? null : String(r.mcap_usd),
     mcap_as_of: iso(r.mcap_as_of),
+    // 1.1.5: where the market cap came from; null market_cap_lamports = unavailable
+    mcap_source: r.market_cap_lamports == null ? "unavailable" : r.venue === "curve" ? "curve" : "pool",
   };
 }
 const COIN_COLUMNS = "c.mint, c.decimals, c.token_program, c.quote_mint, c.launchpad, c.venue, c.creator, c.first_seen_at, c.migrated_at, c.untrusted, c.market_cap_lamports, c.mcap_usd, c.mcap_as_of";
@@ -56,7 +58,7 @@ function pickWire(r: Record<string, unknown>) {
     ...mcapWire(r),
   };
 }
-const PICK_COLUMNS = "id, ck, workspace_id, strategy_id, mint, mode::text as mode, stage::text as stage, score, score_threshold, checks, guard, guard_verdict, created_at, updated_at, market_cap_lamports, mcap_usd, mcap_as_of";
+const PICK_COLUMNS = "id, ck, workspace_id, strategy_id, mint, mode::text as mode, stage::text as stage, score, score_threshold, checks, guard, guard_verdict, created_at, updated_at, market_cap_lamports, mcap_usd, mcap_as_of, (select cv.venue from public.coins cv where cv.mint = picks.mint) as venue";
 
 export function registerReads(r: Router, d: Deps): void {
   const ws0 = "/v1/workspaces/:ws";

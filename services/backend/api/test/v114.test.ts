@@ -23,7 +23,7 @@ after(async () => {
 
 describe("contracts 1.1.4", () => {
   test("healthz reports 1.1.4", async () => {
-    assert.equal((await call(h.base, "GET", "/healthz")).body.contracts_version, "1.1.4");
+    assert.equal((await call(h.base, "GET", "/healthz")).body.contracts_version, "1.1.5");
   });
 
   test("coin and pick carry market_cap_lamports (string), mcap_usd (decimal string), mcap_as_of", async () => {
@@ -55,7 +55,9 @@ describe("contracts 1.1.4", () => {
     assert.equal(b.body.data.est_network_fee_lamports, "25000");
     assert.equal(b.body.data.swap_fee_bps, 125);
     assert.equal(b.body.data.quote_expires_at, "2026-10-29T11:00:15.000Z");
-    assert.equal(b.body.data.rev, a.body.data.rev + 1);
+    // 1.1.5: a quote refresh bumps quote_id, never rev
+    assert.equal(b.body.data.rev, a.body.data.rev);
+    assert.equal(BigInt(b.body.data.quote_id), BigInt(a.body.data.quote_id) + 1n);
   });
 
   test("time_stop_s / stall_exit validate like the SQL schema", async () => {

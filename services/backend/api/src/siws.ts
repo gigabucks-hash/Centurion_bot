@@ -10,9 +10,14 @@ export const SIWS_CHAIN = "solana:mainnet";
  * listed here is still accepted; the nonce row records which one the server used and verify requires that one.
  */
 export const SIWS_STATEMENTS: Readonly<Record<number, string>> = {
+  /** legacy (product codename); accepted only during the transition window (config siwsLegacyStatementUntil). */
   1: "Sign in to Sentra (practice). This request does not trigger a transaction or cost any fees.",
+  /** current: product name Centurion Trade (UX key auth.siws.statement). */
+  2: "Sign in to Centurion Trade",
 };
-export const SIWS_STATEMENT_VERSION = 1;
+export const SIWS_STATEMENT_VERSION = 2;
+/** Statement versions that are only accepted until the transition ends. */
+export const SIWS_LEGACY_STATEMENT_VERSIONS: ReadonlySet<number> = new Set([1]);
 export const SIWS_STATEMENT = SIWS_STATEMENTS[SIWS_STATEMENT_VERSION]!;
 const SPKI_ED25519 = Buffer.from("302a300506032b6570032100", "hex");
 const ALNUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

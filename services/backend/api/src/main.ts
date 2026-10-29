@@ -21,7 +21,7 @@ async function main(): Promise<void> {
   await marks.start();
   const feeds = new FeedHub(db, cfg.ssePollMs);
   const server = createApiServer({ cfg, db, marks, feeds });
-  server.listen(cfg.port, cfg.host, () => console.log(`sentra api (practice) listening on ${cfg.host}:${cfg.port}`));
+  server.listen(cfg.port, cfg.host, () => console.log(`Centurion Trade API (practice) listening on ${cfg.host}:${cfg.port}`));
   const stop = () => {
     server.close();
     server.closeAllConnections();

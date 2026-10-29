@@ -114,7 +114,10 @@ describe("strategies CRUD with rev", () => {
     assert.equal(mixed.status, 202, JSON.stringify(mixed.body));
     assert.deepEqual(mixed.body.data.guard_change.weakened_fields, ["top_holders_share_pct_max"]);
     const mcp = await patch({ settings_patch: { top_holders_share_pct_max: 45 } }, token(OWNER, { client: "mcp" }));
-    assert.equal(mcp.status, 202, "MCP may propose");
+    err(mcp, 403, "FORBIDDEN_ROLE"); // 1.1.5: an agent cannot propose a loosening at all
+    assert.equal(mcp.body.error.reason, "agent_cannot_loosen");
+    const proposals = await h.db.query("select count(*)::int n from public.approvals where requested_via = 'mcp'");
+    assert.equal(proposals.rows[0].n, 0, "no proposal row created");
     let now = await call(h.base, "GET", path(`/${id}`), { token: owner() });
     assert.equal(now.body.data.rev, rev, "nothing applied");
     assert.equal(now.body.data.settings.top_holders_share_pct_max, 30);
@@ -144,7 +147,7 @@ describe("strategies CRUD with rev", () => {
     assert.equal(now.body.data.settings.guard_checks.creator_share_pct_fail, 5);
     rev = now.body.data.rev;
     const gc = await call(h.base, "GET", `/v1/workspaces/${WS}/guard-changes?strategy_id=${id}`, { token: owner() });
-    assert.deepEqual(gc.body.items.map((g: any) => g.status).sort(), ["applied", "requested", "requested"]);
+    assert.deepEqual(gc.body.items.map((g: any) => g.status).sort(), ["applied", "requested"]);
     // the other pending proposals are now stale
     const other = `/v1/workspaces/${WS}/approvals/${weak.body.data.proposal.id}`;
     const od = await call(h.base, "GET", other, { token: owner() });

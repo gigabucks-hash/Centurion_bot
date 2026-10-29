@@ -54,10 +54,15 @@ describe("SIWS hardening", () => {
 
   test("B-7: statement version is returned, stored and validated", async () => {
     const n = await nonce();
-    assert.equal(n.body.data.statement_version, 1);
-    assert.equal((await nonce({ statement_version: 2 })).status, 422);
+    assert.equal(n.body.data.statement_version, 2);
+    assert.ok(String(n.body.data.message).includes("\n\nSign in to Centurion Trade\n"), n.body.data.message);
+    assert.equal((await nonce({ statement_version: 3 })).status, 422);
     assert.equal((await nonce({ statement_version: "1" })).status, 422);
-    assert.equal((await nonce({ statement_version: 1 })).status, 200);
+    // legacy v1 is still accepted during the transition window (default until 2026-11-05T12:00:00Z)
+    const legacy = await nonce({ statement_version: 1 });
+    assert.equal(legacy.status, 200);
+    assert.ok(String(legacy.body.data.message).includes("Sign in to Sentra (practice)."));
+    assert.equal((await verify(legacy.body.data.message)).status, 200);
   });
 
   test("B-4: parallel refresh inside the grace window gets the same pair; replay after the window revokes", async () => {

@@ -45,6 +45,9 @@ export interface Config {
   rateLimitWriteUserPerMin: number;
   rateLimitWriteRoutePerMin: number;
   rateLimitStore: "memory" | "postgres";
+  /** SIWS statement v1 ("Sentra") accepted until this epoch ms (AUTH_SIWS_LEGACY_STATEMENT_UNTIL, default
+   *  2026-11-05T12:00:00Z = 7 days after the rename); AUTH_SIWS_LEGACY_STATEMENT=false ends it now. */
+  siwsLegacyStatementUntil: number;
   /** Login limits (B-2). Strangers: hard 429 per IP. Owner wallets: never 429, soft delay up to authOwnerMaxDelayMs. */
   authStrangerIpPerMin: number;
   authOwnerIpPerMin: number;
@@ -100,6 +103,14 @@ function sessionSecret(env: NodeJS.ProcessEnv, jwtSecret: string): string {
   if (s.length < 32) throw new ConfigError("refusing to start: SENTRA_SESSION_SECRET (>= 32 chars) is required when AUTH_SIWS_DOMAINS is set");
   if (s === jwtSecret) throw new ConfigError("SENTRA_SESSION_SECRET must differ from SUPABASE_JWT_SECRET");
   return s;
+}
+
+function legacyUntil(env: NodeJS.ProcessEnv): number {
+  if ((env.AUTH_SIWS_LEGACY_STATEMENT ?? "true").trim() === "false") return 0;
+  const s = env.AUTH_SIWS_LEGACY_STATEMENT_UNTIL ?? "2026-11-05T12:00:00Z";
+  const t = Date.parse(s);
+  if (Number.isNaN(t)) throw new ConfigError("AUTH_SIWS_LEGACY_STATEMENT_UNTIL must be an ISO timestamp");
+  return t;
 }
 
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -159,6 +170,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     rateLimitWriteUserPerMin: int(env, "RATE_LIMIT_WRITE_USER_PER_MIN", 120, 1, 100_000),
     rateLimitWriteRoutePerMin: int(env, "RATE_LIMIT_WRITE_ROUTE_PER_MIN", 60, 1, 100_000),
     rateLimitStore: store(env),
+    siwsLegacyStatementUntil: legacyUntil(env),
     authStrangerIpPerMin: int(env, "AUTH_STRANGER_IP_PER_MIN", 10, 1, 10_000),
     authOwnerIpPerMin: int(env, "AUTH_OWNER_IP_PER_MIN", 30, 1, 10_000),
     authOwnerPerMin: int(env, "AUTH_OWNER_PER_MIN", 60, 1, 10_000),

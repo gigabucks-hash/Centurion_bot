@@ -15,8 +15,11 @@ import { registerStrategies } from "./routes_strategies.ts";
 import { registerReads } from "./routes_reads.ts";
 import { registerAccount } from "./routes_account.ts";
 import { registerAuth } from "./routes_auth.ts";
+import { autoRefresh, registerQuotes } from "./routes_quote.ts";
 
-export const CONTRACTS_VERSION = "1.1.4";
+export const CONTRACTS_VERSION = "1.1.5";
+/** Product name (user facing). Crate/package/DB names keep the codename "sentra". */
+export const PRODUCT_NAME = "Centurion Trade";
 /** 1.1.3: closed enum, only with decision=reject (default user_declined, applied in SQL). */
 export const APPROVAL_REJECT_REASONS = ["user_declined", "not_tradeable", "price_moved", "other"] as const;
 
@@ -37,6 +40,8 @@ export function buildRouter(d: Deps): Router {
       if (db !== "ok") throw new ApiError("UNAVAILABLE", { db });
     }
     send(ctx, 200, {
+      service: `${PRODUCT_NAME} API`,
+      product: PRODUCT_NAME,
       mode: "practice",
       real_enabled: false,
       modes_enabled: ["practice"],
@@ -184,6 +189,8 @@ export function buildRouter(d: Deps): Router {
       return res.rows[0] as Record<string, unknown> | undefined;
     });
     if (!row) throw new ApiError("NOT_FOUND");
+    // 1.1.5: a missing or stale quote on a pending buy/sell proposal is refreshed on read (coalesced, 3 s)
+    const cur = await autoRefresh(d, row);
     let token: string | null = null;
     let tokenExp: string | null = null;
     if (row.status === "pending" && p.scopes.has("trade")) {
@@ -198,7 +205,7 @@ export function buildRouter(d: Deps): Router {
         if (!(e instanceof ApiError) || !["FORBIDDEN_ROLE", "APPROVAL_EXPIRED"].includes(e.code)) throw e;
       }
     }
-    send(ctx, 200, { data: { ...approvalWire(row), decision_token: token, decision_token_expires_at: tokenExp } }, etag(row.rev));
+    send(ctx, 200, { data: { ...approvalWire(cur), decision_token: token, decision_token_expires_at: tokenExp } }, etag(cur.rev));
   });
 
   /** SQL decide_approval(): actor = auth.uid(), via = JWT `sentra_client` (or push token); never the body. */
@@ -231,11 +238,16 @@ export function buildRouter(d: Deps): Router {
       }
       holdMs = h;
     }
+    // 1.1.5: the quote the user reviewed (integer string). Required for a Real approve; practice ignores it.
+    const eq = body.expected_quote_id ?? null;
+    if (eq !== null && (typeof eq !== "string" || !/^(0|[1-9][0-9]{0,18})$/.test(eq))) {
+      throw new ApiError("VALIDATION_FAILED", { field: "expected_quote_id", hint: "integer string" });
+    }
     const rev = expectedRev(ctx, body);
     const key = idempotencyKey(ctx);
     const out = await asUser(d.db, p.claims, async (c) => {
       await inWorkspace(c, "approvals", id, ws);
-      const res = await c.query("select public.decide_approval($1, $2, $3, $4, $5, $6, $7) as r", [id, body.token, decision, rev, key, rr, holdMs]);
+      const res = await c.query("select public.decide_approval($1, $2, $3, $4, $5, $6, $7, $8::bigint) as r", [id, body.token, decision, rev, key, rr, holdMs, eq]);
       return res.rows[0]?.r as Record<string, unknown>;
     });
     const { server_now, ...data } = out;
@@ -332,6 +344,7 @@ export function buildRouter(d: Deps): Router {
   registerReads(r, d);
   registerAccount(r, d);
   registerAuth(r, d);
+  registerQuotes(r, d);
 
   // removed in 1.1.2 (moved under the workspace)
   r.add("GET", "/v1/events/stream", async () => {

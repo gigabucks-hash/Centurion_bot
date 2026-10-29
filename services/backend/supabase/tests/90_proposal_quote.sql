@@ -53,9 +53,9 @@ begin
          'quote_ts', '2026-10-29T11:00:00.000Z', 'quote_expires_at', '2026-10-29T11:00:15.000Z'));
   assert w ->> 'total_max_lamports' = '250025000' and w -> 'swap_fee_bps' = '125'::jsonb, 'wire types';
   assert w ->> 'min_out_raw' = '8538207000123' and w ->> 'quote_expires_at' = '2026-10-29T11:00:15.000Z', 'wire values';
-  assert (w ->> 'rev')::int = 2, 'rev bumped';
+  assert (w ->> 'rev')::int = 1 and w ->> 'quote_id' = '1', '1.1.5: rev unchanged, quote_id bumped';
   select * into e from public.events where type = 'proposal.updated' and payload ->> 'proposal_id' = '30000000-0000-0000-0000-0000000009f9';
-  assert e.payload ->> 'est_network_fee_lamports' = '25000' and (e.payload ->> 'rev')::int = 2 and e.payload ->> 'kind' = 'buy_pick', 'proposal.updated payload';
+  assert e.payload ->> 'est_network_fee_lamports' = '25000' and (e.payload ->> 'rev')::int = 1 and e.payload ->> 'quote_id' = '1' and e.payload ->> 'kind' = 'buy_pick', 'proposal.updated payload';
   assert not (e.payload ? 'payload') and not (e.payload ? 'status'), 'only quote fields + id/kind/rev';
   perform pg_temp.expect_code($q$select public.set_approval_quote('30000000-0000-0000-0000-0000000009f9', '{"min_out_raw": 5}')$q$,
                               'VALIDATION_FAILED', 'min_out_raw must be an integer string');
@@ -77,7 +77,7 @@ end $$;
 -- the function is wired into decide_approval (approve path)
 do $$ begin
   assert position('approval_quote_check' in pg_get_functiondef(
-    'public.decide_approval(uuid, text, text, integer, text, text, integer)'::regprocedure)) > 0, 'decide_approval calls the check';
+    'public.decide_approval(uuid, text, text, integer, text, text, integer, bigint)'::regprocedure)) > 0, 'decide_approval calls the check';
   raise notice 'ok: decide_approval calls approval_quote_check';
 end $$;
 do $$ begin

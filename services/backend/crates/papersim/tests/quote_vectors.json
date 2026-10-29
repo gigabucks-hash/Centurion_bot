@@ -1,0 +1,74 @@
+{
+ "_comment": "Shared paper-quote vectors: Rust papersim::quote and the API TS port must both match. SimConfig defaults (swap fee 125 bps, network fee 25000).",
+ "buy": [
+  {
+   "sol_reserve": 30.0,
+   "token_reserve": 1073000000.0,
+   "amount_lamports": "250000000",
+   "decimals": 6,
+   "max_slippage_bps": 300,
+   "ata_exists": true,
+   "min_out_raw": "8495091435065",
+   "total_max_lamports": "250025000"
+  },
+  {
+   "sol_reserve": 85.5,
+   "token_reserve": 206900000.0,
+   "amount_lamports": "50000000",
+   "decimals": 9,
+   "max_slippage_bps": 500,
+   "ata_exists": false,
+   "min_out_raw": "113442127718642",
+   "total_max_lamports": "52064280"
+  },
+  {
+   "sol_reserve": 1.25,
+   "token_reserve": 999999999.5,
+   "amount_lamports": "1",
+   "decimals": 6,
+   "max_slippage_bps": 0,
+   "ata_exists": true,
+   "min_out_raw": "789999",
+   "total_max_lamports": "25001"
+  },
+  {
+   "sol_reserve": 42.0,
+   "token_reserve": 350000000.0,
+   "amount_lamports": "2000000000",
+   "decimals": 8,
+   "max_slippage_bps": 10000,
+   "ata_exists": false,
+   "min_out_raw": "0",
+   "total_max_lamports": "2002064280"
+  }
+ ],
+ "sell": [
+  {
+   "sol_reserve": 30.0,
+   "token_reserve": 1073000000.0,
+   "qty_raw": "10000000000000",
+   "decimals": 6,
+   "max_slippage_bps": 500,
+   "expected_out_lamports": "273545706",
+   "min_out_lamports": "259868420"
+  },
+  {
+   "sol_reserve": 85.5,
+   "token_reserve": 206900000.0,
+   "qty_raw": "123456789012345678",
+   "decimals": 9,
+   "max_slippage_bps": 300,
+   "expected_out_lamports": "31552586064",
+   "min_out_lamports": "30606008482"
+  },
+  {
+   "sol_reserve": 1.25,
+   "token_reserve": 999999999.5,
+   "qty_raw": "1",
+   "decimals": 6,
+   "max_slippage_bps": 0,
+   "expected_out_lamports": "0",
+   "min_out_lamports": "0"
+  }
+ ]
+}

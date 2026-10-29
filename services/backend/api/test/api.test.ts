@@ -35,7 +35,7 @@ describe("health, clock, envelope", () => {
     assert.equal(r.body.mode, "practice");
     assert.equal(r.body.real_enabled, false);
     assert.deepEqual(r.body.modes_enabled, ["practice"]);
-    assert.equal(r.body.contracts_version, "1.1.4");
+    assert.equal(r.body.contracts_version, "1.1.5");
     assert.ok(isIso(r.body.server_now) && isIso(r.headers.get("x-server-now")));
     assert.doesNotMatch(JSON.stringify(r.body), /paper/);
     assert.equal(r.body.trading_mode, undefined);

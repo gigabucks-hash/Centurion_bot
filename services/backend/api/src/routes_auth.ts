@@ -10,7 +10,7 @@ import type { Deps } from "./deps.ts";
 import { SESSION_ISSUER, signJwt } from "./jwt.ts";
 import { adminCreateWalletUser } from "./supabase_admin.ts";
 import { PgRateLimiter, RateLimiter, clientIp, type Limiter } from "./ratelimit.ts";
-import { SIWS_CHAIN, SIWS_STATEMENTS, SIWS_STATEMENT_VERSION, buildMessage, hostOf, isAddress, newNonce, parseMessage, verifySignature } from "./siws.ts";
+import { SIWS_CHAIN, SIWS_LEGACY_STATEMENT_VERSIONS, SIWS_STATEMENTS, SIWS_STATEMENT_VERSION, buildMessage, hostOf, isAddress, newNonce, parseMessage, verifySignature } from "./siws.ts";
 
 const NONCE_TTL_MS = 5 * 60_000;
 /** B-4: a replay of the just-rotated refresh token within this window returns the same successor pair. */
@@ -54,6 +54,9 @@ export function registerAuth(r: Router, d: Deps): void {
    *   overage only delays the answer (250 ms per hit over, at most AUTH_OWNER_MAX_DELAY_MS), so a stranger who
    *   floods the owner's (public) address cannot lock the owner out.
    */
+  /** B-7: the current statement always; legacy ones only until the transition ends. */
+  const statementOk = (v: number) =>
+    v in SIWS_STATEMENTS && (!SIWS_LEGACY_STATEMENT_VERSIONS.has(v) || Date.now() < cfg.siwsLegacyStatementUntil);
   const stranger = async (ctx: Ctx) => {
     await strangers.hit(`siws:stranger:${ip(ctx)}`, cfg.authStrangerIpPerMin, 60);
     await strangers.hit("siws:stranger:global", cfg.authGlobalPerMin, 60);
@@ -121,8 +124,10 @@ export function registerAuth(r: Router, d: Deps): void {
     const chain = b.chain_id ?? SIWS_CHAIN;
     if (chain !== SIWS_CHAIN) throw new ApiError("VALIDATION_FAILED", { field: "chain_id", allowed: [SIWS_CHAIN] });
     const sv = b.statement_version ?? SIWS_STATEMENT_VERSION;
-    if (typeof sv !== "number" || !Number.isInteger(sv) || !(sv in SIWS_STATEMENTS)) {
-      throw new ApiError("VALIDATION_FAILED", { field: "statement_version", allowed: Object.keys(SIWS_STATEMENTS).map(Number) });
+    if (typeof sv !== "number" || !Number.isInteger(sv) || !statementOk(sv)) {
+      throw new ApiError("VALIDATION_FAILED", {
+        field: "statement_version", allowed: Object.keys(SIWS_STATEMENTS).map(Number).filter(statementOk),
+      });
     }
     const uri = typeof b.uri === "string" ? b.uri : `https://${domain}`;
     if (uri.length > 2048 || hostOf(uri) !== domain) throw new ApiError("VALIDATION_FAILED", { field: "uri", hint: "https URI on the same domain" });
@@ -156,6 +161,7 @@ export function registerAuth(r: Router, d: Deps): void {
     if (!f || f.address !== address || f.chain_id !== SIWS_CHAIN || hostOf(f.uri) !== f.domain) {
       throw new ApiError("SIWS_NONCE_INVALID", { reason: "message" });
     }
+    if (!statementOk(f.statement_version)) throw new ApiError("SIWS_NONCE_INVALID", { reason: "statement_retired" });
     checkDomain(ctx, f.domain);
     if (Date.parse(f.expiration_time) <= Date.now() || Date.parse(f.issued_at) > Date.now() + 30_000) {
       throw new ApiError("SIWS_NONCE_INVALID", { reason: "expired" });
