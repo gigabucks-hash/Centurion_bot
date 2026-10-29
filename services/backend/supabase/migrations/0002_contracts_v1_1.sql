@@ -400,7 +400,7 @@ language sql stable security invoker as $$
 $$;
 
 -- ---------------------------------------------------------------------------
--- 4. Account deletion: request (re-auth) -> grace (default 7 d, cancellable) -> anonymize
+-- 4. Account deletion: request (re-auth) -> grace (server setting, default 7 d, 1-30, cancellable) -> anonymize
 -- ---------------------------------------------------------------------------
 alter table public.users
   add column deletion_state text not null default 'active'
@@ -412,7 +412,7 @@ alter table public.users
   add constraint users_deletion_consistent check (
     (deletion_state = 'active' and deletion_scheduled_for is null)
     or (deletion_state = 'pending_deletion' and deletion_scheduled_for is not null
-        and deletion_scheduled_for between deletion_requested_at + interval '7 days' and deletion_requested_at + interval '30 days')
+        and deletion_scheduled_for between deletion_requested_at + interval '1 day' and deletion_requested_at + interval '30 days')
     or (deletion_state = 'deleted' and deleted_at is not null and display_name is null));
 
 -- audit_log stays append-only; the single exception is actor anonymization during account deletion
@@ -463,8 +463,9 @@ begin
     raise exception using errcode = 'P0409', message = 'ACCOUNT_DELETION_PENDING',
       detail = jsonb_build_object('scheduled_for', u.deletion_scheduled_for)::text;
   end if;
-  if p_grace_days not between 7 and 30 then
-    raise exception using errcode = 'P0422', message = 'VALIDATION_FAILED', detail = '{"field":"grace_days","range":"7-30"}';
+  -- server-side setting (ACCOUNT_DELETION_GRACE_DAYS, default 7, allowed 1-30); clients cannot choose it
+  if p_grace_days is null or p_grace_days not between 1 and 30 then
+    raise exception using errcode = 'P0422', message = 'VALIDATION_FAILED', detail = '{"field":"grace_days","range":"1-30"}';
   end if;
   -- Real funds must be out first (always true before Phase 7: real is rejected by the schema)
   if exists (select 1 from public.positions p join public.workspaces w on w.id = p.workspace_id

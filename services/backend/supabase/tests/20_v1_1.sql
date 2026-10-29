@@ -18,6 +18,12 @@ begin
   raise exception 'EXPECTED % DID NOT HAPPEN: %', code, label;
 end $$;
 
+create or replace function pg_temp.expect_error(sql text, label text) returns void language plpgsql as $$
+begin
+  begin execute sql; exception when others then raise notice 'ok (rejected): % -> %', label, sqlerrm; return; end;
+  raise exception 'EXPECTED FAILURE DID NOT HAPPEN: %', label;
+end $$;
+
 -- ---------------- 1. rev + 409 conflict contract ----------------
 insert into public.strategies (id, workspace_id, name, status, settings) values
   ('20000000-0000-0000-0000-0000000000f1', '10000000-0000-0000-0000-00000000000a', 'C1', 'running', '{"peak_trail_pct":15}');
@@ -122,7 +128,22 @@ insert into public.auth_identities (user_id, provider, subject, email, verified_
 insert into public.audit_log (actor_user, actor_kind, actor_via, action, target_type, target, ip, user_agent)
   values ('00000000-0000-0000-0000-0000000000d1', 'user', 'mobile', 'strategy.update', 'strategy', 'x', '10.1.2.3', 'Sentra/1.0 iOS');
 select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', null)$$, 'REAUTH_REQUIRED', 'deletion re-auth');
-select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 3)$$, 'VALIDATION_FAILED', 'grace < 7');
+select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 0)$$, 'VALIDATION_FAILED', 'grace < 1');
+select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 31)$$, 'VALIDATION_FAILED', 'grace > 30');
+select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), null)$$, 'VALIDATION_FAILED', 'grace null');
+-- bounds 1 and 30 are accepted (then cancelled again)
+do $$ begin
+  perform public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 1);
+  assert (select deletion_scheduled_for - deletion_requested_at from public.users where id = '00000000-0000-0000-0000-0000000000d1') = interval '1 day', '1-day grace';
+  perform public.cancel_account_deletion('00000000-0000-0000-0000-0000000000d1');
+  perform public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 30);
+  assert (select deletion_scheduled_for - deletion_requested_at from public.users where id = '00000000-0000-0000-0000-0000000000d1') = interval '30 days', '30-day grace';
+  perform public.cancel_account_deletion('00000000-0000-0000-0000-0000000000d1');
+  assert (select deletion_cancelled_at is not null and deletion_scheduled_for is null from public.users where id = '00000000-0000-0000-0000-0000000000d1'), 'cancel clears schedule';
+end $$;
+-- a direct write outside 1-30 days is rejected by the table CHECK too
+select pg_temp.expect_error($$update public.users set deletion_state = 'pending_deletion', deletion_requested_at = now(), deletion_scheduled_for = now() + interval '31 days' where id = '00000000-0000-0000-0000-0000000000d1'$$, 'CHECK grace > 30');
+select pg_temp.expect_error($$update public.users set deletion_state = 'pending_deletion', deletion_requested_at = now(), deletion_scheduled_for = now() + interval '1 hour' where id = '00000000-0000-0000-0000-0000000000d1'$$, 'CHECK grace < 1 day');
 do $$
 declare r jsonb;
 begin
@@ -138,6 +159,9 @@ begin
   -- not due yet
   assert public.finalize_due_account_deletions() = 0, 'not due inside grace';
   perform pg_temp.expect_code($q$select public.finalize_account_deletion('00000000-0000-0000-0000-0000000000d1')$q$, 'VALIDATION_FAILED', 'finalize before grace ends');
+  -- cancellation stays possible until the very end of the grace period: cancel + re-request
+  perform public.cancel_account_deletion('00000000-0000-0000-0000-0000000000d1');
+  perform public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now());
   -- time travel: grace elapsed
   update public.users set deletion_requested_at = now() - interval '8 days', deletion_scheduled_for = now() - interval '1 day'
    where id = '00000000-0000-0000-0000-0000000000d1';

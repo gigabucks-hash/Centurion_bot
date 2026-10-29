@@ -43,7 +43,9 @@ Ingest sources implement one provider-agnostic trait, `StreamSource` (`crates/in
 mode defaults to **Helius standard WebSocket** (`logsSubscribe {mentions:[launch program]}`, `confirmed`;
 Anchor `Program data:` events decoded for create / trade / curve-complete; `getTransaction` enrichment
 over HTTPS RPC; 30 s ping, jittered backoff 1–60 s, resubscribe on reconnect; key only from
-`HELIUS_API_KEY`, redacted from logs). PumpPortal stays as an alternative; Yellowstone is a stub until
+`HELIUS_API_KEY`, redacted from logs). Parser tests use captured mainnet frames (`services/backend/fixtures/mainnet/`). The capture
+showed that some curves use a non-SOL quote token, so pool state for paper fills must come from the bonding-curve
+account, never from the event's reserves. PumpPortal stays as an alternative; Yellowstone is a stub until
 Boss picks the provider. `INGEST_SOURCES` selects them.
 
 ## 2. Data flow (per coin)
@@ -153,7 +155,8 @@ rate limit 10/min/IP and 5/min per subject; upsert `auth_identities(provider='te
 Supabase session.
 
 **Account deletion.** `request_account_deletion` (re-auth, no Real positions / active wallet) -> state
-`pending_deletion`, grace 7 days by default (7–30 allowed), cancellable; the worker's
+`pending_deletion`, grace from the server setting `ACCOUNT_DELETION_GRACE_DAYS` (default 7, allowed 1–30, enforced by function and
+table CHECK), cancellable at any time until it ends; the worker's
 `finalize_due_account_deletions` deletes credentials, tokens, devices and memberships, archives
 strategies, closes owned workspaces, anonymizes `audit_log` (ip/user agent/device) while keeping the rows,
 and tombstones `users`; then the API deletes the `auth.users` row.
@@ -223,5 +226,4 @@ Resolved in v1.1 (Apex, 2026-10-29): own vocabulary (CHANGELOG rename table); pe
 JSON numbers, lamports and prices are strings; snake_case everywhere; Flutter owns the Dart error
 generator; practice 30 SOL, reset any time, once per 24 h, history archived.
 
-Still open (Boss): Yellowstone provider; Telegram OIDC security-review sign-off; deletion grace (UX says
-7 days, default 7, configurable up to 30).
+Still open (Boss): Yellowstone provider; Telegram OIDC security-review sign-off. Deletion grace resolved (Apex): default 7 days, server-side 1–30.

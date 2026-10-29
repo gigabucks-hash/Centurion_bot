@@ -4,7 +4,7 @@
 import type { Base58, DecimalString, IsoTs, Lamports, RawQty, Uuid } from "./units";
 
 export const EVENT_SCHEMA_VERSION = 1 as const;
-export const CONTRACTS_VERSION = "1.1.0" as const;
+export const CONTRACTS_VERSION = "1.1.1" as const;
 
 /** "real" is reserved: rejected by API (REAL_SOL_DISABLED), JWT scope trade:real never issued, DB CHECK. */
 export type Mode = "practice" | "real";

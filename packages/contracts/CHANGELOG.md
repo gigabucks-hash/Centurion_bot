@@ -1,5 +1,15 @@
 # Contracts changelog
 
+## 1.1.1 (2026-10-29)
+
+### Changed
+- Account deletion grace period: default 7 days, **server-side** setting `ACCOUNT_DELETION_GRACE_DAYS`, allowed
+  range **1–30 days** (was 7–30). `POST /me/deletion` no longer accepts `grace_days` from the client; the
+  value is reported in `GET /me/deletion` and `account.deletion_scheduled {scheduled_for, grace_days}`. Cancel is
+  allowed at any time until `scheduled_for`; afterwards credentials are hard-deleted and personal data anonymized,
+  `audit_log` is retained (actor ip / user agent / device nulled).
+- Ingest parser tests run against captured mainnet fixtures (`services/backend/fixtures/mainnet/`).
+
 ## 1.1.0 (2026-10-29)
 
 Breaking pre-release corrections. No producer had shipped v1.0 payloads, so per-event `version` stays `1`;

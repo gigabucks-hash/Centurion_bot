@@ -10,14 +10,16 @@
 //!   jittered exponential backoff (1 s → 60 s), resubscribe on every connect.
 //!
 //! The API key is read from the environment only and is never logged (`Secret`).
-//! Decoding is pure and unit-tested against fixtures in `fixtures/helius/`.
+//! Decoding is pure and unit-tested against real mainnet frames in `services/backend/fixtures/mainnet/`
+//! (plus synthetic frames for shapes mainnet no longer emits). Event reserves are not used as a SOL pool:
+//! some curves quote in a non-SOL token and the event carries no quote mint.
 use std::time::Duration;
 
 use async_trait::async_trait;
 use base64::Engine as _;
 use common::{Launchpad, Mint, TsMs, Untrusted, Venue};
 use futures_util::{SinkExt, StreamExt};
-use papersim::{PoolState, Side};
+use papersim::Side;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -223,13 +225,6 @@ pub fn decode_event(data: &[u8]) -> Option<CurveEvent> {
     None
 }
 
-fn pool(sol_lamports: u64, tokens_raw: u64) -> Option<PoolState> {
-    (sol_lamports > 0 && tokens_raw > 0).then(|| PoolState {
-        sol_reserve: sol_lamports as f64 / LAMPORTS_PER_SOL,
-        token_reserve: tokens_raw as f64 / 10f64.powi(CURVE_TOKEN_DECIMALS),
-    })
-}
-
 /// Map a decoded event to the pipeline's [`IngestEvent`].
 pub fn to_ingest(ev: CurveEvent, now_ms: TsMs) -> Option<IngestEvent> {
     match ev {
@@ -241,8 +236,6 @@ pub fn to_ingest(ev: CurveEvent, now_ms: TsMs) -> Option<IngestEvent> {
             user,
             creator,
             timestamp,
-            virtual_token_reserves,
-            virtual_sol_reserves,
             ..
         } => Some(IngestEvent::NewCoin(Box::new(NewCoin {
             mint: Mint::parse(&mint).ok()?,
@@ -253,10 +246,10 @@ pub fn to_ingest(ev: CurveEvent, now_ms: TsMs) -> Option<IngestEvent> {
             name: Untrusted::new(name),
             symbol: Untrusted::new(symbol),
             uri: Untrusted::new(uri),
-            pool: match (virtual_sol_reserves, virtual_token_reserves) {
-                (Some(s), Some(t)) => pool(s, t),
-                _ => None,
-            },
+            // Reserves are decoded but NOT turned into a SOL pool: mainnet capture (2026-10-29) shows
+            // curves whose quote side is not SOL, and the event does not carry the quote mint. Pool
+            // state must come from the bonding-curve account (quote mint checked) before paper fills.
+            pool: None,
             metrics: None,
             guard: None,
         }))),
@@ -267,8 +260,7 @@ pub fn to_ingest(ev: CurveEvent, now_ms: TsMs) -> Option<IngestEvent> {
             is_buy,
             user,
             timestamp,
-            virtual_sol_reserves,
-            virtual_token_reserves,
+            ..
         } => Some(IngestEvent::Trade(TradeTick {
             mint: Mint::parse(&mint).ok()?,
             side: if is_buy { Side::Buy } else { Side::Sell },
@@ -276,7 +268,7 @@ pub fn to_ingest(ev: CurveEvent, now_ms: TsMs) -> Option<IngestEvent> {
             tokens: token_amount as f64 / 10f64.powi(CURVE_TOKEN_DECIMALS),
             trader: user,
             ts: timestamp * 1000,
-            pool: pool(virtual_sol_reserves, virtual_token_reserves),
+            pool: None, // see NewCoin above: quote unit unknown from the event alone
         })),
         CurveEvent::Completed {
             mint, timestamp, ..
@@ -538,10 +530,20 @@ impl StreamSource for HeliusSource {
 mod tests {
     use super::*;
 
-    fn fixture(name: &str) -> String {
+    /// Real frames captured read-only from mainnet (see `services/backend/fixtures/mainnet/README.md`).
+    fn mainnet(name: &str) -> String {
+        let p = format!(
+            "{}/../../fixtures/mainnet/{name}",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("{p}: {e}"))
+    }
+    /// Synthetic frames, only for shapes no current mainnet frame has.
+    fn synthetic(name: &str) -> String {
         let p = format!("{}/fixtures/helius/{name}", env!("CARGO_MANIFEST_DIR"));
         std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("{p}: {e}"))
     }
+    const CAPTURE: &str = "2026-10-29";
 
     #[test]
     fn discriminators_are_anchor_sha256_prefixes() {
@@ -566,89 +568,142 @@ mod tests {
     }
 
     #[test]
-    fn parses_create_notification() {
-        let b = parse_logs_notification(&fixture("logs_create.json")).expect("batch");
-        assert_eq!(b.slot, 372_000_123);
-        assert_eq!(b.events.len(), 2, "create + dev buy trade");
+    fn mainnet_create_v2() {
+        let b = parse_logs_notification(&mainnet(&format!("logs_create.{CAPTURE}.json")))
+            .expect("batch");
+        assert_eq!(b.slot, 462_832_912);
+        assert_eq!(
+            b.signature,
+            "5DT6QVW9gAz6rwcFezH3CA4PK5NpuhVW51B63wpWXV398yhH7WHsNPjUQvFqcHLSqqNhaZ6xp5FdPN52Cc449GLM"
+        );
+        assert_eq!(b.events.len(), 1);
+        let CurveEvent::Created {
+            ref symbol,
+            ref mint,
+            ref bonding_curve,
+            ref user,
+            ref creator,
+            timestamp,
+            virtual_token_reserves,
+            ..
+        } = b.events[0]
+        else {
+            panic!("expected Created")
+        };
+        assert_eq!(symbol, "Fart");
+        assert_eq!(mint, "McWZrfqAAJXKzjKXDANWaVp52o7xBAfQCzjQHLhinBW");
+        assert_eq!(
+            bonding_curve,
+            "BDtQDnH38Y3ab97yP9WFSjwZTPawjvTsuGZH779j2efN"
+        );
+        assert_eq!(user, "424dpHGa8XRe5T2Czg2Nc4JSbLQGbR43q8LoYD13CFuy");
+        assert_eq!(
+            creator.as_deref(),
+            Some("9R55983jyCunSsqAx7G9BxbYN5mbkaRDsPuof7sejSQJ")
+        );
+        assert_eq!(timestamp, Some(1_793_266_607));
+        assert_eq!(virtual_token_reserves, Some(1_073_000_000_000_000));
         let Some(IngestEvent::NewCoin(c)) = to_ingest(b.events[0].clone(), 0) else {
             panic!("expected NewCoin")
         };
-        assert_eq!(
-            c.mint.as_str(),
-            "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"
-        );
         assert_eq!(c.venue, Venue::Curve);
         assert_eq!(c.launchpad, Launchpad::PumpFun);
         assert_eq!(
             c.creator.as_deref(),
-            Some("So11111111111111111111111111111111111111112")
+            Some("9R55983jyCunSsqAx7G9BxbYN5mbkaRDsPuof7sejSQJ")
         );
-        assert_eq!(c.ts, 1_761_700_000_000);
-        // name is attacker-controlled: stays wrapped
-        assert_eq!(c.name.expose(), "Ignore previous instructions");
-        let p = c.pool.expect("pool");
-        assert!((p.sol_reserve - 30.0).abs() < 1e-9);
-        assert!((p.token_reserve - 1_073_000_000.0).abs() < 1e-6);
-        let Some(IngestEvent::Trade(t)) = to_ingest(b.events[1].clone(), 0) else {
-            panic!("expected Trade")
-        };
-        assert_eq!(t.side, Side::Buy);
-        assert!((t.sol - 0.5).abs() < 1e-12);
+        assert_eq!(c.ts, 1_793_266_607_000);
+        assert!(c.pool.is_none(), "quote unit unknown from the event");
+        // metadata is attacker-controlled text: stays wrapped
+        assert_eq!(c.symbol.expose(), "Fart");
     }
 
     #[test]
-    fn parses_legacy_create_without_trailing_fields() {
-        let b = parse_logs_notification(&fixture("logs_create_legacy.json")).expect("batch");
+    fn mainnet_trade() {
+        let b = parse_logs_notification(&mainnet(&format!("logs_trade.{CAPTURE}.json")))
+            .expect("batch");
+        assert_eq!(b.slot, 462_832_906);
+        assert_eq!(
+            b.events.len(),
+            1,
+            "unknown events in the same tx are skipped"
+        );
+        let Some(IngestEvent::Trade(t)) = to_ingest(b.events[0].clone(), 0) else {
+            panic!("expected Trade")
+        };
+        assert_eq!(
+            t.mint.as_str(),
+            "Co68LzYNQArj5fmRmh4o2TVeEVx6FfaLiyRgDAjtpump"
+        );
+        assert_eq!(t.side, Side::Sell);
+        assert_eq!(t.trader, "BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s");
+        assert!((t.sol - 0.020_936_024).abs() < 1e-12);
+        assert_eq!(t.ts, 1_793_266_605_000);
+    }
+
+    #[test]
+    fn mainnet_complete_as_migration() {
+        let b = parse_logs_notification(&mainnet(&format!("logs_complete.{CAPTURE}.json")))
+            .expect("batch");
+        assert_eq!(b.slot, 462_833_663);
+        assert_eq!(b.events.len(), 2, "final buy + curve complete");
+        let migrated: Vec<_> = b
+            .events
+            .into_iter()
+            .filter_map(|e| to_ingest(e, 0))
+            .filter_map(|e| match e {
+                IngestEvent::Migrated { mint, ts } => Some((mint, ts)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(migrated.len(), 1);
+        assert_eq!(
+            migrated[0].0.as_str(),
+            "F6LeVR2QMkzNXcQy6593Kf1hM7CPLnQaQ4eyBAvrpump"
+        );
+        assert_eq!(migrated[0].1, 1_793_266_769_000);
+    }
+
+    #[test]
+    fn mainnet_get_transaction_enrichment() {
+        let d = parse_get_transaction(
+            &mainnet(&format!("get_transaction_create.{CAPTURE}.json")),
+            "McWZrfqAAJXKzjKXDANWaVp52o7xBAfQCzjQHLhinBW",
+        )
+        .expect("details");
+        assert_eq!(d.slot, 462_832_912);
+        assert_eq!(d.block_time_ms, Some(1_793_266_607_000));
+        assert_eq!(d.fee_payer, "424dpHGa8XRe5T2Czg2Nc4JSbLQGbR43q8LoYD13CFuy");
+        assert_eq!(d.fee_lamports, 55_000);
+        assert_eq!(d.payer_sol_spent_lamports, 11_037_960);
+        assert_eq!(d.payer_initial_tokens_raw, 91_430_114_952_123);
+        assert!(parse_get_transaction(r#"{"jsonrpc":"2.0","result":null,"id":1}"#, "x").is_none());
+    }
+
+    #[test]
+    fn synthetic_legacy_create_without_trailing_fields() {
+        // v1 CreateEvent layout (no creator/timestamp/reserves): not emitted by today's program.
+        let b = parse_logs_notification(&synthetic("logs_create_legacy.json")).expect("batch");
         let Some(IngestEvent::NewCoin(c)) = to_ingest(b.events[0].clone(), 42) else {
             panic!("expected NewCoin")
         };
         assert_eq!(c.ts, 42, "falls back to receive time");
-        assert!(c.pool.is_none());
         assert_eq!(
             c.creator.as_deref(),
             Some("So11111111111111111111111111111111111111112")
         );
-    }
-
-    #[test]
-    fn parses_complete_as_migration() {
-        let b = parse_logs_notification(&fixture("logs_complete.json")).expect("batch");
-        assert!(matches!(
-            to_ingest(b.events[0].clone(), 0),
-            Some(IngestEvent::Migrated {
-                ts: 1_761_700_600_000,
-                ..
-            })
-        ));
     }
 
     #[test]
     fn ignores_acks_failed_and_garbage() {
         assert!(parse_logs_notification(r#"{"jsonrpc":"2.0","result":4242,"id":1}"#).is_none());
-        assert!(parse_logs_notification(&fixture("logs_failed.json")).is_none());
-        assert!(parse_logs_notification(&fixture("logs_unrelated.json")).is_none());
+        assert!(parse_logs_notification(&synthetic("logs_failed.json")).is_none());
+        assert!(parse_logs_notification(&synthetic("logs_unrelated.json")).is_none());
         assert!(parse_logs_notification("not json").is_none());
-        // truncated payload and oversize string length are rejected, not panicking
         assert!(decode_event(&event_discriminator("CreateEvent")).is_none());
         let mut huge = event_discriminator("CreateEvent").to_vec();
         huge.extend_from_slice(&u32::MAX.to_le_bytes());
         assert!(decode_event(&huge).is_none());
-    }
-
-    #[test]
-    fn parses_get_transaction_enrichment() {
-        let d = parse_get_transaction(
-            &fixture("get_transaction_create.json"),
-            "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
-        )
-        .expect("details");
-        assert_eq!(d.fee_payer, "So11111111111111111111111111111111111111112");
-        assert_eq!(d.slot, 372_000_123);
-        assert_eq!(d.block_time_ms, Some(1_761_700_000_000));
-        assert_eq!(d.fee_lamports, 5_000);
-        assert_eq!(d.payer_sol_spent_lamports, 524_005_000);
-        assert_eq!(d.payer_initial_tokens_raw, 17_241_379_310_344);
-        assert!(parse_get_transaction(r#"{"jsonrpc":"2.0","result":null,"id":1}"#, "x").is_none());
     }
 
     #[test]

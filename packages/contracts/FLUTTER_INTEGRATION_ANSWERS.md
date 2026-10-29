@@ -82,7 +82,7 @@ challenge, typed strategy name and a 2.5 s hold; payload and verification steps 
    `changed_by`, `changed_at`; `CONFIRMATION_RESTART_REQUIRED` restarts the full Real confirmation.
 6. Last login method: unlink returns `422 LAST_LOGIN_METHOD`; unlink/deletion need re-auth within 5 min
    (`REAUTH_REQUIRED`). The SIWS login wallet is never the trading wallet (`WALLET_ROLE_CONFLICT`).
-7. Account deletion (App Store): `GET/POST/DELETE /me/deletion`; 7-day grace by default; events
+7. Account deletion (App Store): `GET/POST/DELETE /me/deletion`; grace is server-side (default 7 days, 1–30), cancellable until `scheduled_for`; events
    `account.deletion_scheduled|deletion_cancelled|deleted`.
 8. Push payload: your data-only schema is adopted (`v=1, event=N-xx, mode, approval_id?, position_id?, token?,
    exp?, expire_reason?`) plus `type`, `workspace_id`, `seq`, `deep_link` (`sentra://...`), `actions`, `vars`,
