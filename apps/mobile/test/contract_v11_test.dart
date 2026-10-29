@@ -48,7 +48,8 @@ void main() {
       expect(ExitPresets.normalize('scalp'), 'fast_half');
       expect(ExitPresets.normalize('stepLock'), 'ratchet');
       expect(ExitPresets.all, hasLength(13));
-      expect(SettingsKeys.all, hasLength(60)); // 60 rows, askFirst removed, + stop_loss_pct (1.1.2)
+      // 60 rows, askFirst removed, + stop_loss_pct (1.1.2), + time_stop_s / stall_exit (1.1.4)
+      expect(SettingsKeys.all, hasLength(62));
       for (final k in [...SettingsKeys.all, ...ExitPresets.all]) {
         expect(k.current, matches(RegExp(r'^[a-z][a-z0-9_]*$')), reason: 'snake_case: ${k.current}');
       }

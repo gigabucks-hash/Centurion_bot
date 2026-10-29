@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/feature_flags.dart';
 import '../../core/format.dart';
 import '../../core/theme/sentra_theme.dart';
+import '../../core/widgets/api_feedback.dart';
 import '../../core/widgets/common.dart';
 import '../../data/api/api_exception.dart';
 import '../../data/api/server_clock.dart';
@@ -16,6 +17,7 @@ import '../../data/api/wire.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';
 import '../../l10n/gen/app_localizations.dart';
+import 'proposal_review_sheet.dart';
 
 /// Ids with a decision in flight or in the 5 s undo window (hidden from list).
 class _BusyApprovals extends Notifier<Set<String>> {
@@ -30,20 +32,38 @@ final busyApprovalsProvider = NotifierProvider<_BusyApprovals, Set<String>>(_Bus
 final skippingApprovalsProvider = NotifierProvider<_BusyApprovals, Set<String>>(_BusyApprovals.new);
 
 const undoWindow = Duration(seconds: 5);
-const skipReasons = ['Likuiditas tipis', 'Sudah pump', 'Dev aneh', 'Lainnya'];
+
+/// Skip chip label (i18n `queue.skip_reason.*`; wire mapping in [SkipChip]).
+String skipChipLabel(AppLocalizations l, SkipChip c) => switch (c) {
+  SkipChip.thinLiquidity => l.queueSkipReasonThinLiquidity,
+  SkipChip.alreadyPumped => l.queueSkipReasonAlreadyPumped,
+  SkipChip.suspiciousDev => l.queueSkipReasonSuspiciousDev,
+  SkipChip.priceMoved => l.queueSkipReasonPriceMoved,
+  SkipChip.other => l.queueSkipReasonOther,
+  SkipChip.notTradeable => l.queueSkipReasonNotTradeable,
+};
+
+/// Result of the skip sheet: [chip] null = "skip without a reason" (server default `user_declined`).
+typedef SkipChoice = ({SkipChip? chip});
 
 /// `decide_approval` request for [a]. The idempotency key is deterministic per
 /// (approval, rev, decision), so a double tap or retry replays instead of
 /// double-deciding. 1.1.2: `p_expected_rev` = the approval `rev` (never null);
 /// no `p_client` (the server takes it from the JWT).
-DecideApprovalRequest decideRequest(Approval a, {required bool approve, String? reason}) => DecideApprovalRequest(
-  approvalId: a.id,
-  token: a.token,
-  approve: approve,
-  expectedRev: a.rev,
-  idempotencyKey: '${a.id}:r${a.rev}:${Wire.decision(approve: approve)}',
-  reason: approve ? null : reason,
-);
+DecideApprovalRequest decideRequest(Approval a, {required bool approve, SkipChip? chip, int? holdMs}) =>
+    DecideApprovalRequest(
+      approvalId: a.id,
+      token: a.token,
+      approve: approve,
+      expectedRev: a.rev,
+      // The reject_reason is part of the request: a different chip is a different key (422 reuse otherwise).
+      idempotencyKey: '${a.id}:r${a.rev}:${Wire.decision(approve: approve)}${approve ? '' : ':${_rejectWire(chip)}'}',
+      rejectReason: approve ? null : chip?.rejectReason,
+      reasonDetail: approve ? null : chip?.reasonDetail,
+      holdMs: approve ? holdMs : null,
+    );
+
+String _rejectWire(SkipChip? chip) => (chip?.rejectReason ?? RejectReason.userDeclined).wire;
 
 /// Approve path. Real SOL always passes the biometric gate first (SPEC §3),
 /// and is disabled entirely while [FeatureFlags.realSolEnabled] is false.
@@ -66,7 +86,17 @@ Future<ApprovalStatus?> approveItem(BuildContext context, WidgetRef ref, Approva
     messenger?.showSnackBar(SnackBar(content: Text('${a.title}: ${res.status.name}')));
     return res.status;
   } on ApiException catch (e) {
-    messenger?.showSnackBar(SnackBar(content: Text(e.message)));
+    // errors.map.json 0.4.6 tone + copy. QUOTE_MISSING_OR_STALE (Real only): warning tone and a
+    // "Refresh quote" CTA that refetches the approval (new quote + rev); then review and approve again.
+    if (context.mounted) {
+      showApiError(
+        context,
+        e,
+        onCta: e.code == ApiErrorCode.quoteMissingOrStale
+            ? () => ref.read(approvalRepositoryProvider).refreshApproval(a.id)
+            : null,
+      );
+    }
     return null;
   } finally {
     busy.set(a.id, false);
@@ -75,10 +105,10 @@ Future<ApprovalStatus?> approveItem(BuildContext context, WidgetRef ref, Approva
 
 /// Skip path: optimistic hide + Undo 5 s; the decision is only sent after
 /// the undo window closes (so "undo" needs no backend support). A not-tradeable
-/// pick CAN be skipped (i18n 0.4.4); its wire reason `not_tradeable` is preselected.
-void skipItem(BuildContext context, WidgetRef ref, Approval a, {String? reason}) {
-  final wireReason = a.defaultSkipReason;
-  reason ??= wireReason == null ? null : AppLocalizations.of(context).queueSkipReasonNotTradeable;
+/// pick CAN be skipped (i18n 0.4.4); `reject_reason: not_tradeable` is preselected (1.1.3).
+void skipItem(BuildContext context, WidgetRef ref, Approval a, {SkipChip? chip}) {
+  chip ??= a.defaultSkipChip;
+  final reason = chip == null ? null : skipChipLabel(AppLocalizations.of(context), chip);
   final busy = ref.read(skippingApprovalsProvider.notifier)..set(a.id, true);
   final repo = ref.read(approvalRepositoryProvider);
   var undone = false;
@@ -94,7 +124,7 @@ void skipItem(BuildContext context, WidgetRef ref, Approval a, {String? reason})
   Timer(undoWindow, () async {
     if (!undone) {
       try {
-        await repo.decide(decideRequest(a, approve: false, reason: wireReason));
+        await repo.decide(decideRequest(a, approve: false, chip: chip));
       } catch (_) {
         /* surfaced via feed in prod */
       }
@@ -103,7 +133,7 @@ void skipItem(BuildContext context, WidgetRef ref, Approval a, {String? reason})
   });
 }
 
-Future<String?> _askSkipReason(BuildContext context, Approval a) => showModalBottomSheet<String>(
+Future<SkipChoice?> _askSkipReason(BuildContext context, Approval a) => showModalBottomSheet<SkipChoice>(
   context: context,
   showDragHandle: true,
   builder: (ctx) => Padding(
@@ -120,14 +150,14 @@ Future<String?> _askSkipReason(BuildContext context, Approval a) => showModalBot
             key: const Key('skipReason_not_tradeable'),
             selected: true,
             label: Text(AppLocalizations.of(ctx).queueSkipReasonNotTradeable),
-            onSelected: (_) => Navigator.pop(ctx, AppLocalizations.of(ctx).queueSkipReasonNotTradeable),
+            onSelected: (_) => Navigator.pop(ctx, (chip: SkipChip.notTradeable)),
           ),
           const SizedBox(height: AppSpace.s3),
           SizedBox(
             width: double.infinity,
             child: FilledButton(
               key: const Key('skipConfirm'),
-              onPressed: () => Navigator.pop(ctx, AppLocalizations.of(ctx).queueSkipReasonNotTradeable),
+              onPressed: () => Navigator.pop(ctx, (chip: SkipChip.notTradeable)),
               child: Text('Skip · ${AppLocalizations.of(ctx).queueSkipReasonNotTradeable}'),
             ),
           ),
@@ -135,12 +165,22 @@ Future<String?> _askSkipReason(BuildContext context, Approval a) => showModalBot
           Wrap(
             spacing: AppSpace.s2,
             runSpacing: AppSpace.s2,
-            children: [for (final r in skipReasons) ActionChip(label: Text(r), onPressed: () => Navigator.pop(ctx, r))],
+            children: [
+              for (final c in SkipChip.userChoices)
+                ActionChip(
+                  key: Key('skipChip_${c.name}'),
+                  label: Text(skipChipLabel(AppLocalizations.of(ctx), c)),
+                  onPressed: () => Navigator.pop(ctx, (chip: c)),
+                ),
+            ],
           ),
           const SizedBox(height: AppSpace.s3),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton(onPressed: () => Navigator.pop(ctx, ''), child: const Text('Skip tanpa alasan')),
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, (chip: null)),
+              child: const Text('Skip tanpa alasan'),
+            ),
           ),
         ],
       ],
@@ -318,7 +358,7 @@ class ApprovalCard extends ConsumerWidget {
                             ? null
                             : () async {
                                 final r = await _askSkipReason(context, a);
-                                if (r != null && context.mounted) skipItem(context, ref, a, reason: r);
+                                if (r != null && context.mounted) skipItem(context, ref, a, chip: r.chip);
                               },
                         child: const Text('Skip'),
                       ),
@@ -349,7 +389,7 @@ class ApprovalCard extends ConsumerWidget {
                             : () async {
                                 final r = await _askSkipReason(context, a);
                                 if (r != null && context.mounted) {
-                                  skipItem(context, ref, a, reason: r.isEmpty ? null : r);
+                                  skipItem(context, ref, a, chip: r.chip);
                                 }
                               },
                         child: const Text('Skip'),
@@ -368,6 +408,15 @@ class ApprovalCard extends ConsumerWidget {
                     ),
                   ],
                 ),
+                if (a.kind == ApprovalKind.buyPick)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      key: Key('review_${a.id}'),
+                      onPressed: () => showProposalReview(context, a),
+                      child: Text(l10n.reviewDetailsToggle),
+                    ),
+                  ),
                 if (realBlocked)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpace.s2),

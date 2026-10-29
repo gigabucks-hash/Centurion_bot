@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/format.dart';
 import '../../core/theme/sentra_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/page_footer.dart';
 import '../../data/models/models.dart';
+import '../../data/repositories/repositories.dart';
 import '../../data/providers.dart';
 import 'widgets/equity_card.dart';
 import 'widgets/exit_progress_bar.dart';
@@ -23,12 +25,41 @@ final _strategyNamesProvider = Provider<Map<String, String>>(
 );
 
 /// SPEC §6 + wireframe 12-positions-mobile (lives under the Lainnya tab).
-class PositionsScreen extends ConsumerWidget {
+class PositionsScreen extends ConsumerStatefulWidget {
   const PositionsScreen({super.key});
+  @override
+  ConsumerState<PositionsScreen> createState() => _PositionsScreenState();
+}
+
+/// Open positions are live (stream). Closed history: live head + older pages via
+/// 1.1.4 keyset paging (`fetchPositionsPage(state: closed)`).
+class _PositionsScreenState extends ConsumerState<PositionsScreen> {
+  late final PagedListController<Position> _closedPages = PagedListController(
+    ({cursor, limit = defaultPageLimit}) => ref
+        .read(portfolioRepositoryProvider)
+        .fetchPositionsPage(state: PositionState.closed, cursor: cursor, limit: limit),
+    idOf: (p) => p.id,
+    onChanged: (_) {
+      if (mounted) setState(() {});
+    },
+  );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _closedPages.refresh();
+  }
+
+  @override
+  void dispose() {
+    _closedPages.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final positions = ref.watch(positionsProvider);
+    final paged = _closedPages.state;
     final open = positions.valueOrNull?.where((p) => p.isOpen).length ?? 0;
     return Scaffold(
       appBar: AppBar(
@@ -44,8 +75,13 @@ class PositionsScreen extends ConsumerWidget {
         value: positions,
         data: (list) {
           final openList = list.where((p) => p.isOpen).toList();
-          final closed = list.where((p) => !p.isOpen).toList()
-            ..sort((a, b) => (b.closedAt ?? b.openedAt).compareTo(a.closedAt ?? a.openedAt));
+          final closed = mergeHeadAndPages(
+            list.where((p) => !p.isOpen).toList(),
+            // Practice-reset / mode gate: paged rows pass the same filter as the stream.
+            ref.read(practiceEpochGateProvider).filter(paged.items).where((p) => !p.isOpen).toList(),
+            (p) => p.id,
+            (a, b) => (b.closedAt ?? b.openedAt).compareTo(a.closedAt ?? a.openedAt),
+          );
           // Slivers + builders: closed history grows without bound; only visible rows build.
           return CustomScrollView(
             slivers: [
@@ -72,8 +108,14 @@ class PositionsScreen extends ConsumerWidget {
                     if (closed.isNotEmpty) ...[
                       const SliverToBoxAdapter(child: SectionHeader('Closed')),
                       SliverList.builder(
-                        itemCount: closed.length,
-                        itemBuilder: (context, i) => _ClosedRow(position: closed[i]),
+                        itemCount: closed.length + 1,
+                        itemBuilder: (context, i) {
+                          if (i >= closed.length - pagePrefetchDistance && !paged.done && !paged.loading) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) => _closedPages.loadMore());
+                          }
+                          if (i == closed.length) return PageFooter(state: paged, onRetry: _closedPages.loadMore);
+                          return _ClosedRow(position: closed[i]);
+                        },
                       ),
                     ],
                   ],

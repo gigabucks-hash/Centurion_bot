@@ -215,12 +215,17 @@ class HoldToConfirmButton extends StatefulWidget {
     required this.onConfirmed,
     required this.color,
     this.enabled = true,
+    this.onHoldingChanged,
   });
   final String label;
   final Duration hold;
   final VoidCallback onConfirmed;
   final Color color;
   final bool enabled;
+
+  /// True while the finger is down and the bar is filling. Give the button a new
+  /// key to reset an in-progress hold (e.g. the quote changed: new rev).
+  final ValueChanged<bool>? onHoldingChanged;
   @override
   State<HoldToConfirmButton> createState() => _HoldToConfirmButtonState();
 }
@@ -248,9 +253,20 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton> with SingleTi
       enabled: widget.enabled,
       label: '${widget.label}, tahan ${widget.hold.inMilliseconds / 1000} detik',
       child: GestureDetector(
-        onTapDown: widget.enabled ? (_) => _c.forward() : null,
-        onTapUp: (_) => _c.isCompleted ? null : _c.reverse(),
-        onTapCancel: () => _c.reverse(),
+        onTapDown: widget.enabled
+            ? (_) {
+                widget.onHoldingChanged?.call(true);
+                _c.forward();
+              }
+            : null,
+        onTapUp: (_) {
+          widget.onHoldingChanged?.call(false);
+          if (!_c.isCompleted) _c.reverse();
+        },
+        onTapCancel: () {
+          widget.onHoldingChanged?.call(false);
+          _c.reverse();
+        },
         child: AnimatedBuilder(
           animation: _c,
           builder: (_, _) => Container(

@@ -2,8 +2,8 @@
 // Regenerate: dart run tool/gen_errors.dart  (CI: tool/ci_check_errors.sh)
 // ignore_for_file: lines_longer_than_80_chars, constant_identifier_names
 
-const int apiErrorCodesVersion = 5;
-const int apiErrorCodesCount = 57;
+const int apiErrorCodesVersion = 6;
+const int apiErrorCodesCount = 58;
 
 /// `error` = API/RPC error body; `notice` = system.notice code; `skip` = screener skip_reason
 /// (may also be an `order.failed` reason_code).
@@ -298,6 +298,16 @@ enum ApiErrorCode {
     messageId: 'Durasi tahan-untuk-konfirmasi kurang dari batas minimum',
     sqlState: 'P0422',
   ),
+  quoteMissingOrStale(
+    'QUOTE_MISSING_OR_STALE',
+    kind: ApiErrorKind.error,
+    http: 409,
+    retryable: true,
+    messageEn: 'The trade quote is missing or expired; refresh the quote and review it again before approving',
+    messageId:
+        'Kuotasi transaksi tidak ada atau sudah kedaluwarsa; perbarui kuotasi dan tinjau lagi sebelum menyetujui',
+    sqlState: 'P0409',
+  ),
   replayUnavailable(
     'REPLAY_UNAVAILABLE',
     kind: ApiErrorKind.error,
@@ -348,8 +358,8 @@ enum ApiErrorCode {
     kind: ApiErrorKind.error,
     http: 429,
     retryable: true,
-    messageEn: 'Practice reset allowed once per 24 h; see details.next_allowed_at',
-    messageId: 'Reset practice hanya sekali per 24 jam; lihat details.next_allowed_at',
+    messageEn: 'Practice reset allowed once per 24 h; see error.next_allowed_at',
+    messageId: 'Reset practice hanya sekali per 24 jam; lihat error.next_allowed_at',
     sqlState: 'P0429',
   ),
   accountDeletionPending(

@@ -232,7 +232,7 @@ void main() {
     await tester.pump(const Duration(seconds: 6)); // undo window closes → decision sent
     await tester.pump();
     expect(b.debugApprovals.firstWhere((a) => a.id == 'apv_nt1').status, ApprovalStatus.skipped);
-    expect(b.debugLastDecide?.reason, 'not_tradeable');
+    expect(b.debugLastDecide?.rejectReason, RejectReason.notTradeable);
     b.dispose();
   });
 
@@ -267,7 +267,7 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
     await tester.pump();
     expect(b.debugApprovals.firstWhere((a) => a.id == 'apv_nt2').status, ApprovalStatus.skipped);
-    expect(b.debugLastDecide?.reason, 'not_tradeable');
+    expect(b.debugLastDecide?.rejectReason, RejectReason.notTradeable);
     b.dispose();
   });
 

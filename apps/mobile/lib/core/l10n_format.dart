@@ -4,6 +4,8 @@
 /// Amounts are [Lamports] (BigInt) and prices [Decimal]: no double for money.
 library;
 
+import 'package:decimal/decimal.dart';
+
 import '../data/money.dart';
 import 'theme/app_tokens.dart' show TradeColors;
 
@@ -93,4 +95,43 @@ String formatTime(DateTime t, String loc, {String zone = 'WIB'}) {
   if (loc == 'id') return '${two(t.hour)}.${two(t.minute)} $zone';
   final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
   return '$h:${two(t.minute)}$_nbsp${t.hour < 12 ? 'AM' : 'PM'} $zone';
+}
+
+/// `format.mjs` DASH: every null-safe formatter renders a missing value as this.
+const dash = '—';
+
+/// Compact number (Intl compact, max 1 dp): en "8.4K" / "1.2M"; id "8,4 rb" / "1,2 jt".
+String formatCompact(Decimal v, String loc) {
+  final neg = v < Decimal.zero;
+  final a = v.abs();
+  const en = ['', 'K', 'M', 'B', 'T'];
+  const id = ['', 'rb', 'jt', 'M', 'T'];
+  var i = 0;
+  var x = a;
+  final k = Decimal.fromInt(1000);
+  while (x >= k && i < 4) {
+    x = (x / k).toDecimal(scaleOnInfinitePrecision: 12);
+    i++;
+  }
+  final body = formatDecimalAbs(x, loc, minDp: 0, maxDp: i == 0 && x < Decimal.one ? 2 : 1);
+  final suffix = (loc == 'id' ? id : en)[i];
+  final sep = loc == 'id' && suffix.isNotEmpty ? _nbsp : '';
+  return '${neg ? _minus : ''}$body$sep$suffix';
+}
+
+/// Market cap USD (indicative): "$1.2M" / "$1,2 jt"; null → [dash].
+String formatMcapUsd(Decimal? usd, String loc) => usd == null ? dash : '\$${formatCompact(usd, loc)}';
+
+/// Market cap from lamports: "8.4K SOL"; null → [dash].
+String formatMcapSol(Lamports? v, String loc) {
+  if (v == null) return dash;
+  final sol = (Decimal.fromBigInt(v.raw) / Decimal.fromInt(1000000000)).toDecimal(scaleOnInfinitePrecision: 9);
+  return '${formatCompact(sol, loc)}${_nbsp}SOL';
+}
+
+/// Basis points → percent, max 2 dp: 25 → "0.25%" / "0,25%"; null → [dash].
+String formatBps(int? bps, String loc) {
+  if (bps == null) return dash;
+  final pct = (Decimal.fromInt(bps.abs()) / Decimal.fromInt(100)).toDecimal(scaleOnInfinitePrecision: 4);
+  return '${bps < 0 ? _minus : ''}${formatDecimalAbs(pct, loc, minDp: 0, maxDp: 2)}%';
 }

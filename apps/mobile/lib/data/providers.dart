@@ -59,9 +59,33 @@ final liveMarkProvider = StreamProvider.autoDispose.family<MarkMessage, ({String
       .transform(PerKeyThrottle<MarkMessage, String>(keyOf: (m) => m.mint, interval: markRowInterval));
 });
 final sentraRpcProvider = Provider<SentraRpc>((ref) => MockSentraRpc(ref.watch(mockBackendProvider)));
-final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => UnimplementedAuthRepository(telegramEnabled: ref.watch(featureFlagsProvider).telegramOidcEnabled),
+
+/// Wallet-only SIWS (1.1.4). Mock until the wallet SDK review lands; the mock
+/// allowlist holds the demo owner wallet only.
+const mockOwnerWallet = 'Own3rWa11etDemo1111111111111111111111111111';
+final siwsAuthRepositoryProvider = Provider<SiwsAuthRepository>((_) => MockSiwsAuth(ownerWallets: {mockOwnerWallet}));
+final walletSignerProvider = Provider<WalletSigner>((_) => MockWalletSigner(mockOwnerWallet));
+final telegramAuthProvider = Provider<TelegramAuthStub>(
+  (ref) => TelegramAuthStub(enabled: ref.watch(featureFlagsProvider).telegramOidcEnabled),
 );
+final authControllerProvider = Provider<AuthController>((ref) {
+  final c = AuthController(
+    repo: ref.watch(siwsAuthRepositoryProvider),
+    signer: ref.watch(walletSignerProvider),
+    domain: 'app.sentra.local',
+  );
+  ref.onDispose(c.dispose);
+  return c;
+});
+final authStateProvider = StreamProvider<AuthState>((ref) {
+  final c = ref.watch(authControllerProvider);
+  Stream<AuthState> gen() async* {
+    yield c.state;
+    yield* c.states;
+  }
+
+  return gen();
+});
 
 final approvalGuardProvider = Provider<ApprovalGuard>((ref) => const DialogApprovalGuard());
 

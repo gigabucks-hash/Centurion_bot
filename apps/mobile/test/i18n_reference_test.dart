@@ -1,4 +1,4 @@
-// Vendored verbatim from @sentra/i18n 0.4.4 (de22715) test/flutter/l10n_plural_test.dart (YOUR_APP → sentra_mobile).
+// Vendored verbatim from @sentra/i18n 0.4.6 test/flutter/l10n_plural_test.dart (YOUR_APP → sentra_mobile).
 // Reference test (verified in scratch project with flutter 3.47.8). Replace sentra_mobile with the app package name.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,5 +73,36 @@ void main() {
     expect(AppColorsDark.bgSunken, const Color(0xFF080A0F));
     // ignore: deprecated_member_use_from_same_package
     expect(AppColorsLight.bgInset, AppColorsLight.bgSunken);
+  });
+  test('Rev 4.5: review sheet, portfolio, reject_reason, GUARD_WEAKEN, skeleton tokens', () {
+    expect(id.reviewTitle('other'), 'Tinjau pembelian');
+    expect(en.reviewTitle('sell'), 'Review sell');
+    expect(id.reviewMinReceivedValue('59.210', 'EXM'), '≥ 59.210 EXM'); // params alphabetical: min_out, symbol
+    expect(id.portfolioBalanceLabel('practice'), 'Saldo paper');
+    expect(en.portfolioBalanceLabel('real'), 'Balance');
+    expect(id.portfolioSparklineA11y('27,49 paper SOL', '7H', '27,80 paper SOL', 'down'), contains('turun'));
+    expect(id.commonValueUnavailable, 'Data belum tersedia');
+    expect(id.commonRange7d, '7H');
+    expect(en.rejectReasonNotTradeable, 'Not tradeable');
+    expect(id.rejectReasonUserDeclined, 'Dilewati olehmu');
+    expect(
+      id.errorCodeGuardWeakenRequiresApproval,
+      startsWith('Perubahan menunggu approval'),
+    ); // 0.4.6: pending tone, not an error
+    expect(AppColorsDark.skeletonBase, const Color(0xFF262F43));
+    expect(AppColorsLight.skeletonHighlight, const Color(0xFFF1F3F7));
+  });
+  test('Rev 4.6: quote freshness plurals (=0 branch, no #), stall, guard pending, mcap', () {
+    expect(en.reviewQuoteUpdatedAgo(0), 'Quote updated just now');
+    expect(en.reviewQuoteUpdatedAgo(5), 'Quote updated 5 s ago');
+    expect(id.reviewQuoteUpdatedAgo(0), 'Quote baru diperbarui');
+    expect(id.reviewQuoteUpdatedAgo(12), 'Quote diperbarui 12 dtk lalu');
+    expect(en.reviewQuoteExpiresIn(1), 'Expires in 1 s');
+    expect(id.reviewQuoteExpiresIn(9), 'Berakhir dalam 9 dtk');
+    expect(id.reviewQuoteStale, 'Quote kedaluwarsa — perbarui untuk lanjut');
+    expect(id.reviewQuoteUpdatedInline, 'Quote diperbarui');
+    expect(id.exitReasonStall, 'Exit stagnan');
+    expect(en.guardWeakenPendingTitle, 'Change waiting for approval');
+    expect(id.mcapAsOf('18.42'), 'Per 18.42');
   });
 }

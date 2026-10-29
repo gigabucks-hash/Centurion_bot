@@ -140,6 +140,11 @@ class MockBackend
         _approvals[i] = a.copyWith(status: ApprovalStatus.expired, expireReason: ExpireReason.timedOut, decidedAt: now);
       }
     }
+    for (final a in [..._approvals]) {
+      if (a.isPending && a.kind == ApprovalKind.buyPick && a.quote?.stateAt(now) == QuoteState.stale) {
+        refreshQuote(a.id);
+      }
+    }
     if (_rng.nextDouble() < 0.25) _newPick(now);
     _history.add(PnlPoint(now, _summary().equityLamports));
     if (_history.length > 120) _history.removeAt(0);
@@ -403,6 +408,7 @@ class MockBackend
     if (d.startsWith('stop loss')) return ExitReasons.lossGuard.current;
     if (d.startsWith('trailing')) return ExitReasons.peakTrail.current;
     if (d.startsWith('time stop')) return ExitReasons.maxHold.current;
+    if (d.startsWith('stall exit')) return ExitReasons.stall.current;
     if (d.contains('manual')) return 'manual';
     return 'manual';
   }
@@ -516,6 +522,7 @@ class MockBackend
   /// Test hook: synchronous snapshot (avoids awaiting streams in fake-async widget tests).
   List<Position> get debugPositions => List.unmodifiable(_positions);
   List<Approval> get debugApprovals => List.unmodifiable(_approvals);
+  List<Strategy> get debugStrategies => List.unmodifiable(_strategies);
   List<ScreenerCoin> get debugScreener => List.unmodifiable(_screener);
 
   /// Test hooks: inject fixtures (e.g. Real SOL items, which the Practice seed has none of).
@@ -583,6 +590,246 @@ class MockBackend
     () => List.unmodifiable(_events.reversed.where((e) => strategyId == null || e.strategyId == strategyId).take(200)),
   );
 
+  // ------------------------------------------------ 1.1.4 cursor paging (mock)
+  /// Opaque keyset cursor: base64url of `list:micros:id`; foreign/malformed → CURSOR_INVALID.
+  static String _cursor(String list, DateTime at, String id) =>
+      base64Url.encode(utf8.encode('$list:${at.microsecondsSinceEpoch}:$id'));
+
+  static (int, String) _decodeCursor(String list, String cursor) {
+    try {
+      final parts = utf8.decode(base64Url.decode(cursor)).split(':');
+      if (parts.length < 3 || parts[0] != list) throw const FormatException('foreign cursor');
+      return (int.parse(parts[1]), parts.sublist(2).join(':'));
+    } catch (_) {
+      throw ApiException.fromCode('CURSOR_INVALID');
+    }
+  }
+
+  CursorPage<T> _page<T>(
+    String list,
+    List<T> all,
+    DateTime Function(T) at,
+    String Function(T) id, {
+    String? cursor,
+    int limit = defaultPageLimit,
+  }) {
+    if (limit < 1 || limit > maxPageLimit) {
+      throw ApiException.fromCode('VALIDATION_FAILED', details: {'field': 'limit'});
+    }
+    int cmp(T a, T b) {
+      final c = at(b).compareTo(at(a)); // newest first
+      return c != 0 ? c : id(b).compareTo(id(a));
+    }
+
+    final sorted = [...all]..sort(cmp);
+    var rest = sorted;
+    if (cursor != null) {
+      final (micros, cid) = _decodeCursor(list, cursor);
+      rest = sorted.where((x) {
+        final m = at(x).microsecondsSinceEpoch;
+        return m < micros || (m == micros && id(x).compareTo(cid) < 0);
+      }).toList();
+    }
+    final items = rest.take(limit).toList();
+    final more = rest.length > limit;
+    return CursorPage(items: items, nextCursor: more ? _cursor(list, at(items.last), id(items.last)) : null);
+  }
+
+  @override
+  Future<CursorPage<ActivityEvent>> fetchFeedPage({
+    String? strategyId,
+    String? cursor,
+    int limit = defaultPageLimit,
+  }) async {
+    await Future<void>.value(); // microtask: no timers left behind in widget tests
+    final all = _events.where((e) => strategyId == null || e.strategyId == strategyId).toList();
+    return _page('activity', all, (e) => e.at, (e) => e.id, cursor: cursor, limit: limit);
+  }
+
+  @override
+  Future<CursorPage<Position>> fetchPositionsPage({
+    PositionState? state,
+    String? cursor,
+    int limit = defaultPageLimit,
+  }) async {
+    await Future<void>.value(); // microtask: no timers left behind in widget tests
+    final all = _positions.where((p) => state == null || p.state == state).toList();
+    return _page(
+      'positions:${state?.name ?? 'all'}',
+      all,
+      (p) => p.openedAt,
+      (p) => p.id,
+      cursor: cursor,
+      limit: limit,
+    );
+  }
+
+  // ------------------------------------------------ 1.1.4 proposal quote (mock papersim)
+  /// `papersim::quote::estimate_buy`-like estimate, valid 15 s.
+  static ProposalQuote estimateQuote(Lamports amount, DateTime now) {
+    final fee = Lamports.fromInt(5000), prio = Lamports.fromInt(20000);
+    return ProposalQuote(
+      estNetworkFee: fee + prio,
+      priorityFee: prio,
+      swapFeeBps: 100,
+      maxSlippageBps: 300,
+      minOutRaw: amount.raw * BigInt.from(1000),
+      totalMax: amount + fee + prio,
+      quoteTs: now,
+      quoteExpiresAt: now.add(quoteValidity),
+    );
+  }
+
+  static const quoteValidity = Duration(seconds: 15);
+
+  /// Mock `stall_exit {window_s: 600, min_move_pct: 0.5}`.
+  static const mockStallWindow = Duration(minutes: 10);
+  static const mockStallMinMovePct = 0.5;
+
+  /// Backend-only `set_approval_quote`: refresh a pending quote, rev + 1, silent
+  /// `proposal.updated` (no push). Decided approvals are frozen.
+  Approval? refreshQuote(String id) {
+    final i = _approvals.indexWhere((a) => a.id == id);
+    if (i < 0) return null;
+    final a = _approvals[i];
+    if (!a.isPending || a.kind != ApprovalKind.buyPick) return a;
+    final now = _clock();
+    final q = estimateQuote(a.amountLamports ?? _sol('0.25'), now);
+    final updated = a.copyWith(quote: q, rev: a.rev + 1);
+    _approvals[i] = updated;
+    _emitEnvelope(
+      'proposal.updated',
+      a.id,
+      {
+        'proposal_id': a.id,
+        'kind': Wire.approvalKind(a.kind),
+        'rev': updated.rev,
+        'est_network_fee_lamports': q.estNetworkFee!.toWire(),
+        'priority_fee_lamports': q.priorityFee!.toWire(),
+        'swap_fee_bps': q.swapFeeBps,
+        'max_slippage_bps': q.maxSlippageBps,
+        'min_out_raw': q.minOutRaw.toString(),
+        'total_max_lamports': q.totalMax!.toWire(),
+        'quote_ts': now.toUtc().toIso8601String(),
+        'quote_expires_at': q.quoteExpiresAt!.toUtc().toIso8601String(),
+      },
+      mode: a.mode,
+      strategyId: a.strategyId,
+    );
+    _notify();
+    return updated;
+  }
+
+  @override
+  Future<Approval> refreshApproval(String id) async {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final a = _approvals.where((x) => x.id == id).firstOrNull;
+    if (a == null) throw ApiException.fromCode('NOT_FOUND');
+    // The mock stands in for the backend, which refreshes stale quotes on its own.
+    final stale = a.quote == null || a.quote!.stateAt(_clock()) != QuoteState.fresh;
+    return (stale ? refreshQuote(id) : null) ?? a;
+  }
+
+  // ------------------------------------------------ 1.1.4 guard weakening → proposal
+  /// Mock effective guard settings per strategy (server: `guard_config_defaults()` + settings).
+  final Map<String, Map<String, Object?>> _guardSettings = {};
+
+  /// Tests: effective mock guard settings of a strategy.
+  Map<String, Object?> debugGuards(String strategyId) => Map.unmodifiable(_guardsOf(strategyId));
+
+  Map<String, Object?> _guardsOf(String strategyId) => _guardSettings.putIfAbsent(
+    strategyId,
+    () => {
+      SettingsKeys.topHoldersSharePctMax.current: 30,
+      SettingsKeys.creatorSharePctMax.current: 10,
+      SettingsKeys.bundledSharePctMax.current: 20,
+      SettingsKeys.sniperSharePctMax.current: 15,
+      SettingsKeys.lpBurnedPctMin.current: 90,
+      SettingsKeys.requiredChecks.current: ['mint_authority', 'freeze_authority', 'lp_burned'],
+    },
+  );
+
+  /// Mirrors SQL `guard_weakened_fields(old, new)` settings-level keys (CHANGELOG 1.1.4):
+  /// `*_share_pct_max` raised or turned off (0 / null), `lp_burned_pct_min` lowered or
+  /// removed, any `required_checks` entry removed. Screener keys are not guards.
+  /// (The nested `guard_checks` GuardConfig half of the classifier is server-only.)
+  static List<String> guardWeakenedFields(Map<String, Object?> old, Map<String, Object?> patch) {
+    final out = <String>[];
+    for (final e in patch.entries) {
+      final k = e.key, v = e.value, o = old[k];
+      if (k == SettingsKeys.requiredChecks.current) {
+        final before = {...?(o as List?)?.cast<String>()};
+        final after = {...?(v as List?)?.cast<String>()};
+        if (before.difference(after).isNotEmpty) out.add(k);
+      } else if (k.endsWith('_share_pct_max') && o is num) {
+        if (v == null || (v is num && (v == 0 || v > o))) out.add(k);
+      } else if (k == SettingsKeys.lpBurnedPctMin.current && o is num) {
+        if (v == null || (v is num && v < o)) out.add(k);
+      }
+    }
+    return out;
+  }
+
+  /// REST PATCH semantics (1.1.4): weakening → 202 proposal, nothing applied.
+  @override
+  Future<StrategyPatchOutcome> patchSettings(
+    String strategyId, {
+    required int expectedRev,
+    required Map<String, Object?> settingsPatch,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final s = _strategies.where((x) => x.id == strategyId).firstOrNull;
+    if (s == null) throw ApiException.fromCode('NOT_FOUND');
+    if (s.rev != expectedRev) {
+      throw ApiException.fromCode('STRATEGY_REV_CONFLICT', details: {'current_rev': s.rev, 'base_rev': expectedRev});
+    }
+    final guards = _guardsOf(strategyId);
+    final weakened = guardWeakenedFields(guards, settingsPatch);
+    if (weakened.isEmpty) {
+      guards.addAll({for (final e in settingsPatch.entries) e.key: e.value});
+      final updated = await updateStrategy(strategyId, expectedRev: expectedRev);
+      return StrategyPatchApplied(updated);
+    }
+    final now = _clock();
+    final proposal = Approval(
+      id: _id('apv_'),
+      kind: ApprovalKind.guardChange,
+      status: ApprovalStatus.pending,
+      title: 'Loosen guards · ${s.name}',
+      detail: weakened.join(', '),
+      createdAt: now,
+      expiresAt: now.add(const Duration(hours: 24)),
+      token: 'tok_${_fakeMint().substring(0, 16)}',
+      strategyId: strategyId,
+      baseRev: s.rev,
+      diff: {
+        for (final k in weakened) k: [guards[k], settingsPatch[k]],
+      },
+      mode: s.mode,
+      riskLevel: RiskLevel.high,
+      weakening: true,
+    );
+    _approvals.add(proposal);
+    final gcId = _id('gc_');
+    _emitEnvelope(
+      'proposal.created',
+      proposal.id,
+      {
+        'proposal_id': proposal.id,
+        'kind': 'guard_change',
+        'rev': 1,
+        'weakening': true,
+        'base_rev': s.rev,
+        'guard_change_id': gcId,
+      },
+      mode: s.mode,
+      strategyId: strategyId,
+      actor: 'user',
+    );
+    _notify();
+    return StrategyPatchPendingApproval(proposal: proposal, guardChangeId: gcId, weakenedFields: weakened);
+  }
+
   @override
   Stream<List<Strategy>> watchStrategies() => _watch(() => List.unmodifiable(_strategies));
 
@@ -597,9 +844,14 @@ class MockBackend
   /// Screener seed per WF-21: passed picks, a guard reject, and one coin with
   /// no SOL quote pair (USDC) that never enters the queue.
   final _screener = <ScreenerCoin>[
-    const ScreenerCoin(
+    ScreenerCoin(
       symbol: 'MOON',
       strategyId: 'stg_pull',
+      marketCap: MarketCap(
+        lamports: Lamports.parse('1200000000000'),
+        usd: Decimal.parse('186000.5'),
+        asOf: DateTime.utc(2026, 10, 29, 9),
+      ),
       score: 82,
       outcome: ScreenerOutcome.passed,
       decimals: 6,
@@ -627,9 +879,10 @@ class MockBackend
       tokenProgram: splTokenProgram,
       quoteMint: wsolMint,
     ),
-    const ScreenerCoin(
+    ScreenerCoin(
       symbol: 'KIRA',
       strategyId: 'stg_pull',
+      marketCap: MarketCap(lamports: Lamports.parse('640000000000'), asOf: DateTime.utc(2026, 10, 29, 9)),
       score: 77,
       outcome: ScreenerOutcome.passed,
       decimals: 6,
@@ -666,8 +919,10 @@ class MockBackend
   /// Last decide request received (tests: wire `reason` of a skip).
   DecideApprovalRequest? debugLastDecide;
 
-  /// Mirrors `decide_approval` (1.1.2): `p_expected_rev` required, idempotency
-  /// replay / 422 reuse, token check, rev check, expiry, Real gate. Typed [ApiException]s.
+  /// Mirrors `decide_approval` (1.1.4): `p_expected_rev` required, idempotency
+  /// replay / 422 reuse (incl. a different reject_reason), token check, rev check,
+  /// expiry, Real gate, Real quote gate (QUOTE_MISSING_OR_STALE), weakening hold
+  /// proof (428/422), reject_reason default `user_declined`. Typed [ApiException]s.
   @override
   Future<DecideApprovalResult> decide(DecideApprovalRequest r) async {
     debugLastDecide = r;
@@ -677,7 +932,9 @@ class MockBackend
       'token': r.token,
       'decision': Wire.decision(approve: r.approve),
       'expected_rev': r.expectedRev,
-      'reason': r.reason,
+      'reason': r.reasonDetail,
+      'reject_reason': r.rejectReason?.wire,
+      'hold_ms': r.holdMs,
     };
     final prior = _replay<DecideApprovalResult>(r.idempotencyKey, body);
     if (prior != null) {
@@ -687,6 +944,7 @@ class MockBackend
         rev: prior.rev,
         replayed: true,
         serverNow: _clock(),
+        rejectReason: prior.rejectReason,
       );
     }
     final i = _approvals.indexWhere((a) => a.id == r.approvalId);
@@ -715,9 +973,34 @@ class MockBackend
     if (a.notTradeable && r.approve) {
       throw ApiException.fromCode(unsupportedQuoteMint, details: {'reason_code': unsupportedQuoteMint});
     }
+    // 1.1.4 `approval_quote_check`: Real approve needs a fresh quote; Practice never blocked.
+    if (r.approve && quoteBlocksApprove(a, _clock())) {
+      throw ApiException.fromCode(
+        'QUOTE_MISSING_OR_STALE',
+        details: {
+          'quote_ts': a.quote?.quoteTs?.toUtc().toIso8601String(),
+          'quote_expires_at': a.quote?.quoteExpiresAt?.toUtc().toIso8601String(),
+          'missing': a.quote == null,
+          'hint': 'refresh the quote, review, approve with the new rev',
+        },
+      );
+    }
+    // 1.1.4 guard-weakening proposal: 1,200 ms press-and-hold proof on approve.
+    if (r.approve && a.weakening) {
+      if (r.holdMs == null) {
+        throw ApiException.fromCode(
+          'CONFIRMATION_REQUIRED',
+          details: {
+            'required': {'hold_ms': 1200},
+          },
+        );
+      }
+      if (r.holdMs! < 1200) throw ApiException.fromCode('HOLD_TOO_SHORT', details: {'min_hold_ms': 1200});
+    }
+    final rejectReason = r.approve ? null : (r.rejectReason ?? RejectReason.userDeclined);
     final status = r.approve ? ApprovalStatus.approved : ApprovalStatus.skipped;
     final rev = a.rev + 1;
-    _approvals[i] = a.copyWith(status: status, decidedAt: _clock(), rev: rev);
+    _approvals[i] = a.copyWith(status: status, decidedAt: _clock(), rev: rev, rejectReason: rejectReason);
     _emitEnvelope(
       r.approve ? 'proposal.approved' : 'proposal.rejected',
       a.id,
@@ -728,7 +1011,8 @@ class MockBackend
         'decided_by': 'mock_user',
         // From the JWT `sentra_client` claim on the server; never a client param.
         'decided_via': Wire.clientMobile,
-        'reason': r.approve ? null : (r.reason ?? a.defaultSkipReason),
+        'reason': r.approve ? null : r.reasonDetail,
+        'reject_reason': rejectReason?.wire,
       },
       mode: a.mode,
       strategyId: a.strategyId,
@@ -742,6 +1026,7 @@ class MockBackend
       rev: rev,
       replayed: false,
       serverNow: _clock(),
+      rejectReason: rejectReason,
     );
     _remember(r.idempotencyKey, body, result);
     return result;
@@ -868,6 +1153,11 @@ class MockBackend
       stop = 'Trailing stop: ${plan.trailPct.round()}% below the high';
     } else if (plan.timeStopAt != null && !now.isBefore(plan.timeStopAt!) && next.exitPlan!.filledCount == 0) {
       stop = 'Time stop: no TP by ${plan.timeStopAt!.difference(p.openedAt).inMinutes} min';
+    } else if (next.exitPlan!.filledCount == 0 &&
+        now.difference(p.openedAt) >= mockStallWindow &&
+        next.changePct.abs() < mockStallMinMovePct) {
+      // 1.1.4 stall_exit stand-in: flat for a full window since entry → exit_reason `stall`.
+      stop = 'Stall exit: moved <$mockStallMinMovePct% in ${mockStallWindow.inSeconds} s';
     }
     if (stop != null) {
       final rest = next.remainingBps;
@@ -982,6 +1272,7 @@ class MockBackend
         token: token,
         strategyId: s.id,
         amountLamports: s.ticketLamports,
+        quote: estimateQuote(s.ticketLamports, now),
       ),
     );
   }
@@ -1041,7 +1332,16 @@ class MockBackend
         }
       case ApprovalKind.guardChange:
         final i = _strategies.indexWhere((s) => s.id == a.strategyId);
-        if (approve && i >= 0) _strategies[i] = _strategies[i].copyWith(rev: _strategies[i].rev + 1);
+        if (approve && i >= 0) {
+          // 1.1.4 weakening proposal: applied on exactly base_rev (else the change is stale).
+          if (a.weakening && a.strategyId != null && (a.baseRev == null || a.baseRev == _strategies[i].rev)) {
+            final g = _guardsOf(a.strategyId!);
+            for (final e in a.diff.entries) {
+              if (e.value.length == 2) g[e.key] = e.value[1];
+            }
+          }
+          _strategies[i] = _strategies[i].copyWith(rev: _strategies[i].rev + 1);
+        }
         _emitEvent(
           approve ? ActivityKind.approved : ActivityKind.skipped,
           Actor.you,

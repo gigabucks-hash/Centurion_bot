@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n_format.dart';
 import '../../core/theme/sentra_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/models.dart';
@@ -208,6 +209,17 @@ class CoinDetailScreen extends ConsumerWidget {
         trailing: Text(v, style: text.bodySmall!.copyWith(color: cs.onSurfaceVariant)),
       ),
     );
+    final loc = Localizations.localeOf(context).languageCode;
+    // contracts 1.1.4 market cap: lamports (BigInt) primary, USD indicative, as-of time; null → "—".
+    List<Widget> mcapRows() {
+      final m = c.marketCap;
+      return [
+        row(l10n.mcapLabel, m?.lamports == null ? l10n.commonValueUnavailable : formatMcapSol(m!.lamports, loc)),
+        if (m?.usd != null) row(l10n.mcapUsdIndicative, formatMcapUsd(m!.usd, loc)),
+        if (m?.asOf != null) row('', l10n.mcapAsOf(formatTime(m!.asOf!.toLocal(), loc))),
+      ];
+    }
+
     return Scaffold(
       appBar: AppBar(title: Text('\$${c.symbol}')),
       body: ListView(
@@ -242,6 +254,7 @@ class CoinDetailScreen extends ConsumerWidget {
             row(l10n.screenerDetailScore, l10n.screenerDetailScoreValueInfo('$maxScore', '${c.score}')),
             row(l10n.screenerDetailGuard, l10n.screenerDetailGuardNotRun),
             row(l10n.screenerDetailReasonCode, c.reasonCode ?? ''),
+            ...mcapRows(),
             const SizedBox(height: AppSpace.s4),
             // Disabled, labelled CTA; no Skip (it never entered the queue).
             FilledButton(
@@ -254,6 +267,7 @@ class CoinDetailScreen extends ConsumerWidget {
           ] else ...[
             row(l10n.screenerDetailQuotePair, c.quoteSymbol),
             row(l10n.screenerDetailScore, l10n.screenerDetailScoreValue('$maxScore', '${c.score}')),
+            ...mcapRows(),
             row(
               l10n.screenerColStatus,
               c.outcome == ScreenerOutcome.passed ? l10n.screenerStatusPassed : l10n.screenerStatusRejectedGuard,

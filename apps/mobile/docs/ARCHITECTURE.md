@@ -66,7 +66,7 @@ apps/mobile/lib/
     settings/ settings_screen.dart (Lainnya: Reset Practice, status flag Real) · practice_reset_tile.dart · notifications_screen.dart
     coins/ coins_screen.dart (screener list + detail, WF-20/21: `UNSUPPORTED_QUOTE_MINT` = kartu netral tanpa aksi; di antrean boleh Skip, lihat bawah)
     dashboard · activity · approvals (+guard_review) · strategies · shell
-  l10n/ app_en.arb app_id.arb (verbatim dari @sentra/i18n 0.4.4) · gen/ (gen-l10n output)
+  l10n/ app_en.arb app_id.arb (verbatim dari @sentra/i18n 0.4.6) · gen/ (gen-l10n output)
   core/l10n_format.dart     # mirror format.mjs
 test/  flutter_test_config · mock_backend · push_payload · notification_catalog · notification_pipeline · l10n_format · positions
        theme_tokens · widget_flows · contract_v11 · api_errors_gen · settings_keys · pnl_zero · i18n_reference
@@ -102,6 +102,17 @@ tool/  gen_errors.dart · ci_check_errors.sh · contracts/errors.json (salinan v
 - **Approvals mobile, Real SOL: swipe approve/skip dinonaktifkan total** (tidak ada `Dismissible` di item Real; juga tidak untuk guard change). Guard hold: Practice 1,2 dtk, Real 2,5 dtk + typed name. Keduanya diuji.
 - **Sell tidak pernah dari notifikasi:** enum `NotifAction` tidak punya `sell`, dan ini diuji.
 - Repo: `equityHistory(range)`, `closePosition(ClosePositionRequest)` (kontrak 1.1.2 `close_position`, lihat di bawah).
+
+### Kontrak 1.1.4 (packages/contracts 1.1.4 + bagian "Unreleased: wallet login"; errors.json v6, 58 kode; i18n 0.4.6)
+Menimpa bagian 1.1.2/1.1.3/v1.1 di bawah bila bertentangan. Belum ada 1.1.5 di `packages/contracts/CHANGELOG.md` (dicek 29 Okt 2026).
+- **Reject reason (1.1.3):** `RejectReason {userDeclined, notTradeable, priceMoved, other}` → REST `reject_reason` / RPC `p_reject_reason`, hanya untuk reject (default server `user_declined`). Chip Skip = `SkipChip` (map `reject_reasons.map.json` 0.4.6: thin_liquidity / already_pumped / suspicious_dev → `user_declined` + detail `reason`). Kunci idempotensi memuat reject_reason. `reason` tetap teks bebas (REST saja).
+- **Quote proposal:** `ProposalQuote` (`*_lamports`, `min_out_raw` → BigInt; `*_bps` int; `quote_ts`/`quote_expires_at`). `quoteBlocksApprove` hanya Real buy pick (Practice tidak pernah diblokir). `409 QUOTE_MISSING_OR_STALE` → snackbar tone warning + CTA "Refresh quote" (`refreshApproval` = `GET /approvals/{id}`).
+- **`proposal.updated` senyap:** tanpa push/toast; review sheet WF-22 (`features/approvals/proposal_review_sheet.dart`) merge quote + simpan `rev` baru (jadi `expected_rev`), label inline `review.quote.updated_inline` ~2 dtk, render di-throttle `LatestThrottle` (≤ 1 per 3 dtk, trailing = nilai terbaru), hold Real yang sedang berjalan dibatalkan + di-reset (tombol di-key per rev) + `review.quote.changed_during_hold`.
+- **Market cap:** `MarketCap {lamports (BigInt), usd (Decimal, indikatif), asOf}`; null → "—"/`common.value.unavailable`. Detail coin menampilkan `mcap.*` (`formatMcapSol`, `formatMcapUsd`, mirror `format.mjs`).
+- **Exit waktu:** settings `time_stop_s` (exit `max_hold`) dan `stall_exit {window_s, min_move_pct}` (exit baru `stall`) di `TimeExits`; `ExitReasons` kini 14 nilai (= `EXIT_REASONS`, + `sell_floor`, `strategy_retired`); `exitReasonLabel()` (`core/exit_reason_l10n.dart`). Normalisasi dua tahap: nama sekarang menang, jadi `stall` 1.1.4 ≠ alias v1.0 `stall` (= `no_new_high`).
+- **Guard melonggar:** REST PATCH → `StrategyPatchOutcome` sealed: `StrategyPatchApplied` (200) | `StrategyPatchPendingApproval` (202 `{proposal, guard_change}`, tidak diterapkan). `submitStrategyPatch()` menampilkan **pending (tone info), bukan sukses**; `409 GUARD_WEAKEN_REQUIRES_APPROVAL` (jalur RPC) juga tone pending. Approve proposal melonggar butuh `confirmation.hold_duration_ms ≥ 1200` (428/422). Mock: klasifikasi = `guard_weakened_fields` level settings (`*_share_pct_max` naik/0/null, `lp_burned_pct_min` turun/null, entri `required_checks` dihapus; key screener bukan guard), diterapkan pada `base_rev` setelah approve.
+- **Error copy + tone:** `core/error_l10n.g.dart` (generator `tool/gen_error_l10n.py` dari `errors.map.json`): `errorText`, `errorTone` (`error | warning | pending`), `errorTitle`, `errorCta`; dipakai `showApiError()` (`core/widgets/api_feedback.dart`).
+- **Cursor paging:** `CursorPage<T>` + `PagedListController` (restart sekali dari halaman 1 bila `400 CURSOR_INVALID`) + `mergeHeadAndPages` (head live dari stream menang). `fetchFeedPage` / `fetchPositionsPage(state:)`; Activity dan riwayat Closed di Positions infinite scroll (prefetch 5 baris sebelum akhir). Mock: cursor base64url opak per list, `limit` 1–100.
 
 ### Kontrak 1.1.2 (packages/contracts 1.1.2, monorepo 01427df, ERROR_CODES_VERSION 4)
 Menimpa bagian v1.1 di bawah bila bertentangan. Sumber: `FLUTTER_INTEGRATION_ANSWERS.md` dan `CHANGELOG.md` 1.1.2.
@@ -224,18 +235,7 @@ Aturan ini MENGGANTI aturan lama ("tanpa Approve/Skip"). Pick tanpa pair SOL **b
 - **App privat, satu user (Boss).** Login **hanya** lewat wallet (SIWS, Phantom). Server menerapkan **allowlist wallet**: tanda tangan valid dari wallet lain tidak mendapat sesi. Wallet SDK (Phantom deeplink / MWA) **sedang direview terpisah, tidak di-install**.
 - **Wewenang app terbatas pada trading** (approve/skip pick, sell, pause/resume, proposal guard). Tidak ada withdraw, tidak ada private key di app; tanda tangan SIWS terjadi di app wallet.
 - **Distribusi iOS:** TestFlight internal / ad-hoc di akun Apple pribadi Boss; **tanpa rilis App Store publik**. Android: lihat keputusan D5 di `PERF_SECURITY.md`.
-- Alur (kontrak 1.1.4): `POST /v1/auth/siws/nonce` → pesan SIWS (domain, URI, chain, nonce, expiry) ditandatangani wallet → `POST /v1/auth/siws/verify` → access token 15 menit + refresh token yang **berotasi**; `POST /v1/auth/session/refresh`; **reuse refresh token mencabut sesi → forced logout** (state `signedOut(reason: revoked)`); `POST /v1/auth/logout`.
-- Interface (stub; implementasi + mock di migrasi kontrak 1.1.4):
-
-```dart
-abstract interface class SiwsAuthRepository {
-  Stream<AuthState> watchState();                       // signedOut | signedIn(session) | forcedLogout(reason)
-  Future<SiwsChallenge> requestNonce({required String walletAddress});
-  Future<AuthSession> verify({required SiwsChallenge challenge, required String signatureBase58});
-  Future<AuthSession> refresh();                        // rotates; reuse → forced logout
-  Future<void> logout();
-}
-abstract interface class WalletSigner {                 // implemented after the wallet SDK review
-  Future<String> signMessage(String message);           // returns base58 signature; never sees a private key
-}
-```
+- Alur (kontrak 1.1.4 + "Unreleased: wallet login"): `POST /v1/auth/siws/nonce {address, domain, chain_id}` → pesan SIWS persis dari server ditandatangani wallet → `POST /v1/auth/siws/verify` → `Session` (access 15 menit, refresh `srt_…` **berotasi**, `workspace_id`); `POST /v1/auth/session/refresh`; `POST /v1/auth/session/logout`. **Reuse refresh token lama mencabut seluruh family → `401 UNAUTHENTICATED {reason: refresh_reused}` → forced logout.** Wallet dicabut dari `OWNER_WALLETS` → `403 FORBIDDEN_ROLE` → forced logout `wallet_not_allowed`.
+- Implementasi (`lib/data/api/auth.dart`): `SiwsAuthRepository` (REST), `WalletSigner` (interface; belum ada SDK), `AuthController` (state `SignedOut | SignedIn(session) | ForcedLogout(reason)`, refresh proaktif 60 dtk sebelum expiry, **single-flight** supaya dua refresh paralel tidak memicu reuse sendiri, `onUnauthorized()` untuk 401 di request biasa), `SessionStore` (memori; Keychain/Keystore menunggu review package), `MockSiwsAuth` (allowlist, nonce 5 menit sekali pakai terikat address+domain, nonce hangus meski tanda tangan salah, rotasi + deteksi reuse, logout mencabut family) dan `MockWalletSigner` (bukan wallet: tanpa key). Provider: `authControllerProvider`, `authStateProvider`.
+- **Email OTP, Google, Apple dihapus dari MVP** (server 404). Telegram tinggal `TelegramAuthStub` di balik `FeatureFlags.telegramOidcEnabled=false`. Router tidak punya rute login (belum ada layar login sampai wallet SDK disetujui).
+- Test: `test/auth_siws_test.dart` (10 test).

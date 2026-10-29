@@ -45,7 +45,12 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
     try {
-      final res = await ref.read(approvalRepositoryProvider).decide(decideRequest(a, approve: approve));
+      // 1.1.4: a weakening approve carries the press-and-hold proof. The button only
+      // fires after the full animation (releasing reverses it), so the hold lasted >= this.
+      final holdMs = approve && a.weakening
+          ? (a.mode == TradeMode.real ? AppMotion.holdRealBase : AppMotion.holdPracticeBase).inMilliseconds
+          : null;
+      final res = await ref.read(approvalRepositoryProvider).decide(decideRequest(a, approve: approve, holdMs: holdMs));
       final st = res.status;
       messenger.showSnackBar(
         SnackBar(

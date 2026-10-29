@@ -15,9 +15,15 @@ library;
 /// (current wire name, v1.0 alias)
 typedef KeyPair = ({String current, String v10});
 
+/// A current (v1.1+) name always wins over a v1.0 alias: since contracts 1.1.4
+/// exit_reason `stall` is a NEW reason (`stall_exit`), while v1.0 `stall` meant
+/// `no_new_high`. Two passes so the alias can never shadow a current value.
 String _normalize(List<KeyPair> all, String key) {
   for (final k in all) {
-    if (key == k.current || key == k.v10) return k.current;
+    if (key == k.current) return k.current;
+  }
+  for (final k in all) {
+    if (key == k.v10) return k.current;
   }
   return key;
 }
@@ -86,6 +92,10 @@ abstract final class SettingsKeys {
   static const peakTrailPct = (current: 'peak_trail_pct', v10: 'peak_trail_pct');
   static const idleExitSeconds = (current: 'idle_exit_seconds', v10: 'noTradeSeconds');
   static const sellPressureExit = (current: 'sell_pressure_exit', v10: 'drain');
+
+  /// 1.1.4 time-based exits (no v1.0 name; the alias equals the current key).
+  static const timeStopS = (current: 'time_stop_s', v10: 'time_stop_s');
+  static const stallExit = (current: 'stall_exit', v10: 'stall_exit');
   static const sellFloors = (current: 'sell_floors', v10: 'sellFloors');
   static const maxLossPct = (current: 'max_loss_pct', v10: 'maxLossPct');
   static const liquidityDropPct = (current: 'liquidity_drop_pct', v10: 'liquidityDropPct');
@@ -148,6 +158,8 @@ abstract final class SettingsKeys {
     peakTrailPct,
     idleExitSeconds,
     sellPressureExit,
+    timeStopS,
+    stallExit,
     sellFloors,
     maxLossPct,
     liquidityDropPct,
@@ -256,6 +268,14 @@ abstract final class ExitReasons {
   static const rugDetected = (current: 'rug_detected', v10: 'rug');
   static const drawdownHalt = (current: 'drawdown_halt', v10: 'loss_stop');
 
+  /// 1.1.4 `stall_exit` (|move| < min_move_pct over window_s). No v1.0 name: v1.0
+  /// `stall` is [noNewHigh]'s alias and only applies to v1.0 payloads.
+  static const stall = (current: 'stall', v10: 'stall');
+  static const manual = (current: 'manual', v10: 'manual');
+  static const practiceReset = (current: 'practice_reset', v10: 'practice_reset');
+  static const sellFloor = (current: 'sell_floor', v10: 'sell_floor');
+  static const strategyRetired = (current: 'strategy_retired', v10: 'strategy_retired');
+
   static const all = <KeyPair>[
     profitTarget,
     lossGuard,
@@ -266,6 +286,11 @@ abstract final class ExitReasons {
     noNewHigh,
     rugDetected,
     drawdownHalt,
+    stall,
+    manual,
+    practiceReset,
+    sellFloor,
+    strategyRetired,
   ];
 
   static String normalize(String key) => _normalize(all, key);

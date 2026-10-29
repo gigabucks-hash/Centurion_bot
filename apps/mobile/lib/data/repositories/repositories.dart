@@ -1,8 +1,12 @@
+import '../api/cursor_page.dart';
 import '../api/decide_approval.dart';
+import '../api/strategy_patch.dart';
 import '../api/sentra_rpc.dart' show ClosePositionRequest, ClosePositionResult, ResetPracticeRequest;
 import '../models/models.dart';
 
+export '../api/cursor_page.dart';
 export '../api/decide_approval.dart';
+export '../api/strategy_patch.dart';
 export '../api/sentra_rpc.dart' show ClosePositionRequest, ClosePositionResult, ResetPracticeRequest;
 export '../api/marks.dart' show MarksSource;
 
@@ -13,6 +17,10 @@ abstract interface class PortfolioRepository {
   /// Emits on every fill / mark update (Supabase Realtime in prod).
   Stream<PortfolioSummary> watchSummary();
   Stream<List<Position>> watchPositions();
+
+  /// `GET /positions?state=&cursor=&limit=` (1.1.4 keyset paging, newest first).
+  /// Throws [ApiException] `CURSOR_INVALID` for a malformed/foreign cursor.
+  Future<CursorPage<Position>> fetchPositionsPage({PositionState? state, String? cursor, int limit});
 
   /// Equity curve for the Positions header (SPEC §6: 1D/7D/30D/All).
   Future<List<PnlPoint>> equityHistory(EquityRange range);
@@ -25,6 +33,9 @@ abstract interface class PortfolioRepository {
 abstract interface class ActivityRepository {
   /// Newest first. Implementations should cap the in-memory list.
   Stream<List<ActivityEvent>> watchFeed({String? strategyId});
+
+  /// Older history, keyset paged (1.1.4). `CURSOR_INVALID` on a bad cursor.
+  Future<CursorPage<ActivityEvent>> fetchFeedPage({String? strategyId, String? cursor, int limit});
 }
 
 abstract interface class StrategyRepository {
@@ -32,6 +43,14 @@ abstract interface class StrategyRepository {
 
   /// Pause/resume. Sends [expectedRev]; throws [ApiException] (STRATEGY_REV_CONFLICT) if stale.
   Future<Strategy> setPaused(String strategyId, {required bool paused, required int expectedRev});
+
+  /// REST PATCH settings (1.1.4). Loosening a guard → [StrategyPatchPendingApproval]
+  /// (202, nothing applied); otherwise [StrategyPatchApplied]. Stale rev → 409.
+  Future<StrategyPatchOutcome> patchSettings(
+    String strategyId, {
+    required int expectedRev,
+    required Map<String, Object?> settingsPatch,
+  });
 }
 
 abstract interface class ApprovalRepository {
@@ -44,6 +63,10 @@ abstract interface class ApprovalRepository {
   /// Throws [ApiException] (APPROVAL_TOKEN_INVALID / _EXPIRED / _ALREADY_DECIDED,
   /// VERSION_CONFLICT, REAL_SOL_DISABLED, ...).
   Future<DecideApprovalResult> decide(DecideApprovalRequest request);
+
+  /// `GET /approvals/{id}`: latest rev + quote (after `409 QUOTE_MISSING_OR_STALE`
+  /// or a `proposal.updated`). Streams also emit the new row.
+  Future<Approval> refreshApproval(String id);
 }
 
 /// Source of raw PushPayload v1 maps (EVENTS_SCHEMA §6). In prod this is the

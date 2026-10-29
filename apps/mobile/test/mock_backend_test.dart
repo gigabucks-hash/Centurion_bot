@@ -88,7 +88,7 @@ void main() {
         expect(a.notTradeable, isTrue);
         expect(a.approvable, isFalse);
         expect(a.swipeable, isTrue, reason: 'left swipe (skip) allowed; right is disabled in the UI');
-        expect(a.defaultSkipReason, 'not_tradeable');
+        expect(a.defaultSkipChip, SkipChip.notTradeable);
         expect(a.copyWith(rev: 2).notTradeable, isTrue, reason: 'copyWith keeps reason_code');
         // Batch approve leaves it out.
         final batch = batchApprovable(b.debugApprovals);
@@ -96,17 +96,24 @@ void main() {
         expect(batch.excludedNotTradeable, 1);
         // 1.1.2 has a real code for it (kind: skip) → no more VALIDATION_FAILED stand-in.
         expect(() => b.decide(decideRequest(a, approve: true)), _api('UNSUPPORTED_QUOTE_MINT'));
-        // Skip/reject is allowed; the reason travels in the REST body (not the RPC params).
-        final req = decideRequest(a, approve: false, reason: a.defaultSkipReason);
-        expect(req.toRestBody(), {'decision': 'reject', 'token': 'tok_nt', 'reason': 'not_tradeable'});
-        expect(req.toRpcParams().containsKey('p_reason'), isFalse, reason: 'RPC 1.1.2 has no p_reason');
+        // Skip/reject is allowed; 1.1.3: the enum travels as reject_reason (REST) / p_reject_reason (RPC).
+        final req = decideRequest(a, approve: false, chip: a.defaultSkipChip);
+        expect(req.toRestBody(), {
+          'decision': 'reject',
+          'token': 'tok_nt',
+          'expected_rev': a.rev,
+          'reject_reason': 'not_tradeable',
+        });
+        expect(req.toRpcParams()['p_reject_reason'], 'not_tradeable');
+        expect(req.toRpcParams().containsKey('p_reason'), isFalse, reason: 'RPC has no free-text p_reason');
         final events = <Map<String, Object?>>[];
         final sub = b.rawEvents.listen(events.add);
         final res = await b.decide(req);
         await Future<void>.delayed(Duration.zero);
         expect(res.status, ApprovalStatus.skipped);
         final rejected = events.firstWhere((e) => e['type'] == 'proposal.rejected');
-        expect((rejected['payload']! as Map)['reason'], 'not_tradeable');
+        expect((rejected['payload']! as Map)['reject_reason'], 'not_tradeable');
+        expect(res.rejectReason, RejectReason.notTradeable);
         await sub.cancel();
         b.dispose();
       },

@@ -58,7 +58,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get builderExitNoTrade => 'No-trade exit';
 
   @override
+  String get builderExitStall => 'Stall exit';
+
+  @override
+  String builderExitStallHint(String min_move_pct, String window) {
+    return 'Sell all if the price moves less than $min_move_pct in $window';
+  }
+
+  @override
   String get builderExitTimeStop => 'Time stop';
+
+  @override
+  String builderExitTimeStopHint(String duration) {
+    return 'Sell all after holding for $duration';
+  }
 
   @override
   String get builderExitTrailing => 'Trailing stop from high';
@@ -245,6 +258,26 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get commonRange1d => '1D';
+
+  @override
+  String get commonRange30d => '30D';
+
+  @override
+  String get commonRange7d => '7D';
+
+  @override
+  String get commonRangeAll => 'All';
+
+  @override
+  String get commonStateLoading => 'Loading…';
+
+  @override
+  String commonStateLoadingSection(String section) {
+    return 'Loading $section…';
+  }
+
+  @override
   String commonStateSavedAt(String time) {
     return 'Draft saved · $time';
   }
@@ -256,6 +289,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String commonTimerLeft(String mm_ss) {
     return '$mm_ss left';
   }
+
+  @override
+  String get commonValueUnavailable => 'Data not available yet';
 
   @override
   String get commonYou => 'You';
@@ -487,6 +523,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorCodeGuardCooldownActive => 'This guard change is in its cooldown.';
 
   @override
+  String get errorCodeGuardWeakenRequiresApproval =>
+      'Change waiting for approval. It loosens a guard, so nothing applies until you approve it.';
+
+  @override
   String get errorCodeHoldTooShort => 'Released too early. Hold until the bar is full.';
 
   @override
@@ -519,6 +559,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorCodePracticeCashInsufficient =>
       'Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.';
+
+  @override
+  String get errorCodeQuoteMissingOrStale => 'Quote expired — refresh it and check the values again before approving.';
 
   @override
   String errorCodeRateLimited(int retry_after_s) {
@@ -627,6 +670,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exitReasonSellPressure => 'Sell pressure';
 
   @override
+  String get exitReasonStall => 'Stall exit';
+
+  @override
   String get exitReasonStrategyRetired => 'Strategy retired';
 
   @override
@@ -730,6 +776,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get guardChangeStatusExpired => 'Expired before approval';
+
+  @override
+  String get guardChangeStatusRejected => 'Rejected';
+
+  @override
   String guardImpactEstimateBody(String max_extra_passes, String window) {
     return 'Up to $max_extra_passes more coins could pass per $window. Based on rules, not a replay.';
   }
@@ -787,6 +839,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String guardWeakenMatch(String matched, String total) {
     return '$matched of $total characters match';
   }
+
+  @override
+  String guardWeakenPendingBody(String expires_at) {
+    return 'This change loosens a guard, so nothing applies until you approve it. Approve before $expires_at or it expires.';
+  }
+
+  @override
+  String get guardWeakenPendingOpen => 'Review in queue';
+
+  @override
+  String get guardWeakenPendingTitle => 'Change waiting for approval';
 
   @override
   String guardWeakenRiskLevel(String level) {
@@ -902,6 +965,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get loginWalletSignTitle => 'Sign to sign in';
+
+  @override
+  String mcapAsOf(String time) {
+    return 'As of $time';
+  }
+
+  @override
+  String get mcapLabel => 'Market cap';
+
+  @override
+  String mcapSolValue(String amount) {
+    return '≈ $amount';
+  }
+
+  @override
+  String get mcapUsdIndicative => 'USD is indicative (reference SOL price), not live.';
 
   @override
   String get modePracticeBanner => 'Practice · paper SOL, no real SOL moves';
@@ -1226,6 +1305,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orderFailReasonValidationFailed => 'The order didn’t pass validation';
 
   @override
+  String portfolioBalanceChange(String pct, String pnl, String range) {
+    return '$pnl ($pct) · $range';
+  }
+
+  @override
+  String get portfolioBalanceHidden => 'Balance hidden';
+
+  @override
+  String portfolioBalanceLabel(String mode) {
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'Balance', 'other': 'Paper balance'});
+    return '$_temp0';
+  }
+
+  @override
+  String portfolioBalanceUpdated(String time) {
+    return 'Updated $time';
+  }
+
+  @override
+  String portfolioSparklineA11y(String end, String range, String start, String trend) {
+    String _temp0 = intl.Intl.selectLogic(trend, {'up': 'up', 'down': 'down', 'other': 'unchanged'});
+    return 'Balance $_temp0 over $range, from $start to $end';
+  }
+
+  @override
   String positionsEmpty(String mode) {
     String _temp0 = intl.Intl.selectLogic(mode, {'real': 'No open positions', 'other': 'No paper positions'});
     return '$_temp0';
@@ -1420,6 +1524,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queueSkipReasonOther => 'Other…';
 
   @override
+  String get queueSkipReasonPriceMoved => 'Price moved';
+
+  @override
   String get queueSkipReasonSuspiciousDev => 'Suspicious dev';
 
   @override
@@ -1459,6 +1566,122 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get queueWhyTitle => 'Why does this need approval?';
+
+  @override
+  String get rejectReasonNotTradeable => 'Not tradeable';
+
+  @override
+  String get rejectReasonOther => 'Other';
+
+  @override
+  String get rejectReasonPriceMoved => 'Price moved';
+
+  @override
+  String get rejectReasonUserDeclined => 'Skipped by you';
+
+  @override
+  String get reviewDetailsToggle => 'Fees & slippage';
+
+  @override
+  String reviewEstimateNote(String time) {
+    return 'Estimates as of $time. Final values can change with the price.';
+  }
+
+  @override
+  String get reviewMinReceived => 'Min. received';
+
+  @override
+  String reviewMinReceivedValue(String min_out, String symbol) {
+    return '≥ $min_out $symbol';
+  }
+
+  @override
+  String get reviewNetworkFee => 'Est. network fee';
+
+  @override
+  String get reviewPracticeNote => 'Practice: simulated fill. No real SOL moves.';
+
+  @override
+  String get reviewPrice => 'Price';
+
+  @override
+  String reviewPriceMoved(String pct) {
+    return 'Price moved $pct since this pick. Review again before approving.';
+  }
+
+  @override
+  String get reviewPriorityFee => 'Priority fee';
+
+  @override
+  String get reviewQuoteChangedDuringHold => 'Quote changed. Check the new values and hold again.';
+
+  @override
+  String reviewQuoteExpiresIn(int seconds) {
+    final intl.NumberFormat secondsNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String secondsString = secondsNumberFormat.format(seconds);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      seconds,
+      locale: localeName,
+      other: 'Expires in $secondsString s',
+      one: 'Expires in $secondsString s',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reviewQuoteMissing => 'No quote yet — refresh to continue';
+
+  @override
+  String get reviewQuotePracticeStale => 'Estimate expired. Practice can still approve; values may differ.';
+
+  @override
+  String get reviewQuoteRefresh => 'Refresh quote';
+
+  @override
+  String get reviewQuoteRefreshing => 'Refreshing quote…';
+
+  @override
+  String get reviewQuoteStale => 'Quote expired — refresh to continue';
+
+  @override
+  String reviewQuoteUpdatedAgo(int seconds) {
+    final intl.NumberFormat secondsNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String secondsString = secondsNumberFormat.format(seconds);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      seconds,
+      locale: localeName,
+      zero: 'Quote updated just now',
+      other: 'Quote updated $secondsString s ago',
+      one: 'Quote updated $secondsString s ago',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reviewQuoteUpdatedInline => 'Quote updated';
+
+  @override
+  String get reviewRealNote => 'Real SOL: network fees are paid even if the order fails.';
+
+  @override
+  String get reviewSlippage => 'Max slippage';
+
+  @override
+  String get reviewSwapFee => 'Swap fee';
+
+  @override
+  String reviewTitle(String side) {
+    String _temp0 = intl.Intl.selectLogic(side, {'sell': 'Review sell', 'other': 'Review buy'});
+    return '$_temp0';
+  }
+
+  @override
+  String get reviewTotalMax => 'Total (max)';
+
+  @override
+  String get reviewYouPay => 'You pay';
 
   @override
   String get screenerActionOpenQueue => 'Open queue';

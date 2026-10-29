@@ -3,6 +3,7 @@
 /// Money: [Lamports] (BigInt) and [Decimal] prices, never double.
 library;
 
+import '../api/settings_keys.dart';
 import '../money.dart';
 
 export '../money.dart';
@@ -340,6 +341,9 @@ class Approval {
     this.riskImpact = const {},
     this.decidedAt,
     this.reasonCode,
+    this.quote,
+    this.rejectReason,
+    this.weakening = false,
   });
 
   final String id;
@@ -376,6 +380,15 @@ class Approval {
   /// Screener reason code (wire, e.g. `UNSUPPORTED_QUOTE_MINT`), null when tradeable.
   final String? reasonCode;
 
+  /// 1.1.4 quote (`ProposalQuoteFields`); null = none yet.
+  final ProposalQuote? quote;
+
+  /// 1.1.3: set only when rejected.
+  final RejectReason? rejectReason;
+
+  /// guard_change that loosens a guard (1,200 ms hold; 202 proposal flow).
+  final bool weakening;
+
   bool get isPending => status == ApprovalStatus.pending;
 
   /// `UNSUPPORTED_QUOTE_MINT` (no SOL quote pair). Apex decision / i18n 0.4.4:
@@ -390,12 +403,19 @@ class Approval {
   /// pick is swipeable LEFT only (skip); swipe right (approve) is a no-op.
   bool get swipeable => kind == ApprovalKind.buyPick && mode == TradeMode.practice;
 
-  /// Wire skip reason preselected for this item (`reason: "not_tradeable"`), else null.
-  String? get defaultSkipReason => notTradeable ? skipReasonNotTradeable : null;
+  /// Skip chip preselected for this item (1.1.3 wire `reject_reason: "not_tradeable"`), else null.
+  SkipChip? get defaultSkipChip => notTradeable ? SkipChip.notTradeable : null;
 
   bool isExpiredAt(DateTime now) => now.isAfter(expiresAt);
 
-  Approval copyWith({ApprovalStatus? status, ExpireReason? expireReason, DateTime? decidedAt, int? rev}) => Approval(
+  Approval copyWith({
+    ApprovalStatus? status,
+    ExpireReason? expireReason,
+    DateTime? decidedAt,
+    int? rev,
+    ProposalQuote? quote,
+    RejectReason? rejectReason,
+  }) => Approval(
     id: id,
     kind: kind,
     status: status ?? this.status,
@@ -416,13 +436,13 @@ class Approval {
     riskImpact: riskImpact,
     decidedAt: decidedAt ?? this.decidedAt,
     reasonCode: reasonCode,
+    quote: quote ?? this.quote,
+    rejectReason: rejectReason ?? this.rejectReason,
+    weakening: weakening,
   );
 }
 
 /// Wire reason code for coins without a SOL quote pair (screener + `order.failed`).
-/// Wire skip reason for not-tradeable picks (i18n 0.4.4 `queue.skip_reason.not_tradeable`).
-const skipReasonNotTradeable = 'not_tradeable';
-
 const unsupportedQuoteMint = 'UNSUPPORTED_QUOTE_MINT';
 
 enum ScreenerOutcome { passed, rejected, notTradeable }
@@ -442,9 +462,13 @@ class ScreenerCoin {
     this.decimals,
     this.tokenProgram,
     this.quoteMint,
+    this.marketCap,
   });
   final String symbol;
   final String? mint;
+
+  /// 1.1.4 market cap (null = unknown → "—").
+  final MarketCap? marketCap;
 
   /// Coin facts (1.1.2): decimals from the mint account (never assume 6), token program, quote mint.
   final int? decimals;
@@ -508,4 +532,149 @@ class PortfolioSummary {
   final pending = picks.where((a) => a.isPending && a.kind == ApprovalKind.buyPick).toList();
   final ok = pending.where((a) => a.approvable).toList();
   return (items: ok, excludedNotTradeable: pending.length - ok.length);
+}
+
+// ---------------------------------------------------------------- contracts 1.1.3 / 1.1.4
+
+/// 1.1.3 `ApprovalRejectReason` (closed enum, `decision: reject` only, server default `user_declined`).
+enum RejectReason {
+  userDeclined('user_declined'),
+  notTradeable('not_tradeable'),
+  priceMoved('price_moved'),
+  other('other');
+
+  const RejectReason(this.wire);
+  final String wire;
+  static RejectReason? fromWire(String? w) => values.where((r) => r.wire == w).firstOrNull;
+}
+
+/// Skip chips → wire (`packages/i18n/reject_reasons.map.json`): closed `reject_reason`
+/// plus an optional free-text `reason` detail.
+enum SkipChip {
+  thinLiquidity(RejectReason.userDeclined, 'thin_liquidity'),
+  alreadyPumped(RejectReason.userDeclined, 'already_pumped'),
+  suspiciousDev(RejectReason.userDeclined, 'suspicious_dev'),
+  priceMoved(RejectReason.priceMoved, null),
+  other(RejectReason.other, null),
+  notTradeable(RejectReason.notTradeable, null);
+
+  const SkipChip(this.rejectReason, this.reasonDetail);
+  final RejectReason rejectReason;
+  final String? reasonDetail;
+
+  /// Chips offered for a normal pick (not-tradeable picks get [notTradeable] preselected).
+  static const userChoices = [thinLiquidity, alreadyPumped, suspiciousDev, priceMoved, other];
+}
+
+/// 1.1.4 `MarketCapFields` on coins, picks, `coin.detected`, `screener.scored`, `pick.created`.
+/// [lamports]: integer string → [Lamports]; [usd]: decimal string, display-only/indicative.
+class MarketCap {
+  const MarketCap({this.lamports, this.usd, this.asOf});
+  final Lamports? lamports;
+  final Decimal? usd;
+  final DateTime? asOf;
+
+  bool get isKnown => lamports != null || usd != null;
+
+  static MarketCap? fromJson(Map<String, Object?> j) {
+    final m = MarketCap(
+      lamports: Lamports.tryParse(j['market_cap_lamports'] as String?),
+      usd: Decimal.tryParse('${j['mcap_usd'] ?? ''}'),
+      asOf: DateTime.tryParse('${j['mcap_as_of'] ?? ''}'),
+    );
+    return m.isKnown ? m : null;
+  }
+}
+
+enum QuoteState { missing, fresh, stale }
+
+/// 1.1.4 `ProposalQuoteFields` (WF-22 review sheet). Integer strings → BigInt/[Lamports],
+/// bps → int. Set/refreshed only while pending (`proposal.updated`, rev + 1).
+class ProposalQuote {
+  const ProposalQuote({
+    this.estNetworkFee,
+    this.priorityFee,
+    this.swapFeeBps,
+    this.maxSlippageBps,
+    this.minOutRaw,
+    this.totalMax,
+    this.quoteTs,
+    this.quoteExpiresAt,
+  });
+  final Lamports? estNetworkFee;
+  final Lamports? priorityFee;
+  final int? swapFeeBps;
+  final int? maxSlippageBps;
+
+  /// Minimum tokens out, raw units (use the coin's `decimals`; never assume 6).
+  final BigInt? minOutRaw;
+  final Lamports? totalMax;
+  final DateTime? quoteTs;
+  final DateTime? quoteExpiresAt;
+
+  static ProposalQuote? fromJson(Map<String, Object?> j) {
+    int? bps(Object? v) => v is num ? v.toInt() : null;
+    final q = ProposalQuote(
+      estNetworkFee: Lamports.tryParse(j['est_network_fee_lamports'] as String?),
+      priorityFee: Lamports.tryParse(j['priority_fee_lamports'] as String?),
+      swapFeeBps: bps(j['swap_fee_bps']),
+      maxSlippageBps: bps(j['max_slippage_bps']),
+      minOutRaw: BigInt.tryParse('${j['min_out_raw'] ?? ''}'),
+      totalMax: Lamports.tryParse(j['total_max_lamports'] as String?),
+      quoteTs: DateTime.tryParse('${j['quote_ts'] ?? ''}'),
+      quoteExpiresAt: DateTime.tryParse('${j['quote_expires_at'] ?? ''}'),
+    );
+    return q.quoteTs == null && q.quoteExpiresAt == null && q.totalMax == null ? null : q;
+  }
+
+  /// Same rule as `approval_quote_check`: fresh while `serverNow < quote_expires_at`.
+  QuoteState stateAt(DateTime serverNow) {
+    final exp = quoteExpiresAt;
+    if (exp == null) return QuoteState.missing;
+    return serverNow.isBefore(exp) ? QuoteState.fresh : QuoteState.stale;
+  }
+}
+
+/// Approve is refused client-side exactly where the server would answer
+/// `409 QUOTE_MISSING_OR_STALE`: Real only; Practice is never blocked by a quote.
+bool quoteBlocksApprove(Approval a, DateTime serverNow) {
+  if (a.mode != TradeMode.real || a.kind != ApprovalKind.buyPick) return false;
+  final q = a.quote;
+  return q == null || q.stateAt(serverNow) != QuoteState.fresh;
+}
+
+/// 1.1.4 time-based exits (strategy settings). Invalid values → null (the server
+/// validates too: `SETTINGS_SCHEMA_INVALID`).
+class TimeExits {
+  const TimeExits({this.timeStopS, this.stallWindowS, this.stallMinMovePct});
+
+  /// `time_stop_s` 1..604800; closes with exit_reason `max_hold`.
+  final int? timeStopS;
+
+  /// `stall_exit.window_s` 5..86400 and `min_move_pct` 0.01..100; closes with exit_reason `stall`.
+  final int? stallWindowS;
+  final double? stallMinMovePct;
+
+  bool get hasStall => stallWindowS != null && stallMinMovePct != null;
+
+  static TimeExits fromSettings(Map<String, Object?> s) {
+    final t = s[SettingsKeys.timeStopS.current];
+    final timeStop = t is int && t >= 1 && t <= 604800 ? t : null;
+    final st = s[SettingsKeys.stallExit.current];
+    int? w;
+    double? p;
+    if (st is Map) {
+      final ww = st['window_s'], pp = st['min_move_pct'];
+      if (ww is int && ww >= 5 && ww <= 86400 && pp is num && pp >= 0.01 && pp <= 100) {
+        w = ww;
+        p = pp.toDouble();
+      }
+    }
+    return TimeExits(timeStopS: timeStop, stallWindowS: w, stallMinMovePct: p);
+  }
+
+  Map<String, Object?> toPatch() => {
+    SettingsKeys.timeStopS.current: timeStopS,
+    SettingsKeys.stallExit.current: hasStall ? {'window_s': stallWindowS, 'min_move_pct': stallMinMovePct} : null,
+  };
 }

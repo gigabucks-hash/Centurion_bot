@@ -58,7 +58,20 @@ class AppLocalizationsId extends AppLocalizations {
   String get builderExitNoTrade => 'Exit tanpa trade';
 
   @override
+  String get builderExitStall => 'Exit stagnan';
+
+  @override
+  String builderExitStallHint(String min_move_pct, String window) {
+    return 'Jual semua bila harga bergerak kurang dari $min_move_pct dalam $window';
+  }
+
+  @override
   String get builderExitTimeStop => 'Time stop';
+
+  @override
+  String builderExitTimeStopHint(String duration) {
+    return 'Jual semua setelah ditahan $duration';
+  }
 
   @override
   String get builderExitTrailing => 'Trailing stop dari high';
@@ -230,6 +243,26 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get commonRange1d => '1H';
+
+  @override
+  String get commonRange30d => '30H';
+
+  @override
+  String get commonRange7d => '7H';
+
+  @override
+  String get commonRangeAll => 'Semua';
+
+  @override
+  String get commonStateLoading => 'Memuat…';
+
+  @override
+  String commonStateLoadingSection(String section) {
+    return 'Memuat $section…';
+  }
+
+  @override
   String commonStateSavedAt(String time) {
     return 'Draf tersimpan · $time';
   }
@@ -241,6 +274,9 @@ class AppLocalizationsId extends AppLocalizations {
   String commonTimerLeft(String mm_ss) {
     return 'Sisa $mm_ss';
   }
+
+  @override
+  String get commonValueUnavailable => 'Data belum tersedia';
 
   @override
   String get commonYou => 'Kamu';
@@ -460,6 +496,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get errorCodeGuardCooldownActive => 'Perubahan guard ini sedang cooldown.';
 
   @override
+  String get errorCodeGuardWeakenRequiresApproval =>
+      'Perubahan menunggu approval. Ini melonggarkan guard, jadi belum berlaku sampai kamu approve.';
+
+  @override
   String get errorCodeHoldTooShort => 'Dilepas terlalu cepat. Tahan sampai bar penuh.';
 
   @override
@@ -493,6 +533,9 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get errorCodePracticeCashInsufficient =>
       'Saldo practice tidak cukup untuk entry berikutnya. Entry dijeda sampai saldo pulih atau practice direset.';
+
+  @override
+  String get errorCodeQuoteMissingOrStale => 'Quote kedaluwarsa — perbarui lalu cek ulang nilainya sebelum approve.';
 
   @override
   String errorCodeRateLimited(int retry_after_s) {
@@ -594,6 +637,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get exitReasonSellPressure => 'Tekanan jual';
+
+  @override
+  String get exitReasonStall => 'Exit stagnan';
 
   @override
   String get exitReasonStrategyRetired => 'Strategi dihentikan';
@@ -699,6 +745,12 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get guardChangeStatusExpired => 'Kedaluwarsa, belum di-approve';
+
+  @override
+  String get guardChangeStatusRejected => 'Ditolak';
+
+  @override
   String guardImpactEstimateBody(String max_extra_passes, String window) {
     return 'Hingga $max_extra_passes koin tambahan bisa lolos per $window. Berdasarkan aturan, bukan replay.';
   }
@@ -756,6 +808,17 @@ class AppLocalizationsId extends AppLocalizations {
   String guardWeakenMatch(String matched, String total) {
     return '$matched dari $total karakter cocok';
   }
+
+  @override
+  String guardWeakenPendingBody(String expires_at) {
+    return 'Perubahan ini melonggarkan guard, jadi belum berlaku sampai kamu approve. Approve sebelum $expires_at atau kedaluwarsa.';
+  }
+
+  @override
+  String get guardWeakenPendingOpen => 'Tinjau di antrean';
+
+  @override
+  String get guardWeakenPendingTitle => 'Perubahan menunggu approval';
 
   @override
   String guardWeakenRiskLevel(String level) {
@@ -870,6 +933,22 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get loginWalletSignTitle => 'Tanda tangani untuk masuk';
+
+  @override
+  String mcapAsOf(String time) {
+    return 'Per $time';
+  }
+
+  @override
+  String get mcapLabel => 'Kapitalisasi pasar';
+
+  @override
+  String mcapSolValue(String amount) {
+    return '≈ $amount';
+  }
+
+  @override
+  String get mcapUsdIndicative => 'USD bersifat indikatif (harga SOL referensi), bukan live.';
 
   @override
   String get modePracticeBanner => 'Practice · paper SOL, tidak ada SOL nyata yang bergerak';
@@ -1192,6 +1271,31 @@ class AppLocalizationsId extends AppLocalizations {
   String get orderFailReasonValidationFailed => 'Order tidak lolos validasi';
 
   @override
+  String portfolioBalanceChange(String pct, String pnl, String range) {
+    return '$pnl ($pct) · $range';
+  }
+
+  @override
+  String get portfolioBalanceHidden => 'Saldo disembunyikan';
+
+  @override
+  String portfolioBalanceLabel(String mode) {
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'Saldo', 'other': 'Saldo paper'});
+    return '$_temp0';
+  }
+
+  @override
+  String portfolioBalanceUpdated(String time) {
+    return 'Diperbarui $time';
+  }
+
+  @override
+  String portfolioSparklineA11y(String end, String range, String start, String trend) {
+    String _temp0 = intl.Intl.selectLogic(trend, {'up': 'naik', 'down': 'turun', 'other': 'tetap'});
+    return 'Saldo $_temp0 selama $range, dari $start ke $end';
+  }
+
+  @override
   String positionsEmpty(String mode) {
     String _temp0 = intl.Intl.selectLogic(mode, {
       'real': 'Tidak ada posisi terbuka',
@@ -1372,6 +1476,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get queueSkipReasonOther => 'Lainnya…';
 
   @override
+  String get queueSkipReasonPriceMoved => 'Harga bergerak';
+
+  @override
   String get queueSkipReasonSuspiciousDev => 'Dev mencurigakan';
 
   @override
@@ -1411,6 +1518,116 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get queueWhyTitle => 'Kenapa butuh approval?';
+
+  @override
+  String get rejectReasonNotTradeable => 'Tidak bisa ditradingkan';
+
+  @override
+  String get rejectReasonOther => 'Lainnya';
+
+  @override
+  String get rejectReasonPriceMoved => 'Harga bergerak';
+
+  @override
+  String get rejectReasonUserDeclined => 'Dilewati olehmu';
+
+  @override
+  String get reviewDetailsToggle => 'Biaya & slippage';
+
+  @override
+  String reviewEstimateNote(String time) {
+    return 'Estimasi per $time. Nilai akhir bisa berubah mengikuti harga.';
+  }
+
+  @override
+  String get reviewMinReceived => 'Minimal diterima';
+
+  @override
+  String reviewMinReceivedValue(String min_out, String symbol) {
+    return '≥ $min_out $symbol';
+  }
+
+  @override
+  String get reviewNetworkFee => 'Perkiraan biaya jaringan';
+
+  @override
+  String get reviewPracticeNote => 'Practice: fill simulasi. Tidak ada SOL nyata yang bergerak.';
+
+  @override
+  String get reviewPrice => 'Harga';
+
+  @override
+  String reviewPriceMoved(String pct) {
+    return 'Harga bergerak $pct sejak pick ini. Tinjau ulang sebelum approve.';
+  }
+
+  @override
+  String get reviewPriorityFee => 'Priority fee';
+
+  @override
+  String get reviewQuoteChangedDuringHold => 'Quote berubah. Cek nilai baru lalu tahan lagi.';
+
+  @override
+  String reviewQuoteExpiresIn(int seconds) {
+    final intl.NumberFormat secondsNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String secondsString = secondsNumberFormat.format(seconds);
+
+    String _temp0 = intl.Intl.pluralLogic(seconds, locale: localeName, other: 'Berakhir dalam $secondsString dtk');
+    return '$_temp0';
+  }
+
+  @override
+  String get reviewQuoteMissing => 'Quote belum ada — perbarui untuk lanjut';
+
+  @override
+  String get reviewQuotePracticeStale => 'Estimasi kedaluwarsa. Practice tetap bisa approve; nilai bisa berbeda.';
+
+  @override
+  String get reviewQuoteRefresh => 'Perbarui quote';
+
+  @override
+  String get reviewQuoteRefreshing => 'Memperbarui quote…';
+
+  @override
+  String get reviewQuoteStale => 'Quote kedaluwarsa — perbarui untuk lanjut';
+
+  @override
+  String reviewQuoteUpdatedAgo(int seconds) {
+    final intl.NumberFormat secondsNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String secondsString = secondsNumberFormat.format(seconds);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      seconds,
+      locale: localeName,
+      zero: 'Quote baru diperbarui',
+      other: 'Quote diperbarui $secondsString dtk lalu',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get reviewQuoteUpdatedInline => 'Quote diperbarui';
+
+  @override
+  String get reviewRealNote => 'Real SOL: biaya jaringan tetap terpakai walau order gagal.';
+
+  @override
+  String get reviewSlippage => 'Slippage maks.';
+
+  @override
+  String get reviewSwapFee => 'Biaya swap';
+
+  @override
+  String reviewTitle(String side) {
+    String _temp0 = intl.Intl.selectLogic(side, {'sell': 'Tinjau penjualan', 'other': 'Tinjau pembelian'});
+    return '$_temp0';
+  }
+
+  @override
+  String get reviewTotalMax => 'Total (maks.)';
+
+  @override
+  String get reviewYouPay => 'Kamu bayar';
 
   @override
   String get screenerActionOpenQueue => 'Buka antrean';

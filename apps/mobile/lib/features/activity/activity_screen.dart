@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format.dart';
 import '../../core/theme/sentra_theme.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/page_footer.dart';
 import '../../data/models/models.dart';
+import '../../data/repositories/repositories.dart';
 import '../../data/providers.dart';
 
 final _actorFilterProvider = StateProvider<Actor?>((_) => null);
@@ -19,13 +21,41 @@ String actorLabel(Actor a) => switch (a) {
   Actor.system => 'System',
 };
 
-class ActivityScreen extends ConsumerWidget {
+class ActivityScreen extends ConsumerStatefulWidget {
   const ActivityScreen({super.key});
+  @override
+  ConsumerState<ActivityScreen> createState() => _ActivityScreenState();
+}
+
+/// Live head (`watchFeed`) + older history via 1.1.4 keyset paging
+/// (`fetchFeedPage`, `next_cursor`; CURSOR_INVALID restarts from page 1).
+class _ActivityScreenState extends ConsumerState<ActivityScreen> {
+  late final PagedListController<ActivityEvent> _pages = PagedListController(
+    ({cursor, limit = defaultPageLimit}) =>
+        ref.read(activityRepositoryProvider).fetchFeedPage(cursor: cursor, limit: limit),
+    idOf: (e) => e.id,
+    onChanged: (_) {
+      if (mounted) setState(() {});
+    },
+  );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _pages.refresh();
+  }
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final feed = ref.watch(activityFeedProvider(null));
     final filter = ref.watch(_actorFilterProvider);
+    final paged = _pages.state;
     return Scaffold(
       appBar: AppBar(title: const Text('Activity')),
       body: Column(
@@ -51,13 +81,26 @@ class ActivityScreen extends ConsumerWidget {
           Expanded(
             child: AsyncBody(
               value: feed,
-              data: (events) {
+              data: (head) {
+                final events = mergeHeadAndPages(head, paged.items, (e) => e.id, (a, b) {
+                  final c = b.at.compareTo(a.at);
+                  return c != 0 ? c : b.id.compareTo(a.id);
+                });
                 final list = filter == null ? events : events.where((e) => e.actor == filter).toList();
-                if (list.isEmpty) return const EmptyState(icon: Icons.bolt_outlined, text: 'Belum ada aktivitas');
+                if (list.isEmpty && paged.done) {
+                  return const EmptyState(icon: Icons.bolt_outlined, text: 'Belum ada aktivitas');
+                }
                 final now = DateTime.now();
                 return ListView.builder(
-                  itemCount: list.length,
-                  itemBuilder: (_, i) => ActivityTile(list[i], now: now),
+                  key: const Key('activityList'),
+                  itemCount: list.length + 1,
+                  itemBuilder: (_, i) {
+                    if (i >= list.length - pagePrefetchDistance && !paged.done && !paged.loading) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) => _pages.loadMore());
+                    }
+                    if (i == list.length) return PageFooter(state: paged, onRetry: _pages.loadMore);
+                    return ActivityTile(list[i], now: now);
+                  },
                 );
               },
             ),

@@ -70,9 +70,34 @@
   "@builderExitNoTrade": {
     "description": "builder.exit.no_trade"
   },
+  "builderExitStall": "Stall exit",
+  "@builderExitStall": {
+    "description": "settings stall_exit; fires exit_reason stall"
+  },
+  "builderExitStallHint": "Sell all if the price moves less than {min_move_pct} in {window}",
+  "@builderExitStallHint": {
+    "description": "min_move_pct = formatPct unsigned; window = formatted window_s; never before one full window",
+    "placeholders": {
+      "min_move_pct": {
+        "type": "String"
+      },
+      "window": {
+        "type": "String"
+      }
+    }
+  },
   "builderExitTimeStop": "Time stop",
   "@builderExitTimeStop": {
     "description": "builder.exit.time_stop"
+  },
+  "builderExitTimeStopHint": "Sell all after holding for {duration}",
+  "@builderExitTimeStopHint": {
+    "description": "duration = formatted time_stop_s; fires exit_reason max_hold",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
   },
   "builderExitTrailing": "Trailing stop from high",
   "@builderExitTrailing": {
@@ -322,6 +347,35 @@
       }
     }
   },
+  "commonRange1d": "1D",
+  "@commonRange1d": {
+    "description": "chart/sparkline range chip (ID: H = hari)"
+  },
+  "commonRange30d": "30D",
+  "@commonRange30d": {
+    "description": "chart/sparkline range chip (ID: H = hari)"
+  },
+  "commonRange7d": "7D",
+  "@commonRange7d": {
+    "description": "chart/sparkline range chip (ID: H = hari)"
+  },
+  "commonRangeAll": "All",
+  "@commonRangeAll": {
+    "description": "chart/sparkline range chip (ID: H = hari)"
+  },
+  "commonStateLoading": "Loading…",
+  "@commonStateLoading": {
+    "description": "skeleton container aria-label (announce once)"
+  },
+  "commonStateLoadingSection": "Loading {section}…",
+  "@commonStateLoadingSection": {
+    "description": "section = already-translated section title",
+    "placeholders": {
+      "section": {
+        "type": "String"
+      }
+    }
+  },
   "commonStateSavedAt": "Draft saved · {time}",
   "@commonStateSavedAt": {
     "description": "time = formatted local time",
@@ -343,6 +397,10 @@
         "type": "String"
       }
     }
+  },
+  "commonValueUnavailable": "Data not available yet",
+  "@commonValueUnavailable": {
+    "description": "tooltip + aria-label for a muted “—” (e.g. Mcap until Backend ships it)"
   },
   "commonYou": "You",
   "@commonYou": {
@@ -639,6 +697,10 @@
   "@errorCodeGuardCooldownActive": {
     "description": "wire error.code GUARD_COOLDOWN_ACTIVE"
   },
+  "errorCodeGuardWeakenRequiresApproval": "Change waiting for approval. It loosens a guard, so nothing applies until you approve it.",
+  "@errorCodeGuardWeakenRequiresApproval": {
+    "description": "wire error.code GUARD_WEAKEN_REQUIRES_APPROVAL"
+  },
   "errorCodeHoldTooShort": "Released too early. Hold until the bar is full.",
   "@errorCodeHoldTooShort": {
     "description": "wire error.code HOLD_TOO_SHORT"
@@ -682,6 +744,10 @@
   "errorCodePracticeCashInsufficient": "Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.",
   "@errorCodePracticeCashInsufficient": {
     "description": "wire error.code PRACTICE_CASH_INSUFFICIENT"
+  },
+  "errorCodeQuoteMissingOrStale": "Quote expired — refresh it and check the values again before approving.",
+  "@errorCodeQuoteMissingOrStale": {
+    "description": "wire error.code QUOTE_MISSING_OR_STALE"
   },
   "errorCodeRateLimited": "Too many requests. Try again in {retry_after_s,plural,one{{retry_after_s} second} other{{retry_after_s} seconds}}.",
   "@errorCodeRateLimited": {
@@ -788,7 +854,7 @@
   },
   "exitReasonMaxHold": "Time stop",
   "@exitReasonMaxHold": {
-    "description": "wire ExitReason"
+    "description": "wire ExitReason (1.1.4: also time_stop_s)"
   },
   "exitReasonNoNewHigh": "No new high",
   "@exitReasonNoNewHigh": {
@@ -817,6 +883,10 @@
   "exitReasonSellPressure": "Sell pressure",
   "@exitReasonSellPressure": {
     "description": "wire ExitReason"
+  },
+  "exitReasonStall": "Stall exit",
+  "@exitReasonStall": {
+    "description": "wire ExitReason (1.1.4 stall_exit; not v1.0 stall = no_new_high)"
   },
   "exitReasonStrategyRetired": "Strategy retired",
   "@exitReasonStrategyRetired": {
@@ -986,6 +1056,14 @@
       }
     }
   },
+  "guardChangeStatusExpired": "Expired before approval",
+  "@guardChangeStatusExpired": {
+    "description": "guard.changed status=expired (contracts 1.1.4)"
+  },
+  "guardChangeStatusRejected": "Rejected",
+  "@guardChangeStatusRejected": {
+    "description": "guard.changed status=rejected (contracts 1.1.4)"
+  },
   "guardImpactEstimateBody": "Up to {max_extra_passes} more coins could pass per {window}. Based on rules, not a replay.",
   "@guardImpactEstimateBody": {
     "description": "POST …/guard-impact/estimate",
@@ -1085,6 +1163,23 @@
         "type": "String"
       }
     }
+  },
+  "guardWeakenPendingBody": "This change loosens a guard, so nothing applies until you approve it. Approve before {expires_at} or it expires.",
+  "@guardWeakenPendingBody": {
+    "description": "expires_at = formatDateTime(proposal.expires_at)",
+    "placeholders": {
+      "expires_at": {
+        "type": "String"
+      }
+    }
+  },
+  "guardWeakenPendingOpen": "Review in queue",
+  "@guardWeakenPendingOpen": {
+    "description": "opens the guard_change proposal (Location: /approvals/{id})"
+  },
+  "guardWeakenPendingTitle": "Change waiting for approval",
+  "@guardWeakenPendingTitle": {
+    "description": "202 GuardChangeProposed; info tone (not error); also used for 409 GUARD_WEAKEN_REQUIRES_APPROVAL"
   },
   "guardWeakenRiskLevel": "Risk level: {level, select, low {Low} medium {Medium} high {High} other {Critical}}",
   "@guardWeakenRiskLevel": {
@@ -1231,6 +1326,32 @@
   "loginWalletSignTitle": "Sign to sign in",
   "@loginWalletSignTitle": {
     "description": "login.wallet.sign_title"
+  },
+  "mcapAsOf": "As of {time}",
+  "@mcapAsOf": {
+    "description": "tooltip; time = formatTime(mcap_as_of) or formatDateTime if not today",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "mcapLabel": "Market cap",
+  "@mcapLabel": {
+    "description": "coin detail row label; table column stays screener.col.mcap"
+  },
+  "mcapSolValue": "≈ {amount}",
+  "@mcapSolValue": {
+    "description": "amount = formatMcapSol(market_cap_lamports, loc, {paper:false}); secondary line under USD",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "mcapUsdIndicative": "USD is indicative (reference SOL price), not live.",
+  "@mcapUsdIndicative": {
+    "description": "tooltip second line when mcap_usd is shown"
   },
   "modePracticeBanner": "Practice · paper SOL, no real SOL moves",
   "@modePracticeBanner": {
@@ -1785,6 +1906,61 @@
   "@orderFailReasonValidationFailed": {
     "description": "order.failed reason_code=VALIDATION_FAILED"
   },
+  "portfolioBalanceChange": "{pnl} ({pct}) · {range}",
+  "@portfolioBalanceChange": {
+    "description": "pnl = pnlSol, pct = pnlPct (signed, T-15), range = common.range.* label",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      },
+      "pnl": {
+        "type": "String"
+      },
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "portfolioBalanceHidden": "Balance hidden",
+  "@portfolioBalanceHidden": {
+    "description": "privacy toggle (tap to reveal)"
+  },
+  "portfolioBalanceLabel": "{mode, select, real {Balance} other {Paper balance}}",
+  "@portfolioBalanceLabel": {
+    "description": "hero balance on Home/Dashboard",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "portfolioBalanceUpdated": "Updated {time}",
+  "@portfolioBalanceUpdated": {
+    "description": "portfolio.balance.updated",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "portfolioSparklineA11y": "Balance {trend, select, up {up} down {down} other {unchanged}} over {range}, from {start} to {end}",
+  "@portfolioSparklineA11y": {
+    "description": "sparkline is decorative; this is its text alternative",
+    "placeholders": {
+      "end": {
+        "type": "String"
+      },
+      "range": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "trend": {
+        "type": "String"
+      }
+    }
+  },
   "positionsEmpty": "{mode, select, real {No open positions} other {No paper positions}}",
   "@positionsEmpty": {
     "description": "positions.empty",
@@ -2021,11 +2197,15 @@
   },
   "queueSkipReasonNotTradeable": "Not tradeable",
   "@queueSkipReasonNotTradeable": {
-    "description": "preselected skip reason for UNSUPPORTED_QUOTE_MINT picks; wire reason 'not_tradeable'"
+    "description": "preselected skip reason for UNSUPPORTED_QUOTE_MINT picks; wire reject_reason=not_tradeable (contracts 1.1.3)"
   },
   "queueSkipReasonOther": "Other…",
   "@queueSkipReasonOther": {
     "description": "queue.skip_reason.other"
+  },
+  "queueSkipReasonPriceMoved": "Price moved",
+  "@queueSkipReasonPriceMoved": {
+    "description": "chip → wire reject_reason price_moved"
   },
   "queueSkipReasonSuspiciousDev": "Suspicious dev",
   "@queueSkipReasonSuspiciousDev": {
@@ -2086,6 +2266,153 @@
   "queueWhyTitle": "Why does this need approval?",
   "@queueWhyTitle": {
     "description": "queue.why.title"
+  },
+  "rejectReasonNotTradeable": "Not tradeable",
+  "@rejectReasonNotTradeable": {
+    "description": "wire ApprovalRejectReason not_tradeable (proposal.rejected.reject_reason, audit approval.reject)"
+  },
+  "rejectReasonOther": "Other",
+  "@rejectReasonOther": {
+    "description": "wire ApprovalRejectReason other (proposal.rejected.reject_reason, audit approval.reject)"
+  },
+  "rejectReasonPriceMoved": "Price moved",
+  "@rejectReasonPriceMoved": {
+    "description": "wire ApprovalRejectReason price_moved (proposal.rejected.reject_reason, audit approval.reject)"
+  },
+  "rejectReasonUserDeclined": "Skipped by you",
+  "@rejectReasonUserDeclined": {
+    "description": "wire ApprovalRejectReason user_declined (proposal.rejected.reject_reason, audit approval.reject)"
+  },
+  "reviewDetailsToggle": "Fees & slippage",
+  "@reviewDetailsToggle": {
+    "description": "collapsible row label (mobile)"
+  },
+  "reviewEstimateNote": "Estimates as of {time}. Final values can change with the price.",
+  "@reviewEstimateNote": {
+    "description": "time = formatTime(quote_ts)",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewMinReceived": "Min. received",
+  "@reviewMinReceived": {
+    "description": "label"
+  },
+  "reviewMinReceivedValue": "≥ {min_out} {symbol}",
+  "@reviewMinReceivedValue": {
+    "description": "min_out = formatRawQty(min_out_raw, decimals); symbol untrusted. Missing value or decimals → whole row shows —",
+    "placeholders": {
+      "min_out": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewNetworkFee": "Est. network fee",
+  "@reviewNetworkFee": {
+    "description": "value = formatLamportsOrDash(est_network_fee_lamports); base + priority fee (contracts 1.1.4)"
+  },
+  "reviewPracticeNote": "Practice: simulated fill. No real SOL moves.",
+  "@reviewPracticeNote": {
+    "description": "review.practice_note"
+  },
+  "reviewPrice": "Price",
+  "@reviewPrice": {
+    "description": "value = price_sol"
+  },
+  "reviewPriceMoved": "Price moved {pct} since this pick. Review again before approving.",
+  "@reviewPriceMoved": {
+    "description": "pct = pnlPct (signed)",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewPriorityFee": "Priority fee",
+  "@reviewPriorityFee": {
+    "description": "value = formatLamportsOrDash(priority_fee_lamports)"
+  },
+  "reviewQuoteChangedDuringHold": "Quote changed. Check the new values and hold again.",
+  "@reviewQuoteChangedDuringHold": {
+    "description": "proposal.updated while the hold is in progress: cancel the hold, reset the bar, new rev"
+  },
+  "reviewQuoteExpiresIn": "{seconds,plural,one{Expires in {seconds} s} other{Expires in {seconds} s}}",
+  "@reviewQuoteExpiresIn": {
+    "description": "seconds = quoteState().expiresInS; shown while fresh",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "reviewQuoteMissing": "No quote yet — refresh to continue",
+  "@reviewQuoteMissing": {
+    "description": "Real: all quote fields null; hold/Approve disabled"
+  },
+  "reviewQuotePracticeStale": "Estimate expired. Practice can still approve; values may differ.",
+  "@reviewQuotePracticeStale": {
+    "description": "Practice is never blocked by a missing/stale quote"
+  },
+  "reviewQuoteRefresh": "Refresh quote",
+  "@reviewQuoteRefresh": {
+    "description": "CTA on stale/missing state and on 409 QUOTE_MISSING_OR_STALE"
+  },
+  "reviewQuoteRefreshing": "Refreshing quote…",
+  "@reviewQuoteRefreshing": {
+    "description": "CTA busy state; values keep their old text, muted"
+  },
+  "reviewQuoteStale": "Quote expired — refresh to continue",
+  "@reviewQuoteStale": {
+    "description": "Real: hold/Approve disabled until a fresh quote (409 QUOTE_MISSING_OR_STALE otherwise)"
+  },
+  "reviewQuoteUpdatedAgo": "{seconds,plural,one{Quote updated {seconds} s ago} other{Quote updated {seconds} s ago} =0{Quote updated just now}}",
+  "@reviewQuoteUpdatedAgo": {
+    "description": "seconds = quoteState().ageS (server_now − quote_ts)",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "reviewQuoteUpdatedInline": "Quote updated",
+  "@reviewQuoteUpdatedInline": {
+    "description": "proposal.updated: subtle inline label next to the values for ~2 s, polite live region; no toast/push"
+  },
+  "reviewRealNote": "Real SOL: network fees are paid even if the order fails.",
+  "@reviewRealNote": {
+    "description": "review.real_note"
+  },
+  "reviewSlippage": "Max slippage",
+  "@reviewSlippage": {
+    "description": "value = formatBps(max_slippage_bps)"
+  },
+  "reviewSwapFee": "Swap fee",
+  "@reviewSwapFee": {
+    "description": "value = formatBps(swap_fee_bps)"
+  },
+  "reviewTitle": "{side, select, sell {Review sell} other {Review buy}}",
+  "@reviewTitle": {
+    "description": "transaction review sheet before Approve/Sell",
+    "placeholders": {
+      "side": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewTotalMax": "Total (max)",
+  "@reviewTotalMax": {
+    "description": "value = formatLamportsOrDash(total_max_lamports) = SOL in + network fee (contracts 1.1.4)"
+  },
+  "reviewYouPay": "You pay",
+  "@reviewYouPay": {
+    "description": "value = formatLamports(amount_lamports)"
   },
   "screenerActionOpenQueue": "Open queue",
   "@screenerActionOpenQueue": {

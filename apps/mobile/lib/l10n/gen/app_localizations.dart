@@ -182,11 +182,29 @@ abstract class AppLocalizations {
   /// **'No-trade exit'**
   String get builderExitNoTrade;
 
+  /// settings stall_exit; fires exit_reason stall
+  ///
+  /// In en, this message translates to:
+  /// **'Stall exit'**
+  String get builderExitStall;
+
+  /// min_move_pct = formatPct unsigned; window = formatted window_s; never before one full window
+  ///
+  /// In en, this message translates to:
+  /// **'Sell all if the price moves less than {min_move_pct} in {window}'**
+  String builderExitStallHint(String min_move_pct, String window);
+
   /// builder.exit.time_stop
   ///
   /// In en, this message translates to:
   /// **'Time stop'**
   String get builderExitTimeStop;
+
+  /// duration = formatted time_stop_s; fires exit_reason max_hold
+  ///
+  /// In en, this message translates to:
+  /// **'Sell all after holding for {duration}'**
+  String builderExitTimeStopHint(String duration);
 
   /// builder.exit.trailing
   ///
@@ -446,6 +464,42 @@ abstract class AppLocalizations {
   /// **'Up {amount}'**
   String commonPnlUp(String amount);
 
+  /// chart/sparkline range chip (ID: H = hari)
+  ///
+  /// In en, this message translates to:
+  /// **'1D'**
+  String get commonRange1d;
+
+  /// chart/sparkline range chip (ID: H = hari)
+  ///
+  /// In en, this message translates to:
+  /// **'30D'**
+  String get commonRange30d;
+
+  /// chart/sparkline range chip (ID: H = hari)
+  ///
+  /// In en, this message translates to:
+  /// **'7D'**
+  String get commonRange7d;
+
+  /// chart/sparkline range chip (ID: H = hari)
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get commonRangeAll;
+
+  /// skeleton container aria-label (announce once)
+  ///
+  /// In en, this message translates to:
+  /// **'Loading…'**
+  String get commonStateLoading;
+
+  /// section = already-translated section title
+  ///
+  /// In en, this message translates to:
+  /// **'Loading {section}…'**
+  String commonStateLoadingSection(String section);
+
   /// time = formatted local time
   ///
   /// In en, this message translates to:
@@ -463,6 +517,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{mm_ss} left'**
   String commonTimerLeft(String mm_ss);
+
+  /// tooltip + aria-label for a muted “—” (e.g. Mcap until Backend ships it)
+  ///
+  /// In en, this message translates to:
+  /// **'Data not available yet'**
+  String get commonValueUnavailable;
 
   /// common.you
   ///
@@ -794,6 +854,12 @@ abstract class AppLocalizations {
   /// **'This guard change is in its cooldown.'**
   String get errorCodeGuardCooldownActive;
 
+  /// wire error.code GUARD_WEAKEN_REQUIRES_APPROVAL
+  ///
+  /// In en, this message translates to:
+  /// **'Change waiting for approval. It loosens a guard, so nothing applies until you approve it.'**
+  String get errorCodeGuardWeakenRequiresApproval;
+
   /// wire error.code HOLD_TOO_SHORT
   ///
   /// In en, this message translates to:
@@ -859,6 +925,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.'**
   String get errorCodePracticeCashInsufficient;
+
+  /// wire error.code QUOTE_MISSING_OR_STALE
+  ///
+  /// In en, this message translates to:
+  /// **'Quote expired — refresh it and check the values again before approving.'**
+  String get errorCodeQuoteMissingOrStale;
 
   /// wire error.code RATE_LIMITED
   ///
@@ -998,7 +1070,7 @@ abstract class AppLocalizations {
   /// **'Manual sell'**
   String get exitReasonManual;
 
-  /// wire ExitReason
+  /// wire ExitReason (1.1.4: also time_stop_s)
   ///
   /// In en, this message translates to:
   /// **'Time stop'**
@@ -1045,6 +1117,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sell pressure'**
   String get exitReasonSellPressure;
+
+  /// wire ExitReason (1.1.4 stall_exit; not v1.0 stall = no_new_high)
+  ///
+  /// In en, this message translates to:
+  /// **'Stall exit'**
+  String get exitReasonStall;
 
   /// wire ExitReason
   ///
@@ -1220,6 +1298,18 @@ abstract class AppLocalizations {
   /// **'Sold {symbol} · {pnl}'**
   String feedEventSold(String pnl, String symbol);
 
+  /// guard.changed status=expired (contracts 1.1.4)
+  ///
+  /// In en, this message translates to:
+  /// **'Expired before approval'**
+  String get guardChangeStatusExpired;
+
+  /// guard.changed status=rejected (contracts 1.1.4)
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get guardChangeStatusRejected;
+
   /// POST …/guard-impact/estimate
   ///
   /// In en, this message translates to:
@@ -1321,6 +1411,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{matched} of {total} characters match'**
   String guardWeakenMatch(String matched, String total);
+
+  /// expires_at = formatDateTime(proposal.expires_at)
+  ///
+  /// In en, this message translates to:
+  /// **'This change loosens a guard, so nothing applies until you approve it. Approve before {expires_at} or it expires.'**
+  String guardWeakenPendingBody(String expires_at);
+
+  /// opens the guard_change proposal (Location: /approvals/{id})
+  ///
+  /// In en, this message translates to:
+  /// **'Review in queue'**
+  String get guardWeakenPendingOpen;
+
+  /// 202 GuardChangeProposed; info tone (not error); also used for 409 GUARD_WEAKEN_REQUIRES_APPROVAL
+  ///
+  /// In en, this message translates to:
+  /// **'Change waiting for approval'**
+  String get guardWeakenPendingTitle;
 
   /// guard.weaken.risk.level
   ///
@@ -1501,6 +1609,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign to sign in'**
   String get loginWalletSignTitle;
+
+  /// tooltip; time = formatTime(mcap_as_of) or formatDateTime if not today
+  ///
+  /// In en, this message translates to:
+  /// **'As of {time}'**
+  String mcapAsOf(String time);
+
+  /// coin detail row label; table column stays screener.col.mcap
+  ///
+  /// In en, this message translates to:
+  /// **'Market cap'**
+  String get mcapLabel;
+
+  /// amount = formatMcapSol(market_cap_lamports, loc, {paper:false}); secondary line under USD
+  ///
+  /// In en, this message translates to:
+  /// **'≈ {amount}'**
+  String mcapSolValue(String amount);
+
+  /// tooltip second line when mcap_usd is shown
+  ///
+  /// In en, this message translates to:
+  /// **'USD is indicative (reference SOL price), not live.'**
+  String get mcapUsdIndicative;
 
   /// mode.practice.banner
   ///
@@ -1976,6 +2108,36 @@ abstract class AppLocalizations {
   /// **'The order didn’t pass validation'**
   String get orderFailReasonValidationFailed;
 
+  /// pnl = pnlSol, pct = pnlPct (signed, T-15), range = common.range.* label
+  ///
+  /// In en, this message translates to:
+  /// **'{pnl} ({pct}) · {range}'**
+  String portfolioBalanceChange(String pct, String pnl, String range);
+
+  /// privacy toggle (tap to reveal)
+  ///
+  /// In en, this message translates to:
+  /// **'Balance hidden'**
+  String get portfolioBalanceHidden;
+
+  /// hero balance on Home/Dashboard
+  ///
+  /// In en, this message translates to:
+  /// **'{mode, select, real {Balance} other {Paper balance}}'**
+  String portfolioBalanceLabel(String mode);
+
+  /// portfolio.balance.updated
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {time}'**
+  String portfolioBalanceUpdated(String time);
+
+  /// sparkline is decorative; this is its text alternative
+  ///
+  /// In en, this message translates to:
+  /// **'Balance {trend, select, up {up} down {down} other {unchanged}} over {range}, from {start} to {end}'**
+  String portfolioSparklineA11y(String end, String range, String start, String trend);
+
   /// positions.empty
   ///
   /// In en, this message translates to:
@@ -2198,7 +2360,7 @@ abstract class AppLocalizations {
   /// **'Already pumped'**
   String get queueSkipReasonAlreadyPumped;
 
-  /// preselected skip reason for UNSUPPORTED_QUOTE_MINT picks; wire reason 'not_tradeable'
+  /// preselected skip reason for UNSUPPORTED_QUOTE_MINT picks; wire reject_reason=not_tradeable (contracts 1.1.3)
   ///
   /// In en, this message translates to:
   /// **'Not tradeable'**
@@ -2209,6 +2371,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Other…'**
   String get queueSkipReasonOther;
+
+  /// chip → wire reject_reason price_moved
+  ///
+  /// In en, this message translates to:
+  /// **'Price moved'**
+  String get queueSkipReasonPriceMoved;
 
   /// queue.skip_reason.suspicious_dev
   ///
@@ -2287,6 +2455,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Why does this need approval?'**
   String get queueWhyTitle;
+
+  /// wire ApprovalRejectReason not_tradeable (proposal.rejected.reject_reason, audit approval.reject)
+  ///
+  /// In en, this message translates to:
+  /// **'Not tradeable'**
+  String get rejectReasonNotTradeable;
+
+  /// wire ApprovalRejectReason other (proposal.rejected.reject_reason, audit approval.reject)
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get rejectReasonOther;
+
+  /// wire ApprovalRejectReason price_moved (proposal.rejected.reject_reason, audit approval.reject)
+  ///
+  /// In en, this message translates to:
+  /// **'Price moved'**
+  String get rejectReasonPriceMoved;
+
+  /// wire ApprovalRejectReason user_declined (proposal.rejected.reject_reason, audit approval.reject)
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped by you'**
+  String get rejectReasonUserDeclined;
+
+  /// collapsible row label (mobile)
+  ///
+  /// In en, this message translates to:
+  /// **'Fees & slippage'**
+  String get reviewDetailsToggle;
+
+  /// time = formatTime(quote_ts)
+  ///
+  /// In en, this message translates to:
+  /// **'Estimates as of {time}. Final values can change with the price.'**
+  String reviewEstimateNote(String time);
+
+  /// label
+  ///
+  /// In en, this message translates to:
+  /// **'Min. received'**
+  String get reviewMinReceived;
+
+  /// min_out = formatRawQty(min_out_raw, decimals); symbol untrusted. Missing value or decimals → whole row shows —
+  ///
+  /// In en, this message translates to:
+  /// **'≥ {min_out} {symbol}'**
+  String reviewMinReceivedValue(String min_out, String symbol);
+
+  /// value = formatLamportsOrDash(est_network_fee_lamports); base + priority fee (contracts 1.1.4)
+  ///
+  /// In en, this message translates to:
+  /// **'Est. network fee'**
+  String get reviewNetworkFee;
+
+  /// review.practice_note
+  ///
+  /// In en, this message translates to:
+  /// **'Practice: simulated fill. No real SOL moves.'**
+  String get reviewPracticeNote;
+
+  /// value = price_sol
+  ///
+  /// In en, this message translates to:
+  /// **'Price'**
+  String get reviewPrice;
+
+  /// pct = pnlPct (signed)
+  ///
+  /// In en, this message translates to:
+  /// **'Price moved {pct} since this pick. Review again before approving.'**
+  String reviewPriceMoved(String pct);
+
+  /// value = formatLamportsOrDash(priority_fee_lamports)
+  ///
+  /// In en, this message translates to:
+  /// **'Priority fee'**
+  String get reviewPriorityFee;
+
+  /// proposal.updated while the hold is in progress: cancel the hold, reset the bar, new rev
+  ///
+  /// In en, this message translates to:
+  /// **'Quote changed. Check the new values and hold again.'**
+  String get reviewQuoteChangedDuringHold;
+
+  /// seconds = quoteState().expiresInS; shown while fresh
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds,plural,one{Expires in {seconds} s} other{Expires in {seconds} s}}'**
+  String reviewQuoteExpiresIn(int seconds);
+
+  /// Real: all quote fields null; hold/Approve disabled
+  ///
+  /// In en, this message translates to:
+  /// **'No quote yet — refresh to continue'**
+  String get reviewQuoteMissing;
+
+  /// Practice is never blocked by a missing/stale quote
+  ///
+  /// In en, this message translates to:
+  /// **'Estimate expired. Practice can still approve; values may differ.'**
+  String get reviewQuotePracticeStale;
+
+  /// CTA on stale/missing state and on 409 QUOTE_MISSING_OR_STALE
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh quote'**
+  String get reviewQuoteRefresh;
+
+  /// CTA busy state; values keep their old text, muted
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing quote…'**
+  String get reviewQuoteRefreshing;
+
+  /// Real: hold/Approve disabled until a fresh quote (409 QUOTE_MISSING_OR_STALE otherwise)
+  ///
+  /// In en, this message translates to:
+  /// **'Quote expired — refresh to continue'**
+  String get reviewQuoteStale;
+
+  /// seconds = quoteState().ageS (server_now − quote_ts)
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds,plural,one{Quote updated {seconds} s ago} other{Quote updated {seconds} s ago} =0{Quote updated just now}}'**
+  String reviewQuoteUpdatedAgo(int seconds);
+
+  /// proposal.updated: subtle inline label next to the values for ~2 s, polite live region; no toast/push
+  ///
+  /// In en, this message translates to:
+  /// **'Quote updated'**
+  String get reviewQuoteUpdatedInline;
+
+  /// review.real_note
+  ///
+  /// In en, this message translates to:
+  /// **'Real SOL: network fees are paid even if the order fails.'**
+  String get reviewRealNote;
+
+  /// value = formatBps(max_slippage_bps)
+  ///
+  /// In en, this message translates to:
+  /// **'Max slippage'**
+  String get reviewSlippage;
+
+  /// value = formatBps(swap_fee_bps)
+  ///
+  /// In en, this message translates to:
+  /// **'Swap fee'**
+  String get reviewSwapFee;
+
+  /// transaction review sheet before Approve/Sell
+  ///
+  /// In en, this message translates to:
+  /// **'{side, select, sell {Review sell} other {Review buy}}'**
+  String reviewTitle(String side);
+
+  /// value = formatLamportsOrDash(total_max_lamports) = SOL in + network fee (contracts 1.1.4)
+  ///
+  /// In en, this message translates to:
+  /// **'Total (max)'**
+  String get reviewTotalMax;
+
+  /// value = formatLamports(amount_lamports)
+  ///
+  /// In en, this message translates to:
+  /// **'You pay'**
+  String get reviewYouPay;
 
   /// screener.action.open_queue
   ///
