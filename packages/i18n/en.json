@@ -67,7 +67,7 @@
       "tp": "Take profit",
       "trail": "Trailing stop"
     },
-    "title": "Coin trail · {coin} ({strategy})"
+    "title": "Coin trail · {symbol} ({strategy})"
   },
   "common": {
     "action": {
@@ -176,28 +176,47 @@
       "account_deletion_pending": "Account deletion is already scheduled.",
       "approval_already_decided": "This was already decided on another device.",
       "approval_expired": "This proposal expired: {reason}",
+      "approval_requires_app": "Decide this in the official app, not via MCP.",
       "approval_token_invalid": "This notification action expired. Open the app to continue.",
       "auth_tg_invalid": "Telegram login couldn’t be verified. Try again.",
       "auth_tg_no_profile": "Allow Telegram to share your profile to sign in.",
       "auth_tg_replay": "This Telegram login was already used. Start again.",
+      "confirmation_invalid": "This confirmation expired or was already used. Start again.",
+      "confirmation_required": "This change needs confirmation: passkey, typed name and hold.",
       "confirmation_restart_required": "The strategy changed during confirmation. Start the confirmation again.",
+      "forbidden_role": "Your workspace role doesn’t allow this action.",
+      "forbidden_scope": "This token doesn’t have permission for this action.",
       "guard_cooldown_active": "This guard change is in its cooldown.",
       "hold_too_short": "Released too early. Hold until the bar is full.",
       "internal": "Something went wrong. Try again.",
+      "invalid_fraction": "Choose a sell amount from 0.01% to 100%.",
+      "job_dead_lettered": "A background task failed after all retries. Support has been notified.",
       "last_login_method": "This is your only sign-in method. Link another one before unlinking.",
+      "mode_not_allowed": "Only Practice is available. Real SOL isn’t enabled yet.",
+      "not_found": "Not found, or you don’t have access.",
       "otp_invalid": "Wrong or expired code.",
       "otp_locked": "Too many attempts. Try again in 15 minutes.",
+      "position_already_closed": "This position is already closed.",
+      "practice_cash_insufficient": "Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.",
       "rate_limited": "Too many requests. Try again in {retry_after_s, plural, one {# second} other {# seconds}}.",
       "real_sol_disabled": "Real SOL isn’t available yet.",
       "reauth_required": "Please confirm it’s you again to continue.",
+      "replay_unavailable": "Replay isn’t available right now. Showing the estimate.",
       "reset_cooldown": "Practice can be reset once a day. Next: {next_allowed_at}",
+      "settings_schema_invalid": "These strategy settings aren’t valid. Check the highlighted fields.",
       "siws_nonce_invalid": "This sign-in request expired. Try again.",
       "siws_signature_invalid": "The wallet signature couldn’t be verified.",
+      "source_degraded": "A market data source is degraded. New picks may be delayed.",
+      "strategy_retired": "This strategy was archived or deleted.",
       "strategy_rev_conflict": "This strategy changed while you were editing.",
       "two_factor_required": "Enter your two-factor code to continue.",
       "typed_confirmation_mismatch": "The name doesn’t match exactly.",
+      "unauthenticated": "Your session ended. Sign in again.",
       "unavailable": "Service is temporarily unavailable. Retrying…",
-      "wallet_role_conflict": "A sign-in wallet can’t also be your trading wallet."
+      "validation_failed": "Some values aren’t valid. Check the highlighted fields.",
+      "version_conflict": "This changed elsewhere. Reload and try again.",
+      "wallet_role_conflict": "A sign-in wallet can’t also be your trading wallet.",
+      "webauthn_invalid": "Passkey check failed. Try again."
     }
   },
   "exit_reason": {
@@ -256,12 +275,12 @@
       "you": "You"
     },
     "event": {
-      "blocked": "Blocked {coin}",
-      "bought": "Bought {coin} · {sol}",
-      "expired": "Proposal for {coin} expired",
-      "passed": "Passed {coin} · fit {score}/{pass}",
-      "skipped": "Skipped pick {coin}",
-      "sold": "Sold {coin} · {pnl}"
+      "blocked": "Blocked {symbol}",
+      "bought": "Bought {symbol} · {amount_lamports}",
+      "expired": "Proposal for {symbol} expired",
+      "passed": "Passed {symbol} · fit {score}/{pass}",
+      "skipped": "Skipped pick {symbol}",
+      "sold": "Sold {symbol} · {pnl}"
     }
   },
   "guard": {
@@ -382,7 +401,7 @@
     },
     "approved": {
       "body": "Order is being placed",
-      "title": "Approved: {coin}"
+      "title": "Approved: {symbol}"
     },
     "deletion_cancelled": {
       "body": "Your account stays active.",
@@ -394,19 +413,19 @@
     },
     "expired": {
       "body": "{reason}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} expired"
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} expired"
     },
     "failed": {
       "body": "{reason_code} · {amount_lamports}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}",
       "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {side, select, sell {Sell} other {Buy}} {symbol} failed"
     },
     "filled": {
-      "body": "{sol} at {price} · exit plan armed",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {coin}"
+      "body": "{amount_lamports} at {price} · exit plan armed",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {symbol}"
     },
     "first_buy": {
-      "body": "This strategy hasn’t bought yet. Review before it starts · {sol} · {mm_ss} left",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {coin}"
+      "body": "This strategy hasn’t bought yet. Review before it starts · {amount_lamports} · {mm_ss} left",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {symbol}"
     },
     "grouped": {
       "body": "Open the queue to review",
@@ -449,38 +468,41 @@
       "title": "Lost connection to server"
     },
     "pick_pending": {
-      "body": "{strategy} · {sol} · {mm_ss} left",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} awaits approval"
+      "body": "{strategy} · {amount_lamports} · {mm_ss} left",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} awaits approval"
     },
     "practice_reset": {
-      "body": "Balance back to {sol}. Pending buys were cleared.",
+      "body": "Balance back to {amount_lamports}. Pending buys were cleared.",
       "title": "[PRACTICE] Practice reset"
     },
     "skipped": {
       "body": "Reason: {reason}",
-      "title": "Skipped: {coin}"
+      "title": "Skipped: {symbol}"
     },
     "sl_hit": {
       "body": "{stop_type} · {pnl} ({pct})",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {coin}"
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {symbol}"
     },
     "token_invalid": {
       "body": "Open the app to continue",
       "title": "Notification action expired"
     },
     "tp_hit": {
-      "body": "Sold {pct_sold} at {pct} · {pnl}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {coin}"
+      "body": "Sold {pct_sold} at +{pct} · {pnl}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {symbol}"
     }
   },
   "order": {
     "fail_reason": {
       "guard_failed": "A guard check failed right before the order",
       "insufficient_practice_balance": "Not enough paper SOL",
+      "mode_not_allowed": "Only Practice orders run; Real SOL isn’t enabled yet",
       "pool_stale": "Pool data was out of date; the order was not sent",
+      "position_already_closed": "This position was already closed",
       "slippage_exceeded": "Price moved more than your slippage limit",
       "unknown": "The order couldn’t be completed",
-      "unsupported_quote_mint": "This coin has no SOL pair, so it can’t be traded"
+      "unsupported_quote_mint": "This coin has no SOL pair, so it can’t be traded",
+      "validation_failed": "The order didn’t pass validation"
     }
   },
   "positions": {
@@ -500,7 +522,7 @@
       "never_from_notification": "Selling is never available from a notification or popup.",
       "plan_cancelled": "Exit plan cancelled (100%)",
       "remaining_plan": "Remaining position keeps its exit plan",
-      "title": "Sell {coin}"
+      "title": "Sell {symbol}"
     },
     "title": "Positions"
   },
@@ -508,7 +530,7 @@
     "batch": {
       "approve": "{count, plural, one {Approve # pick} other {Approve # picks}}",
       "selected": "{count, plural, one {# selected} other {# selected}}",
-      "total": "Total {sol}"
+      "total": "Total {amount_lamports}"
     },
     "guard": {
       "reject": "Reject change"
@@ -530,7 +552,7 @@
       "batch_confirm": {
         "title": "{count, plural, one {Approve # buy with REAL SOL?} other {Approve # buys with REAL SOL?}}"
       },
-      "hold": "Hold to approve {sol}"
+      "hold": "Hold to approve {amount_lamports}"
     },
     "skip_reason": {
       "already_pumped": "Already pumped",
@@ -556,10 +578,56 @@
     }
   },
   "screener": {
+    "action": {
+      "open_queue": "Open queue"
+    },
+    "card": {
+      "guard_failed": "Guard failed · score {score}",
+      "not_tradeable": "Score {score} · no SOL pair",
+      "passed": "Passed · score {score}"
+    },
+    "col": {
+      "action": "Action",
+      "coin": "Coin",
+      "guard": "Guard",
+      "liquidity": "Liquidity",
+      "mcap": "Mcap",
+      "score": "Score",
+      "status": "Status",
+      "venue": "Venue"
+    },
+    "detail": {
+      "approve_unavailable": "Approve — not available",
+      "chart_readonly": "Price chart (read-only)",
+      "guard": "Guard",
+      "guard_not_run": "not run",
+      "info_only": "(info only)",
+      "none": "none",
+      "quote_not_sol": "{quote_symbol} · not SOL",
+      "quote_pair": "Quote pair",
+      "reason_code": "Reason code",
+      "score": "Screener score",
+      "score_value": "{score} / {max_score}",
+      "sol_pair": "SOL pair"
+    },
+    "filter": {
+      "all": "All",
+      "passed": "Passed",
+      "rejected": "Rejected"
+    },
     "not_tradeable": {
       "badge": "Not tradeable",
       "detail": "No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved."
-    }
+    },
+    "status": {
+      "passed": "Passed",
+      "pick_queued": "Pick · in queue",
+      "pick_queued_short": "Pick · queue",
+      "rejected": "Rejected",
+      "rejected_guard": "Rejected · guard failed",
+      "rejected_score": "Rejected · score < {score_threshold}"
+    },
+    "title": "Coins · screener"
   },
   "settings": {
     "appearance": {

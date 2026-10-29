@@ -2,7 +2,8 @@
 /* Tailwind CSS v4 — usage (globals.css):
    @import "tailwindcss";
    @import "@sentra/design-tokens/tailwind.theme.css";
-   Utilities: bg-bg-surface, text-text-primary, text-semantic-profit, bg-mode-container, border-border-strong, text-body, text-num-md, font-mono,
+   Utilities: bg-bg-surface, text-text-primary, text-semantic-profit, bg-mode-container, border-border-strong,
+   text-body, text-num-md, font-mono,
    h-control-md, min-h-hit, rounded-md, shadow-e2, ease-standard, light:… / dark:… variants.
    Theme switching works at runtime because utilities read the CSS variables defined in @theme. */
 
@@ -246,9 +247,20 @@
   --spacing-chip: 20px;
   --spacing-pad-x: 10px;
 }
-[data-mode="practice"] { --mode-accent: var(--color-mode-practice); --mode-container: var(--color-mode-practiceContainer); --mode-on: var(--color-mode-onPractice); --hold-to-confirm: var(--duration-holdPractice); }
-[data-mode="real"] { --mode-accent: var(--color-mode-real); --mode-container: var(--color-mode-realContainer); --mode-on: var(--color-mode-onReal); --hold-to-confirm: var(--duration-holdReal); }
+[data-mode="practice"] {
+  --mode-accent: var(--color-mode-practice);
+  --mode-container: var(--color-mode-practiceContainer);
+  --mode-on: var(--color-mode-onPractice);
+  --hold-to-confirm: var(--duration-holdPractice);
+}
+[data-mode="real"] {
+  --mode-accent: var(--color-mode-real);
+  --mode-container: var(--color-mode-realContainer);
+  --mode-on: var(--color-mode-onReal);
+  --hold-to-confirm: var(--duration-holdReal);
+}
 @media (prefers-reduced-motion: reduce) {
-  :root { --duration-instant: 0ms; --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms; } /* hold-to-confirm tetap (berbasis waktu) */
+  /* hold-to-confirm tetap (berbasis waktu) */
+  :root { --duration-instant: 0ms; --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms; }
 }
 @utility tabular { font-variant-numeric: tabular-nums slashed-zero; }

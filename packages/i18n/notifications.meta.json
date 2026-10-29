@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "real": "never actionable from push: no token, actions=[open] only (skip in-app)",
+    "practice_buy_pick": "N-01/N-02 only: single-use token + version(rev) → approve/skip/open; approve/skip hidden without token+version",
+    "guard_team": "guard changes and team actions: [open] only",
+    "fail_closed": "unknown v/event, missing mode, real-only event in practice → drop"
+  },
+  "computed": {
+    "mm_ss": "formatCountdown(remainingMs(exp, skewFrom(server_now)))",
+    "mode": "push top-level `mode` (select)",
+    "count": "client grouping count (N-18)"
+  },
+  "var_format": {
+    "amount_lamports": "formatLamports (integer string → SOL text)",
+    "symbol": "plain text, untrusted (escape, no markup)",
+    "pnl": "pnlSol (signed per T-15)",
+    "pct": "N-08: formatPct unsigned (copy adds '+'); N-09/N-15: pnlPct signed",
+    "pct_sold": "formatPct unsigned",
+    "price": "formatUsd",
+    "reason": "expire_reason.<r>.detail",
+    "reason_code": "order.fail_reason.<lower>",
+    "stop_type": "exit_reason.<rule>",
+    "cooldown_until": "formatTime",
+    "auto_revert_at": "formatTime",
+    "scheduled_for": "formatDateTime"
+  }
+}

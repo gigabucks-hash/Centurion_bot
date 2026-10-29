@@ -1,6 +1,6 @@
 // node --test locales/format.test.mjs
 import test from 'node:test'; import assert from 'node:assert/strict';
-import { formatSol, pnlSol, pnlPct, formatPct, formatLamports } from './format.mjs';
+import { formatSol, pnlSol, pnlPct, formatPct, formatLamports, pctToFractionBps, fractionBpsToPct, formatFractionBps } from './format.mjs';
 const NB = '\u00A0';
 test('T-15 exact zero PnL: 0.00, neutral, no arrow, no sign', () => {
   for (const z of [0, -0, '0', 0n]) {
@@ -22,4 +22,11 @@ test('amounts unchanged', () => {
   assert.equal(formatSol(27.533, 'id', { paper: true }), `27,53${NB}paper SOL`);
   assert.equal(formatSol(0.24, 'en'), `0.24${NB}SOL`);
   assert.equal(formatLamports('250000000', 'id'), `0,25${NB}SOL`);
+});
+test('manual sell: percent UI ↔ fraction_bps wire', () => {
+  assert.equal(pctToFractionBps(100), 10000); assert.equal(pctToFractionBps(50), 5000); assert.equal(pctToFractionBps('25'), 2500);
+  assert.equal(pctToFractionBps(0.01), 1); assert.equal(pctToFractionBps(33.333), 3333);
+  for (const bad of [0, 0.004, 100.01, -5, 'x']) assert.throws(() => pctToFractionBps(bad), RangeError);
+  assert.equal(fractionBpsToPct(2500), 25);
+  assert.equal(formatFractionBps(5000, 'en'), '50%'); assert.equal(formatFractionBps(3333, 'id'), '33,33%'); assert.equal(formatFractionBps(10000, 'id'), '100%');
 });

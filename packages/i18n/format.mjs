@@ -67,3 +67,14 @@ export const formatSolVar = (s, loc, opts) => formatSol(Number(s), loc, opts);
 export const skewFrom = (serverNowIso, localNowMs = Date.now()) => Date.parse(serverNowIso) - localNowMs;
 /** Remaining ms for expires_at / cooldown_until / auto_revert_at. Never compute TTLs client-side. */
 export const remainingMs = (untilIso, skewMs, localNowMs = Date.now()) => Date.parse(untilIso) - (localNowMs + skewMs);
+/** Manual sell (contracts 1.1.2 POST …/positions/{id}/close): wire `fraction_bps` integer 1..10000 (default 10000 = 100%).
+ *  UI works in percent (25 · 50 · 100, or a slider 0.01–100); copy always shows %, never bps.
+ *  Out of range / non-integer result → RangeError (server answers INVALID_FRACTION). */
+export function pctToFractionBps(pct) {
+  const bps = Math.round(Number(pct) * 100);
+  if (!Number.isFinite(bps) || bps < 1 || bps > 10000) throw new RangeError('INVALID_FRACTION');
+  return bps;
+}
+export const fractionBpsToPct = (bps) => Number(bps) / 100;
+/** `fraction_bps` → display text: 5000 → "50%", 3333 → "33.33%" ("33,33%" id). */
+export const formatFractionBps = (bps, loc) => formatPct(Number(bps) / 10000, loc, { dp: Number(bps) % 100 === 0 ? 0 : 2 });

@@ -5,9 +5,11 @@
     "title_key": "notif.pick_pending.title",
     "body_key": "notif.pick_pending.body",
     "vars": [
-      "coin",
+      "symbol",
       "strategy",
-      "sol",
+      "amount_lamports"
+    ],
+    "computed": [
       "mm_ss"
     ],
     "push": true,
@@ -20,6 +22,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": true,
+      "real": false
     }
   },
   "N-02": {
@@ -28,9 +34,11 @@
     "title_key": "notif.first_buy.title",
     "body_key": "notif.first_buy.body",
     "vars": [
-      "coin",
+      "symbol",
       "strategy",
-      "sol",
+      "amount_lamports"
+    ],
+    "computed": [
       "mm_ss"
     ],
     "push": true,
@@ -43,6 +51,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": true,
+      "real": false
     }
   },
   "N-03": {
@@ -51,10 +63,12 @@
     "title_key": "notif.approved.title",
     "body_key": "notif.approved.body",
     "vars": [
-      "coin"
+      "symbol"
     ],
+    "computed": [],
     "push": false,
-    "actions": {}
+    "actions": {},
+    "token": {}
   },
   "N-04": {
     "type": "position.opened",
@@ -62,10 +76,11 @@
     "title_key": "notif.filled.title",
     "body_key": "notif.filled.body",
     "vars": [
-      "coin",
-      "sol",
+      "symbol",
+      "amount_lamports",
       "price"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -74,6 +89,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-05": {
@@ -89,6 +108,7 @@
       "side",
       "mode"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -97,6 +117,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-06": {
@@ -105,11 +129,13 @@
     "title_key": "notif.skipped.title",
     "body_key": "notif.skipped.body",
     "vars": [
-      "coin",
+      "symbol",
       "reason"
     ],
+    "computed": [],
     "push": false,
-    "actions": {}
+    "actions": {},
+    "token": {}
   },
   "N-07": {
     "type": "proposal.expired",
@@ -117,9 +143,10 @@
     "title_key": "notif.expired.title",
     "body_key": "notif.expired.body",
     "vars": [
-      "coin",
+      "symbol",
       "reason"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -128,6 +155,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-08": {
@@ -136,11 +167,12 @@
     "title_key": "notif.tp_hit.title",
     "body_key": "notif.tp_hit.body",
     "vars": [
-      "coin",
+      "symbol",
       "pct_sold",
       "pct",
       "pnl"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -149,6 +181,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-09": {
@@ -157,11 +193,12 @@
     "title_key": "notif.sl_hit.title",
     "body_key": "notif.sl_hit.body",
     "vars": [
-      "coin",
+      "symbol",
       "stop_type",
       "pnl",
       "pct"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -170,6 +207,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-10": {
@@ -183,6 +224,7 @@
       "from",
       "to"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -191,6 +233,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-11": {
@@ -202,11 +248,16 @@
       "strategy",
       "cooldown_until"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-12": {
@@ -218,6 +269,7 @@
       "strategy",
       "auto_revert_at"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -226,6 +278,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-13": {
@@ -238,11 +294,16 @@
       "setting",
       "from"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-14": {
@@ -251,8 +312,10 @@
     "title_key": "notif.mode_real.title",
     "body_key": "notif.mode_real.body",
     "vars": [],
+    "computed": [],
     "push": false,
-    "actions": {}
+    "actions": {},
+    "token": {}
   },
   "N-14b": {
     "type": "— (client-only)",
@@ -260,8 +323,10 @@
     "title_key": "notif.mode_practice.title",
     "body_key": "notif.mode_practice.body",
     "vars": [],
+    "computed": [],
     "push": false,
-    "actions": {}
+    "actions": {},
+    "token": {}
   },
   "N-15": {
     "type": "exit.triggered + strategy.paused",
@@ -272,6 +337,7 @@
       "strategy",
       "pct"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -280,6 +346,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-16": {
@@ -288,8 +358,10 @@
     "title_key": "notif.offline.title",
     "body_key": "notif.offline.body",
     "vars": [],
+    "computed": [],
     "push": false,
-    "actions": {}
+    "actions": {},
+    "token": {}
   },
   "N-17": {
     "type": "— (client)",
@@ -297,8 +369,10 @@
     "title_key": "notif.token_invalid.title",
     "body_key": "notif.token_invalid.body",
     "vars": [],
+    "computed": [],
     "push": false,
-    "actions": {}
+    "actions": {},
+    "token": {}
   },
   "N-18": {
     "type": "— (client grouping)",
@@ -306,6 +380,9 @@
     "title_key": "notif.grouped.title",
     "body_key": "notif.grouped.body",
     "vars": [
+      "count"
+    ],
+    "computed": [
       "count"
     ],
     "push": true,
@@ -316,6 +393,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-19": {
@@ -326,6 +407,7 @@
     "vars": [
       "strategy"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -334,6 +416,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-20": {
@@ -342,13 +428,18 @@
     "title_key": "notif.practice_reset.title",
     "body_key": "notif.practice_reset.body",
     "vars": [
-      "sol"
+      "amount_lamports"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-21": {
@@ -359,6 +450,7 @@
     "vars": [
       "scheduled_for"
     ],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -367,6 +459,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   },
   "N-22": {
@@ -375,6 +471,7 @@
     "title_key": "notif.deletion_cancelled.title",
     "body_key": "notif.deletion_cancelled.body",
     "vars": [],
+    "computed": [],
     "push": true,
     "actions": {
       "practice": [
@@ -383,6 +480,10 @@
       "real": [
         "open"
       ]
+    },
+    "token": {
+      "practice": false,
+      "real": false
     }
   }
 }

@@ -67,7 +67,7 @@
       "tp": "Take profit",
       "trail": "Trailing stop"
     },
-    "title": "Jejak koin · {coin} ({strategy})"
+    "title": "Jejak koin · {symbol} ({strategy})"
   },
   "common": {
     "action": {
@@ -176,28 +176,47 @@
       "account_deletion_pending": "Penghapusan akun sudah dijadwalkan.",
       "approval_already_decided": "Ini sudah diputuskan di device lain.",
       "approval_expired": "Proposal ini kedaluwarsa: {reason}",
+      "approval_requires_app": "Putuskan ini di aplikasi resmi, bukan lewat MCP.",
       "approval_token_invalid": "Aksi notifikasi ini kedaluwarsa. Buka app untuk melanjutkan.",
       "auth_tg_invalid": "Login Telegram tidak bisa diverifikasi. Coba lagi.",
       "auth_tg_no_profile": "Izinkan Telegram membagikan profil untuk masuk.",
       "auth_tg_replay": "Login Telegram ini sudah dipakai. Mulai lagi.",
+      "confirmation_invalid": "Konfirmasi ini kedaluwarsa atau sudah dipakai. Mulai lagi.",
+      "confirmation_required": "Perubahan ini perlu konfirmasi: passkey, ketik nama, lalu tahan.",
       "confirmation_restart_required": "Strategi berubah saat konfirmasi. Ulangi konfirmasi dari awal.",
+      "forbidden_role": "Peran di workspace tidak mengizinkan tindakan ini.",
+      "forbidden_scope": "Token ini tidak punya izin untuk tindakan ini.",
       "guard_cooldown_active": "Perubahan guard ini sedang cooldown.",
       "hold_too_short": "Dilepas terlalu cepat. Tahan sampai bar penuh.",
       "internal": "Terjadi kesalahan. Coba lagi.",
+      "invalid_fraction": "Pilih porsi jual dari 0,01% sampai 100%.",
+      "job_dead_lettered": "Tugas latar belakang gagal setelah semua percobaan. Tim support sudah diberi tahu.",
       "last_login_method": "Ini satu-satunya metode masuk. Hubungkan metode lain sebelum memutus.",
+      "mode_not_allowed": "Hanya Practice yang tersedia. Real SOL belum aktif.",
+      "not_found": "Data tidak ditemukan atau tidak dapat diakses.",
       "otp_invalid": "Kode salah atau kedaluwarsa.",
       "otp_locked": "Terlalu banyak percobaan. Coba lagi dalam 15 menit.",
+      "position_already_closed": "Posisi ini sudah ditutup.",
+      "practice_cash_insufficient": "Saldo practice tidak cukup untuk entry berikutnya. Entry dijeda sampai saldo pulih atau practice direset.",
       "rate_limited": "Terlalu banyak permintaan. Coba lagi dalam {retry_after_s, plural, other {# detik}}.",
       "real_sol_disabled": "Real SOL belum tersedia.",
       "reauth_required": "Konfirmasi ulang identitasmu untuk melanjutkan.",
+      "replay_unavailable": "Replay sedang tidak tersedia. Menampilkan estimasi.",
       "reset_cooldown": "Practice bisa di-reset sekali sehari. Berikutnya: {next_allowed_at}",
+      "settings_schema_invalid": "Pengaturan strategi tidak sesuai skema. Cek kolom yang ditandai.",
       "siws_nonce_invalid": "Permintaan masuk kedaluwarsa. Coba lagi.",
       "siws_signature_invalid": "Tanda tangan wallet tidak bisa diverifikasi.",
+      "source_degraded": "Sumber data pasar sedang terganggu. Pick baru mungkin tertunda.",
+      "strategy_retired": "Strategi ini sudah diarsipkan atau dihapus.",
       "strategy_rev_conflict": "Strategi ini berubah saat kamu mengedit.",
       "two_factor_required": "Masukkan kode 2FA untuk melanjutkan.",
       "typed_confirmation_mismatch": "Nama tidak sama persis.",
+      "unauthenticated": "Sesi berakhir. Masuk lagi.",
       "unavailable": "Layanan sementara tidak tersedia. Mencoba lagi…",
-      "wallet_role_conflict": "Wallet login tidak bisa sekaligus menjadi trading wallet."
+      "validation_failed": "Ada nilai yang tidak valid. Cek kolom yang ditandai.",
+      "version_conflict": "Data sudah berubah. Muat ulang lalu coba lagi.",
+      "wallet_role_conflict": "Wallet login tidak bisa sekaligus menjadi trading wallet.",
+      "webauthn_invalid": "Verifikasi passkey gagal. Coba lagi."
     }
   },
   "exit_reason": {
@@ -256,12 +275,12 @@
       "you": "Kamu"
     },
     "event": {
-      "blocked": "Memblokir {coin}",
-      "bought": "Membeli {coin} · {sol}",
-      "expired": "Proposal {coin} kedaluwarsa",
-      "passed": "Lolos {coin} · fit {score}/{pass}",
-      "skipped": "Melewati pick {coin}",
-      "sold": "Menjual {coin} · {pnl}"
+      "blocked": "Memblokir {symbol}",
+      "bought": "Membeli {symbol} · {amount_lamports}",
+      "expired": "Proposal {symbol} kedaluwarsa",
+      "passed": "Lolos {symbol} · fit {score}/{pass}",
+      "skipped": "Melewati pick {symbol}",
+      "sold": "Menjual {symbol} · {pnl}"
     }
   },
   "guard": {
@@ -382,7 +401,7 @@
     },
     "approved": {
       "body": "Order sedang diproses",
-      "title": "Disetujui: {coin}"
+      "title": "Disetujui: {symbol}"
     },
     "deletion_cancelled": {
       "body": "Akunmu tetap aktif.",
@@ -394,19 +413,19 @@
     },
     "expired": {
       "body": "{reason}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} kedaluwarsa"
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} kedaluwarsa"
     },
     "failed": {
       "body": "{reason_code} · {amount_lamports}. {mode, select, real {Biaya jaringan mungkin terpakai.} other {Tidak ada SOL terpakai.}}",
       "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {side, select, sell {Jual} other {Beli}} {symbol} gagal"
     },
     "filled": {
-      "body": "{sol} di {price} · exit plan aktif",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Terbeli {coin}"
+      "body": "{amount_lamports} di {price} · exit plan aktif",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Terbeli {symbol}"
     },
     "first_buy": {
-      "body": "Strategi ini belum pernah beli. Cek sebelum mulai · {sol} · sisa {mm_ss}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy pertama {strategy}: {coin}"
+      "body": "Strategi ini belum pernah beli. Cek sebelum mulai · {amount_lamports} · sisa {mm_ss}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy pertama {strategy}: {symbol}"
     },
     "grouped": {
       "body": "Buka antrean untuk meninjau",
@@ -449,38 +468,41 @@
       "title": "Koneksi ke server terputus"
     },
     "pick_pending": {
-      "body": "{strategy} · {sol} · sisa {mm_ss}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} menunggu approval"
+      "body": "{strategy} · {amount_lamports} · sisa {mm_ss}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} menunggu approval"
     },
     "practice_reset": {
-      "body": "Saldo kembali ke {sol}. Buy tertunda dihapus.",
+      "body": "Saldo kembali ke {amount_lamports}. Buy tertunda dihapus.",
       "title": "[PRACTICE] Practice di-reset"
     },
     "skipped": {
       "body": "Alasan: {reason}",
-      "title": "Dilewati: {coin}"
+      "title": "Dilewati: {symbol}"
     },
     "sl_hit": {
       "body": "{stop_type} · {pnl} ({pct})",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Stop {coin}"
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Stop {symbol}"
     },
     "token_invalid": {
       "body": "Buka app untuk melanjutkan",
       "title": "Aksi notifikasi kedaluwarsa"
     },
     "tp_hit": {
-      "body": "Terjual {pct_sold} di {pct} · {pnl}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Take profit {coin}"
+      "body": "Terjual {pct_sold} di +{pct} · {pnl}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Take profit {symbol}"
     }
   },
   "order": {
     "fail_reason": {
       "guard_failed": "Cek guard gagal tepat sebelum order",
       "insufficient_practice_balance": "Saldo paper SOL tidak cukup",
+      "mode_not_allowed": "Hanya order Practice yang jalan; Real SOL belum aktif",
       "pool_stale": "Data pool sudah usang; order tidak dikirim",
+      "position_already_closed": "Posisi ini sudah ditutup",
       "slippage_exceeded": "Harga bergerak melebihi batas slippage",
       "unknown": "Order tidak bisa diselesaikan",
-      "unsupported_quote_mint": "Koin ini tidak punya pair SOL, jadi tidak bisa ditradingkan"
+      "unsupported_quote_mint": "Koin ini tidak punya pair SOL, jadi tidak bisa ditradingkan",
+      "validation_failed": "Order tidak lolos validasi"
     }
   },
   "positions": {
@@ -500,7 +522,7 @@
       "never_from_notification": "Jual tidak pernah tersedia dari notifikasi atau popup.",
       "plan_cancelled": "Exit plan dibatalkan (100%)",
       "remaining_plan": "Sisa posisi tetap memakai exit plan",
-      "title": "Jual {coin}"
+      "title": "Jual {symbol}"
     },
     "title": "Posisi"
   },
@@ -508,7 +530,7 @@
     "batch": {
       "approve": "{count, plural, other {Setujui # pick}}",
       "selected": "{count, plural, other {# dipilih}}",
-      "total": "Total {sol}"
+      "total": "Total {amount_lamports}"
     },
     "guard": {
       "reject": "Tolak perubahan"
@@ -530,7 +552,7 @@
       "batch_confirm": {
         "title": "{count, plural, other {Setujui # buy dengan REAL SOL?}}"
       },
-      "hold": "Tahan untuk setujui {sol}"
+      "hold": "Tahan untuk setujui {amount_lamports}"
     },
     "skip_reason": {
       "already_pumped": "Sudah pump",
@@ -556,10 +578,56 @@
     }
   },
   "screener": {
+    "action": {
+      "open_queue": "Buka antrean"
+    },
+    "card": {
+      "guard_failed": "Guard gagal · skor {score}",
+      "not_tradeable": "Skor {score} · tanpa pair SOL",
+      "passed": "Lolos · skor {score}"
+    },
+    "col": {
+      "action": "Aksi",
+      "coin": "Koin",
+      "guard": "Guard",
+      "liquidity": "Likuiditas",
+      "mcap": "Mcap",
+      "score": "Skor",
+      "status": "Status",
+      "venue": "Venue"
+    },
+    "detail": {
+      "approve_unavailable": "Approve — tidak tersedia",
+      "chart_readonly": "Chart harga (read-only)",
+      "guard": "Guard",
+      "guard_not_run": "tidak dijalankan",
+      "info_only": "(informasi saja)",
+      "none": "tidak ada",
+      "quote_not_sol": "{quote_symbol} · bukan SOL",
+      "quote_pair": "Pair quote",
+      "reason_code": "Kode alasan",
+      "score": "Skor screener",
+      "score_value": "{score} / {max_score}",
+      "sol_pair": "Pair SOL"
+    },
+    "filter": {
+      "all": "Semua",
+      "passed": "Lolos",
+      "rejected": "Ditolak"
+    },
     "not_tradeable": {
       "badge": "Tidak bisa ditradingkan",
       "detail": "Koin ini tidak punya pair quote SOL. Sentra hanya trading pair SOL, jadi tidak bisa di-approve."
-    }
+    },
+    "status": {
+      "passed": "Lolos",
+      "pick_queued": "Pick · di antrean",
+      "pick_queued_short": "Pick · antrean",
+      "rejected": "Ditolak",
+      "rejected_guard": "Ditolak · guard gagal",
+      "rejected_score": "Ditolak · skor < {score_threshold}"
+    },
+    "title": "Koin · screener"
   },
   "settings": {
     "appearance": {

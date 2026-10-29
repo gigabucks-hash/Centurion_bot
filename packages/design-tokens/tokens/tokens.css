@@ -278,9 +278,20 @@
   --spacing-chip: 20px;
   --spacing-pad-x: 10px;
 }
-[data-mode="practice"] { --mode-accent: var(--color-mode-practice); --mode-container: var(--color-mode-practiceContainer); --mode-on: var(--color-mode-onPractice); --hold-to-confirm: var(--duration-holdPractice); }
-[data-mode="real"] { --mode-accent: var(--color-mode-real); --mode-container: var(--color-mode-realContainer); --mode-on: var(--color-mode-onReal); --hold-to-confirm: var(--duration-holdReal); }
+[data-mode="practice"] {
+  --mode-accent: var(--color-mode-practice);
+  --mode-container: var(--color-mode-practiceContainer);
+  --mode-on: var(--color-mode-onPractice);
+  --hold-to-confirm: var(--duration-holdPractice);
+}
+[data-mode="real"] {
+  --mode-accent: var(--color-mode-real);
+  --mode-container: var(--color-mode-realContainer);
+  --mode-on: var(--color-mode-onReal);
+  --hold-to-confirm: var(--duration-holdReal);
+}
 @media (prefers-reduced-motion: reduce) {
-  :root { --duration-instant: 0ms; --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms; } /* hold-to-confirm tetap (berbasis waktu) */
+  /* hold-to-confirm tetap (berbasis waktu) */
+  :root { --duration-instant: 0ms; --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms; }
 }
 .num, .tabular { font-family: var(--font-mono); font-variant-numeric: tabular-nums slashed-zero; }

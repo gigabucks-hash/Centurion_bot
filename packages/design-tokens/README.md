@@ -21,15 +21,19 @@ Breaking v0.2.0 (untuk Flutter): `context.trade` → `context.tradeColors`, `num
 
 **v0.2.2 (29 Okt 2026):** T-15 helper Dart `TradeColors.pnlArrow()` / `pnlSign()` (nol persis = netral, tanpa panah/tanda; pasangan `pnlSol()` di `@sentra/i18n`). T-17 nama file bundling font. Tidak ada perubahan nilai token.
 
+**v0.2.3 (29 Okt 2026, 17.36 WIB):** semua output kode (`.dart`, `.css`, `.js`) ≤ 120 kolom (T-16: header + 2 doc comment Dart, rule `[data-mode]`, `html, body`, reduced-motion, komentar Tauri/Tailwind dipecah) + lint di `scripts/build.py` (build exit 1 bila ada baris > 120). README font: 3 koreksi dari TOKENS_REVIEW Flutter (Inter dari Google Fonts **selalu** `static/Inter_18pt-*` → wajib rename; google_fonts mencocokkan **suffix** nama file; JetBrains Mono **tanpa** rename). Tidak ada perubahan nilai token / API Dart.
+
 ## Font bundling (Flutter, T-17)
-MVP: `google_fonts` (unduh runtime). Production:
+MVP: `google_fonts` (unduh runtime). Production: google_fonts 9.x mencocokkan aset dengan **suffix**: nama file tanpa ekstensi harus **berakhiran** `<FamilyTanpaSpasi>-<Weight>` (`Inter-Regular`, `JetBrainsMono-Medium`). Variable font tidak dicocokkan; aset dimuat tanpa cek hash.
 
-| Family | Weight dipakai | File (wajib persis) |
-|---|---|---|
-| Inter | 400 · 500 · 600 | `Inter-Regular.ttf` · `Inter-Medium.ttf` · `Inter-SemiBold.ttf` |
-| JetBrains Mono | 500 · 600 (angka, `AppText.num`) | `JetBrainsMono-Medium.ttf` · `JetBrainsMono-SemiBold.ttf` |
+| Family | Weight dipakai | Nama file yang dibundel (harus berakhiran ini) | Dari unduhan Google Fonts |
+|---|---|---|---|
+| Inter | 400 · 500 · 600 | `Inter-Regular.ttf` · `Inter-Medium.ttf` · `Inter-SemiBold.ttf` | `static/Inter_18pt-{Regular,Medium,SemiBold}.ttf`, **wajib rename** ke `Inter-*.ttf` |
+| JetBrains Mono | 500 · 600 (angka, `AppText.num`) | `JetBrainsMono-Medium.ttf` · `JetBrainsMono-SemiBold.ttf` | `static/JetBrainsMono-{Medium,SemiBold}.ttf`, **tanpa rename** |
 
-Ambil file statis dari fonts.google.com (Inter: folder `static/`; bila namanya berawalan optical size seperti `Inter_18pt-Regular.ttf`, pakai varian 18pt dan **ganti nama** ke `Inter-Regular.ttf`) atau dari rilis resmi rsms/inter dan JetBrains/JetBrainsMono. Taruh di `assets/google_fonts/` bersama `OFL.txt` masing-masing font (`Inter-OFL.txt`, `JetBrainsMono-OFL.txt`).
+Weight lain (mis. JetBrains Mono 700) tidak dibundel: `AppText.num(weight: w700)` gagal saat runtime fetching OFF. Pakai w500/w600.
+
+Ambil file statis dari fonts.google.com. Inter dari Google Fonts **selalu** berawalan optical size (`static/Inter_18pt-*`, `_24pt`, `_28pt`; tidak ada static tanpa prefix): pakai 18pt lalu **ganti nama** ke `Inter-*.ttf` (OFL 1.1 tanpa Reserved Font Name, rename boleh). JetBrains Mono sudah bernama benar, **tidak perlu rename**. Alternatif: rilis resmi rsms/inter dan JetBrains/JetBrainsMono. Taruh di `assets/google_fonts/` bersama `OFL.txt` masing-masing font (`Inter-OFL.txt`, `JetBrainsMono-OFL.txt`).
   ```yaml
   flutter:
     assets:

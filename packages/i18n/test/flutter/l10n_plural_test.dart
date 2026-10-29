@@ -38,4 +38,17 @@ void main() {
     expect(TradeColors.pnlSign(-1e-9), '\u2212');
     expect(t.pnl(-1e-9), t.loss);
   });
+  test('Rev 4.3: wire-named vars {symbol}/{amount_lamports}, TP +, new fail reasons, WF-21 labels', () {
+    expect(en.notifPickPendingTitle('real', 'EXM'), '[REAL SOL] EXM awaits approval');
+    expect(id.notifPickPendingBody('0,25 SOL', '04:52', 'Yumi'), 'Yumi · 0,25 SOL · sisa 04:52');
+    expect(en.notifTpHitBody('40.0%', '50%', '+0.12 SOL'), 'Sold 50% at +40.0% · +0.12 SOL');
+    expect(id.notifPracticeResetBody('10 paper SOL'), 'Saldo kembali ke 10 paper SOL. Buy tertunda dihapus.');
+    expect(en.orderFailReasonPositionAlreadyClosed, 'This position was already closed');
+    expect(id.orderFailReasonModeNotAllowed, contains('Real SOL belum aktif'));
+    expect(en.orderFailReasonValidationFailed, isNotEmpty);
+    expect(id.errorCodeInvalidFraction, 'Pilih porsi jual dari 0,01% sampai 100%.');
+    expect(id.screenerDetailQuoteNotSol('USDC'), 'USDC · bukan SOL');
+    expect(id.screenerStatusRejectedScore('60'), 'Ditolak · skor < 60');
+    expect(en.screenerDetailApproveUnavailable, 'Approve — not available');
+  });
 }

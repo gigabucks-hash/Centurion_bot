@@ -1,0 +1,409 @@
+{
+  "errors_json_version": 4,
+  "unknown": "error.code.internal",
+  "codes": {
+    "UNAUTHENTICATED": {
+      "key": "error.code.unauthenticated",
+      "source": "copy",
+      "kind": "error",
+      "http": 401,
+      "retryable": false
+    },
+    "FORBIDDEN_SCOPE": {
+      "key": "error.code.forbidden_scope",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "FORBIDDEN_ROLE": {
+      "key": "error.code.forbidden_role",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "APPROVAL_REQUIRES_APP": {
+      "key": "error.code.approval_requires_app",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "NOT_FOUND": {
+      "key": "error.code.not_found",
+      "source": "copy",
+      "kind": "error",
+      "http": 404,
+      "retryable": false
+    },
+    "VALIDATION_FAILED": {
+      "key": "error.code.validation_failed",
+      "source": "copy",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "SETTINGS_SCHEMA_INVALID": {
+      "key": "error.code.settings_schema_invalid",
+      "source": "copy",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "VERSION_CONFLICT": {
+      "key": "error.code.version_conflict",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "STRATEGY_REV_CONFLICT": {
+      "key": "error.code.strategy_rev_conflict",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "IDEMPOTENCY_KEY_REUSED": {
+      "key": "error.code.internal",
+      "source": "fallback",
+      "why": "client bug (same key, different body): log, show generic",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "APPROVAL_ALREADY_DECIDED": {
+      "key": "error.code.approval_already_decided",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "APPROVAL_EXPIRED": {
+      "key": "error.code.approval_expired",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "APPROVAL_TOKEN_INVALID": {
+      "key": "error.code.approval_token_invalid",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "STRATEGY_RETIRED": {
+      "key": "error.code.strategy_retired",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "LAST_LOGIN_METHOD": {
+      "key": "error.code.last_login_method",
+      "source": "copy",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "SIWS_NONCE_INVALID": {
+      "key": "error.code.siws_nonce_invalid",
+      "source": "copy",
+      "kind": "error",
+      "http": 401,
+      "retryable": false
+    },
+    "SIWS_SIGNATURE_INVALID": {
+      "key": "error.code.siws_signature_invalid",
+      "source": "copy",
+      "kind": "error",
+      "http": 401,
+      "retryable": false
+    },
+    "OTP_INVALID": {
+      "key": "error.code.otp_invalid",
+      "source": "copy",
+      "kind": "error",
+      "http": 401,
+      "retryable": false
+    },
+    "OTP_LOCKED": {
+      "key": "error.code.otp_locked",
+      "source": "copy",
+      "kind": "error",
+      "http": 429,
+      "retryable": true
+    },
+    "TWO_FACTOR_REQUIRED": {
+      "key": "error.code.two_factor_required",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "CURSOR_INVALID": {
+      "key": "error.code.internal",
+      "source": "fallback",
+      "why": "silent: drop cursor and resync from snapshot; generic only if resync fails",
+      "kind": "error",
+      "http": 400,
+      "retryable": false
+    },
+    "CURSOR_EXPIRED": {
+      "key": "error.code.unavailable",
+      "source": "fallback",
+      "why": "silent: resync from snapshot; show only if resync fails",
+      "kind": "error",
+      "http": 410,
+      "retryable": false
+    },
+    "REPLAY_WINDOW_EXCEEDED": {
+      "key": "error.code.validation_failed",
+      "source": "fallback",
+      "why": "UI caps the replay window at 7 days, so this is a client bug",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "MODE_NOT_ALLOWED": {
+      "key": "error.code.mode_not_allowed",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "REAL_SOL_DISABLED": {
+      "key": "error.code.real_sol_disabled",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "GUARD_COOLDOWN_ACTIVE": {
+      "key": "error.code.guard_cooldown_active",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": true
+    },
+    "CONFIRMATION_REQUIRED": {
+      "key": "error.code.confirmation_required",
+      "source": "copy",
+      "kind": "error",
+      "http": 428,
+      "retryable": false
+    },
+    "CONFIRMATION_INVALID": {
+      "key": "error.code.confirmation_invalid",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "WEBAUTHN_INVALID": {
+      "key": "error.code.webauthn_invalid",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "TYPED_CONFIRMATION_MISMATCH": {
+      "key": "error.code.typed_confirmation_mismatch",
+      "source": "copy",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "HOLD_TOO_SHORT": {
+      "key": "error.code.hold_too_short",
+      "source": "copy",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "REPLAY_UNAVAILABLE": {
+      "key": "error.code.replay_unavailable",
+      "source": "copy",
+      "kind": "error",
+      "http": 503,
+      "retryable": true
+    },
+    "PRECONDITION_REQUIRED": {
+      "key": "error.code.version_conflict",
+      "source": "fallback",
+      "why": "client bug (missing If-Match / expected_rev): refetch rev",
+      "kind": "error",
+      "http": 428,
+      "retryable": false
+    },
+    "CONFIRMATION_RESTART_REQUIRED": {
+      "key": "error.code.confirmation_restart_required",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "REAUTH_REQUIRED": {
+      "key": "error.code.reauth_required",
+      "source": "copy",
+      "kind": "error",
+      "http": 401,
+      "retryable": false
+    },
+    "WALLET_ROLE_CONFLICT": {
+      "key": "error.code.wallet_role_conflict",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "RESET_COOLDOWN": {
+      "key": "error.code.reset_cooldown",
+      "source": "copy",
+      "kind": "error",
+      "http": 429,
+      "retryable": true
+    },
+    "ACCOUNT_DELETION_PENDING": {
+      "key": "error.code.account_deletion_pending",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "ACCOUNT_DELETION_BLOCKED": {
+      "key": "error.code.account_deletion_blocked",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "DEVICE_TOKEN_INVALID": {
+      "key": "error.code.internal",
+      "source": "fallback",
+      "why": "silent: re-register the device; generic only on repeat",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "AUTH_TG_INVALID": {
+      "key": "error.code.auth_tg_invalid",
+      "source": "copy",
+      "kind": "error",
+      "http": 401,
+      "retryable": false
+    },
+    "AUTH_TG_REPLAY": {
+      "key": "error.code.auth_tg_replay",
+      "source": "copy",
+      "kind": "error",
+      "http": 401,
+      "retryable": false
+    },
+    "AUTH_TG_NO_PROFILE": {
+      "key": "error.code.auth_tg_no_profile",
+      "source": "copy",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "UNSUPPORTED_QUOTE_MINT": {
+      "key": "order.fail_reason.unsupported_quote_mint",
+      "source": "fallback",
+      "why": "kind=skip; screener uses screener.not_tradeable.*",
+      "kind": "skip",
+      "http": 422,
+      "retryable": false
+    },
+    "SLIPPAGE_EXCEEDED": {
+      "key": "order.fail_reason.slippage_exceeded",
+      "source": "fallback",
+      "why": "order.failed reason",
+      "kind": "error",
+      "http": 409,
+      "retryable": true
+    },
+    "INSUFFICIENT_PRACTICE_BALANCE": {
+      "key": "order.fail_reason.insufficient_practice_balance",
+      "source": "fallback",
+      "why": "order.failed reason",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "GUARD_FAILED": {
+      "key": "order.fail_reason.guard_failed",
+      "source": "fallback",
+      "why": "order.failed reason",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "POOL_STALE": {
+      "key": "order.fail_reason.pool_stale",
+      "source": "fallback",
+      "why": "order.failed reason (retried after refresh)",
+      "kind": "error",
+      "http": 503,
+      "retryable": true
+    },
+    "POSITION_ALREADY_CLOSED": {
+      "key": "error.code.position_already_closed",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "INVALID_FRACTION": {
+      "key": "error.code.invalid_fraction",
+      "source": "copy",
+      "kind": "error",
+      "http": 422,
+      "retryable": false
+    },
+    "PRACTICE_CASH_INSUFFICIENT": {
+      "key": "error.code.practice_cash_insufficient",
+      "source": "copy",
+      "kind": "notice",
+      "http": 422,
+      "retryable": false
+    },
+    "JOB_DEAD_LETTERED": {
+      "key": "error.code.job_dead_lettered",
+      "source": "copy",
+      "kind": "notice",
+      "http": 500,
+      "retryable": false
+    },
+    "SOURCE_DEGRADED": {
+      "key": "error.code.source_degraded",
+      "source": "copy",
+      "kind": "notice",
+      "http": 503,
+      "retryable": true
+    },
+    "RATE_LIMITED": {
+      "key": "error.code.rate_limited",
+      "source": "copy",
+      "kind": "error",
+      "http": 429,
+      "retryable": true
+    },
+    "UNAVAILABLE": {
+      "key": "error.code.unavailable",
+      "source": "copy",
+      "kind": "error",
+      "http": 503,
+      "retryable": true
+    },
+    "INTERNAL": {
+      "key": "error.code.internal",
+      "source": "copy",
+      "kind": "error",
+      "http": 500,
+      "retryable": true
+    }
+  }
+}
