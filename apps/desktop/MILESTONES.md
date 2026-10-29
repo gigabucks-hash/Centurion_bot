@@ -14,11 +14,13 @@ Dependencies: **UX** = design tokens and specs; **BE** = backend API/WS and cont
 ## Week 2 — wire to the backend (still Practice)
 | Day | Work | Depends on |
 |---|---|---|
-| D6 | ~~Contracts~~ **Done early (v1.1.1):** wire types imported, Rust mirror + contract tests, Transport trait, resync, server clock, If-Match/409/428, practice.reset, account.*. Remaining: codegen instead of a hand mirror | BE: schema answers Q1–Q18 |
+| D6 | ~~Contracts~~ **Done early (v1.1.1 → v1.1.2):** int64 seq strings, approvals by rev, nested errors, positions/{id}/close, errors.json v4, typed PlanState/Order/Fill/Job; wire types imported, Rust mirror + contract tests, Transport trait, resync, server clock, If-Match/409/428, practice.reset, account.*. Remaining: codegen instead of a hand mirror | BE: schema answers Q1–Q18 |
 | D7 | Real `Transport`: Broadcast marks/clock + SSE events (Last-Event-ID) + REST, reconnect/backoff (logic exists in `sync.rs`), token in OS keychain | BE: WS/SSE endpoints + auth |
 | D8 | Approve/skip/sell/strategy/reset → BE REST (idempotency keys, If-Match and error surfaces already wired against the mock) | BE: sell job schema (Q7) |
 | D9 | **Unsigned Linux packaging** (deb + AppImage) + performance pass (RSS/CPU targets) | — |
 | D10 | Hardening, CSP for the backend origin, QA (incl. **W-NOFOCUS** below on a Windows VM), demo | UX + BE review; Windows test machine |
+
+**Also done (Week 1 extras):** i18n 0.4.2 (id/en, Settings → Bahasa), design-tokens v0.2.2, the WF-20 not-tradeable state (screener tab + detail, queue/positions disabled, blocked in UI + Rust + mock).
 
 ## Test plan item W-NOFOCUS — popup must not steal focus (Windows; also macOS)
 **Release gate (C19):** the approval popup ships **disabled on Windows and macOS**. `windows::POPUP_SUPPORTED = cfg!(target_os = "linux")` in Rust is the enforcement, and the UI greys out the setting with an explanation. It is enabled per OS only after every case below passes on that OS: flip the cfg for that target, re-run the cases, and record the result here. Until then those OSes use OS notifications only.

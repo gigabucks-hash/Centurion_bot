@@ -63,16 +63,18 @@ pub fn get_candles(state: State<'_, AppState>, mint: String) -> AppResult<Vec<Ca
     Ok(state.engine.lock().unwrap().candles(&mint))
 }
 
-/// GET /approvals/{id} (fresh single-use token) → POST /decision with expected_version.
-/// One retry on VERSION_CONFLICT (refetch), per API_ENDPOINTS §2.
+/// GET /approvals/{id} (fresh single-use token + rev) → POST /decision with `If-Match: "<rev>"` +
+/// `expected_rev` (1.1.2). One retry on VERSION_CONFLICT (refetch), per API_ENDPOINTS §2. The retry
+/// has a different body (new token / rev) so it gets a **fresh** Idempotency-Key — reusing a key
+/// with a different body is 422 IDEMPOTENCY_KEY_REUSED. Actor / channel come from the JWT.
 async fn decide(state: &AppState, id: &str, decision: Decision) -> AppResult<()> {
     let t = state.transport.clone();
-    let key = idem_key(state);
     for attempt in 0..2 {
+        let key = idem_key(state);
         let a = t.get_approval(id).await?;
         state.engine.lock().unwrap().observe_server_now(&a.server_now);
         let Some(token) = a.data.decision_token else { return Err(AppError::SignalNotPending) };
-        let req = ApprovalDecisionRequest { decision: decision.clone(), token, expected_version: a.data.version, client: DecidedVia::Desktop, reason: None };
+        let req = ApprovalDecisionRequest { decision: decision.clone(), token, expected_rev: a.data.version, reason: None };
         match t.decide(id, &key, req).await {
             Ok(r) => {
                 state.engine.lock().unwrap().observe_server_now(&r.server_now);
@@ -90,7 +92,9 @@ pub async fn approve_signal<R: Runtime>(window: Window<R>, state: State<'_, AppS
     {
         let e = state.engine.lock().unwrap();
         crate::state::check_approve_origin(window.label(), e.mode)?;
-        e.check_pending(&id)?;
+        let pick = e.check_pending(&id)?;
+        // WF-20: a not-tradeable coin can never be approved (UI disables the button too).
+        e.check_tradeable(&pick.mint)?;
     }
     decide(&state, &id, Decision::Approve).await
 }
@@ -113,7 +117,11 @@ pub async fn approve_many<R: Runtime>(app: AppHandle<R>, state: State<'_, AppSta
     }
     let mut failed = 0;
     for id in &ids {
-        if decide(&state, id, Decision::Approve).await.is_err() {
+        let ok = {
+            let e = state.engine.lock().unwrap();
+            e.check_pending(id).and_then(|p| e.check_tradeable(&p.mint)).is_ok()
+        };
+        if !ok || decide(&state, id, Decision::Approve).await.is_err() {
             failed += 1;
         }
     }
@@ -133,15 +141,23 @@ pub fn request_sell(state: State<'_, AppState>, position_key: String, pct: u8) -
     state.engine.lock().unwrap().request_sell(&position_key, pct)
 }
 
-/// Step 2 of 2: consume the nonce, then `POST /positions/{key}/sell {mode:"practice", sell_pct}`
-/// (+ `If-Match` with the position rev when we have one).
+/// Step 2 of 2: consume the nonce, then `POST /v1/workspaces/{ws}/positions/{id}/close
+/// {fraction_bps}` + `If-Match: "<position rev>"` + `Idempotency-Key` (contracts 1.1.2). Blocked locally when the coin
+/// is not tradeable (WF-20).
 #[tauri::command(rename_all = "snake_case")]
 pub async fn confirm_sell<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>, nonce: String) -> AppResult<()> {
-    let (key, pct, rev) = state.engine.lock().unwrap().take_quote(&nonce)?;
+    let (key, pos_id, pct, rev) = state.engine.lock().unwrap().take_quote(&nonce)?;
+    let bps = pct_to_bps(pct).ok_or_else(|| AppError::Invalid("pct".into()))?;
+    // One key per distinct close (nonce is one-shot, so a new confirm = a new body).
     let idem = idem_key(&state);
-    match state.transport.sell(&key, &idem, rev, pct as Num).await {
+    match state.transport.close(&pos_id, &idem, rev, bps).await {
         Ok(r) => {
-            state.engine.lock().unwrap().observe_server_now(&r.server_now);
+            let out = {
+                let mut e = state.engine.lock().unwrap();
+                e.observe_server_now(&r.server_now);
+                e.apply_close(&r)
+            };
+            dispatch(&app, out.into_iter().collect());
             Ok(())
         }
         Err(e) => Err(on_write_error(&app, &state, "position", &key, e)),
@@ -212,7 +228,7 @@ pub async fn get_coin_timeline(state: State<'_, AppState>, mint: String) -> AppR
 #[tauri::command(rename_all = "snake_case")]
 pub async fn get_exit_reason_stats(state: State<'_, AppState>) -> AppResult<Vec<ExitReasonStatView>> {
     let r = state.transport.exit_reason_stats("24h").await?;
-    Ok(r.data.iter().map(|x| ExitReasonStatView { exit_reason: x.exit_reason, label: crate::keys::exit_label(x.exit_reason).into(), count: x.count, pnl_lamports: x.pnl_lamports, avg_pnl_pct: x.avg_pnl_pct }).collect())
+    Ok(r.data.iter().map(|x| ExitReasonStatView { exit_reason: x.exit_reason, label: crate::keys::exit_label(x.exit_reason).into(), count: x.count, pnl_lamports: x.pnl_lamports, avg_pnl_pct: x.avg_pnl_pct, win_rate_pct: x.win_rate_pct, avg_hold_s: x.avg_hold_s }).collect())
 }
 
 #[tauri::command(rename_all = "snake_case")]

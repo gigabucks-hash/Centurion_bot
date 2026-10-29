@@ -222,3 +222,57 @@ button.primary kbd, button.real kbd, button.success kbd, button.danger kbd { col
 .toast .close { position: absolute; top: 6px; right: 6px; min-height: 24px; padding: 0 6px; }
 .account-banner { position: fixed; top: 44px; left: 50%; transform: translateX(-50%); z-index: 6; background: var(--color-semantic-warningContainer); color: var(--color-text-primary); border: 1px solid var(--color-semantic-warning); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-body); }
 .settings-section { margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--color-border-subtle); display: grid; gap: 4px; }
+
+/* ---- WF-20 not tradeable (no SOL pair): neutral/disabled, never loss-red ---- */
+.chip.nt { display: inline-flex; align-items: center; gap: 4px; color: var(--color-text-tertiary); background: var(--color-bg-inset); border: 1px dashed var(--color-border-strong); white-space: nowrap; }
+.nt-row { opacity: .72; }
+.nt-row:hover, .nt-row.cursor { opacity: .9; }
+.nt-row b { color: var(--color-text-secondary); }
+.nt-info { margin-top: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm); background: var(--color-bg-inset); color: var(--color-text-secondary); font-size: var(--text-caption); line-height: var(--text-caption--line-height); }
+button.cta-disabled, button.cta-disabled:disabled { background: var(--color-bg-inset); color: var(--color-text-tertiary); border: 1px dashed var(--color-border-default); opacity: 1; cursor: not-allowed; }
+.signal.nt-row .actions button.cta-disabled { min-height: 24px; }
+
+/* center tabs: Chart | Koin · screener */
+.panel > header .tabs { display: flex; gap: var(--space-1); }
+.panel > header .tab { background: transparent; border-color: transparent; color: var(--color-text-tertiary); font-size: var(--text-overline); text-transform: uppercase; letter-spacing: .06em; }
+.panel > header .tab.on { color: var(--color-text-primary); border-color: var(--color-border-default); background: var(--color-bg-raised); }
+.coins-split { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr; }
+.coins-split.with-detail { grid-template-columns: minmax(0, 1fr) 340px; }
+.coins-split > .body { overflow: auto; min-height: 0; }
+.screener { display: flex; flex-direction: column; min-height: 100%; }
+.filter-chips { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-3); flex-wrap: wrap; }
+.screener .legend { padding: var(--space-2) var(--space-3); font-size: var(--text-caption); }
+.chip.verdict.v-pass { color: var(--color-semantic-profit); border-color: var(--color-semantic-profit); }
+.chip.verdict.v-fail, .chip.st-fail { color: var(--color-semantic-loss); border-color: var(--color-semantic-loss); background: var(--color-semantic-lossContainer); }
+.chip.st-pick { color: var(--color-brand-onPrimaryContainer); border-color: var(--color-brand-primary); background: var(--color-brand-primaryContainer); }
+.screener-table td:nth-child(n+6), .screener-table th:nth-child(n+6) { text-align: left; }
+.coin-detail { border-left: 1px solid var(--color-border-subtle); background: var(--color-bg-surface); padding: var(--space-3); overflow: auto; display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-body); }
+.coin-detail header { display: flex; align-items: center; gap: var(--space-2); }
+.coin-detail header b { font-size: var(--text-titleSm); }
+.coin-detail dl { margin: 0; display: grid; gap: 2px; }
+.coin-detail dl > div { display: flex; justify-content: space-between; gap: var(--space-2); min-height: 24px; align-items: center; border-bottom: 1px solid var(--color-border-subtle); }
+.coin-detail dt { color: var(--color-text-tertiary); font-size: var(--text-caption); }
+.coin-detail dd { margin: 0; text-align: right; }
+.coin-detail .note { font-size: var(--text-caption); }
+.mini-chart { position: relative; height: 140px; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); overflow: hidden; }
+.mini-chart.readonly { filter: grayscale(1); opacity: .6; pointer-events: none; border-style: dashed; }
+.coin-detail button { width: 100%; }
+
+/* Narrow centre column: keep the row action (Sell / "Sell — tidak tersedia") visible; the rest scrolls horizontally. */
+table.positions th:last-child, table.positions td:last-child { position: sticky; right: 0; background: var(--color-bg-canvas); box-shadow: -1px 0 0 var(--color-border-subtle); }
+table.positions th:last-child { z-index: 1; }
+table.positions tr:hover td:last-child { background: var(--color-bg-surface); }
+table.positions tr.cursor td:last-child { background: var(--color-brand-primaryContainer); }
+
+/* Compact split (≈720 px centre at 1440 wide): detail repeats Venue/Likuiditas, so the table drops them; overflow scrolls instead of clipping. */
+.coins-split.with-detail { grid-template-columns: minmax(0, 1fr) 300px; }
+.coins-split > .body .screener-table { min-width: max-content; }
+.coins-split.with-detail .screener-table th:nth-child(2), .coins-split.with-detail .screener-table td:nth-child(2),
+.coins-split.with-detail .screener-table th:nth-child(3), .coins-split.with-detail .screener-table td:nth-child(3) { display: none; }
+/* Status bar: one line; long block reasons ellipsize (full text in title). */
+.statusbar { white-space: nowrap; overflow: hidden; }
+.statusbar > span { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.statusbar > span:first-child { flex-shrink: 0; }
+.statusbar .status-error { margin-left: auto; flex: 0 1 auto; max-width: 45%; }
+/* PriceChart's wrapper is `flex: 1` → the mini chart host must be a flex column to get height. */
+.mini-chart { display: flex; flex-direction: column; flex-shrink: 0; }

@@ -12,7 +12,10 @@ import { SellConfirm } from "../components/SellConfirm";
 import { SettingsDialog } from "../components/SettingsDialog";
 import { SignalQueue, useServerNow } from "../components/SignalQueue";
 import { ConflictToast } from "../components/ConflictToast";
-import { fmtSol } from "../components/format";
+import { CoinDetail } from "../components/CoinDetail";
+import { isBlocked } from "../components/NotTradeable";
+import { ScreenerTable } from "../components/ScreenerTable";
+import { errorText, solText, useLang, useT } from "../i18n";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { pendingSorted, useTerm } from "../state/store";
 
@@ -24,6 +27,12 @@ export function TerminalView() {
   // Quick-look (C2 decided): which kind of row it shows; content stays live from the store.
   const [ql, setQl] = useState<{ kind: "signal" | "position"; mint: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Center panel: chart (default) or WF-20 "Koin · screener" (C key / tab).
+  const [center, setCenter] = useState<"chart" | "coins">(() => (new URLSearchParams(location.search).get("tab") === "coins" ? "coins" : "chart"));
+  const [coinSel, setCoinSel] = useState<string | null>(null);
+  const t = useT();
+  const lang = useLang();
+  const paper = st.mode === "practice";
   const pending = useMemo(() => pendingSorted(st.signals), [st.signals]);
   const now = useServerNow(1000);
 
@@ -32,9 +41,9 @@ export function TerminalView() {
       setErr(null);
       await fn();
     } catch (e) {
-      setErr(String(e));
+      setErr(errorText(e, lang));
     }
-  }, []);
+  }, [lang]);
 
   const cursorSig: PickView | undefined = pending.find((s) => s.mint === st.cursorMint) ?? pending[0];
   const cursorPos: PositionView | undefined = st.positions.find((p) => p.mint === st.cursorMint) ?? st.positions[0];
@@ -60,7 +69,15 @@ export function TerminalView() {
     if (ql?.kind === "signal" && cursorSig && cursorSig.mint !== ql.mint) setQl({ kind: "signal", mint: cursorSig.mint });
   }, [cursorSig, ql]);
 
-  const approve = (s?: PickView) => s && (st.mode === "real" ? setRealApprove(s) : run(() => core.approveSignal(s.id)));
+  /** WF-20: blocked in the UI first (Rust refuses too: NotTradeable). The reason is shown as text. */
+  const ntMsg = (kind: "approve" | "sell") =>
+    `${t(kind === "approve" ? "queue.pick.cannot_approve" : "desktop.nt.sell_unavailable")} — ${t(kind === "approve" ? "screener.not_tradeable.detail" : "desktop.nt.sell_detail")}`;
+  const approve = (s?: PickView) => {
+    if (!s) return;
+    if (isBlocked(s)) return setErr(ntMsg("approve"));
+    if (st.mode === "real") setRealApprove(s);
+    else run(() => core.approveSignal(s.id));
+  };
 
   // Popup hand-off ("Buka untuk approve ↗"): Rust focused this window; open the pick here.
   useEffect(() => {
@@ -69,17 +86,29 @@ export function TerminalView() {
       const s = useTerm.getState().signals.find((x) => x.id === id && x.status === "pending");
       if (!s) return;
       useTerm.getState().setCursor(s.mint);
-      if (useTerm.getState().mode === "real") setRealApprove(s);
+      if (useTerm.getState().mode === "real" && !isBlocked(s)) setRealApprove(s);
     }).then((u) => (un = u));
     return () => un?.();
   }, []);
   const skip = (s?: PickView) => s && run(() => core.skipSignal(s.id));
   const approveSelected = () => {
     if (st.mode !== "practice") return setErr("Batch approve hanya untuk PRACTICE");
-    const ids = [...st.selectedIds].filter((id) => pending.some((s) => s.id === id));
-    if (ids.length) run(async () => { await core.approveMany(ids); st.clearSelected(); });
+    const sel = pending.filter((s) => st.selectedIds.has(s.id));
+    const ids = sel.filter((s) => !isBlocked(s)).map((s) => s.id);
+    const skipped = sel.length - ids.length;
+    if (ids.length) run(async () => { await core.approveMany(ids); st.clearSelected(); if (skipped) setErr(t("desktop.nt.batch_skipped", { count: skipped })); });
+    else if (skipped) setErr(t("desktop.nt.batch_skipped", { count: skipped }));
   };
-  const sell = (p?: PositionView, pct = 100) => p && run(async () => setQuote(await core.requestSell(p.key, pct)));
+  const sell = (p?: PositionView, pct = 100) => {
+    if (!p) return;
+    if (isBlocked(p)) return setErr(ntMsg("sell"));
+    run(async () => setQuote(await core.requestSell(p.key, pct)));
+  };
+  const openQueue = (mint: string) => {
+    st.setCursor(mint);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-row="signal"][data-mint="${mint}"]`)?.focus());
+  };
+  const coin = st.screened.find((c) => c.mint === coinSel) ?? null;
   const move = (d: number) => {
     if (!pending.length) return;
     const i = Math.max(0, pending.findIndex((s) => s.mint === st.cursorMint));
@@ -123,6 +152,7 @@ export function TerminalView() {
       l: () => run(() => core.openActivityWindow()),
       p: () => (popupSupported ? run(() => core.openApprovalWindow()) : setErr(POPUP_DISABLED_REASON)),
       ",": () => setSettingsOpen(true),
+      c: () => setCenter((x) => (x === "coins" ? "chart" : "coins")),
     },
     !quote && !settingsOpen && !realApprove,
   );
@@ -132,16 +162,16 @@ export function TerminalView() {
     <div className="window">
       <ModeChrome title="Terminal">
         <span className="chip">src: {st.source}</span>
-        <span className="muted num" title={`epoch ${st.account.epoch ?? "—"} · as_of_seq ${st.account.as_of_seq ?? "—"}`}>Cash {fmtSol(st.account.cash_lamports, 3)} · Equity {fmtSol(st.account.equity_lamports, 3)} SOL</span>
+        <span className="muted num" title={`practice_epoch ${st.account.epoch ?? "—"} · as_of_seq ${st.account.as_of_seq ?? "—"}`}>Cash {solText(st.account.cash_lamports, lang, paper)} · Equity {solText(st.account.equity_lamports, lang, paper)}</span>
         <span style={{ marginLeft: "auto" }} className="dim">
-          <kbd>J/K</kbd> nav <kbd>A</kbd> approve <kbd>S</kbd> skip <kbd>X</kbd> pilih <kbd>⇧A</kbd> approve terpilih <kbd>⇧X</kbd> sell <kbd>Space</kbd> quick-look <kbd>↵</kbd> chart <kbd>L</kbd> feed <kbd>P</kbd> popup
+          <kbd>J/K</kbd> nav <kbd>A</kbd> approve <kbd>S</kbd> skip <kbd>X</kbd> pilih <kbd>⇧A</kbd> approve terpilih <kbd>⇧X</kbd> sell <kbd>Space</kbd> quick-look <kbd>↵</kbd> chart <kbd>L</kbd> feed <kbd>C</kbd> koin <kbd>P</kbd> popup
         </span>
         <button className="ghost" onClick={() => setSettingsOpen(true)}>Settings<kbd>,</kbd></button>
       </ModeChrome>
       <div className="grid">
         <section className="panel area-queue">
           <header>
-            Approval queue <MockTtlBadge sample={pending[0]} /> <span>{pending.length} pending{st.selectedIds.size ? ` · ${st.selectedIds.size} dipilih` : ""}</span>
+            {t("queue.title")} <MockTtlBadge sample={pending[0]} /> <span>{pending.length} pending{st.selectedIds.size ? ` · ${t("queue.batch.selected", { count: st.selectedIds.size })}` : ""}</span>
           </header>
           <div className="body">
             <SignalQueue
@@ -159,10 +189,24 @@ export function TerminalView() {
         </section>
         <section className="panel area-chart">
           <header>
-            Chart <span className="mono">{chartSym ?? "—"}</span>
-            <button className="ghost" onClick={() => chartMint && run(() => core.openChartWindow(chartMint))}>⧉ Detach</button>
+            <span className="tabs" role="tablist">
+              <button role="tab" className={`tab${center === "chart" ? " on" : ""}`} aria-selected={center === "chart"} onClick={() => setCenter("chart")}>
+                {t("desktop.tab.chart")} <span className="mono">{chartSym ?? "—"}</span>
+              </button>
+              <button role="tab" className={`tab${center === "coins" ? " on" : ""}`} aria-selected={center === "coins"} onClick={() => setCenter("coins")} data-testid="tab-coins">
+                {t("desktop.screener.title")} <span className="num">{st.screened.length}</span><kbd>C</kbd>
+              </button>
+            </span>
+            {center === "chart" && <button className="ghost" onClick={() => chartMint && run(() => core.openChartWindow(chartMint))}>⧉ Detach</button>}
           </header>
-          <PriceChart mint={chartMint} />
+          {center === "chart" ? (
+            <PriceChart mint={chartMint} />
+          ) : (
+            <div className={`coins-split${coin ? " with-detail" : ""}`}>
+              <div className="body"><ScreenerTable coins={st.screened} selected={coinSel} onSelect={setCoinSel} onOpenQueue={openQueue} /></div>
+              {coin && <CoinDetail key={coin.mint} coin={coin} onOpenQueue={openQueue} />}
+            </div>
+          )}
         </section>
         <section className="panel area-activity">
           <header>
@@ -171,7 +215,7 @@ export function TerminalView() {
           <div className="body"><ActivityFeed items={st.activity} /></div>
         </section>
         <section className="panel area-positions">
-          <header>Positions (paper) <PositionsSummary positions={st.positions} /></header>
+          <header>{t("positions.title")} {t("desktop.positions.paper")} <PositionsSummary positions={st.positions} /></header>
           <div className="body">
             <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onFocusRow={st.setCursor} onSell={(p) => sell(p)} now={now} />
           </div>
@@ -184,9 +228,9 @@ export function TerminalView() {
             contracts {st.contractsVersion} · seq {st.sync.watermark} · gap {st.sync.gaps_seen} · resync {st.sync.resyncs} (+{st.sync.recovered}) · dup {st.sync.duplicates} · skew {st.sync.skew_ms > 0 ? "+" : ""}{(st.sync.skew_ms / 1000).toFixed(1)}s
           </span>
         )}
-        <span className="dim">runtime: {runtime} · density: {st.settings.density} · popup: {!popupSupported ? "n/a (OS)" : st.settings.approval_popup ? "on" : "off"}</span>
+        <span className="dim">i18n 0.4.2 · {lang} · runtime: {runtime} · density: {st.settings.density} · popup: {!popupSupported ? "n/a (OS)" : st.settings.approval_popup ? "on" : "off"}</span>
         <span className="dim">global: focus {sc.focus_terminal}{sc.open_approvals ? ` · approvals ${sc.open_approvals}` : ""}</span>
-        {(err ?? st.lastError) && <span className="neg" style={{ marginLeft: "auto" }}>{err ?? st.lastError}</span>}
+        {(err ?? st.lastError) && <span className="neg status-error" role="status" title={err ?? st.lastError ?? undefined}>{err ?? st.lastError}</span>}
       </div>
       {st.account.notice && <div className="account-banner" role="alert">{st.account.notice}</div>}
       <ConflictToast />

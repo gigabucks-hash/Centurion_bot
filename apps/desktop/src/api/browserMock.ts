@@ -13,6 +13,7 @@ import type {
   Mode,
   PickView,
   PositionView,
+  ScreenedCoin,
   SellQuote,
   Settings,
   Snapshot,
@@ -25,6 +26,12 @@ import { CONTRACTS_VERSION, EVT } from "./contract";
 type Cb = (p: unknown) => void;
 /** Browser preview of REAL chrome + gating: add ?mode=real to the URL (still mock). */
 const MOCK_MODE: Mode = new URLSearchParams(location.search).get("mode") === "real" ? "real" : "practice";
+/** WF-20 trigger (same values as SENTRA_MOCK_NOT_TRADEABLE): ?nt=screener (default) | race | off. */
+const NT = (new URLSearchParams(location.search).get("nt") ?? "screener") as "screener" | "race" | "off";
+const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const TRADEABLE = { tradeable: true, reason_code: null, quote_mint: null, quote_symbol: null } as const;
+const NOT_TRADEABLE = { tradeable: false, reason_code: "UNSUPPORTED_QUOTE_MINT", quote_mint: USDC, quote_symbol: "USDC" } as const;
+const screened: ScreenedCoin[] = [];
 const subs = new Map<string, Set<Cb>>();
 const emit = (ev: string, p: unknown) => subs.get(ev)?.forEach((cb) => cb(p));
 
@@ -48,6 +55,7 @@ let settings: Settings = {
   theme: "dark",
   density: "compact",
   approval_popup: false,
+  locale: "id",
   shortcuts: { focus_terminal: "CommandOrControl+Shift+H", open_approvals: "CommandOrControl+Shift+A" },
 };
 let seq = 18_000;
@@ -70,7 +78,7 @@ function account() {
     equity_lamports: lam(cash + value),
     unrealized_pnl_lamports: lam(value - cost),
     drawdown_pct: 0,
-    as_of_seq: seq,
+    as_of_seq: String(seq),
     epoch,
     workspace_rev: epoch,
     notice: null,
@@ -81,7 +89,7 @@ function account() {
 function log(actor: Actor, kind: string, tone: Tone, mint: string | null, symbol: string | null, message: string) {
   const ts = Date.now();
   seq += 1;
-  const ev: ActivityView = { id: `${mint ?? "sys"}:${ts}:${kind}:${seq}`, seq, ts_ms: ts, actor, kind, tone, mint, symbol, message };
+  const ev: ActivityView = { id: `${mint ?? "sys"}:${ts}:${kind}:${seq}`, seq: String(seq), ts_ms: ts, actor, kind, tone, mint, symbol, message };
   activity.unshift(ev);
   activity.length = Math.min(activity.length, 300);
   emit(EVT.activity, ev);
@@ -95,9 +103,23 @@ function spawnSignal() {
   history.set(mint, []);
   const now = Date.now();
   const st = strategies[seq % strategies.length];
+  const score = 60 + Math.floor(Math.random() * 40);
+  const nonSol = NT !== "off" && Math.random() < 0.25;
+  const row: ScreenedCoin = {
+    ck: mint.slice(0, 8), mint, symbol, name: `${symbol} (mock)`, venue: Math.random() < 0.5 ? "curve" : "amm", strategy: st.name,
+    score, score_threshold: 70, max_score: 100, passed: score >= 70, guard_verdict: nonSol || score < 70 ? null : "PASS",
+    status: nonSol ? "not_tradeable" : score >= 70 ? "pick" : "rejected_score", liquidity_usd: 5000 + Math.random() * 40000,
+    decimals: 6, token_program: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", ts_ms: now, ...(nonSol ? NOT_TRADEABLE : TRADEABLE),
+  };
+  screened.unshift(row);
+  screened.length = Math.min(screened.length, 150);
+  emit(EVT.screened, row);
+  // not tradeable → screener row only: never queued, never pushed (WF-20)
+  if (nonSol || score < 70) return log("screener", "screener.scored", "neutral", mint, symbol, nonSol ? "Tidak bisa ditradingkan (UNSUPPORTED_QUOTE_MINT)" : `Fit ${score}/70`);
   const s: PickView = {
     id: `30000000-0000-4000-8000-${String(seq).padStart(12, "0")}`,
-    version: 1,
+    rev: 1,
+    ...TRADEABLE,
     ck: mint.slice(0, 8),
     mint,
     strategy_id: st.id,
@@ -105,7 +127,7 @@ function spawnSignal() {
     symbol,
     name: `${symbol} (mock)`,
     summary: "Beli 0.25 SOL (paper)",
-    score: 60 + Math.floor(Math.random() * 50),
+    score,
     score_threshold: 70,
     reasons: ["liquidity ok", "top holders < 30%", "lp burned"],
     guard_verdict: "PASS",
@@ -124,6 +146,16 @@ function spawnSignal() {
   signals.unshift(s);
   log("screener", "proposal.created", "info", mint, symbol, `Fit ${s.score}/${s.score_threshold} — menunggu approval`);
   emit(EVT.signalNew, s);
+  // race: the pool "migrates" to a non-SOL quote ~8 s later → card + position become not tradeable
+  if (NT === "race" && Math.random() < 0.5) setTimeout(() => flip(mint), 8000);
+}
+
+function flip(mint: string) {
+  for (const s of signals) if (s.mint === mint) Object.assign(s, NOT_TRADEABLE), emit(EVT.signalUpdate, s);
+  for (const p of positions.values()) if (p.mint === mint) Object.assign(p, NOT_TRADEABLE);
+  const r = screened.find((x) => x.mint === mint);
+  if (r) Object.assign(r, NOT_TRADEABLE, { status: "not_tradeable" }), emit(EVT.screened, r);
+  emit(EVT.positions, [...positions.values()]);
 }
 
 function revalue(p: PositionView, price: number) {
@@ -162,7 +194,7 @@ function tickAll() {
     if (s.status === "pending" && s.expires_at_ms < now) {
       s.status = "expired";
       s.expired_reason = "timeout";
-      s.version += 1;
+      s.rev += 1;
       emit(EVT.signalUpdate, s);
       log("system", "proposal.expired", "neutral", s.mint, s.symbol, "Expired: timeout");
     }
@@ -203,10 +235,11 @@ export const browserMockAdapter: CoreApi = {
       signals: [...signals],
       positions: [...positions.values()],
       activity: [...activity],
+      screened: [...screened],
       settings,
       account: account(),
       strategies,
-      sync: { workspace_id: "browser-mock", watermark: seq, gaps_seen: 0, resyncs: 0, recovered: 0, duplicates: 0, ignored: 0, reconnects: 0, skew_ms: 0 },
+      sync: { workspace_id: "browser-mock", watermark: String(seq), gaps_seen: 0, resyncs: 0, recovered: 0, duplicates: 0, ignored: 0, reconnects: 0, skew_ms: 0 },
       contracts_version: CONTRACTS_VERSION,
     };
   },
@@ -217,8 +250,9 @@ export const browserMockAdapter: CoreApi = {
     if (MOCK_MODE === "real" && location.hash.startsWith("#/popup")) throw new Error("REAL SOL: approve hanya dari window utama (Buka untuk approve)");
     const s = signals.find((x) => x.id === id && x.status === "pending");
     if (!s) throw new Error("signal not pending");
+    if (!s.tradeable) throw new Error("UNSUPPORTED_QUOTE_MINT: coin tidak bisa ditradingkan");
     s.status = "approved";
-    s.version += 1;
+    s.rev += 1;
     emit(EVT.signalUpdate, s);
     log("user", "proposal.approved", "good", s.mint, s.symbol, "Approved (via desktop)");
     const p = prices.get(s.mint) ?? Number(s.price_sol);
@@ -228,7 +262,7 @@ export const browserMockAdapter: CoreApi = {
       key, ck: s.ck, mint: s.mint, strategy_id: s.strategy_id, strategy: s.strategy, symbol: s.symbol,
       qty_raw: qtyRaw.toString(), cost_lamports: lam(BUY), value_lamports: lam(BUY), pnl_lamports: "0", realized_lamports: "0",
       pnl_pct: 0, entry_price_sol: dec(p), last_price_sol: dec(p), peak_price_sol: dec(p), ratio: 1, peak_ratio: 1,
-      opened_at_ms: Date.now(), plan_state: null, rev: null,
+      opened_at_ms: Date.now(), plan_state: null, rev: 1, position_id: `50000000-0000-4000-8000-${String(seq).padStart(12, "0")}`, decimals: 6, ...TRADEABLE,
     });
     cash -= BUY;
     log("executor", "position.opened", "good", s.mint, s.symbol, "Posisi dibuka 0.25 SOL");
@@ -242,13 +276,14 @@ export const browserMockAdapter: CoreApi = {
     const s = signals.find((x) => x.id === id && x.status === "pending");
     if (!s) throw new Error("signal not pending");
     s.status = "rejected";
-    s.version += 1;
+    s.rev += 1;
     emit(EVT.signalUpdate, s);
     log("user", "proposal.rejected", "neutral", s.mint, s.symbol, "Skipped (via desktop)");
   },
   async requestSell(positionKey, pct) {
     const pos = positions.get(positionKey);
     if (!pos) throw new Error("no position");
+    if (!pos.tradeable) throw new Error("UNSUPPORTED_QUOTE_MINT: coin tidak bisa ditradingkan");
     const out = (BigInt(pos.value_lamports) * BigInt(pct) * 9875n) / 1_000_000n;
     const q: SellQuote = { nonce: `n-${seq++}`, position_key: positionKey, mint: pos.mint, symbol: pos.symbol, pct, est_sol_out_lamports: lam(out), ttl_ms: 15000 };
     quotes.set(q.nonce, q);
@@ -282,7 +317,7 @@ export const browserMockAdapter: CoreApi = {
     log("user", "practice.reset", "info", null, null, `Practice direset → epoch ${epoch} · saldo 30 SOL`);
   },
   async coinTimeline(mint) {
-    return activity.filter((a) => a.mint === mint).map((a) => ({ seq: a.seq ?? 0, ts: new Date(a.ts_ms).toISOString(), kind: a.kind, actor: a.actor }));
+    return activity.filter((a) => a.mint === mint).map((a) => ({ seq: a.seq ?? "0", ts: new Date(a.ts_ms).toISOString(), kind: a.kind, actor: a.actor }));
   },
   async exitReasonStats() {
     return [];

@@ -1,9 +1,10 @@
 //! Backend client boundary. The desktop talks to the Sentra API only through [`Transport`].
 //!
 //! Real transport (Week 2, not built yet): `HttpTransport` over
-//! - SSE `GET /v1/workspaces/{ws}/events/stream?mode=practice&after_seq=` (desktop primary feed;
-//!   `id:` = seq, resume with `Last-Event-ID`),
-//! - Supabase Realtime Broadcast `marks:<ws>:<mode>` for `mark` + `clock` (or an SSE fallback),
+//! - SSE `GET /v1/workspaces/{ws}/events/stream?mode=practice&include=marks,clock&after_seq=`
+//!   (contracts 1.1.2: desktop primary feed incl. `mark` + `clock`; `id:` = seq as an int64
+//!   string, resume with `Last-Event-ID`),
+//! - Supabase Realtime Broadcast `marks:<ws>:<mode>` (web/mobile; desktop fallback only),
 //! - REST `/v1/workspaces/{ws}/...` for pages, approvals, sells, strategies, practice reset,
 //!   coin timeline, exit-reason stats.
 //!
@@ -34,9 +35,14 @@ pub fn ws_path(ws: &str, rest: &str) -> String {
     format!("{API_PREFIX}/workspaces/{ws}{rest}")
 }
 
-/// SSE URL with the resume cursor (also sent as `Last-Event-ID` on reconnect).
+/// SSE URL with the resume cursor (also sent as `Last-Event-ID` on reconnect). 1.1.2: marks and
+/// clock ride the same stream (`include=marks,clock`), so the desktop needs no Broadcast client.
 pub fn sse_path(ws: &str, after_seq: i64) -> String {
-    ws_path(ws, &format!("/events/stream?mode=practice&after_seq={after_seq}"))
+    ws_path(ws, &format!("/events/stream?mode=practice&include=marks,clock&after_seq={after_seq}"))
+}
+/// `Last-Event-ID` header value: seq as an int64 string (1.1.2).
+pub fn last_event_id(seq: i64) -> (&'static str, String) {
+    ("Last-Event-ID", seq.to_string())
 }
 
 /// Broadcast channel name for mark prices + clock heartbeat.
@@ -92,28 +98,47 @@ pub enum ApiFailure {
 pub const CONFLICT_CODES: &[&str] = &["VERSION_CONFLICT", "STRATEGY_REV_CONFLICT", "CONFIRMATION_RESTART_REQUIRED"];
 
 impl ApiFailure {
-    /// Parse an error response body. Conflict merge data sits at the top level next to `error`
-    /// (v1.1); approvals' `VERSION_CONFLICT` may carry `details.current_version` instead. The SQL
-    /// layer's `{"error": "CONFIRMATION_RESTART_REQUIRED", ...}` (string `error`) is accepted too.
+    /// Parse an error response body. Accepted shapes:
+    /// - v1.1 `{"error": {code, message, details, request_id}, ...merge data, server_now}`;
+    /// - **1.1.2** `{"error": {code, message, ...details, server_now}, server_now}` (details and 409
+    ///   merge data inside `error`; Backend WIP) — and a fully flat `{code, message, ...}` as well;
+    /// - SQL `{"error": "CONFIRMATION_RESTART_REQUIRED", ...}` (string `error`).
+    ///
+    /// Conflict merge data is read from the top level first; approvals' `VERSION_CONFLICT` may carry
+    /// `details.current_version` instead.
     pub fn from_body(http: u16, body: &serde_json::Value) -> Self {
         let err = &body["error"];
         let (code, message, details) = match err {
             serde_json::Value::String(c) => (c.clone(), String::new(), None),
-            _ => (
-                err["code"].as_str().unwrap_or("UNKNOWN").to_owned(),
-                err["message"].as_str().unwrap_or_default().to_owned(),
-                err.get("details").cloned().filter(|d| !d.is_null()),
-            ),
+            serde_json::Value::Object(m) => {
+                // v1.1: `details` object; 1.1.2: details spread inside `error` itself.
+                let details = err.get("details").cloned().filter(|d| !d.is_null()).or_else(|| {
+                    let mut d = m.clone();
+                    for k in ["code", "message", "request_id", "server_now", "details"] {
+                        d.remove(k);
+                    }
+                    (!d.is_empty()).then_some(serde_json::Value::Object(d))
+                });
+                (err["code"].as_str().unwrap_or("UNKNOWN").to_owned(), err["message"].as_str().unwrap_or_default().to_owned(), details)
+            }
+            _ => {
+                let mut d = body.as_object().cloned().unwrap_or_default();
+                let code = d.remove("code").and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_else(|| "UNKNOWN".into());
+                let message = d.remove("message").and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_default();
+                d.remove("server_now");
+                d.remove("request_id");
+                (code, message, (!d.is_empty()).then_some(serde_json::Value::Object(d)))
+            }
         };
+        let code = crate::keys::error_code(&code).to_owned();
         if http == 428 || code == "PRECONDITION_REQUIRED" {
             return ApiFailure::PreconditionRequired;
         }
         if http == 409 && CONFLICT_CODES.contains(&code.as_str()) {
             let d = details.clone().unwrap_or_default();
-            let u64_of = |k: &str| body.get(k).and_then(|v| v.as_u64()).or_else(|| d.get(k).and_then(|v| v.as_u64()));
-            let changed_fields = body
-                .get("changed_fields")
-                .or_else(|| d.get("changed_fields"))
+            let get = |k: &str| body.get(k).or_else(|| d.get(k)).filter(|v| !v.is_null());
+            let u64_of = |k: &str| get(k).and_then(|v| v.as_u64());
+            let changed_fields = get("changed_fields")
                 .and_then(|v| v.as_array())
                 .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect())
                 .unwrap_or_default();
@@ -123,9 +148,9 @@ impl ApiFailure {
                 current_rev: u64_of("current_rev").or_else(|| u64_of("current_version")),
                 base_rev: u64_of("base_rev"),
                 changed_fields,
-                changed_by: body.get("changed_by").and_then(|v| serde_json::from_value(v.clone()).ok()),
-                changed_at: body.get("changed_at").and_then(|v| serde_json::from_value(v.clone()).ok()),
-                current: body.get("current").or_else(|| d.get("current")).cloned().filter(|v| !v.is_null()),
+                changed_by: get("changed_by").and_then(|v| serde_json::from_value(v.clone()).ok()),
+                changed_at: get("changed_at").and_then(|v| serde_json::from_value(v.clone()).ok()),
+                current: get("current").cloned(),
             }));
         }
         ApiFailure::Api { http, code, message, details }
@@ -173,7 +198,7 @@ pub type ApiResult<T> = Result<T, ApiFailure>;
 /// one concrete transport (`ActiveTransport`), swapped from mock to HTTP in Week 2.
 ///
 /// Writes: every mutation carries an `Idempotency-Key` and names the revision it is based on —
-/// `If-Match: "<rev>"` (`if_match`) or, for approvals, `expected_version` in the body. `None`
+/// `If-Match: "<rev>"` (`if_match`) or, for approvals, `expected_rev` in the body (1.1.2; `expected_version` removed). `None`
 /// → server answers 428 `PRECONDITION_REQUIRED`.
 pub trait Transport: Send + Sync + 'static {
     fn workspace_id(&self) -> &str;
@@ -187,12 +212,15 @@ pub trait Transport: Send + Sync + 'static {
     fn get_portfolio(&self) -> impl Future<Output = ApiResult<ApiItem<PortfolioSnapshot>>> + Send;
     /// `GET /strategies?mode=practice` (names + `rev` + status).
     fn list_strategies(&self) -> impl Future<Output = ApiResult<ApiItem<Vec<StrategySummary>>>> + Send;
-    /// `GET /approvals/{id}` → fresh single-use `decision_token` + `version`.
+    /// `GET /approvals/{id}` → fresh single-use `decision_token` + approval `rev`.
     fn get_approval(&self, proposal_id: &str) -> impl Future<Output = ApiResult<ApiItem<ApprovalDetail>>> + Send;
-    /// `POST /approvals/{id}/decision` with `Idempotency-Key` + `expected_version`.
+    /// `POST /approvals/{id}/decision` with `Idempotency-Key` + `If-Match: "<rev>"` and
+    /// `expected_rev` (1.1.2). Same key + different body = 422 `IDEMPOTENCY_KEY_REUSED`.
     fn decide(&self, proposal_id: &str, idem_key: &str, req: ApprovalDecisionRequest) -> impl Future<Output = ApiResult<ApiItem<ApprovalDecisionResponse>>> + Send;
-    /// `POST /positions/{key}/sell {mode:"practice", sell_pct}` (+ `If-Match` position rev) → job.
-    fn sell(&self, position_key: &str, idem_key: &str, if_match: Option<u64>, sell_pct: Num) -> impl Future<Output = ApiResult<ApiItem<serde_json::Value>>> + Send;
+    /// `POST /v1/workspaces/{ws}/positions/{id}/close {fraction_bps}` + `If-Match: "<position rev>"`
+    /// + `Idempotency-Key` (contracts 1.1.2; `None` → 428). Returns `{position (new rev), order,
+    /// order_id, fill|null, job_id, status, replayed, server_now}`; then `order.*` + `position.*` events.
+    fn close(&self, position_id: &str, idem_key: &str, if_match: Option<u64>, fraction_bps: u16) -> impl Future<Output = ApiResult<CloseResponse>> + Send;
     /// `POST /strategies/{id}/pause|resume` with `If-Match` (status changes bump `rev`).
     fn set_strategy_paused(&self, id: &str, idem_key: &str, if_match: Option<u64>, paused: bool) -> impl Future<Output = ApiResult<ApiItem<StrategySummary>>> + Send;
     /// `PATCH /strategies/{id}` `{settings_patch}` + `If-Match`. Stale → 409 [`Conflict`]. No desktop UI yet.
@@ -207,6 +235,8 @@ pub trait Transport: Send + Sync + 'static {
 
 /// Endpoint paths (Week-2 HTTP transport; asserted in tests so renames are caught).
 pub mod paths {
+    /// 1.1.2: by server position **id** (not position_key).
+    pub const POSITION_CLOSE: &str = "/positions/{id}/close";
     pub const COIN_TIMELINE: &str = "/coins/{mint}/timeline";
     pub const EXIT_REASON_STATS: &str = "/stats/exit-reasons";
     pub const PRACTICE_RESET: &str = "/practice/reset";
@@ -226,7 +256,8 @@ mod tests {
         assert!(!REQUESTED_SCOPES.contains(&"trade:real"));
         assert_eq!(CLIENT_MODE, Mode::Practice);
         assert_eq!(ws_path("w1", "/approvals/p1/decision"), "/v1/workspaces/w1/approvals/p1/decision");
-        assert_eq!(sse_path("w1", 42), "/v1/workspaces/w1/events/stream?mode=practice&after_seq=42");
+        assert_eq!(sse_path("w1", 42), "/v1/workspaces/w1/events/stream?mode=practice&include=marks,clock&after_seq=42");
+        assert_eq!(last_event_id(42).1, "42");
         assert_eq!(marks_channel("w1", Mode::Practice), "marks:w1:practice");
         assert_eq!(write_headers("k", Some(7))[1], ("If-Match", "\"7\"".to_string()));
     }
@@ -255,6 +286,21 @@ mod tests {
         let r = ApiFailure::from_body(409, &serde_json::json!({"error": "CONFIRMATION_RESTART_REQUIRED", "current_rev": 4}));
         assert!(r.restart_confirmation());
         assert_eq!(ApiFailure::from_body(428, &serde_json::json!({"error": {"code": "PRECONDITION_REQUIRED"}})), ApiFailure::PreconditionRequired);
+        // 1.1.2 flat error object: details at the top level, legacy notice code aliased
+        let f = ApiFailure::from_body(422, &serde_json::json!({"code": "UNSUPPORTED_QUOTE_MINT", "message": "no SOL pair", "quote_mint": "EPjF", "server_now": "x"}));
+        assert_eq!(f.code(), "UNSUPPORTED_QUOTE_MINT");
+        assert!(matches!(&f, ApiFailure::Api { details: Some(d), .. } if d["quote_mint"] == "EPjF"));
+        let c = ApiFailure::from_body(409, &serde_json::json!({"code": "STRATEGY_REV_CONFLICT", "message": "", "current_rev": 5, "base_rev": 4, "changed_fields": ["status"], "server_now": "x"}));
+        assert_eq!(c.conflict().unwrap().current_rev, Some(5));
+        assert_eq!(ApiFailure::from_body(422, &serde_json::json!({"code": "PAPER_CASH_INSUFFICIENT"})).code(), "PRACTICE_CASH_INSUFFICIENT");
+        // 1.1.2 (Backend WIP): details + merge data spread inside `error`
+        let w = ApiFailure::from_body(409, &serde_json::json!({"error": {"code": "STRATEGY_REV_CONFLICT", "message": "m", "server_now": "x",
+            "current_rev": 6, "base_rev": 5, "changed_fields": ["status"], "changed_by": {"actor": null, "via": "web", "device": null}, "current": {"id": "s", "rev": 6}}, "server_now": "x"}));
+        let wc = w.conflict().unwrap();
+        assert_eq!((wc.current_rev, wc.base_rev, wc.changed_fields.clone()), (Some(6), Some(5), vec!["status".to_string()]));
+        assert_eq!(wc.current.as_ref().unwrap()["rev"], 6);
+        let n = ApiFailure::from_body(422, &serde_json::json!({"error": {"code": "UNSUPPORTED_QUOTE_MINT", "message": "m", "quote_mint": "EPjF", "server_now": "x"}, "server_now": "x"}));
+        assert!(matches!(&n, ApiFailure::Api { details: Some(d), .. } if d["quote_mint"] == "EPjF"));
         assert_eq!(paths::COIN_TIMELINE, "/coins/{mint}/timeline");
         assert_eq!(paths::EXIT_REASON_STATS, "/stats/exit-reasons");
     }

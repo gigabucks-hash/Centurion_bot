@@ -20,7 +20,7 @@ use std::str::FromStr;
 
 pub const EVENT_SCHEMA_VERSION: u32 = 1;
 /// Contracts release this mirror was verified against (contract test checks major.minor).
-pub const CONTRACTS_VERSION: &str = "1.1.1";
+pub const CONTRACTS_VERSION: &str = "1.1.2";
 /// JSON number on the wire (pcts, ratios, bps, USD notionals, scores). Display/threshold only.
 pub type Num = f64;
 pub const LAMPORTS_PER_SOL: i128 = 1_000_000_000;
@@ -114,6 +114,52 @@ impl IsoTs {
     pub fn ms(&self) -> Option<i64> {
         chrono::DateTime::parse_from_rfc3339(&self.0).ok().map(|d| d.timestamp_millis())
     }
+}
+
+/// `seq` / cursors: v1.1 sends a JSON number, contracts **1.1.2** an int64 **string** (JS-safe).
+/// Accept both; emit the 1.1.2 string form. Internally `i64`.
+pub mod seq {
+    use serde::{Deserialize, Deserializer, Serializer};
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Wire {
+        N(i64),
+        S(String),
+    }
+    fn parse<E: serde::de::Error>(w: Wire) -> Result<i64, E> {
+        match w {
+            Wire::N(n) => Ok(n),
+            Wire::S(s) if !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()) => s.parse().map_err(E::custom),
+            Wire::S(s) => Err(E::custom(format!("seq must be an integer string, got {s:?}"))),
+        }
+    }
+    pub fn serialize<S: Serializer>(v: &i64, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&v.to_string())
+    }
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<i64, D::Error> {
+        parse(Wire::deserialize(d)?)
+    }
+    pub mod opt {
+        use super::*;
+        pub fn serialize<S: Serializer>(v: &Option<i64>, s: S) -> Result<S::Ok, S::Error> {
+            match v {
+                Some(n) => s.serialize_str(&n.to_string()),
+                None => s.serialize_none(),
+            }
+        }
+        pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<i64>, D::Error> {
+            Option::<Wire>::deserialize(d)?.map(parse).transpose()
+        }
+    }
+}
+
+/// Wrapped-SOL mint: the only quote asset Practice can trade (Backend `common::quote`).
+pub const WSOL_MINT: &str = "So11111111111111111111111111111111111111112";
+/// Skip / error code for coins whose pool is quoted in anything but SOL (errors.json, 422).
+pub const UNSUPPORTED_QUOTE_MINT: &str = "UNSUPPORTED_QUOTE_MINT";
+/// `None` = unknown (legacy producer) → tradeable, like Backend `is_sol_quote`.
+pub fn is_sol_quote(quote_mint: Option<&str>) -> bool {
+    quote_mint.map_or(true, |m| m == WSOL_MINT || m == "11111111111111111111111111111111")
 }
 
 // ---------------------------------------------------------------- vocabularies
@@ -293,7 +339,8 @@ impl Untrusted {
 pub struct EventEnvelope {
     /// Deterministic `<subject>:<epoch_ms>:<type>`; dedupe key.
     pub id: String,
-    /// Monotonic, NOT gapless. Order by seq, never by ts.
+    /// Monotonic, NOT gapless. Order by seq, never by ts. (1.1.2: int64 string on the wire.)
+    #[serde(with = "seq")]
     pub seq: i64,
     #[serde(rename = "type")]
     pub kind: String,
@@ -331,6 +378,17 @@ pub struct ScreenerResult {
     pub score_threshold: Num,
     pub max_score: Num,
     pub checks: Vec<ScreenerCheck>,
+    /// 1.1.2: `false` = Practice cannot trade the coin at all (non-SOL quote). `passed` is then
+    /// false, `skip_reason` holds the code and the score is informational only. Default true.
+    #[serde(default = "yes")]
+    pub tradeable: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skip_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quote_mint: Option<String>,
+}
+fn yes() -> bool {
+    true
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GuardCheck {
@@ -346,11 +404,26 @@ pub struct CoinDetected {
     pub venue: Venue,
     pub launchpad: Option<String>,
     pub creator: Option<String>,
+    /// 1.1.2: pool quote asset (wSOL mint = SOL). Anything else → not tradeable in Practice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quote_mint: Option<String>,
+    /// 1.1.2: SPL token decimals (no more "6" assumption) and token program id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decimals: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token_program: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ScreenerScored {
     pub mint: String,
     pub passed: bool,
+    /// 1.1.2 also repeats these at the payload top level (authoritative when present).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tradeable: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skip_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quote_mint: Option<String>,
     pub summary: String,
     pub rejected_by: Option<String>,
     pub failed: Vec<String>,
@@ -397,6 +470,8 @@ pub struct StaticEstimate {
 pub struct ProposalCreated {
     pub proposal_id: String,
     pub kind: ProposalKind,
+    /// Approval rev (1.1.2 `rev`; v1.1 `version` still accepted on input).
+    #[serde(rename = "rev", alias = "version")]
     pub version: u32,
     pub expires_at: IsoTs,
     pub first_buy: bool,
@@ -408,11 +483,20 @@ pub struct ProposalCreated {
     pub weakening: bool,
     pub diff: Option<serde_json::Value>,
     pub estimate: Option<StaticEstimate>,
+    /// 1.1.2 additions (self-contained card: no join with pick/mark needed).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub price_sol: Option<Dec>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalDecided {
     pub proposal_id: String,
     pub kind: ProposalKind,
+    /// Approval rev (1.1.2 `rev`; v1.1 `version` still accepted on input).
+    #[serde(rename = "rev", alias = "version")]
     pub version: u32,
     pub decided_by: String,
     pub decided_via: DecidedVia,
@@ -422,6 +506,8 @@ pub struct ProposalDecided {
 pub struct ProposalExpired {
     pub proposal_id: String,
     pub kind: ProposalKind,
+    /// Approval rev (1.1.2 `rev`; v1.1 `version` still accepted on input).
+    #[serde(rename = "rev", alias = "version")]
     pub version: u32,
     pub reason: ProposalExpiredReason,
     pub at: IsoTs,
@@ -445,6 +531,13 @@ pub struct FillWire {
     pub swap_fee_lamports: Lamports,
     pub network_fee_lamports: Lamports,
     pub latency_ms: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_epoch: Option<i64>,
+    /// 1.1.2 fill id / creation time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<IsoTs>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PositionOpened {
@@ -452,6 +545,18 @@ pub struct PositionOpened {
     pub mint: String,
     pub fill: FillWire,
     pub first_buy: bool,
+    /// 1.1.2: server position id (close path is `/positions/{position_id}/close`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token_program: Option<String>,
+    /// 1.1.2: positions carry `rev`; close sends `If-Match: "<rev>"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rev: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_epoch: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decimals: Option<u8>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PositionUpdated {
@@ -459,10 +564,20 @@ pub struct PositionUpdated {
     pub qty_raw: RawQty,
     pub peak_price_sol: Dec,
     pub realized_lamports: Lamports,
-    pub plan_state: serde_json::Value,
-    /// v1.1 prep: optional resource revision for If-Match writes.
+    /// 1.1.2 typed exit-plan runtime state (`PlanState`, discriminated `PlanStep`).
+    #[serde(default)]
+    pub plan_state: Option<PlanState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rev: Option<u64>,
+    /// 1.1.2: server cost basis / average entry / unrealized (replaces the client-side estimate).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost_basis_lamports: Option<Lamports>,
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "avg_entry_price")]
+    pub avg_entry_price_sol: Option<Dec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unrealized_pnl_lamports: Option<Lamports>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_epoch: Option<i64>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PositionClosed {
@@ -471,7 +586,9 @@ pub struct PositionClosed {
     pub exit_price_sol: Dec,
     pub sol_out_lamports: Lamports,
     pub pnl_lamports: Lamports,
-    pub pnl_pct: Num,
+    /// 1.1.2: nullable (zero cost basis).
+    #[serde(default)]
+    pub pnl_pct: Option<Num>,
     pub hold_seconds: i64,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -492,6 +609,8 @@ pub struct FillSimulated {
     pub mid_price_sol: Option<Dec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub price_impact_bps: Option<Num>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_epoch: Option<i64>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExitTriggered {
@@ -515,7 +634,11 @@ pub struct PortfolioSnapshot {
     pub realized_pnl_lamports: Lamports,
     pub unrealized_pnl_lamports: Lamports,
     pub open_positions: i64,
+    #[serde(with = "seq")]
     pub as_of_seq: i64,
+    /// 1.1.2: current practice epoch (closes Q18 — desktop no longer guesses it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_epoch: Option<i64>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct StrategyLifecycle {
@@ -563,6 +686,121 @@ pub struct SystemNotice {
     pub code: String,
     pub message: String,
 }
+/// `order.submitted` / `order.filled` (contracts 1.1.2): close orders; carry the position's new rev.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OrderProgress {
+    pub order: OrderWire,
+    pub position_id: String,
+    pub position_rev: u64,
+    /// `order.filled` only.
+    #[serde(default)]
+    pub fill: Option<FillWire>,
+    #[serde(default)]
+    pub practice_epoch: Option<i64>,
+}
+/// Close order resource (`OrderWire`, 1.1.2). `job_id` is an int64 string.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OrderWire {
+    pub id: String,
+    pub position_id: String,
+    pub mint: String,
+    pub mode: Mode,
+    pub side: FillSide,
+    /// `manual_close`.
+    pub kind: String,
+    pub fraction_bps: u16,
+    /// `queued` | `filled` | `failed`.
+    pub status: String,
+    #[serde(default)]
+    pub reason_code: Option<String>,
+    #[serde(default, with = "seq::opt")]
+    pub job_id: Option<i64>,
+    #[serde(default)]
+    pub fill_id: Option<String>,
+    pub practice_epoch: i64,
+    pub created_at: IsoTs,
+    pub updated_at: IsoTs,
+}
+/// Async work handle (`GET /v1/workspaces/{ws}/jobs/{job_id}`). Read by the Phase-2 HttpTransport.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct JobWire {
+    #[serde(with = "seq")]
+    pub id: i64,
+    pub kind: String,
+    /// `queued` | `running` | `done` | `failed` | `dead`.
+    pub status: String,
+    pub attempts: u32,
+    pub last_error: Option<String>,
+    pub created_at: IsoTs,
+    pub updated_at: IsoTs,
+}
+
+/// `position.updated.plan_state` (1.1.2 `PlanState`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlanState {
+    /// Exit preset id or `custom`.
+    pub preset: String,
+    /// Index into `steps` of the next step that can fire; `None` = plan finished.
+    pub current_step: Option<u32>,
+    #[serde(default)]
+    pub triggered_steps: Vec<u32>,
+    #[serde(default)]
+    pub trail_peak_price_sol: Option<Dec>,
+    pub steps: Vec<PlanStep>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StepBase {
+    pub index: u32,
+    pub triggered: bool,
+    #[serde(default)]
+    pub triggered_at: Option<IsoTs>,
+}
+/// Discriminated by `kind`; an unknown kind decodes as `Unknown` (forward compatible).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PlanStep {
+    ProfitTarget { #[serde(flatten)] base: StepBase, at_gain_pct: Num, sell_portion_pct: Num, trigger_price_sol: Dec },
+    LossGuard { #[serde(flatten)] base: StepBase, at_loss_pct: Num, sell_portion_pct: Num, trigger_price_sol: Dec },
+    /// Hard stop from ENTRY (`stop_loss_pct`).
+    StopLoss { #[serde(flatten)] base: StepBase, stop_loss_pct: Num, stop_price_sol: Dec },
+    /// Trailing stop from the PEAK (`peak_trail_pct`).
+    PeakTrail { #[serde(flatten)] base: StepBase, trail_pct: Num, armed: bool, peak_price_sol: Option<Dec>, stop_price_sol: Option<Dec> },
+    Giveback { #[serde(flatten)] base: StepBase, giveback_pct: Num, after_step: u32, peak_price_sol: Option<Dec> },
+    MaxHold { #[serde(flatten)] base: StepBase, deadline: IsoTs },
+    Idle { #[serde(flatten)] base: StepBase, idle_exit_seconds: i64, last_trade_at: Option<IsoTs> },
+    SellFloor { #[serde(flatten)] base: StepBase, max_loss_pct: Num, liquidity_drop_pct: Num },
+    #[serde(other)]
+    Unknown,
+}
+
+/// `order.failed` (contracts 1.1.2, UX N-05): a simulated order could not be filled.
+/// Symbol travels in `untrusted`. `reason_code` → `order.fail_reason.<lower>` (unknown → `.unknown`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OrderFailed {
+    pub order_id: String,
+    #[serde(default)]
+    pub proposal_id: Option<String>,
+    pub mint: String,
+    pub side: FillSide,
+    #[serde(default)]
+    pub amount_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub qty_raw: Option<RawQty>,
+    pub reason_code: String,
+    /// 1.1.2 WIP: any JSON (was a string).
+    #[serde(default)]
+    pub detail: serde_json::Value,
+    #[serde(default)]
+    pub quote_mint: Option<String>,
+    #[serde(default)]
+    pub position_id: Option<String>,
+    #[serde(default)]
+    pub fraction_bps: Option<u16>,
+    pub mode: Mode,
+    #[serde(default)]
+    pub practice_epoch: Option<i64>,
+}
 
 /// Typed view of an envelope. Unknown types (or a newer `version` we cannot read) → `None`
 /// so the client ignores them (contract rule).
@@ -590,6 +828,9 @@ pub enum KnownEvent {
     AccountDeletionCancelled(AccountLifecycle),
     AccountDeleted(AccountLifecycle),
     SystemNotice(SystemNotice),
+    OrderFailed(OrderFailed),
+    OrderSubmitted(OrderProgress),
+    OrderFilled(OrderProgress),
 }
 
 impl KnownEvent {
@@ -623,6 +864,9 @@ impl KnownEvent {
             "account.deletion_cancelled" => p(v).map(Self::AccountDeletionCancelled),
             "account.deleted" => p(v).map(Self::AccountDeleted),
             "system.notice" => p(v).map(Self::SystemNotice),
+            "order.failed" => p(v).map(Self::OrderFailed),
+            "order.submitted" => p(v).map(Self::OrderSubmitted),
+            "order.filled" => p(v).map(Self::OrderFilled),
             t if t.starts_with("strategy.") => p(v).map(|x| Self::Strategy(t.to_owned(), x)),
             // guard.changed and anything new: ignored by the desktop for now.
             _ => return None,
@@ -648,15 +892,19 @@ pub struct MarkMessage {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ClockMessage {
     pub server_now: IsoTs,
+    #[serde(with = "seq")]
     pub safe_seq: i64,
 }
 /// `GET /v1/workspaces/{ws}/events` page.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EventPage {
     pub items: Vec<EventEnvelope>,
+    #[serde(with = "seq::opt", default)]
     pub next_after_seq: Option<i64>,
+    #[serde(with = "seq::opt", default)]
     pub next_before_seq: Option<i64>,
     pub has_more: bool,
+    #[serde(with = "seq")]
     pub safe_seq: i64,
     pub server_now: IsoTs,
 }
@@ -672,14 +920,18 @@ pub struct ApprovalDecisionRequest {
     pub decision: Decision,
     /// Opaque single-use token from `GET /approvals/{id}`.
     pub token: String,
-    pub expected_version: u32,
-    pub client: DecidedVia,
+    /// Approval rev — required on every channel (1.1.2; `expected_version` removed). Also sent as
+    /// `If-Match: "<rev>"`. Actor / channel come from the JWT: never send client / actor / via.
+    pub expected_rev: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ApprovalDecisionResponse {
     pub proposal_id: String,
     pub status: ProposalStatus,
+    /// Approval rev (1.1.2 `rev`; v1.1 `version` still accepted on input).
+    #[serde(rename = "rev", alias = "version")]
     pub version: u32,
     pub replayed: bool,
 }
@@ -687,6 +939,8 @@ pub struct ApprovalDecisionResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ApprovalDetail {
     pub proposal_id: String,
+    /// Approval rev (1.1.2 `rev`; v1.1 `version` still accepted on input).
+    #[serde(rename = "rev", alias = "version")]
     pub version: u32,
     pub status: ProposalStatus,
     pub expires_at: IsoTs,
@@ -703,9 +957,14 @@ pub struct ApiErrorBody {
     pub code: String,
     pub message: String,
     #[serde(default)]
-    pub details: Option<serde_json::Value>,
-    pub request_id: String,
+    pub request_id: Option<String>,
+    pub server_now: IsoTs,
+    /// 1.1.2: details are spread inside `error` next to code/message.
+    #[serde(flatten)]
+    pub details: serde_json::Map<String, serde_json::Value>,
 }
+/// 1.1.2 error body: always `{"error": {code, message, ...details, server_now}, server_now}`.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ApiError {
     pub error: ApiErrorBody,
@@ -731,6 +990,11 @@ pub struct WorkspaceSummary {
     pub name: String,
     pub rev: u64,
     pub modes_enabled: Vec<Mode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_epoch: Option<i64>,
+    /// 1.1.2 `WorkspaceWire.practice_start_lamports` (was `paper_start_lamports`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_start_lamports: Option<Lamports>,
 }
 /// `POST /workspaces/{ws}/practice/reset` 200 body (`server_now` sits on the wrapper).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -752,29 +1016,86 @@ pub struct ChangedBy {
 #[allow(dead_code)] // typed body for the Week-2 HttpTransport; asserted by the contract test
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ConflictBody {
-    pub error: ApiErrorBody,
+    pub error: ConflictErrorBody,
+    pub server_now: IsoTs,
+}
+/// 1.1.2: conflict details live **inside** `error` (`error.current_rev`, `error.current`, …).
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ConflictErrorBody {
+    pub code: String,
+    pub message: String,
     #[serde(default)]
-    pub current_rev: Option<u64>,
-    #[serde(default)]
-    pub base_rev: Option<u64>,
+    pub request_id: Option<String>,
+    pub server_now: IsoTs,
+    pub current_rev: u64,
+    pub base_rev: u64,
     #[serde(default)]
     pub changed_fields: Vec<String>,
     #[serde(default)]
     pub changed_by: Option<ChangedBy>,
     #[serde(default)]
     pub changed_at: Option<IsoTs>,
+    /// TS `ConflictError.current` is required, but the API_ENDPOINTS §0 VERSION_CONFLICT example
+    /// omits it → tolerate (reported to Backend).
     #[serde(default)]
-    pub current: Option<serde_json::Value>,
-    pub server_now: IsoTs,
+    pub current: serde_json::Value,
 }
 
-/// `POST /positions/{id}/sell`. API_ENDPOINTS still shows `sell_pct: "100"` (string) while the v1.1
-/// number rule makes `*_pct` a JSON number → sent as a number (schema question to Backend).
+/// `POST /positions/{key}/close` body (contracts 1.1.2): `fraction_bps` integer 1–10000
+/// (`sell_pct` removed; 25/50/100 % → 2500/5000/10000) + `If-Match: "<position rev>"`.
 #[allow(dead_code)] // request body for the Week-2 HttpTransport
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SellRequest {
-    pub mode: Mode,
-    pub sell_pct: Num,
+pub struct CloseRequest {
+    /// 1–10000, default 10000 server-side.
+    pub fraction_bps: u16,
+    /// Only when `If-Match` cannot be sent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_rev: Option<u64>,
+}
+pub const FRACTION_BPS_MAX: u16 = 10_000;
+/// UI percent (1–100) → `fraction_bps`.
+pub fn pct_to_bps(pct: u8) -> Option<u16> {
+    (1..=100).contains(&pct).then(|| pct as u16 * 100)
+}
+/// Position as returned by a close (new `rev`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PositionWire {
+    pub id: String,
+    pub position_key: String,
+    pub rev: u64,
+    pub qty_raw: RawQty,
+    /// `open` | `closed`.
+    pub status: String,
+    #[serde(default)]
+    pub practice_epoch: Option<i64>,
+    #[serde(default)]
+    pub decimals: Option<u8>,
+    #[serde(default)]
+    pub token_program: Option<String>,
+    #[serde(default)]
+    pub cost_basis_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub avg_entry_price_sol: Option<Dec>,
+    #[serde(default)]
+    pub exit_reason: Option<ExitReason>,
+}
+/// `POST /v1/workspaces/{ws}/positions/{id}/close` 200 (`ClosePositionResponse`, contracts 1.1.2).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CloseResponse {
+    pub position: PositionWire,
+    pub order: OrderWire,
+    pub order_id: String,
+    #[serde(default)]
+    pub fill: Option<FillWire>,
+    /// int64 as a string (1.1.2).
+    #[serde(default, with = "seq::opt")]
+    pub job_id: Option<i64>,
+    /// `queued` | `filled` | `failed`.
+    pub status: String,
+    #[serde(default)]
+    pub replayed: bool,
+    pub server_now: IsoTs,
 }
 
 /// `GET /coins/{mint}/timeline` (v1.0 `/trail`): events by mint, seq ordered.
@@ -789,7 +1110,14 @@ pub struct ExitReasonStat {
     pub exit_reason: ExitReason,
     pub count: i64,
     pub pnl_lamports: Lamports,
-    pub avg_pnl_pct: Num,
+    /// 1.1.2: nullable.
+    #[serde(default)]
+    pub avg_pnl_pct: Option<Num>,
+    /// 1.1.2.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub win_rate_pct: Option<Num>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avg_hold_s: Option<Num>,
 }
 
 #[cfg(test)]
@@ -818,6 +1146,21 @@ mod tests {
         assert!(s.chars().count() <= 16);
         // Markup stays literal text; the UI renders it via text nodes only.
         assert!(s.starts_with("<b>"));
+    }
+
+    #[test]
+    fn seq_accepts_number_and_int64_string() {
+        let c: ClockMessage = serde_json::from_str(r#"{"server_now":"2026-10-29T08:42:00.000Z","safe_seq":18000}"#).unwrap();
+        assert_eq!(c.safe_seq, 18_000);
+        let c: ClockMessage = serde_json::from_str(r#"{"server_now":"2026-10-29T08:42:00.000Z","safe_seq":"9007199254740993"}"#).unwrap();
+        assert_eq!(c.safe_seq, 9_007_199_254_740_993, "beyond 2^53 stays exact");
+        assert!(serde_json::from_str::<ClockMessage>(r#"{"server_now":"x","safe_seq":"1e3"}"#).is_err());
+        assert_eq!(serde_json::to_value(&c).unwrap()["safe_seq"], "9007199254740993");
+        assert_eq!(pct_to_bps(25), Some(2_500));
+        assert_eq!(pct_to_bps(100), Some(FRACTION_BPS_MAX));
+        assert_eq!(pct_to_bps(0), None);
+        assert!(is_sol_quote(None) && is_sol_quote(Some(WSOL_MINT)));
+        assert!(!is_sol_quote(Some("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")));
     }
 
     #[test]

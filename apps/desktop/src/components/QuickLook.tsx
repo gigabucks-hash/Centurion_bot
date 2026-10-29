@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { core, type PickView, type PositionView, type TimelineItem } from "../api";
 import { useServerNow } from "./SignalQueue";
-import { fmtMmSs, fmtPnlPct, fmtPriceDec, fmtSignedSol, fmtSol, fmtTime, fmtUsd, shortMint, signClass } from "./format";
+import { pnlLamports, pnlPercent, pnlText, solText, TONE_CLASS, useLang, useT } from "../i18n";
+import { useTerm } from "../state/store";
+import { fmtMmSs, fmtPriceDec, fmtTime, fmtUsdLocale, shortMint } from "./format";
+import { NtChip, NtDetail } from "./NotTradeable";
 
 export type QuickLookTarget = { kind: "signal"; item: PickView } | { kind: "position"; item: PositionView };
 
@@ -24,7 +27,11 @@ function Timeline({ mint }: { mint: string }) {
  */
 export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClose: () => void }) {
   const now = useServerNow(1000);
+  const t = useT();
+  const lang = useLang();
+  const paper = useTerm((s) => s.mode) === "practice";
   const rows: [string, React.ReactNode][] = [];
+  const nt = target.item.tradeable === false;
   let title: string;
   if (target.kind === "signal") {
     const s = target.item;
@@ -34,8 +41,8 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
       ["Strategi", s.strategy],
       ["Fit", <span className="num">{s.score ?? "—"}/{s.score_threshold ?? "—"}</span>],
       ["Harga", <span className="num">{fmtPriceDec(s.price_sol)} SOL</span>],
-      ["Liq · Guard", <span className="num">{s.liquidity_usd != null ? fmtUsd(s.liquidity_usd) : "—"} · {s.guard_verdict ?? "—"}</span>],
-      ["Ukuran", <span className="num">{fmtSol(s.amount_lamports, 2)} SOL</span>],
+      ["Liq · Guard", <span className="num">{s.liquidity_usd != null ? fmtUsdLocale(s.liquidity_usd, lang) : "—"} · {s.guard_verdict ?? "—"}</span>],
+      ["Ukuran", <span className="num">{solText(s.amount_lamports, lang, paper)}</span>],
       ["Status", s.status === "pending" ? <span className={`num ${s.expires_at_ms - now < 120_000 ? "neg" : ""}`}>pending · {fmtMmSs(s.expires_at_ms - now)}</span> : s.status === "rejected" ? "skipped" : s.status],
       ["Alasan", s.reasons.join(" · ") || "—"],
       ["Timeline", <Timeline mint={s.mint} />],
@@ -47,13 +54,17 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
     rows.push(
       ["Mint", <span className="mono">{shortMint(p.mint)}</span>],
       ["Strategi", p.strategy],
-      ["Size", <span className="num">{fmtSol(p.cost_lamports, 3)} SOL</span>],
+      ["Size", <span className="num">{solText(p.cost_lamports, lang, paper)}</span>],
       ["Entry → Now", <span className="num">{fmtPriceDec(p.entry_price_sol)} → {fmtPriceDec(p.last_price_sol)}</span>],
       ["Peak", <span className="num">{fmtPriceDec(p.peak_price_sol)}</span>],
-      ["PnL", <span className={`num ${signClass(p.pnl_lamports)}`}>{fmtSignedSol(p.pnl_lamports)} SOL · {fmtPnlPct(p.pnl_pct)}</span>],
+      ["PnL", (() => {
+        const sol = pnlLamports(p.pnl_lamports, lang, paper);
+        const pct = pnlPercent(p.pnl_pct, lang);
+        return <span className={`num ${sol ? TONE_CLASS[sol.tone] : "muted"}`}>{pnlText(sol)} · {pnlText(pct)}</span>;
+      })()],
       ["Exit plan", <span>target profit 2x · trail dari puncak 20% {armed ? <b className="warn">aktif</b> : "setelah +30%"} · batas rugi −40%</span>],
       ["Hold", <span className="num">{Math.floor((now - p.opened_at_ms) / 60000)}m {Math.floor(((now - p.opened_at_ms) / 1000) % 60)}s</span>],
-      ["Rev", <span className="num">{p.rev ?? "—"}</span>],
+      ["Rev · decimals", <span className="num">{p.rev ?? "—"} · {p.decimals ?? "—"}</span>],
       ["Timeline", <Timeline key={p.mint} mint={p.mint} />],
     );
   }
@@ -61,15 +72,17 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
     <aside className="quicklook" role="dialog" aria-modal="false" aria-labelledby="ql-title">
       <header>
         <b id="ql-title">{title}</b>
+        {nt && <NtChip />}
         <span className="dim" style={{ marginLeft: "auto" }}><kbd>Space</kbd> / <kbd>Esc</kbd> tutup</span>
       </header>
+      {nt && <NtDetail trade={target.item} kind={target.kind === "position" ? "sell" : "approve"} />}
       <dl>
         {rows.map(([k, v]) => (
           <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
         ))}
       </dl>
-      {target.kind === "position" && <div className="dim">Sell: <kbd>⇧X</kbd> (dialog + tahan)</div>}
-      {target.kind === "signal" && <div className="dim"><kbd>A</kbd> approve · <kbd>S</kbd> skip · <kbd>↵</kbd> detach chart</div>}
+      {target.kind === "position" && <div className="dim">{nt ? t("desktop.nt.sell_unavailable") : <>Sell: <kbd>⇧X</kbd> (dialog + tahan)</>}</div>}
+      {target.kind === "signal" && <div className="dim">{nt ? t("queue.pick.cannot_approve") : <><kbd>A</kbd> {t("queue.pick.approve")}</>} · <kbd>S</kbd> {t("queue.pick.skip")} · <kbd>↵</kbd> chart</div>}
       <button className="ghost close" aria-label="Tutup quick-look" onClick={onClose}>×</button>
     </aside>
   );

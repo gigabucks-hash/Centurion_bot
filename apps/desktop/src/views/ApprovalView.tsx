@@ -1,23 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { core, type PickView, type ProposalExpiredReason } from "../api";
+import { core, type PickView } from "../api";
 import { fmtMmSs } from "../components/format";
+import { NtChip } from "../components/NotTradeable";
+import { errorText, solText, useLang, useT } from "../i18n";
 import { MockTtlBadge } from "../components/MockTtlBadge";
 import { useHotkeys } from "../hooks/useHotkeys";
-import { fmtSol } from "../components/format";
 import { pendingSorted, serverNow, useTerm } from "../state/store";
 
 const LOCK_MS = 600; // UX: anti mis-click — buttons locked each time the item changes/appears
 const EXPIRED_NOTICE_MS = 3000;
 
-const EXPIRED_TEXT: Partial<Record<ProposalExpiredReason, string>> = {
-  strategy_deleted: "Expired · strategi dihapus",
-  strategy_archived: "Expired · strategi diarsipkan",
-  guard_failed: "Expired · guard gagal",
-  price_moved: "Expired · harga bergerak",
-  practice_reset: "Expired · practice direset",
-  account_deleted: "Expired · akun dihapus",
-};
-const expiredText = (r: ProposalExpiredReason | null) => (r && EXPIRED_TEXT[r]) || "Expired · waktu habis";
 
 /**
  * Opt-in always-on-top approval popup (UX DESKTOP_COMPACT_AND_POPUP §4, WF-13). 360×232.
@@ -28,6 +20,8 @@ const expiredText = (r: ProposalExpiredReason | null) => (r && EXPIRED_TEXT[r]) 
  */
 export function ApprovalView() {
   const signals = useTerm((s) => s.signals);
+  const t = useT();
+  const lang = useLang();
   const mode = useTerm((s) => s.mode);
   const pending = useMemo(() => pendingSorted(signals), [signals]);
   const [curId, setCurId] = useState<string | null>(null);
@@ -68,9 +62,11 @@ export function ApprovalView() {
   const others = pending.filter((s) => s.id !== shown?.id);
   const isPending = shown?.status === "pending";
   const can = isPending && !locked;
-  const act = (fn: () => Promise<void>) => fn().then(() => setErr(null), (e) => setErr(String(e)));
+  // WF-20: not tradeable → Approve disabled (Rust refuses it too); Skip still allowed.
+  const nt = shown?.tradeable === false;
+  const act = (fn: () => Promise<void>) => fn().then(() => setErr(null), (e) => setErr(errorText(e, lang)));
   const approve = () => {
-    if (!can || !shown) return;
+    if (!can || !shown || nt) return;
     if (mode === "real") act(() => core.focusMainForSignal(shown.id));
     else act(() => core.approveSignal(shown.id));
   };
@@ -88,7 +84,7 @@ export function ApprovalView() {
     <div className="popup" role="dialog" aria-modal="false" aria-labelledby="popup-title" data-active={active || undefined}>
       <div className="mode-strip" aria-hidden />
       <div className="popup-bar" data-tauri-drag-region>
-        <span className="mode-label" role="status">{mode === "practice" ? "◇ PRACTICE" : "● REAL SOL"}</span>
+        <span className="mode-label" role="status">{mode === "practice" ? `◇ ${t("mode.practice.label")}` : `● ${t("mode.real.label")}`}</span>
         <MockTtlBadge sample={shown} />
         <span className="num" style={{ marginLeft: "auto" }}>{pending.length} menunggu</span>
       </div>
@@ -96,19 +92,21 @@ export function ApprovalView() {
         <div className="popup-body">
           <div className="popup-head">
             <b id="popup-title">${shown.symbol}</b>
-            <span className="chip">{shown.strategy.replace(/^Mock · /, "")}</span>
+            {nt ? <NtChip /> : <span className="chip">{shown.strategy.replace(/^Mock · /, "")}</span>}
             {isPending ? (
               <span className={`num ${left < 120_000 ? "neg" : "muted"}`} style={{ marginLeft: "auto" }}>⏱ {fmtMmSs(left)}</span>
             ) : (
-              <span className="muted" style={{ marginLeft: "auto" }}>{shown.status === "expired" ? expiredText(shown.expired_reason) : shown.status === "rejected" ? "Skipped" : "Approved"}</span>
+              <span className="muted" style={{ marginLeft: "auto" }}>{shown.status === "expired" ? t(`expire_reason.${shown.expired_reason ?? "timeout"}.badge`, undefined, "expire_reason.timeout.badge") : shown.status === "rejected" ? t("queue.tab.skipped") : t("queue.tab.approved")}</span>
             )}
           </div>
-          <div className="meta">{shown.strategy} · {fmtSol(shown.amount_lamports, 2)} SOL{shown.score != null ? ` · fit ${shown.score}/${shown.score_threshold}` : ""}</div>
+          <div className="meta">{nt ? t("screener.not_tradeable.detail") : <>{shown.strategy} · {solText(shown.amount_lamports, lang, mode === "practice")}</>}{!nt && shown.score != null ? ` · fit ${shown.score}/${shown.score_threshold}` : ""}</div>
           <div className="timerbar" aria-hidden><i style={{ width: `${isPending ? Math.max(0, Math.min(100, (left / total) * 100)) : 0}%` }} /></div>
           <div className="popup-actions">
-            <button disabled={!can} onClick={skip}>Skip <kbd>S</kbd></button>
-            {mode === "practice" ? (
-              <button className="primary" disabled={!can} onClick={approve}>Approve <kbd>A</kbd></button>
+            <button disabled={!can} onClick={skip}>{t("queue.pick.skip")} <kbd>S</kbd></button>
+            {nt ? (
+              <button className="cta-disabled" disabled aria-disabled="true">{t("queue.pick.cannot_approve")}</button>
+            ) : mode === "practice" ? (
+              <button className="primary" disabled={!can} onClick={approve}>{t("queue.pick.approve")} <kbd>A</kbd></button>
             ) : (
               <button className="real" disabled={!can} onClick={approve} title="Approve REAL hanya dari window utama (dialog + tahan 2,5 dtk)">Buka untuk approve ↗</button>
             )}

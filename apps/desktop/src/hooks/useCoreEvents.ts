@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { core, EVT, runtime, type Account, type ActivityView, type ConflictView, type PickView, type PositionView, type Settings, type StrategyView, type SyncStatus } from "../api";
+import { core, EVT, runtime, type Account, type ActivityView, type ConflictView, type PickView, type PositionView, type ScreenedCoin, type Settings, type StrategyView, type SyncStatus } from "../api";
 import { useTerm } from "../state/store";
 
 /** Hydrate from a snapshot, then apply pushed deltas. Every window runs this independently. */
@@ -20,6 +20,7 @@ export function useCoreEvents() {
         core.on<SyncStatus>(EVT.sync, st.setSync),
         core.on<StrategyView[]>(EVT.strategies, st.setStrategies),
         core.on<ConflictView>(EVT.conflict, st.setConflict),
+        core.on<ScreenedCoin>(EVT.screened, st.upsertScreened),
       ]);
       if (disposed) return subs.forEach((u) => u());
       unsubs.push(...subs);

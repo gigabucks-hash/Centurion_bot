@@ -20,8 +20,7 @@ pub const MAX_TICKS_PER_MINT: usize = 3_600;
 pub const CANDLE_SEC: i64 = 5;
 pub const SELL_QUOTE_TTL_MS: u64 = 15_000;
 const DEDUPE_CAP: usize = 10_000;
-/// Token decimals are not on the v1 wire (schema question Q1); pump.fun-style 6 assumed.
-pub const ASSUMED_TOKEN_DECIMALS: u32 = 6;
+pub const MAX_SCREENED: usize = 150;
 
 /// Window label of the always-on-top approval popup (UX DESKTOP_COMPACT_AND_POPUP §4).
 pub const POPUP_LABEL: &str = "approval-popup";
@@ -49,6 +48,24 @@ struct PickInfo {
     guard: Option<GuardVerdict>,
 }
 
+/// Per-mint facts from `coin.detected` / `screener.scored` / `order.failed` (1.1.2 fields).
+#[derive(Debug, Clone, Default)]
+struct CoinInfo {
+    venue: Option<Venue>,
+    decimals: Option<u8>,
+    token_program: Option<String>,
+    trade: Tradeability,
+}
+
+fn not_tradeable(code: &str, quote_mint: Option<String>) -> Tradeability {
+    let quote_symbol = quote_mint.as_deref().and_then(keys::quote_symbol);
+    Tradeability { tradeable: false, reason_code: Some(keys::error_code(code).to_owned()), quote_mint, quote_symbol }
+}
+fn tradeable_with(quote_mint: Option<String>) -> Tradeability {
+    let quote_symbol = quote_mint.as_deref().and_then(keys::quote_symbol);
+    Tradeability { tradeable: true, reason_code: None, quote_mint, quote_symbol }
+}
+
 #[derive(Debug, Clone)]
 struct Mark {
     price_sol: Dec,
@@ -68,6 +85,8 @@ pub struct Engine {
     pub signals: VecDeque<PickView>,
     positions: HashMap<String, PositionView>,
     picks: HashMap<String, PickInfo>,
+    coins: HashMap<String, CoinInfo>,
+    screened: VecDeque<ScreenedCoin>,
     strategies: HashMap<String, StrategyView>,
     marks: HashMap<String, Mark>,
     ticks: HashMap<String, VecDeque<TickView>>,
@@ -86,8 +105,10 @@ pub struct Engine {
     pub refetch_strategies: bool,
 }
 
-fn qty_ui(q: RawQty) -> Decimal {
-    Decimal::from_i128_with_scale(q.0 as i128, ASSUMED_TOKEN_DECIMALS)
+/// Raw → UI token amount. `None` when decimals are unknown: no "6" assumption (1.1.2 sends them).
+fn qty_ui(q: RawQty, decimals: Option<u8>) -> Option<Decimal> {
+    let d = decimals.filter(|d| *d <= 28)?;
+    Some(Decimal::from_i128_with_scale(q.0 as i128, d as u32))
 }
 fn lamports_of(sol: Decimal) -> Lamports {
     Lamports::from_sol(sol)
@@ -116,6 +137,8 @@ impl Engine {
             signals: VecDeque::new(),
             positions: HashMap::new(),
             picks: HashMap::new(),
+            coins: HashMap::new(),
+            screened: VecDeque::new(),
             strategies: HashMap::new(),
             marks: HashMap::new(),
             ticks: HashMap::new(),
@@ -177,7 +200,57 @@ impl Engine {
         self.account.unrealized_pnl_lamports = Some(p.unrealized_pnl_lamports);
         self.account.drawdown_pct = Some(p.drawdown_pct);
         self.account.as_of_seq = Some(p.as_of_seq);
+        if p.practice_epoch.is_some() {
+            self.account.epoch = p.practice_epoch;
+        }
         Out::Account(self.account.clone())
+    }
+
+    /// Tradeability of a mint as currently known (unknown coin → tradeable, like Backend).
+    pub fn trade_of(&self, mint: &str) -> Tradeability {
+        self.coins.get(mint).map(|c| c.trade.clone()).unwrap_or_default()
+    }
+
+    /// WF-20 gate shared by approve and sell commands.
+    pub fn check_tradeable(&self, mint: &str) -> AppResult<()> {
+        let t = self.trade_of(mint);
+        if t.tradeable {
+            Ok(())
+        } else {
+            Err(AppError::NotTradeable(t.reason_code.unwrap_or_else(|| UNSUPPORTED_QUOTE_MINT.into())))
+        }
+    }
+
+    /// Set a mint's tradeability and push it into every pending card / open position of that mint.
+    fn set_trade(&mut self, mint: &str, trade: Tradeability, outs: &mut Vec<Out>) {
+        let info = self.coins.entry(mint.to_owned()).or_default();
+        if info.trade == trade {
+            return;
+        }
+        info.trade = trade.clone();
+        for s in self.signals.iter_mut().filter(|s| s.mint == mint && s.status == ProposalStatus::Pending) {
+            s.trade = trade.clone();
+            outs.push(Out::SignalUpdate(s.clone()));
+        }
+        let mut touched = false;
+        for p in self.positions.values_mut().filter(|p| p.mint == mint) {
+            p.trade = trade.clone();
+            touched = true;
+        }
+        if touched {
+            outs.push(Out::Positions(self.positions_vec()));
+        }
+        if let Some(c) = self.screened.iter_mut().find(|c| c.mint == mint) {
+            c.trade = trade.clone();
+            if !trade.tradeable {
+                c.status = "not_tradeable".into();
+            }
+            outs.push(Out::Screened(c.clone()));
+        }
+    }
+
+    pub fn screened_vec(&self) -> Vec<ScreenedCoin> {
+        self.screened.iter().cloned().collect()
     }
 
     pub fn snapshot(&self) -> Snapshot {
@@ -188,6 +261,7 @@ impl Engine {
             signals: self.signals.iter().cloned().collect(),
             positions: self.positions_vec(),
             activity: self.activity.iter().take(300).cloned().collect(),
+            screened: self.screened_vec(),
             settings: self.settings.clone(),
             account: self.account.clone(),
             strategies: self.strategies_vec(),
@@ -223,7 +297,7 @@ impl Engine {
     pub fn note(&mut self, actor: Actor, tone: Tone, msg: impl Into<String>) -> Out {
         self.local_seq += 1;
         let ts = now_ms() as i64;
-        self.push_activity(ActivityView { id: format!("local:{ts}:{}", self.local_seq), seq: None, ts_ms: ts, actor, kind: "local.note".into(), tone, mint: None, symbol: None, message: msg.into() })
+        self.push_activity(ActivityView { id: format!("local:{ts}:{}", self.local_seq), seq: None, ts_ms: ts, actor, kind: "local.note".into(), tone, mint: None, symbol: None, message: msg.into(), i18n: None })
     }
 
     /// True if this envelope id was already applied (dedupe; ids are deterministic).
@@ -282,21 +356,84 @@ impl Engine {
             mint: env.mint.clone(),
             symbol: env.mint.as_ref().map(|_| sym.clone()),
             message: msg,
+            i18n: None,
         };
         let ck = env.ck.clone().unwrap_or_default();
+        let mut i18n: Option<I18nMsg> = None;
         let a = match known {
-            KnownEvent::CoinDetected(c) => act(Tone::Neutral, format!("Koin baru ({})", if c.venue == Venue::Curve { "curve" } else { "amm" })),
+            KnownEvent::CoinDetected(c) => {
+                let trade = if is_sol_quote(c.quote_mint.as_deref()) { tradeable_with(c.quote_mint.clone()) } else { not_tradeable(UNSUPPORTED_QUOTE_MINT, c.quote_mint.clone()) };
+                let info = self.coins.entry(c.mint.clone()).or_default();
+                info.venue = Some(c.venue);
+                info.decimals = c.decimals.or(info.decimals);
+                info.token_program = c.token_program.clone().map(|t| crate::model::plain_text(&t, 48)).or(info.token_program.take());
+                let flipped = !trade.tradeable;
+                self.set_trade(&c.mint, trade, &mut outs);
+                if flipped {
+                    i18n = Some(I18nMsg::new("screener.not_tradeable.badge"));
+                    act(Tone::Neutral, format!("Koin baru ({}) · tidak bisa ditradingkan (quote bukan SOL)", if c.venue == Venue::Curve { "curve" } else { "amm" }))
+                } else {
+                    act(Tone::Neutral, format!("Koin baru ({})", if c.venue == Venue::Curve { "curve" } else { "amm" }))
+                }
+            }
             KnownEvent::ScreenerScored(s) => {
                 let info = self.picks.entry(ck.clone()).or_default();
                 info.score = Some(s.result.score);
                 info.threshold = Some(s.result.score_threshold);
                 info.reasons = s.result.checks.iter().filter(|c| c.passed).map(|c| crate::model::plain_text(&c.reason, 40)).collect();
-                act(if s.passed { Tone::Good } else { Tone::Bad }, format!("Screener: fit {}/{}", s.result.score, s.result.score_threshold))
+                let quote = s.quote_mint.clone().or_else(|| s.result.quote_mint.clone()).or_else(|| self.coins.get(&s.mint).and_then(|c| c.trade.quote_mint.clone()));
+                let tradeable = s.tradeable.unwrap_or(s.result.tradeable) && is_sol_quote(quote.as_deref());
+                let skip = s.skip_reason.clone().or_else(|| s.result.skip_reason.clone());
+                let trade = if tradeable { tradeable_with(quote) } else { not_tradeable(skip.as_deref().unwrap_or(UNSUPPORTED_QUOTE_MINT), quote) };
+                let coin = self.coins.get(&s.mint).cloned().unwrap_or_default();
+                let row = ScreenedCoin {
+                    ck: ck.clone(),
+                    mint: s.mint.clone(),
+                    symbol: sym.clone(),
+                    name: env.untrusted.display_name(),
+                    venue: coin.venue,
+                    strategy: self.strategy_name(env.strategy_id.as_deref()),
+                    score: s.result.score,
+                    score_threshold: s.result.score_threshold,
+                    max_score: s.result.max_score,
+                    passed: s.passed && tradeable,
+                    guard_verdict: None,
+                    status: if !tradeable { "not_tradeable" } else if s.passed { "pending_guard" } else { "rejected_score" }.into(),
+                    liquidity_usd: self.marks.get(&s.mint).map(|m| m.liquidity_usd),
+                    decimals: coin.decimals,
+                    token_program: coin.token_program.clone(),
+                    ts_ms,
+                    trade: trade.clone(),
+                };
+                self.screened.retain(|c| c.ck != row.ck);
+                self.screened.push_front(row.clone());
+                self.screened.truncate(MAX_SCREENED);
+                outs.push(Out::Screened(row));
+                self.set_trade(&s.mint, trade, &mut outs);
+                if !tradeable {
+                    // WF-20: neutral, not an error; score is informational only.
+                    i18n = Some(I18nMsg::new("screener.not_tradeable.badge"));
+                    act(Tone::Neutral, format!("Screener: tidak bisa ditradingkan ({}) · skor {}/{} (info)", keys::error_code(skip.as_deref().unwrap_or(UNSUPPORTED_QUOTE_MINT)), s.result.score, s.result.max_score))
+                } else {
+                    i18n = s.passed.then(|| I18nMsg::new("feed.event.passed").text("coin", sym.clone()).arg("score", I18nArg::Num(s.result.score)).arg("pass", I18nArg::Num(s.result.score_threshold)));
+                    act(if s.passed { Tone::Good } else { Tone::Bad }, format!("Screener: fit {}/{}", s.result.score, s.result.score_threshold))
+                }
             }
             KnownEvent::GuardResult(g) => {
                 self.picks.entry(ck.clone()).or_default().guard = Some(g.verdict);
+                if let Some(c) = self.screened.iter_mut().find(|c| c.ck == ck) {
+                    c.guard_verdict = Some(g.verdict);
+                    if g.verdict == GuardVerdict::Fail {
+                        c.status = "rejected_guard".into();
+                        c.passed = false;
+                    }
+                    outs.push(Out::Screened(c.clone()));
+                }
                 match g.verdict {
-                    GuardVerdict::Fail => act(Tone::Guard, format!("Blocked: {}", g.reasons.join(", "))),
+                    GuardVerdict::Fail => {
+                        i18n = Some(I18nMsg::new("feed.event.blocked").text("coin", sym.clone()));
+                        act(Tone::Guard, format!("Blocked: {}", g.reasons.join(", ")))
+                    }
                     v => act(Tone::Good, format!("Guard {v:?}")),
                 }
             }
@@ -306,18 +443,31 @@ impl Engine {
                 info.score = Some(p.score.score);
                 info.threshold = Some(p.score.score_threshold);
                 info.guard = Some(p.guard_verdict);
+                if let Some(c) = self.screened.iter_mut().find(|c| c.ck == ck) {
+                    if c.trade.tradeable {
+                        c.status = "pick".into();
+                    }
+                    c.guard_verdict = Some(p.guard_verdict);
+                    outs.push(Out::Screened(c.clone()));
+                }
                 act(Tone::Info, "Pick dibuat".into())
             }
             KnownEvent::EntryArmed(e) => act(Tone::Neutral, format!("Entry armed ({})", crate::model::plain_text(&e.condition, 32))),
             KnownEvent::EntryExpired(e) => act(Tone::Neutral, format!("Entry expired: {}", crate::model::plain_text(&e.reason, 32))),
             KnownEvent::ProposalCreated(p) => {
                 let info = self.picks.get(&ck).cloned().unwrap_or_default();
-                let mark = env.mint.as_ref().and_then(|m| self.marks.get(m)).cloned();
+                // 1.1.2: proposal carries mint/symbol/price itself; fall back to the envelope/marks.
+                let mint = p.mint.clone().or_else(|| env.mint.clone()).unwrap_or_default();
+                let mark = self.marks.get(&mint).cloned();
+                let sym = match (&p.symbol, env.untrusted.symbol.is_none()) {
+                    (Some(s), true) => crate::model::Untrusted { symbol: Some(s.clone()), ..Default::default() }.display_symbol(Some(&mint)),
+                    _ => sym.clone(),
+                };
                 let view = PickView {
                     id: p.proposal_id.clone(),
                     version: p.version,
                     ck: ck.clone(),
-                    mint: env.mint.clone().unwrap_or_default(),
+                    mint: mint.clone(),
                     strategy_id: env.strategy_id.clone(),
                     strategy: self.strategy_name(env.strategy_id.as_deref()),
                     symbol: sym.clone(),
@@ -329,7 +479,7 @@ impl Engine {
                     guard_verdict: info.guard,
                     amount_lamports: p.amount_lamports,
                     first_buy: p.first_buy,
-                    price_sol: mark.as_ref().map(|m| m.price_sol),
+                    price_sol: mark.as_ref().map(|m| m.price_sol).or(p.price_sol),
                     price_usd: mark.as_ref().map(|m| m.price_usd),
                     liquidity_usd: mark.as_ref().map(|m| m.liquidity_usd),
                     created_at: env.ts.clone(),
@@ -338,6 +488,7 @@ impl Engine {
                     expires_at_ms: p.expires_at.ms().unwrap_or(ts_ms),
                     status: ProposalStatus::Pending,
                     expired_reason: None,
+                    trade: self.trade_of(&mint),
                 };
                 self.signals.retain(|s| s.id != view.id);
                 self.signals.push_front(view.clone());
@@ -348,8 +499,14 @@ impl Engine {
                         self.signals.pop_back();
                     }
                 }
+                let blocked = !view.trade.tradeable;
                 outs.push(Out::SignalNew(view));
-                act(Tone::Info, "Pick menunggu approval".into())
+                if blocked {
+                    i18n = Some(I18nMsg::new("queue.pick.cannot_approve"));
+                    act(Tone::Neutral, "Pick tidak bisa di-approve (tanpa pair SOL)".into())
+                } else {
+                    act(Tone::Info, "Pick menunggu approval".into())
+                }
             }
             KnownEvent::ProposalApproved(d) | KnownEvent::ProposalRejected(d) => {
                 let approved = env.kind == "proposal.approved";
@@ -359,6 +516,9 @@ impl Engine {
                     outs.push(Out::SignalUpdate(s.clone()));
                 }
                 let via = serde_json::to_value(d.decided_via).ok().and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_default();
+                if !approved {
+                    i18n = Some(I18nMsg::new("feed.event.skipped").text("coin", sym.clone()));
+                }
                 act(if approved { Tone::Good } else { Tone::Neutral }, format!("{} (via {via})", if approved { "Approved" } else { "Skipped" }))
             }
             KnownEvent::ProposalExpired(x) => {
@@ -369,6 +529,7 @@ impl Engine {
                     outs.push(Out::SignalUpdate(s.clone()));
                 }
                 let why = serde_json::to_value(x.reason).ok().and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_default();
+                i18n = Some(I18nMsg::new("feed.event.expired").text("coin", sym.clone()).arg("reason", I18nArg::Key(format!("expire_reason.{why}.badge"))));
                 act(Tone::Neutral, format!("Expired: {why}"))
             }
             KnownEvent::FillSimulated(f) => {
@@ -377,8 +538,10 @@ impl Engine {
             }
             KnownEvent::PositionOpened(p) => {
                 let price = p.fill.exec_price_sol;
+                let decimals = p.decimals.or_else(|| self.coins.get(&p.mint).and_then(|c| c.decimals));
                 let view = PositionView {
                     key: p.position_key.clone(),
+                    position_id: p.position_id.clone(),
                     ck: env.ck.clone(),
                     mint: p.mint.clone(),
                     strategy_id: env.strategy_id.clone(),
@@ -396,8 +559,10 @@ impl Engine {
                     ratio: 1.0,
                     peak_ratio: 1.0,
                     opened_at_ms: ts_ms,
-                    plan_state: serde_json::Value::Null,
-                    rev: None,
+                    plan_state: None,
+                    rev: p.rev,
+                    decimals,
+                    trade: self.trade_of(&p.mint),
                 };
                 let key = view.key.clone();
                 self.positions.insert(key.clone(), view);
@@ -405,24 +570,37 @@ impl Engine {
                     self.revalue(&key, m.price_sol);
                 }
                 outs.push(Out::Positions(self.positions_vec()));
+                i18n = Some(I18nMsg::new("feed.event.bought").text("coin", sym.clone()).arg("sol", I18nArg::Lamports(p.fill.sol_lamports)));
                 act(Tone::Good, format!("Posisi dibuka {}", fmt_sol(p.fill.sol_lamports)))
             }
             KnownEvent::PositionUpdated(u) => {
                 if let Some(p) = self.positions.get_mut(&u.position_key) {
-                    // Cost basis is not on the wire (Q3): scale by remaining quantity.
-                    if p.qty_raw.0 > 0 && u.qty_raw.0 < p.qty_raw.0 {
+                    if let Some(cb) = u.cost_basis_lamports {
+                        p.cost_lamports = cb; // 1.1.2: server cost basis
+                    } else if p.qty_raw.0 > 0 && u.qty_raw.0 < p.qty_raw.0 {
+                        // v1.1 fallback (Q3): scale by remaining quantity.
                         let f = Decimal::from(u.qty_raw.0 as u64) / Decimal::from(p.qty_raw.0 as u64);
                         p.cost_lamports = Lamports((Decimal::from_i128_with_scale(p.cost_lamports.0, 0) * f).round().to_i128().unwrap_or(0));
                     }
                     p.qty_raw = u.qty_raw;
                     p.peak_price_sol = p.peak_price_sol.max(u.peak_price_sol);
                     p.realized_lamports = u.realized_lamports;
-                    let mut ps = u.plan_state.clone();
-                    keys::normalize(&mut ps);
-                    p.plan_state = ps;
-                    p.rev = u.rev;
+                    if u.plan_state.is_some() {
+                        p.plan_state = u.plan_state.clone();
+                    }
+                    if let Some(avg) = u.avg_entry_price_sol {
+                        p.entry_price_sol = avg;
+                    }
+                    if u.rev.is_some() {
+                        p.rev = u.rev;
+                    }
                     let last = p.last_price_sol;
                     self.revalue(&u.position_key, last);
+                    if let (Some(un), Some(p)) = (u.unrealized_pnl_lamports, self.positions.get_mut(&u.position_key)) {
+                        if p.decimals.is_none() {
+                            p.pnl_lamports = un; // decimals unknown → trust the server's number
+                        }
+                    }
                     outs.push(Out::Positions(self.positions_vec()));
                 }
                 act(Tone::Info, format!("Posisi diperbarui (realized {})", fmt_signed_sol(u.realized_lamports)))
@@ -430,9 +608,10 @@ impl Engine {
             KnownEvent::PositionClosed(c) => {
                 self.positions.remove(&c.position_key);
                 outs.push(Out::Positions(self.positions_vec()));
+                i18n = Some(I18nMsg::new("feed.event.sold").text("coin", sym.clone()).arg("pnl", I18nArg::PnlLamports(c.pnl_lamports)).arg("reason", I18nArg::Key(format!("exit_reason.{}", keys::exit_id(c.exit_reason)))));
                 act(
                     if c.pnl_lamports.0 >= 0 { Tone::Good } else { Tone::Bad },
-                    format!("{}: keluar {} (PnL {}, {}%, hold {}s)", keys::exit_label(c.exit_reason), fmt_sol(c.sol_out_lamports), fmt_signed_sol(c.pnl_lamports), c.pnl_pct, c.hold_seconds),
+                    format!("{}: keluar {} (PnL {}, {}%, hold {}s)", keys::exit_label(c.exit_reason), fmt_sol(c.sol_out_lamports), fmt_signed_sol(c.pnl_lamports), c.pnl_pct.map(|x| x.to_string()).unwrap_or_else(|| "—".into()), c.hold_seconds),
                 )
             }
             KnownEvent::ExitTriggered(x) => act(Tone::Info, format!("{} {}% @ {} SOL", keys::exit_label(x.rule), x.sell_portion_pct, x.trigger_price_sol)),
@@ -500,8 +679,35 @@ impl Engine {
                 outs.push(Out::Connection(false));
                 act(Tone::Bad, "Akun dihapus — stream dihentikan".into())
             }
-            KnownEvent::SystemNotice(n) => act(Tone::Info, crate::model::plain_text(&n.message, 120)),
+            KnownEvent::SystemNotice(n) => {
+                let code = keys::error_code(&n.code).to_owned();
+                i18n = Some(I18nMsg::new(&format!("error.code.{}", code.to_lowercase())));
+                act(Tone::Info, crate::model::plain_text(&n.message, 120))
+            }
+            KnownEvent::OrderFailed(f) => {
+                let code = keys::error_code(&f.reason_code).to_owned();
+                if code == UNSUPPORTED_QUOTE_MINT {
+                    // Race (WF-20 note 4): the coin reached an order anyway → mark it not tradeable.
+                    self.set_trade(&f.mint, not_tradeable(&code, f.quote_mint.clone()), &mut outs);
+                }
+                let kind = keys::code_kind(&code);
+                i18n = Some(I18nMsg::new(&format!("order.fail_reason.{}", code.to_lowercase())));
+                act(if kind == keys::CodeKind::Error { Tone::Bad } else { Tone::Neutral }, format!("Order {} gagal: {code}", if f.side == FillSide::Buy { "buy" } else { "sell" }))
+            }
+            KnownEvent::OrderSubmitted(o) | KnownEvent::OrderFilled(o) => {
+                // 1.1.2: the close order moved the position rev → next close If-Match uses it.
+                if let Some(p) = self.positions.values_mut().find(|p| p.position_id.as_deref() == Some(o.position_id.as_str())) {
+                    if p.rev.map_or(true, |r| o.position_rev > r) {
+                        p.rev = Some(o.position_rev);
+                    }
+                    outs.push(Out::Positions(self.positions_vec()));
+                }
+                let status = crate::model::plain_text(&o.order.status, 12);
+                act(Tone::Info, format!("Order {} ({status}) · position rev {}", env.kind.trim_start_matches("order."), o.position_rev))
+            }
         };
+        let mut a = a;
+        a.i18n = i18n;
         outs.push(self.push_activity(a));
         outs
     }
@@ -510,7 +716,9 @@ impl Engine {
         let Some(p) = self.positions.get_mut(key) else { return };
         p.last_price_sol = price;
         p.peak_price_sol = p.peak_price_sol.max(price);
-        let value = lamports_of(qty_ui(p.qty_raw) * price.0);
+        // Decimals unknown → keep server-provided value/PnL (no guessed scale).
+        let Some(q) = qty_ui(p.qty_raw, p.decimals) else { return };
+        let value = lamports_of(q * price.0);
         p.value_lamports = value;
         p.pnl_lamports = Lamports(value.0 - p.cost_lamports.0);
         if p.cost_lamports.0 > 0 {
@@ -541,12 +749,20 @@ impl Engine {
             s.liquidity_usd = Some(m.liquidity_usd);
             updated.push(Out::SignalUpdate(s.clone()));
         }
+        if let Some(c) = self.screened.iter_mut().find(|c| c.mint == mint && c.liquidity_usd.is_none()) {
+            c.liquidity_usd = Some(m.liquidity_usd);
+            updated.push(Out::Screened(c.clone()));
+        }
         let keys: Vec<String> = self.positions.values().filter(|p| p.mint == mint).map(|p| p.key.clone()).collect();
         for k in &keys {
             self.revalue(k, m.price_sol);
         }
         // Drop history for mints nobody tracks any more.
-        let tracked: HashSet<String> = self.positions.values().map(|p| p.mint.clone()).chain(self.signals.iter().filter(|s| s.status == ProposalStatus::Pending).map(|s| s.mint.clone())).collect();
+        // Screener rows count too (WF-20: a not-tradeable coin's chart stays viewable); `screened` is itself bounded.
+        let tracked: HashSet<String> = self.positions.values().map(|p| p.mint.clone())
+            .chain(self.signals.iter().filter(|s| s.status == ProposalStatus::Pending).map(|s| s.mint.clone()))
+            .chain(self.screened.iter().map(|c| c.mint.clone()))
+            .collect();
         if self.ticks.len() > tracked.len() + 8 {
             self.ticks.retain(|k, _| tracked.contains(k));
             self.marks.retain(|k, _| tracked.contains(k));
@@ -577,6 +793,7 @@ impl Engine {
             return Err(AppError::Invalid("pct must be 1..=100".into()));
         }
         let p = self.positions.get(key).ok_or(AppError::NoPosition)?.clone();
+        self.check_tradeable(&p.mint)?;
         let quote = SellQuote { nonce: self.rng.hex(32), position_key: p.key.clone(), mint: p.mint.clone(), symbol: p.symbol.clone(), pct, est_sol_out_lamports: Self::est_sol_out(&p, pct), ttl_ms: SELL_QUOTE_TTL_MS };
         let now = now_ms();
         self.quotes.retain(|_, q| now - q.created_ms < SELL_QUOTE_TTL_MS);
@@ -584,14 +801,25 @@ impl Engine {
         Ok(quote)
     }
 
-    /// Step 2 of 2: consume the nonce (replay-safe) → (position_key, pct, position rev) for the server call.
-    pub fn take_quote(&mut self, nonce: &str) -> AppResult<(String, u8, Option<u64>)> {
+    /// Step 2 of 2: consume the nonce (replay-safe) → (position_key, position_id, pct, position rev).
+    pub fn take_quote(&mut self, nonce: &str) -> AppResult<(String, String, u8, Option<u64>)> {
         let p = self.quotes.remove(nonce).ok_or(AppError::QuoteInvalid)?;
         if now_ms() - p.created_ms >= SELL_QUOTE_TTL_MS {
             return Err(AppError::QuoteInvalid);
         }
-        let rev = self.positions.get(&p.quote.position_key).ok_or(AppError::NoPosition)?.rev;
-        Ok((p.quote.position_key, p.quote.pct, rev))
+        let pos = self.positions.get(&p.quote.position_key).ok_or(AppError::NoPosition)?;
+        self.check_tradeable(&pos.mint)?; // may have flipped between quote and confirm
+        let id = pos.position_id.clone().ok_or_else(|| AppError::Invalid("position has no server id yet".into()))?;
+        Ok((p.quote.position_key, id, p.quote.pct, pos.rev))
+    }
+
+    /// Close response (1.1.2): adopt the position's new `rev` immediately (next close If-Match).
+    pub fn apply_close(&mut self, r: &CloseResponse) -> Option<Out> {
+        let p = self.positions.get_mut(&r.position.position_key)?;
+        if p.rev.map_or(true, |old| r.position.rev > old) {
+            p.rev = Some(r.position.rev);
+        }
+        Some(Out::Positions(self.positions_vec()))
     }
 
     pub fn candles(&self, mint: &str) -> Vec<CandleView> {
@@ -641,7 +869,7 @@ mod tests {
 
     fn proposal(e: &mut Engine, seq: i64) {
         let exp = IsoTs::from_ms(now_ms() as i64 + 60_000);
-        e.apply_event(&env(seq, "proposal.created", json!({"proposal_id": "p1", "kind": "buy_pick", "version": 1, "expires_at": exp,
+        e.apply_event(&env(seq, "proposal.created", json!({"proposal_id": "p1", "kind": "buy_pick", "rev": 1, "expires_at": exp,
             "first_buy": true, "approval_mode": "ask_every_buy", "amount_lamports": "250000000", "risk_level": "low", "summary": "x",
             "base_rev": null, "weakening": false, "diff": null, "estimate": null})));
     }
@@ -661,7 +889,7 @@ mod tests {
         e.apply_event(&wrong);
         assert_eq!(e.sync.ignored, 2, "real-mode rows never applied");
         assert!(e.check_pending("p1").is_ok());
-        e.apply_event(&env(13, "proposal.expired", json!({"proposal_id": "p1", "kind": "buy_pick", "version": 2, "reason": "strategy_deleted", "at": IsoTs::from_ms(0)})));
+        e.apply_event(&env(13, "proposal.expired", json!({"proposal_id": "p1", "kind": "buy_pick", "rev": 2, "reason": "strategy_deleted", "at": IsoTs::from_ms(0)})));
         assert!(e.check_pending("p1").is_err());
         assert_eq!(e.signals[0].expired_reason, Some(ProposalExpiredReason::StrategyDeleted));
     }
@@ -669,7 +897,7 @@ mod tests {
     #[test]
     fn positions_value_from_marks_and_sell_nonce_is_one_shot() {
         let mut e = Engine::new(WS);
-        e.apply_event(&env(20, "position.opened", json!({"position_key": "ck1.0", "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "first_buy": true,
+        e.apply_event(&env(20, "position.opened", json!({"position_key": "ck1.0", "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "first_buy": true, "decimals": 6, "position_id": "pos_1", "rev": 1,
             "fill": {"sol_lamports": "250000000", "token_amount_raw": "1000000000", "exec_price_sol": "0.00025", "slippage_bps": 2.04,
                      "swap_fee_lamports": "3125000", "network_fee_lamports": "25000", "latency_ms": 450}})));
         let now = IsoTs::from_ms(now_ms() as i64);
@@ -683,14 +911,14 @@ mod tests {
         assert_eq!(p.ratio, 2.0);
         assert!(e.take_quote("bogus").is_err());
         let q = e.request_sell("ck1.0", 50).unwrap();
-        assert_eq!(e.take_quote(&q.nonce).unwrap(), ("ck1.0".to_string(), 50, None));
+        assert_eq!(e.take_quote(&q.nonce).unwrap(), ("ck1.0".to_string(), "pos_1".to_string(), 50, Some(1)), "close by position id with If-Match = position rev");
         assert!(e.take_quote(&q.nonce).is_err(), "nonce is one-shot");
     }
 
     #[test]
     fn practice_reset_drops_positions_and_account_events_are_graceful() {
         let mut e = Engine::new(WS);
-        e.apply_event(&env(20, "position.opened", json!({"position_key": "ck1.0", "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "first_buy": true,
+        e.apply_event(&env(20, "position.opened", json!({"position_key": "ck1.0", "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "first_buy": true, "decimals": 6, "position_id": "pos_1", "rev": 1,
             "fill": {"sol_lamports": "250000000", "token_amount_raw": "1000000000", "exec_price_sol": "0.00025", "slippage_bps": 2.04,
                      "swap_fee_lamports": "3125000", "network_fee_lamports": "25000", "latency_ms": 450}})));
         assert_eq!(e.positions.len(), 1);
@@ -733,5 +961,30 @@ mod tests {
         assert!(check_approve_origin(POPUP_LABEL, Mode::Real).is_err());
         assert!(check_approve_origin(POPUP_LABEL, Mode::Practice).is_ok());
         assert!(check_approve_origin("main", Mode::Real).is_ok());
+    }
+
+    #[test]
+    fn not_tradeable_blocks_approve_and_sell_locally_wf20() {
+        const M: &str = "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr";
+        let mut e = Engine::new(WS);
+        proposal(&mut e, 10);
+        e.apply_event(&env(11, "position.opened", json!({"position_key": "ck1.0", "position_id": "pos_1", "rev": 1, "practice_epoch": 1, "mint": M,
+            "first_buy": true, "decimals": 6, "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "fill": {"sol_lamports": "250000000", "token_amount_raw": "1000000000", "exec_price_sol": "0.00025", "slippage_bps": 2.04,
+                     "swap_fee_lamports": "3125000", "network_fee_lamports": "25000", "latency_ms": 450}})));
+        assert!(e.check_tradeable(M).is_ok());
+        let q = e.request_sell("ck1.0", 100).unwrap();
+        // pool migrates to USDC: 1.1.2 screener.scored top-level tradeable:false
+        e.apply_event(&env(12, "screener.scored", json!({"mint": M, "passed": false, "summary": "x", "rejected_by": "quote_mint", "failed": ["quote_mint"],
+            "tradeable": false, "skip_reason": "UNSUPPORTED_QUOTE_MINT", "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "result": {"passed": false, "score": 71, "score_threshold": 70, "max_score": 100, "checks": []}})));
+        let err = e.check_tradeable(M).unwrap_err().to_string();
+        assert!(err.starts_with("UNSUPPORTED_QUOTE_MINT:"), "{err}");
+        assert!(e.request_sell("ck1.0", 50).is_err(), "new sell quote refused");
+        assert!(e.take_quote(&q.nonce).is_err(), "quote taken before the flip is refused at confirm");
+        let row = e.screened.iter().find(|c| c.mint == M).expect("screener row stays visible");
+        assert_eq!((row.status.as_str(), row.trade.tradeable, row.trade.quote_symbol), ("not_tradeable", false, Some("USDC")));
+        assert!(e.positions["ck1.0"].trade.reason_code.as_deref() == Some("UNSUPPORTED_QUOTE_MINT"));
+        assert!(e.signals.iter().all(|p| !p.trade.tradeable), "pending pick is marked too");
     }
 }

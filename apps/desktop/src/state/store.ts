@@ -1,12 +1,14 @@
 import { create } from "zustand";
-import type { Account, ActivityView, ConflictView, Mode, PickView, PositionView, Settings, Snapshot, StrategyView, SyncStatus } from "../api";
+import type { Account, ActivityView, ConflictView, Mode, PickView, PositionView, ScreenedCoin, Settings, Snapshot, StrategyView, SyncStatus } from "../api";
 
 const MAX_FEED = 500;
+const MAX_SCREENED = 150;
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
   density: "compact",
   approval_popup: false,
+  locale: "id",
   shortcuts: { focus_terminal: "CommandOrControl+Shift+H", open_approvals: "CommandOrControl+Shift+A" },
 };
 
@@ -28,6 +30,8 @@ interface TermState {
   signals: PickView[];
   positions: PositionView[];
   activity: ActivityView[];
+  /** WF-20 screener rows (passed, rejected, not tradeable). */
+  screened: ScreenedCoin[];
   strategies: StrategyView[];
   settings: Settings;
   /** Last 409 on a write: conflict toast (auto-dismiss) — the data is already refreshed. */
@@ -39,6 +43,7 @@ interface TermState {
   hydrate: (s: Snapshot) => void;
   upsertSignal: (s: PickView) => void;
   pushActivity: (e: ActivityView) => void;
+  upsertScreened: (c: ScreenedCoin) => void;
   setPositions: (p: PositionView[]) => void;
   setConnected: (c: boolean) => void;
   setAccount: (a: Account) => void;
@@ -63,6 +68,7 @@ export const useTerm = create<TermState>((set) => ({
   signals: [],
   positions: [],
   activity: [],
+  screened: [],
   strategies: [],
   settings: DEFAULT_SETTINGS,
   conflict: null,
@@ -83,6 +89,7 @@ export const useTerm = create<TermState>((set) => ({
       signals: s.signals,
       positions: s.positions,
       activity: s.activity.slice(0, MAX_FEED),
+      screened: (s.screened ?? []).slice(0, MAX_SCREENED),
       strategies: s.strategies,
       settings: s.settings,
       cursorMint: pendingSorted(s.signals)[0]?.mint ?? null,
@@ -100,6 +107,11 @@ export const useTerm = create<TermState>((set) => ({
     }),
   pushActivity: (e) =>
     set((st) => (st.activity.some((x) => x.id === e.id) ? st : { activity: [e, ...st.activity].slice(0, MAX_FEED) })),
+  upsertScreened: (c) =>
+    set((st) => {
+      const i = st.screened.findIndex((x) => x.mint === c.mint);
+      return { screened: i >= 0 ? st.screened.map((x, j) => (j === i ? c : x)) : [c, ...st.screened].slice(0, MAX_SCREENED) };
+    }),
   setPositions: (positions) => set({ positions }),
   setConnected: (connected) => set({ connected }),
   setAccount: (account) => set({ account }),

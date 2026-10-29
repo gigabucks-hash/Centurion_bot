@@ -4,7 +4,7 @@
 
 use crate::model::ProposalStatus;
 use crate::state::AppState;
-use crate::view::{Account, ActivityView, ConflictView, PickView, PositionView, Settings, StrategyView, SyncStatus, TickView};
+use crate::view::{Account, ActivityView, ConflictView, PickView, PositionView, ScreenedCoin, Settings, StrategyView, SyncStatus, TickView};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 pub const SIGNAL_NEW: &str = "signal:new";
@@ -20,6 +20,8 @@ pub const SYNC: &str = "sync:status";
 pub const STRATEGIES: &str = "strategies:update";
 /// 409 on a write: conflict toast + refresh.
 pub const CONFLICT: &str = "write:conflict";
+/// Screener row added/updated (WF-20 coins list, incl. not-tradeable coins).
+pub const SCREENED: &str = "screener:update";
 /// Rust → main only: focus a pick and open its confirmation (popup hand-off).
 pub const FOCUS_SIGNAL: &str = "ui:focus-signal";
 
@@ -36,6 +38,7 @@ pub enum Out {
     Sync(SyncStatus),
     Strategies(Vec<StrategyView>),
     Conflict(ConflictView),
+    Screened(ScreenedCoin),
 }
 
 pub fn dispatch<R: Runtime>(app: &AppHandle<R>, outs: Vec<Out>) {
@@ -71,6 +74,7 @@ pub fn dispatch<R: Runtime>(app: &AppHandle<R>, outs: Vec<Out>) {
             Out::Sync(s) => app.emit(SYNC, s),
             Out::Strategies(s) => app.emit(STRATEGIES, s),
             Out::Conflict(c) => app.emit(CONFLICT, c),
+            Out::Screened(c) => app.emit(SCREENED, c),
         };
         if let Err(e) = res {
             log::warn!("emit failed: {e}");

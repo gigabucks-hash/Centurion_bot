@@ -8,6 +8,10 @@ pub enum AppError {
     NoPosition,
     #[error("sell quote expired or unknown — request a new one")]
     QuoteInvalid,
+    /// WF-20: coin cannot be traded in Practice (e.g. no SOL quote pair). Approve and sell are
+    /// refused locally before anything reaches the backend. Message starts with the registry code.
+    #[error("{0}: coin tidak bisa ditradingkan (tanpa pair SOL) — approve/sell diblokir")]
+    NotTradeable(String),
     #[error("invalid argument: {0}")]
     Invalid(String),
     #[error("{0}")]

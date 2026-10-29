@@ -3,6 +3,10 @@ import { useState } from "react";
 import { core, type Settings } from "../api";
 import { useTerm } from "../state/store";
 import { useHotkeys } from "../hooks/useHotkeys";
+import { errorText, useLang, useT } from "../i18n";
+
+/** Wire strategy status → @sentra/i18n `strategy.status.*` (unknown → raw value never shown: "—"). */
+const STATUS_KEY: Record<string, string> = { active: "strategy.status.running", running: "strategy.status.running", paused: "strategy.status.paused", draft: "strategy.status.draft" };
 
 /**
  * Strategy pause/resume (practice). Each write sends `If-Match: "<rev>"` = the rev shown here;
@@ -11,6 +15,8 @@ import { useHotkeys } from "../hooks/useHotkeys";
  */
 function StrategiesSection() {
   const strategies = useTerm((s) => s.strategies);
+  const t = useT();
+  const lang = useLang();
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const toggle = async (id: string, paused: boolean, rev: number) => {
@@ -19,7 +25,7 @@ function StrategiesSection() {
     try {
       await core.setStrategyPaused(id, paused, rev);
     } catch (e) {
-      setErr(String(e));
+      setErr(errorText(e, lang));
     } finally {
       setBusy(null);
     }
@@ -30,7 +36,7 @@ function StrategiesSection() {
       {strategies.map((s) => (
         <div className="toggle-row" key={s.id}>
           {/* name is server text, rendered as plain text */}
-          <span>{s.name} <span className="dim num">rev {s.rev} · {s.status}</span></span>
+          <span>{s.name} <span className="dim num">rev {s.rev} · {STATUS_KEY[s.status] ? t(STATUS_KEY[s.status]) : "—"}</span></span>
           <button className="sm" disabled={busy === s.id} onClick={() => toggle(s.id, s.status !== "paused", s.rev)}>
             {s.status === "paused" ? "Resume" : "Pause"}
           </button>
@@ -47,6 +53,7 @@ function PracticeResetSection() {
   const epoch = useTerm((s) => s.account.epoch);
   const [armed, setArmed] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const lang = useLang();
   if (mode !== "practice") return null;
   const reset = async () => {
     setArmed(false);
@@ -54,7 +61,7 @@ function PracticeResetSection() {
       await core.resetPractice();
       setMsg("Practice direset ke 30 SOL.");
     } catch (e) {
-      setMsg(String(e));
+      setMsg(errorText(e, lang));
     }
   };
   return (
@@ -80,6 +87,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const setSettings = useTerm((s) => s.setSettings);
   const [cfg, setCfg] = useState<Settings>(current);
   const [err, setErr] = useState<string | null>(null);
+  const t = useT();
   useHotkeys({ escape: onClose });
 
   const save = async () => {
@@ -87,7 +95,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       setSettings(await core.setSettings(cfg));
       onClose();
     } catch (e) {
-      setErr(String(e));
+      setErr(errorText(e, cfg.locale));
     }
   };
   const sc = cfg.shortcuts;
@@ -102,6 +110,13 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <option value="dark">Dark (default)</option>
             <option value="light">Light</option>
             <option value="system">Ikuti OS</option>
+          </select>
+        </label>
+        <label>
+          <div className="muted">{t("desktop.settings.language")}</div>
+          <select value={cfg.locale} onChange={(e) => setCfg({ ...cfg, locale: e.target.value as Settings["locale"] })} data-testid="locale">
+            <option value="id">Bahasa Indonesia (id-ID)</option>
+            <option value="en">English (en-US)</option>
           </select>
         </label>
         <label>
@@ -145,7 +160,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         <PracticeResetSection />
         {err && <div className="neg" style={{ marginTop: 8 }}>{err}</div>}
         <div className="actions">
-          <button autoFocus onClick={onClose}>Batal</button>
+          <button autoFocus onClick={onClose}>{t("common.action.cancel")}</button>
           <button className="primary" onClick={save}>Simpan</button>
         </div>
       </div>

@@ -1,14 +1,23 @@
-import type { PositionView } from "../api";
-import { fmtPnlPct, fmtPriceDec, fmtSignedSol, fmtSol, signClass } from "./format";
+import type { PlanState, PositionView } from "../api";
+import { pnlLamports, pnlPercent, pnlText, solText, TONE_CLASS, useLang, useT, type Lang } from "../i18n";
+import { useTerm } from "../state/store";
+import { fmtPriceDec } from "./format";
+import { NtChip } from "./NotTradeable";
 
 /**
- * Exit plan of the mock strategy (backend/mock.rs settings, v1.1 names): loss_guards max_loss_pct 40
- * (0.6×), profit_targets at_gain_pct 100 (2×), peak_trail_pct 20 armed after +30 %.
- * `plan_state` is `unknown` in the contract (schema question) so the bar uses ratio / peak_ratio.
+ * Exit plan thresholds. 1.1.2: read from the typed `plan_state` (discriminated PlanStep); falls
+ * back to the mock strategy defaults (loss guard −40 % from entry, profit target 2×, peak trail 20 %
+ * armed after +30 %) until the first `position.updated` carries one.
  */
-const LOSS_GUARD = 0.6;
-const PROFIT_TARGET = 2.0;
-const TRAIL_ARM = 1.3;
+function planOf(ps: PlanState | null) {
+  let loss = 0.6, target = 2.0, trailPct = 20, armed: boolean | null = null;
+  for (const s of ps?.steps ?? []) {
+    if (s.kind === "loss_guard") loss = 1 - s.at_loss_pct / 100;
+    else if (s.kind === "profit_target") target = 1 + s.at_gain_pct / 100;
+    else if (s.kind === "peak_trail") (trailPct = s.trail_pct), (armed = s.armed);
+  }
+  return { loss, target, trailPct, armed, trailArm: 1.3 };
+}
 
 const fmtHold = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -16,13 +25,15 @@ const fmtHold = (ms: number) => {
 };
 
 /** Exit progress (WF-11): red = loss-guard side, marker = price between loss guard and profit target, dots = trail arm / target. */
-function ExitBar({ p }: { p: PositionView }) {
+function ExitBar({ p, lang }: { p: PositionView; lang: Lang }) {
+  const plan = planOf(p.plan_state);
   const r = p.ratio;
-  const pos = Math.max(0, Math.min(1, (r - LOSS_GUARD) / (PROFIT_TARGET - LOSS_GUARD)));
-  const entry = (1 - LOSS_GUARD) / (PROFIT_TARGET - LOSS_GUARD);
-  const trail = (TRAIL_ARM - LOSS_GUARD) / (PROFIT_TARGET - LOSS_GUARD);
-  const armed = p.peak_ratio >= TRAIL_ARM;
-  const label = `Exit plan: batas rugi −40%, trail dari puncak 20% ${armed ? "aktif" : "setelah +30%"}, target profit 2x; harga ${fmtPnlPct((r - 1) * 100)}`;
+  const span = plan.target - plan.loss;
+  const pos = Math.max(0, Math.min(1, (r - plan.loss) / span));
+  const entry = (1 - plan.loss) / span;
+  const trail = (plan.trailArm - plan.loss) / span;
+  const armed = plan.armed ?? p.peak_ratio >= plan.trailArm;
+  const label = `Exit plan: batas rugi −${Math.round((1 - plan.loss) * 100)}%, trail dari puncak ${plan.trailPct}% ${armed ? "aktif" : "setelah +30%"}, target profit ${plan.target}x; harga ${pnlText(pnlPercent((r - 1) * 100, lang))}`;
   return (
     <span className="exitbar" role="img" aria-label={label} title={label}>
       <i className="sl" style={{ width: `${entry * 100}%` }} />
@@ -35,15 +46,19 @@ function ExitBar({ p }: { p: PositionView }) {
 }
 
 export function PositionsSummary({ positions }: { positions: PositionView[] }) {
+  const t = useT();
+  const lang = useLang();
+  const paper = useTerm((s) => s.mode) === "practice";
   let used = 0n;
   let un = 0n;
   for (const p of positions) {
     used += BigInt(p.cost_lamports);
     un += BigInt(p.pnl_lamports);
   }
+  const pnl = pnlLamports(un.toString(), lang, paper);
   return (
     <span className="muted num">
-      {positions.length} open · {fmtSol(used.toString(), 2)} SOL terpakai · unrealized <span className={signClass(un.toString())}>{fmtSignedSol(un.toString())} SOL</span>
+      {t("positions.open_count", { count: positions.length })} · {solText(used.toString(), lang, paper)} · unrealized <span className={pnl ? TONE_CLASS[pnl.tone] : "muted"}>{pnlText(pnl)}</span>
     </span>
   );
 }
@@ -58,28 +73,43 @@ export function PositionsTable({ positions, cursorMint, onCursor, onFocusRow, on
   /** server-clock now */
   now?: number;
 }) {
-  if (!positions.length) return <div className="empty">Tidak ada posisi (paper)</div>;
+  const t = useT();
+  const lang = useLang();
+  const paper = useTerm((s) => s.mode) === "practice";
+  if (!positions.length) return <div className="empty">{t("desktop.positions.empty")}</div>;
   return (
     <table className="positions">
       <thead>
         <tr><th>Coin</th><th>Strategi</th><th>Size</th><th>Entry → Now</th><th>PnL SOL</th><th>PnL %</th><th>Exit plan</th><th>Hold</th><th /></tr>
       </thead>
       <tbody>
-        {positions.map((p) => (
-          <tr key={p.key} className={p.mint === cursorMint ? "cursor" : ""} aria-selected={p.mint === cursorMint} tabIndex={0} data-row="position" data-mint={p.mint} data-key={p.key}
-            onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) onCursor(p.mint); }}
-            onFocus={(e) => e.target === e.currentTarget && onFocusRow?.(p.mint)}>
-            <td><b>${p.symbol}</b></td>
-            <td className="muted">{p.strategy.replace(/^Mock · /, "")}</td>
-            <td className="num">{fmtSol(p.cost_lamports, 2)}</td>
-            <td className="num">{fmtPriceDec(p.entry_price_sol)} → {fmtPriceDec(p.last_price_sol)}</td>
-            <td className={`num ${signClass(p.pnl_lamports)}`}>{fmtSignedSol(p.pnl_lamports)}</td>
-            <td className={`num ${p.pnl_pct > 0.05 ? "pos" : p.pnl_pct < -0.05 ? "neg" : "muted"}`}>{fmtPnlPct(p.pnl_pct)}</td>
-            <td><ExitBar p={p} /></td>
-            <td className="num muted">{fmtHold(now - p.opened_at_ms)}</td>
-            <td><button className="sm" onClick={(e) => { e.stopPropagation(); onSell(p); }}>Sell <kbd>⇧X</kbd></button></td>
-          </tr>
-        ))}
+        {positions.map((p) => {
+          const sol = pnlLamports(p.pnl_lamports, lang, paper);
+          const pct = pnlPercent(p.pnl_pct, lang);
+          const nt = p.tradeable === false;
+          return (
+            <tr key={p.key} className={`${p.mint === cursorMint ? "cursor" : ""}${nt ? " nt-row" : ""}`} aria-selected={p.mint === cursorMint} tabIndex={0}
+              data-row="position" data-mint={p.mint} data-key={p.key} data-tradeable={String(!nt)}
+              onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) onCursor(p.mint); }}
+              onFocus={(e) => e.target === e.currentTarget && onFocusRow?.(p.mint)}>
+              <td><b>${p.symbol}</b> {nt && <NtChip title={t("desktop.nt.sell_detail")} />}</td>
+              <td className="muted">{p.strategy.replace(/^Mock · /, "")}</td>
+              <td className="num">{solText(p.cost_lamports, lang, paper)}</td>
+              <td className="num">{fmtPriceDec(p.entry_price_sol)} → {fmtPriceDec(p.last_price_sol)}</td>
+              <td className={`num ${sol ? TONE_CLASS[sol.tone] : "muted"}`}>{pnlText(sol)}</td>
+              <td className={`num ${pct ? TONE_CLASS[pct.tone] : "muted"}`}>{pnlText(pct)}</td>
+              <td><ExitBar p={p} lang={lang} /></td>
+              <td className="num muted">{fmtHold(now - p.opened_at_ms)}</td>
+              <td>
+                {nt ? (
+                  <button className="sm cta-disabled" disabled aria-disabled="true" data-action="sell">{t("desktop.nt.sell_unavailable")}</button>
+                ) : (
+                  <button className="sm" data-action="sell" onClick={(e) => { e.stopPropagation(); onSell(p); }}>Sell <kbd>⇧X</kbd></button>
+                )}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );

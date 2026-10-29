@@ -1,6 +1,6 @@
 /**
  * Desktop-only UI types (IPC view-model). **Wire types come from the contracts package**
- * (`@sentra/contracts/wire` = packages/contracts/src/wire, v1.1.x) and are re-exported below; this
+ * (`@sentra/contracts/wire` = packages/contracts/src/wire, v1.1.2) and are re-exported below; this
  * file only adds what the desktop composes on top of them.
  *
  * Rust mirror: src-tauri/src/view.rs (snake_case, same as the wire). Same value rules as the wire:
@@ -12,9 +12,11 @@ import type {
   DecimalString,
   ExitReason,
   GuardVerdict,
+  Int64String,
   IsoTs,
   Lamports,
   Mode,
+  PlanState,
   ProposalExpiredReason,
   ProposalStatus,
   RawQty,
@@ -22,13 +24,56 @@ import type {
 } from "@sentra/contracts/wire";
 
 export type * from "@sentra/contracts/wire";
-export { lamportsToSol, LAMPORTS_PER_SOL, CONTRACTS_VERSION, EXIT_REASONS } from "@sentra/contracts/wire";
+export { lamportsToSol, LAMPORTS_PER_SOL, CONTRACTS_VERSION, EXIT_REASONS, ERROR_CODES } from "@sentra/contracts/wire";
+import type { I18nMsg } from "../i18n";
+export type { I18nMsg };
+
+/** int64 seq / cursor / job id strings (1.1.2): compare as BigInt, never as float. */
+export const seqCmp = (a: Int64String, b: Int64String) => {
+  const x = BigInt(a), y = BigInt(b);
+  return x < y ? -1 : x > y ? 1 : 0;
+};
+
+/**
+ * WF-20 tradeability (view.rs `Tradeability`, flattened). A coin with no SOL quote pair is NOT an
+ * error: neutral chip, no Approve / Sell (blocked in Rust too), reason code shown for support.
+ */
+export interface Tradeability {
+  tradeable: boolean;
+  /** errors.json code, e.g. `UNSUPPORTED_QUOTE_MINT` (kind `skip`). */
+  reason_code: string | null;
+  quote_mint: string | null;
+  /** Static label for well-known quote mints (USDC/USDT) — never token metadata. */
+  quote_symbol: string | null;
+}
+
+/** WF-20 screener row: every scored coin (passed, rejected, not tradeable), newest first. */
+export interface ScreenedCoin extends Tradeability {
+  ck: string;
+  mint: string;
+  /** Untrusted metadata, plain text. */
+  symbol: string;
+  name: string | null;
+  venue: "curve" | "amm" | null;
+  strategy: string;
+  score: number;
+  score_threshold: number;
+  max_score: number;
+  passed: boolean;
+  guard_verdict: GuardVerdict | null;
+  status: "pick" | "pending_guard" | "rejected_score" | "rejected_guard" | "not_tradeable";
+  liquidity_usd: number | null;
+  decimals: number | null;
+  token_program: string | null;
+  ts_ms: number;
+}
 
 /** Buy proposal joined with its pick + latest mark (proposal.created + pick.created + mark). */
-export interface PickView {
+export interface PickView extends Tradeability {
   /** proposal_id */
   id: Uuid;
-  version: number;
+  /** Approval rev (1.1.2; was `version`). */
+  rev: number;
   ck: string;
   mint: string;
   strategy_id: Uuid | null;
@@ -56,8 +101,10 @@ export interface PickView {
   expired_reason: ProposalExpiredReason | null;
 }
 
-export interface PositionView {
+export interface PositionView extends Tradeability {
   key: string;
+  /** Server position id (1.1.2 close path `/positions/{id}/close`). */
+  position_id: Uuid | null;
   ck: string | null;
   mint: string;
   strategy_id: Uuid | null;
@@ -75,15 +122,18 @@ export interface PositionView {
   ratio: number;
   peak_ratio: number;
   opened_at_ms: number;
-  plan_state: unknown;
+  /** 1.1.2 typed exit-plan state (discriminated PlanStep), null until the first position.updated. */
+  plan_state: PlanState | null;
   rev: number | null;
+  /** Mint decimals (1.1.2; never assumed 6). null = unknown → no revalue. */
+  decimals: number | null;
 }
 
 export type Tone = "neutral" | "good" | "bad" | "guard" | "info";
 
 export interface ActivityView {
   id: string;
-  seq: number | null;
+  seq: Int64String | null;
   ts_ms: number;
   actor: Actor;
   /** Wire event type or `local.note`. */
@@ -91,7 +141,10 @@ export interface ActivityView {
   tone: Tone;
   mint: string | null;
   symbol: string | null;
+  /** Plain-text fallback (Indonesian). */
   message: string;
+  /** Localisable text: rendered from @sentra/i18n with `args` in the UI locale. */
+  i18n?: I18nMsg;
 }
 
 export interface TickView {
@@ -123,7 +176,7 @@ export interface Account {
   equity_lamports: Lamports | null;
   unrealized_pnl_lamports: Lamports | null;
   drawdown_pct: number | null;
-  as_of_seq: number | null;
+  as_of_seq: Int64String | null;
   epoch: number | null;
   workspace_rev: number | null;
   /** account.deletion_* banner (plain text). */
@@ -153,7 +206,7 @@ export interface ConflictView {
 }
 
 export interface TimelineItem {
-  seq: number;
+  seq: Int64String;
   ts: IsoTs;
   kind: string;
   actor: Actor;
@@ -163,12 +216,15 @@ export interface ExitReasonStatView {
   label: string;
   count: number;
   pnl_lamports: Lamports;
-  avg_pnl_pct: number;
+  /** null when cost basis is zero (1.1.2). */
+  avg_pnl_pct: number | null;
+  win_rate_pct: number | null;
+  avg_hold_s: number | null;
 }
 
 export interface SyncStatus {
   workspace_id: Uuid;
-  watermark: number;
+  watermark: Int64String;
   gaps_seen: number;
   resyncs: number;
   recovered: number;
@@ -186,8 +242,11 @@ export interface ShortcutConfig {
 }
 export type Density = "compact" | "comfortable";
 export type Theme = "dark" | "light" | "system";
+/** UI language = number locale (@sentra/i18n). Default `id`. */
+export type Locale = "id" | "en";
 export interface Settings {
   theme: Theme;
+  locale: Locale;
   density: Density;
   approval_popup: boolean;
   shortcuts: ShortcutConfig;
@@ -200,6 +259,7 @@ export interface Snapshot {
   signals: PickView[];
   positions: PositionView[];
   activity: ActivityView[];
+  screened: ScreenedCoin[];
   settings: Settings;
   account: Account;
   strategies: StrategyView[];
@@ -221,6 +281,7 @@ export const EVT = {
   strategies: "strategies:update",
   conflict: "write:conflict",
   focusSignal: "ui:focus-signal",
+  screened: "screener:update",
 } as const;
 export type EvtName = (typeof EVT)[keyof typeof EVT];
 

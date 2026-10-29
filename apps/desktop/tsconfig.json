@@ -13,7 +13,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "types": ["vite/client"],
-    "paths": { "@sentra/contracts/wire": ["../../packages/contracts/src/wire/index.ts"] }
+    "resolveJsonModule": true,
+    "paths": {
+      "@sentra/contracts/wire": ["../../packages/contracts/src/wire/index.ts"],
+      "@sentra/i18n/*": ["../../packages/i18n/*"]
+    }
   },
   "include": ["src", "../../packages/contracts/src/wire"]
 }

@@ -85,7 +85,8 @@ fn events_schema_examples_deserialize() {
                 seen.4 += 1;
             } else if v.get("deep_link").is_some() {
                 // Push payload (§6): mobile-only; desktop just checks it is versioned and practice.
-                assert_eq!(v["v"], 1);
+                // 1.1.1: number; 1.1.2: every FCM data value is a string ("1").
+                assert!(v["v"] == 1 || v["v"] == "1", "push v");
                 assert_eq!(v["mode"], "practice");
                 seen.5 += 1;
             }
@@ -102,10 +103,11 @@ fn api_endpoints_409_body_maps_to_conflict() {
         .flatten()
         .find(|v| v["error"]["code"] == "STRATEGY_REV_CONFLICT")
         .expect("409 example in API_ENDPOINTS.md");
-    let typed: ConflictBody = serde_json::from_value(body.clone()).expect("ConflictBody");
-    assert!(typed.current_rev > typed.base_rev);
+    // v1.1 puts merge data next to `error`; 1.1.2 moves it inside `error` — both must map.
+    let _typed: ConflictBody = serde_json::from_value(body.clone()).expect("ConflictBody");
     let f = ApiFailure::from_body(409, &body);
     let c = f.conflict().expect("conflict");
+    assert!(c.current_rev > c.base_rev, "current_rev > base_rev");
     assert!(!c.changed_fields.is_empty() && c.current.is_some() && c.changed_by.is_some());
     let cur: StrategySummary = serde_json::from_value(c.current.clone().unwrap()).expect("current is a strategy");
     assert_eq!(Some(cur.rev), c.current_rev);
@@ -113,23 +115,49 @@ fn api_endpoints_409_body_maps_to_conflict() {
 
 #[test]
 fn errors_json_has_the_codes_the_desktop_handles() {
+    // errors.json v4 (contracts 1.1.2): single registry, every code has kind / sqlstate / messages.en|id.
     let v: serde_json::Value = serde_json::from_str(&read("errors.json")).unwrap();
-    let codes: Vec<(&str, u64)> = v["codes"].as_array().unwrap().iter().map(|c| (c["code"].as_str().unwrap(), c["http"].as_u64().unwrap())).collect();
-    for (code, http) in [
-        ("VERSION_CONFLICT", 409),
-        ("STRATEGY_REV_CONFLICT", 409),
-        ("CONFIRMATION_RESTART_REQUIRED", 409),
-        ("PRECONDITION_REQUIRED", 428),
-        ("RESET_COOLDOWN", 429),
-        ("REAL_SOL_DISABLED", 0),
-        ("APPROVAL_EXPIRED", 0),
-        ("APPROVAL_TOKEN_INVALID", 0),
-        ("IDEMPOTENCY_KEY_REUSED", 0),
-    ] {
-        let found = codes.iter().find(|c| c.0 == code).unwrap_or_else(|| panic!("{code} missing from errors.json"));
-        if http != 0 {
-            assert_eq!(found.1, http, "{code} http");
+    assert_eq!(v["version"], 4, "errors.json version");
+    let codes = v["codes"].as_array().unwrap();
+    for c in codes {
+        let code = c["code"].as_str().unwrap();
+        let kind = c["kind"].as_str().unwrap_or_else(|| panic!("{code} kind"));
+        assert!(["error", "notice", "skip"].contains(&kind), "{code} kind {kind}");
+        assert!(c["sqlstate"].as_str().is_some_and(|s| s.starts_with("P0")), "{code} sqlstate");
+        for loc in ["en", "id"] {
+            assert!(c["messages"][loc].as_str().is_some_and(|m| !m.is_empty()), "{code} messages.{loc}");
         }
+        // the desktop's classification must agree with the registry for every code it knows
+        let ours = match crate::keys::code_kind(code) {
+            crate::keys::CodeKind::Error => "error",
+            crate::keys::CodeKind::Notice => "notice",
+            crate::keys::CodeKind::Skip => "skip",
+        };
+        assert_eq!(ours, kind, "{code}: keys::code_kind disagrees with errors.json");
+    }
+    let find = |code: &str| codes.iter().find(|c| c["code"] == code);
+    assert!(find("TELEGRAM_AUTH_INVALID").is_none(), "removed in 1.1.2");
+    assert!(find("PAPER_CASH_INSUFFICIENT").is_none(), "renamed PRACTICE_CASH_INSUFFICIENT");
+    for (code, http, kind) in [
+        ("VERSION_CONFLICT", 409, "error"),
+        ("STRATEGY_REV_CONFLICT", 409, "error"),
+        ("CONFIRMATION_RESTART_REQUIRED", 409, "error"),
+        ("PRECONDITION_REQUIRED", 428, "error"),
+        ("RESET_COOLDOWN", 429, "error"),
+        ("IDEMPOTENCY_KEY_REUSED", 422, "error"),
+        ("POSITION_ALREADY_CLOSED", 409, "error"),
+        ("INVALID_FRACTION", 422, "error"),
+        ("UNSUPPORTED_QUOTE_MINT", 0, "skip"),
+        ("PRACTICE_CASH_INSUFFICIENT", 0, "notice"),
+        ("REAL_SOL_DISABLED", 0, "error"),
+        ("APPROVAL_EXPIRED", 0, "error"),
+        ("APPROVAL_TOKEN_INVALID", 0, "error"),
+    ] {
+        let c = find(code).unwrap_or_else(|| panic!("{code} missing from errors.json"));
+        if http != 0 {
+            assert_eq!(c["http"], http, "{code} http");
+        }
+        assert_eq!(c["kind"], kind, "{code} kind");
     }
 }
 
@@ -167,4 +195,41 @@ fn ts_vocabularies_match_rust_enums() {
         };
         assert_eq!(KnownEvent::decode(&env).is_some(), !IGNORED.contains(&t), "desktop decoder coverage for {t}");
     }
+}
+
+/// 1.1.2 typed wire: the published `PlanState` / `FillWire` examples and both API error bodies
+/// decode into the Rust mirror (no opaque JSON left for these).
+#[test]
+fn contracts_1_1_2_typed_examples_decode() {
+    let mut seen = (0, 0);
+    for v in json_blocks(&read("EVENTS_SCHEMA.md")).into_iter().flatten() {
+        if v.get("steps").is_some() && v.get("preset").is_some() {
+            let p: PlanState = serde_json::from_value(v.clone()).expect("PlanState");
+            assert!(!p.steps.is_empty() && !p.steps.iter().any(|s| matches!(s, PlanStep::Unknown)), "every PlanStep kind known");
+            seen.0 += 1;
+        } else if v.get("mid_price_sol").is_some() && v.get("practice_epoch").is_some() {
+            let f: FillWire = serde_json::from_value(v.clone()).expect("FillWire");
+            assert!(f.id.is_some() && f.practice_epoch.is_some() && f.created_at.is_some());
+            seen.1 += 1;
+        }
+    }
+    assert_eq!(seen, (1, 1), "PlanState + FillWire examples present");
+    let errs: Vec<_> = json_blocks(&read("API_ENDPOINTS.md")).into_iter().flatten().filter(|v| v.get("error").is_some()).collect();
+    assert!(errs.len() >= 2);
+    for b in &errs {
+        let e: ApiError = serde_json::from_value(b.clone()).expect("ApiError {error:{code,message,...,server_now}, server_now}");
+        assert!(!e.error.code.is_empty());
+        if b["error"].get("current_rev").is_some() {
+            let c: ConflictBody = serde_json::from_value(b.clone()).expect("ConflictBody (details inside error)");
+            assert!(c.error.current_rev > c.error.base_rev);
+            if c.error.code == "STRATEGY_REV_CONFLICT" {
+                assert!(!c.error.current.is_null() && c.error.changed_by.is_some());
+            }
+        }
+    }
+    // seq / job_id are int64 strings; numbers are still accepted on input
+    let j: JobWire = serde_json::from_value(serde_json::json!({"id": "9007199254740993", "kind": "close_position", "status": "done", "attempts": 1,
+        "last_error": null, "created_at": "2026-10-29T10:00:00Z", "updated_at": "2026-10-29T10:00:01Z"})).unwrap();
+    assert_eq!(j.id, 9_007_199_254_740_993, "beyond 2^53: exact");
+    assert_eq!(serde_json::to_value(&j).unwrap()["id"], "9007199254740993");
 }

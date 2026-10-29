@@ -18,21 +18,17 @@ pub mod settings {
     pub const LOSS_GUARDS: &str = "loss_guards";
     pub const AT_GAIN_PCT: &str = "at_gain_pct";
     pub const SELL_PORTION_PCT: &str = "sell_portion_pct";
+    /// Trailing stop from the PEAK (0 = off, else 5–49).
     pub const PEAK_TRAIL_PCT: &str = "peak_trail_pct";
-    pub const MAX_LOSS_PCT: &str = "max_loss_pct";
+    /// Hard stop from ENTRY (1.1.2 restored; v1.0 `stopLossPct`; 0 = off, else 5–49).
+    pub const STOP_LOSS_PCT: &str = "stop_loss_pct";
+    /// `exit_rules.loss_guards[]` item: sell once price is `at_loss_pct` below entry.
+    pub const AT_LOSS_PCT: &str = "at_loss_pct";
 }
 
 /// Exit preset ids (v1.1).
 pub mod preset {
     pub const MOMENTUM_TRAIL: &str = "momentum_trail";
-}
-
-/// Keys inside `position.updated.plan_state` (payload is `unknown` in the contract — schema question).
-pub mod plan_state {
-    pub const RULES: &str = "rules";
-    pub const RULE_ID: &str = "id";
-    pub const RULE_STATUS: &str = "status";
-    pub const NEXT_RULE: &str = "next_rule";
 }
 
 /// v1.0 → v1.1 **key** renames (subset the desktop touches + desktop-internal camelCase), applied
@@ -52,7 +48,8 @@ pub const RENAMES: &[(&str, &str)] = &[
     ("gainPct", "at_gain_pct"),
     ("sellPct", "sell_portion_pct"),
     ("pullbackPct", "giveback_pct"),
-    ("stopLossPct", "peak_trail_pct"),
+    // 1.1.2 fix: v1.0 stopLossPct was a stop from ENTRY → stop_loss_pct (not peak_trail_pct).
+    ("stopLossPct", "stop_loss_pct"),
     ("maxLossPct", "max_loss_pct"),
     // exit.triggered payload
     ("sell_pct", "sell_portion_pct"),
@@ -88,6 +85,42 @@ pub const VALUE_RENAMES: &[(&str, &str)] = &[
     ("tighten", "tightening_trail"),
     ("doubling", "geometric_ladder"),
 ];
+
+/// Error / notice **code** renames (contracts 1.1.2 single `errors.json` registry).
+pub const ERROR_CODE_RENAMES: &[(&str, &str)] = &[("PAPER_CASH_INSUFFICIENT", "PRACTICE_CASH_INSUFFICIENT")];
+
+/// Canonical (1.1.2) spelling of an error / notice code.
+pub fn error_code(code: &str) -> &str {
+    ERROR_CODE_RENAMES.iter().find(|(o, _)| *o == code).map(|(_, n)| *n).unwrap_or(code)
+}
+
+/// `errors.json` 1.1.2 `kind`: how the desktop surfaces a code. `Skip` = product limitation, shown
+/// neutral (never loss-red), e.g. a coin without a SOL pair.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CodeKind {
+    Error,
+    Notice,
+    Skip,
+}
+/// errors.json v4 `kind` for the codes the desktop renders (contract test checks every code).
+pub fn code_kind(code: &str) -> CodeKind {
+    match error_code(code) {
+        crate::model::UNSUPPORTED_QUOTE_MINT => CodeKind::Skip,
+        "PRACTICE_CASH_INSUFFICIENT" | "JOB_DEAD_LETTERED" | "SOURCE_DEGRADED" => CodeKind::Notice,
+        _ => CodeKind::Error,
+    }
+}
+
+/// Display label for a quote mint (WF-20 "Pair quote: USDC · bukan SOL"). Unknown → `None`
+/// (UI shows the shortened mint). Static list, never derived from token metadata.
+pub fn quote_symbol(mint: &str) -> Option<&'static str> {
+    match mint {
+        crate::model::WSOL_MINT => Some("SOL"),
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" => Some("USDC"),
+        "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB" => Some("USDT"),
+        _ => None,
+    }
+}
 
 /// Recursively apply [`RENAMES`] / [`VALUE_RENAMES`] (idempotent on v1.1 input).
 pub fn normalize(v: &mut serde_json::Value) {
@@ -145,6 +178,15 @@ pub fn exit_id(r: ExitReason) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn error_codes_and_quote_labels() {
+        assert_eq!(error_code("PAPER_CASH_INSUFFICIENT"), "PRACTICE_CASH_INSUFFICIENT");
+        assert_eq!(error_code("VERSION_CONFLICT"), "VERSION_CONFLICT");
+        assert_eq!(code_kind("UNSUPPORTED_QUOTE_MINT"), CodeKind::Skip);
+        assert_eq!(code_kind("PAPER_CASH_INSUFFICIENT"), CodeKind::Notice);
+        assert_eq!(quote_symbol("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"), Some("USDC"));
+    }
+
     #[test]
     fn rename_tables_map_v10_to_v11_recursively() {
         let mut v = serde_json::json!({"passMark": 70, "exits": {"takeProfits": [{"gainPct": 100, "sellPct": 50}]},

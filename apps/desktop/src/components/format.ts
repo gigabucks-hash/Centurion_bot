@@ -11,11 +11,7 @@ export const safeLocale = (() => {
 export const fmtUsd = (n: number) =>
   n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`;
 export const fmtPrice = (n: number) => (n < 0.01 ? n.toExponential(3) : n.toFixed(4));
-/** UX: PnL never color-only → arrow + sign + number; zero = "±0". */
-export const fmtPnlPct = (n: number) => {
-  if (Math.abs(n) < 0.05) return "±0,0%";
-  return `${n > 0 ? "▲ +" : "▼ −"}${Math.abs(n).toFixed(1).replace(".", ",")}%`;
-};
+// PnL display = @sentra/i18n format.mjs pnlSol / pnlPct (T-15: exact zero "0.00" neutral, no arrow) — see src/i18n.
 export const fmtTime = (ms: number) =>
   new Date(ms).toLocaleTimeString(safeLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 export const fmtMmSs = (ms: number) => {
@@ -42,16 +38,7 @@ export const fmtSol = (l: Lamports | null | undefined, decimals = 4) => {
   const [i, f = ""] = s.split(".");
   return `${i},${f.padEnd(Math.min(decimals, 2), "0")}`;
 };
-/** Signed SOL PnL, never colour-only: "▲ +0,25" / "▼ −0,10" / "±0". */
-export const fmtSignedSol = (l: Lamports | null | undefined, decimals = 3) => {
-  if (l == null) return "—";
-  const v = BigInt(l);
-  if (v === 0n) return "±0";
-  const abs = fmtSol((v < 0n ? -v : v).toString(), decimals);
-  return v > 0n ? `▲ +${abs}` : `▼ −${abs}`;
-};
-export const signClass = (l: Lamports | null | undefined) => {
-  if (l == null) return "muted";
-  const v = BigInt(l);
-  return v > 0n ? "pos" : v < 0n ? "neg" : "muted";
-};
+
+/** USD notional in the UI locale (compact): 48211 → "$48.2K" / "48,2 rb US$"-style via Intl. */
+export const fmtUsdLocale = (n: number, lang: "id" | "en") =>
+  new Intl.NumberFormat(lang === "en" ? "en-US" : "id-ID", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1, currencyDisplay: "narrowSymbol" }).format(n);
