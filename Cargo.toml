@@ -1,0 +1,38 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/common",
+    "crates/screener",
+    "crates/guard",
+    "crates/papersim",
+    "crates/db",
+    "crates/ingest",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "UNLICENSED"
+publish = false
+
+[workspace.dependencies]
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "signal", "fs", "io-util"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+
+common = { path = "crates/common" }
+screener = { path = "crates/screener" }
+guard = { path = "crates/guard" }
+papersim = { path = "crates/papersim" }
+db = { path = "crates/db" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
