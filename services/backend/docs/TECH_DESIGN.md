@@ -232,3 +232,70 @@ generator; practice 30 SOL, reset any time, once per 24 h, history archived.
 
 Still open (Boss): Yellowstone provider; Telegram OIDC security-review sign-off.
 Deletion grace resolved: 7–30 days, default 7, decided by Apex as lead (migration 0004).
+
+## 16. Phase 7 roadmap: Real SOL sell RPC (design only)
+
+**Status: design only. Nothing here is built.** No signing code, no key handling, no transaction submission
+exists in this repo, and none is added before Boss/Apex approve Phase 7. Until then `real_enabled:false` on
+`healthz`, every `mode:"real"` request returns `MODE_NOT_ALLOWED`, and the ingest/API services refuse to start
+unless `TRADING_MODE=paper`.
+
+### 16.1 Gating
+- Compiled only with the `live-execution` cargo feature (`papersim`, off by default; a unit test asserts it is
+  off). Default builds, CI and release artifacts never enable it.
+- Runtime gate as well: a server-side `real_trading` workspace setting (default off, Owner-only, audited) and a
+  global kill switch (`REAL_TRADING_ENABLED`, default unset = off). All three (feature, global, workspace) must
+  be on; any one off returns `MODE_NOT_ALLOWED` with `real_enabled:false`.
+- `TRADING_MODE=paper` stays the only accepted value for the practice services; a real executor would be a
+  separate, separately deployed process.
+
+### 16.2 Who signs: never the server
+- The server **never holds, derives, receives or stores private keys or seed phrases**. It builds an unsigned
+  sell transaction (or a Jupiter/pump route description) and returns it to the client.
+- Signing happens outside the server: the Solana wallet-adapter in Web/Desktop (Phantom, Backpack, Solflare,
+  hardware wallets via the adapter) or Mobile Wallet Adapter on Flutter, or an external signer the user runs
+  (e.g. a hardware wallet / custody API they own). The client submits the signed transaction itself, or hands
+  the signed bytes back for relay only; the server verifies the signature matches the prepared message and the
+  registered wallet before relaying.
+- Wallet binding: the selling wallet is linked to the user with Sign-In-With-Solana (message signature, nonce,
+  expiry); only linked wallets can be the fee payer / token owner of a prepared transaction.
+
+### 16.3 RPC shape (proposed, not in contracts yet)
+1. `prepare_real_sell(p_workspace, p_position, p_fraction_bps, p_expected_rev, p_idempotency_key)` ->
+   `{ prepare_id, unsigned_tx_base64, quote: {amount_lamports_min, price_impact_bps, slippage_bps},
+   expires_at, server_now }`. Re-quotes from chain state; refuses stale pools (`POOL_STALE`) and non-SOL quotes.
+2. Confirmation step (16.4) bound to `prepare_id`, producing a single-use `confirmation_token` (60 s).
+3. `submit_real_sell(p_prepare_id, p_confirmation_token, p_signed_tx_base64)` (or client-side submit +
+   `report_real_sell(p_prepare_id, p_signature)`). The server checks the signed message equals the prepared
+   one byte-for-byte, then tracks the signature to `confirmed`/`finalized` and emits `order.*`/`fill.*` with
+   `mode:"real"`.
+- Same envelope rules as practice: `If-Match`/`p_expected_rev` on the position, `Idempotency-Key`, error object
+  from `errors.json`, actor and `via` from the JWT only.
+
+### 16.4 Confirmation requirements (all four, every real sell)
+- **TOTP** code from the user's enrolled authenticator (verified server-side, 30 s step, ±1 window, replay-blocked).
+- **Passkey** (WebAuthn user-verification assertion) over a challenge that embeds `prepare_id`, mint, fraction and
+  min-out, so the approval cannot be replayed for a different order.
+- **Typed name**: the user types the token symbol (or wallet label) exactly; compared server-side.
+- **Hold-to-confirm** (press and hold ≥ 2 s) in the client; the client sends the hold duration, the server
+  rejects < 2 s. UX only, but required.
+- Any failure or expiry voids the `prepare_id`; a new prepare is needed. No "remember this device" bypass.
+
+### 16.5 Limits
+- Per-order cap (lamports out, and % of position), per-day real-sell count and notional cap per workspace,
+  configured server-side by the Owner, lowered instantly, raised only after a 24 h delay (audited).
+- Max slippage (bps) and min-out enforced in the prepared transaction itself, not only in UI.
+- Rate limit per user/device; cooldown after repeated confirmation failures (lockout + notice).
+- Real sells only (no real buys) in the first Phase 7 increment.
+
+### 16.6 Audit
+- Append-only `audit_log` rows for: feature/flag changes, wallet link/unlink, every prepare, each confirmation
+  factor result (pass/fail, never the secret), submit, relay, chain status changes, limit changes.
+- Each row carries actor (JWT `sub`), `via`, device id, IP hash, `prepare_id`, position `rev`, quote and the
+  transaction signature. Retained under the same policy as practice audit (kept through account deletion).
+- Real events are a separate `mode:"real"` stream and never mix into practice stats or `practice_epoch`.
+
+### 16.7 Before any code
+Threat model review, external security review of the prepare/verify path, devnet-only end-to-end with a
+hardware wallet, and written Boss/Apex sign-off. Only then may the `live-execution` stub grow beyond
+`LiveDisabled`.
