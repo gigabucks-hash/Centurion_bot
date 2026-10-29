@@ -37,7 +37,7 @@ class _SentraAppState extends ConsumerState<SentraApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Sentra',
+      onGenerateTitle: (context) => AppLocalizations.of(context).appName,
       debugShowCheckedModeBanner: false,
       // Dark is the default per SPEC; light kept for OS-level switch later.
       themeMode: ThemeMode.dark,

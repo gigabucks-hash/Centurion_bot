@@ -344,7 +344,7 @@ class MockSiwsAuth implements SiwsAuthRepository {
       '$domain wants you to sign in with your Solana account:',
       address,
       '',
-      'Sign in to Sentra',
+      'Sign in to Centurion Trade',
       '',
       'URI: ${uri ?? 'https://$domain'}',
       'Version: 1',

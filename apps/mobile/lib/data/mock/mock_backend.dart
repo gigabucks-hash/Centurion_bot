@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:decimal/decimal.dart';
 
+import '../../core/app_identity.dart';
 import '../api/api_exception.dart';
 import '../api/events_feed.dart';
 import '../api/marks.dart';
@@ -573,7 +574,9 @@ class MockBackend
       'mode': Wire.mode(mode),
       'workspace_id': workspaceId,
       'seq': '$seq',
-      'deep_link': approvalId != null ? 'sentra://approvals/$approvalId' : 'sentra://positions/${positionId ?? ''}',
+      'deep_link': approvalId != null
+          ? '${AppIdentity.scheme}://approvals/$approvalId'
+          : '${AppIdentity.scheme}://positions/${positionId ?? ''}',
       'approval_id': ?approvalId,
       'position_id': ?positionId,
       if (approvalId != null) 'version': '${_approvals.where((a) => a.id == approvalId).firstOrNull?.rev ?? 1}',

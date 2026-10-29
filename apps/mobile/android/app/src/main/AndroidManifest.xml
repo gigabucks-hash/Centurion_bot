@@ -6,7 +6,7 @@
          HTTPS only (network_security_config), debuggable comes from the build type
          (false in release; set explicitly in build.gradle.kts, never here). -->
     <application
-        android:label="Sentra"
+        android:label="Centurion Trade"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

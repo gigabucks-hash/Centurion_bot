@@ -4,7 +4,7 @@
 ///
 /// Canonical FCM `data` (1.1.2: EVERY value is a string):
 /// {"v":"1","event":"N-01","type":"proposal.created","mode":"practice",
-///  "workspace_id":"…","seq":"18301","version":"3","deep_link":"sentra://approvals/…",
+///  "workspace_id":"…","seq":"18301","version":"3","deep_link":"centurion://approvals/…",
 ///  "approval_id":"…","token":"apt_…","exp":"2026-10-29T08:52:00.000Z",
 ///  "actions":"[\"approve\",\"skip\",\"open\"]",
 ///  "vars":"{\"symbol\":\"EXM\",\"strategy\":\"Yumi · AMM\",\"amount_lamports\":\"250000000\"}",
@@ -163,7 +163,7 @@ class PushMessage {
     );
   }
 
-  /// In-app route (go_router). `deep_link` (sentra://…) maps to the same paths.
+  /// In-app route (go_router). `deep_link` (centurion://…) maps to the same paths.
   String? get route {
     String enc(String? s) => Uri.encodeComponent(s ?? '');
     return switch (event) {

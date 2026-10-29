@@ -1,5 +1,37 @@
 {
   "@@locale": "en",
+  "appAboutTitle": "About Centurion Trade",
+  "@appAboutTitle": {
+    "description": "app.about.title"
+  },
+  "appAboutVersion": "Version {version} ({build})",
+  "@appAboutVersion": {
+    "description": "version/build from the app binary",
+    "placeholders": {
+      "build": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "appName": "Centurion Trade",
+  "@appName": {
+    "description": "brand; do not translate. Source: APP_NAME in build_locales.py"
+  },
+  "appSplashLoading": "Starting Centurion Trade…",
+  "@appSplashLoading": {
+    "description": "splash / cold start a11y label"
+  },
+  "appTitle": "Centurion Trade · Solana trading bot",
+  "@appTitle": {
+    "description": "window/document title, store subtitle"
+  },
+  "authSiwsStatement": "Sign in to Centurion Trade",
+  "@authSiwsStatement": {
+    "description": "DISPLAY copy only. The signed SIWS statement is server-defined (strict message): Backend must change it too, else verify fails"
+  },
   "builderApprovalModeRealNote": "Real SOL: “Off” is not available in the MVP.",
   "@builderApprovalModeRealNote": {
     "description": "builder.approval_mode.real_note"
@@ -205,6 +237,60 @@
   "chartTitle": "Chart",
   "@chartTitle": {
     "description": "chart tab / panel title"
+  },
+  "closePreviewExpectedOut": "Expected SOL out",
+  "@closePreviewExpectedOut": {
+    "description": "formatLamportsOrDash(expected_out_lamports)"
+  },
+  "closePreviewExpired": "Preview expired — refresh to continue",
+  "@closePreviewExpired": {
+    "description": "Real hold replaced by close.preview.refresh"
+  },
+  "closePreviewMinReceived": "Min. received",
+  "@closePreviewMinReceived": {
+    "description": "formatLamportsOrDash(min_out_lamports)"
+  },
+  "closePreviewRefresh": "Refresh preview",
+  "@closePreviewRefresh": {
+    "description": "POST …/close/preview again (same 3 s rule)"
+  },
+  "closePreviewRefreshing": "Refreshing preview…",
+  "@closePreviewRefreshing": {
+    "description": "close.preview.refreshing"
+  },
+  "closePreviewSwapFeeFromOutput": "taken from proceeds",
+  "@closePreviewSwapFeeFromOutput": {
+    "description": "sub-line of review.swap_fee on the sell sheet"
+  },
+  "closePreviewUnavailable": "Preview isn’t available yet, so Real sells stay off.",
+  "@closePreviewUnavailable": {
+    "description": "until 1.1.5 ships: values show —"
+  },
+  "closePreviewValid": "{seconds,plural,one{Preview valid for {seconds} s} other{Preview valid for {seconds} s}}",
+  "@closePreviewValid": {
+    "description": "seconds = quoteState(preview).expiresInS",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "closePreviewYouSell": "You sell",
+  "@closePreviewYouSell": {
+    "description": "qty = formatRawQty(qty_raw, decimals)"
+  },
+  "coinMcapSourceCurve": "(curve)",
+  "@coinMcapSourceCurve": {
+    "description": "wire mcap_source=curve (1.1.5); suffix after the mcap value"
+  },
+  "coinMcapSourcePool": "(pool)",
+  "@coinMcapSourcePool": {
+    "description": "wire mcap_source=pool (1.1.5); suffix after the mcap value"
+  },
+  "coinMcapSourceUnavailable": "Source unavailable",
+  "@coinMcapSourceUnavailable": {
+    "description": "wire mcap_source=unavailable (1.1.5); value shows — + common.value.unavailable"
   },
   "coinTrailSnapshotNote": "Values and thresholds as read at that moment (rev {rev}).",
   "@coinTrailSnapshotNote": {
@@ -908,6 +994,14 @@
   "@expireReasonGuardFailedDetail": {
     "description": "detail line / N-07 body for reason=guard_failed"
   },
+  "expireReasonKillSwitchBadge": "Real stopped",
+  "@expireReasonKillSwitchBadge": {
+    "description": "queue chip for proposal.expired reason=kill_switch"
+  },
+  "expireReasonKillSwitchDetail": "Real trading was stopped",
+  "@expireReasonKillSwitchDetail": {
+    "description": "detail line / N-07 body for reason=kill_switch"
+  },
   "expireReasonPracticeResetBadge": "Practice reset",
   "@expireReasonPracticeResetBadge": {
     "description": "queue chip for proposal.expired reason=practice_reset"
@@ -1206,6 +1300,151 @@
   "@guardWeakenTypeName": {
     "description": "guard.weaken.type_name"
   },
+  "killSwitchActionEngage": "Stop now",
+  "@killSwitchActionEngage": {
+    "description": "initial focus; one click + one dialog, no 2FA, no hold"
+  },
+  "killSwitchActionOpen": "Stop all Real trading",
+  "@killSwitchActionOpen": {
+    "description": "kill_switch.action.open"
+  },
+  "killSwitchDialogEffectBuys": "New buys are blocked and all Real strategies pause.",
+  "@killSwitchDialogEffectBuys": {
+    "description": "kill_switch.dialog.effect.buys"
+  },
+  "killSwitchDialogEffectInflight": "Orders already sent can’t be recalled.",
+  "@killSwitchDialogEffectInflight": {
+    "description": "kill_switch.dialog.effect.inflight"
+  },
+  "killSwitchDialogEffectProposals": "Pending Real proposals expire.",
+  "@killSwitchDialogEffectProposals": {
+    "description": "kill_switch.dialog.effect.proposals"
+  },
+  "killSwitchDialogEffectUnsigned": "Unsigned orders are cancelled.",
+  "@killSwitchDialogEffectUnsigned": {
+    "description": "kill_switch.dialog.effect.unsigned"
+  },
+  "killSwitchDialogTitle": "Stop all Real trading?",
+  "@killSwitchDialogTitle": {
+    "description": "kill_switch.dialog.title"
+  },
+  "killSwitchOffline": "Can’t reach the server. Stop isn’t confirmed yet. Retrying…",
+  "@killSwitchOffline": {
+    "description": "kill_switch.offline"
+  },
+  "killSwitchOptionExitsFreeze": "Freeze exit plans too: positions have NO automatic stop loss",
+  "@killSwitchOptionExitsFreeze": {
+    "description": "kill_switch.option.exits_freeze"
+  },
+  "killSwitchOptionExitsRun": "Exit plan keeps running (recommended)",
+  "@killSwitchOptionExitsRun": {
+    "description": "kill_switch.option.exits_run"
+  },
+  "killSwitchOptionRevoke": "Revoke the bot’s authority at the provider (hard stop)",
+  "@killSwitchOptionRevoke": {
+    "description": "kill_switch.option.revoke"
+  },
+  "killSwitchOptionSellAll": "{count,plural,one{Also sell {count} position now} other{Also sell {count} positions now}}",
+  "@killSwitchOptionSellAll": {
+    "description": "kill_switch.option.sell_all",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "killSwitchReasonLossVelocity": "losses grew too fast",
+  "@killSwitchReasonLossVelocity": {
+    "description": "kill_switch_reason=loss_velocity (Backend final Phase 7, auto trips only; lower-case: used mid-sentence)"
+  },
+  "killSwitchReasonOther": "a safety rule triggered",
+  "@killSwitchReasonOther": {
+    "description": "kill_switch_reason=other (Backend final Phase 7, auto trips only; lower-case: used mid-sentence)"
+  },
+  "killSwitchReasonPolicyMismatch": "wallet rules don’t match",
+  "@killSwitchReasonPolicyMismatch": {
+    "description": "kill_switch_reason=policy_mismatch (Backend final Phase 7, auto trips only; lower-case: used mid-sentence)"
+  },
+  "killSwitchReenableAction": "Re-enable Real trading",
+  "@killSwitchReenableAction": {
+    "description": "resume after Stop (real.buys.resumed) or clear an auto trip (real.kill_switch.cleared); step-up rules per Backend. No delay copy: clear_requested was dropped"
+  },
+  "killSwitchReenableResumeNote": "Strategies stay paused. Resume them one by one.",
+  "@killSwitchReenableResumeNote": {
+    "description": "kill_switch.reenable.resume_note"
+  },
+  "killSwitchRevokePending": "Trading stopped. Revoking authority is pending; we’ll retry.",
+  "@killSwitchRevokePending": {
+    "description": "kill_switch.revoke_pending"
+  },
+  "killSwitchScopeGlobal": "All Real trading",
+  "@killSwitchScopeGlobal": {
+    "description": "wire scope=global"
+  },
+  "killSwitchScopeStrategy": "One strategy",
+  "@killSwitchScopeStrategy": {
+    "description": "wire scope=strategy"
+  },
+  "killSwitchScopeWorkspace": "This workspace",
+  "@killSwitchScopeWorkspace": {
+    "description": "wire scope=workspace"
+  },
+  "killSwitchSellAllBody": "Sells at market now. Safety checks still apply: simulation and your slippage cap.",
+  "@killSwitchSellAllBody": {
+    "description": "kill_switch.sell_all.body"
+  },
+  "killSwitchSellAllHold": "Hold 2.5 s to sell all",
+  "@killSwitchSellAllHold": {
+    "description": "kill_switch.sell_all.hold"
+  },
+  "killSwitchSellAllTitle": "{count,plural,one{Sell {count} Real position now?} other{Sell {count} Real positions now?}}",
+  "@killSwitchSellAllTitle": {
+    "description": "lead decision: confirm dialog + 2.5 s hold, NO Phantom step-up",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "killSwitchStatusAuthority": "{state, select, revoked {Bot authority revoked} other {Bot authority still active}}",
+  "@killSwitchStatusAuthority": {
+    "description": "kill_switch.status.authority",
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "killSwitchStatusBy": "Stopped {actor_type, select, user {by you on {device_label}} rule {automatically} other {by the system}} at {at}",
+  "@killSwitchStatusBy": {
+    "description": "at = formatDateTime; device_label untrusted text",
+    "placeholders": {
+      "actor_type": {
+        "type": "String"
+      },
+      "at": {
+        "type": "String"
+      },
+      "device_label": {
+        "type": "String"
+      }
+    }
+  },
+  "killSwitchStatusExits": "{state, select, running {Exit plan running} other {Exit plan frozen}}",
+  "@killSwitchStatusExits": {
+    "description": "kill_switch.status.exits",
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "killSwitchStatusTitle": "New buys stopped",
+  "@killSwitchStatusTitle": {
+    "description": "manual Stop = real.buys.paused (exits keep running); auto trip = real.kill_switch.tripped"
+  },
   "loginButtonApple": "Continue with Apple",
   "@loginButtonApple": {
     "description": "Use the Apple system-localized title when available"
@@ -1287,7 +1526,7 @@
   "@loginTelegramCancelled": {
     "description": "login.telegram.cancelled"
   },
-  "loginTelegramConsent": "Telegram shares your name, username and photo with Sentra.",
+  "loginTelegramConsent": "Telegram shares your name, username and photo with Centurion Trade.",
   "@loginTelegramConsent": {
     "description": "login.telegram.consent"
   },
@@ -1351,7 +1590,7 @@
   },
   "mcapUsdIndicative": "USD is indicative (reference SOL price), not live.",
   "@mcapUsdIndicative": {
-    "description": "tooltip second line when mcap_usd is shown"
+    "description": "tooltip second line ONLY when mcap_source is curve|pool and mcap_usd is set (mcapView in format.mjs, 1.1.5)"
   },
   "modePracticeBanner": "Practice · paper SOL, no real SOL moves",
   "@modePracticeBanner": {
@@ -1789,6 +2028,311 @@
   "notifPracticeResetTitle": "[PRACTICE] Practice reset",
   "@notifPracticeResetTitle": {
     "description": "N-20; placeholders = push vars (snake_case)"
+  },
+  "notifRealBuysPausedBody": "Open positions keep their exit plan · {actor_type, select, user {by you on {device_label}} other {by the system}}",
+  "@notifRealBuysPausedBody": {
+    "description": "N-43",
+    "placeholders": {
+      "actor_type": {
+        "type": "String"
+      },
+      "device_label": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealBuysPausedTitle": "[REAL SOL] New buys stopped",
+  "@notifRealBuysPausedTitle": {
+    "description": "N-43 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealBuysResumedBody": "{actor_type, select, user {By you on {device_label}.} other {By the system.}} Strategies stay paused until you resume them.",
+  "@notifRealBuysResumedBody": {
+    "description": "N-44",
+    "placeholders": {
+      "actor_type": {
+        "type": "String"
+      },
+      "device_label": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealBuysResumedTitle": "[REAL SOL] New buys resumed",
+  "@notifRealBuysResumedTitle": {
+    "description": "N-44 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealDepositDetectedBody": "+{amount_lamports} · balance {balance_lamports} of {cap_lamports}",
+  "@notifRealDepositDetectedBody": {
+    "description": "N-39",
+    "placeholders": {
+      "amount_lamports": {
+        "type": "String"
+      },
+      "balance_lamports": {
+        "type": "String"
+      },
+      "cap_lamports": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealDepositDetectedTitle": "[REAL SOL] Deposit received",
+  "@notifRealDepositDetectedTitle": {
+    "description": "N-39 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealKillSwitchClearedBody": "Real trading can run again. Strategies stay paused until you resume them.",
+  "@notifRealKillSwitchClearedBody": {
+    "description": "N-31"
+  },
+  "notifRealKillSwitchClearedTitle": "[REAL SOL] Automatic stop cleared",
+  "@notifRealKillSwitchClearedTitle": {
+    "description": "N-31 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealKillSwitchTrippedBody": "Stopped automatically: {reason, select, policy_mismatch {wallet rules don’t match} loss_velocity {losses grew too fast} other {a safety rule triggered}}. New buys are blocked.",
+  "@notifRealKillSwitchTrippedBody": {
+    "description": "N-29",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealKillSwitchTrippedTitle": "[REAL SOL] Real trading stopped automatically",
+  "@notifRealKillSwitchTrippedTitle": {
+    "description": "N-29 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealLimitChangedBody": "{setting}: {from} → {to}",
+  "@notifRealLimitChangedBody": {
+    "description": "N-27",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "setting": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealLimitChangedTitle": "[REAL SOL] Limits updated",
+  "@notifRealLimitChangedTitle": {
+    "description": "N-27 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealLimitLoosenRequestedBody": "{setting}: {from} → {to} from {activates_at}, and it stays until you change it. Cancel if this wasn’t you.",
+  "@notifRealLimitLoosenRequestedBody": {
+    "description": "N-28",
+    "placeholders": {
+      "activates_at": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "setting": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealLimitLoosenRequestedTitle": "[REAL SOL] Limit change pending",
+  "@notifRealLimitLoosenRequestedTitle": {
+    "description": "N-28 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealPolicyActivatedBody": "Matches what you approved.",
+  "@notifRealPolicyActivatedBody": {
+    "description": "N-25"
+  },
+  "notifRealPolicyActivatedTitle": "[REAL SOL] Wallet rules v{version} active",
+  "@notifRealPolicyActivatedTitle": {
+    "description": "N-25 RESERVED Phase 7; placeholders = wire vars (snake_case)",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealPolicyMismatchBody": "Real trading stopped for safety. Open the app to compare v{version}.",
+  "@notifRealPolicyMismatchBody": {
+    "description": "N-26",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealPolicyMismatchTitle": "[REAL SOL] Wallet rules don’t match",
+  "@notifRealPolicyMismatchTitle": {
+    "description": "N-26 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealSellAllCompletedBody": "{sold_count,plural,one{{sold_count} sold} other{{sold_count} sold}}{failed_count,plural,one{ · {failed_count} failed and is still open} other{ · {failed_count} failed and are still open} =0{}}",
+  "@notifRealSellAllCompletedBody": {
+    "description": "N-46",
+    "placeholders": {
+      "failed_count": {
+        "type": "int",
+        "format": "decimalPattern"
+      },
+      "sold_count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "notifRealSellAllCompletedTitle": "[REAL SOL] {failed_count,plural,other{Sell all: {failed_count} failed} =0{Sell all done}}",
+  "@notifRealSellAllCompletedTitle": {
+    "description": "N-46 RESERVED Phase 7; placeholders = wire vars (snake_case)",
+    "placeholders": {
+      "failed_count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "notifRealSellAllCompletedTotal": "Total out: {amount_lamports}",
+  "@notifRealSellAllCompletedTotal": {
+    "description": "N-46 extra line, only when amount_lamports is not null (formatLamports)",
+    "placeholders": {
+      "amount_lamports": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealSellAllRequestedBody": "{count,plural,one{Selling {count} position at market.} other{Selling {count} positions at market.}} Guards still apply.",
+  "@notifRealSellAllRequestedBody": {
+    "description": "N-45",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "notifRealSellAllRequestedTitle": "[REAL SOL] Selling all positions",
+  "@notifRealSellAllRequestedTitle": {
+    "description": "N-45 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealSignerGrantedBody": "The bot can swap within your limits until {expires_at}. It can’t transfer or withdraw.",
+  "@notifRealSignerGrantedBody": {
+    "description": "N-23",
+    "placeholders": {
+      "expires_at": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealSignerGrantedTitle": "[REAL SOL] Trading authority granted",
+  "@notifRealSignerGrantedTitle": {
+    "description": "N-23 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealSignerRevokedBody": "{reason, select, kill_switch {Revoked by the kill switch.} expiry {The authority expired.} user {You revoked it.} other {Revoked.}} Real trading can’t sign until you authorize it again.",
+  "@notifRealSignerRevokedBody": {
+    "description": "N-24",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealSignerRevokedTitle": "[REAL SOL] Bot authority revoked",
+  "@notifRealSignerRevokedTitle": {
+    "description": "N-24 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealWithdrawConfirmedBody": "{amount_lamports} arrived in your main wallet {address_short}.",
+  "@notifRealWithdrawConfirmedBody": {
+    "description": "N-41",
+    "placeholders": {
+      "address_short": {
+        "type": "String"
+      },
+      "amount_lamports": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealWithdrawConfirmedTitle": "[REAL SOL] Withdrawal received",
+  "@notifRealWithdrawConfirmedTitle": {
+    "description": "N-41 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealWithdrawFailedBody": "{amount_lamports} wasn’t sent: {reason_code}. Your balance is unchanged.",
+  "@notifRealWithdrawFailedBody": {
+    "description": "N-42",
+    "placeholders": {
+      "amount_lamports": {
+        "type": "String"
+      },
+      "reason_code": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealWithdrawFailedTitle": "[REAL SOL] Withdrawal failed",
+  "@notifRealWithdrawFailedTitle": {
+    "description": "N-42 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealWithdrawRequestedBody": "{amount_lamports} → main wallet {address_short}",
+  "@notifRealWithdrawRequestedBody": {
+    "description": "N-40",
+    "placeholders": {
+      "address_short": {
+        "type": "String"
+      },
+      "amount_lamports": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealWithdrawRequestedTitle": "[REAL SOL] Withdrawal sent",
+  "@notifRealWithdrawRequestedTitle": {
+    "description": "N-40 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealWithdrawAddressAddedBody": "{address_short} becomes active {usable_at}. Cancel before {cancel_until} if this wasn’t you.",
+  "@notifRealWithdrawAddressAddedBody": {
+    "description": "N-32",
+    "placeholders": {
+      "address_short": {
+        "type": "String"
+      },
+      "cancel_until": {
+        "type": "String"
+      },
+      "usable_at": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealWithdrawAddressAddedTitle": "[REAL SOL] New main wallet registered",
+  "@notifRealWithdrawAddressAddedTitle": {
+    "description": "N-32 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealWithdrawAddressCancelledBody": "{address_short} won’t be added.",
+  "@notifRealWithdrawAddressCancelledBody": {
+    "description": "N-34",
+    "placeholders": {
+      "address_short": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealWithdrawAddressCancelledTitle": "[REAL SOL] Main wallet change cancelled",
+  "@notifRealWithdrawAddressCancelledTitle": {
+    "description": "N-34 RESERVED Phase 7; placeholders = wire vars (snake_case)"
+  },
+  "notifRealWithdrawAddressUsableBody": "{address_short} is now your main wallet and withdraw destination.",
+  "@notifRealWithdrawAddressUsableBody": {
+    "description": "N-33",
+    "placeholders": {
+      "address_short": {
+        "type": "String"
+      }
+    }
+  },
+  "notifRealWithdrawAddressUsableTitle": "[REAL SOL] Main wallet active",
+  "@notifRealWithdrawAddressUsableTitle": {
+    "description": "N-33 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
   "notifSkippedBody": "Reason: {reason}",
   "@notifSkippedBody": {
@@ -2283,6 +2827,10 @@
   "@rejectReasonUserDeclined": {
     "description": "wire ApprovalRejectReason user_declined (proposal.rejected.reject_reason, audit approval.reject)"
   },
+  "reviewAtaRent": "Token account rent (new)",
+  "@reviewAtaRent": {
+    "description": "value = formatLamports(est_ata_rent_lamports); row hidden when \"0\" (showAtaRent)"
+  },
   "reviewDetailsToggle": "Fees & slippage",
   "@reviewDetailsToggle": {
     "description": "collapsible row label (mobile)"
@@ -2302,7 +2850,7 @@
   },
   "reviewMinReceivedValue": "≥ {min_out} {symbol}",
   "@reviewMinReceivedValue": {
-    "description": "min_out = formatRawQty(min_out_raw, decimals); symbol untrusted. Missing value or decimals → whole row shows —",
+    "description": "min_out = formatRawQty(min_out_raw, decimals); decimals from ApprovalWire (1.1.5); symbol untrusted. Missing value or decimals → whole row shows —",
     "placeholders": {
       "min_out": {
         "type": "String"
@@ -2315,6 +2863,18 @@
   "reviewNetworkFee": "Est. network fee",
   "@reviewNetworkFee": {
     "description": "value = formatLamportsOrDash(est_network_fee_lamports); base + priority fee (contracts 1.1.4)"
+  },
+  "reviewNetworkFeeBreakdown": "base {base} + priority {priority}",
+  "@reviewNetworkFeeBreakdown": {
+    "description": "sub-line of review.network_fee; base/priority = networkFeeParts() formatted with formatLamports",
+    "placeholders": {
+      "base": {
+        "type": "String"
+      },
+      "priority": {
+        "type": "String"
+      }
+    }
   },
   "reviewPracticeNote": "Practice: simulated fill. No real SOL moves.",
   "@reviewPracticeNote": {
@@ -2335,11 +2895,15 @@
   },
   "reviewPriorityFee": "Priority fee",
   "@reviewPriorityFee": {
-    "description": "value = formatLamportsOrDash(priority_fee_lamports)"
+    "description": "value = formatLamportsOrDash(priority_fee_lamports); breakdown only: already inside est_network_fee_lamports, never add it again (1.1.5)"
+  },
+  "reviewQuoteAutoRefreshing": "Refreshing automatically…",
+  "@reviewQuoteAutoRefreshing": {
+    "description": "once per expiry while the sheet is visible and not held (GET auto-refreshes a stale quote)"
   },
   "reviewQuoteChangedDuringHold": "Quote changed. Check the new values and hold again.",
   "@reviewQuoteChangedDuringHold": {
-    "description": "proposal.updated while the hold is in progress: cancel the hold, reset the bar, new rev"
+    "description": "quote_id changed (quoteChanged) while a Real hold is in progress: cancel the hold, reset the bar; next approve sends the new expected_quote_id. Rev is unchanged (1.1.5)"
   },
   "reviewQuoteExpiresIn": "{seconds,plural,one{Expires in {seconds} s} other{Expires in {seconds} s}}",
   "@reviewQuoteExpiresIn": {
@@ -2351,6 +2915,19 @@
       }
     }
   },
+  "reviewQuoteId": "Quote {quote_id}",
+  "@reviewQuoteId": {
+    "description": "quote_id shortened with formatIdShort (first 6 chars); diagnostics row, muted",
+    "placeholders": {
+      "quote_id": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewQuoteLoading": "Hold is off until the quote is complete.",
+  "@reviewQuoteLoading": {
+    "description": "Real: quoteState().complete=false; skeleton rows"
+  },
   "reviewQuoteMissing": "No quote yet — refresh to continue",
   "@reviewQuoteMissing": {
     "description": "Real: all quote fields null; hold/Approve disabled"
@@ -2361,7 +2938,7 @@
   },
   "reviewQuoteRefresh": "Refresh quote",
   "@reviewQuoteRefresh": {
-    "description": "CTA on stale/missing state and on 409 QUOTE_MISSING_OR_STALE"
+    "description": "CTA: POST …/approvals/{id}/quote (1.1.5; max 1 per 3 s, inside the window returns the existing quote → spinner ≤ 3 s, no error)"
   },
   "reviewQuoteRefreshing": "Refreshing quote…",
   "@reviewQuoteRefreshing": {
@@ -2369,7 +2946,7 @@
   },
   "reviewQuoteStale": "Quote expired — refresh to continue",
   "@reviewQuoteStale": {
-    "description": "Real: hold/Approve disabled until a fresh quote (409 QUOTE_MISSING_OR_STALE otherwise)"
+    "description": "Real: hold/Approve replaced by review.quote.refresh until a fresh quote (409 QUOTE_MISSING_OR_STALE otherwise)"
   },
   "reviewQuoteUpdatedAgo": "{seconds,plural,one{Quote updated {seconds} s ago} other{Quote updated {seconds} s ago} =0{Quote updated just now}}",
   "@reviewQuoteUpdatedAgo": {
@@ -2383,7 +2960,7 @@
   },
   "reviewQuoteUpdatedInline": "Quote updated",
   "@reviewQuoteUpdatedInline": {
-    "description": "proposal.updated: subtle inline label next to the values for ~2 s, polite live region; no toast/push"
+    "description": "proposal.updated with a NEW quote_id (rev unchanged, 1.1.5): subtle inline label ~2 s, polite live region; no toast/push"
   },
   "reviewRealNote": "Real SOL: network fees are paid even if the order fails.",
   "@reviewRealNote": {
@@ -2395,7 +2972,11 @@
   },
   "reviewSwapFee": "Swap fee",
   "@reviewSwapFee": {
-    "description": "value = formatBps(swap_fee_bps)"
+    "description": "value = formatBps(swap_fee_bps); taken from SOL in, not added to the total (1.1.5)"
+  },
+  "reviewSwapFeeFromInput": "taken from SOL in, not added",
+  "@reviewSwapFeeFromInput": {
+    "description": "sub-line of review.swap_fee"
   },
   "reviewTitle": "{side, select, sell {Review sell} other {Review buy}}",
   "@reviewTitle": {
@@ -2408,7 +2989,11 @@
   },
   "reviewTotalMax": "Total (max)",
   "@reviewTotalMax": {
-    "description": "value = formatLamportsOrDash(total_max_lamports) = SOL in + network fee (contracts 1.1.4)"
+    "description": "value = formatLamportsOrDash(total_max_lamports) = SOL in + est_network_fee + est_ata_rent (1.1.5); check with totalMaxCheck()"
+  },
+  "reviewTotalMaxHint": "= SOL in + network fee + token account rent",
+  "@reviewTotalMaxHint": {
+    "description": "formula sub-line under review.total_max"
   },
   "reviewYouPay": "You pay",
   "@reviewYouPay": {
@@ -2582,7 +3167,7 @@
   "@screenerNotTradeableBadge": {
     "description": "neutral chip (text.tertiary on surface.sunken), not loss/error red"
   },
-  "screenerNotTradeableDetail": "No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved.",
+  "screenerNotTradeableDetail": "No SOL quote pair for this coin. Centurion Trade only trades SOL pairs, so it can’t be approved.",
   "@screenerNotTradeableDetail": {
     "description": "shown instead of Approve/Skip; reason_code UNSUPPORTED_QUOTE_MINT"
   },
@@ -2904,6 +3489,107 @@
   "@shortcutX": {
     "description": "shortcut.x"
   },
+  "stepupBothRequired": "Two signatures, both required",
+  "@stepupBothRequired": {
+    "description": "stepup.both_required"
+  },
+  "stepupBrowserContinue": "Continue in browser",
+  "@stepupBrowserContinue": {
+    "description": "default on Linux; offered when in-app WebAuthn fails"
+  },
+  "stepupBrowserDone": "Confirmed. You’re back in the app.",
+  "@stepupBrowserDone": {
+    "description": "stepup.browser.done"
+  },
+  "stepupBrowserExpired": "The confirmation expired. Start again.",
+  "@stepupBrowserExpired": {
+    "description": "one-time code older than 2 min"
+  },
+  "stepupBrowserReopen": "Reopen browser",
+  "@stepupBrowserReopen": {
+    "description": "stepup.browser.reopen"
+  },
+  "stepupBrowserStateMismatch": "Blocked: this confirmation didn’t come from this app.",
+  "@stepupBrowserStateMismatch": {
+    "description": "PKCE state mismatch; nothing runs"
+  },
+  "stepupBrowserTimeout": "No answer from the browser in 5 min, so it was cancelled.",
+  "@stepupBrowserTimeout": {
+    "description": "stepup.browser.timeout"
+  },
+  "stepupBrowserWaiting": "Finish in your browser, then come back.",
+  "@stepupBrowserWaiting": {
+    "description": "stepup.browser.waiting"
+  },
+  "stepupCancelled": "Nothing changed.",
+  "@stepupCancelled": {
+    "description": "Phantom rejected or passkey cancelled"
+  },
+  "stepupFieldAction": "Action",
+  "@stepupFieldAction": {
+    "description": "step-up preview row label"
+  },
+  "stepupFieldAmount": "Amount",
+  "@stepupFieldAmount": {
+    "description": "step-up preview row label"
+  },
+  "stepupFieldExpires": "Expires",
+  "@stepupFieldExpires": {
+    "description": "step-up preview row label"
+  },
+  "stepupFieldFrom": "From",
+  "@stepupFieldFrom": {
+    "description": "step-up preview row label"
+  },
+  "stepupFieldNonce": "Nonce",
+  "@stepupFieldNonce": {
+    "description": "step-up preview row label"
+  },
+  "stepupFieldPayloadHash": "Payload hash",
+  "@stepupFieldPayloadHash": {
+    "description": "step-up preview row label"
+  },
+  "stepupFieldTo": "To",
+  "@stepupFieldTo": {
+    "description": "step-up preview row label"
+  },
+  "stepupPasskeyStep": "2 · Owner passkey",
+  "@stepupPasskeyStep": {
+    "description": "stepup.passkey.step"
+  },
+  "stepupPasskeyUse": "Use passkey",
+  "@stepupPasskeyUse": {
+    "description": "stepup.passkey.use"
+  },
+  "stepupPasskeyWaiting": "Waiting for passkey…",
+  "@stepupPasskeyWaiting": {
+    "description": "stepup.passkey.waiting"
+  },
+  "stepupPhantomOpen": "Open Phantom to sign",
+  "@stepupPhantomOpen": {
+    "description": "stepup.phantom.open"
+  },
+  "stepupPhantomStep": "1 · Phantom signature",
+  "@stepupPhantomStep": {
+    "description": "signs payload_hash (readable text message)"
+  },
+  "stepupPhantomWaiting": "Waiting for Phantom… {mm_ss} left",
+  "@stepupPhantomWaiting": {
+    "description": "mm_ss = step-up expiry (2 min) via formatCountdown",
+    "placeholders": {
+      "mm_ss": {
+        "type": "String"
+      }
+    }
+  },
+  "stepupTitle": "Confirm money action",
+  "@stepupTitle": {
+    "description": "stepup.title"
+  },
+  "stepupTotpOptional": "TOTP is optional and doesn’t replace either signature.",
+  "@stepupTotpOptional": {
+    "description": "stepup.totp_optional"
+  },
   "strategyApprovalModeAskEveryBuy": "Ask: every buy",
   "@strategyApprovalModeAskEveryBuy": {
     "description": "strategy.approval_mode.ask_every_buy"
@@ -2939,5 +3625,77 @@
   "tableMobileScrollHint": "Scroll for more columns",
   "@tableMobileScrollHint": {
     "description": "table.mobile.scroll_hint"
+  },
+  "tokenProgramToken2022": "Token-2022",
+  "@tokenProgramToken2022": {
+    "description": "chip when token_program = Token-2022 program id (isToken2022); do not translate"
+  },
+  "walletLimitsSettingCapLamports": "Total cap",
+  "@walletLimitsSettingCapLamports": {
+    "description": "real.limit.* setting=cap_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue"
+  },
+  "walletLimitsSettingDailyLamports": "Max per 24 h",
+  "@walletLimitsSettingDailyLamports": {
+    "description": "real.limit.* setting=daily_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue"
+  },
+  "walletLimitsSettingMaxPositions": "Max open positions",
+  "@walletLimitsSettingMaxPositions": {
+    "description": "real.limit.* setting=max_positions (PROPOSED key name, confirm with Backend); from/to via formatLimitValue"
+  },
+  "walletLimitsSettingMaxSlippageBps": "Max slippage",
+  "@walletLimitsSettingMaxSlippageBps": {
+    "description": "real.limit.* setting=max_slippage_bps (PROPOSED key name, confirm with Backend); from/to via formatLimitValue"
+  },
+  "walletLimitsSettingPerTradeLamports": "Max per trade",
+  "@walletLimitsSettingPerTradeLamports": {
+    "description": "real.limit.* setting=per_trade_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue"
+  },
+  "walletOwnerAddBackup": "Add backup wallet…",
+  "@walletOwnerAddBackup": {
+    "description": "wallet.owner.add_backup"
+  },
+  "walletOwnerBackup": "Backup owner wallet · not a withdraw destination",
+  "@walletOwnerBackup": {
+    "description": "wallet.owner.backup"
+  },
+  "walletOwnerCancel": "Cancel",
+  "@walletOwnerCancel": {
+    "description": "cancels a pending (quarantined) wallet"
+  },
+  "walletOwnerChangeMain": "Change…",
+  "@walletOwnerChangeMain": {
+    "description": "wallet.owner.change_main"
+  },
+  "walletOwnerDelayNote": "Changes take at least 48 h and can be cancelled.",
+  "@walletOwnerDelayNote": {
+    "description": "wallet.owner.delay_note"
+  },
+  "walletOwnerMain": "Main wallet · sign-in and the only withdraw destination",
+  "@walletOwnerMain": {
+    "description": "wallet.owner.main"
+  },
+  "walletOwnerPending": "Active {usable_at} · {hh_mm_ss} left",
+  "@walletOwnerPending": {
+    "description": "usable_at = formatDateTime; hh_mm_ss = formatCountdownHms (computed); WITHDRAW_ADDRESS_PENDING maps here",
+    "placeholders": {
+      "hh_mm_ss": {
+        "type": "String"
+      },
+      "usable_at": {
+        "type": "String"
+      }
+    }
+  },
+  "walletOwnerTitle": "Owner wallets",
+  "@walletOwnerTitle": {
+    "description": "wallet.owner.title"
+  },
+  "walletOwnerTypeLast4": "Type the last 4 characters of the new address",
+  "@walletOwnerTypeLast4": {
+    "description": "wallet.owner.type_last4"
+  },
+  "walletWithdrawFailReasonUnknown": "Unknown error",
+  "@walletWithdrawFailReasonUnknown": {
+    "description": "N-42 {reason_code} when the code has no error.code.* copy"
   }
 }

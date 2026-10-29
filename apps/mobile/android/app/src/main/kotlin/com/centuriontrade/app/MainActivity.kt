@@ -1,4 +1,4 @@
-package com.sentra.app
+package com.centuriontrade.app
 
 import io.flutter.embedding.android.FlutterActivity
 

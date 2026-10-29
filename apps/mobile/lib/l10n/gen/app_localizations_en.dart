@@ -9,6 +9,26 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get appAboutTitle => 'About Centurion Trade';
+
+  @override
+  String appAboutVersion(String build, String version) {
+    return 'Version $version ($build)';
+  }
+
+  @override
+  String get appName => 'Centurion Trade';
+
+  @override
+  String get appSplashLoading => 'Starting Centurion Trade…';
+
+  @override
+  String get appTitle => 'Centurion Trade · Solana trading bot';
+
+  @override
+  String get authSiwsStatement => 'Sign in to Centurion Trade';
+
+  @override
   String get builderApprovalModeRealNote => 'Real SOL: “Off” is not available in the MVP.';
 
   @override
@@ -145,6 +165,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chartTitle => 'Chart';
+
+  @override
+  String get closePreviewExpectedOut => 'Expected SOL out';
+
+  @override
+  String get closePreviewExpired => 'Preview expired — refresh to continue';
+
+  @override
+  String get closePreviewMinReceived => 'Min. received';
+
+  @override
+  String get closePreviewRefresh => 'Refresh preview';
+
+  @override
+  String get closePreviewRefreshing => 'Refreshing preview…';
+
+  @override
+  String get closePreviewSwapFeeFromOutput => 'taken from proceeds';
+
+  @override
+  String get closePreviewUnavailable => 'Preview isn’t available yet, so Real sells stay off.';
+
+  @override
+  String closePreviewValid(int seconds) {
+    final intl.NumberFormat secondsNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String secondsString = secondsNumberFormat.format(seconds);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      seconds,
+      locale: localeName,
+      other: 'Preview valid for $secondsString s',
+      one: 'Preview valid for $secondsString s',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get closePreviewYouSell => 'You sell';
+
+  @override
+  String get coinMcapSourceCurve => '(curve)';
+
+  @override
+  String get coinMcapSourcePool => '(pool)';
+
+  @override
+  String get coinMcapSourceUnavailable => 'Source unavailable';
 
   @override
   String coinTrailSnapshotNote(String rev) {
@@ -688,6 +755,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get expireReasonGuardFailedDetail => 'A guard check failed while waiting';
 
   @override
+  String get expireReasonKillSwitchBadge => 'Real stopped';
+
+  @override
+  String get expireReasonKillSwitchDetail => 'Real trading was stopped';
+
+  @override
   String get expireReasonPracticeResetBadge => 'Practice reset';
 
   @override
@@ -875,6 +948,129 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guardWeakenTypeName => 'Type the strategy name to confirm';
 
   @override
+  String get killSwitchActionEngage => 'Stop now';
+
+  @override
+  String get killSwitchActionOpen => 'Stop all Real trading';
+
+  @override
+  String get killSwitchDialogEffectBuys => 'New buys are blocked and all Real strategies pause.';
+
+  @override
+  String get killSwitchDialogEffectInflight => 'Orders already sent can’t be recalled.';
+
+  @override
+  String get killSwitchDialogEffectProposals => 'Pending Real proposals expire.';
+
+  @override
+  String get killSwitchDialogEffectUnsigned => 'Unsigned orders are cancelled.';
+
+  @override
+  String get killSwitchDialogTitle => 'Stop all Real trading?';
+
+  @override
+  String get killSwitchOffline => 'Can’t reach the server. Stop isn’t confirmed yet. Retrying…';
+
+  @override
+  String get killSwitchOptionExitsFreeze => 'Freeze exit plans too: positions have NO automatic stop loss';
+
+  @override
+  String get killSwitchOptionExitsRun => 'Exit plan keeps running (recommended)';
+
+  @override
+  String get killSwitchOptionRevoke => 'Revoke the bot’s authority at the provider (hard stop)';
+
+  @override
+  String killSwitchOptionSellAll(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Also sell $countString positions now',
+      one: 'Also sell $countString position now',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get killSwitchReasonLossVelocity => 'losses grew too fast';
+
+  @override
+  String get killSwitchReasonOther => 'a safety rule triggered';
+
+  @override
+  String get killSwitchReasonPolicyMismatch => 'wallet rules don’t match';
+
+  @override
+  String get killSwitchReenableAction => 'Re-enable Real trading';
+
+  @override
+  String get killSwitchReenableResumeNote => 'Strategies stay paused. Resume them one by one.';
+
+  @override
+  String get killSwitchRevokePending => 'Trading stopped. Revoking authority is pending; we’ll retry.';
+
+  @override
+  String get killSwitchScopeGlobal => 'All Real trading';
+
+  @override
+  String get killSwitchScopeStrategy => 'One strategy';
+
+  @override
+  String get killSwitchScopeWorkspace => 'This workspace';
+
+  @override
+  String get killSwitchSellAllBody =>
+      'Sells at market now. Safety checks still apply: simulation and your slippage cap.';
+
+  @override
+  String get killSwitchSellAllHold => 'Hold 2.5 s to sell all';
+
+  @override
+  String killSwitchSellAllTitle(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Sell $countString Real positions now?',
+      one: 'Sell $countString Real position now?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String killSwitchStatusAuthority(String state) {
+    String _temp0 = intl.Intl.selectLogic(state, {
+      'revoked': 'Bot authority revoked',
+      'other': 'Bot authority still active',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String killSwitchStatusBy(String actor_type, String at, String device_label) {
+    String _temp0 = intl.Intl.selectLogic(actor_type, {
+      'user': 'by you on $device_label',
+      'rule': 'automatically',
+      'other': 'by the system',
+    });
+    return 'Stopped $_temp0 at $at';
+  }
+
+  @override
+  String killSwitchStatusExits(String state) {
+    String _temp0 = intl.Intl.selectLogic(state, {'running': 'Exit plan running', 'other': 'Exit plan frozen'});
+    return '$_temp0';
+  }
+
+  @override
+  String get killSwitchStatusTitle => 'New buys stopped';
+
+  @override
   String get loginButtonApple => 'Continue with Apple';
 
   @override
@@ -937,7 +1133,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginTelegramCancelled => 'Telegram login was cancelled. Nothing changed.';
 
   @override
-  String get loginTelegramConsent => 'Telegram shares your name, username and photo with Sentra.';
+  String get loginTelegramConsent => 'Telegram shares your name, username and photo with Centurion Trade.';
 
   @override
   String get loginTelegramRetry => 'Try Telegram again';
@@ -1238,6 +1434,213 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notifPracticeResetTitle => '[PRACTICE] Practice reset';
+
+  @override
+  String notifRealBuysPausedBody(String actor_type, String device_label) {
+    String _temp0 = intl.Intl.selectLogic(actor_type, {'user': 'by you on $device_label', 'other': 'by the system'});
+    return 'Open positions keep their exit plan · $_temp0';
+  }
+
+  @override
+  String get notifRealBuysPausedTitle => '[REAL SOL] New buys stopped';
+
+  @override
+  String notifRealBuysResumedBody(String actor_type, String device_label) {
+    String _temp0 = intl.Intl.selectLogic(actor_type, {'user': 'By you on $device_label.', 'other': 'By the system.'});
+    return '$_temp0 Strategies stay paused until you resume them.';
+  }
+
+  @override
+  String get notifRealBuysResumedTitle => '[REAL SOL] New buys resumed';
+
+  @override
+  String notifRealDepositDetectedBody(String amount_lamports, String balance_lamports, String cap_lamports) {
+    return '+$amount_lamports · balance $balance_lamports of $cap_lamports';
+  }
+
+  @override
+  String get notifRealDepositDetectedTitle => '[REAL SOL] Deposit received';
+
+  @override
+  String get notifRealKillSwitchClearedBody =>
+      'Real trading can run again. Strategies stay paused until you resume them.';
+
+  @override
+  String get notifRealKillSwitchClearedTitle => '[REAL SOL] Automatic stop cleared';
+
+  @override
+  String notifRealKillSwitchTrippedBody(String reason) {
+    String _temp0 = intl.Intl.selectLogic(reason, {
+      'policy_mismatch': 'wallet rules don’t match',
+      'loss_velocity': 'losses grew too fast',
+      'other': 'a safety rule triggered',
+    });
+    return 'Stopped automatically: $_temp0. New buys are blocked.';
+  }
+
+  @override
+  String get notifRealKillSwitchTrippedTitle => '[REAL SOL] Real trading stopped automatically';
+
+  @override
+  String notifRealLimitChangedBody(String from, String setting, String to) {
+    return '$setting: $from → $to';
+  }
+
+  @override
+  String get notifRealLimitChangedTitle => '[REAL SOL] Limits updated';
+
+  @override
+  String notifRealLimitLoosenRequestedBody(String activates_at, String from, String setting, String to) {
+    return '$setting: $from → $to from $activates_at, and it stays until you change it. Cancel if this wasn’t you.';
+  }
+
+  @override
+  String get notifRealLimitLoosenRequestedTitle => '[REAL SOL] Limit change pending';
+
+  @override
+  String get notifRealPolicyActivatedBody => 'Matches what you approved.';
+
+  @override
+  String notifRealPolicyActivatedTitle(String version) {
+    return '[REAL SOL] Wallet rules v$version active';
+  }
+
+  @override
+  String notifRealPolicyMismatchBody(String version) {
+    return 'Real trading stopped for safety. Open the app to compare v$version.';
+  }
+
+  @override
+  String get notifRealPolicyMismatchTitle => '[REAL SOL] Wallet rules don’t match';
+
+  @override
+  String notifRealSellAllCompletedBody(int failed_count, int sold_count) {
+    final intl.NumberFormat failed_countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String failed_countString = failed_countNumberFormat.format(failed_count);
+    final intl.NumberFormat sold_countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String sold_countString = sold_countNumberFormat.format(sold_count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      sold_count,
+      locale: localeName,
+      other: '$sold_countString sold',
+      one: '$sold_countString sold',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      failed_count,
+      locale: localeName,
+      zero: '',
+      other: ' · $failed_countString failed and are still open',
+      one: ' · $failed_countString failed and is still open',
+    );
+    return '$_temp0$_temp1';
+  }
+
+  @override
+  String notifRealSellAllCompletedTitle(int failed_count) {
+    final intl.NumberFormat failed_countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String failed_countString = failed_countNumberFormat.format(failed_count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      failed_count,
+      locale: localeName,
+      zero: 'Sell all done',
+      other: 'Sell all: $failed_countString failed',
+    );
+    return '[REAL SOL] $_temp0';
+  }
+
+  @override
+  String notifRealSellAllCompletedTotal(String amount_lamports) {
+    return 'Total out: $amount_lamports';
+  }
+
+  @override
+  String notifRealSellAllRequestedBody(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Selling $countString positions at market.',
+      one: 'Selling $countString position at market.',
+    );
+    return '$_temp0 Guards still apply.';
+  }
+
+  @override
+  String get notifRealSellAllRequestedTitle => '[REAL SOL] Selling all positions';
+
+  @override
+  String notifRealSignerGrantedBody(String expires_at) {
+    return 'The bot can swap within your limits until $expires_at. It can’t transfer or withdraw.';
+  }
+
+  @override
+  String get notifRealSignerGrantedTitle => '[REAL SOL] Trading authority granted';
+
+  @override
+  String notifRealSignerRevokedBody(String reason) {
+    String _temp0 = intl.Intl.selectLogic(reason, {
+      'kill_switch': 'Revoked by the kill switch.',
+      'expiry': 'The authority expired.',
+      'user': 'You revoked it.',
+      'other': 'Revoked.',
+    });
+    return '$_temp0 Real trading can’t sign until you authorize it again.';
+  }
+
+  @override
+  String get notifRealSignerRevokedTitle => '[REAL SOL] Bot authority revoked';
+
+  @override
+  String notifRealWithdrawConfirmedBody(String address_short, String amount_lamports) {
+    return '$amount_lamports arrived in your main wallet $address_short.';
+  }
+
+  @override
+  String get notifRealWithdrawConfirmedTitle => '[REAL SOL] Withdrawal received';
+
+  @override
+  String notifRealWithdrawFailedBody(String amount_lamports, String reason_code) {
+    return '$amount_lamports wasn’t sent: $reason_code. Your balance is unchanged.';
+  }
+
+  @override
+  String get notifRealWithdrawFailedTitle => '[REAL SOL] Withdrawal failed';
+
+  @override
+  String notifRealWithdrawRequestedBody(String address_short, String amount_lamports) {
+    return '$amount_lamports → main wallet $address_short';
+  }
+
+  @override
+  String get notifRealWithdrawRequestedTitle => '[REAL SOL] Withdrawal sent';
+
+  @override
+  String notifRealWithdrawAddressAddedBody(String address_short, String cancel_until, String usable_at) {
+    return '$address_short becomes active $usable_at. Cancel before $cancel_until if this wasn’t you.';
+  }
+
+  @override
+  String get notifRealWithdrawAddressAddedTitle => '[REAL SOL] New main wallet registered';
+
+  @override
+  String notifRealWithdrawAddressCancelledBody(String address_short) {
+    return '$address_short won’t be added.';
+  }
+
+  @override
+  String get notifRealWithdrawAddressCancelledTitle => '[REAL SOL] Main wallet change cancelled';
+
+  @override
+  String notifRealWithdrawAddressUsableBody(String address_short) {
+    return '$address_short is now your main wallet and withdraw destination.';
+  }
+
+  @override
+  String get notifRealWithdrawAddressUsableTitle => '[REAL SOL] Main wallet active';
 
   @override
   String notifSkippedBody(String reason) {
@@ -1580,6 +1983,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rejectReasonUserDeclined => 'Skipped by you';
 
   @override
+  String get reviewAtaRent => 'Token account rent (new)';
+
+  @override
   String get reviewDetailsToggle => 'Fees & slippage';
 
   @override
@@ -1599,6 +2005,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewNetworkFee => 'Est. network fee';
 
   @override
+  String reviewNetworkFeeBreakdown(String base, String priority) {
+    return 'base $base + priority $priority';
+  }
+
+  @override
   String get reviewPracticeNote => 'Practice: simulated fill. No real SOL moves.';
 
   @override
@@ -1611,6 +2022,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewPriorityFee => 'Priority fee';
+
+  @override
+  String get reviewQuoteAutoRefreshing => 'Refreshing automatically…';
 
   @override
   String get reviewQuoteChangedDuringHold => 'Quote changed. Check the new values and hold again.';
@@ -1628,6 +2042,14 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String reviewQuoteId(String quote_id) {
+    return 'Quote $quote_id';
+  }
+
+  @override
+  String get reviewQuoteLoading => 'Hold is off until the quote is complete.';
 
   @override
   String get reviewQuoteMissing => 'No quote yet — refresh to continue';
@@ -1672,6 +2094,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewSwapFee => 'Swap fee';
 
   @override
+  String get reviewSwapFeeFromInput => 'taken from SOL in, not added';
+
+  @override
   String reviewTitle(String side) {
     String _temp0 = intl.Intl.selectLogic(side, {'sell': 'Review sell', 'other': 'Review buy'});
     return '$_temp0';
@@ -1679,6 +2104,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewTotalMax => 'Total (max)';
+
+  @override
+  String get reviewTotalMaxHint => '= SOL in + network fee + token account rent';
 
   @override
   String get reviewYouPay => 'You pay';
@@ -1797,7 +2225,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get screenerNotTradeableDetail =>
-      'No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved.';
+      'No SOL quote pair for this coin. Centurion Trade only trades SOL pairs, so it can’t be approved.';
 
   @override
   String get screenerStatusPassed => 'Passed';
@@ -2041,6 +2469,80 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shortcutX => 'Select / deselect';
 
   @override
+  String get stepupBothRequired => 'Two signatures, both required';
+
+  @override
+  String get stepupBrowserContinue => 'Continue in browser';
+
+  @override
+  String get stepupBrowserDone => 'Confirmed. You’re back in the app.';
+
+  @override
+  String get stepupBrowserExpired => 'The confirmation expired. Start again.';
+
+  @override
+  String get stepupBrowserReopen => 'Reopen browser';
+
+  @override
+  String get stepupBrowserStateMismatch => 'Blocked: this confirmation didn’t come from this app.';
+
+  @override
+  String get stepupBrowserTimeout => 'No answer from the browser in 5 min, so it was cancelled.';
+
+  @override
+  String get stepupBrowserWaiting => 'Finish in your browser, then come back.';
+
+  @override
+  String get stepupCancelled => 'Nothing changed.';
+
+  @override
+  String get stepupFieldAction => 'Action';
+
+  @override
+  String get stepupFieldAmount => 'Amount';
+
+  @override
+  String get stepupFieldExpires => 'Expires';
+
+  @override
+  String get stepupFieldFrom => 'From';
+
+  @override
+  String get stepupFieldNonce => 'Nonce';
+
+  @override
+  String get stepupFieldPayloadHash => 'Payload hash';
+
+  @override
+  String get stepupFieldTo => 'To';
+
+  @override
+  String get stepupPasskeyStep => '2 · Owner passkey';
+
+  @override
+  String get stepupPasskeyUse => 'Use passkey';
+
+  @override
+  String get stepupPasskeyWaiting => 'Waiting for passkey…';
+
+  @override
+  String get stepupPhantomOpen => 'Open Phantom to sign';
+
+  @override
+  String get stepupPhantomStep => '1 · Phantom signature';
+
+  @override
+  String stepupPhantomWaiting(String mm_ss) {
+    return 'Waiting for Phantom… $mm_ss left';
+  }
+
+  @override
+  String get stepupTitle => 'Confirm money action';
+
+  @override
+  String get stepupTotpOptional => 'TOTP is optional and doesn’t replace either signature.';
+
+  @override
   String get strategyApprovalModeAskEveryBuy => 'Ask: every buy';
 
   @override
@@ -2066,4 +2568,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tableMobileScrollHint => 'Scroll for more columns';
+
+  @override
+  String get tokenProgramToken2022 => 'Token-2022';
+
+  @override
+  String get walletLimitsSettingCapLamports => 'Total cap';
+
+  @override
+  String get walletLimitsSettingDailyLamports => 'Max per 24 h';
+
+  @override
+  String get walletLimitsSettingMaxPositions => 'Max open positions';
+
+  @override
+  String get walletLimitsSettingMaxSlippageBps => 'Max slippage';
+
+  @override
+  String get walletLimitsSettingPerTradeLamports => 'Max per trade';
+
+  @override
+  String get walletOwnerAddBackup => 'Add backup wallet…';
+
+  @override
+  String get walletOwnerBackup => 'Backup owner wallet · not a withdraw destination';
+
+  @override
+  String get walletOwnerCancel => 'Cancel';
+
+  @override
+  String get walletOwnerChangeMain => 'Change…';
+
+  @override
+  String get walletOwnerDelayNote => 'Changes take at least 48 h and can be cancelled.';
+
+  @override
+  String get walletOwnerMain => 'Main wallet · sign-in and the only withdraw destination';
+
+  @override
+  String walletOwnerPending(String hh_mm_ss, String usable_at) {
+    return 'Active $usable_at · $hh_mm_ss left';
+  }
+
+  @override
+  String get walletOwnerTitle => 'Owner wallets';
+
+  @override
+  String get walletOwnerTypeLast4 => 'Type the last 4 characters of the new address';
+
+  @override
+  String get walletWithdrawFailReasonUnknown => 'Unknown error';
 }

@@ -1,4 +1,6 @@
-# Sentra Mobile: Performance & Security (Phase 5 → MVP)
+# Centurion Trade Mobile: Performance & Security (Phase 5 → MVP)
+
+> Rebrand 29 Okt 2026: app id `com.centuriontrade.app`, skema `centurion://` (custom scheme bisa dibajak app lain: lihat threat model login Phantom). Nama paket internal tetap `sentra_mobile`.
 
 Status: 29 Oct 2026 (WIB). Owner: Mobile. Targets from Apex/Boss: **cold start p95 < 2 s
 (goal 1.5 s) on a mid-range Android, 60 fps, tap response < 100 ms**. Security baseline:
@@ -57,8 +59,8 @@ cd apps/mobile
 tool/build_release.sh apk --target-platform android-arm64
 adb install -r build/app/outputs/flutter-apk/app-release.apk
 for i in $(seq 1 20); do
-  adb shell am force-stop com.sentra.app; sleep 2
-  adb shell am start -W -n com.sentra.app/.MainActivity | grep TotalTime
+  adb shell am force-stop com.centuriontrade.app; sleep 2
+  adb shell am start -W -n com.centuriontrade.app/.MainActivity | grep TotalTime
 done
 # B) Engine/framework split of startup (profile mode)
 flutter run --profile --trace-startup -d <device>      # → build/start_up_info.json

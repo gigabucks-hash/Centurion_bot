@@ -92,6 +92,42 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en'), Locale('id')];
 
+  /// app.about.title
+  ///
+  /// In en, this message translates to:
+  /// **'About Centurion Trade'**
+  String get appAboutTitle;
+
+  /// version/build from the app binary
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} ({build})'**
+  String appAboutVersion(String build, String version);
+
+  /// brand; do not translate. Source: APP_NAME in build_locales.py
+  ///
+  /// In en, this message translates to:
+  /// **'Centurion Trade'**
+  String get appName;
+
+  /// splash / cold start a11y label
+  ///
+  /// In en, this message translates to:
+  /// **'Starting Centurion Trade…'**
+  String get appSplashLoading;
+
+  /// window/document title, store subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Centurion Trade · Solana trading bot'**
+  String get appTitle;
+
+  /// DISPLAY copy only. The signed SIWS statement is server-defined (strict message): Backend must change it too, else verify fails
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to Centurion Trade'**
+  String get authSiwsStatement;
+
   /// builder.approval_mode.real_note
   ///
   /// In en, this message translates to:
@@ -313,6 +349,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Chart'**
   String get chartTitle;
+
+  /// formatLamportsOrDash(expected_out_lamports)
+  ///
+  /// In en, this message translates to:
+  /// **'Expected SOL out'**
+  String get closePreviewExpectedOut;
+
+  /// Real hold replaced by close.preview.refresh
+  ///
+  /// In en, this message translates to:
+  /// **'Preview expired — refresh to continue'**
+  String get closePreviewExpired;
+
+  /// formatLamportsOrDash(min_out_lamports)
+  ///
+  /// In en, this message translates to:
+  /// **'Min. received'**
+  String get closePreviewMinReceived;
+
+  /// POST …/close/preview again (same 3 s rule)
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh preview'**
+  String get closePreviewRefresh;
+
+  /// close.preview.refreshing
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing preview…'**
+  String get closePreviewRefreshing;
+
+  /// sub-line of review.swap_fee on the sell sheet
+  ///
+  /// In en, this message translates to:
+  /// **'taken from proceeds'**
+  String get closePreviewSwapFeeFromOutput;
+
+  /// until 1.1.5 ships: values show —
+  ///
+  /// In en, this message translates to:
+  /// **'Preview isn’t available yet, so Real sells stay off.'**
+  String get closePreviewUnavailable;
+
+  /// seconds = quoteState(preview).expiresInS
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds,plural,one{Preview valid for {seconds} s} other{Preview valid for {seconds} s}}'**
+  String closePreviewValid(int seconds);
+
+  /// qty = formatRawQty(qty_raw, decimals)
+  ///
+  /// In en, this message translates to:
+  /// **'You sell'**
+  String get closePreviewYouSell;
+
+  /// wire mcap_source=curve (1.1.5); suffix after the mcap value
+  ///
+  /// In en, this message translates to:
+  /// **'(curve)'**
+  String get coinMcapSourceCurve;
+
+  /// wire mcap_source=pool (1.1.5); suffix after the mcap value
+  ///
+  /// In en, this message translates to:
+  /// **'(pool)'**
+  String get coinMcapSourcePool;
+
+  /// wire mcap_source=unavailable (1.1.5); value shows — + common.value.unavailable
+  ///
+  /// In en, this message translates to:
+  /// **'Source unavailable'**
+  String get coinMcapSourceUnavailable;
 
   /// coin_trail.snapshot_note
   ///
@@ -1154,6 +1262,18 @@ abstract class AppLocalizations {
   /// **'A guard check failed while waiting'**
   String get expireReasonGuardFailedDetail;
 
+  /// queue chip for proposal.expired reason=kill_switch
+  ///
+  /// In en, this message translates to:
+  /// **'Real stopped'**
+  String get expireReasonKillSwitchBadge;
+
+  /// detail line / N-07 body for reason=kill_switch
+  ///
+  /// In en, this message translates to:
+  /// **'Real trading was stopped'**
+  String get expireReasonKillSwitchDetail;
+
   /// queue chip for proposal.expired reason=practice_reset
   ///
   /// In en, this message translates to:
@@ -1460,6 +1580,174 @@ abstract class AppLocalizations {
   /// **'Type the strategy name to confirm'**
   String get guardWeakenTypeName;
 
+  /// initial focus; one click + one dialog, no 2FA, no hold
+  ///
+  /// In en, this message translates to:
+  /// **'Stop now'**
+  String get killSwitchActionEngage;
+
+  /// kill_switch.action.open
+  ///
+  /// In en, this message translates to:
+  /// **'Stop all Real trading'**
+  String get killSwitchActionOpen;
+
+  /// kill_switch.dialog.effect.buys
+  ///
+  /// In en, this message translates to:
+  /// **'New buys are blocked and all Real strategies pause.'**
+  String get killSwitchDialogEffectBuys;
+
+  /// kill_switch.dialog.effect.inflight
+  ///
+  /// In en, this message translates to:
+  /// **'Orders already sent can’t be recalled.'**
+  String get killSwitchDialogEffectInflight;
+
+  /// kill_switch.dialog.effect.proposals
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Real proposals expire.'**
+  String get killSwitchDialogEffectProposals;
+
+  /// kill_switch.dialog.effect.unsigned
+  ///
+  /// In en, this message translates to:
+  /// **'Unsigned orders are cancelled.'**
+  String get killSwitchDialogEffectUnsigned;
+
+  /// kill_switch.dialog.title
+  ///
+  /// In en, this message translates to:
+  /// **'Stop all Real trading?'**
+  String get killSwitchDialogTitle;
+
+  /// kill_switch.offline
+  ///
+  /// In en, this message translates to:
+  /// **'Can’t reach the server. Stop isn’t confirmed yet. Retrying…'**
+  String get killSwitchOffline;
+
+  /// kill_switch.option.exits_freeze
+  ///
+  /// In en, this message translates to:
+  /// **'Freeze exit plans too: positions have NO automatic stop loss'**
+  String get killSwitchOptionExitsFreeze;
+
+  /// kill_switch.option.exits_run
+  ///
+  /// In en, this message translates to:
+  /// **'Exit plan keeps running (recommended)'**
+  String get killSwitchOptionExitsRun;
+
+  /// kill_switch.option.revoke
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke the bot’s authority at the provider (hard stop)'**
+  String get killSwitchOptionRevoke;
+
+  /// kill_switch.option.sell_all
+  ///
+  /// In en, this message translates to:
+  /// **'{count,plural,one{Also sell {count} position now} other{Also sell {count} positions now}}'**
+  String killSwitchOptionSellAll(int count);
+
+  /// kill_switch_reason=loss_velocity (Backend final Phase 7, auto trips only; lower-case: used mid-sentence)
+  ///
+  /// In en, this message translates to:
+  /// **'losses grew too fast'**
+  String get killSwitchReasonLossVelocity;
+
+  /// kill_switch_reason=other (Backend final Phase 7, auto trips only; lower-case: used mid-sentence)
+  ///
+  /// In en, this message translates to:
+  /// **'a safety rule triggered'**
+  String get killSwitchReasonOther;
+
+  /// kill_switch_reason=policy_mismatch (Backend final Phase 7, auto trips only; lower-case: used mid-sentence)
+  ///
+  /// In en, this message translates to:
+  /// **'wallet rules don’t match'**
+  String get killSwitchReasonPolicyMismatch;
+
+  /// resume after Stop (real.buys.resumed) or clear an auto trip (real.kill_switch.cleared); step-up rules per Backend. No delay copy: clear_requested was dropped
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enable Real trading'**
+  String get killSwitchReenableAction;
+
+  /// kill_switch.reenable.resume_note
+  ///
+  /// In en, this message translates to:
+  /// **'Strategies stay paused. Resume them one by one.'**
+  String get killSwitchReenableResumeNote;
+
+  /// kill_switch.revoke_pending
+  ///
+  /// In en, this message translates to:
+  /// **'Trading stopped. Revoking authority is pending; we’ll retry.'**
+  String get killSwitchRevokePending;
+
+  /// wire scope=global
+  ///
+  /// In en, this message translates to:
+  /// **'All Real trading'**
+  String get killSwitchScopeGlobal;
+
+  /// wire scope=strategy
+  ///
+  /// In en, this message translates to:
+  /// **'One strategy'**
+  String get killSwitchScopeStrategy;
+
+  /// wire scope=workspace
+  ///
+  /// In en, this message translates to:
+  /// **'This workspace'**
+  String get killSwitchScopeWorkspace;
+
+  /// kill_switch.sell_all.body
+  ///
+  /// In en, this message translates to:
+  /// **'Sells at market now. Safety checks still apply: simulation and your slippage cap.'**
+  String get killSwitchSellAllBody;
+
+  /// kill_switch.sell_all.hold
+  ///
+  /// In en, this message translates to:
+  /// **'Hold 2.5 s to sell all'**
+  String get killSwitchSellAllHold;
+
+  /// lead decision: confirm dialog + 2.5 s hold, NO Phantom step-up
+  ///
+  /// In en, this message translates to:
+  /// **'{count,plural,one{Sell {count} Real position now?} other{Sell {count} Real positions now?}}'**
+  String killSwitchSellAllTitle(int count);
+
+  /// kill_switch.status.authority
+  ///
+  /// In en, this message translates to:
+  /// **'{state, select, revoked {Bot authority revoked} other {Bot authority still active}}'**
+  String killSwitchStatusAuthority(String state);
+
+  /// at = formatDateTime; device_label untrusted text
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped {actor_type, select, user {by you on {device_label}} rule {automatically} other {by the system}} at {at}'**
+  String killSwitchStatusBy(String actor_type, String at, String device_label);
+
+  /// kill_switch.status.exits
+  ///
+  /// In en, this message translates to:
+  /// **'{state, select, running {Exit plan running} other {Exit plan frozen}}'**
+  String killSwitchStatusExits(String state);
+
+  /// manual Stop = real.buys.paused (exits keep running); auto trip = real.kill_switch.tripped
+  ///
+  /// In en, this message translates to:
+  /// **'New buys stopped'**
+  String get killSwitchStatusTitle;
+
   /// Use the Apple system-localized title when available
   ///
   /// In en, this message translates to:
@@ -1553,7 +1841,7 @@ abstract class AppLocalizations {
   /// login.telegram.consent
   ///
   /// In en, this message translates to:
-  /// **'Telegram shares your name, username and photo with Sentra.'**
+  /// **'Telegram shares your name, username and photo with Centurion Trade.'**
   String get loginTelegramConsent;
 
   /// login.telegram.retry
@@ -1628,7 +1916,7 @@ abstract class AppLocalizations {
   /// **'≈ {amount}'**
   String mcapSolValue(String amount);
 
-  /// tooltip second line when mcap_usd is shown
+  /// tooltip second line ONLY when mcap_source is curve|pool and mcap_usd is set (mcapView in format.mjs, 1.1.5)
   ///
   /// In en, this message translates to:
   /// **'USD is indicative (reference SOL price), not live.'**
@@ -2005,6 +2293,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'[PRACTICE] Practice reset'**
   String get notifPracticeResetTitle;
+
+  /// N-43
+  ///
+  /// In en, this message translates to:
+  /// **'Open positions keep their exit plan · {actor_type, select, user {by you on {device_label}} other {by the system}}'**
+  String notifRealBuysPausedBody(String actor_type, String device_label);
+
+  /// N-43 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] New buys stopped'**
+  String get notifRealBuysPausedTitle;
+
+  /// N-44
+  ///
+  /// In en, this message translates to:
+  /// **'{actor_type, select, user {By you on {device_label}.} other {By the system.}} Strategies stay paused until you resume them.'**
+  String notifRealBuysResumedBody(String actor_type, String device_label);
+
+  /// N-44 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] New buys resumed'**
+  String get notifRealBuysResumedTitle;
+
+  /// N-39
+  ///
+  /// In en, this message translates to:
+  /// **'+{amount_lamports} · balance {balance_lamports} of {cap_lamports}'**
+  String notifRealDepositDetectedBody(String amount_lamports, String balance_lamports, String cap_lamports);
+
+  /// N-39 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Deposit received'**
+  String get notifRealDepositDetectedTitle;
+
+  /// N-31
+  ///
+  /// In en, this message translates to:
+  /// **'Real trading can run again. Strategies stay paused until you resume them.'**
+  String get notifRealKillSwitchClearedBody;
+
+  /// N-31 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Automatic stop cleared'**
+  String get notifRealKillSwitchClearedTitle;
+
+  /// N-29
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped automatically: {reason, select, policy_mismatch {wallet rules don’t match} loss_velocity {losses grew too fast} other {a safety rule triggered}}. New buys are blocked.'**
+  String notifRealKillSwitchTrippedBody(String reason);
+
+  /// N-29 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Real trading stopped automatically'**
+  String get notifRealKillSwitchTrippedTitle;
+
+  /// N-27
+  ///
+  /// In en, this message translates to:
+  /// **'{setting}: {from} → {to}'**
+  String notifRealLimitChangedBody(String from, String setting, String to);
+
+  /// N-27 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Limits updated'**
+  String get notifRealLimitChangedTitle;
+
+  /// N-28
+  ///
+  /// In en, this message translates to:
+  /// **'{setting}: {from} → {to} from {activates_at}, and it stays until you change it. Cancel if this wasn’t you.'**
+  String notifRealLimitLoosenRequestedBody(String activates_at, String from, String setting, String to);
+
+  /// N-28 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Limit change pending'**
+  String get notifRealLimitLoosenRequestedTitle;
+
+  /// N-25
+  ///
+  /// In en, this message translates to:
+  /// **'Matches what you approved.'**
+  String get notifRealPolicyActivatedBody;
+
+  /// N-25 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Wallet rules v{version} active'**
+  String notifRealPolicyActivatedTitle(String version);
+
+  /// N-26
+  ///
+  /// In en, this message translates to:
+  /// **'Real trading stopped for safety. Open the app to compare v{version}.'**
+  String notifRealPolicyMismatchBody(String version);
+
+  /// N-26 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Wallet rules don’t match'**
+  String get notifRealPolicyMismatchTitle;
+
+  /// N-46
+  ///
+  /// In en, this message translates to:
+  /// **'{sold_count,plural,one{{sold_count} sold} other{{sold_count} sold}}{failed_count,plural,one{ · {failed_count} failed and is still open} other{ · {failed_count} failed and are still open} =0{}}'**
+  String notifRealSellAllCompletedBody(int failed_count, int sold_count);
+
+  /// N-46 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] {failed_count,plural,other{Sell all: {failed_count} failed} =0{Sell all done}}'**
+  String notifRealSellAllCompletedTitle(int failed_count);
+
+  /// N-46 extra line, only when amount_lamports is not null (formatLamports)
+  ///
+  /// In en, this message translates to:
+  /// **'Total out: {amount_lamports}'**
+  String notifRealSellAllCompletedTotal(String amount_lamports);
+
+  /// N-45
+  ///
+  /// In en, this message translates to:
+  /// **'{count,plural,one{Selling {count} position at market.} other{Selling {count} positions at market.}} Guards still apply.'**
+  String notifRealSellAllRequestedBody(int count);
+
+  /// N-45 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Selling all positions'**
+  String get notifRealSellAllRequestedTitle;
+
+  /// N-23
+  ///
+  /// In en, this message translates to:
+  /// **'The bot can swap within your limits until {expires_at}. It can’t transfer or withdraw.'**
+  String notifRealSignerGrantedBody(String expires_at);
+
+  /// N-23 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Trading authority granted'**
+  String get notifRealSignerGrantedTitle;
+
+  /// N-24
+  ///
+  /// In en, this message translates to:
+  /// **'{reason, select, kill_switch {Revoked by the kill switch.} expiry {The authority expired.} user {You revoked it.} other {Revoked.}} Real trading can’t sign until you authorize it again.'**
+  String notifRealSignerRevokedBody(String reason);
+
+  /// N-24 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Bot authority revoked'**
+  String get notifRealSignerRevokedTitle;
+
+  /// N-41
+  ///
+  /// In en, this message translates to:
+  /// **'{amount_lamports} arrived in your main wallet {address_short}.'**
+  String notifRealWithdrawConfirmedBody(String address_short, String amount_lamports);
+
+  /// N-41 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Withdrawal received'**
+  String get notifRealWithdrawConfirmedTitle;
+
+  /// N-42
+  ///
+  /// In en, this message translates to:
+  /// **'{amount_lamports} wasn’t sent: {reason_code}. Your balance is unchanged.'**
+  String notifRealWithdrawFailedBody(String amount_lamports, String reason_code);
+
+  /// N-42 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Withdrawal failed'**
+  String get notifRealWithdrawFailedTitle;
+
+  /// N-40
+  ///
+  /// In en, this message translates to:
+  /// **'{amount_lamports} → main wallet {address_short}'**
+  String notifRealWithdrawRequestedBody(String address_short, String amount_lamports);
+
+  /// N-40 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Withdrawal sent'**
+  String get notifRealWithdrawRequestedTitle;
+
+  /// N-32
+  ///
+  /// In en, this message translates to:
+  /// **'{address_short} becomes active {usable_at}. Cancel before {cancel_until} if this wasn’t you.'**
+  String notifRealWithdrawAddressAddedBody(String address_short, String cancel_until, String usable_at);
+
+  /// N-32 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] New main wallet registered'**
+  String get notifRealWithdrawAddressAddedTitle;
+
+  /// N-34
+  ///
+  /// In en, this message translates to:
+  /// **'{address_short} won’t be added.'**
+  String notifRealWithdrawAddressCancelledBody(String address_short);
+
+  /// N-34 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Main wallet change cancelled'**
+  String get notifRealWithdrawAddressCancelledTitle;
+
+  /// N-33
+  ///
+  /// In en, this message translates to:
+  /// **'{address_short} is now your main wallet and withdraw destination.'**
+  String notifRealWithdrawAddressUsableBody(String address_short);
+
+  /// N-33 RESERVED Phase 7; placeholders = wire vars (snake_case)
+  ///
+  /// In en, this message translates to:
+  /// **'[REAL SOL] Main wallet active'**
+  String get notifRealWithdrawAddressUsableTitle;
 
   /// N-06
   ///
@@ -2480,6 +3002,12 @@ abstract class AppLocalizations {
   /// **'Skipped by you'**
   String get rejectReasonUserDeclined;
 
+  /// value = formatLamports(est_ata_rent_lamports); row hidden when "0" (showAtaRent)
+  ///
+  /// In en, this message translates to:
+  /// **'Token account rent (new)'**
+  String get reviewAtaRent;
+
   /// collapsible row label (mobile)
   ///
   /// In en, this message translates to:
@@ -2498,7 +3026,7 @@ abstract class AppLocalizations {
   /// **'Min. received'**
   String get reviewMinReceived;
 
-  /// min_out = formatRawQty(min_out_raw, decimals); symbol untrusted. Missing value or decimals → whole row shows —
+  /// min_out = formatRawQty(min_out_raw, decimals); decimals from ApprovalWire (1.1.5); symbol untrusted. Missing value or decimals → whole row shows —
   ///
   /// In en, this message translates to:
   /// **'≥ {min_out} {symbol}'**
@@ -2509,6 +3037,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Est. network fee'**
   String get reviewNetworkFee;
+
+  /// sub-line of review.network_fee; base/priority = networkFeeParts() formatted with formatLamports
+  ///
+  /// In en, this message translates to:
+  /// **'base {base} + priority {priority}'**
+  String reviewNetworkFeeBreakdown(String base, String priority);
 
   /// review.practice_note
   ///
@@ -2528,13 +3062,19 @@ abstract class AppLocalizations {
   /// **'Price moved {pct} since this pick. Review again before approving.'**
   String reviewPriceMoved(String pct);
 
-  /// value = formatLamportsOrDash(priority_fee_lamports)
+  /// value = formatLamportsOrDash(priority_fee_lamports); breakdown only: already inside est_network_fee_lamports, never add it again (1.1.5)
   ///
   /// In en, this message translates to:
   /// **'Priority fee'**
   String get reviewPriorityFee;
 
-  /// proposal.updated while the hold is in progress: cancel the hold, reset the bar, new rev
+  /// once per expiry while the sheet is visible and not held (GET auto-refreshes a stale quote)
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing automatically…'**
+  String get reviewQuoteAutoRefreshing;
+
+  /// quote_id changed (quoteChanged) while a Real hold is in progress: cancel the hold, reset the bar; next approve sends the new expected_quote_id. Rev is unchanged (1.1.5)
   ///
   /// In en, this message translates to:
   /// **'Quote changed. Check the new values and hold again.'**
@@ -2545,6 +3085,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{seconds,plural,one{Expires in {seconds} s} other{Expires in {seconds} s}}'**
   String reviewQuoteExpiresIn(int seconds);
+
+  /// quote_id shortened with formatIdShort (first 6 chars); diagnostics row, muted
+  ///
+  /// In en, this message translates to:
+  /// **'Quote {quote_id}'**
+  String reviewQuoteId(String quote_id);
+
+  /// Real: quoteState().complete=false; skeleton rows
+  ///
+  /// In en, this message translates to:
+  /// **'Hold is off until the quote is complete.'**
+  String get reviewQuoteLoading;
 
   /// Real: all quote fields null; hold/Approve disabled
   ///
@@ -2558,7 +3110,7 @@ abstract class AppLocalizations {
   /// **'Estimate expired. Practice can still approve; values may differ.'**
   String get reviewQuotePracticeStale;
 
-  /// CTA on stale/missing state and on 409 QUOTE_MISSING_OR_STALE
+  /// CTA: POST …/approvals/{id}/quote (1.1.5; max 1 per 3 s, inside the window returns the existing quote → spinner ≤ 3 s, no error)
   ///
   /// In en, this message translates to:
   /// **'Refresh quote'**
@@ -2570,7 +3122,7 @@ abstract class AppLocalizations {
   /// **'Refreshing quote…'**
   String get reviewQuoteRefreshing;
 
-  /// Real: hold/Approve disabled until a fresh quote (409 QUOTE_MISSING_OR_STALE otherwise)
+  /// Real: hold/Approve replaced by review.quote.refresh until a fresh quote (409 QUOTE_MISSING_OR_STALE otherwise)
   ///
   /// In en, this message translates to:
   /// **'Quote expired — refresh to continue'**
@@ -2582,7 +3134,7 @@ abstract class AppLocalizations {
   /// **'{seconds,plural,one{Quote updated {seconds} s ago} other{Quote updated {seconds} s ago} =0{Quote updated just now}}'**
   String reviewQuoteUpdatedAgo(int seconds);
 
-  /// proposal.updated: subtle inline label next to the values for ~2 s, polite live region; no toast/push
+  /// proposal.updated with a NEW quote_id (rev unchanged, 1.1.5): subtle inline label ~2 s, polite live region; no toast/push
   ///
   /// In en, this message translates to:
   /// **'Quote updated'**
@@ -2600,11 +3152,17 @@ abstract class AppLocalizations {
   /// **'Max slippage'**
   String get reviewSlippage;
 
-  /// value = formatBps(swap_fee_bps)
+  /// value = formatBps(swap_fee_bps); taken from SOL in, not added to the total (1.1.5)
   ///
   /// In en, this message translates to:
   /// **'Swap fee'**
   String get reviewSwapFee;
+
+  /// sub-line of review.swap_fee
+  ///
+  /// In en, this message translates to:
+  /// **'taken from SOL in, not added'**
+  String get reviewSwapFeeFromInput;
 
   /// transaction review sheet before Approve/Sell
   ///
@@ -2612,11 +3170,17 @@ abstract class AppLocalizations {
   /// **'{side, select, sell {Review sell} other {Review buy}}'**
   String reviewTitle(String side);
 
-  /// value = formatLamportsOrDash(total_max_lamports) = SOL in + network fee (contracts 1.1.4)
+  /// value = formatLamportsOrDash(total_max_lamports) = SOL in + est_network_fee + est_ata_rent (1.1.5); check with totalMaxCheck()
   ///
   /// In en, this message translates to:
   /// **'Total (max)'**
   String get reviewTotalMax;
+
+  /// formula sub-line under review.total_max
+  ///
+  /// In en, this message translates to:
+  /// **'= SOL in + network fee + token account rent'**
+  String get reviewTotalMaxHint;
 
   /// value = formatLamports(amount_lamports)
   ///
@@ -2825,7 +3389,7 @@ abstract class AppLocalizations {
   /// shown instead of Approve/Skip; reason_code UNSUPPORTED_QUOTE_MINT
   ///
   /// In en, this message translates to:
-  /// **'No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved.'**
+  /// **'No SOL quote pair for this coin. Centurion Trade only trades SOL pairs, so it can’t be approved.'**
   String get screenerNotTradeableDetail;
 
   /// screener.status.passed
@@ -3266,6 +3830,150 @@ abstract class AppLocalizations {
   /// **'Select / deselect'**
   String get shortcutX;
 
+  /// stepup.both_required
+  ///
+  /// In en, this message translates to:
+  /// **'Two signatures, both required'**
+  String get stepupBothRequired;
+
+  /// default on Linux; offered when in-app WebAuthn fails
+  ///
+  /// In en, this message translates to:
+  /// **'Continue in browser'**
+  String get stepupBrowserContinue;
+
+  /// stepup.browser.done
+  ///
+  /// In en, this message translates to:
+  /// **'Confirmed. You’re back in the app.'**
+  String get stepupBrowserDone;
+
+  /// one-time code older than 2 min
+  ///
+  /// In en, this message translates to:
+  /// **'The confirmation expired. Start again.'**
+  String get stepupBrowserExpired;
+
+  /// stepup.browser.reopen
+  ///
+  /// In en, this message translates to:
+  /// **'Reopen browser'**
+  String get stepupBrowserReopen;
+
+  /// PKCE state mismatch; nothing runs
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked: this confirmation didn’t come from this app.'**
+  String get stepupBrowserStateMismatch;
+
+  /// stepup.browser.timeout
+  ///
+  /// In en, this message translates to:
+  /// **'No answer from the browser in 5 min, so it was cancelled.'**
+  String get stepupBrowserTimeout;
+
+  /// stepup.browser.waiting
+  ///
+  /// In en, this message translates to:
+  /// **'Finish in your browser, then come back.'**
+  String get stepupBrowserWaiting;
+
+  /// Phantom rejected or passkey cancelled
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing changed.'**
+  String get stepupCancelled;
+
+  /// step-up preview row label
+  ///
+  /// In en, this message translates to:
+  /// **'Action'**
+  String get stepupFieldAction;
+
+  /// step-up preview row label
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get stepupFieldAmount;
+
+  /// step-up preview row label
+  ///
+  /// In en, this message translates to:
+  /// **'Expires'**
+  String get stepupFieldExpires;
+
+  /// step-up preview row label
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get stepupFieldFrom;
+
+  /// step-up preview row label
+  ///
+  /// In en, this message translates to:
+  /// **'Nonce'**
+  String get stepupFieldNonce;
+
+  /// step-up preview row label
+  ///
+  /// In en, this message translates to:
+  /// **'Payload hash'**
+  String get stepupFieldPayloadHash;
+
+  /// step-up preview row label
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get stepupFieldTo;
+
+  /// stepup.passkey.step
+  ///
+  /// In en, this message translates to:
+  /// **'2 · Owner passkey'**
+  String get stepupPasskeyStep;
+
+  /// stepup.passkey.use
+  ///
+  /// In en, this message translates to:
+  /// **'Use passkey'**
+  String get stepupPasskeyUse;
+
+  /// stepup.passkey.waiting
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for passkey…'**
+  String get stepupPasskeyWaiting;
+
+  /// stepup.phantom.open
+  ///
+  /// In en, this message translates to:
+  /// **'Open Phantom to sign'**
+  String get stepupPhantomOpen;
+
+  /// signs payload_hash (readable text message)
+  ///
+  /// In en, this message translates to:
+  /// **'1 · Phantom signature'**
+  String get stepupPhantomStep;
+
+  /// mm_ss = step-up expiry (2 min) via formatCountdown
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for Phantom… {mm_ss} left'**
+  String stepupPhantomWaiting(String mm_ss);
+
+  /// stepup.title
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm money action'**
+  String get stepupTitle;
+
+  /// stepup.totp_optional
+  ///
+  /// In en, this message translates to:
+  /// **'TOTP is optional and doesn’t replace either signature.'**
+  String get stepupTotpOptional;
+
   /// strategy.approval_mode.ask_every_buy
   ///
   /// In en, this message translates to:
@@ -3319,6 +4027,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scroll for more columns'**
   String get tableMobileScrollHint;
+
+  /// chip when token_program = Token-2022 program id (isToken2022); do not translate
+  ///
+  /// In en, this message translates to:
+  /// **'Token-2022'**
+  String get tokenProgramToken2022;
+
+  /// real.limit.* setting=cap_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue
+  ///
+  /// In en, this message translates to:
+  /// **'Total cap'**
+  String get walletLimitsSettingCapLamports;
+
+  /// real.limit.* setting=daily_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue
+  ///
+  /// In en, this message translates to:
+  /// **'Max per 24 h'**
+  String get walletLimitsSettingDailyLamports;
+
+  /// real.limit.* setting=max_positions (PROPOSED key name, confirm with Backend); from/to via formatLimitValue
+  ///
+  /// In en, this message translates to:
+  /// **'Max open positions'**
+  String get walletLimitsSettingMaxPositions;
+
+  /// real.limit.* setting=max_slippage_bps (PROPOSED key name, confirm with Backend); from/to via formatLimitValue
+  ///
+  /// In en, this message translates to:
+  /// **'Max slippage'**
+  String get walletLimitsSettingMaxSlippageBps;
+
+  /// real.limit.* setting=per_trade_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue
+  ///
+  /// In en, this message translates to:
+  /// **'Max per trade'**
+  String get walletLimitsSettingPerTradeLamports;
+
+  /// wallet.owner.add_backup
+  ///
+  /// In en, this message translates to:
+  /// **'Add backup wallet…'**
+  String get walletOwnerAddBackup;
+
+  /// wallet.owner.backup
+  ///
+  /// In en, this message translates to:
+  /// **'Backup owner wallet · not a withdraw destination'**
+  String get walletOwnerBackup;
+
+  /// cancels a pending (quarantined) wallet
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get walletOwnerCancel;
+
+  /// wallet.owner.change_main
+  ///
+  /// In en, this message translates to:
+  /// **'Change…'**
+  String get walletOwnerChangeMain;
+
+  /// wallet.owner.delay_note
+  ///
+  /// In en, this message translates to:
+  /// **'Changes take at least 48 h and can be cancelled.'**
+  String get walletOwnerDelayNote;
+
+  /// wallet.owner.main
+  ///
+  /// In en, this message translates to:
+  /// **'Main wallet · sign-in and the only withdraw destination'**
+  String get walletOwnerMain;
+
+  /// usable_at = formatDateTime; hh_mm_ss = formatCountdownHms (computed); WITHDRAW_ADDRESS_PENDING maps here
+  ///
+  /// In en, this message translates to:
+  /// **'Active {usable_at} · {hh_mm_ss} left'**
+  String walletOwnerPending(String hh_mm_ss, String usable_at);
+
+  /// wallet.owner.title
+  ///
+  /// In en, this message translates to:
+  /// **'Owner wallets'**
+  String get walletOwnerTitle;
+
+  /// wallet.owner.type_last4
+  ///
+  /// In en, this message translates to:
+  /// **'Type the last 4 characters of the new address'**
+  String get walletOwnerTypeLast4;
+
+  /// N-42 {reason_code} when the code has no error.code.* copy
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown error'**
+  String get walletWithdrawFailReasonUnknown;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
