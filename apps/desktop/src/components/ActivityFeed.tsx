@@ -4,7 +4,7 @@ import { useTerm } from "../state/store";
 import { fmtTime } from "./format";
 
 const ACTOR_KEY: Record<Actor, string> = {
-  ingest: "desktop.actor.ingest",
+  ingest: "feed.actor.ingest",
   screener: "feed.actor.screener",
   guard: "feed.actor.guard",
   entry: "feed.actor.entry",

@@ -7,8 +7,8 @@ import { NtChip } from "./NotTradeable";
 export type ScreenerFilter = "all" | "passed" | "rejected" | "not_tradeable";
 const FILTERS: [ScreenerFilter, string][] = [
   ["all", "dashboard.feed.filter.all"],
-  ["passed", "desktop.screener.filter.passed"],
-  ["rejected", "desktop.screener.filter.rejected"],
+  ["passed", "screener.filter.passed"],
+  ["rejected", "screener.filter.rejected"],
   ["not_tradeable", "screener.not_tradeable.badge"],
 ];
 const match = (c: ScreenedCoin, f: ScreenerFilter) =>
@@ -34,7 +34,7 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
   const count = (f: ScreenerFilter) => coins.filter((c) => match(c, f)).length;
   return (
     <div className="screener">
-      <div className="filter-chips" role="group" aria-label={t("desktop.screener.title")}>
+      <div className="filter-chips" role="group" aria-label={t("screener.title")}>
         {FILTERS.map(([f, key]) => (
           <button key={f} className={`chip-btn${filter === f ? " on" : ""}`} aria-pressed={filter === f} onClick={() => setFilter(f)} data-filter={f}>
             {t(key)} <span className="num dim">{count(f)}</span>
@@ -42,14 +42,14 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
         ))}
       </div>
       {!rows.length ? (
-        <div className="empty">{t("desktop.screener.empty")}</div>
+        <div className="empty">{t("screener.empty")}</div>
       ) : (
         <table className="positions screener-table">
           <thead>
             <tr>
-              <th>{t("desktop.screener.col.coin")}</th><th>{t("desktop.screener.col.venue")}</th><th>{t("desktop.screener.col.liquidity")}</th>
-              <th>{t("desktop.screener.col.score")}</th><th>{t("desktop.screener.col.guard")}</th><th>{t("desktop.screener.col.status")}</th>
-              <th>{t("desktop.screener.col.action")}</th>
+              <th>{t("screener.col.coin")}</th><th>{t("screener.col.venue")}</th><th>{t("screener.col.mcap")}</th><th>{t("screener.col.liquidity")}</th>
+              <th>{t("screener.col.score")}</th><th>{t("screener.col.guard")}</th><th>{t("screener.col.status")}</th>
+              <th>{t("screener.col.action")}</th>
             </tr>
           </thead>
           <tbody>
@@ -63,20 +63,22 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
                   {/* symbol is untrusted token metadata → text node only */}
                   <td><b>${c.symbol}</b></td>
                   <td className="muted">{c.venue === "curve" ? "Curve" : c.venue === "amm" ? "AMM" : "—"}</td>
+                  {/* Mcap: no market-cap field in contracts 1.1.2 (coin.detected / screener.scored / mark) → "—" until Backend adds one. */}
+                  <td className="num dim" title="mcap_usd: not in contracts 1.1.2">{c.mcap_usd != null ? fmtUsdLocale(c.mcap_usd, lang) : "—"}</td>
                   <td className="num">{nt || c.liquidity_usd == null ? "—" : fmtUsdLocale(c.liquidity_usd, lang)}</td>
                   <td className="num">{c.score}</td>
                   <td>{nt || !c.guard_verdict ? <span className="dim">—</span> : <span className={`chip verdict v-${c.guard_verdict.toLowerCase()}`}>{c.guard_verdict}</span>}</td>
                   <td>
                     {nt ? <NtChip />
-                      : c.status === "pick" ? <span className="chip st-pick">{t("desktop.screener.status.pick")}</span>
-                      : c.status === "pending_guard" ? <span className="chip">{t("desktop.screener.status.pending_guard")}</span>
-                      : c.status === "rejected_guard" ? <span className="chip st-fail">{t("desktop.screener.status.rejected_guard")}</span>
-                      : <span className="chip">{t("desktop.screener.status.rejected_score", { pass: c.score_threshold })}</span>}
+                      : c.status === "pick" ? <span className="chip st-pick">{t("screener.status.pick_queued")}</span>
+                      : c.status === "pending_guard" ? <span className="chip">{t("screener.status.pending_guard")}</span>
+                      : c.status === "rejected_guard" ? <span className="chip st-fail">{t("screener.status.rejected_guard")}</span>
+                      : <span className="chip">{t("screener.status.rejected_score", { score_threshold: c.score_threshold })}</span>}
                   </td>
                   <td>
                     {/* WF-20 note 2: empty Aksi for not-tradeable coins */}
                     {!nt && c.status === "pick" ? (
-                      <button className="sm ghost" onClick={() => onOpenQueue(c.mint)}>{t("desktop.screener.open_queue")}</button>
+                      <button className="sm ghost" onClick={() => onOpenQueue(c.mint)}>{t("screener.action.open_queue")}</button>
                     ) : <span className="dim">—</span>}
                   </td>
                 </tr>
@@ -85,7 +87,7 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
           </tbody>
         </table>
       )}
-      <div className="dim legend">{t("desktop.screener.legend")}</div>
+      <div className="dim legend">{t("screener.legend")}</div>
     </div>
   );
 }

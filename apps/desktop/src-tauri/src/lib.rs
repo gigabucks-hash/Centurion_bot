@@ -4,6 +4,7 @@ mod backend;
 mod commands;
 #[cfg(test)]
 mod contract_tests;
+mod errmap;
 mod error;
 mod events;
 mod hotkeys;

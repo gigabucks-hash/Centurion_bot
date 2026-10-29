@@ -46,10 +46,10 @@ SENTRA_MOCK_MODE=real cargo tauri dev   # desktop
 ```
 In REAL mode the popup cannot approve. Approve from main needs the dialog + a 2.5 s hold. No wallet and no network in either mode.
 
-Screenshots: `docs/` (screenshot-v11-terminal, screenshot-v11-conflict, screenshot-v11-after-sell, popup-practice, popup-real, real-handoff-confirm, positions-compact-sell, wf20-screener-tab, wf20-coin-detail, wf20-queue-card-not-tradeable, wf20-positions-sell-unavailable, wf20-sell-shortcut-blocked, …).
+Screenshots: `docs/` (screenshot-v11-terminal, screenshot-v11-conflict, screenshot-v11-after-sell, popup-practice, popup-real, real-handoff-confirm, positions-compact-sell, wf20-screener-tab, wf20-coin-detail, wf20-queue-card-not-tradeable, wf20-positions-sell-unavailable, wf20-sell-shortcut-blocked, wf20-quicklook-not-tradeable, …).
 
 ## What is mocked
-- The whole backend, as an in-process mock server that speaks the contracts v1.1.2 wire (REST/SSE server is Phase 2, so the transport stays mock). It covers the token stream, prices, guard and screener results, the exit plan, the paper book (30 SOL, 0.25 SOL per trade, 125 bps fee), strategies with rev, practice reset, coin timeline and exit-reason stats.
+- The whole backend, as an in-process mock server that speaks the contracts v1.1.3 wire (the Phase-2 REST/SSE server exists in `services/backend/api` but is not integrated yet, so the transport stays mock). It covers the token stream, prices, guard and screener results, the exit plan, the paper book (30 SOL, 0.25 SOL per trade, 125 bps fee), strategies with rev, practice reset, coin timeline and exit-reason stats.
 - It lives in `src-tauri/src/backend/mock.rs`. The desktop reaches it only through the `Transport` trait.
 
 ## Mock environment variables
@@ -68,9 +68,15 @@ Not tradeable is a product limit, not a danger, so the chip is neutral (⊘, das
 2. Rust commands: `approve_signal`, `approve_many`, `request_sell` and `confirm_sell` (re-checked at confirm, so a quote taken before a flip is refused) return `UNSUPPORTED_QUOTE_MINT: …`.
 3. Mock server: `422` + `order.failed`.
 
-Skip stays allowed on a not-tradeable card (rejecting is not a trade).
+Skip stays allowed on a not-tradeable card (rejecting is not a trade; UX Rev 4.4), with `queue.skip_reason.not_tradeable` preselected. Contracts 1.1.3 sends it on the wire: a skip carries `reject_reason: "not_tradeable"` for a not-tradeable card and `"user_declined"` for a normal one (`commands.rs skip_reason`). `reject_reason` is only sent with `decision=reject`; the mock refuses it on approve, and refuses unknown values, with `422 VALIDATION_FAILED`, like the server. The card is left out of batch approve (checkbox disabled; `queue.batch.excluded_not_tradeable`). Its timer, countdown and status are neutral, never red, and so is the status-bar reason. The coin detail offers Lewati + `screener.detail.skip_hint` when the coin has a pending pick. The screener has a Mcap column, but contracts 1.1.2 has no market-cap field, so it shows "—".
+
+### Practice cash: two different codes
+- `order.failed` `INSUFFICIENT_PRACTICE_BALANCE` (kind error): one order failed, shown as a red feed line.
+- `system.notice` `PRACTICE_CASH_INSUFFICIENT` (kind notice): strategy entries are paused, shown as a neutral, persistent "entries paused" strip. It clears when an entry fills again or Practice is reset.
 
 ### Language
-UI text comes from `@sentra/i18n` 0.4.2 (`packages/i18n`, read-only; ICU messages via `src/i18n/icu.ts`, numbers via its `format.mjs`). Settings → Bahasa switches `id` (default) and `en`. Error text uses `errors.json` v4 `messages.id/en`. Strings the package does not cover yet live in `src/i18n/local.ts` as `desktop.*` (flagged to UX).
+UI text comes from `@sentra/i18n` 0.4.4 (`packages/i18n`, read-only; ICU messages via `src/i18n/icu.ts`, numbers via its `format.mjs`). Settings → Bahasa switches `id` (default) and `en`. Error text: code → key via the package `errors.map.json` (56 codes, incl. fallback keys), catalog copy in the UI locale, falling back to `errors.json` v4 `messages.id/en`; unknown code → `error.code.internal`. Placeholders are wire field names (`{symbol}`, `{amount_lamports}` formatted with `formatLamports`). All former `desktop.*` strings are package keys since 0.4.4 (`key-migrations.json`); `src/i18n/local.ts` keeps only the "(mock)" dev suffix.
 
-Contracts: `packages/contracts` **v1.1.2** (read-only; mirror `CONTRACTS_VERSION = "1.1.2"`). `cargo test` includes contract tests against those files (errors.json v4, typed 1.1.2 examples), and `npm run build` typechecks `src/api/wire.check.ts`. Design tokens: `packages/design-tokens` v0.2.2.
+Contracts: `packages/contracts` **v1.1.3** (read-only; mirror `CONTRACTS_VERSION = "1.1.3"`). `cargo test` includes contract tests against those files (errors.json v4+, typed 1.1.2 examples, 1.1.3 `ApprovalRejectReason` / `ApprovalWire`), and `npm run build` typechecks `src/api/wire.check.ts`. Design tokens: `packages/design-tokens` v0.2.4 (`--color-bg-sunken`).
+
+Practice reset is limited to once per 24 h. A second reset gets `429 RESET_COOLDOWN` with `{next_allowed_at}` and `Retry-After` (the in-process mock carries `retry_after_s`). Settings shows it as neutral text, not an error ("Berikutnya: <local date, time>"), and disables the button until then (`docs/practice-reset-cooldown.png`).

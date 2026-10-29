@@ -1,11 +1,16 @@
 /**
  * TS contract check (compile-time only; never imported by the app, so never bundled).
- * The EVENTS_SCHEMA.md / API_ENDPOINTS.md examples (contracts v1.1.2) must type-check against
+ * The EVENTS_SCHEMA.md / API_ENDPOINTS.md examples (contracts v1.1.3) must type-check against
  * `@sentra/contracts/wire` with `satisfies`, and the desktop view types must keep using the wire
  * value types. `npm run build` (tsc -b) fails if Backend changes a shape the desktop relies on.
  * Rust counterpart: src-tauri/src/contract_tests.rs (reads the same files at test time).
  */
+import { APPROVAL_REJECT_REASONS, CONTRACTS_VERSION } from "@sentra/contracts/wire";
 import type {
+  ApprovalDecisionRequest,
+  ApprovalDecisionResponse,
+  ApprovalRejectReason,
+  ApprovalWire,
   ClockMessage,
   ClosePositionResponse,
   ConflictError,
@@ -80,8 +85,8 @@ const orderSample = {
 export const closeSample = {
   position: {
     id: "50000000-0000-0000-0000-000000000001", position_key: "abc123.0", workspace_id: "10000000-0000-0000-0000-00000000000a", strategy_id: null,
-    mint: "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", mode: "practice", status: "open", rev: 2, practice_epoch: 1, qty_raw: "490196078",
-    decimals: 6, token_program: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", cost_basis_lamports: "125000000", sol_in_lamports: "250000000",
+    mint: "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", mode: "practice", status: "open", rev: 2, practice_epoch: 1, qty_raw: "490196078000",
+    decimals: 9, token_program: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", cost_basis_lamports: "125000000", sol_in_lamports: "250000000",
     sol_out_lamports: "130000000", fees_lamports: "1700000", avg_entry_price_sol: "0.000000255", peak_price_sol: null, exit_price_sol: null,
     exit_reason: null, opened_at: "2026-10-29T08:40:00.000Z", closed_at: null,
   },
@@ -135,3 +140,24 @@ export const amountsAreStrings: [
   IsString<PickView["amount_lamports"] & {}>, IsString<PositionView["pnl_lamports"]>,
   IsString<PositionView["entry_price_sol"]>, IsString<NonNullable<Snapshot["account"]["cash_lamports"]>>,
 ] = [true, true, true, true];
+
+// ---- contracts 1.1.3: reject_reason (closed enum, reject only) + ApprovalWire; ConflictError.current required
+export const contractsVersion113: "1.1.3" = CONTRACTS_VERSION;
+/** What the desktop sends on Skip (Rust commands.rs `skip_reason`): not_tradeable for a WF-20 card. */
+export const skipNotTradeableSample = { decision: "reject", token: "apt_x", expected_rev: 1, reject_reason: "not_tradeable" } satisfies ApprovalDecisionRequest;
+export const skipNormalSample = { decision: "reject", token: "apt_x", expected_rev: 1, reject_reason: "user_declined" } satisfies ApprovalDecisionRequest;
+// @ts-expect-error unknown reject_reason is not in the closed enum (server: 422 VALIDATION_FAILED)
+export const badRejectReason: ApprovalRejectReason = "bored";
+export const rejectReasonsUsed = ["user_declined", "not_tradeable"] as const satisfies readonly (typeof APPROVAL_REJECT_REASONS)[number][];
+export const decisionResponseSample = {
+  proposal_id: "p", status: "rejected", rev: 2, reject_reason: "not_tradeable", replayed: false, server_now: "2026-10-29T08:42:00.151Z",
+} satisfies ApprovalDecisionResponse;
+export const approvalWireSample = {
+  id: "a", proposal_id: "p", workspace_id: "w", strategy_id: null, kind: "buy_pick", mode: "practice", subject: null, mint: null,
+  amount_lamports: "100000000", is_first_buy: true, risk: "low", weakening: false, status: "rejected", rev: 2, expire_reason: null,
+  base_rev: null, decision: "reject", reject_reason: "not_tradeable", decided_via: "desktop", decided_by: "u", payload: {},
+  created_at: "2026-10-29T08:41:00.000Z", expires_at: "2026-10-29T08:42:00.000Z", decided_at: "2026-10-29T08:41:30.000Z",
+} satisfies ApprovalWire;
+// @ts-expect-error ConflictError.current is required (1.1.3, matches Rust `required_non_null`)
+export const conflictWithoutCurrent: ConflictError = { error: { code: "VERSION_CONFLICT", message: "m", request_id: "r", server_now: "x", current_rev: 2, base_rev: 1 }, server_now: "x" };
+

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { PickView } from "../api";
-import { useLang, useT, solText } from "../i18n";
+import { MOCK_SUFFIX, useLang, useT, solText } from "../i18n";
 import { serverNow, useTerm } from "../state/store";
 import { fmtMmSs, fmtPriceDec, fmtUsdLocale, shortMint } from "./format";
 import { NtChip, NtDetail } from "./NotTradeable";
@@ -36,16 +36,18 @@ export function SignalQueue(p: Props) {
   const t = useT();
   const lang = useLang();
   const paper = useTerm((s) => s.mode) === "practice";
-  if (!p.signals.length) return <div className="empty">{t("desktop.queue.empty")}</div>;
+  if (!p.signals.length) return <div className="empty">{t("queue.empty")} {MOCK_SUFFIX}</div>;
   return (
     <div role="list">
       {p.signals.map((s) => {
         const left = Math.max(0, s.expires_at_ms - now);
         const pct = (left / Math.max(1, s.expires_at_ms - s.created_at_ms)) * 100;
-        const urgent = left < URGENT_MS;
-        const fit = s.score != null && s.score_threshold != null;
-        // WF-20: not tradeable (no SOL pair) → dimmed card, neutral chip, Approve disabled + labelled.
+        // WF-20 D1: not tradeable is a product limit, not a risk → never red/urgent.
         const nt = s.tradeable === false;
+        const urgent = !nt && left < URGENT_MS;
+        const fit = s.score != null && s.score_threshold != null;
+        // WF-20: not tradeable (no SOL pair) → dimmed card, neutral chip, Approve disabled + labelled,
+        // Skip enabled with the reason preselected, left out of batch approve (checkbox disabled).
         return (
           <div
             key={s.id}
@@ -64,7 +66,8 @@ export function SignalQueue(p: Props) {
                 <input
                   type="checkbox"
                   className="sel"
-                  aria-label="Pilih (X)"
+                  aria-label={nt ? t("queue.batch.excluded_not_tradeable", { count: 1 }) : "Pilih (X)"}
+                  title={nt ? t("queue.batch.excluded_not_tradeable", { count: 1 }) : undefined}
                   disabled={nt}
                   checked={!nt && (p.selectedIds?.has(s.id) ?? false)}
                   onChange={() => p.onToggleSelect!(s.id)}
@@ -89,7 +92,14 @@ export function SignalQueue(p: Props) {
             </div>
             <div className="meta">{s.strategy} · {s.reasons.join(" · ") || s.summary}</div>
             {nt && <NtDetail trade={s} />}
-            <div className={`bar ${urgent ? "urgent" : ""}`}><i style={{ width: `${pct}%` }} /></div>
+            <div className={`bar${nt ? " neutral" : urgent ? " urgent" : ""}`}><i style={{ width: `${pct}%` }} /></div>
+            {nt && (
+              // Skip reason preselected (UI-local: the wire has no `not_tradeable` skip reason yet → not sent).
+              <div className="skip-reason" role="radiogroup" aria-label={t("queue.pick.skip")}>
+                <span className="dim">{t("queue.pick.skip")}:</span>
+                <span className="chip reason on" role="radio" aria-checked="true">✓ {t("queue.skip_reason.not_tradeable")}</span>
+              </div>
+            )}
             <div className="actions">
               {nt ? (
                 <button className="cta-disabled" disabled aria-disabled="true" data-action="approve">{t("queue.pick.cannot_approve")}</button>
@@ -103,7 +113,7 @@ export function SignalQueue(p: Props) {
                   ⧉ Chart<kbd>↵</kbd>
                 </button>
               )}
-              <span className={`num ${urgent ? "neg" : "dim"}`} style={{ marginLeft: "auto" }} aria-label="Sisa waktu (jam server)">
+              <span className={`num countdown ${nt ? "neutral" : urgent ? "neg" : "dim"}`} style={{ marginLeft: "auto" }} aria-label="Sisa waktu (jam server)">
                 {urgent ? "⏱ " : ""}{fmtMmSs(left)}
               </span>
             </div>

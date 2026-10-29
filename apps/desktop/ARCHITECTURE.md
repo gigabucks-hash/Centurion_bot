@@ -20,11 +20,11 @@
 ```
 - **Contracts:** the TS types live in `packages/contracts/src/index.ts`. The desktop imports them as `@sentra/contracts` (tsconfig `paths` + a Vite alias; no workspace install is needed). The Rust mirror stays in `src-tauri/src/model.rs`, because Rust cannot import TS. Once Backend publishes a schema (JSON Schema/OpenAPI), both sides will be generated from it (milestone W2-D6).
 - **Design tokens:** `npm run sync:tokens` copies the first file it finds from this list into `src/design/sentra-tokens.css`:
-  1. `packages/design-tokens/tokens/tauri.css` (**used now**: UX v0.2.2, dark + Compact default)
+  1. `packages/design-tokens/tokens/tauri.css` (**used now**: UX v0.2.4, dark + Compact default)
   2. `packages/design-tokens/tokens/tokens.css`
   3. `/workspace/ux-solbot/tokens/tauri.css` (legacy)
 
-  `app.css` uses the v0.2.x names: `--text-*`, `--density-*`, `--duration-*`, `--shadow-e*`. Currently synced: **v0.2.2** (1fceb59; no value changes vs v0.2.1). WF-20 `surface.sunken` has no token yet, so it maps to `--color-bg-inset`. The v0.2.0 stray `}` (C18) is fixed upstream, so the workaround has been removed and the script is a plain copy again.
+  `app.css` uses the v0.2.x names: `--text-*`, `--density-*`, `--duration-*`, `--shadow-e*`. Currently synced: **v0.2.4** (de22715). WF-20 `surface.sunken` is the official `--color-bg-sunken`; `app.css` uses it everywhere (`--color-bg-inset` is a deprecated alias upstream and no longer used here). The v0.2.0 stray `}` (C18) is fixed upstream, so the workaround has been removed and the script is a plain copy again.
 
 ## 3. Windows
 | Label | Route | Purpose | Capability |
@@ -84,9 +84,11 @@
   - It deliberately drops some live envelopes so the resync path is exercised all the time.
   - Every 75 s it makes a "mobile" edit to a strategy, so 409s happen naturally. `SENTRA_MOCK_FORCE_CONFLICT=1` forces a conflict before every strategy write.
 
-## 5.1 Contracts v1.1.2 integration
+## 5.1 Contracts v1.1.2 → v1.1.3 integration
 - **Source of truth:** `packages/contracts` (Backend-owned; read-only for us). The frontend imports wire types from `@sentra/contracts/wire` (tsconfig `paths` + Vite alias). `src/api/contract.ts` re-exports them and adds only desktop UI types.
-- **Rust mirror** (`model.rs`, `CONTRACTS_VERSION = "1.1.2"`, packages/contracts 01427df / doc e4eb0c9):
+- **1.1.3** (packages/contracts 05541b3): `ApprovalRejectReason` (closed enum `user_declined | not_tradeable | price_moved | other`, `APPROVAL_REJECT_REASONS`) on `ApprovalDecisionRequest.reject_reason` (reject only, server default `user_declined`), `ApprovalDecisionResponse.reject_reason` and `proposal.approved|rejected.reject_reason`; `ApprovalWire` (approval resource and the `current` of an approval 409). Skip sends `not_tradeable` for a not-tradeable pick and `user_declined` otherwise; approve never sends one. The mock validates as the server does (approve + reason, or an unknown value → `422 VALIDATION_FAILED`, which maps through `errors.map.json` to `error.code.validation_failed`). The value is part of the idempotency fingerprint. `ConflictError.current` is now required in TS too, matching Rust; `wire.check.ts` has an `@ts-expect-error` for a 409 without it.
+- **429 RESET_COOLDOWN:** `ApiFailure` `Display` adds whitelisted detail tags (`[next_allowed_at=…]`, `[retry_after_s=…]`). `errorText()` fills the copy placeholder `{next_allowed_at}` with local date and time, and `errorDetails()` lets Settings disable reset until then.
+- **Rust mirror** (`model.rs`, `CONTRACTS_VERSION = "1.1.3"`, packages/contracts 01427df / doc e4eb0c9, 05541b3):
   - Lamports and raw amounts are integer strings (`Lamports(i128)`, `RawQty(u128)`); JSON numbers are rejected.
   - Prices are decimal strings (`Dec`, backed by rust_decimal; exponents are rejected).
   - pct, ratio, bps, USD and scores are JSON numbers (`Num = f64`), used for display and thresholds only. Money math stays in Decimal.
@@ -98,7 +100,8 @@
   - Paths are `/v1/workspaces/{ws}/…`.
   - Requested scopes are `read` and `trade` (Practice). The desktop never asks for `trade:real`.
   - SSE: `/v1/workspaces/{ws}/events/stream?mode=practice&include=marks,clock` (Last-Event-ID = the seq string); mark/clock frames use the Broadcast shapes.
-  - The real WS/Broadcast + SSE client plugs in here in Phase 2 (the REST/SSE server is not live yet), so the mock transport stays. The mock implements the same trait.
+  - The real HTTP + SSE client plugs in here in Phase 2, so the mock transport stays. The mock implements the same trait.
+  - **Real-transport smoke test (feasibility, not done):** `services/backend/api` (4c554f9) now covers what the desktop calls: healthz, workspace, approvals list/detail/decide (`reject_reason`), positions + close, portfolio, exit-stats, events + SSE (marks, clock, `Last-Event-ID`) on a shared per-workspace poller, practice reset (`429 RESET_COOLDOWN` + `Retry-After`), strategies CRUD/pause/resume (rev/If-Match), coins/picks/fills/orders/jobs reads, devices and account deletion. It needs local Postgres with the migrations, `TRADING_MODE=paper`, `DATABASE_URL`, and a HS256 JWT signed with a test `SUPABASE_JWT_SECRET` (`sentra_client` claim → `desktop`), seeded like `test/seed.sql`. Work on the desktop side: an `HttpTransport` (reqwest + an SSE reader) behind the existing `Transport` trait; mapping `Retry-After` / `ETag`; headers and statuses into `ApiFailure`; and an env switch `SENTRA_BACKEND=http://127.0.0.1:8080`. The mock-specific `get_approval` token flow already matches `GET /approvals/{id}` → `decision_token`. Gaps: no mint/coin events are produced without the ingest pipeline (c3de83a publishes marks only via `pg_notify`), so a smoke test would seed picks/approvals in SQL. Estimate: about 1 day for a decide + close + SSE resume smoke test, mostly the transport and JWT/seed fixture.
 - **Envelopes and resync** (`sync.rs`):
   - Each envelope carries a monotonic `seq` and `server_now`. Events are deduplicated by `id`, and unknown event types are ignored.
   - The watermark only advances from page `next_after_seq`, SSE id or `clock.safe_seq`.
@@ -109,6 +112,7 @@
   - Every write sends `Idempotency-Key`, which is **fresh per distinct request** and reused only when retrying an identical body. The same key with a different body gets `422 IDEMPOTENCY_KEY_REUSED`; an identical retry returns the stored response with `replayed: true`. The mock enforces both.
   - Writes to versioned resources send `If-Match: "<rev>"`. Approvals use `rev` (`expected_version` is gone): `If-Match` + `expected_rev`, and never `client`/`actor`/`via` (the server reads the JWT).
   - **Manual sell:** `POST /v1/workspaces/{ws}/positions/{id}/close` with `If-Match` (position rev), `Idempotency-Key` and `{fraction_bps}` → `{position, order, order_id, fill|null, job_id, status, replayed, server_now}`. The desktop then follows the `order.submitted` / `order.filled` / `order.failed` and `position.*` events, and bumps the position rev from `order.*` by `position_id`.
+  - **409 rev conflicts require `current`** (contracts 1f24d28). `ConflictBody.current` is required and non-null; `from_body` treats a `VERSION_CONFLICT`/`STRATEGY_REV_CONFLICT` without it as a logged contract violation (a plain `Api` failure, never merged). The pre-1.1.2 `details.current_version` path is removed.
   - **Errors** are always `{error:{code, message, …details, server_now}}`. `ApiError::from_body` reads `error.current_rev`, `error.current` and the other fields from inside `error` (the older `details` form and flat bodies are still accepted).
   - `428 PRECONDITION_REQUIRED` is logged as a client bug.
   - `409 STRATEGY_REV_CONFLICT` (and the other rev conflicts) are read from the merge data inside `error`: `current_rev`, `base_rev`, `changed_fields`, `changed_by{actor,via,device}`, `changed_at`, `current`. The desktop shows a conflict toast plus an inline note, takes `current` as the new state, and refetches. It never retries the write blindly.
@@ -130,17 +134,30 @@
     - every `EventPayloads` type is decoded.
   - `tsc -b` → `src/api/wire.check.ts`: `satisfies` checks over wire samples, plus an exhaustive switch over event types and an assertion that amounts are strings.
 
-## 5.2 i18n (`@sentra/i18n` 0.4.2)
+## 5.2 i18n (`@sentra/i18n` 0.4.4)
+- **0.4.4:** every `t("desktop.*")` was replaced via `key-migrations.json`, with the placeholder renames `{pass}`→`{score_threshold}`, `{quote}`→`{quote_symbol}`, `{max}`→`{max_score}` and `{s}`→`{seconds}`. Headers use `positions.title_paper` (no string concatenation), `positions.empty` takes `{mode}`, and the batch message is `queue.batch.excluded_not_tradeable`. `cta_note` is removed. `local.ts` = the "(mock)" suffix only.
+- **0.4.3:** placeholders are wire field names: `{coin}` → `{symbol}` and `{sol}` → `{amount_lamports}`. Rust `I18nMsg` args use them, `amount_lamports` is an `I18nArg::Lamports`, and `wireVars()` formats it with `formatLamports` (exact BigInt split). `fraction_bps` uses `formatFractionBps`.
+- **Error mapping = `errors.map.json`** (`src-tauri/src/errmap.rs`, embedded with `include_str!`; frontend imports the same file). `code → {key, source, kind, http, retryable}`, unknown → `error.code.internal`. `keys::code_kind` reads `kind` from the map (no hand list). `system.notice` → `errmap::i18n_key`; `order.failed` → `errmap::order_fail_key`, covering all 8 contracts reason codes (`ORDER_FAIL_REASONS`; anything else → `order.fail_reason.unknown`). The UI resolves the key in the catalog and falls back to `errors.json` `messages.id|en`. The contract test checks map ↔ errors.json (kind, http) ↔ en/id catalogs ↔ the events.ts reason_code set.
 - `packages/i18n` is read-only. `src/i18n/index.ts` loads its nested `id` / `en` JSON and formats ICU messages (`icu.ts`: arguments, `plural` with `=N`/`one`/`other`/`#`, and `select`). Numbers and PnL go through the package's `format.mjs` (`pnlSol`, `pnlPct`, and `formatLamports` with `paper: true` → "paper SOL"). Under the T-15 rule an exact zero is neutral "0.00", never red or green.
 - The locale lives in `settings.locale` (default `id`) and is switched in Settings → Bahasa.
 - Error text: the Rust error string starts with `CODE:`. `errorText()` maps it to `errors.json` v4 `messages[locale]`. Activity lines carry an `I18nMsg {key, args}` from Rust, rendered with `renderMsg()`.
-- Strings the package lacks (screener columns and filter chips, WF-20 detail labels, the language setting, empty states) are desktop-local `desktop.*` in `src/i18n/local.ts`, in the same id/en format. They are flagged to UX for inclusion upstream.
+- Negative numbers use U+2212 everywhere: the PnL formatters, the Rust plain-text fallbacks and the status-bar skew. A non-zero PnL never reads as 0 (`<0.0001` / `<0.1%`).
 
 ## 5.3 Not-tradeable state (WF-20, Compact)
 - Source: `screener.scored` top-level `tradeable` / `skip_reason` / `quote_mint` (1.1.2), `coin.detected.quote_mint`, or `order.failed UNSUPPORTED_QUOTE_MINT` in the race case. The engine (`state.rs`) keeps a `Tradeability` per mint and copies it onto screener rows, picks and positions.
 - UI: a neutral `NtChip` (⊘, dashed, `text.tertiary` on `bg.inset`, never red), dimmed rows, an empty Aksi column, filter chips (Semua / Lolos / Ditolak / Tidak bisa ditradingkan), and the `CoinDetail` panel with the WF-20 rows. Its chart stays live, greyed and read-only, and there is a disabled `Approve — tidak tersedia` with the reason written out. Queue cards show `Tidak bisa disetujui`, and positions show `Sell — tidak tersedia` in a sticky last column. A, ⇧A and ⇧X refuse with a text reason in the status bar.
 - Rust: `Engine::check_tradeable` guards `approve_signal`, `approve_many`, `request_sell` and `take_quote` (confirm), so a flip between quote and confirm is refused (unit test `not_tradeable_blocks_approve_and_sell_locally_wf20`). The mock server also refuses (`422` + `order.failed`), giving defence in depth.
-- Skip is still allowed. Mock trigger: `SENTRA_MOCK_NOT_TRADEABLE=screener|race|off` (browser `?nt=`).
+- UX QA `DESKTOP_WF20_QA.md` D1–D9 fixed:
+  - D1: neutral timer and countdown;
+  - D2: one-line CTAs;
+  - D3: batch checkbox disabled;
+  - D4: neutral status line;
+  - D5: Mcap column, collapsing Venue/Likuiditas first;
+  - D6: `screener.legend`;
+  - D7: one-line detail rows, no `cta_note`, Lewati + `skip_hint`;
+  - D8: PnL never truncated (a container query hides Strategi/Entry/Hold below 960 px; compact ⊘ chip) and U+2212;
+  - D9: one-line quick-look header, neutral pending.
+- Skip is allowed (UX Rev 4.4) with `queue.skip_reason.not_tradeable` preselected, and it is sent on the wire as `reject_reason: "not_tradeable"` (contracts 1.1.3). Mock trigger: `SENTRA_MOCK_NOT_TRADEABLE=screener|race|off` (browser `?nt=`).
 - The mock keeps a bounded watch set (8) of not-tradeable coins that still get marks, and the engine keeps ticks for screener rows, so the read-only chart has data.
 
 ## 6. Frontend stack and licences
@@ -187,7 +204,7 @@
 | `backend/` | `Transport` trait, paths, `ApiFailure` (409/428/…), `mock.rs` in-process mock server |
 | `sync.rs` | live stream + page catch-up, seq cursor, refetch, reconnect |
 | `keys.rs` | settings/exit IDs, v1.0→v1.1 rename tables, exit labels |
-| `model.rs` | serde mirror of `@sentra/contracts` v1.1.2 wire |
+| `model.rs` | serde mirror of `@sentra/contracts` v1.1.3 wire |
 | `view.rs` | desktop view-model sent over IPC (snake_case) |
 | `contract_tests.rs` | tests against the files in `packages/contracts` |
 | `error.rs`, `util.rs` | `AppError` (thiserror), RNG, fake mints, validation |
@@ -244,7 +261,7 @@
 | D5 | Global shortcuts | Focus or open only; never approve, skip or sell | **DECIDED** |
 | D6 | Signing / updater | **Out of MVP scope.** MVP = unsigned Linux builds; signing, notarization and updater come Post-MVP | **DECIDED** |
 | D7 | Identity | Product name `Sentra`, identifier `com.sentra.app` (placeholder) | **DECIDED** (identifier may change before signing) |
-| D8 | Contracts | Backend owns `packages/contracts` (v1.1.2). The desktop imports `src/wire` types directly. The Rust mirror is hand-written and guarded by contract tests until codegen exists | **DONE for v1.1.2** (codegen open) |
+| D8 | Contracts | Backend owns `packages/contracts` (v1.1.2). The desktop imports `src/wire` types directly. The Rust mirror is hand-written and guarded by contract tests until codegen exists | **DONE for v1.1.3** (codegen open) |
 | D10 | Popup in REAL SOL | No Approve; "Buka untuk approve ↗" hands off to main (dialog + hold 2.5 s). Enforced in Rust by window label | **DECIDED** (UX, via Apex) |
 | D11 | Popup focus | Shown without activation; shortcuts only after a click. **Enabled on Linux only**; Windows/macOS are disabled until W-NOFOCUS passes (C19) | **DECIDED** (test gate) |
 | D9 | Real mode on desktop | **Real SOL on desktop = Phase 7 (out of MVP).** It needs the backend signer, the server clock (C6, done for countdowns in v1.1), 2.5 s hold and per-trade caps. The Real code paths remain as a mock-flag-only reference (C15) | **DECIDED** |

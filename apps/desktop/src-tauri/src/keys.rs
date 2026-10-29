@@ -86,15 +86,12 @@ pub const VALUE_RENAMES: &[(&str, &str)] = &[
     ("doubling", "geometric_ladder"),
 ];
 
-/// Error / notice **code** renames (contracts 1.1.2 single `errors.json` registry).
-pub const ERROR_CODE_RENAMES: &[(&str, &str)] = &[("PAPER_CASH_INSUFFICIENT", "PRACTICE_CASH_INSUFFICIENT")];
-
-/// Canonical (1.1.2) spelling of an error / notice code.
+/// Canonical (1.1.2) spelling of an error / notice code (see [`crate::errmap`]).
 pub fn error_code(code: &str) -> &str {
-    ERROR_CODE_RENAMES.iter().find(|(o, _)| *o == code).map(|(_, n)| *n).unwrap_or(code)
+    crate::errmap::canonical(code)
 }
 
-/// `errors.json` 1.1.2 `kind`: how the desktop surfaces a code. `Skip` = product limitation, shown
+/// `errors.json` v4 `kind`: how the desktop surfaces a code. `Skip` = product limitation, shown
 /// neutral (never loss-red), e.g. a coin without a SOL pair.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CodeKind {
@@ -102,11 +99,11 @@ pub enum CodeKind {
     Notice,
     Skip,
 }
-/// errors.json v4 `kind` for the codes the desktop renders (contract test checks every code).
+/// `kind` from i18n `errors.map.json` (no hand list). Unknown code → `Error`.
 pub fn code_kind(code: &str) -> CodeKind {
-    match error_code(code) {
-        crate::model::UNSUPPORTED_QUOTE_MINT => CodeKind::Skip,
-        "PRACTICE_CASH_INSUFFICIENT" | "JOB_DEAD_LETTERED" | "SOURCE_DEGRADED" => CodeKind::Notice,
+    match crate::errmap::entry(code).map(|e| e.kind.as_str()) {
+        Some("skip") => CodeKind::Skip,
+        Some("notice") => CodeKind::Notice,
         _ => CodeKind::Error,
     }
 }

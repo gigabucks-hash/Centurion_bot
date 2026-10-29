@@ -3,7 +3,7 @@ import { useState } from "react";
 import { core, type Settings } from "../api";
 import { useTerm } from "../state/store";
 import { useHotkeys } from "../hooks/useHotkeys";
-import { errorText, useLang, useT } from "../i18n";
+import { errorCodeOf, errorDetails, errorText, useLang, useT } from "../i18n";
 
 /** Wire strategy status → @sentra/i18n `strategy.status.*` (unknown → raw value never shown: "—"). */
 const STATUS_KEY: Record<string, string> = { active: "strategy.status.running", running: "strategy.status.running", paused: "strategy.status.paused", draft: "strategy.status.draft" };
@@ -53,14 +53,28 @@ function PracticeResetSection() {
   const epoch = useTerm((s) => s.account.epoch);
   const [armed, setArmed] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // 429 RESET_COOLDOWN (+ Retry-After): a product limit, not a failure → neutral text, button off
+  // until the server's next_allowed_at (or now + retry_after_s).
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [isErr, setIsErr] = useState(false);
   const lang = useLang();
   if (mode !== "practice") return null;
+  const coolingDown = cooldownUntil != null && cooldownUntil > Date.now();
   const reset = async () => {
     setArmed(false);
     try {
       await core.resetPractice();
+      setCooldownUntil(null);
+      setIsErr(false);
       setMsg("Practice direset ke 30 SOL.");
     } catch (e) {
+      const cd = errorCodeOf(e) === "RESET_COOLDOWN";
+      if (cd) {
+        const d = errorDetails(e);
+        const at = d.next_allowed_at ? Date.parse(d.next_allowed_at) : NaN;
+        setCooldownUntil(Number.isFinite(at) ? at : Date.now() + Number(d.retry_after_s ?? 0) * 1000);
+      }
+      setIsErr(!cd);
       setMsg(errorText(e, lang));
     }
   };
@@ -69,14 +83,14 @@ function PracticeResetSection() {
       <div className="muted">Reset practice · epoch {epoch ?? "—"} (1× per 24 jam)</div>
       <div className="dim" style={{ fontSize: "var(--d-small)" }}>Menutup semua posisi paper, membatalkan pick pending, saldo kembali 30 SOL. Riwayat diarsipkan.</div>
       {!armed ? (
-        <button className="sm" onClick={() => setArmed(true)}>Reset practice…</button>
+        <button className="sm" disabled={coolingDown} title={coolingDown ? msg ?? undefined : undefined} onClick={() => setArmed(true)}>Reset practice…</button>
       ) : (
         <span className="row" style={{ gap: 8 }}>
           <button className="sm" autoFocus onClick={() => setArmed(false)}>Batal</button>
           <button className="sm danger" onClick={reset}>Ya, reset ke 30 SOL</button>
         </span>
       )}
-      {msg && <div className="dim" style={{ fontSize: "var(--d-small)" }}>{msg}</div>}
+      {msg && <div className={isErr ? "neg" : "dim"} role="status" style={{ fontSize: "var(--d-small)" }}>{msg}</div>}
     </div>
   );
 }
@@ -113,7 +127,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           </select>
         </label>
         <label>
-          <div className="muted">{t("desktop.settings.language")}</div>
+          <div className="muted">{t("settings.language.label")}</div>
           <select value={cfg.locale} onChange={(e) => setCfg({ ...cfg, locale: e.target.value as Settings["locale"] })} data-testid="locale">
             <option value="id">Bahasa Indonesia (id-ID)</option>
             <option value="en">English (en-US)</option>

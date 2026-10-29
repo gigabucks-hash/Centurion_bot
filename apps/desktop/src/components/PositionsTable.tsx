@@ -75,12 +75,13 @@ export function PositionsTable({ positions, cursorMint, onCursor, onFocusRow, on
 }) {
   const t = useT();
   const lang = useLang();
-  const paper = useTerm((s) => s.mode) === "practice";
-  if (!positions.length) return <div className="empty">{t("desktop.positions.empty")}</div>;
+  const mode = useTerm((s) => s.mode);
+  const paper = mode === "practice";
+  if (!positions.length) return <div className="empty">{t("positions.empty", { mode })}</div>;
   return (
     <table className="positions">
       <thead>
-        <tr><th>Coin</th><th>Strategi</th><th>Size</th><th>Entry → Now</th><th>PnL SOL</th><th>PnL %</th><th>Exit plan</th><th>Hold</th><th /></tr>
+        <tr><th>Coin</th><th className="col-strategy">Strategi</th><th>Size</th><th className="col-entry">Entry → Now</th><th className="col-pnl">PnL SOL</th><th className="col-pnl-pct">PnL %</th><th>Exit plan</th><th className="col-hold">Hold</th><th /></tr>
       </thead>
       <tbody>
         {positions.map((p) => {
@@ -92,17 +93,17 @@ export function PositionsTable({ positions, cursorMint, onCursor, onFocusRow, on
               data-row="position" data-mint={p.mint} data-key={p.key} data-tradeable={String(!nt)}
               onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) onCursor(p.mint); }}
               onFocus={(e) => e.target === e.currentTarget && onFocusRow?.(p.mint)}>
-              <td><b>${p.symbol}</b> {nt && <NtChip title={t("desktop.nt.sell_detail")} />}</td>
-              <td className="muted">{p.strategy.replace(/^Mock · /, "")}</td>
+              <td><b>${p.symbol}</b> {nt && <NtChip compact title={t("positions.sell.not_tradeable_detail")} />}</td>
+              <td className="muted col-strategy">{p.strategy.replace(/^Mock · /, "")}</td>
               <td className="num">{solText(p.cost_lamports, lang, paper)}</td>
-              <td className="num">{fmtPriceDec(p.entry_price_sol)} → {fmtPriceDec(p.last_price_sol)}</td>
-              <td className={`num ${sol ? TONE_CLASS[sol.tone] : "muted"}`}>{pnlText(sol)}</td>
-              <td className={`num ${pct ? TONE_CLASS[pct.tone] : "muted"}`}>{pnlText(pct)}</td>
+              <td className="num col-entry">{fmtPriceDec(p.entry_price_sol)} → {fmtPriceDec(p.last_price_sol)}</td>
+              <td className={`num col-pnl ${sol ? TONE_CLASS[sol.tone] : "muted"}`}>{pnlText(sol)}</td>
+              <td className={`num col-pnl-pct ${pct ? TONE_CLASS[pct.tone] : "muted"}`}>{pnlText(pct)}</td>
               <td><ExitBar p={p} lang={lang} /></td>
-              <td className="num muted">{fmtHold(now - p.opened_at_ms)}</td>
+              <td className="num muted col-hold">{fmtHold(now - p.opened_at_ms)}</td>
               <td>
                 {nt ? (
-                  <button className="sm cta-disabled" disabled aria-disabled="true" data-action="sell">{t("desktop.nt.sell_unavailable")}</button>
+                  <button className="sm cta-disabled" disabled aria-disabled="true" data-action="sell">{t("positions.sell.unavailable")}</button>
                 ) : (
                   <button className="sm" data-action="sell" onClick={(e) => { e.stopPropagation(); onSell(p); }}>Sell <kbd>⇧X</kbd></button>
                 )}

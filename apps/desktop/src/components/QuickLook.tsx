@@ -43,14 +43,14 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
       ["Harga", <span className="num">{fmtPriceDec(s.price_sol)} SOL</span>],
       ["Liq · Guard", <span className="num">{s.liquidity_usd != null ? fmtUsdLocale(s.liquidity_usd, lang) : "—"} · {s.guard_verdict ?? "—"}</span>],
       ["Ukuran", <span className="num">{solText(s.amount_lamports, lang, paper)}</span>],
-      ["Status", s.status === "pending" ? <span className={`num ${s.expires_at_ms - now < 120_000 ? "neg" : ""}`}>pending · {fmtMmSs(s.expires_at_ms - now)}</span> : s.status === "rejected" ? "skipped" : s.status],
+      ["Status", s.status === "pending" ? <span className={`num ${nt ? "countdown neutral" : s.expires_at_ms - now < 120_000 ? "neg" : ""}`}>pending · {fmtMmSs(s.expires_at_ms - now)}</span> : s.status === "rejected" ? "skipped" : s.status],
       ["Alasan", s.reasons.join(" · ") || "—"],
       ["Timeline", <Timeline mint={s.mint} />],
     );
   } else {
     const p = target.item;
     const armed = p.peak_ratio >= 1.3;
-    title = `$${p.symbol} · posisi (paper)`;
+    title = `$${p.symbol} · ${t(paper ? "positions.title_paper" : "positions.title")}`;
     rows.push(
       ["Mint", <span className="mono">{shortMint(p.mint)}</span>],
       ["Strategi", p.strategy],
@@ -73,7 +73,7 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
       <header>
         <b id="ql-title">{title}</b>
         {nt && <NtChip />}
-        <span className="dim" style={{ marginLeft: "auto" }}><kbd>Space</kbd> / <kbd>Esc</kbd> tutup</span>
+        <span className="dim ql-hint"><kbd>Space</kbd>/<kbd>Esc</kbd></span>
       </header>
       {nt && <NtDetail trade={target.item} kind={target.kind === "position" ? "sell" : "approve"} />}
       <dl>
@@ -81,7 +81,7 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
           <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
         ))}
       </dl>
-      {target.kind === "position" && <div className="dim">{nt ? t("desktop.nt.sell_unavailable") : <>Sell: <kbd>⇧X</kbd> (dialog + tahan)</>}</div>}
+      {target.kind === "position" && <div className="dim">{nt ? t("positions.sell.unavailable") : <>Sell: <kbd>⇧X</kbd> (dialog + tahan)</>}</div>}
       {target.kind === "signal" && <div className="dim">{nt ? t("queue.pick.cannot_approve") : <><kbd>A</kbd> {t("queue.pick.approve")}</>} · <kbd>S</kbd> {t("queue.pick.skip")} · <kbd>↵</kbd> chart</div>}
       <button className="ghost close" aria-label="Tutup quick-look" onClick={onClose}>×</button>
     </aside>

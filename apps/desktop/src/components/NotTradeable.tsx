@@ -5,11 +5,13 @@ import { useT } from "../i18n";
  * WF-20 neutral/disabled chip: text.tertiary on surface.sunken, dashed outline, ⊘ icon.
  * Never loss-red — "not tradeable" is a product limit, not a risk.
  */
-export function NtChip({ title }: { title?: string }) {
+export function NtChip({ title, compact = false }: { title?: string; compact?: boolean }) {
   const t = useT();
+  const label = t("screener.not_tradeable.badge");
+  // compact (dense tables): icon only, label kept for AT + hover; the row's disabled CTA spells it out.
   return (
-    <span className="chip nt" title={title}>
-      <span aria-hidden>⊘</span> {t("screener.not_tradeable.badge")}
+    <span className={`chip nt${compact ? " compact" : ""}`} title={title ?? (compact ? label : undefined)}>
+      <span aria-hidden>⊘</span>{compact ? <span className="sr-only">{label}</span> : <> {label}</>}
     </span>
   );
 }
@@ -21,7 +23,7 @@ export function NtDetail({ trade, kind = "approve" }: { trade: Tradeability; kin
   return (
     <div className="nt-info" role="note">
       <span aria-hidden>ⓘ </span>
-      {kind === "sell" ? t("desktop.nt.sell_detail") : reason === "UNSUPPORTED_QUOTE_MINT" ? t("screener.not_tradeable.detail") : t(`order.fail_reason.${reason.toLowerCase()}`, undefined, "order.fail_reason.unknown")}
+      {kind === "sell" ? t("positions.sell.not_tradeable_detail") : reason === "UNSUPPORTED_QUOTE_MINT" ? t("screener.not_tradeable.detail") : t(`order.fail_reason.${reason.toLowerCase()}`, undefined, "order.fail_reason.unknown")}
     </div>
   );
 }

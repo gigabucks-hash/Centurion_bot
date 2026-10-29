@@ -96,6 +96,8 @@ pub enum ApiFailure {
 }
 
 pub const CONFLICT_CODES: &[&str] = &["VERSION_CONFLICT", "STRATEGY_REV_CONFLICT", "CONFIRMATION_RESTART_REQUIRED"];
+/// Rev conflicts: `current` (the server's current resource) is required.
+pub const REV_CONFLICT_CODES: &[&str] = &["VERSION_CONFLICT", "STRATEGY_REV_CONFLICT"];
 
 impl ApiFailure {
     /// Parse an error response body. Accepted shapes:
@@ -104,8 +106,9 @@ impl ApiFailure {
     ///   merge data inside `error`; Backend WIP) — and a fully flat `{code, message, ...}` as well;
     /// - SQL `{"error": "CONFIRMATION_RESTART_REQUIRED", ...}` (string `error`).
     ///
-    /// Conflict merge data is read from the top level first; approvals' `VERSION_CONFLICT` may carry
-    /// `details.current_version` instead.
+    /// Conflict merge data is read from inside `error` (or the top level). `current` is **required** on
+    /// a 409 rev conflict (`VERSION_CONFLICT`, `STRATEGY_REV_CONFLICT`): a body without it is a contract
+    /// violation and is surfaced as a plain `Api` failure (logged), never as a conflict to merge.
     pub fn from_body(http: u16, body: &serde_json::Value) -> Self {
         let err = &body["error"];
         let (code, message, details) = match err {
@@ -137,6 +140,10 @@ impl ApiFailure {
         if http == 409 && CONFLICT_CODES.contains(&code.as_str()) {
             let d = details.clone().unwrap_or_default();
             let get = |k: &str| body.get(k).or_else(|| d.get(k)).filter(|v| !v.is_null());
+            if REV_CONFLICT_CODES.contains(&code.as_str()) && get("current").is_none() {
+                log::warn!("contract violation: 409 {code} without required `current`");
+                return ApiFailure::Api { http, code, message: format!("{message} (409 without required `current`)"), details };
+            }
             let u64_of = |k: &str| get(k).and_then(|v| v.as_u64());
             let changed_fields = get("changed_fields")
                 .and_then(|v| v.as_array())
@@ -145,7 +152,7 @@ impl ApiFailure {
             return ApiFailure::Conflict(Box::new(Conflict {
                 code,
                 message,
-                current_rev: u64_of("current_rev").or_else(|| u64_of("current_version")),
+                current_rev: u64_of("current_rev"),
                 base_rev: u64_of("base_rev"),
                 changed_fields,
                 changed_by: get("changed_by").and_then(|v| serde_json::from_value(v.clone()).ok()),
@@ -186,7 +193,19 @@ impl std::fmt::Display for ApiFailure {
                 write!(f, "{}: diubah di {via} ({})", c.code, c.changed_fields.join(", "))
             }
             Self::PreconditionRequired => write!(f, "PRECONDITION_REQUIRED: penulisan tanpa If-Match/rev"),
-            Self::Api { code, message, .. } => write!(f, "{code}: {message}"),
+            Self::Api { code, message, details, .. } => {
+                write!(f, "{code}: {message}")?;
+                // Copy placeholders the UI needs (e.g. RESET_COOLDOWN "Next: {next_allowed_at}"), as
+                // `[k=v]` tags parsed by `errorText()`; values are server timestamps / integers only.
+                for k in ["next_allowed_at", "retry_after_s", "cooldown_until"] {
+                    if let Some(v) = details.as_ref().and_then(|d| d.get(k)).and_then(|v| v.as_str().map(str::to_owned).or_else(|| v.as_i64().map(|n| n.to_string()))) {
+                        if v.chars().all(|c| c.is_ascii_alphanumeric() || "-:.+TZ".contains(c)) {
+                            write!(f, " [{k}={v}]")?;
+                        }
+                    }
+                }
+                Ok(())
+            }
             Self::Network(m) => write!(f, "network: {m}"),
         }
     }
@@ -279,9 +298,15 @@ mod tests {
         assert_eq!(c.changed_by.as_ref().unwrap().via.as_deref(), Some("mobile"));
         assert_eq!(c.current.as_ref().unwrap()["status"], "paused");
         assert!(f.to_string().contains("mobile"));
-        // approvals: details.current_version
-        let v = ApiFailure::from_body(409, &serde_json::json!({"error": {"code": "VERSION_CONFLICT", "message": "", "details": {"current_version": 3}, "request_id": "r"}, "server_now": "x"}));
+        // `current` is required on a rev conflict: without it → not a mergeable conflict (contract violation)
+        let v = ApiFailure::from_body(409, &serde_json::json!({"error": {"code": "VERSION_CONFLICT", "message": "", "current_rev": 3, "base_rev": 2, "server_now": "x"}, "server_now": "x"}));
+        assert!(v.conflict().is_none() && v.code() == "VERSION_CONFLICT", "{v:?}");
+        let v = ApiFailure::from_body(409, &serde_json::json!({"error": {"code": "VERSION_CONFLICT", "message": "", "current_rev": 3, "base_rev": 2, "current": {"id": "p", "rev": 3}, "server_now": "x"}, "server_now": "x"}));
         assert_eq!(v.conflict().unwrap().current_rev, Some(3));
+        assert!(serde_json::from_value::<crate::model::ConflictBody>(serde_json::json!({"error": {"code": "VERSION_CONFLICT", "message": "", "server_now": "2026-10-29T10:00:00Z",
+            "current_rev": 3, "base_rev": 2}, "server_now": "2026-10-29T10:00:00Z"})).is_err(), "ConflictBody requires `current`");
+        assert!(serde_json::from_value::<crate::model::ConflictBody>(serde_json::json!({"error": {"code": "VERSION_CONFLICT", "message": "", "server_now": "2026-10-29T10:00:00Z",
+            "current_rev": 3, "base_rev": 2, "current": null}, "server_now": "2026-10-29T10:00:00Z"})).is_err(), "`current` must not be null");
         // SQL-style restart (string error) and 428
         let r = ApiFailure::from_body(409, &serde_json::json!({"error": "CONFIRMATION_RESTART_REQUIRED", "current_rev": 4}));
         assert!(r.restart_confirmation());
@@ -290,7 +315,7 @@ mod tests {
         let f = ApiFailure::from_body(422, &serde_json::json!({"code": "UNSUPPORTED_QUOTE_MINT", "message": "no SOL pair", "quote_mint": "EPjF", "server_now": "x"}));
         assert_eq!(f.code(), "UNSUPPORTED_QUOTE_MINT");
         assert!(matches!(&f, ApiFailure::Api { details: Some(d), .. } if d["quote_mint"] == "EPjF"));
-        let c = ApiFailure::from_body(409, &serde_json::json!({"code": "STRATEGY_REV_CONFLICT", "message": "", "current_rev": 5, "base_rev": 4, "changed_fields": ["status"], "server_now": "x"}));
+        let c = ApiFailure::from_body(409, &serde_json::json!({"code": "STRATEGY_REV_CONFLICT", "message": "", "current_rev": 5, "base_rev": 4, "changed_fields": ["status"], "current": {"id": "s", "rev": 5}, "server_now": "x"}));
         assert_eq!(c.conflict().unwrap().current_rev, Some(5));
         assert_eq!(ApiFailure::from_body(422, &serde_json::json!({"code": "PAPER_CASH_INSUFFICIENT"})).code(), "PRACTICE_CASH_INSUFFICIENT");
         // 1.1.2 (Backend WIP): details + merge data spread inside `error`

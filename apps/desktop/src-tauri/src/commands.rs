@@ -67,14 +67,16 @@ pub fn get_candles(state: State<'_, AppState>, mint: String) -> AppResult<Vec<Ca
 /// `expected_rev` (1.1.2). One retry on VERSION_CONFLICT (refetch), per API_ENDPOINTS §2. The retry
 /// has a different body (new token / rev) so it gets a **fresh** Idempotency-Key — reusing a key
 /// with a different body is 422 IDEMPOTENCY_KEY_REUSED. Actor / channel come from the JWT.
-async fn decide(state: &AppState, id: &str, decision: Decision) -> AppResult<()> {
+async fn decide(state: &AppState, id: &str, decision: Decision, reject_reason: Option<ApprovalRejectReason>) -> AppResult<()> {
+    // 1.1.3: reject_reason only with reject (the server answers 422 VALIDATION_FAILED otherwise).
+    let reject_reason = if decision == Decision::Reject { Some(reject_reason.unwrap_or(ApprovalRejectReason::UserDeclined)) } else { None };
     let t = state.transport.clone();
     for attempt in 0..2 {
         let key = idem_key(state);
         let a = t.get_approval(id).await?;
         state.engine.lock().unwrap().observe_server_now(&a.server_now);
         let Some(token) = a.data.decision_token else { return Err(AppError::SignalNotPending) };
-        let req = ApprovalDecisionRequest { decision: decision.clone(), token, expected_rev: a.data.version, reason: None };
+        let req = ApprovalDecisionRequest { decision: decision.clone(), token, expected_rev: a.data.version, reason: None, reject_reason };
         match t.decide(id, &key, req).await {
             Ok(r) => {
                 state.engine.lock().unwrap().observe_server_now(&r.server_now);
@@ -96,13 +98,25 @@ pub async fn approve_signal<R: Runtime>(window: Window<R>, state: State<'_, AppS
         // WF-20: a not-tradeable coin can never be approved (UI disables the button too).
         e.check_tradeable(&pick.mint)?;
     }
-    decide(&state, &id, Decision::Approve).await
+    decide(&state, &id, Decision::Approve, None).await
 }
 
+/// Skip (reject). Allowed on not-tradeable picks (UX Rev 4.4: skipping is not a trade). Contracts
+/// 1.1.3 `reject_reason`: `not_tradeable` for a not-tradeable pick (the UI preselects
+/// `queue.skip_reason.not_tradeable`), `user_declined` for a normal skip.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn skip_signal(state: State<'_, AppState>, id: String) -> AppResult<()> {
-    state.engine.lock().unwrap().check_pending(&id)?;
-    decide(&state, &id, Decision::Reject).await
+    let reason = {
+        let e = state.engine.lock().unwrap();
+        let pick = e.check_pending(&id)?;
+        skip_reason(e.check_tradeable(&pick.mint).is_ok())
+    };
+    decide(&state, &id, Decision::Reject, Some(reason)).await
+}
+
+/// `reject_reason` for a skip (1.1.3).
+pub fn skip_reason(tradeable: bool) -> ApprovalRejectReason {
+    if tradeable { ApprovalRejectReason::UserDeclined } else { ApprovalRejectReason::NotTradeable }
 }
 
 /// Batch approve (UX: Practice picks only; API `/batch-decision` is buy_pick-only). The mock
@@ -121,7 +135,7 @@ pub async fn approve_many<R: Runtime>(app: AppHandle<R>, state: State<'_, AppSta
             let e = state.engine.lock().unwrap();
             e.check_pending(id).and_then(|p| e.check_tradeable(&p.mint)).is_ok()
         };
-        if !ok || decide(&state, id, Decision::Approve).await.is_err() {
+        if !ok || decide(&state, id, Decision::Approve, None).await.is_err() {
             failed += 1;
         }
     }

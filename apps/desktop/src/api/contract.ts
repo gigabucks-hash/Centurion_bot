@@ -1,6 +1,6 @@
 /**
  * Desktop-only UI types (IPC view-model). **Wire types come from the contracts package**
- * (`@sentra/contracts/wire` = packages/contracts/src/wire, v1.1.2) and are re-exported below; this
+ * (`@sentra/contracts/wire` = packages/contracts/src/wire, v1.1.3) and are re-exported below; this
  * file only adds what the desktop composes on top of them.
  *
  * Rust mirror: src-tauri/src/view.rs (snake_case, same as the wire). Same value rules as the wire:
@@ -63,6 +63,8 @@ export interface ScreenedCoin extends Tradeability {
   guard_verdict: GuardVerdict | null;
   status: "pick" | "pending_guard" | "rejected_score" | "rejected_guard" | "not_tradeable";
   liquidity_usd: number | null;
+  /** WF-20 Mcap column. Not in contracts 1.1.2 (no market-cap field yet) → always absent today. */
+  mcap_usd?: number | null;
   decimals: number | null;
   token_program: string | null;
   ts_ms: number;
@@ -182,6 +184,9 @@ export interface Account {
   /** account.deletion_* banner (plain text). */
   notice: string | null;
   deleted: boolean;
+  /** `PRACTICE_CASH_INSUFFICIENT` (kind notice): strategy entries paused until cash recovers or Practice
+   *  is reset. ≠ `order.failed INSUFFICIENT_PRACTICE_BALANCE` (kind error, one order, feed line only). */
+  entries_paused: string | null;
 }
 
 export interface StrategyView {

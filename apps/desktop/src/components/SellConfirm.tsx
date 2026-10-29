@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Mode, SellQuote } from "../api";
 import { useHotkeys } from "../hooks/useHotkeys";
-import { solText, useLang, useT } from "../i18n";
+import { formatFractionBps, solText, useLang, useT } from "../i18n";
 import { HoldButton } from "./HoldButton";
 
 const HOLD_MS: Record<Mode, number> = { practice: 1200, real: 2500 }; // = --motion-holdPractice / --motion-holdReal
@@ -28,11 +28,12 @@ export function SellConfirm({ quote, mode, onConfirm, onCancel, onPct }: {
   useHotkeys({ escape: onCancel });
   const t = useT();
   const lang = useLang();
-  const pctLabel = `${quote.pct}%`;
+  const fractionBps = Math.round(quote.pct * 100); // wire `fraction_bps`; copy shows %
+  const pctLabel = formatFractionBps(fractionBps, lang);
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal">
-        <h3>{t("positions.sell.title", { coin: `$${quote.symbol}` })} · {t(mode === "practice" ? "mode.practice.label" : "mode.real.label")}</h3>
+        <h3>{t("positions.sell.title", { symbol: `$${quote.symbol}` })} · {t(mode === "practice" ? "mode.practice.label" : "mode.real.label")}</h3>
         <div>
           <b className="num">{pctLabel}</b> · {t("positions.sell.estimate")}{" "}
           <span className="num">{solText(quote.est_sol_out_lamports, lang, mode === "practice")}</span>
@@ -45,7 +46,7 @@ export function SellConfirm({ quote, mode, onConfirm, onCancel, onPct }: {
           </div>
         )}
         <div className="muted" style={{ marginTop: 8 }}>
-          {t("desktop.sell.quote_ttl", { s: Math.ceil(Math.max(0, left) / 1000) })} {t(mode === "practice" ? "positions.sell.hold.practice" : "positions.sell.hold.real", { pct: pctLabel })}. <span className="dim">fraction_bps {quote.pct * 100}</span>
+          {t("positions.sell.quote_ttl", { seconds: Math.ceil(Math.max(0, left) / 1000) })} {t(mode === "practice" ? "positions.sell.hold.practice" : "positions.sell.hold.real", { pct: pctLabel })}. <span className="dim">fraction_bps {fractionBps}</span>
         </div>
         <div className="actions">
           <button autoFocus onClick={onCancel}>{t("common.action.cancel")}<kbd>Esc</kbd></button>

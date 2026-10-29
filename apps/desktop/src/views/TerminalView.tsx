@@ -15,7 +15,7 @@ import { ConflictToast } from "../components/ConflictToast";
 import { CoinDetail } from "../components/CoinDetail";
 import { isBlocked } from "../components/NotTradeable";
 import { ScreenerTable } from "../components/ScreenerTable";
-import { errorText, solText, useLang, useT } from "../i18n";
+import { errorMessage, errorText, I18N_PACKAGE_VERSION, solText, useLang, useT } from "../i18n";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { pendingSorted, useTerm } from "../state/store";
 
@@ -27,6 +27,9 @@ export function TerminalView() {
   // Quick-look (C2 decided): which kind of row it shows; content stays live from the store.
   const [ql, setQl] = useState<{ kind: "signal" | "position"; mint: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  /** Neutral status line (WF-20 D4): product limits like "not tradeable" are info, never red. */
+  const [info, setInfoRaw] = useState<string | null>(null);
+  const setInfo = (m: string) => { setErr(null); setInfoRaw(m); };
   // Center panel: chart (default) or WF-20 "Koin · screener" (C key / tab).
   const [center, setCenter] = useState<"chart" | "coins">(() => (new URLSearchParams(location.search).get("tab") === "coins" ? "coins" : "chart"));
   const [coinSel, setCoinSel] = useState<string | null>(null);
@@ -39,6 +42,7 @@ export function TerminalView() {
   const run = useCallback(async (fn: () => Promise<unknown>) => {
     try {
       setErr(null);
+      setInfoRaw(null);
       await fn();
     } catch (e) {
       setErr(errorText(e, lang));
@@ -71,10 +75,10 @@ export function TerminalView() {
 
   /** WF-20: blocked in the UI first (Rust refuses too: NotTradeable). The reason is shown as text. */
   const ntMsg = (kind: "approve" | "sell") =>
-    `${t(kind === "approve" ? "queue.pick.cannot_approve" : "desktop.nt.sell_unavailable")} — ${t(kind === "approve" ? "screener.not_tradeable.detail" : "desktop.nt.sell_detail")}`;
+    `${t(kind === "approve" ? "queue.pick.cannot_approve" : "positions.sell.unavailable")} — ${t(kind === "approve" ? "screener.not_tradeable.detail" : "positions.sell.not_tradeable_detail")}`;
   const approve = (s?: PickView) => {
     if (!s) return;
-    if (isBlocked(s)) return setErr(ntMsg("approve"));
+    if (isBlocked(s)) return setInfo(ntMsg("approve"));
     if (st.mode === "real") setRealApprove(s);
     else run(() => core.approveSignal(s.id));
   };
@@ -96,12 +100,12 @@ export function TerminalView() {
     const sel = pending.filter((s) => st.selectedIds.has(s.id));
     const ids = sel.filter((s) => !isBlocked(s)).map((s) => s.id);
     const skipped = sel.length - ids.length;
-    if (ids.length) run(async () => { await core.approveMany(ids); st.clearSelected(); if (skipped) setErr(t("desktop.nt.batch_skipped", { count: skipped })); });
-    else if (skipped) setErr(t("desktop.nt.batch_skipped", { count: skipped }));
+    if (ids.length) run(async () => { await core.approveMany(ids); st.clearSelected(); if (skipped) setInfo(t("queue.batch.excluded_not_tradeable", { count: skipped })); });
+    else if (skipped) setInfo(t("queue.batch.excluded_not_tradeable", { count: skipped }));
   };
   const sell = (p?: PositionView, pct = 100) => {
     if (!p) return;
-    if (isBlocked(p)) return setErr(ntMsg("sell"));
+    if (isBlocked(p)) return setInfo(ntMsg("sell"));
     run(async () => setQuote(await core.requestSell(p.key, pct)));
   };
   const openQueue = (mint: string) => {
@@ -191,10 +195,10 @@ export function TerminalView() {
           <header>
             <span className="tabs" role="tablist">
               <button role="tab" className={`tab${center === "chart" ? " on" : ""}`} aria-selected={center === "chart"} onClick={() => setCenter("chart")}>
-                {t("desktop.tab.chart")} <span className="mono">{chartSym ?? "—"}</span>
+                {t("chart.title")} <span className="mono">{chartSym ?? "—"}</span>
               </button>
               <button role="tab" className={`tab${center === "coins" ? " on" : ""}`} aria-selected={center === "coins"} onClick={() => setCenter("coins")} data-testid="tab-coins">
-                {t("desktop.screener.title")} <span className="num">{st.screened.length}</span><kbd>C</kbd>
+                {t("screener.title")} <span className="num">{st.screened.length}</span><kbd>C</kbd>
               </button>
             </span>
             {center === "chart" && <button className="ghost" onClick={() => chartMint && run(() => core.openChartWindow(chartMint))}>⧉ Detach</button>}
@@ -204,7 +208,7 @@ export function TerminalView() {
           ) : (
             <div className={`coins-split${coin ? " with-detail" : ""}`}>
               <div className="body"><ScreenerTable coins={st.screened} selected={coinSel} onSelect={setCoinSel} onOpenQueue={openQueue} /></div>
-              {coin && <CoinDetail key={coin.mint} coin={coin} onOpenQueue={openQueue} />}
+              {coin && <CoinDetail key={coin.mint} coin={coin} pick={pending.find((s) => s.mint === coin.mint)} onOpenQueue={openQueue} onSkip={skip} />}
             </div>
           )}
         </section>
@@ -215,7 +219,7 @@ export function TerminalView() {
           <div className="body"><ActivityFeed items={st.activity} /></div>
         </section>
         <section className="panel area-positions">
-          <header>{t("positions.title")} {t("desktop.positions.paper")} <PositionsSummary positions={st.positions} /></header>
+          <header>{t(st.mode === "real" ? "positions.title" : "positions.title_paper")} <PositionsSummary positions={st.positions} /></header>
           <div className="body">
             <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onFocusRow={st.setCursor} onSell={(p) => sell(p)} now={now} />
           </div>
@@ -225,14 +229,19 @@ export function TerminalView() {
         <span className={st.connected ? "pos" : "neg"}>● {st.connected ? "backend (mock) online" : "offline"}</span>
         {st.sync && (
           <span className="dim num" title="watermark = seq resume cursor · gap = seq lompat (re-fetch via /events) · skew = server_now − jam lokal">
-            contracts {st.contractsVersion} · seq {st.sync.watermark} · gap {st.sync.gaps_seen} · resync {st.sync.resyncs} (+{st.sync.recovered}) · dup {st.sync.duplicates} · skew {st.sync.skew_ms > 0 ? "+" : ""}{(st.sync.skew_ms / 1000).toFixed(1)}s
+            contracts {st.contractsVersion} · seq {st.sync.watermark} · gap {st.sync.gaps_seen} · resync {st.sync.resyncs} (+{st.sync.recovered}) · dup {st.sync.duplicates} · skew {st.sync.skew_ms > 0 ? "+" : st.sync.skew_ms < 0 ? "\u2212" : ""}{Math.abs(st.sync.skew_ms / 1000).toFixed(1)}s
           </span>
         )}
-        <span className="dim">i18n 0.4.2 · {lang} · runtime: {runtime} · density: {st.settings.density} · popup: {!popupSupported ? "n/a (OS)" : st.settings.approval_popup ? "on" : "off"}</span>
+        <span className="dim">i18n {I18N_PACKAGE_VERSION} · {lang} · runtime: {runtime} · density: {st.settings.density} · popup: {!popupSupported ? "n/a (OS)" : st.settings.approval_popup ? "on" : "off"}</span>
         <span className="dim">global: focus {sc.focus_terminal}{sc.open_approvals ? ` · approvals ${sc.open_approvals}` : ""}</span>
-        {(err ?? st.lastError) && <span className="neg status-error" role="status" title={err ?? st.lastError ?? undefined}>{err ?? st.lastError}</span>}
+        {(err ?? st.lastError) ? <span className="neg status-error" role="status" title={err ?? st.lastError ?? undefined}>{err ?? st.lastError}</span>
+          : info && <span className="status-info status-error" role="status" title={info}>ⓘ {info}</span>}
       </div>
       {st.account.notice && <div className="account-banner" role="alert">{st.account.notice}</div>}
+      {st.account.entries_paused && (
+        // Notice, not an error: neutral strip, persists until cash recovers / Practice reset.
+        <div className="entries-paused" role="status" data-testid="entries-paused">ⓘ {errorMessage(st.account.entries_paused, lang)}</div>
+      )}
       <ConflictToast />
       {qlTarget && <QuickLook target={qlTarget} onClose={() => setQl(null)} />}
       {realApprove && (

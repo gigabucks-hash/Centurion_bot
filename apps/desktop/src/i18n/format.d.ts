@@ -1,4 +1,4 @@
-/** Types for `@sentra/i18n/format.mjs` (packages/i18n 0.4.2, UX-owned JS; read-only for Desktop). */
+/** Types for `@sentra/i18n/format.mjs` (packages/i18n 0.4.3, UX-owned JS; read-only for Desktop). */
 declare module "@sentra/i18n/format.mjs" {
   export type Lang = "en" | "id";
   export interface PnlParts { text: string; tone: "profit" | "loss" | "neutral"; arrow: "▲" | "▼" | ""; sign: "+" | "−" | "" }
@@ -16,4 +16,7 @@ declare module "@sentra/i18n/format.mjs" {
   export function formatLamports(l: string | bigint, loc: Lang, o?: { kind?: "amount" | "pnl"; paper?: boolean }): string;
   export function skewFrom(serverNowIso: string, localNowMs?: number): number;
   export function remainingMs(untilIso: string, skewMs: number, localNowMs?: number): number;
+  export function pctToFractionBps(pct: number): number;
+  export function fractionBpsToPct(bps: number): number;
+  export function formatFractionBps(bps: number, loc: Lang): string;
 }

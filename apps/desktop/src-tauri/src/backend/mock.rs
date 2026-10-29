@@ -56,6 +56,22 @@ pub enum NotTradeableMode {
     Screener,
     Race,
 }
+/// Server-side parse of a decision body (what the Phase-2 API does before `decide_approval`):
+/// an unknown `reject_reason`, or one sent with `decision=approve`, is `422 VALIDATION_FAILED`.
+#[allow(dead_code)] // the typed client can't produce bad values; exercised by tests
+pub fn parse_decision_body(body: &serde_json::Value) -> Result<ApprovalDecisionRequest, ApiFailure> {
+    let fail = |m: &str| ApiFailure::from_body(422, &json!({"error": {"code": "VALIDATION_FAILED", "message": m, "field": "reject_reason", "server_now": IsoTs::from_ms(0)}}));
+    if let Some(r) = body.get("reject_reason").filter(|v| !v.is_null()) {
+        if serde_json::from_value::<ApprovalRejectReason>(r.clone()).is_err() {
+            return Err(fail("unknown reject_reason"));
+        }
+        if body.get("decision") != Some(&json!("reject")) {
+            return Err(fail("reject_reason is only allowed with decision=reject"));
+        }
+    }
+    serde_json::from_value(body.clone()).map_err(|e| fail(&e.to_string()))
+}
+
 impl NotTradeableMode {
     pub fn from_env() -> Self {
         match std::env::var("SENTRA_MOCK_NOT_TRADEABLE").as_deref() {
@@ -178,6 +194,8 @@ struct Server {
     idem: HashMap<String, (String, serde_json::Value)>,
     /// WF-20: not-tradeable screener coins keep getting marks (chart & metrics stay viewable, read-only). Bounded.
     nt_watch: std::collections::VecDeque<String>,
+    /// PRACTICE_CASH_INSUFFICIENT notice already sent (cleared by the next filled entry / reset).
+    entries_paused: bool,
     slot: i64,
     next_candidate_ms: i64,
     next_clock_ms: i64,
@@ -313,6 +331,7 @@ impl Server {
     /// `practice_reset`, expire pending buys, restore 30 SOL, emit `practice.reset`.
     fn reset(&mut self) -> PracticeResetResponse {
         let now = self.now();
+        self.entries_paused = false;
         let keys: Vec<String> = self.positions.keys().cloned().collect();
         let closed = keys.len() as i64;
         for k in keys {
@@ -391,6 +410,12 @@ impl Server {
 
     /// `order.failed` (N-05) for an order that reached a not-tradeable coin anyway.
     fn order_failed(&mut self, mint: &str, side: &str, proposal_id: Option<&str>, amount: Option<i128>, qty: Option<u128>) {
+        self.order_failed_with(mint, side, proposal_id, amount, qty, UNSUPPORTED_QUOTE_MINT, json!("Pool is quoted in a mint other than SOL"));
+    }
+
+    /// `order.failed` with any of the 8 contracts 1.1.2 reason codes.
+    #[allow(clippy::too_many_arguments)]
+    fn order_failed_with(&mut self, mint: &str, side: &str, proposal_id: Option<&str>, amount: Option<i128>, qty: Option<u128>, reason: &str, detail: serde_json::Value) {
         let (ck, sid, u, q) = match self.coins.get(mint) {
             Some(c) => (c.ck.clone(), c.strategy_id.clone(), c.untrusted.clone(), c.quote_mint.clone()),
             None => return,
@@ -400,7 +425,7 @@ impl Server {
         self.emit("order.failed", Actor::Executor, &oid, Some(&sid), Some(&ck), Some(mint), json!({
             "order_id": oid, "proposal_id": proposal_id, "mint": mint, "side": side,
             "amount_lamports": amount.map(|a| a.to_string()), "qty_raw": qty.map(|q| q.to_string()),
-            "reason_code": UNSUPPORTED_QUOTE_MINT, "detail": "Pool is quoted in a mint other than SOL", "quote_mint": q,
+            "reason_code": reason, "detail": detail, "quote_mint": q,
             "mode": "practice", "server_now": IsoTs::from_ms(now)}), u);
     }
 
@@ -591,10 +616,19 @@ impl Server {
         let Some(coin) = self.coins.get(&mint) else { return };
         let (mark, untrusted, decimals, token_program) = (coin.price_sol, coin.untrusted.clone(), coin.decimals, coin.token_program);
         if self.cash < BUY_LAMPORTS {
-            self.emit("system.notice", Actor::Executor, &ck, Some(&sid), Some(&ck), Some(&mint),
-                json!({"code": "PRACTICE_CASH_INSUFFICIENT", "message": "Paper cash tidak cukup"}), untrusted);
+            // Two different things (Backend): this one order fails (kind error) …
+            let pid = prop_id.to_string();
+            self.order_failed_with(&mint, "buy", Some(&pid), Some(BUY_LAMPORTS), None, "INSUFFICIENT_PRACTICE_BALANCE",
+                json!({"cash_lamports": self.cash.to_string(), "needed_lamports": BUY_LAMPORTS.to_string()}));
+            // … and strategy entries pause until cash recovers or Practice is reset (kind notice, once).
+            if !self.entries_paused {
+                self.entries_paused = true;
+                self.emit("system.notice", Actor::Executor, &ck, Some(&sid), Some(&ck), Some(&mint),
+                    json!({"code": "PRACTICE_CASH_INSUFFICIENT", "message": "Practice cash too low; entries paused"}), untrusted);
+            }
             return;
         }
+        self.entries_paused = false;
         let slip_bps = dec(self.rng.range(0.5, 3.0)).round_dp(2);
         let exec = (mark * (Decimal::ONE + slip_bps / Decimal::from(10_000))).round_dp(12);
         let swap_fee = BUY_LAMPORTS * FEE_BPS as i128 / 10_000;
@@ -791,6 +825,7 @@ impl MockTransport {
             decided: HashMap::new(),
             idem: HashMap::new(),
             nt_watch: Default::default(),
+            entries_paused: false,
             seq_job: 9_000_000_000,
             slot: 301_223_344,
             next_candidate_ms: now + 1_500,
@@ -903,7 +938,7 @@ impl Transport for MockTransport {
     async fn decide(&self, proposal_id: &str, idem_key: &str, req: ApprovalDecisionRequest) -> ApiResult<ApiItem<ApprovalDecisionResponse>> {
         let mut s = self.inner.lock().unwrap();
         let now = s.now();
-        let fp = format!("decide:{proposal_id}:{:?}:{}:{}", req.decision, req.expected_rev, req.token);
+        let fp = format!("decide:{proposal_id}:{:?}:{}:{}:{:?}", req.decision, req.expected_rev, req.token, req.reject_reason);
         if let Some(stored) = s.idem_check(idem_key, &fp)? {
             let mut r: ApprovalDecisionResponse = serde_json::from_value(stored).expect("stored decision");
             r.replayed = true;
@@ -917,6 +952,12 @@ impl Transport for MockTransport {
             }
             return s.err(409, "APPROVAL_ALREADY_DECIDED", "Already decided", json!({}));
         }
+        // 1.1.3: reject_reason only with reject (unknown values are refused when the body is parsed:
+        // `parse_decision_body`).
+        if req.decision == Decision::Approve && req.reject_reason.is_some() {
+            return s.err(422, "VALIDATION_FAILED", "reject_reason is only allowed with decision=reject", json!({"field": "reject_reason"}));
+        }
+        let reject_reason = (req.decision == Decision::Reject).then(|| req.reject_reason.unwrap_or(ApprovalRejectReason::UserDeclined));
         let Some(p) = s.proposals.get(proposal_id) else { return s.err(404, "NOT_FOUND", "Resource not found or not visible", json!({})) };
         if p.status != ProposalStatus::Pending {
             let code = if p.status == ProposalStatus::Expired { "APPROVAL_EXPIRED" } else { "APPROVAL_ALREADY_DECIDED" };
@@ -946,11 +987,11 @@ impl Transport for MockTransport {
         let u = s.coins.get(&mint).map(|c| c.untrusted.clone()).unwrap_or_default();
         let kind = if status == ProposalStatus::Approved { "proposal.approved" } else { "proposal.rejected" };
         s.emit(kind, Actor::User, proposal_id, Some(&sid), Some(&ck), Some(&mint), json!({
-            "proposal_id": proposal_id, "kind": "buy_pick", "rev": version, "decided_by": USER_ID, "decided_via": "desktop", "reason": req.reason}), u);
+            "proposal_id": proposal_id, "kind": "buy_pick", "rev": version, "decided_by": USER_ID, "decided_via": "desktop", "reason": req.reason, "reject_reason": reject_reason}), u);
         if status == ProposalStatus::Approved {
             s.buy(proposal_id);
         }
-        let resp = ApprovalDecisionResponse { proposal_id: proposal_id.into(), status, version, replayed: false };
+        let resp = ApprovalDecisionResponse { proposal_id: proposal_id.into(), status, version, reject_reason, replayed: false };
         s.decided.insert(req.token, (req.decision, resp.clone()));
         s.idem.insert(idem_key.into(), (fp, serde_json::to_value(&resp).unwrap()));
         Ok(ApiItem { data: resp, server_now: IsoTs::from_ms(now) })
@@ -1086,7 +1127,9 @@ impl Transport for MockTransport {
                 "current_rev": cur, "base_rev": base, "changed_fields": ["practice_epoch"], "current": {"id": WORKSPACE_ID, "rev": cur}}));
         }
         if let Some(next) = s.last_reset_ms.map(|t| t + RESET_COOLDOWN_MS).filter(|n| *n > now) {
-            return s.err(429, "RESET_COOLDOWN", "Practice can be reset once per 24 h", json!({"next_allowed_at": IsoTs::from_ms(next)}));
+            // HTTP also sends `Retry-After: <s>`; the in-process mock carries it as `retry_after_s`.
+            let retry_after_s = ((next - now) + 999) / 1000;
+            return s.err(429, "RESET_COOLDOWN", "Practice can be reset once per 24 h", json!({"next_allowed_at": IsoTs::from_ms(next), "retry_after_s": retry_after_s}));
         }
         let data = s.reset();
         Ok(ApiItem { data, server_now: IsoTs::from_ms(now) })
@@ -1173,12 +1216,12 @@ mod tests {
     async fn decision_needs_token_and_version_and_is_replay_safe() {
         let t = MockTransport::new(0);
         let pid = pending_id(&t);
-        let bad = ApprovalDecisionRequest { decision: Decision::Approve, token: "apt_nope".into(), expected_rev: 1, reason: None };
+        let bad = ApprovalDecisionRequest { decision: Decision::Approve, token: "apt_nope".into(), expected_rev: 1, reason: None, reject_reason: None };
         assert_eq!(t.decide(&pid, "k1", bad).await.unwrap_err().code(), "APPROVAL_TOKEN_INVALID");
         let a = t.get_approval(&pid).await.unwrap().data;
-        let stale = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.clone().unwrap(), expected_rev: 9, reason: None };
+        let stale = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.clone().unwrap(), expected_rev: 9, reason: None, reject_reason: None };
         assert_eq!(t.decide(&pid, "k2", stale).await.unwrap_err().conflict().unwrap().current_rev, Some(1));
-        let ok = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.unwrap(), expected_rev: a.version, reason: None };
+        let ok = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.unwrap(), expected_rev: a.version, reason: None, reject_reason: None };
         let r1 = t.decide(&pid, "k3", ok.clone()).await.unwrap().data;
         assert!(!r1.replayed && r1.status == ProposalStatus::Approved);
         assert!(t.decide(&pid, "k3", ok).await.unwrap().data.replayed, "same token + decision → replayed");
@@ -1217,7 +1260,7 @@ mod tests {
         let rescored = ev.items.iter().rev().find(|e| e.kind == "screener.scored" && e.mint.as_deref() == Some(&mint)).unwrap();
         assert_eq!(rescored.payload["result"]["tradeable"], false);
         assert_eq!(rescored.payload["result"]["skip_reason"], UNSUPPORTED_QUOTE_MINT);
-        let req = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.unwrap(), expected_rev: a.version, reason: None };
+        let req = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.unwrap(), expected_rev: a.version, reason: None, reject_reason: None };
         assert_eq!(t.decide(&pid, "k", req).await.unwrap_err().code(), UNSUPPORTED_QUOTE_MINT);
         assert!(t.list_events(0, 500).await.unwrap().items.iter().any(|e| e.kind == "order.failed" && e.payload["reason_code"] == UNSUPPORTED_QUOTE_MINT));
         assert!(t.with(|s| s.positions.is_empty()));
@@ -1231,7 +1274,7 @@ mod tests {
             s.proposals.keys().next().unwrap().clone()
         });
         let a2 = t.get_approval(&pid2).await.unwrap().data;
-        t.decide(&pid2, "k2", ApprovalDecisionRequest { decision: Decision::Approve, token: a2.decision_token.unwrap(), expected_rev: a2.version, reason: None }).await.unwrap();
+        t.decide(&pid2, "k2", ApprovalDecisionRequest { decision: Decision::Approve, token: a2.decision_token.unwrap(), expected_rev: a2.version, reason: None, reject_reason: None }).await.unwrap();
         let id = t.with(|s| s.positions.values().next().unwrap().id.clone());
         assert_eq!(t.close(&id, "c0", None, 5_000).await.unwrap_err(), ApiFailure::PreconditionRequired);
         let c = t.close(&id, "c1", Some(9), 5_000).await.unwrap_err();
@@ -1261,7 +1304,7 @@ mod tests {
         let t = MockTransport::new(0);
         let pid = pending_id(&t);
         let a = t.get_approval(&pid).await.unwrap().data;
-        t.decide(&pid, "k", ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.unwrap(), expected_rev: a.version, reason: None }).await.unwrap();
+        t.decide(&pid, "k", ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.unwrap(), expected_rev: a.version, reason: None, reject_reason: None }).await.unwrap();
         assert_eq!(t.with(|s| s.positions.len()), 1);
         assert_eq!(t.reset_practice("r0", None).await.unwrap_err(), ApiFailure::PreconditionRequired);
         let rev = t.get_workspace().await.unwrap().data.rev;
@@ -1273,10 +1316,43 @@ mod tests {
         assert!(ev.items.iter().any(|e| e.kind == "practice.reset"));
         assert!(ev.items.iter().any(|e| e.kind == "position.closed" && e.payload["exit_reason"] == "practice_reset"));
         let rev = t.get_workspace().await.unwrap().data.rev;
-        assert_eq!(t.reset_practice("r2", Some(rev)).await.unwrap_err().code(), "RESET_COOLDOWN");
+        let cd = t.reset_practice("r2", Some(rev)).await.unwrap_err();
+        assert_eq!(cd.code(), "RESET_COOLDOWN");
+        assert!(matches!(&cd, ApiFailure::Api { http: 429, details: Some(d), .. } if d["next_allowed_at"].is_string() && d["retry_after_s"].as_i64().is_some_and(|s| s > 0)));
+        let msg = cd.to_string();
+        assert!(msg.starts_with("RESET_COOLDOWN:") && msg.contains("[next_allowed_at=") && msg.contains("[retry_after_s="), "{msg}");
         let stats = t.exit_reason_stats("24h").await.unwrap().data;
         assert_eq!(stats[0].exit_reason, ExitReason::PracticeReset);
         let mint = t.with(|s| s.log.iter().find_map(|e| e.mint.clone())).unwrap();
         assert!(!t.coin_timeline(&mint).await.unwrap().items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn reject_reason_1_1_3_validated_sent_and_echoed() {
+        let t = MockTransport::new(0);
+        let pid = pending_id(&t);
+        let a = t.get_approval(&pid).await.unwrap().data;
+        let tok = a.decision_token.clone().unwrap();
+        // approve + reject_reason → 422 VALIDATION_FAILED (mapped through errors.map.json)
+        let bad = ApprovalDecisionRequest { decision: Decision::Approve, token: tok.clone(), expected_rev: a.version, reason: None, reject_reason: Some(ApprovalRejectReason::Other) };
+        let e = t.decide(&pid, "rr0", bad).await.unwrap_err();
+        assert_eq!(e.code(), "VALIDATION_FAILED");
+        assert_eq!(crate::errmap::i18n_key(e.code()), "error.code.validation_failed");
+        // unknown value / approve-with-reason are refused at body parse
+        assert_eq!(parse_decision_body(&json!({"decision": "reject", "token": "t", "expected_rev": 1, "reject_reason": "bored"})).unwrap_err().code(), "VALIDATION_FAILED");
+        assert_eq!(parse_decision_body(&json!({"decision": "approve", "token": "t", "expected_rev": 1, "reject_reason": "other"})).unwrap_err().code(), "VALIDATION_FAILED");
+        assert!(parse_decision_body(&json!({"decision": "reject", "token": "t", "expected_rev": 1, "reject_reason": "not_tradeable"})).is_ok());
+        // a skip of a not-tradeable card sends not_tradeable; it is echoed on the response + proposal.rejected
+        let ok = ApprovalDecisionRequest { decision: Decision::Reject, token: tok, expected_rev: a.version, reason: None, reject_reason: Some(crate::commands::skip_reason(false)) };
+        assert_eq!(serde_json::to_value(&ok).unwrap()["reject_reason"], "not_tradeable");
+        let r = t.decide(&pid, "rr1", ok).await.unwrap().data;
+        assert_eq!(r.reject_reason, Some(ApprovalRejectReason::NotTradeable));
+        let ev = t.list_events(0, 500).await.unwrap().items.into_iter().find(|e| e.kind == "proposal.rejected").unwrap();
+        assert_eq!(ev.payload["reject_reason"], "not_tradeable");
+        assert!(matches!(KnownEvent::decode(&ev), Some(Ok(_))));
+        // normal skip → user_declined; approve sends none
+        assert_eq!(crate::commands::skip_reason(true), ApprovalRejectReason::UserDeclined);
+        let ap = ApprovalDecisionRequest { decision: Decision::Approve, token: "x".into(), expected_rev: 1, reason: None, reject_reason: None };
+        assert!(serde_json::to_value(&ap).unwrap().get("reject_reason").is_none());
     }
 }

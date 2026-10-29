@@ -20,7 +20,7 @@ use std::str::FromStr;
 
 pub const EVENT_SCHEMA_VERSION: u32 = 1;
 /// Contracts release this mirror was verified against (contract test checks major.minor).
-pub const CONTRACTS_VERSION: &str = "1.1.2";
+pub const CONTRACTS_VERSION: &str = "1.1.3";
 /// JSON number on the wire (pcts, ratios, bps, USD notionals, scores). Display/threshold only.
 pub type Num = f64;
 pub const LAMPORTS_PER_SOL: i128 = 1_000_000_000;
@@ -501,6 +501,9 @@ pub struct ProposalDecided {
     pub decided_by: String,
     pub decided_via: DecidedVia,
     pub reason: Option<String>,
+    /// 1.1.3: set on `proposal.rejected`, null on approved (absent from older producers).
+    #[serde(default)]
+    pub reject_reason: Option<ApprovalRejectReason>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalExpired {
@@ -925,7 +928,25 @@ pub struct ApprovalDecisionRequest {
     pub expected_rev: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// 1.1.3: only with `decision = reject` (server default `user_declined`); with approve or an
+    /// unknown value → 422 `VALIDATION_FAILED`. The desktop always sends it on a reject.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reject_reason: Option<ApprovalRejectReason>,
 }
+
+/// 1.1.3 `ApprovalRejectReason` (closed enum, TS `APPROVAL_REJECT_REASONS`).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ApprovalRejectReason {
+    UserDeclined,
+    NotTradeable,
+    PriceMoved,
+    Other,
+}
+#[allow(dead_code)] // mirrored list; the contract test pins it to events.ts
+pub const APPROVAL_REJECT_REASONS: [ApprovalRejectReason; 4] =
+    [ApprovalRejectReason::UserDeclined, ApprovalRejectReason::NotTradeable, ApprovalRejectReason::PriceMoved, ApprovalRejectReason::Other];
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ApprovalDecisionResponse {
     pub proposal_id: String,
@@ -933,7 +954,40 @@ pub struct ApprovalDecisionResponse {
     /// Approval rev (1.1.2 `rev`; v1.1 `version` still accepted on input).
     #[serde(rename = "rev", alias = "version")]
     pub version: u32,
+    /// 1.1.3: set when rejected, null when approved.
+    #[serde(default)]
+    pub reject_reason: Option<ApprovalRejectReason>,
     pub replayed: bool,
+}
+
+/// 1.1.3 `ApprovalWire` (SQL `approval_wire()`; also the `current` of an approval 409).
+#[allow(dead_code)] // typed body for the Phase-2 HttpTransport; asserted by the contract test
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ApprovalWire {
+    pub id: String,
+    pub proposal_id: String,
+    pub workspace_id: String,
+    pub strategy_id: Option<String>,
+    pub kind: ProposalKind,
+    pub mode: Mode,
+    pub subject: Option<String>,
+    pub mint: Option<String>,
+    pub amount_lamports: Option<Lamports>,
+    pub is_first_buy: bool,
+    pub risk: String,
+    pub weakening: bool,
+    pub status: ProposalStatus,
+    pub rev: u32,
+    pub expire_reason: Option<ProposalExpiredReason>,
+    pub base_rev: Option<u32>,
+    pub decision: Option<Decision>,
+    pub reject_reason: Option<ApprovalRejectReason>,
+    pub decided_via: Option<DecidedVia>,
+    pub decided_by: Option<String>,
+    pub payload: serde_json::Map<String, serde_json::Value>,
+    pub created_at: IsoTs,
+    pub expires_at: IsoTs,
+    pub decided_at: Option<IsoTs>,
 }
 /// `GET /approvals/{id}` (subset the desktop needs).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1036,10 +1090,20 @@ pub struct ConflictErrorBody {
     pub changed_by: Option<ChangedBy>,
     #[serde(default)]
     pub changed_at: Option<IsoTs>,
-    /// TS `ConflictError.current` is required, but the API_ENDPOINTS §0 VERSION_CONFLICT example
-    /// omits it → tolerate (reported to Backend).
-    #[serde(default)]
+    /// Required and non-null (TS `ConflictError.current`; every 409 `VERSION_CONFLICT` carries it,
+    /// API_ENDPOINTS example fixed in contracts 1f24d28).
+    #[serde(deserialize_with = "required_non_null")]
     pub current: serde_json::Value,
+}
+
+/// A field that must be present **and** non-null (missing → "missing field", null → error).
+#[allow(dead_code)] // used by ConflictErrorBody (typed body for the Phase-2 HttpTransport)
+fn required_non_null<'de, D: serde::Deserializer<'de>>(d: D) -> Result<serde_json::Value, D::Error> {
+    let v = <serde_json::Value as serde::Deserialize>::deserialize(d)?;
+    if v.is_null() {
+        return Err(serde::de::Error::custom("`current` must not be null"));
+    }
+    Ok(v)
 }
 
 /// `POST /positions/{key}/close` body (contracts 1.1.2): `fraction_bps` integer 1–10000

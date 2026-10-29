@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
 
 const EMPTY_ACCOUNT: Account = {
   cash_lamports: null, equity_lamports: null, unrealized_pnl_lamports: null, drawdown_pct: null,
-  as_of_seq: null, epoch: null, workspace_rev: null, notice: null, deleted: false,
+  as_of_seq: null, epoch: null, workspace_rev: null, notice: null, deleted: false, entries_paused: null,
 };
 
 interface TermState {

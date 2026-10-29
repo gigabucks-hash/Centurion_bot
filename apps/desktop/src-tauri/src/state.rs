@@ -57,6 +57,9 @@ struct CoinInfo {
     trade: Tradeability,
 }
 
+/// `system.notice` kind notice: entries paused (workspace). ≠ `order.failed` `INSUFFICIENT_PRACTICE_BALANCE`.
+pub const PRACTICE_CASH_INSUFFICIENT: &str = "PRACTICE_CASH_INSUFFICIENT";
+
 fn not_tradeable(code: &str, quote_mint: Option<String>) -> Tradeability {
     let quote_symbol = quote_mint.as_deref().and_then(keys::quote_symbol);
     Tradeability { tradeable: false, reason_code: Some(keys::error_code(code).to_owned()), quote_mint, quote_symbol }
@@ -113,19 +116,20 @@ fn qty_ui(q: RawQty, decimals: Option<u8>) -> Option<Decimal> {
 fn lamports_of(sol: Decimal) -> Lamports {
     Lamports::from_sol(sol)
 }
+/// Plain-text SOL (fallback copy; the UI prefers i18n). Negatives use U+2212, never a hyphen.
 fn fmt_sol(l: Lamports) -> String {
     let s = l.sol().round_dp(4);
-    format!("{s} SOL")
+    if s < Decimal::ZERO { format!("\u{2212}{} SOL", s.abs()) } else { format!("{s} SOL") }
 }
+/// Signed PnL (T-15): exact zero → neutral "0.00 SOL"; a non-zero value never reads as 0
+/// (below 0.0001 → "<0.0001"); minus is U+2212.
 fn fmt_signed_sol(l: Lamports) -> String {
-    let s = l.sol().round_dp(4);
-    if s > Decimal::ZERO {
-        format!("▲ +{s} SOL")
-    } else if s < Decimal::ZERO {
-        format!("▼ −{} SOL", s.abs())
-    } else {
-        "±0 SOL".into()
+    if l.0 == 0 {
+        return "0.00 SOL".into();
     }
+    let a = l.sol().abs().round_dp(4);
+    let body = if a.is_zero() { "<0.0001".to_string() } else { a.to_string() };
+    if l.0 > 0 { format!("▲ +{body} SOL") } else { format!("▼ \u{2212}{body} SOL") }
 }
 
 impl Engine {
@@ -415,7 +419,7 @@ impl Engine {
                     i18n = Some(I18nMsg::new("screener.not_tradeable.badge"));
                     act(Tone::Neutral, format!("Screener: tidak bisa ditradingkan ({}) · skor {}/{} (info)", keys::error_code(skip.as_deref().unwrap_or(UNSUPPORTED_QUOTE_MINT)), s.result.score, s.result.max_score))
                 } else {
-                    i18n = s.passed.then(|| I18nMsg::new("feed.event.passed").text("coin", sym.clone()).arg("score", I18nArg::Num(s.result.score)).arg("pass", I18nArg::Num(s.result.score_threshold)));
+                    i18n = s.passed.then(|| I18nMsg::new("feed.event.passed").text("symbol", sym.clone()).arg("score", I18nArg::Num(s.result.score)).arg("pass", I18nArg::Num(s.result.score_threshold)));
                     act(if s.passed { Tone::Good } else { Tone::Bad }, format!("Screener: fit {}/{}", s.result.score, s.result.score_threshold))
                 }
             }
@@ -431,7 +435,7 @@ impl Engine {
                 }
                 match g.verdict {
                     GuardVerdict::Fail => {
-                        i18n = Some(I18nMsg::new("feed.event.blocked").text("coin", sym.clone()));
+                        i18n = Some(I18nMsg::new("feed.event.blocked").text("symbol", sym.clone()));
                         act(Tone::Guard, format!("Blocked: {}", g.reasons.join(", ")))
                     }
                     v => act(Tone::Good, format!("Guard {v:?}")),
@@ -517,9 +521,11 @@ impl Engine {
                 }
                 let via = serde_json::to_value(d.decided_via).ok().and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_default();
                 if !approved {
-                    i18n = Some(I18nMsg::new("feed.event.skipped").text("coin", sym.clone()));
+                    i18n = Some(I18nMsg::new("feed.event.skipped").text("symbol", sym.clone()));
                 }
-                act(if approved { Tone::Good } else { Tone::Neutral }, format!("{} (via {via})", if approved { "Approved" } else { "Skipped" }))
+                // 1.1.3 reject_reason (closed enum) shown as its wire code for support.
+                let why = d.reject_reason.and_then(|r| serde_json::to_value(r).ok()).and_then(|v| v.as_str().map(|s| format!(" · {s}"))).unwrap_or_default();
+                act(if approved { Tone::Good } else { Tone::Neutral }, format!("{}{why} (via {via})", if approved { "Approved" } else { "Skipped" }))
             }
             KnownEvent::ProposalExpired(x) => {
                 if let Some(s) = self.signals.iter_mut().find(|s| s.id == x.proposal_id) {
@@ -529,7 +535,7 @@ impl Engine {
                     outs.push(Out::SignalUpdate(s.clone()));
                 }
                 let why = serde_json::to_value(x.reason).ok().and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_default();
-                i18n = Some(I18nMsg::new("feed.event.expired").text("coin", sym.clone()).arg("reason", I18nArg::Key(format!("expire_reason.{why}.badge"))));
+                i18n = Some(I18nMsg::new("feed.event.expired").text("symbol", sym.clone()).arg("reason", I18nArg::Key(format!("expire_reason.{why}.badge"))));
                 act(Tone::Neutral, format!("Expired: {why}"))
             }
             KnownEvent::FillSimulated(f) => {
@@ -570,7 +576,10 @@ impl Engine {
                     self.revalue(&key, m.price_sol);
                 }
                 outs.push(Out::Positions(self.positions_vec()));
-                i18n = Some(I18nMsg::new("feed.event.bought").text("coin", sym.clone()).arg("sol", I18nArg::Lamports(p.fill.sol_lamports)));
+                if self.account.entries_paused.take().is_some() {
+                    outs.push(Out::Account(self.account.clone())); // an entry filled → cash recovered
+                }
+                i18n = Some(I18nMsg::new("feed.event.bought").text("symbol", sym.clone()).arg("amount_lamports", I18nArg::Lamports(p.fill.sol_lamports)));
                 act(Tone::Good, format!("Posisi dibuka {}", fmt_sol(p.fill.sol_lamports)))
             }
             KnownEvent::PositionUpdated(u) => {
@@ -608,7 +617,7 @@ impl Engine {
             KnownEvent::PositionClosed(c) => {
                 self.positions.remove(&c.position_key);
                 outs.push(Out::Positions(self.positions_vec()));
-                i18n = Some(I18nMsg::new("feed.event.sold").text("coin", sym.clone()).arg("pnl", I18nArg::PnlLamports(c.pnl_lamports)).arg("reason", I18nArg::Key(format!("exit_reason.{}", keys::exit_id(c.exit_reason)))));
+                i18n = Some(I18nMsg::new("feed.event.sold").text("symbol", sym.clone()).arg("pnl", I18nArg::PnlLamports(c.pnl_lamports)).arg("reason", I18nArg::Key(format!("exit_reason.{}", keys::exit_id(c.exit_reason)))));
                 act(
                     if c.pnl_lamports.0 >= 0 { Tone::Good } else { Tone::Bad },
                     format!("{}: keluar {} (PnL {}, {}%, hold {}s)", keys::exit_label(c.exit_reason), fmt_sol(c.sol_out_lamports), fmt_signed_sol(c.pnl_lamports), c.pnl_pct.map(|x| x.to_string()).unwrap_or_else(|| "—".into()), c.hold_seconds),
@@ -654,6 +663,7 @@ impl Engine {
                     workspace_rev: None, // refetched with the portfolio
                     notice: self.account.notice.clone(),
                     deleted: self.account.deleted,
+                    entries_paused: None, // reset restores cash → entries resume
                 };
                 self.refetch_portfolio = true;
                 outs.push(Out::Positions(vec![]));
@@ -681,7 +691,11 @@ impl Engine {
             }
             KnownEvent::SystemNotice(n) => {
                 let code = keys::error_code(&n.code).to_owned();
-                i18n = Some(I18nMsg::new(&format!("error.code.{}", code.to_lowercase())));
+                if code == PRACTICE_CASH_INSUFFICIENT && self.account.entries_paused.is_none() {
+                    self.account.entries_paused = Some(code.clone());
+                    outs.push(Out::Account(self.account.clone()));
+                }
+                i18n = Some(I18nMsg::new(crate::errmap::i18n_key(&code)).text("code", code.clone()));
                 act(Tone::Info, crate::model::plain_text(&n.message, 120))
             }
             KnownEvent::OrderFailed(f) => {
@@ -691,7 +705,7 @@ impl Engine {
                     self.set_trade(&f.mint, not_tradeable(&code, f.quote_mint.clone()), &mut outs);
                 }
                 let kind = keys::code_kind(&code);
-                i18n = Some(I18nMsg::new(&format!("order.fail_reason.{}", code.to_lowercase())));
+                i18n = Some(I18nMsg::new(&crate::errmap::order_fail_key(&code)).text("code", code.clone()));
                 act(if kind == keys::CodeKind::Error { Tone::Bad } else { Tone::Neutral }, format!("Order {} gagal: {code}", if f.side == FillSide::Buy { "buy" } else { "sell" }))
             }
             KnownEvent::OrderSubmitted(o) | KnownEvent::OrderFilled(o) => {
@@ -897,14 +911,14 @@ mod tests {
     #[test]
     fn positions_value_from_marks_and_sell_nonce_is_one_shot() {
         let mut e = Engine::new(WS);
-        e.apply_event(&env(20, "position.opened", json!({"position_key": "ck1.0", "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "first_buy": true, "decimals": 6, "position_id": "pos_1", "rev": 1,
-            "fill": {"sol_lamports": "250000000", "token_amount_raw": "1000000000", "exec_price_sol": "0.00025", "slippage_bps": 2.04,
+        e.apply_event(&env(20, "position.opened", json!({"position_key": "ck1.0", "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "first_buy": true, "decimals": 9, "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "position_id": "pos_1", "rev": 1,
+            "fill": {"sol_lamports": "250000000", "token_amount_raw": "1000000000000", "exec_price_sol": "0.00025", "slippage_bps": 2.04,
                      "swap_fee_lamports": "3125000", "network_fee_lamports": "25000", "latency_ms": 450}})));
         let now = IsoTs::from_ms(now_ms() as i64);
         e.apply_mark(&MarkMessage { mint: "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr".into(), price_usd: Dec::parse("0.075").unwrap(), price_sol: Dec::parse("0.0005").unwrap(),
             liquidity_usd: 1000.0, slot: 1, ts: now.clone(), position_ids: vec![], server_now: now });
         let p = e.positions.get("ck1.0").unwrap();
-        // 1000 tokens × 0.0005 SOL = 0.5 SOL; cost 0.25 → +0.25 SOL, +100 %
+        // 7GCih…W2hr = SPL Token, decimals 9 (mainnet): 1000 tokens × 0.0005 SOL = 0.5 SOL; cost 0.25 → +0.25 SOL, +100 %
         assert_eq!(p.value_lamports, Lamports(500_000_000));
         assert_eq!(p.pnl_lamports, Lamports(250_000_000));
         assert_eq!(p.pnl_pct, 100.0);
@@ -918,8 +932,8 @@ mod tests {
     #[test]
     fn practice_reset_drops_positions_and_account_events_are_graceful() {
         let mut e = Engine::new(WS);
-        e.apply_event(&env(20, "position.opened", json!({"position_key": "ck1.0", "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "first_buy": true, "decimals": 6, "position_id": "pos_1", "rev": 1,
-            "fill": {"sol_lamports": "250000000", "token_amount_raw": "1000000000", "exec_price_sol": "0.00025", "slippage_bps": 2.04,
+        e.apply_event(&env(20, "position.opened", json!({"position_key": "ck1.0", "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "first_buy": true, "decimals": 9, "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "position_id": "pos_1", "rev": 1,
+            "fill": {"sol_lamports": "250000000", "token_amount_raw": "1000000000000", "exec_price_sol": "0.00025", "slippage_bps": 2.04,
                      "swap_fee_lamports": "3125000", "network_fee_lamports": "25000", "latency_ms": 450}})));
         assert_eq!(e.positions.len(), 1);
         let mut r = env(21, "practice.reset", json!({"epoch": 2, "previous_epoch": 1, "starting_balance_lamports": "30000000000",
@@ -969,8 +983,8 @@ mod tests {
         let mut e = Engine::new(WS);
         proposal(&mut e, 10);
         e.apply_event(&env(11, "position.opened", json!({"position_key": "ck1.0", "position_id": "pos_1", "rev": 1, "practice_epoch": 1, "mint": M,
-            "first_buy": true, "decimals": 6, "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-            "fill": {"sol_lamports": "250000000", "token_amount_raw": "1000000000", "exec_price_sol": "0.00025", "slippage_bps": 2.04,
+            "first_buy": true, "decimals": 9, "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "fill": {"sol_lamports": "250000000", "token_amount_raw": "1000000000000", "exec_price_sol": "0.00025", "slippage_bps": 2.04,
                      "swap_fee_lamports": "3125000", "network_fee_lamports": "25000", "latency_ms": 450}})));
         assert!(e.check_tradeable(M).is_ok());
         let q = e.request_sell("ck1.0", 100).unwrap();
@@ -986,5 +1000,48 @@ mod tests {
         assert_eq!((row.status.as_str(), row.trade.tradeable, row.trade.quote_symbol), ("not_tradeable", false, Some("USDC")));
         assert!(e.positions["ck1.0"].trade.reason_code.as_deref() == Some("UNSUPPORTED_QUOTE_MINT"));
         assert!(e.signals.iter().all(|p| !p.trade.tradeable), "pending pick is marked too");
+    }
+
+    #[test]
+    fn practice_cash_notice_pauses_entries_and_differs_from_order_balance_failure() {
+        let mut e = Engine::new(WS);
+        // order.failed INSUFFICIENT_PRACTICE_BALANCE: kind error, one order → red line, no workspace state
+        e.apply_event(&env(30, "order.failed", json!({"order_id": "o1", "proposal_id": null, "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "side": "buy",
+            "amount_lamports": "250000000", "reason_code": "INSUFFICIENT_PRACTICE_BALANCE", "detail": {}, "mode": "practice", "server_now": "2026-10-29T10:00:00Z"})));
+        let a = e.activity.front().unwrap().clone();
+        assert_eq!(a.tone, Tone::Bad);
+        assert_eq!(a.i18n.as_ref().unwrap().key, "order.fail_reason.insufficient_practice_balance");
+        assert!(e.account.entries_paused.is_none(), "one failed order does not pause entries");
+        // system.notice PRACTICE_CASH_INSUFFICIENT: kind notice → neutral line + entries paused (workspace)
+        e.apply_event(&env(31, "system.notice", json!({"code": "PRACTICE_CASH_INSUFFICIENT", "message": "cash low"})));
+        let n = e.activity.front().unwrap().clone();
+        assert_ne!(n.tone, Tone::Bad);
+        assert_eq!(n.i18n.as_ref().unwrap().key, "error.code.practice_cash_insufficient");
+        assert_eq!(e.account.entries_paused.as_deref(), Some("PRACTICE_CASH_INSUFFICIENT"));
+        assert_eq!(keys::code_kind("PRACTICE_CASH_INSUFFICIENT"), keys::CodeKind::Notice);
+        assert_eq!(keys::code_kind("INSUFFICIENT_PRACTICE_BALANCE"), keys::CodeKind::Error);
+        // an entry filling again (cash recovered) clears it; so does practice.reset
+        e.apply_event(&env(32, "position.opened", json!({"position_key": "ck1.0", "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "first_buy": true, "decimals": 9,
+            "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "position_id": "pos_1", "rev": 1,
+            "fill": {"sol_lamports": "250000000", "token_amount_raw": "1000000000000", "exec_price_sol": "0.00025", "slippage_bps": 2.04,
+                     "swap_fee_lamports": "3125000", "network_fee_lamports": "25000", "latency_ms": 450}})));
+        assert!(e.account.entries_paused.is_none());
+        e.apply_event(&env(33, "system.notice", json!({"code": "PRACTICE_CASH_INSUFFICIENT", "message": "cash low"})));
+        assert!(e.account.entries_paused.is_some());
+        let mut r = env(34, "practice.reset", json!({"epoch": 2, "previous_epoch": 1, "starting_balance_lamports": "30000000000",
+            "archived": {"positions": 1, "closed_open_positions": 1, "fills": 2, "snapshots": 3, "expired_proposals": 0},
+            "next_allowed_at": "2026-10-30T08:42:00.000Z", "at": "2026-10-29T08:42:00.000Z"}));
+        r.strategy_id = None;
+        e.apply_event(&r);
+        assert!(e.account.entries_paused.is_none());
+    }
+
+    #[test]
+    fn plain_pnl_text_never_reads_zero_for_nonzero_and_uses_true_minus() {
+        assert_eq!(fmt_signed_sol(Lamports(0)), "0.00 SOL");
+        assert_eq!(fmt_signed_sol(Lamports(-3)), "▼ \u{2212}<0.0001 SOL");
+        assert_eq!(fmt_signed_sol(Lamports(2_500_000)), "▲ +0.0025 SOL");
+        assert_eq!(fmt_signed_sol(Lamports(-2_500_000)), "▼ \u{2212}0.0025 SOL");
+        assert!(!fmt_sol(Lamports(-1_000_000)).contains('-'));
     }
 }

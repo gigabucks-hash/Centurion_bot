@@ -21,7 +21,8 @@ import type {
   TickView,
   Tone,
 } from "./contract";
-import { CONTRACTS_VERSION, EVT } from "./contract";
+import { CONTRACTS_VERSION, EVT, type ApprovalRejectReason } from "./contract";
+let lastResetMs: number | null = null;
 
 type Cb = (p: unknown) => void;
 /** Browser preview of REAL chrome + gating: add ?mode=real to the URL (still mock). */
@@ -83,6 +84,7 @@ function account() {
     workspace_rev: epoch,
     notice: null,
     deleted: false,
+    entries_paused: null,
   };
 }
 
@@ -278,7 +280,9 @@ export const browserMockAdapter: CoreApi = {
     s.status = "rejected";
     s.rev += 1;
     emit(EVT.signalUpdate, s);
-    log("user", "proposal.rejected", "neutral", s.mint, s.symbol, "Skipped (via desktop)");
+    // contracts 1.1.3 reject_reason: not_tradeable for a not-tradeable card, else user_declined.
+    const rejectReason: ApprovalRejectReason = !s.tradeable ? "not_tradeable" : "user_declined";
+    log("user", "proposal.rejected", "neutral", s.mint, s.symbol, `Skipped · ${rejectReason} (via desktop)`);
   },
   async requestSell(positionKey, pct) {
     const pos = positions.get(positionKey);
@@ -309,6 +313,13 @@ export const browserMockAdapter: CoreApi = {
     return next;
   },
   async resetPractice() {
+    // 429 RESET_COOLDOWN + Retry-After (once per 24 h), same "[k=v]" shape the Rust transport surfaces.
+    const now = Date.now();
+    if (lastResetMs != null && now - lastResetMs < 86_400_000) {
+      const next = lastResetMs + 86_400_000;
+      throw new Error(`RESET_COOLDOWN: Practice can be reset once per 24 h [next_allowed_at=${new Date(next).toISOString()}] [retry_after_s=${Math.ceil((next - now) / 1000)}]`);
+    }
+    lastResetMs = now;
     positions.clear();
     cash = START;
     epoch += 1;

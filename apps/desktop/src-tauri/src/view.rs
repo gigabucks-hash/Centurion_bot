@@ -222,6 +222,10 @@ pub struct Account {
     /// Account lifecycle banner (`account.deletion_scheduled` / `account.deleted`), plain text.
     pub notice: Option<String>,
     pub deleted: bool,
+    /// `PRACTICE_CASH_INSUFFICIENT` (kind **notice**, `system.notice`): strategy entries are paused until
+    /// practice cash recovers or Practice is reset. Workspace-level state, shown as a neutral strip.
+    /// Not the same as `order.failed INSUFFICIENT_PRACTICE_BALANCE` (kind error, one order only).
+    pub entries_paused: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
