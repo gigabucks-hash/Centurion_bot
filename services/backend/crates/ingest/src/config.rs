@@ -53,6 +53,11 @@ pub struct Config {
     pub database_url: Secret,
     pub channel_capacity: usize,
     pub paper_demo_buy_sol: f64,
+    /// Marks to the API SSE (pg_notify): SOL/USD reference (`MARKS_SOL_USD`; unset = marks off),
+    /// per-mint throttle (`MARKS_MIN_INTERVAL_MS`, default 1000) and channel (`SSE_MARKS_CHANNEL`).
+    pub marks_sol_usd: Option<f64>,
+    pub marks_min_interval_ms: i64,
+    pub marks_channel: String,
 }
 
 fn var(k: &str) -> Option<String> {
@@ -106,6 +111,24 @@ impl Config {
                 ));
             }
         }
+        let marks_sol_usd = match get("MARKS_SOL_USD") {
+            None => None,
+            Some(s) => match s.parse::<f64>() {
+                Ok(v) if v.is_finite() && v > 0.0 && v < 1_000_000.0 => Some(v),
+                _ => return Err(ConfigError::Invalid("MARKS_SOL_USD", s)),
+            },
+        };
+        let marks_min_interval_ms = parse_num("MARKS_MIN_INTERVAL_MS", "1000")?;
+        if !(0.0..=60_000.0).contains(&marks_min_interval_ms) {
+            return Err(ConfigError::Invalid(
+                "MARKS_MIN_INTERVAL_MS",
+                marks_min_interval_ms.to_string(),
+            ));
+        }
+        let marks_channel = get("SSE_MARKS_CHANNEL").unwrap_or_else(|| "sentra_marks".into());
+        if !crate::marks::valid_channel(&marks_channel) {
+            return Err(ConfigError::Invalid("SSE_MARKS_CHANNEL", marks_channel));
+        }
         Ok(Self {
             trading_mode,
             workspace_id: get("WORKSPACE_ID").unwrap_or_else(|| "local-dev".into()),
@@ -125,6 +148,9 @@ impl Config {
             database_url: Secret(get("DATABASE_URL").unwrap_or_default()),
             channel_capacity: cap.max(1.0) as usize,
             paper_demo_buy_sol: demo,
+            marks_sol_usd,
+            marks_min_interval_ms: marks_min_interval_ms as i64,
+            marks_channel,
         })
     }
 }

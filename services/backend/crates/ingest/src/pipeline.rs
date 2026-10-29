@@ -11,7 +11,8 @@ use papersim::{Executor, Order, Side};
 use screener::{evaluate, RuleSet};
 use serde_json::json;
 
-use crate::source::{IngestEvent, NewCoin};
+use crate::marks::{MarkBuilder, MarkPublisher};
+use crate::source::{IngestEvent, NewCoin, TradeTick};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Stats {
@@ -22,6 +23,8 @@ pub struct Stats {
     pub bought: u64,
     pub trades: u64,
     pub order_failed: u64,
+    pub marks_published: u64,
+    pub marks_failed: u64,
 }
 
 pub struct Pipeline {
@@ -36,6 +39,14 @@ pub struct Pipeline {
     /// Workspace practice epoch stamped on position/fill payloads (the DB stamps rows itself).
     pub practice_epoch: i32,
     pub stats: Stats,
+    /// Display-only mark prices to the API's SSE (`include=marks`) via Postgres NOTIFY. `None` = off.
+    pub marks: Option<MarkSink>,
+}
+
+/// Throttled mark builder + publisher. Publish failures are counted and logged, never fatal.
+pub struct MarkSink {
+    pub builder: MarkBuilder,
+    pub publisher: Arc<dyn MarkPublisher>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -88,14 +99,36 @@ impl Pipeline {
         e
     }
 
+    async fn publish_mark(&mut self, t: &TradeTick) {
+        let Some(sink) = self.marks.as_mut() else {
+            return;
+        };
+        let Some(m) = sink.builder.mark(t) else {
+            return;
+        };
+        let res = match sink.builder.payload(&m) {
+            Ok(p) => sink.publisher.publish(&p).await,
+            Err(e) => Err(e),
+        };
+        match res {
+            Ok(()) => self.stats.marks_published += 1,
+            Err(e) => {
+                self.stats.marks_failed += 1;
+                tracing::warn!(error = %e, mint = %m.mint, "mark publish failed");
+            }
+        }
+    }
+
     pub async fn process(&mut self, ev: IngestEvent) -> Result<(), PipelineError> {
         match ev {
             IngestEvent::NewCoin(c) => self.on_new_coin(*c).await,
-            IngestEvent::Trade(_) | IngestEvent::Migrated { .. } => {
+            IngestEvent::Trade(t) => {
                 // Phase 2: feed exit engine / re-check rejected coins (revisit_after_move_pct).
                 self.stats.trades += 1;
+                self.publish_mark(&t).await;
                 Ok(())
             }
+            IngestEvent::Migrated { .. } => Ok(()),
         }
     }
 
@@ -351,6 +384,7 @@ pub(crate) mod tests {
             demo_buy_sol: 0.25,
             practice_epoch: 0,
             stats: Stats::default(),
+            marks: None,
         };
         let (tx, mut rx) = mpsc::channel(64);
         let (_stx, srx) = watch::channel(false);
@@ -370,7 +404,9 @@ pub(crate) mod tests {
                 passed: 1,
                 bought: 1,
                 trades: 1,
-                order_failed: 0
+                order_failed: 0,
+                marks_published: 0,
+                marks_failed: 0
             }
         );
         let fills = repo.fills().await;
@@ -408,6 +444,7 @@ pub(crate) mod tests {
             demo_buy_sol: 0.25,
             practice_epoch: 0,
             stats: Stats::default(),
+            marks: None,
         }
     }
 
@@ -551,5 +588,58 @@ pub(crate) mod tests {
             d[0]["payload"]["token_program"],
             "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
         );
+    }
+
+    #[tokio::test]
+    async fn trades_publish_throttled_marks_and_failures_are_not_fatal() {
+        use crate::marks::{MarkError, MemoryMarkPublisher};
+        use common::QuoteAsset;
+        use papersim::PoolState;
+        struct Failing;
+        #[async_trait::async_trait]
+        impl MarkPublisher for Failing {
+            async fn publish(&self, _: &str) -> Result<(), MarkError> {
+                Err(MarkError::Publish("down".into()))
+            }
+        }
+        let ws = "10000000-0000-0000-0000-0000000000a1";
+        let tick = |ts| {
+            IngestEvent::Trade(TradeTick {
+                mint: Mint::parse("Co68LzYNQArj5fmRmh4o2TVeEVx6FfaLiyRgDAjtpump").expect("test"),
+                side: Side::Buy,
+                sol: 0.1,
+                tokens: 1.0,
+                trader: "t".into(),
+                ts,
+                pool: Some(PoolState {
+                    sol_reserve: 30.0,
+                    token_reserve: 1e9,
+                    quote: QuoteAsset::Sol,
+                }),
+            })
+        };
+        let mem = Arc::new(MemoryMarkPublisher::default());
+        let mut p = pipeline(Arc::new(MemoryRepo::new()));
+        p.marks = Some(MarkSink {
+            builder: MarkBuilder::new(ws, Some(150.0), 1000).expect("test"),
+            publisher: mem.clone(),
+        });
+        for ts in [1_000, 1_400, 2_100] {
+            p.process(tick(ts)).await.expect("test");
+        }
+        assert_eq!(p.stats.trades, 3);
+        assert_eq!(p.stats.marks_published, 2);
+        let sent = mem.sent.lock().await;
+        let v: serde_json::Value = serde_json::from_str(&sent[0]).expect("test");
+        assert_eq!(v["workspace_id"], ws);
+        assert_eq!(v["mark"]["price_usd"], "0.0000045");
+        drop(sent);
+
+        p.marks = Some(MarkSink {
+            builder: MarkBuilder::new(ws, Some(150.0), 0).expect("test"),
+            publisher: Arc::new(Failing),
+        });
+        p.process(tick(5_000)).await.expect("test");
+        assert_eq!(p.stats.marks_failed, 1);
     }
 }

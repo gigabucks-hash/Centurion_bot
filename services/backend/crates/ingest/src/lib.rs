@@ -3,5 +3,6 @@
 //! replay/backtest) can reuse the pipeline.
 pub mod config;
 pub mod curve;
+pub mod marks;
 pub mod pipeline;
 pub mod source;

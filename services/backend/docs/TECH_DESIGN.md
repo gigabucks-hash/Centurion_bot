@@ -136,9 +136,19 @@ under the frozen plan.
 - **Phase 2 (started): `services/backend/api`** — dependency-light Node/TS server (`node:http` + `pg`).
   Each request runs as role `authenticated` with the verified JWT claims (actor/via from the token, RLS
   applies); mutations go through the SQL functions (`close_position`, `decide_approval`) so REST and the
-  Flutter RPCs share one implementation of rev / idempotency / role checks. SSE polls `events` up to
-  `events_safe_seq()` (strictly seq-ordered, resumable); marks come from `pg_notify`. Refuses to start unless
-  `TRADING_MODE=paper`. Tests run against local Postgres (`npm test`). See `api/README.md`.
+  Flutter RPCs share one implementation of rev / idempotency / role checks; endpoints without SQL idempotency
+  use the API store on `api_idempotency` (`idem.ts`). Every 409 carries `current` (SQL first, `withCurrent()`
+  as the server-side guarantee). SSE: one shared service-role poller per (workspace, mode) reads `events` up to
+  `events_safe_seq()`; each stream catches up as the user (RLS), then drains the shared queue de-duplicated by
+  seq, and re-checks membership periodically. Refuses to start unless `TRADING_MODE=paper`. Tests run against
+  local Postgres (`npm test`). See `api/README.md`.
+- **Marks** (display-only, never persisted, never used for fills): ingest turns SOL-quoted trade ticks into
+  `MarkMessage`s (pool mid price, per-mint throttle `MARKS_MIN_INTERVAL_MS`) and publishes
+  `pg_notify(SSE_MARKS_CHANNEL, {workspace_id, mode, mark})` (`crates/ingest/src/marks.rs`); the API fans them
+  out to `include=marks` streams. Off unless `MARKS_SOL_USD`, `DATABASE_URL` and a uuid `WORKSPACE_ID` are set.
+  Limitations: SOL/USD is a static reference (live feed pending), `slot` is 0 (ticks carry no slot),
+  `position_ids` is empty (clients match on `mint`), and the publisher has no TLS connector yet (TLS URLs are
+  refused, never downgraded).
 - MCP: Streamable HTTP. OAuth 2.1 authorization code with **PKCE S256**, dynamic client registration,
   protected-resource metadata, audience-bound tokens. Scopes `read` and `trade`; `trade:real` never.
   MCP tools: list strategies/positions/events, propose a settings change, approve a `buy_pick` in

@@ -13,7 +13,8 @@ use tokio::sync::{mpsc, watch};
 use tracing_subscriber::EnvFilter;
 
 use ingest::config::Config;
-use ingest::pipeline::{Pipeline, Stats};
+use ingest::marks::{MarkBuilder, PgMarkPublisher};
+use ingest::pipeline::{MarkSink, Pipeline, Stats};
 use ingest::source::helius::HeliusSource;
 use ingest::source::{
     pumpportal::PumpPortalSource, replay::ReplaySource, yellowstone::YellowstoneSource,
@@ -32,6 +33,32 @@ fn init_tracing() {
         b.json().init();
     } else {
         b.init();
+    }
+}
+
+/// Marks need a uuid workspace, a SOL/USD reference and a database; otherwise they stay off.
+async fn marks_sink(cfg: &Config) -> Option<MarkSink> {
+    let builder = MarkBuilder::new(
+        &cfg.workspace_id,
+        cfg.marks_sol_usd,
+        cfg.marks_min_interval_ms,
+    )?;
+    if cfg.database_url.is_empty() {
+        tracing::info!("marks off: DATABASE_URL not set");
+        return None;
+    }
+    match PgMarkPublisher::connect(cfg.database_url.expose(), &cfg.marks_channel).await {
+        Ok(p) => {
+            tracing::info!(channel = %cfg.marks_channel, "marks on (pg_notify)");
+            Some(MarkSink {
+                builder,
+                publisher: Arc::new(p),
+            })
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "marks off: publisher unavailable");
+            None
+        }
     }
 }
 
@@ -102,6 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         demo_buy_sol: cfg.paper_demo_buy_sol,
         practice_epoch: 0,
         stats: Stats::default(),
+        marks: marks_sink(&cfg).await,
     };
 
     loop {
@@ -129,6 +157,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         passed = s.passed,
         paper_bought = s.bought,
         trades = s.trades,
+        marks = s.marks_published,
+        marks_failed = s.marks_failed,
         events = repo.event_count().await,
         "ingest stopped"
     );
