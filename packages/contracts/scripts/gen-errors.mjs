@@ -1,5 +1,5 @@
-// Generates src/errors.ts and ../../crates/common/src/error_codes.rs from errors.json.
-// Run: node packages/contracts/scripts/gen-errors.mjs  (CI fails if outputs are stale).
+// Generates src/wire/errors.ts and services/backend/crates/common/src/error_codes.rs from errors.json.
+// Run from repo root: node packages/contracts/scripts/gen-errors.mjs  (CI fails if outputs are stale).
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +25,7 @@ export function isErrorCode(v: string): v is ErrorCode {
   return Object.prototype.hasOwnProperty.call(ERROR_CODES, v);
 }
 `;
-writeFileSync(join(pkg, "src", "errors.ts"), ts);
+writeFileSync(join(pkg, "src", "wire", "errors.ts"), ts);
 
 const rs = `// GENERATED from packages/contracts/errors.json by scripts/gen-errors.mjs. Do not edit.
 use serde::{Deserialize, Serialize};
@@ -62,5 +62,5 @@ ${codes.map((c) => `            ErrorCode::${pascal(c.code)} => ${c.retryable},`
     }
 }
 `;
-writeFileSync(join(pkg, "..", "..", "crates", "common", "src", "error_codes.rs"), rs);
+writeFileSync(join(pkg, "..", "..", "services", "backend", "crates", "common", "src", "error_codes.rs"), rs);
 console.log(`generated ${codes.length} error codes`);

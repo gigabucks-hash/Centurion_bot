@@ -9,16 +9,17 @@ use common::Mode;
 
 use crate::{ExecError, Executor, Fill, Order, PoolState};
 
-/// Explicitly unimplemented.
+/// Explicitly unimplemented: always returns `ExecError::LiveDisabled`.
 #[derive(Debug, Default)]
 pub struct LiveExecutor;
 
 #[async_trait]
 impl Executor for LiveExecutor {
     fn mode(&self) -> Mode {
-        Mode::Live
+        Mode::Real
     }
     async fn execute(&self, _order: &Order, _pool: &PoolState) -> Result<Fill, ExecError> {
-        unimplemented!("Real SOL execution is Phase 7 and requires Boss approval")
+        // Deliberately not implemented: Real SOL is Phase 7 and requires Boss approval.
+        Err(ExecError::LiveDisabled)
     }
 }

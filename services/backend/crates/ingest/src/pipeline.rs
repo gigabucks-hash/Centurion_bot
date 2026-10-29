@@ -293,7 +293,7 @@ mod tests {
         for e in repo.all_events().await {
             let v = serde_json::to_value(&e).expect("ser");
             common::units::assert_no_floats(&v);
-            assert_eq!(v["mode"], "paper");
+            assert_eq!(v["mode"], "practice");
             assert!(v["seq"].is_i64());
         }
     }

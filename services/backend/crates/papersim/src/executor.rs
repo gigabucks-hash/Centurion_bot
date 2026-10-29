@@ -34,7 +34,7 @@ impl PaperExecutor {
 #[async_trait]
 impl Executor for PaperExecutor {
     fn mode(&self) -> Mode {
-        Mode::Paper
+        Mode::Practice
     }
     async fn execute(&self, order: &Order, pool: &PoolState) -> Result<Fill, ExecError> {
         // Latency is modelled inside `simulate` (competing flow + drift) rather than by
@@ -51,7 +51,7 @@ mod tests {
     #[tokio::test]
     async fn paper_executor_fills_and_is_paper_mode() {
         let ex = PaperExecutor::default();
-        assert_eq!(ex.mode(), Mode::Paper);
+        assert_eq!(ex.mode(), Mode::Practice);
         let pool = PoolState {
             sol_reserve: 30.0,
             token_reserve: 1e9,

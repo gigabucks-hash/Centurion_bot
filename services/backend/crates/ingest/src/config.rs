@@ -57,7 +57,8 @@ impl Config {
 
     /// Testable constructor.
     pub fn from_lookup(get: impl Fn(&str) -> Option<String>) -> Result<Self, ConfigError> {
-        let trading_mode = get("TRADING_MODE").unwrap_or_else(|| "paper".into());
+        // Refuse to start unless TRADING_MODE is explicitly "paper" (= practice mode).
+        let trading_mode = get("TRADING_MODE").unwrap_or_default();
         if trading_mode != "paper" {
             return Err(ConfigError::LiveModeRefused("TRADING_MODE", trading_mode));
         }
@@ -98,9 +99,12 @@ mod tests {
     }
 
     #[test]
-    fn defaults_to_paper_and_redacts_secrets() {
-        let c = Config::from_lookup(lookup(HashMap::from([("HELIUS_API_KEY", "abc123")])))
-            .expect("cfg");
+    fn paper_mode_and_redacts_secrets() {
+        let c = Config::from_lookup(lookup(HashMap::from([
+            ("TRADING_MODE", "paper"),
+            ("HELIUS_API_KEY", "abc123"),
+        ])))
+        .expect("cfg");
         assert_eq!(c.trading_mode, "paper");
         let dbg = format!("{c:?}");
         assert!(!dbg.contains("abc123"));
@@ -108,8 +112,10 @@ mod tests {
     }
 
     #[test]
-    fn refuses_live_mode() {
+    fn refuses_live_or_missing_mode() {
         let r = Config::from_lookup(lookup(HashMap::from([("TRADING_MODE", "live")])));
         assert!(matches!(r, Err(ConfigError::LiveModeRefused(..))));
+        let r = Config::from_lookup(lookup(HashMap::new()));
+        assert!(matches!(r, Err(ConfigError::LiveModeRefused(..))), "unset TRADING_MODE must refuse");
     }
 }

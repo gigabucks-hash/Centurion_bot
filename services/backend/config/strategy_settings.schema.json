@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://solbot.local/schemas/strategy-settings.v1.json",
   "title": "Strategy settings v1",
-  "description": "Mirrors public.strategy_settings_valid() in supabase/migrations/0001_init.sql. Cross-field rules (tradeSol<=budgetSol, min<=max pairs) are enforced by the API and the DB function.",
+  "description": "Mirrors public.strategy_settings_valid() in supabase/migrations/0001_init.sql. Cross-field rules (tradeLamports<=budgetLamports, min<=max pairs) are enforced by the API and the DB function.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -10,18 +10,6 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 60
-    },
-    "budgetSol": {
-      "type": "number",
-      "minimum": 0.001,
-      "maximum": 100000,
-      "description": "Total budget in SOL (UI unit; API converts to lamports)"
-    },
-    "tradeSol": {
-      "type": "number",
-      "minimum": 0.001,
-      "maximum": 1000,
-      "description": "SOL per coin, <= budgetSol"
     },
     "maxOpen": {
       "type": "integer",
@@ -390,6 +378,16 @@
           "description": "Sell all when pool liquidity falls by this % from entry (default 80)"
         }
       }
+    },
+    "budgetLamports": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,17}$",
+      "description": "Total budget in lamports (integer string; <= 100000 SOL). Wire rule: no floats."
+    },
+    "tradeLamports": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,17}$",
+      "description": "Lamports per coin (integer string; 0.001\u20131000 SOL), <= budgetLamports"
     }
   }
 }

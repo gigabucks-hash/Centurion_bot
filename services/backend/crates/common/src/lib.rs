@@ -4,7 +4,7 @@
 //! * Anything that originates from token metadata (name, symbol, URI, description)
 //!   is wrapped in [`Untrusted`] so it can never be confused with trusted data and is
 //!   never fed to rule logic or an LLM prompt unescaped.
-//! * Trading mode is [`Mode::Paper`] only during Phases 1–6.
+//! * Trading mode is [`Mode::Practice`] only during Phases 1–6.
 
 pub mod approval;
 pub mod error_codes;

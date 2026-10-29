@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-/// Trading mode. `Live` exists in the type system so schemas line up with Phase 7,
-/// but nothing in Phase 1–6 can construct an executor for it (see `papersim`).
+/// Trading mode (wire: `practice` | `real`). `Real` exists so schemas line up with Phase 7, but
+/// nothing in Phases 1–6 can execute it: the DB rejects `real` rows, no JWT carries `trade:real`,
+/// and the only Real executor is an unimplemented stub behind an off-by-default cargo feature.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
     #[default]
-    Paper,
-    Live,
+    Practice,
+    Real,
 }

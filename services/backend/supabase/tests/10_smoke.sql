@@ -22,7 +22,7 @@ insert into public.workspaces (id, name, owner_id) values
   ('10000000-0000-0000-0000-00000000000b', 'ws B', '00000000-0000-0000-0000-00000000000b');
 insert into public.strategies (id, workspace_id, name, status, settings) values
   ('20000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-00000000000a', 'A1', 'running',
-   '{"name":"A1","budgetSol":5,"tradeSol":0.25,"maxOpen":3,"streams":["graduated"],"passMark":70,
+   '{"name":"A1","budgetLamports":"5000000000","tradeLamports":"250000000","maxOpen":3,"streams":["graduated"],"passMark":70,
      "exitPlan":"ladder","takeProfits":[{"gainPct":50,"sellPct":33}],"stopLossPct":15,"tradingDays":[1,2,3],
      "approvalMode":"ask_first_buy","sellFloors":{"enabled":true,"maxLossPct":35,"liquidityDropPct":80},
      "askFirst":true,"shield":{"bundlers":true}}'),
@@ -31,19 +31,21 @@ insert into public.coins (mint, stream, decimals) values ('7GCihgDB8fe6KNjn2MYtk
 insert into public.picks (ck, workspace_id, strategy_id, mint, stage, score, pass_mark)
   values ('abc123', '10000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-00000000000a',
           '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', 'passed', 85, 70);
-insert into public.events (id, workspace_id, strategy_id, ck, mint, ts, kind, actor, data)
-  values ('abc123:1761700000000:coin.passed', '10000000-0000-0000-0000-00000000000a',
+insert into public.events (id, workspace_id, strategy_id, ck, mint, ts, type, actor, payload)
+  values ('abc123:1761700000000:pick.created', '10000000-0000-0000-0000-00000000000a',
           '20000000-0000-0000-0000-00000000000a', 'abc123', '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr',
-          now(), 'coin.passed', 'screener', '{"summary":"Fit 85 / 70"}');
-insert into public.approvals (id, workspace_id, strategy_id, kind, subject, amount_lamports, is_first_buy, expires_at) values
+          now(), 'pick.created', 'screener', '{"summary":"Fit 85 / 70"}');
+insert into public.approvals (id, workspace_id, strategy_id, kind, subject, amount_lamports, is_first_buy, expires_at, base_rev) values
   ('30000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-00000000000a',
-   'buy', 'abc123', 250000000, true, now() + interval '10 minutes'),
+   'buy_pick', 'abc123', 250000000, true, now() + interval '10 minutes', null),
   ('30000000-0000-0000-0000-00000000000b', '10000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-00000000000c',
-   'buy', 'abc123', 250000000, false, now() + interval '10 minutes'),
+   'buy_pick', 'abc123', 250000000, false, now() + interval '10 minutes', null),
   ('30000000-0000-0000-0000-00000000000c', '10000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-00000000000c',
-   'guard_weakening', '20000000-0000-0000-0000-00000000000c', null, false, now() + interval '24 hours'),
+   'guard_change', '20000000-0000-0000-0000-00000000000c', null, false, now() + interval '24 hours', 1),
   ('30000000-0000-0000-0000-00000000000d', '10000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-00000000000a',
-   'buy', 'abc123', 100000000, false, now() + interval '1 second');
+   'buy_pick', 'abc123', 100000000, false, now() + interval '1 second', null),
+  ('30000000-0000-0000-0000-00000000000e', '10000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-00000000000a',
+   'buy_pick', 'abc123', 100000000, false, now() + interval '10 minutes', null);
 insert into public.jobs (workspace_id, kind, payload) values ('10000000-0000-0000-0000-00000000000a', 'entry.arm', '{}');
 
 do $$ begin
@@ -54,7 +56,8 @@ end $$;
 -- ---------------- settings validation ----------------
 select pg_temp.expect_error($$update public.strategies set settings = '{"maxOpen":50}' where name='A1'$$, 'maxOpen > 20');
 select pg_temp.expect_error($$update public.strategies set settings = '{"passMark":10}' where name='A1'$$, 'passMark < 50');
-select pg_temp.expect_error($$update public.strategies set settings = '{"budgetSol":1,"tradeSol":2}' where name='A1'$$, 'tradeSol > budgetSol');
+select pg_temp.expect_error($$update public.strategies set settings = '{"budgetLamports":"1000000000","tradeLamports":"2000000000"}' where name='A1'$$, 'trade > budget');
+select pg_temp.expect_error($$update public.strategies set settings = '{"tradeLamports":0.25}' where name='A1'$$, 'lamports as float');
 select pg_temp.expect_error($$update public.strategies set settings = '{"bogusKey":1}' where name='A1'$$, 'unknown key');
 select pg_temp.expect_error($$update public.strategies set settings = '{"exitPlan":"yolo"}' where name='A1'$$, 'unknown exit plan');
 select pg_temp.expect_error($$update public.strategies set settings = '{"stopLossPct":3}' where name='A1'$$, 'stopLossPct 3');
@@ -69,10 +72,10 @@ update public.strategies set settings = settings || '{"maxOpen":5}' where name =
 do $$ begin assert (select rev from public.strategies where name = 'A1') = 2, 'rev not bumped'; end $$;
 
 -- ---------------- paper-only invariants ----------------
-select pg_temp.expect_error($$update public.workspaces set mode = 'live'$$, 'workspace live mode');
-select pg_temp.expect_error($$insert into public.strategies (workspace_id, name, mode) values ('10000000-0000-0000-0000-00000000000a','x','live')$$, 'strategy live mode');
+select pg_temp.expect_error($$update public.workspaces set mode = 'real'$$, 'workspace live mode');
+select pg_temp.expect_error($$insert into public.strategies (workspace_id, name, mode) values ('10000000-0000-0000-0000-00000000000a','x','real')$$, 'strategy live mode');
 select pg_temp.expect_error($$insert into public.wallets (workspace_id, pubkey, is_active) values ('10000000-0000-0000-0000-00000000000a','7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', true)$$, 'active wallet');
-select pg_temp.expect_error($$insert into public.guard_changes (workspace_id, strategy_id, mode, from_rev, diff, weakened_fields) values ('10000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-00000000000a','live',1,'[]','{devPctFail}')$$, 'live guard weakening disabled');
+select pg_temp.expect_error($$insert into public.guard_changes (workspace_id, strategy_id, mode, from_rev, diff, weakened_fields) values ('10000000-0000-0000-0000-00000000000a','20000000-0000-0000-0000-00000000000a','real',1,'[]','{devPctFail}')$$, 'real guard weakening disabled');
 
 -- ---------------- positions, fills, exit stats ----------------
 insert into public.positions (id, position_key, pick_id, strategy_id, workspace_id, mint, qty_raw, sol_in_lamports)
@@ -91,12 +94,12 @@ do $$ declare r record; begin
 end $$;
 
 -- ---------------- append-only ----------------
-select pg_temp.expect_error($$update public.events set data = '{}'$$, 'update event');
+select pg_temp.expect_error($$update public.events set payload = '{}'$$, 'update event');
 select pg_temp.expect_error($$delete from public.events$$, 'delete event');
 select pg_temp.expect_error($$truncate public.events$$, 'truncate events');
 select pg_temp.expect_error($$update public.fills set sol_lamports = 9$$, 'update fill');
-select pg_temp.expect_error($$insert into public.events (id, workspace_id, ts, kind, actor) values ('bad id','10000000-0000-0000-0000-00000000000a',now(),'alert','system')$$, 'bad event id');
-select pg_temp.expect_error($$insert into public.events (id, workspace_id, ts, kind, actor, data) values ('p1:1:proposal.expired','10000000-0000-0000-0000-00000000000a',now(),'proposal.expired','system','{"reason":"bored"}')$$, 'bad expire reason');
+select pg_temp.expect_error($$insert into public.events (id, workspace_id, ts, type, actor) values ('bad id','10000000-0000-0000-0000-00000000000a',now(),'system.notice','system')$$, 'bad event id');
+select pg_temp.expect_error($$insert into public.events (id, workspace_id, ts, type, actor, payload) values ('p1:1:proposal.expired','10000000-0000-0000-0000-00000000000a',now(),'proposal.expired','system','{"reason":"bored","proposal_id":"x","at":"y"}')$$, 'bad expire reason');
 
 -- ---------------- portfolio snapshots (single source of truth) ----------------
 insert into public.portfolio_snapshots (workspace_id, cash_lamports, positions_cost_lamports, positions_value_lamports,
@@ -108,10 +111,10 @@ do $$ begin
 end $$;
 
 -- ---------------- approvals: version, transitions, retire_strategy, timeout ----------------
-select pg_temp.expect_error($$update public.approvals set status = 'approved', decided_at = now() where id = '30000000-0000-0000-0000-00000000000a'$$, 'stale version');
-update public.approvals set status = 'approved', decided_at = now(), version = version + 1,
+select pg_temp.expect_error($$update public.approvals set status = 'approved', decision = 'approve', decided_at = now() where id = '30000000-0000-0000-0000-00000000000a'$$, 'stale version');
+update public.approvals set status = 'approved', decision = 'approve', decided_at = now(), version = version + 1,
        decided_by = '00000000-0000-0000-0000-00000000000a' where id = '30000000-0000-0000-0000-00000000000a';
-select pg_temp.expect_error($$update public.approvals set status = 'rejected', version = version + 1 where id = '30000000-0000-0000-0000-00000000000a'$$, 'approved -> rejected');
+select pg_temp.expect_error($$update public.approvals set status = 'rejected', decision = 'reject', version = version + 1 where id = '30000000-0000-0000-0000-00000000000a'$$, 'approved -> rejected');
 select pg_temp.expect_error($$update public.approvals set expires_at = now() + interval '9 days', version = version + 1 where id = '30000000-0000-0000-0000-00000000000b'$$, 'client-moved expires_at');
 
 -- delete A2: both of its open proposals expire atomically + events emitted
@@ -120,10 +123,12 @@ do $$ declare n int; begin
   assert n = 2, format('expected 2 expired, got %s', n);
   assert (select count(*) from public.approvals where strategy_id = '20000000-0000-0000-0000-00000000000c'
             and status = 'expired' and expire_reason = 'strategy_deleted') = 2;
-  assert (select count(*) from public.events where kind = 'proposal.expired' and data ->> 'reason' = 'strategy_deleted') = 2;
-  assert (select count(*) from public.events where kind = 'strategy.deleted') = 1;
+  assert (select count(*) from public.events where type = 'proposal.expired' and payload ->> 'reason' = 'strategy_deleted'
+            and payload ? 'at' and payload ? 'proposal_id') = 2;
+  assert (select count(*) from public.events where type = 'strategy.deleted') = 1;
   assert (select status from public.strategies where id = '20000000-0000-0000-0000-00000000000c') = 'deleted';
-  assert (select count(*) from public.audit_log where action = 'strategy.delete') = 1;
+  assert (select count(*) from public.audit_log where action = 'strategy.delete' and target_type = 'strategy'
+            and before ->> 'status' = 'running' and server_now is not null) = 1;
 end $$;
 
 select pg_sleep(1.1);
@@ -164,6 +169,19 @@ do $$ declare f record; begin
   assert f.scanned = 150 and f.entered = 3 and (f.rejections ->> 'liquidity')::int = 95 and f.as_of_seq = 20, format('funnel %s', f);
 end $$;
 
+-- ---------------- decision tokens (backend issues; plaintext returned once) ----------------
+create temp table tok as select * from public.issue_approval_token('30000000-0000-0000-0000-00000000000e',
+  '00000000-0000-0000-0000-00000000000a', 'web');
+grant select on tok to authenticated;
+do $$ begin
+  assert (select token from tok) ~ '^apt_[A-Za-z0-9_-]{22}$', 'token is 128-bit base64url';
+  assert (select count(*) from public.approval_tokens where approval_id = '30000000-0000-0000-0000-00000000000e') = 1;
+  assert (select expires_at from public.approval_tokens) <= (select expires_at from public.approvals where id = '30000000-0000-0000-0000-00000000000e'),
+    'token TTL must not exceed approval expires_at';
+  assert not exists (select 1 from public.approval_tokens t, tok where t.token_hash = convert_to(tok.token, 'UTF8')), 'plaintext stored';
+end $$;
+select pg_temp.expect_error($$select public.issue_approval_token('30000000-0000-0000-0000-00000000000e','00000000-0000-0000-0000-00000000000b','web')$$, 'token for non-member');
+
 -- ---------------- RLS as user A ----------------
 set role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
@@ -183,6 +201,22 @@ select pg_temp.expect_error($$select public.retire_strategy('20000000-0000-0000-
 select pg_temp.expect_error($$update public.approvals set status = 'rejected', version = version + 1 where id = '30000000-0000-0000-0000-00000000000b'$$, 'client decides approval directly');
 select pg_temp.expect_error($$delete from public.strategies$$, 'client hard delete strategy');
 select pg_temp.expect_error($$select * from public.siws_nonces$$, 'client reads nonces');
+select pg_temp.expect_error($$select * from public.email_otps$$, 'client reads otp hashes');
+select pg_temp.expect_error($$select * from public.approval_tokens$$, 'client reads token hashes');
+select pg_temp.expect_error($$select public.issue_approval_token('30000000-0000-0000-0000-00000000000e','00000000-0000-0000-0000-00000000000a','web')$$, 'client mints token');
+-- decide_approval (same path as REST + Flutter RPC)
+select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e','apt_wrong','approve',1,'web')$$, 'bad token');
+select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e',(select token from tok),'approve',7,'web')$$, 'stale expected_rev');
+do $$ declare r jsonb; r2 jsonb; begin
+  r := public.decide_approval('30000000-0000-0000-0000-00000000000e', (select token from tok), 'approve', 1, 'mobile', 'idem-key-0001');
+  assert r ->> 'status' = 'approved' and (r ->> 'version')::int = 2 and not (r ->> 'replayed')::boolean and r ? 'server_now', format('decide %s', r);
+  r2 := public.decide_approval('30000000-0000-0000-0000-00000000000e', (select token from tok), 'approve', 1, 'mobile');
+  assert (r2 ->> 'replayed')::boolean and (r2 ->> 'version')::int = 2, format('replay %s', r2);
+  assert (select count(*) from public.events where type = 'proposal.approved') = 1, 'one approved event only';
+end $$;
+select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e',(select token from tok),'reject',2,'mobile')$$, 'conflicting decision same token');
+-- mode gate: practice visible, nothing real can exist
+do $$ begin assert public.mode_visible('practice') and not public.mode_visible('real'), 'real needs trade:real'; end $$;
 
 -- ---------------- RLS as user B ----------------
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);

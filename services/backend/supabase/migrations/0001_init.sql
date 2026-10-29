@@ -4,8 +4,8 @@
 -- for auth.uid()/roles, see supabase/tests/00_local_shim.sql).
 --
 -- Invariants enforced in the database (defence in depth, not the state machine):
---   * paper only: workspaces/strategies/positions/portfolios/guard_changes mode
---     = 'paper', fills.simulated = true, wallets.is_active = false. Phase 7 drops
+--   * practice only: every mode column (workspaces, strategies, picks, positions, fills,
+--     events, approvals, portfolios, snapshots, funnel, guard_changes, audit_log) = 'practice', fills.simulated = true, wallets.is_active = false. Phase 7 drops
 --     these in a separate, Boss-approved migration.
 --   * no key material anywhere: wallets store a custody provider reference.
 --   * money on the wire and at rest: lamports as bigint, token amounts as raw
@@ -25,7 +25,8 @@ create extension if not exists pgcrypto;
 -- ---------------------------------------------------------------------------
 -- Enums
 -- ---------------------------------------------------------------------------
-create type public.trade_mode          as enum ('paper', 'live');
+-- Mode separation (contract v1): practice = paper SOL, real = Real SOL (rejected until Phase 7).
+create type public.trade_mode          as enum ('practice', 'real');
 create type public.workspace_role      as enum ('owner', 'admin', 'trader', 'viewer');
 create type public.strategy_status     as enum ('draft', 'running', 'paused', 'archived', 'deleted');
 create type public.pick_stage          as enum ('found', 'rejected', 'blocked', 'passed', 'awaiting_approval',
@@ -33,11 +34,12 @@ create type public.pick_stage          as enum ('found', 'rejected', 'blocked', 
 create type public.position_status     as enum ('open', 'closed');
 create type public.fill_side           as enum ('buy', 'sell');
 create type public.exit_reason         as enum ('take_profit', 'stop_loss', 'trailing_stop', 'time_out', 'inactivity',
-                                                'drain', 'rug', 'manual', 'sell_floor');
-create type public.approval_kind       as enum ('buy', 'sell', 'sell_all', 'strategy_settings', 'guard_weakening',
-                                                'strategy_delete', 'team_action', 'resume_live', 'withdraw');
-create type public.approval_status     as enum ('pending', 'approved', 'executing', 'filled', 'failed',
-                                                'rejected', 'expired', 'cancelled');
+                                                'drain', 'stall', 'rug', 'sell_floor', 'loss_stop', 'manual',
+                                                'strategy_retired');
+-- contract v1 (packages/contracts/EVENTS_SCHEMA.md): execution progress lives on picks/jobs, not here
+create type public.approval_kind       as enum ('buy_pick', 'guard_change', 'team_action');
+create type public.approval_status     as enum ('pending', 'approved', 'rejected', 'expired');
+create type public.decided_via         as enum ('web', 'mobile', 'desktop', 'mcp', 'push');
 create type public.expire_reason       as enum ('timeout', 'strategy_deleted', 'strategy_archived',
                                                 'guard_failed', 'price_moved');
 create type public.job_status          as enum ('queued', 'running', 'done', 'failed', 'dead');
@@ -92,7 +94,7 @@ returns boolean language plpgsql immutable as $$
 declare
   allowed constant text[] := array[
     -- sizing & risk
-    'name','budgetSol','tradeSol','maxOpen','maxPoolSharePct','askFirst','codeOnly',
+    'name','budgetLamports','tradeLamports','maxOpen','maxPoolSharePct','askFirst','codeOnly',
     'lossStopPct','practiceStopPct','skipTwinCoins',
     -- discovery
     'streams','minAgeMinutes','maxAgeMinutes','minGraduatedSeconds','minMarketCapUsd','maxMarketCapUsd',
@@ -131,7 +133,6 @@ begin
   -- numeric ranges: key, lo, hi
   for k, bad in
     select r[1], r[2] || '..' || r[3] from (values
-      (array['budgetSol','0.001','100000']), (array['tradeSol','0.001','1000']),
       (array['maxOpen','1','20']), (array['maxPoolSharePct','0','100']),
       (array['lossStopPct','0','100']), (array['practiceStopPct','0','100']),
       (array['minAgeMinutes','0','525600']), (array['maxAgeMinutes','0','525600']),
@@ -162,8 +163,18 @@ begin
   if (s ->> 'stopLossPct')::numeric between 0.000001 and 4.999999 then
     raise exception 'settings.stopLossPct must be 0 (off) or 5–49' using errcode = 'check_violation';
   end if;
-  if (s ->> 'tradeSol')::numeric > (s ->> 'budgetSol')::numeric then
-    raise exception 'settings.tradeSol must be <= budgetSol' using errcode = 'check_violation';
+  -- SOL amounts are lamports as integer strings (wire rule: no floats)
+  foreach k in array array['budgetLamports','tradeLamports'] loop
+    if s ? k and (jsonb_typeof(s -> k) <> 'string' or (s ->> k) !~ '^[1-9][0-9]{0,17}$') then
+      raise exception 'settings.% must be a lamports integer string', k using errcode = 'check_violation';
+    end if;
+  end loop;
+  if (s ->> 'budgetLamports')::numeric > 100000000000000 or (s ->> 'tradeLamports')::numeric > 1000000000000
+     or (s ->> 'tradeLamports')::numeric < 1000000 then
+    raise exception 'settings lamports out of range (trade 0.001–1000 SOL, budget <= 100000 SOL)' using errcode = 'check_violation';
+  end if;
+  if (s ->> 'tradeLamports')::numeric > (s ->> 'budgetLamports')::numeric then
+    raise exception 'settings.tradeLamports must be <= budgetLamports' using errcode = 'check_violation';
   end if;
   if (s ->> 'minMarketCapUsd')::numeric > (s ->> 'maxMarketCapUsd')::numeric
      or (s ->> 'minAgeMinutes')::numeric > (s ->> 'maxAgeMinutes')::numeric
@@ -300,12 +311,57 @@ returns boolean language sql as $$
   select exists (select 1 from c)
 $$;
 
+-- Email OTP (Edge Function auth-email): 6 digits, 10 min TTL, stored as HMAC-SHA256(pepper, email|code);
+-- 5 wrong attempts => locked 15 min; resend >= 60 s apart; <= 5 codes/email/hour; <= 20/IP/hour.
+create table public.email_otps (
+  id           uuid primary key default gen_random_uuid(),
+  email_norm   text not null check (email_norm = lower(email_norm) and email_norm ~ '^[^@\s]+@[^@\s]+$'),
+  code_hash    bytea not null check (length(code_hash) = 32),
+  attempts     smallint not null default 0 check (attempts between 0 and 5),
+  issued_at    timestamptz not null default now(),
+  expires_at   timestamptz not null default now() + interval '10 minutes',
+  consumed_at  timestamptz,
+  locked_until timestamptz,
+  ip           inet,
+  check (expires_at > issued_at and expires_at <= issued_at + interval '10 minutes')
+);
+create index email_otps_email_idx on public.email_otps (email_norm, issued_at desc);
+
+-- WebAuthn credentials for proof-of-confirmation (public keys only).
+create table public.webauthn_credentials (
+  credential_id bytea primary key,
+  user_id       uuid not null,            -- FK added after users exists below
+  public_key    bytea not null,           -- COSE key
+  sign_count    bigint not null default 0,
+  transports    text[] not null default '{}',
+  device_label  text check (length(device_label) <= 80),
+  created_at    timestamptz not null default now(),
+  last_used_at  timestamptz
+);
+
+-- Server-issued confirmation challenges (WebAuthn / typed confirm), single use, 2 min TTL,
+-- bound to user + action + target + a hash of the exact change being confirmed.
+create table public.confirmation_challenges (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null,
+  action       text not null check (action ~ '^[a-z_.]{1,64}$'),
+  target       text not null,
+  payload_hash bytea not null check (length(payload_hash) = 32),
+  challenge    bytea not null unique check (length(challenge) >= 16),
+  issued_at    timestamptz not null default now(),
+  expires_at   timestamptz not null default now() + interval '2 minutes',
+  used_at      timestamptz,
+  check (expires_at <= issued_at + interval '5 minutes')
+);
+alter table public.webauthn_credentials add foreign key (user_id) references public.users (id) on delete cascade;
+alter table public.confirmation_challenges add foreign key (user_id) references public.users (id) on delete cascade;
+
 create table public.workspaces (
   id                         uuid primary key default gen_random_uuid(),
   name                       text not null check (length(name) between 1 and 80),
   owner_id                   uuid not null references public.users (id),
-  mode                       public.trade_mode not null default 'paper'
-                             constraint workspaces_paper_only check (mode = 'paper'),
+  mode                       public.trade_mode not null default 'practice'
+                             constraint workspaces_paper_only check (mode = 'practice'),
   paper_start_lamports       bigint not null default 30000000000 check (paper_start_lamports > 0),
   live_stop_pct              numeric(5, 2) not null default 50 check (live_stop_pct between 0 and 100),
   -- server-owned proposal TTLs (UX defaults: pick 10 min, guard change 24 h)
@@ -347,8 +403,8 @@ create table public.strategies (
   id            uuid primary key default gen_random_uuid(),
   workspace_id  uuid not null references public.workspaces (id) on delete cascade,
   name          text not null check (length(name) between 1 and 60),
-  mode          public.trade_mode not null default 'paper'
-                constraint strategies_paper_only check (mode = 'paper'),
+  mode          public.trade_mode not null default 'practice'
+                constraint strategies_paper_only check (mode = 'practice'),
   status        public.strategy_status not null default 'draft',
   rev           integer not null default 1 check (rev >= 1),
   settings      jsonb not null default '{}'::jsonb
@@ -393,8 +449,8 @@ create table public.portfolios (
   id                  uuid primary key default gen_random_uuid(),
   workspace_id        uuid not null references public.workspaces (id) on delete cascade,
   name                text not null check (length(name) between 1 and 60),
-  mode                public.trade_mode not null default 'paper'
-                      constraint portfolios_paper_only check (mode = 'paper'),
+  mode                public.trade_mode not null default 'practice'
+                      constraint portfolios_paper_only check (mode = 'practice'),
   autonomy            public.portfolio_autonomy not null default 'ask',
   budget_lamports     bigint not null check (budget_lamports > 0),
   stop_floor_lamports bigint check (stop_floor_lamports >= 0),
@@ -458,6 +514,7 @@ create table public.picks (
   workspace_id  uuid not null,
   strategy_id   uuid not null,
   mint          text not null references public.coins (mint),
+  mode          public.trade_mode not null default 'practice' constraint picks_practice_only check (mode = 'practice'),
   stage         public.pick_stage not null default 'found',
   score         numeric(7, 2),
   pass_mark     numeric(7, 2),
@@ -481,8 +538,8 @@ create table public.positions (
   portfolio_id     uuid references public.portfolios (id),
   workspace_id     uuid not null references public.workspaces (id),
   mint             text not null references public.coins (mint),
-  mode             public.trade_mode not null default 'paper'
-                   constraint positions_paper_only check (mode = 'paper'),
+  mode             public.trade_mode not null default 'practice'
+                   constraint positions_paper_only check (mode = 'practice'),
   status           public.position_status not null default 'open',
   qty_raw          numeric(39, 0) not null default 0 check (qty_raw >= 0),
   sol_in_lamports  bigint not null default 0 check (sol_in_lamports >= 0),
@@ -509,6 +566,7 @@ create table public.fills (
   id                   uuid primary key default gen_random_uuid(),
   position_id          uuid not null references public.positions (id),
   workspace_id         uuid not null references public.workspaces (id),
+  mode                 public.trade_mode not null default 'practice' constraint fills_practice_only check (mode = 'practice'),
   side                 public.fill_side not null,
   simulated            boolean not null default true
                        constraint fills_simulated_only check (simulated),
@@ -530,23 +588,26 @@ create index fills_position_idx on public.fills (position_id, created_at);
 -- ---------------------------------------------------------------------------
 create table public.events (
   seq          bigint generated always as identity primary key,   -- pagination / resume cursor
-  id           text not null unique check (id ~ '^[A-Za-z0-9._-]{1,64}:[0-9]{1,16}:[a-z_.]{1,48}$'),
+  id           text not null unique check (id ~ '^[A-Za-z0-9._-]{1,64}:[0-9]{1,16}:[a-z_.]{1,48}$'),  -- <subject>:<epoch ms>:<type>
   workspace_id uuid not null references public.workspaces (id),
   strategy_id  uuid,
   ck           text,
   mint         text,
   ts           timestamptz not null,
-  kind         text not null check (kind ~ '^[a-z_]+(\.[a-z_]+)?$'),
+  type         text not null check (type ~ '^[a-z_]+(\.[a-z_]+)?$'),
+  version      smallint not null default 1 check (version >= 1),
   actor        public.event_actor not null,
-  data         jsonb not null default '{}'::jsonb check (jsonb_typeof(data) = 'object'),
+  mode         public.trade_mode not null default 'practice' constraint events_paper_only check (mode = 'practice'),
+  payload      jsonb not null default '{}'::jsonb check (jsonb_typeof(payload) = 'object'),
   untrusted    jsonb not null default '{}'::jsonb check (jsonb_typeof(untrusted) = 'object'),
   created_at   timestamptz not null default now(),
   -- writer transaction id: publishers only emit rows whose xid is below the
   -- current snapshot's xmin, so a cursor never skips a late-committing seq
   xid          xid8 not null default pg_current_xact_id(),
   -- proposal.expired must carry a valid reason
-  check (kind <> 'proposal.expired'
-         or (data ->> 'reason') in ('timeout', 'strategy_deleted', 'strategy_archived', 'guard_failed', 'price_moved'))
+  check (type <> 'proposal.expired'
+         or ((payload ->> 'reason') in ('timeout', 'strategy_deleted', 'strategy_archived', 'guard_failed', 'price_moved')
+             and payload ? 'proposal_id' and payload ? 'at'))
 );
 create index events_ws_feed_idx on public.events (workspace_id, seq);
 create index events_strategy_idx on public.events (strategy_id, seq) where strategy_id is not null;
@@ -570,10 +631,27 @@ create table public.outbox_cursors (
   updated_at timestamptz not null default now()
 );
 
+-- Side-channel deliveries (push / email / webhook) derived from events. The feed itself needs no
+-- outbox rows: events ARE the outbox. Rows here are written in the same transaction as the event.
+create table public.outbox (
+  id           bigint generated always as identity primary key,
+  event_seq    bigint not null references public.events (seq),
+  workspace_id uuid not null references public.workspaces (id),
+  channel      text not null check (channel in ('push', 'email', 'webhook')),
+  target       text,                       -- device token id / user id; never a secret
+  status       text not null default 'pending' check (status in ('pending', 'sent', 'failed', 'dead')),
+  attempts     integer not null default 0,
+  last_error   text,
+  created_at   timestamptz not null default now(),
+  sent_at      timestamptz
+);
+create index outbox_pending_idx on public.outbox (id) where status = 'pending';
+
 -- Funnel roll-up derived from events (incremental by seq, hourly UTC buckets).
 create table public.strategy_funnel_hourly (
   strategy_id  uuid not null references public.strategies (id),
   workspace_id uuid not null references public.workspaces (id),
+  mode         public.trade_mode not null default 'practice' check (mode = 'practice'),
   bucket       timestamptz not null check (date_trunc('hour', bucket) = bucket),
   scanned      integer not null default 0,
   filtered     integer not null default 0,
@@ -591,7 +669,7 @@ create table public.strategy_funnel_hourly (
 create table public.portfolio_snapshots (
   id                       bigint generated always as identity primary key,
   workspace_id             uuid not null references public.workspaces (id),
-  mode                     public.trade_mode not null default 'paper' check (mode = 'paper'),
+  mode                     public.trade_mode not null default 'practice' check (mode = 'practice'),
   ts                       timestamptz not null default now(),
   cash_lamports            bigint not null check (cash_lamports >= 0),
   positions_cost_lamports  bigint not null check (positions_cost_lamports >= 0),
@@ -615,6 +693,9 @@ create view public.workspace_equity_latest with (security_invoker = true) as
   select distinct on (workspace_id) *
     from public.portfolio_snapshots
    order by workspace_id, ts desc, id desc;
+-- contract name used by API docs (GET /v1/portfolio/overview)
+create view public.portfolio_latest with (security_invoker = true) as
+  select * from public.workspace_equity_latest;
 
 -- ---------------------------------------------------------------------------
 -- Approvals (proposal queue), guard changes, audit, idempotency, jobs
@@ -625,7 +706,7 @@ create table public.approvals (
   strategy_id   uuid references public.strategies (id),
   portfolio_id  uuid references public.portfolios (id),
   kind          public.approval_kind not null,
-  mode          public.trade_mode not null default 'paper',
+  mode          public.trade_mode not null default 'practice' constraint approvals_practice_only check (mode = 'practice'),
   subject       text,                 -- ck / position key / strategy id
   mint          text,
   amount_lamports bigint check (amount_lamports > 0),
@@ -633,8 +714,13 @@ create table public.approvals (
   risk          text not null default 'low' check (risk in ('low', 'medium', 'high', 'critical')),
   payload       jsonb not null default '{}'::jsonb,
   status        public.approval_status not null default 'pending',
-  version       integer not null default 1 check (version >= 1),     -- optimistic concurrency
+  version       integer not null default 1 check (version >= 1),     -- optimistic concurrency (= Flutter expected_rev)
   expire_reason public.expire_reason,
+  base_rev      integer,               -- guard_change: strategy rev the diff was built on
+  weakening     boolean not null default false,
+  decision      text check (decision in ('approve', 'reject')),
+  decided_via   public.decided_via,
+  decision_idempotency_key text check (length(decision_idempotency_key) between 8 and 128),
   requested_by  public.event_actor not null default 'system',
   requested_via text not null default 'system' check (requested_via in ('app', 'mcp', 'api', 'system')),
   decided_by    uuid references public.users (id),
@@ -643,6 +729,8 @@ create table public.approvals (
   expires_at    timestamptz not null,  -- server-owned: computed by the backend from workspace TTLs
   decided_at    timestamptz,
   check ((status = 'pending') = (decided_at is null)),
+  check ((status in ('approved', 'rejected')) = (decision is not null) or status = 'expired'),
+  check (kind <> 'guard_change' or base_rev is not null),
   check ((status = 'expired') = (expire_reason is not null)),
   check (expires_at > created_at)
 );
@@ -656,9 +744,7 @@ declare
   ok boolean;
 begin
   ok := (old.status, new.status) in (
-    ('pending', 'approved'), ('pending', 'rejected'), ('pending', 'expired'), ('pending', 'cancelled'),
-    ('approved', 'executing'), ('approved', 'expired'),
-    ('executing', 'filled'), ('executing', 'failed'));
+    ('pending', 'approved'), ('pending', 'rejected'), ('pending', 'expired'), ('approved', 'expired'));
   if not ok then
     raise exception 'illegal approval transition % -> %', old.status, new.status using errcode = 'check_violation';
   end if;
@@ -678,6 +764,23 @@ end $$;
 create trigger approvals_guard before update on public.approvals
   for each row execute function public.approvals_guard();
 
+-- Decision tokens: opaque 128-bit, single-use, stored as sha256 only, TTL <= approval.expires_at.
+-- Minted per (approval, user, device) by issue_approval_token(); the plaintext is returned once
+-- (GET /v1/approvals/{id} response, or the push payload) and never stored.
+create table public.approval_tokens (
+  token_hash   bytea primary key check (length(token_hash) = 32),
+  approval_id  uuid not null references public.approvals (id) on delete cascade,
+  user_id      uuid not null references public.users (id) on delete cascade,
+  issued_via   public.decided_via not null,
+  issued_at    timestamptz not null default now(),
+  expires_at   timestamptz not null,
+  used_at      timestamptz,
+  used_decision text check (used_decision in ('approve', 'reject')),
+  check (expires_at > issued_at),
+  check ((used_at is null) = (used_decision is null))
+);
+create index approval_tokens_approval_idx on public.approval_tokens (approval_id);
+
 -- Guard changes. Weakening for Real SOL: mandatory 10 min cooldown, optional
 -- auto-revert, audited. DISABLED until Phase 7 via guard_changes_paper_only.
 create table public.guard_changes (
@@ -685,8 +788,8 @@ create table public.guard_changes (
   workspace_id    uuid not null references public.workspaces (id),
   strategy_id     uuid not null references public.strategies (id),
   approval_id     uuid references public.approvals (id),
-  mode            public.trade_mode not null default 'paper'
-                  constraint guard_changes_paper_only check (mode = 'paper'),
+  mode            public.trade_mode not null default 'practice'
+                  constraint guard_changes_paper_only check (mode = 'practice'),
   from_rev        integer not null,
   diff            jsonb not null,               -- [{key, before, after, effect: weakens|strengthens|neutral}]
   weakened_fields text[] not null default '{}',
@@ -699,24 +802,36 @@ create table public.guard_changes (
   reverted_at     timestamptz,
   created_at      timestamptz not null default now(),
   -- live weakening must wait >= 10 min between request and apply
-  check (mode = 'paper' or cardinality(weakened_fields) = 0
-         or (cooldown_until is not null and cooldown_until >= created_at + interval '10 minutes')),
+  -- Real SOL weakening (Phase 7): mandatory 10 min cooldown + mandatory 24 h auto-revert
+  check (mode = 'practice' or cardinality(weakened_fields) = 0
+         or (cooldown_until is not null and cooldown_until >= created_at + interval '10 minutes'
+             and auto_revert_at is not null and auto_revert_at = coalesce(applied_at, cooldown_until) + interval '24 hours')),
   check (applied_at is null or cooldown_until is null or applied_at >= cooldown_until),
   check (auto_revert_at is null or auto_revert_at > created_at)
 );
 
 create table public.audit_log (
-  id          bigint generated always as identity primary key,
+  id           bigint generated always as identity primary key,
   workspace_id uuid references public.workspaces (id),
-  actor_user  uuid references public.users (id),
-  actor_kind  public.event_actor not null,
-  action      text not null check (action ~ '^[a-z_.]{1,64}$'),
-  target      text,
-  diff        jsonb,
-  risk        jsonb,
-  device      text check (length(device) <= 200),
-  ip          inet,
-  created_at  timestamptz not null default now()
+  mode         public.trade_mode not null default 'practice' check (mode = 'practice'),
+  actor_user   uuid references public.users (id),
+  actor_kind   public.event_actor not null,
+  actor_via    text check (actor_via in ('web', 'mobile', 'desktop', 'mcp', 'push', 'api', 'worker')),
+  action       text not null check (action ~ '^[a-z_.]{1,64}$'),
+  target_type  text check (target_type ~ '^[a-z_]{1,32}$'),
+  target       text,                     -- target id
+  before       jsonb,
+  after        jsonb,
+  risk         jsonb,                    -- risk snapshot (e.g. guard impact estimate)
+  proof_kind   text check (proof_kind in ('webauthn', 'totp', 'typed', 'none')),
+  proof_hash   bytea check (proof_hash is null or length(proof_hash) = 32),  -- sha256(canonical proof JSON)
+  approval_id  uuid,
+  request_id   text check (length(request_id) <= 64),
+  ip           inet,
+  user_agent   text check (length(user_agent) <= 400),
+  device       text check (length(device) <= 200),
+  server_now   timestamptz not null default clock_timestamp(),
+  created_at   timestamptz not null default now()
 );
 create index audit_log_ws_idx on public.audit_log (workspace_id, id desc);
 
@@ -807,10 +922,14 @@ begin
   if not found then
     return false;
   end if;
-  insert into public.events (id, workspace_id, strategy_id, ck, mint, ts, kind, actor, data)
+  insert into public.events (id, workspace_id, strategy_id, ck, mint, ts, type, actor, payload)
   values (a.id::text || ':' || (extract(epoch from t) * 1000)::bigint || ':proposal.expired',
           a.workspace_id, a.strategy_id, a.subject, a.mint, t, 'proposal.expired', 'system',
-          jsonb_build_object('proposalId', a.id, 'kind', a.kind, 'reason', p_reason, 'version', a.version));
+          jsonb_build_object('proposal_id', a.id, 'kind', a.kind, 'reason', p_reason, 'version', a.version,
+                             'at', to_char(t at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')));
+  -- tokens for a dead proposal are useless; burn them
+  update public.approval_tokens set expires_at = least(expires_at, t + interval '1 millisecond')
+   where approval_id = a.id and used_at is null and expires_at > t;
   return true;
 end $$;
 
@@ -863,17 +982,120 @@ begin
     n := n + public.expire_proposal(r.id, reason)::int;
   end loop;
 
-  insert into public.events (id, workspace_id, strategy_id, ts, kind, actor, data)
+  insert into public.events (id, workspace_id, strategy_id, ts, type, actor, payload)
   values (p_strategy::text || ':' || (extract(epoch from t) * 1000)::bigint || ':strategy.'
             || case p_action when 'delete' then 'deleted' else 'archived' end,
           s.workspace_id, p_strategy, t,
           'strategy.' || case p_action when 'delete' then 'deleted' else 'archived' end,
           (case when p_actor is null then 'system' else 'user' end)::public.event_actor,
-          jsonb_build_object('expiredProposals', n, 'rev', s.rev));
-  insert into public.audit_log (workspace_id, actor_user, actor_kind, action, target, diff)
+          jsonb_build_object('expired_proposals', n, 'rev', s.rev));
+  insert into public.audit_log (workspace_id, actor_user, actor_kind, actor_via, action, target_type, target, before, after)
   values (s.workspace_id, p_actor, (case when p_actor is null then 'system' else 'user' end)::public.event_actor,
-          'strategy.' || p_action, p_strategy::text, jsonb_build_object('expiredProposals', n));
+          case when p_actor is null then 'worker' else 'api' end,
+          'strategy.' || p_action, 'strategy', p_strategy::text,
+          jsonb_build_object('status', s.status, 'rev', s.rev),
+          jsonb_build_object('status', case p_action when 'delete' then 'deleted' else 'archived' end,
+                             'expired_proposals', n));
   return n;
+end $$;
+
+-- Mint a decision token for a member (called by the API when serving a pending approval, or by the
+-- push worker). Returns the plaintext once; only sha256 is stored. TTL = min(15 min, expires_at).
+create or replace function public.issue_approval_token(p_approval uuid, p_user uuid, p_via public.decided_via)
+returns table (token text, expires_at timestamptz) language plpgsql set search_path = public, extensions as $$
+declare
+  a public.approvals;
+  raw bytea := gen_random_bytes(16);   -- 128-bit
+  tok text := 'apt_' || translate(rtrim(encode(raw, 'base64'), '='), '+/', '-_');
+  exp timestamptz;
+begin
+  select * into a from public.approvals where id = p_approval;
+  if not found then raise exception 'NOT_FOUND' using errcode = 'P0404'; end if;
+  if a.status <> 'pending' or a.expires_at <= now() then raise exception 'APPROVAL_EXPIRED' using errcode = 'P0409'; end if;
+  if not exists (select 1 from public.workspace_members m where m.workspace_id = a.workspace_id
+                  and m.user_id = p_user and m.role in ('owner', 'admin', 'trader')) then
+    raise exception 'FORBIDDEN_ROLE' using errcode = 'P0403';
+  end if;
+  exp := least(a.expires_at, now() + interval '15 minutes');
+  insert into public.approval_tokens (token_hash, approval_id, user_id, issued_via, expires_at)
+  values (digest(tok, 'sha256'), a.id, p_user, p_via, exp);
+  return query select tok, exp;
+end $$;
+
+-- Decide a proposal. ONE implementation for Web (REST: token + Idempotency-Key + expected_version) and
+-- Flutter (RPC: token + expected_rev). Errors: SQLSTATE P04xx with MESSAGE = shared error code.
+-- Precedence: token -> role/via -> replay -> already decided -> expired -> version -> apply.
+create or replace function public.decide_approval(
+  p_approval_id uuid, p_token text, p_decision text, p_expected_rev integer,
+  p_client public.decided_via, p_idempotency_key text default null)
+returns jsonb language plpgsql security definer set search_path = public, extensions as $$
+declare
+  uid uuid := auth.uid();
+  t public.approval_tokens;
+  a public.approvals;
+  now_ts timestamptz := clock_timestamp();
+  ev_type text;
+begin
+  if uid is null then raise exception 'UNAUTHENTICATED' using errcode = 'P0401'; end if;
+  if p_decision not in ('approve', 'reject') then raise exception 'VALIDATION_FAILED' using errcode = 'P0422'; end if;
+
+  select * into t from public.approval_tokens
+   where token_hash = digest(coalesce(p_token, ''), 'sha256') and approval_id = p_approval_id and user_id = uid
+   for update;
+  if not found then raise exception 'APPROVAL_TOKEN_INVALID' using errcode = 'P0403'; end if;
+
+  select * into a from public.approvals where id = p_approval_id for update;
+  if p_client = 'mcp' and (a.weakening or a.kind = 'team_action') then
+    raise exception 'APPROVAL_REQUIRES_APP' using errcode = 'P0403';
+  end if;
+  if not public.has_workspace_role(a.workspace_id, '{owner,admin,trader}') then
+    raise exception 'FORBIDDEN_ROLE' using errcode = 'P0403';
+  end if;
+
+  -- idempotent replay: same token (or same Idempotency-Key) + same decision => stored result
+  if (t.used_at is not null and t.used_decision = p_decision)
+     or (p_idempotency_key is not null and a.decision_idempotency_key = p_idempotency_key and a.decision = p_decision) then
+    return jsonb_build_object('proposal_id', a.id, 'status', a.status, 'version', a.version,
+                              'replayed', true, 'server_now', now_ts);
+  end if;
+  if p_idempotency_key is not null and a.decision_idempotency_key = p_idempotency_key then
+    raise exception 'IDEMPOTENCY_KEY_REUSED' using errcode = 'P0409';
+  end if;
+  if t.used_at is not null or a.status in ('approved', 'rejected') then
+    raise exception 'APPROVAL_ALREADY_DECIDED' using errcode = 'P0409';
+  end if;
+  if a.status = 'expired' or a.expires_at <= now_ts or t.expires_at <= now_ts then
+    raise exception 'APPROVAL_EXPIRED' using errcode = 'P0409';
+  end if;
+  if p_expected_rev is distinct from a.version then
+    raise exception 'VERSION_CONFLICT' using errcode = 'P0409', detail = format('current_version=%s', a.version);
+  end if;
+  if a.kind = 'guard_change' and a.base_rev is distinct from
+       (select rev from public.strategies where id = a.strategy_id) then
+    raise exception 'STRATEGY_REV_CONFLICT' using errcode = 'P0409';
+  end if;
+
+  update public.approvals
+     set status = case p_decision when 'approve' then 'approved'::public.approval_status else 'rejected' end,
+         decision = p_decision, decided_via = p_client, decided_by = uid, decided_at = now_ts,
+         decision_idempotency_key = p_idempotency_key, version = version + 1
+   where id = a.id
+  returning * into a;
+  update public.approval_tokens set used_at = now_ts, used_decision = p_decision where token_hash = t.token_hash;
+
+  ev_type := case p_decision when 'approve' then 'proposal.approved' else 'proposal.rejected' end;
+  insert into public.events (id, workspace_id, strategy_id, ck, mint, ts, type, actor, payload)
+  values (a.id::text || ':' || (extract(epoch from now_ts) * 1000)::bigint || ':' || ev_type,
+          a.workspace_id, a.strategy_id, a.subject, a.mint, now_ts, ev_type, 'user',
+          jsonb_build_object('proposal_id', a.id, 'kind', a.kind, 'version', a.version,
+                             'decided_by', uid, 'decided_via', p_client, 'reason', null));
+  insert into public.audit_log (workspace_id, actor_user, actor_kind, actor_via, action, target_type, target,
+                                before, after, approval_id, proof_kind)
+  values (a.workspace_id, uid, 'user', p_client::text, 'approval.' || p_decision, 'approval', a.id::text,
+          jsonb_build_object('status', 'pending', 'version', a.version - 1),
+          jsonb_build_object('status', a.status, 'version', a.version, 'kind', a.kind), a.id, 'none');
+  return jsonb_build_object('proposal_id', a.id, 'status', a.status, 'version', a.version,
+                            'replayed', false, 'server_now', now_ts);
 end $$;
 
 -- Exit stats, aggregated server-side with the same filters as list endpoints.
@@ -953,6 +1175,13 @@ returns boolean language sql stable security definer set search_path = public as
      where m.workspace_id = ws and m.user_id = auth.uid() and m.role = any (roles))
 $$;
 
+-- Mode gate: 'real' rows need the JWT scope trade:real, which is never issued before Phase 7.
+create or replace function public.mode_visible(m public.trade_mode)
+returns boolean language sql stable as $$
+  select m = 'practice'
+      or coalesce((current_setting('request.jwt.claims', true)::jsonb -> 'app_scopes') ? 'trade:real', false)
+$$;
+
 create or replace function public.is_workspace_member(ws uuid)
 returns boolean language sql stable security definer set search_path = public as $$
   select public.has_workspace_role(ws, enum_range(null::public.workspace_role))
@@ -963,7 +1192,7 @@ declare t text;
 begin
   foreach t in array array['users','auth_identities','siws_nonces','workspaces','workspace_members','wallets',
     'strategies','strategy_twins','portfolios','coins','guard_input_snapshots','coin_outcomes','picks','positions',
-    'fills','events','outbox_cursors','strategy_funnel_hourly','portfolio_snapshots','approvals','guard_changes',
+    'fills','events','outbox','outbox_cursors','approval_tokens','email_otps','webauthn_credentials','confirmation_challenges','strategy_funnel_hourly','portfolio_snapshots','approvals','guard_changes',
     'audit_log','api_idempotency','jobs'] loop
     execute format('alter table public.%I enable row level security', t);
   end loop;
@@ -973,7 +1202,9 @@ end $$;
 create policy users_self_select on public.users for select to authenticated using (id = auth.uid());
 create policy users_self_update on public.users for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
 create policy identities_self_select on public.auth_identities for select to authenticated using (user_id = auth.uid());
--- siws_nonces, outbox_cursors, api_idempotency, guard_input_snapshots, coin_outcomes: no client policies (backend only)
+-- siws_nonces, email_otps, confirmation_challenges, approval_tokens, outbox*, api_idempotency,
+-- guard_input_snapshots, coin_outcomes: no client policies (backend only)
+create policy webauthn_self_select on public.webauthn_credentials for select to authenticated using (user_id = auth.uid());
 
 -- workspaces
 create policy ws_select on public.workspaces for select to authenticated using (public.is_workspace_member(id));
@@ -995,7 +1226,7 @@ create policy wallets_write on public.wallets for all to authenticated
 
 -- strategies: read for members; create/edit drafts directly; archive/delete only via API (retire_strategy)
 create policy strat_select on public.strategies for select to authenticated
-  using (public.is_workspace_member(workspace_id) and status <> 'deleted');
+  using (public.is_workspace_member(workspace_id) and status <> 'deleted' and public.mode_visible(mode));
 create policy strat_insert on public.strategies for insert to authenticated
   with check (public.has_workspace_role(workspace_id, '{owner,admin,trader}') and status in ('draft', 'paused'));
 create policy strat_update on public.strategies for update to authenticated
@@ -1008,18 +1239,18 @@ create policy portfolios_select on public.portfolios for select to authenticated
 create policy coins_read on public.coins for select to authenticated using (true);
 
 -- pipeline/accounting/approval tables: members read; only the backend writes
-create policy picks_select on public.picks for select to authenticated using (public.is_workspace_member(workspace_id));
-create policy positions_select on public.positions for select to authenticated using (public.is_workspace_member(workspace_id));
-create policy fills_select on public.fills for select to authenticated using (public.is_workspace_member(workspace_id));
-create policy events_select on public.events for select to authenticated using (public.is_workspace_member(workspace_id));
-create policy funnel_select on public.strategy_funnel_hourly for select to authenticated using (public.is_workspace_member(workspace_id));
-create policy snapshots_select on public.portfolio_snapshots for select to authenticated using (public.is_workspace_member(workspace_id));
-create policy approvals_select on public.approvals for select to authenticated using (public.is_workspace_member(workspace_id));
-create policy guard_changes_select on public.guard_changes for select to authenticated using (public.is_workspace_member(workspace_id));
-create policy audit_select on public.audit_log for select to authenticated using (public.has_workspace_role(workspace_id, '{owner,admin}'));
+create policy picks_select on public.picks for select to authenticated using (public.is_workspace_member(workspace_id) and public.mode_visible(mode));
+create policy positions_select on public.positions for select to authenticated using (public.is_workspace_member(workspace_id) and public.mode_visible(mode));
+create policy fills_select on public.fills for select to authenticated using (public.is_workspace_member(workspace_id) and public.mode_visible(mode));
+create policy events_select on public.events for select to authenticated using (public.is_workspace_member(workspace_id) and public.mode_visible(mode));
+create policy funnel_select on public.strategy_funnel_hourly for select to authenticated using (public.is_workspace_member(workspace_id) and public.mode_visible(mode));
+create policy snapshots_select on public.portfolio_snapshots for select to authenticated using (public.is_workspace_member(workspace_id) and public.mode_visible(mode));
+create policy approvals_select on public.approvals for select to authenticated using (public.is_workspace_member(workspace_id) and public.mode_visible(mode));
+create policy guard_changes_select on public.guard_changes for select to authenticated using (public.is_workspace_member(workspace_id) and public.mode_visible(mode));
+create policy audit_select on public.audit_log for select to authenticated using (public.has_workspace_role(workspace_id, '{owner,admin}') and public.mode_visible(mode));
 create policy jobs_select on public.jobs for select to authenticated using (public.is_workspace_member(workspace_id));
--- NOTE: approval decisions are NOT a client UPDATE. They go through
--- POST /v1/approvals/{id}/decision (Idempotency-Key + version), executed by the API.
+-- NOTE: approval decisions are NOT a client UPDATE. They go through decide_approval() (SECURITY
+-- DEFINER, token-checked): REST POST /v1/approvals/{id}/decision and the Flutter RPC both call it.
 
 -- ---------------------------------------------------------------------------
 -- Privileges (defence in depth on top of RLS + triggers)
@@ -1033,16 +1264,22 @@ revoke insert, update, delete, truncate on
   from authenticated;
 revoke delete on public.strategies, public.workspaces from authenticated;
 -- backend-only tables: no client access at all
-revoke all on public.siws_nonces, public.api_idempotency, public.outbox_cursors,
-  public.guard_input_snapshots, public.coin_outcomes from authenticated;
+revoke all on public.siws_nonces, public.api_idempotency, public.outbox_cursors, public.outbox,
+  public.approval_tokens, public.guard_input_snapshots, public.coin_outcomes,
+  public.email_otps, public.confirmation_challenges from authenticated;
 revoke update, delete, truncate on public.events, public.fills, public.portfolio_snapshots, public.audit_log
   from service_role;
 do $$
 declare f text;
 begin
   foreach f in array array['claim_job(text, text[])', 'expire_proposal(uuid, public.expire_reason)',
-    'expire_due_proposals()', 'retire_strategy(uuid, text, uuid)', 'consume_siws_nonce(text, text, text)'] loop
+    'expire_due_proposals()', 'retire_strategy(uuid, text, uuid)', 'consume_siws_nonce(text, text, text)',
+    'issue_approval_token(uuid, uuid, public.decided_via)'] loop
     execute format('revoke execute on function public.%s from public, anon, authenticated', f);
     execute format('grant execute on function public.%s to service_role', f);
   end loop;
 end $$;
+
+-- decide_approval is the only client-callable mutation on approvals
+revoke execute on function public.decide_approval(uuid, text, text, integer, public.decided_via, text) from public, anon;
+grant execute on function public.decide_approval(uuid, text, text, integer, public.decided_via, text) to authenticated, service_role;

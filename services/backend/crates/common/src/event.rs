@@ -124,7 +124,7 @@ impl Event {
             mint: None,
             ts,
             actor,
-            mode: Mode::Paper,
+            mode: Mode::Practice,
             payload,
             untrusted: serde_json::Value::Object(Default::default()),
         }
@@ -196,7 +196,7 @@ mod tests {
         }
         assert_eq!(v["type"], "pick.created");
         assert_eq!(v["ts"], "2026-10-29T08:42:00.123Z");
-        assert_eq!(v["mode"], "paper");
+        assert_eq!(v["mode"], "practice");
         let back: Event = serde_json::from_value(v).expect("de");
         assert_eq!(back, e);
     }

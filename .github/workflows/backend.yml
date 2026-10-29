@@ -1,9 +1,15 @@
-name: ci
+name: backend
 
 on:
   push:
     branches: [main]
+    paths: ["services/backend/**", "packages/contracts/**", ".github/workflows/backend.yml"]
   pull_request:
+    paths: ["services/backend/**", "packages/contracts/**", ".github/workflows/backend.yml"]
+
+defaults:
+  run:
+    working-directory: services/backend
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,6 +24,17 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/backend
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: contracts in sync (error enum codegen) + typecheck
+        working-directory: packages/contracts
+        run: |
+          node scripts/gen-errors.mjs
+          git diff --exit-code -- . ../../services/backend/crates/common/src/error_codes.rs
+          npm i --no-save typescript@5 && npx tsc --noEmit -p tsconfig.json
       - name: fmt
         run: cargo fmt --all -- --check
       - name: clippy (incl. live-execution stub so it keeps compiling)

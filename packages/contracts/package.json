@@ -1,0 +1,20 @@
+{
+  "name": "@sentra/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared Sentra contracts. src/wire = official v1 wire contract (events, errors, units; no floats). src/index.ts root also keeps the desktop view-model draft.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire": "./src/wire/index.ts"
+  },
+  "scripts": {
+    "gen": "node scripts/gen-errors.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

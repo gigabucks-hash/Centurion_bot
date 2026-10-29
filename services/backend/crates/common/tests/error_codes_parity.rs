@@ -3,7 +3,7 @@ use common::ErrorCode;
 
 #[test]
 fn rust_enum_matches_contracts_json() {
-    let raw = include_str!("../../../packages/contracts/errors.json");
+    let raw = include_str!("../../../../../packages/contracts/errors.json");
     let v: serde_json::Value = serde_json::from_str(raw).unwrap();
     let codes = v["codes"].as_array().unwrap();
     assert_eq!(codes.len(), ErrorCode::ALL.len(), "regenerate with node packages/contracts/scripts/gen-errors.mjs");
