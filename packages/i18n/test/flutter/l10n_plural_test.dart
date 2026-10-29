@@ -1,4 +1,5 @@
 // Reference test (verified in scratch project with flutter 3.47.8). Replace YOUR_APP with the app package name.
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:YOUR_APP/l10n/gen/app_localizations_en.dart';
 import 'package:YOUR_APP/l10n/gen/app_localizations_id.dart';
@@ -50,5 +51,16 @@ void main() {
     expect(id.screenerDetailQuoteNotSol('USDC'), 'USDC · bukan SOL');
     expect(id.screenerStatusRejectedScore('60'), 'Ditolak · skor < 60');
     expect(en.screenerDetailApproveUnavailable, 'Approve — not available');
+  });
+  test('Rev 4.4: desktop strings migrated + bg.sunken', () {
+    expect(id.screenerDetailScoreValueInfo('115', '83'), '83 / 115 (informasi saja)'); // params alphabetical: max_score, score
+    expect(en.positionsEmpty('practice'), 'No paper positions');
+    expect(id.queueBatchExcludedNotTradeable(2), '2 pick tidak ikut: tidak bisa ditradingkan');
+    expect(en.queueBatchExcludedNotTradeable(1), '1 pick left out: not tradeable');
+    expect(id.positionsSellQuoteTtl('8'), 'Quote berlaku 8 dtk.');
+    expect(en.screenerDetailSkipHint, contains('Skipping'));
+    expect(AppColorsDark.bgSunken, const Color(0xFF080A0F));
+    // ignore: deprecated_member_use_from_same_package
+    expect(AppColorsLight.bgInset, AppColorsLight.bgSunken);
   });
 }

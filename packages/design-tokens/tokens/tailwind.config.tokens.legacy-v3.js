@@ -12,6 +12,7 @@ module.exports = {
           "surface": "var(--color-bg-surface)",
           "raised": "var(--color-bg-raised)",
           "overlay": "var(--color-bg-overlay)",
+          "sunken": "var(--color-bg-sunken)",
           "inset": "var(--color-bg-inset)"
         },
         "border": {

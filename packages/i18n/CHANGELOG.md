@@ -2,6 +2,62 @@
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
+## 0.4.4 · 29 Okt 2026 (UX Rev 4.4)
+482 key (+18). Tidak ada key yang dihapus atau di-rename, jadi **tidak ada breaking change untuk konsumen paket**. Untuk Desktop: string lokal `desktop.*` diganti key paket (tabel di bawah). Tiga di antaranya mengganti nama placeholder.
+
+### Ditambahkan
+- 18 key bersama (platform-agnostic, tanpa `desktop.*`): `queue.title_short`, `chart.title`, `screener.status.pending_guard`, `screener.empty`, `screener.legend`, `screener.detail.score_value_info`, `screener.detail.chart_note`, `screener.detail.skip_hint`, `queue.skip_reason.not_tradeable`, `queue.batch.excluded_not_tradeable`, `queue.empty`, `positions.title_paper`, `positions.empty` (`{mode}` select), `positions.sell.unavailable`, `positions.sell.not_tradeable_detail`, `positions.sell.confirm_title`, `positions.sell.quote_ttl`, `feed.actor.ingest`.
+- `key-migrations.json`: `desktop.*` → key baru (dicek saat build: semua target ada).
+- Keputusan: kartu not-tradeable **boleh Skip** (menolak bukan trade); Approve tidak ada/disabled; tidak ikut batch approve. Reason Skip preselect `queue.skip_reason.not_tradeable` (wire `reason: "not_tradeable"`).
+
+### Migrasi key Desktop (`apps/desktop/src/i18n/local.ts`)
+Perhatian, ganti nama placeholder: `rejected_score` `{pass}` → `{score_threshold}`; `quote_not_sol` `{quote}` → `{quote_symbol}`; `score_value_info` `{max}` → `{max_score}`; `quote_ttl` `{s}` → `{seconds}`. Ada juga beberapa perubahan copy EN (mis. "Approve — not available").
+
+| Lama (`apps/desktop` local.ts) | Baru (`@sentra/i18n`) | Catatan |
+|---|---|---|
+| `desktop.tab.queue` | `queue.title_short` | sama |
+| `desktop.tab.chart` | `chart.title` | sama |
+| `desktop.screener.title` | `screener.title` | sama |
+| `desktop.screener.filter.passed` | `screener.filter.passed` | sama |
+| `desktop.screener.filter.rejected` | `screener.filter.rejected` | sama |
+| `desktop.screener.col.coin` | `screener.col.coin` | sama |
+| `desktop.screener.col.venue` | `screener.col.venue` | sama |
+| `desktop.screener.col.liquidity` | `screener.col.liquidity` | sama |
+| `desktop.screener.col.score` | `screener.col.score` | sama |
+| `desktop.screener.col.guard` | `screener.col.guard` | sama |
+| `desktop.screener.col.status` | `screener.col.status` | sama |
+| `desktop.screener.col.action` | `screener.col.action` | sama |
+| `desktop.screener.status.pick` | `screener.status.pick_queued` | sama |
+| `desktop.screener.status.pending_guard` | `screener.status.pending_guard` | new |
+| `desktop.screener.status.rejected_guard` | `screener.status.rejected_guard` | sama |
+| `desktop.screener.status.rejected_score` | `screener.status.rejected_score` | var {pass} → {score_threshold} |
+| `desktop.screener.open_queue` | `screener.action.open_queue` | sama |
+| `desktop.screener.empty` | `screener.empty` | new |
+| `desktop.screener.legend` | `screener.legend` | new, rewritten as user copy (+ Skip allowed) |
+| `desktop.nt.pair_quote` | `screener.detail.quote_pair` | sama |
+| `desktop.nt.pair_quote_value` | `screener.detail.quote_not_sol` | var {quote} → {quote_symbol} |
+| `desktop.nt.pair_sol` | `screener.detail.sol_pair` | sama |
+| `desktop.nt.pair_sol_none` | `screener.detail.none` | sama |
+| `desktop.nt.score` | `screener.detail.score` | sama |
+| `desktop.nt.score_value` | `screener.detail.score_value_info` | new; var {max} → {max_score} |
+| `desktop.nt.guard` | `screener.detail.guard` | sama |
+| `desktop.nt.guard_value` | `screener.detail.guard_not_run` | sama |
+| `desktop.nt.reason_code` | `screener.detail.reason_code` | ID copy “Kode alasan” |
+| `desktop.nt.chart_note` | `screener.detail.chart_note` | new, shorter |
+| `desktop.nt.approve_unavailable` | `screener.detail.approve_unavailable` | EN “Approve — not available” |
+| `desktop.nt.sell_unavailable` | `positions.sell.unavailable` | new; ID “Jual — tidak tersedia” |
+| `desktop.nt.sell_detail` | `positions.sell.not_tradeable_detail` | new |
+| `desktop.nt.cta_note` | — (dihapus) | removed: design annotation, not UI copy (reason is already shown above the button) |
+| `desktop.nt.batch_skipped` | `queue.batch.excluded_not_tradeable` | new; meaning = left out of batch approve (not a Skip) |
+| `desktop.settings.language` | `settings.language.label` | sama |
+| `desktop.queue.empty` | `queue.empty` | new; “(mock)” dev suffix stays app-local |
+| `desktop.positions.paper` | `positions.title_paper` | new; whole header, no string concatenation |
+| `desktop.positions.empty` | `positions.empty` | new; {mode} select |
+| `desktop.sell.confirm_title` | `positions.sell.confirm_title` | new |
+| `desktop.sell.quote_ttl` | `positions.sell.quote_ttl` | new; var {s} → {seconds} |
+| `desktop.actor.ingest` | `feed.actor.ingest` | new |
+
+
 ## 0.4.3 · 29 Okt 2026 (UX Rev 4.3, contracts 1.1.2)
 464 key (+56). Selaras `packages/contracts` 1.1.2 (`errors.json` v4, EVENTS_SCHEMA §4/§6).
 

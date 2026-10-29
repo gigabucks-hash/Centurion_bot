@@ -23,6 +23,17 @@ Breaking v0.2.0 (untuk Flutter): `context.trade` → `context.tradeColors`, `num
 
 **v0.2.3 (29 Okt 2026, 17.36 WIB):** semua output kode (`.dart`, `.css`, `.js`) ≤ 120 kolom (T-16: header + 2 doc comment Dart, rule `[data-mode]`, `html, body`, reduced-motion, komentar Tauri/Tailwind dipecah) + lint di `scripts/build.py` (build exit 1 bila ada baris > 120). README font: 3 koreksi dari TOKENS_REVIEW Flutter (Inter dari Google Fonts **selalu** `static/Inter_18pt-*` → wajib rename; google_fonts mencocokkan **suffix** nama file; JetBrains Mono **tanpa** rename). Tidak ada perubahan nilai token / API Dart.
 
+**v0.2.4 (29 Okt 2026):** token resmi `bg.sunken` (`--color-bg-sunken`, Tailwind `bg-bg-sunken`, Dart `bgSunken`). `bg.inset` / `--color-bg-inset` / `bgInset` jadi alias deprecated yang menunjuk ke `bg.sunken`, dengan nilai sama sehingga tampilan tidak berubah. Detail di bawah.
+
+## Surface `bg.sunken` (0.2.4)
+Token resmi untuk **inset well, background input, code block, chip/kartu "Tidak bisa ditradingkan"** (di wireframe disebut `surface.sunken`).
+| Tema | Nilai | CSS | Tailwind | Dart |
+|---|---|---|---|---|
+| dark | `#080A0F` | `--color-bg-sunken` | `bg-bg-sunken` | `AppColorsDark.bgSunken` |
+| light | `#EEF0F5` | `--color-bg-sunken` | `bg-bg-sunken` | `AppColorsLight.bgSunken` |
+
+`bg.inset` (nama lama) = **alias deprecated**: `--color-bg-inset: var(--color-bg-sunken)` di tokens.css / tauri.css / tailwind.theme.css (utility `bg-bg-inset` tetap ada), Dart `@Deprecated bgInset = bgSunken`. Nilai sama, jadi pemakaian Desktop/Web sekarang tidak berubah tampilan. Hapus alias paling cepat di 0.3.0. M3: `surfaceContainerLowest` + `InputDecorationTheme.fillColor` = `bgSunken`. Kontras: semua token teks di `bg.sunken` ≥ 4.5:1 (dark min `text.tertiary` 7,17:1; light min `semantic.profit` 4,73:1, `text.tertiary` 5,06:1), `border.strong` ≥ 3:1 (dark 4,52, light 3,17). `text.disabled` dikecualikan (WCAG SC 1.4.3, komponen nonaktif).
+
 ## Font bundling (Flutter, T-17)
 MVP: `google_fonts` (unduh runtime). Production: google_fonts 9.x mencocokkan aset dengan **suffix**: nama file tanpa ekstensi harus **berakhiran** `<FamilyTanpaSpasi>-<Weight>` (`Inter-Regular`, `JetBrainsMono-Medium`). Variable font tidak dicocokkan; aset dimuat tanpa cek hash.
 

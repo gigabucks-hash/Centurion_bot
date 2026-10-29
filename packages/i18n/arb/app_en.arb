@@ -177,6 +177,10 @@
       }
     }
   },
+  "chartTitle": "Chart",
+  "@chartTitle": {
+    "description": "chart tab / panel title"
+  },
   "coinTrailSnapshotNote": "Values and thresholds as read at that moment (rev {rev}).",
   "@coinTrailSnapshotNote": {
     "description": "coin_trail.snapshot_note",
@@ -899,6 +903,10 @@
   "feedActorGuard": "Guard",
   "@feedActorGuard": {
     "description": "feed.actor.guard"
+  },
+  "feedActorIngest": "Ingest",
+  "@feedActorIngest": {
+    "description": "wire actor ingest"
   },
   "feedActorScreener": "Screener",
   "@feedActorScreener": {
@@ -1777,6 +1785,15 @@
   "@orderFailReasonValidationFailed": {
     "description": "order.failed reason_code=VALIDATION_FAILED"
   },
+  "positionsEmpty": "{mode, select, real {No open positions} other {No paper positions}}",
+  "@positionsEmpty": {
+    "description": "positions.empty",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
   "positionsEquityHwm": "High-water mark",
   "@positionsEquityHwm": {
     "description": "positions.equity.hwm"
@@ -1815,6 +1832,10 @@
       }
     }
   },
+  "positionsSellConfirmTitle": "Confirm sell",
+  "@positionsSellConfirmTitle": {
+    "description": "positions.sell.confirm_title"
+  },
   "positionsSellEstimate": "Estimated proceeds",
   "@positionsSellEstimate": {
     "description": "positions.sell.estimate"
@@ -1845,9 +1866,22 @@
   "@positionsSellNeverFromNotification": {
     "description": "positions.sell.never_from_notification"
   },
+  "positionsSellNotTradeableDetail": "This position no longer has a SOL pair, so selling is blocked until one exists.",
+  "@positionsSellNotTradeableDetail": {
+    "description": "positions.sell.not_tradeable_detail"
+  },
   "positionsSellPlanCancelled": "Exit plan cancelled (100%)",
   "@positionsSellPlanCancelled": {
     "description": "positions.sell.plan_cancelled"
+  },
+  "positionsSellQuoteTtl": "Quote valid for {seconds} s.",
+  "@positionsSellQuoteTtl": {
+    "description": "seconds = computed from quote expiry − (now + skew)",
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
   },
   "positionsSellRemainingPlan": "Remaining position keeps its exit plan",
   "@positionsSellRemainingPlan": {
@@ -1862,13 +1896,31 @@
       }
     }
   },
+  "positionsSellUnavailable": "Sell — not available",
+  "@positionsSellUnavailable": {
+    "description": "disabled, labelled CTA (not tradeable)"
+  },
   "positionsTitle": "Positions",
   "@positionsTitle": {
     "description": "positions.title"
   },
+  "positionsTitlePaper": "Positions (paper)",
+  "@positionsTitlePaper": {
+    "description": "Practice section header"
+  },
   "queueBatchApprove": "{count,plural,one{Approve {count} pick} other{Approve {count} picks}}",
   "@queueBatchApprove": {
     "description": "queue.batch.approve",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "queueBatchExcludedNotTradeable": "{count,plural,one{{count} pick left out: not tradeable} other{{count} picks left out: not tradeable}}",
+  "@queueBatchExcludedNotTradeable": {
+    "description": "batch approve never includes not-tradeable picks",
     "placeholders": {
       "count": {
         "type": "int",
@@ -1894,6 +1946,10 @@
         "type": "String"
       }
     }
+  },
+  "queueEmpty": "No pending picks",
+  "@queueEmpty": {
+    "description": "dev/mock suffix stays app-local"
   },
   "queueGuardReject": "Reject change",
   "@queueGuardReject": {
@@ -1963,6 +2019,10 @@
   "@queueSkipReasonAlreadyPumped": {
     "description": "queue.skip_reason.already_pumped"
   },
+  "queueSkipReasonNotTradeable": "Not tradeable",
+  "@queueSkipReasonNotTradeable": {
+    "description": "preselected skip reason for UNSUPPORTED_QUOTE_MINT picks; wire reason 'not_tradeable'"
+  },
   "queueSkipReasonOther": "Other…",
   "@queueSkipReasonOther": {
     "description": "queue.skip_reason.other"
@@ -2014,6 +2074,10 @@
   "queueTitle": "Approval queue",
   "@queueTitle": {
     "description": "queue.title"
+  },
+  "queueTitleShort": "Queue",
+  "@queueTitleShort": {
+    "description": "tab / compact header; full title = queue.title"
   },
   "queueWhyFirstBuy": "Approval mode is “Ask: first buy”. This is the strategy’s first buy.",
   "@queueWhyFirstBuy": {
@@ -2090,6 +2154,10 @@
   "@screenerDetailApproveUnavailable": {
     "description": "disabled, labelled CTA; never hidden"
   },
+  "screenerDetailChartNote": "Chart and metrics stay visible (read-only).",
+  "@screenerDetailChartNote": {
+    "description": "screener.detail.chart_note"
+  },
   "screenerDetailChartReadonly": "Price chart (read-only)",
   "@screenerDetailChartReadonly": {
     "description": "screener.detail.chart_readonly"
@@ -2143,9 +2211,29 @@
       }
     }
   },
+  "screenerDetailScoreValueInfo": "{score} / {max_score} (info only)",
+  "@screenerDetailScoreValueInfo": {
+    "description": "not tradeable: score shown for transparency only",
+    "placeholders": {
+      "max_score": {
+        "type": "String"
+      },
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "screenerDetailSkipHint": "You can still skip it. Skipping isn’t a trade.",
+  "@screenerDetailSkipHint": {
+    "description": "Rev 4.4 decision: Skip allowed on not-tradeable picks, Approve absent/disabled"
+  },
   "screenerDetailSolPair": "SOL pair",
   "@screenerDetailSolPair": {
     "description": "screener.detail.sol_pair"
+  },
+  "screenerEmpty": "No screened coins yet",
+  "@screenerEmpty": {
+    "description": "screener.empty"
   },
   "screenerFilterAll": "All",
   "@screenerFilterAll": {
@@ -2159,6 +2247,10 @@
   "@screenerFilterRejected": {
     "description": "screener.filter.rejected"
   },
+  "screenerLegend": "Red marks risk (guard fail, rug, loss). Grey “Not tradeable” coins have no SOL pair: they can’t be approved, but you can skip them.",
+  "@screenerLegend": {
+    "description": "screener footer legend (user-facing)"
+  },
   "screenerNotTradeableBadge": "Not tradeable",
   "@screenerNotTradeableBadge": {
     "description": "neutral chip (text.tertiary on surface.sunken), not loss/error red"
@@ -2170,6 +2262,10 @@
   "screenerStatusPassed": "Passed",
   "@screenerStatusPassed": {
     "description": "screener.status.passed"
+  },
+  "screenerStatusPendingGuard": "Awaiting guard",
+  "@screenerStatusPendingGuard": {
+    "description": "passed screener, guard not finished"
   },
   "screenerStatusPickQueued": "Pick · in queue",
   "@screenerStatusPickQueued": {

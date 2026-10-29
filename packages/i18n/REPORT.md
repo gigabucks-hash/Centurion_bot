@@ -1,10 +1,11 @@
 # Locale build report
 
-Keys: 464 · placeholder/whitespace issues: 0
+Keys: 482 · placeholder/whitespace issues: 0
 ID/EN length ratio (strings ≥ 12 chars): median 1.00, max 1.77 (screener.not_tradeable.badge)
-Over 1.30× (layout must allow ~30% growth; these need extra room or shorter ID copy): 19
+Over 1.30× (layout must allow ~30% growth; these need extra room or shorter ID copy): 22
 
 - `screener.not_tradeable.badge` 1.77×
+- `queue.skip_reason.not_tradeable` 1.77×
 - `login.wallet.sign_title` 1.67×
 - `guard.weaken.hold.real` 1.60×
 - `guard.weaken.hold.practice` 1.60×
@@ -16,6 +17,8 @@ Over 1.30× (layout must allow ~30% growth; these need extra room or shorter ID 
 - `queue.pick.expires_in` 1.39×
 - `queue.pick.kind.guard_change` 1.38×
 - `notif.action.cancel_change` 1.38×
+- `screener.empty` 1.38×
+- `queue.empty` 1.38×
 - `positions.sell.hold.released` 1.36×
 - `order.fail_reason.insufficient_practice_balance` 1.35×
 - `settings.delete.check.reauth` 1.34×

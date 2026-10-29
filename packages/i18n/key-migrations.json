@@ -1,0 +1,211 @@
+{
+  "from": "apps/desktop/src/i18n/local.ts (desktop.*)",
+  "since": "0.4.4",
+  "keys": [
+    {
+      "old": "desktop.tab.queue",
+      "new": "queue.title_short",
+      "note": ""
+    },
+    {
+      "old": "desktop.tab.chart",
+      "new": "chart.title",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.title",
+      "new": "screener.title",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.filter.passed",
+      "new": "screener.filter.passed",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.filter.rejected",
+      "new": "screener.filter.rejected",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.col.coin",
+      "new": "screener.col.coin",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.col.venue",
+      "new": "screener.col.venue",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.col.liquidity",
+      "new": "screener.col.liquidity",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.col.score",
+      "new": "screener.col.score",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.col.guard",
+      "new": "screener.col.guard",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.col.status",
+      "new": "screener.col.status",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.col.action",
+      "new": "screener.col.action",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.status.pick",
+      "new": "screener.status.pick_queued",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.status.pending_guard",
+      "new": "screener.status.pending_guard",
+      "note": "new"
+    },
+    {
+      "old": "desktop.screener.status.rejected_guard",
+      "new": "screener.status.rejected_guard",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.status.rejected_score",
+      "new": "screener.status.rejected_score",
+      "note": "var {pass} → {score_threshold}"
+    },
+    {
+      "old": "desktop.screener.open_queue",
+      "new": "screener.action.open_queue",
+      "note": ""
+    },
+    {
+      "old": "desktop.screener.empty",
+      "new": "screener.empty",
+      "note": "new"
+    },
+    {
+      "old": "desktop.screener.legend",
+      "new": "screener.legend",
+      "note": "new, rewritten as user copy (+ Skip allowed)"
+    },
+    {
+      "old": "desktop.nt.pair_quote",
+      "new": "screener.detail.quote_pair",
+      "note": ""
+    },
+    {
+      "old": "desktop.nt.pair_quote_value",
+      "new": "screener.detail.quote_not_sol",
+      "note": "var {quote} → {quote_symbol}"
+    },
+    {
+      "old": "desktop.nt.pair_sol",
+      "new": "screener.detail.sol_pair",
+      "note": ""
+    },
+    {
+      "old": "desktop.nt.pair_sol_none",
+      "new": "screener.detail.none",
+      "note": ""
+    },
+    {
+      "old": "desktop.nt.score",
+      "new": "screener.detail.score",
+      "note": ""
+    },
+    {
+      "old": "desktop.nt.score_value",
+      "new": "screener.detail.score_value_info",
+      "note": "new; var {max} → {max_score}"
+    },
+    {
+      "old": "desktop.nt.guard",
+      "new": "screener.detail.guard",
+      "note": ""
+    },
+    {
+      "old": "desktop.nt.guard_value",
+      "new": "screener.detail.guard_not_run",
+      "note": ""
+    },
+    {
+      "old": "desktop.nt.reason_code",
+      "new": "screener.detail.reason_code",
+      "note": "ID copy “Kode alasan”"
+    },
+    {
+      "old": "desktop.nt.chart_note",
+      "new": "screener.detail.chart_note",
+      "note": "new, shorter"
+    },
+    {
+      "old": "desktop.nt.approve_unavailable",
+      "new": "screener.detail.approve_unavailable",
+      "note": "EN “Approve — not available”"
+    },
+    {
+      "old": "desktop.nt.sell_unavailable",
+      "new": "positions.sell.unavailable",
+      "note": "new; ID “Jual — tidak tersedia”"
+    },
+    {
+      "old": "desktop.nt.sell_detail",
+      "new": "positions.sell.not_tradeable_detail",
+      "note": "new"
+    },
+    {
+      "old": "desktop.nt.cta_note",
+      "new": null,
+      "note": "removed: design annotation, not UI copy (reason is already shown above the button)"
+    },
+    {
+      "old": "desktop.nt.batch_skipped",
+      "new": "queue.batch.excluded_not_tradeable",
+      "note": "new; meaning = left out of batch approve (not a Skip)"
+    },
+    {
+      "old": "desktop.settings.language",
+      "new": "settings.language.label",
+      "note": ""
+    },
+    {
+      "old": "desktop.queue.empty",
+      "new": "queue.empty",
+      "note": "new; “(mock)” dev suffix stays app-local"
+    },
+    {
+      "old": "desktop.positions.paper",
+      "new": "positions.title_paper",
+      "note": "new; whole header, no string concatenation"
+    },
+    {
+      "old": "desktop.positions.empty",
+      "new": "positions.empty",
+      "note": "new; {mode} select"
+    },
+    {
+      "old": "desktop.sell.confirm_title",
+      "new": "positions.sell.confirm_title",
+      "note": "new"
+    },
+    {
+      "old": "desktop.sell.quote_ttl",
+      "new": "positions.sell.quote_ttl",
+      "note": "new; var {s} → {seconds}"
+    },
+    {
+      "old": "desktop.actor.ingest",
+      "new": "feed.actor.ingest",
+      "note": "new"
+    }
+  ]
+}

@@ -56,6 +56,9 @@
       "range": "Harus antara {min} dan {max}"
     }
   },
+  "chart": {
+    "title": "Chart"
+  },
   "coin_trail": {
     "snapshot_note": "Nilai dan threshold saat itu (rev {rev}).",
     "step": {
@@ -270,6 +273,7 @@
       "executor": "Executor",
       "exit": "Exit",
       "guard": "Guard",
+      "ingest": "Ingest",
       "screener": "Screener",
       "system": "Sistem",
       "you": "Kamu"
@@ -506,6 +510,7 @@
     }
   },
   "positions": {
+    "empty": "{mode, select, real {Tidak ada posisi terbuka} other {Tidak ada posisi (paper)}}",
     "equity": {
       "hwm": "High-water mark",
       "title": "Ekuitas · {range}"
@@ -513,6 +518,7 @@
     "next_action": "Berikutnya: {rung} di {gain} (jual {pct})",
     "open_count": "{count, plural, other {# terbuka}}",
     "sell": {
+      "confirm_title": "Konfirmasi jual",
       "estimate": "Perkiraan diterima",
       "hold": {
         "practice": "Tahan 1,2 dtk untuk jual {pct}",
@@ -520,18 +526,24 @@
         "released": "Dilepas terlalu cepat — tidak ada yang dijual"
       },
       "never_from_notification": "Jual tidak pernah tersedia dari notifikasi atau popup.",
+      "not_tradeable_detail": "Posisi ini tidak punya pair SOL lagi; jual diblokir sampai pair SOL tersedia.",
       "plan_cancelled": "Exit plan dibatalkan (100%)",
+      "quote_ttl": "Quote berlaku {seconds} dtk.",
       "remaining_plan": "Sisa posisi tetap memakai exit plan",
-      "title": "Jual {symbol}"
+      "title": "Jual {symbol}",
+      "unavailable": "Jual — tidak tersedia"
     },
-    "title": "Posisi"
+    "title": "Posisi",
+    "title_paper": "Posisi (paper)"
   },
   "queue": {
     "batch": {
       "approve": "{count, plural, other {Setujui # pick}}",
+      "excluded_not_tradeable": "{count, plural, other {# pick tidak ikut: tidak bisa ditradingkan}}",
       "selected": "{count, plural, other {# dipilih}}",
       "total": "Total {amount_lamports}"
     },
+    "empty": "Tidak ada pick pending",
     "guard": {
       "reject": "Tolak perubahan"
     },
@@ -556,6 +568,7 @@
     },
     "skip_reason": {
       "already_pumped": "Sudah pump",
+      "not_tradeable": "Tidak bisa ditradingkan",
       "other": "Lainnya…",
       "suspicious_dev": "Dev mencurigakan",
       "thin_liquidity": "Likuiditas tipis"
@@ -572,6 +585,7 @@
       "with_count": "{label} · {count}"
     },
     "title": "Antrean approval",
+    "title_short": "Antrean",
     "why": {
       "first_buy": "Mode approval “Tanya: buy pertama”. Ini buy pertama strategi ini.",
       "title": "Kenapa butuh approval?"
@@ -598,6 +612,7 @@
     },
     "detail": {
       "approve_unavailable": "Approve — tidak tersedia",
+      "chart_note": "Chart dan metrik tetap bisa dilihat (read-only).",
       "chart_readonly": "Chart harga (read-only)",
       "guard": "Guard",
       "guard_not_run": "tidak dijalankan",
@@ -608,19 +623,24 @@
       "reason_code": "Kode alasan",
       "score": "Skor screener",
       "score_value": "{score} / {max_score}",
+      "score_value_info": "{score} / {max_score} (informasi saja)",
+      "skip_hint": "Tetap bisa dilewati. Melewati bukan trade.",
       "sol_pair": "Pair SOL"
     },
+    "empty": "Belum ada koin yang di-screen",
     "filter": {
       "all": "Semua",
       "passed": "Lolos",
       "rejected": "Ditolak"
     },
+    "legend": "Merah menandai risiko (guard gagal, rug, loss). Koin abu-abu “Tidak bisa ditradingkan” tidak punya pair SOL: tidak bisa di-approve, tapi bisa dilewati.",
     "not_tradeable": {
       "badge": "Tidak bisa ditradingkan",
       "detail": "Koin ini tidak punya pair quote SOL. Sentra hanya trading pair SOL, jadi tidak bisa di-approve."
     },
     "status": {
       "passed": "Lolos",
+      "pending_guard": "Menunggu guard",
       "pick_queued": "Pick · di antrean",
       "pick_queued_short": "Pick · antrean",
       "rejected": "Ditolak",

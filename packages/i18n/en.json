@@ -56,6 +56,9 @@
       "range": "Must be between {min} and {max}"
     }
   },
+  "chart": {
+    "title": "Chart"
+  },
   "coin_trail": {
     "snapshot_note": "Values and thresholds as read at that moment (rev {rev}).",
     "step": {
@@ -270,6 +273,7 @@
       "executor": "Executor",
       "exit": "Exit",
       "guard": "Guard",
+      "ingest": "Ingest",
       "screener": "Screener",
       "system": "System",
       "you": "You"
@@ -506,6 +510,7 @@
     }
   },
   "positions": {
+    "empty": "{mode, select, real {No open positions} other {No paper positions}}",
     "equity": {
       "hwm": "High-water mark",
       "title": "Equity · {range}"
@@ -513,6 +518,7 @@
     "next_action": "Next: {rung} at {gain} (sell {pct})",
     "open_count": "{count, plural, one {# open} other {# open}}",
     "sell": {
+      "confirm_title": "Confirm sell",
       "estimate": "Estimated proceeds",
       "hold": {
         "practice": "Hold 1.2 s to sell {pct}",
@@ -520,18 +526,24 @@
         "released": "Released early — nothing was sold"
       },
       "never_from_notification": "Selling is never available from a notification or popup.",
+      "not_tradeable_detail": "This position no longer has a SOL pair, so selling is blocked until one exists.",
       "plan_cancelled": "Exit plan cancelled (100%)",
+      "quote_ttl": "Quote valid for {seconds} s.",
       "remaining_plan": "Remaining position keeps its exit plan",
-      "title": "Sell {symbol}"
+      "title": "Sell {symbol}",
+      "unavailable": "Sell — not available"
     },
-    "title": "Positions"
+    "title": "Positions",
+    "title_paper": "Positions (paper)"
   },
   "queue": {
     "batch": {
       "approve": "{count, plural, one {Approve # pick} other {Approve # picks}}",
+      "excluded_not_tradeable": "{count, plural, one {# pick left out: not tradeable} other {# picks left out: not tradeable}}",
       "selected": "{count, plural, one {# selected} other {# selected}}",
       "total": "Total {amount_lamports}"
     },
+    "empty": "No pending picks",
     "guard": {
       "reject": "Reject change"
     },
@@ -556,6 +568,7 @@
     },
     "skip_reason": {
       "already_pumped": "Already pumped",
+      "not_tradeable": "Not tradeable",
       "other": "Other…",
       "suspicious_dev": "Suspicious dev",
       "thin_liquidity": "Thin liquidity"
@@ -572,6 +585,7 @@
       "with_count": "{label} · {count}"
     },
     "title": "Approval queue",
+    "title_short": "Queue",
     "why": {
       "first_buy": "Approval mode is “Ask: first buy”. This is the strategy’s first buy.",
       "title": "Why does this need approval?"
@@ -598,6 +612,7 @@
     },
     "detail": {
       "approve_unavailable": "Approve — not available",
+      "chart_note": "Chart and metrics stay visible (read-only).",
       "chart_readonly": "Price chart (read-only)",
       "guard": "Guard",
       "guard_not_run": "not run",
@@ -608,19 +623,24 @@
       "reason_code": "Reason code",
       "score": "Screener score",
       "score_value": "{score} / {max_score}",
+      "score_value_info": "{score} / {max_score} (info only)",
+      "skip_hint": "You can still skip it. Skipping isn’t a trade.",
       "sol_pair": "SOL pair"
     },
+    "empty": "No screened coins yet",
     "filter": {
       "all": "All",
       "passed": "Passed",
       "rejected": "Rejected"
     },
+    "legend": "Red marks risk (guard fail, rug, loss). Grey “Not tradeable” coins have no SOL pair: they can’t be approved, but you can skip them.",
     "not_tradeable": {
       "badge": "Not tradeable",
       "detail": "No SOL quote pair for this coin. Sentra only trades SOL pairs, so it can’t be approved."
     },
     "status": {
       "passed": "Passed",
+      "pending_guard": "Awaiting guard",
       "pick_queued": "Pick · in queue",
       "pick_queued_short": "Pick · queue",
       "rejected": "Rejected",

@@ -5,7 +5,7 @@
   --color-bg-surface: #121722;
   --color-bg-raised: #1A2130;
   --color-bg-overlay: #222B3D;
-  --color-bg-inset: #080A0F;
+  --color-bg-sunken: #080A0F;
   --color-border-subtle: #232C3D;
   --color-border-default: #34405A;
   --color-border-strong: #6B7995;
@@ -41,6 +41,7 @@
   --color-inverse-onSurface: #121722;
   --color-inverse-primary: #3E4FD6;
   --color-scrim-overlay: #000000;
+  --color-bg-inset: var(--color-bg-sunken); /* deprecated alias (0.2.4): use --color-bg-sunken */
 }
 [data-theme="light"] {
   color-scheme: light;
@@ -48,7 +49,7 @@
   --color-bg-surface: #FFFFFF;
   --color-bg-raised: #FFFFFF;
   --color-bg-overlay: #FFFFFF;
-  --color-bg-inset: #EEF0F5;
+  --color-bg-sunken: #EEF0F5;
   --color-border-subtle: #E4E7EE;
   --color-border-default: #CDD3DE;
   --color-border-strong: #7D879B;
@@ -84,6 +85,7 @@
   --color-inverse-onSurface: #E8ECF4;
   --color-inverse-primary: #8B97FF;
   --color-scrim-overlay: #000000;
+  --color-bg-inset: var(--color-bg-sunken); /* deprecated alias (0.2.4): use --color-bg-sunken */
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
@@ -91,7 +93,7 @@
     --color-bg-surface: #FFFFFF;
     --color-bg-raised: #FFFFFF;
     --color-bg-overlay: #FFFFFF;
-    --color-bg-inset: #EEF0F5;
+    --color-bg-sunken: #EEF0F5;
     --color-border-subtle: #E4E7EE;
     --color-border-default: #CDD3DE;
     --color-border-strong: #7D879B;
@@ -127,6 +129,7 @@
     --color-inverse-onSurface: #E8ECF4;
     --color-inverse-primary: #8B97FF;
     --color-scrim-overlay: #000000;
+    --color-bg-inset: var(--color-bg-sunken); /* deprecated alias (0.2.4): use --color-bg-sunken */
   }
 }
 
