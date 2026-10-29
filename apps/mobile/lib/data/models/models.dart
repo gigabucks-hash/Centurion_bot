@@ -1,0 +1,511 @@
+/// Domain models. Wire names (snake_case, contract v1.1) live only in
+/// `data/api/` (wire.dart, settings_keys.dart); models are wire-agnostic.
+/// Money: [Lamports] (BigInt) and [Decimal] prices, never double.
+library;
+
+import '../money.dart';
+
+export '../money.dart';
+
+enum TradeMode { practice, real }
+
+enum StrategyStatus { running, paused, stopped }
+
+/// SPEC §2 `approvalMode`. Real SOL never allows [off] in MVP.
+enum ApprovalMode { off, askFirstBuy, askEveryBuy }
+
+class Strategy {
+  const Strategy({
+    required this.id,
+    required this.name,
+    required this.mode,
+    required this.status,
+    required this.rev,
+    required this.exitPlan,
+    required this.ticketLamports,
+    required this.maxOpen,
+    required this.realizedPnlLamports,
+    this.approvalMode = ApprovalMode.askFirstBuy,
+    this.winRatePct = 0,
+    this.maxDrawdownPct = 0,
+    this.avgHold = Duration.zero,
+  });
+
+  final String id;
+  final String name;
+  final TradeMode mode;
+  final StrategyStatus status;
+
+  /// Optimistic version of the settings document. Every mutation must send
+  /// the rev it was based on; the backend rejects stale writes.
+  final int rev;
+
+  /// Exit preset id (see `SettingsKeys.exitPresets`).
+  final String exitPlan;
+  final Lamports ticketLamports;
+  final int maxOpen;
+  final Lamports realizedPnlLamports;
+  final ApprovalMode approvalMode;
+  final double winRatePct;
+  final double maxDrawdownPct;
+  final Duration avgHold;
+
+  bool get isRunning => status == StrategyStatus.running;
+
+  /// v1.1 removed `askFirst`; derived from approval mode.
+  bool get askFirst => approvalMode != ApprovalMode.off;
+
+  Strategy copyWith({
+    StrategyStatus? status,
+    int? rev,
+    Lamports? realizedPnlLamports,
+    String? name,
+    String? exitPlan,
+    Lamports? ticketLamports,
+    int? maxOpen,
+    ApprovalMode? approvalMode,
+  }) {
+    return Strategy(
+      id: id,
+      name: name ?? this.name,
+      mode: mode,
+      status: status ?? this.status,
+      rev: rev ?? this.rev,
+      exitPlan: exitPlan ?? this.exitPlan,
+      ticketLamports: ticketLamports ?? this.ticketLamports,
+      maxOpen: maxOpen ?? this.maxOpen,
+      realizedPnlLamports: realizedPnlLamports ?? this.realizedPnlLamports,
+      approvalMode: approvalMode ?? this.approvalMode,
+      winRatePct: winRatePct,
+      maxDrawdownPct: maxDrawdownPct,
+      avgHold: avgHold,
+    );
+  }
+}
+
+enum PositionState { open, closed }
+
+/// One take-profit rung of an exit plan (SPEC §6 ladder).
+class TpRung {
+  const TpRung({required this.gainPct, required this.sellPct, this.filledAt});
+  final double gainPct;
+
+  /// Share of the ORIGINAL size sold at this rung.
+  final double sellPct;
+  final DateTime? filledAt;
+  bool get filled => filledAt != null;
+  TpRung fill(DateTime at) => TpRung(gainPct: gainPct, sellPct: sellPct, filledAt: at);
+}
+
+/// Exit plan as data (blueprint: "plan sebagai data").
+class ExitPlanState {
+  const ExitPlanState({
+    required this.name,
+    required this.stopLossPct,
+    required this.trailPct,
+    required this.rungs,
+    this.trailArmed = false,
+    this.timeStopAt,
+  });
+  final String name;
+
+  /// Negative, relative to entry (e.g. −35).
+  final double stopLossPct;
+
+  /// Trailing distance from the high, armed after the first TP.
+  final double trailPct;
+  final bool trailArmed;
+  final List<TpRung> rungs;
+  final DateTime? timeStopAt;
+
+  TpRung? get nextRung {
+    for (final r in rungs) {
+      if (!r.filled) return r;
+    }
+    return null;
+  }
+
+  int get filledCount => rungs.where((r) => r.filled).length;
+  double get maxGainPct => rungs.isEmpty ? 100 : rungs.last.gainPct;
+
+  ExitPlanState copyWith({List<TpRung>? rungs, bool? trailArmed}) => ExitPlanState(
+    name: name,
+    stopLossPct: stopLossPct,
+    trailPct: trailPct,
+    rungs: rungs ?? this.rungs,
+    trailArmed: trailArmed ?? this.trailArmed,
+    timeStopAt: timeStopAt,
+  );
+}
+
+class Position {
+  Position({
+    required this.id,
+    required this.strategyId,
+    required this.symbol,
+    required this.mint,
+    required this.mode,
+    required this.state,
+    required this.costLamports,
+    required this.entryPriceUsd,
+    required this.markPriceUsd,
+    required this.peakPriceUsd,
+    required this.openedAt,
+    Lamports? proceedsLamports,
+    this.closedAt,
+    this.exitReason,
+    this.soldBps = 0,
+    this.exitPlan,
+    this.feeBps = 125,
+    this.rev = 1,
+    this.practiceEpoch = 0,
+    this.decimals,
+    this.tokenProgram,
+    this.qtyRaw,
+  }) : proceedsLamports = proceedsLamports ?? Lamports.zero;
+
+  /// `ck.N` style key: coin key + index of the position for that coin.
+  final String id;
+  final String strategyId;
+
+  /// Untrusted token metadata: display only, never interpreted.
+  final String symbol;
+  final String mint;
+  final TradeMode mode;
+  final PositionState state;
+
+  /// Original cost (wire `sol_in_lamports`).
+  final Lamports costLamports;
+  final Decimal entryPriceUsd;
+  final Decimal markPriceUsd;
+  final Decimal peakPriceUsd;
+  final DateTime openedAt;
+
+  /// Cumulative proceeds of all (partial) sells.
+  final Lamports proceedsLamports;
+  final DateTime? closedAt;
+  final String? exitReason;
+
+  /// Share of the original size already sold, in basis points (0–10000).
+  final int soldBps;
+  final ExitPlanState? exitPlan;
+  final int feeBps;
+
+  /// Position `rev` (+1 on every change; `close_position` p_expected_rev / If-Match).
+  final int rev;
+
+  /// `practice_epoch` (1.1.2). Rows from an older epoch are dropped after a reset.
+  final int practiceEpoch;
+
+  /// Mint decimals from the mint account (1.1.2); null = unknown. NEVER assume 6.
+  final int? decimals;
+
+  /// SPL token program id of the mint (`Tokenkeg…` / Token-2022).
+  final String? tokenProgram;
+
+  /// Remaining raw token amount (integer string on the wire).
+  final BigInt? qtyRaw;
+
+  bool get isOpen => state == PositionState.open;
+  double get soldPct => soldBps / 100;
+  int get remainingBps => (10000 - soldBps).clamp(0, 10000);
+
+  /// Cost of the remainder, e.g. "0,24 SOL".
+  Lamports get sizeLamports => costLamports.bps(remainingBps);
+
+  /// Mark-to-market value of the remainder (exact Decimal ratio, rounded to a lamport).
+  Lamports get valueLamports => isOpen ? sizeLamports.times(ratio(markPriceUsd, entryPriceUsd)) : Lamports.zero;
+  double get changePct => pctChange(entryPriceUsd, markPriceUsd);
+  double get fromPeakPct => -pctChange(peakPriceUsd, markPriceUsd);
+  Duration holdAt(DateTime now) => (closedAt ?? now).difference(openedAt);
+
+  /// PnL: realized proceeds + mark-to-market of the remainder − cost.
+  Lamports get pnlLamports => proceedsLamports + valueLamports - costLamports;
+
+  /// PnL % of cost basis (display number).
+  double get pnlPct => pnlLamports.ratioTo(costLamports) * 100;
+
+  /// Estimated SOL received for selling [pct]% of the CURRENT remainder, after fees.
+  Lamports estimateSell(int pct) =>
+      sizeLamports.bps(pct * 100).times(ratio(markPriceUsd, entryPriceUsd)).bps(10000 - feeBps);
+
+  Position copyWith({
+    Decimal? markPriceUsd,
+    Decimal? peakPriceUsd,
+    PositionState? state,
+    Lamports? proceedsLamports,
+    DateTime? closedAt,
+    String? exitReason,
+    int? soldBps,
+    ExitPlanState? exitPlan,
+    int? rev,
+    BigInt? qtyRaw,
+  }) {
+    return Position(
+      id: id,
+      strategyId: strategyId,
+      symbol: symbol,
+      mint: mint,
+      mode: mode,
+      state: state ?? this.state,
+      costLamports: costLamports,
+      entryPriceUsd: entryPriceUsd,
+      markPriceUsd: markPriceUsd ?? this.markPriceUsd,
+      peakPriceUsd: peakPriceUsd ?? this.peakPriceUsd,
+      openedAt: openedAt,
+      proceedsLamports: proceedsLamports ?? this.proceedsLamports,
+      closedAt: closedAt ?? this.closedAt,
+      exitReason: exitReason ?? this.exitReason,
+      soldBps: soldBps ?? this.soldBps,
+      exitPlan: exitPlan ?? this.exitPlan,
+      feeBps: feeBps,
+      rev: rev ?? this.rev,
+      practiceEpoch: practiceEpoch,
+      decimals: decimals,
+      tokenProgram: tokenProgram,
+      qtyRaw: qtyRaw ?? this.qtyRaw,
+    );
+  }
+}
+
+enum EquityRange { d1, d7, d30, all }
+
+enum ActivityKind { found, passed, armed, expired, blocked, bought, sold, proposal, skipped, approved, paused, resumed }
+
+enum Actor { screener, guard, entry, executor, exit, you, system }
+
+class ActivityEvent {
+  const ActivityEvent({
+    required this.id,
+    required this.at,
+    required this.kind,
+    required this.actor,
+    required this.message,
+    this.strategyId,
+    this.symbol,
+    this.pnlLamports,
+  });
+
+  /// `<ck>:<epoch ms>:<kind>`; append-only, safe to dedupe on.
+  final String id;
+  final DateTime at;
+  final ActivityKind kind;
+  final Actor actor;
+  final String message;
+  final String? strategyId;
+  final String? symbol;
+  final Lamports? pnlLamports;
+}
+
+enum ApprovalKind { buyPick, guardChange, teamAction }
+
+enum PickType { firstBuy, buy, rebuy }
+
+/// SPEC §3 expiry reasons.
+enum ExpireReason {
+  timedOut,
+  strategyDeleted,
+  strategyArchived,
+  guardFailedWhileWaiting,
+  priceRanPastLimit,
+
+  /// Contract v1.1 (no UX copy yet → generic expired copy).
+  practiceReset,
+  accountDeleted,
+}
+
+enum RiskLevel { low, medium, high, critical }
+
+enum ApprovalStatus { pending, approved, skipped, expired }
+
+class Approval {
+  const Approval({
+    required this.id,
+    required this.kind,
+    required this.status,
+    required this.title,
+    required this.detail,
+    required this.createdAt,
+    required this.expiresAt,
+    required this.token,
+    this.strategyId,
+    this.baseRev,
+    this.diff = const {},
+    this.amountLamports,
+    this.rev = 1,
+    this.mode = TradeMode.practice,
+    this.pickType,
+    this.expireReason,
+    this.riskLevel,
+    this.riskImpact = const {},
+    this.decidedAt,
+    this.reasonCode,
+  });
+
+  final String id;
+  final ApprovalKind kind;
+  final ApprovalStatus status;
+  final String title;
+  final String detail;
+  final DateTime createdAt;
+  final DateTime expiresAt;
+
+  /// Single-use, server-issued token. Sent back with approve/skip so the
+  /// backend can make the decision idempotent and reject replays.
+  final String token;
+  final String? strategyId;
+
+  /// For setting changes: strategy rev the proposal was built against.
+  final int? baseRev;
+
+  /// For setting changes: key -> [old, new].
+  final Map<String, List<Object?>> diff;
+  final Lamports? amountLamports;
+
+  /// Approval `rev` (1.1.2 naming; sent as `p_expected_rev` to `decide_approval`).
+  final int rev;
+  final TradeMode mode;
+  final PickType? pickType;
+  final ExpireReason? expireReason;
+  final RiskLevel? riskLevel;
+
+  /// Replay-based risk estimate for guard changes: label -> display value.
+  final Map<String, String> riskImpact;
+  final DateTime? decidedAt;
+
+  /// Screener reason code (wire, e.g. `UNSUPPORTED_QUOTE_MINT`), null when tradeable.
+  final String? reasonCode;
+
+  bool get isPending => status == ApprovalStatus.pending;
+
+  /// `UNSUPPORTED_QUOTE_MINT` (no SOL quote pair). Apex decision / i18n 0.4.4:
+  /// neutral color, Approve off/disabled, excluded from batch approve, but it
+  /// CAN be skipped (skipping isn't a trade) with reason `not_tradeable` preselected.
+  bool get notTradeable => reasonCode == unsupportedQuoteMint;
+
+  /// Approve possible at all (button, swipe right, notification, batch).
+  bool get approvable => !notTradeable;
+
+  /// SPEC §3: swipe disabled for guard changes and Real SOL. A not-tradeable
+  /// pick is swipeable LEFT only (skip); swipe right (approve) is a no-op.
+  bool get swipeable => kind == ApprovalKind.buyPick && mode == TradeMode.practice;
+
+  /// Wire skip reason preselected for this item (`reason: "not_tradeable"`), else null.
+  String? get defaultSkipReason => notTradeable ? skipReasonNotTradeable : null;
+
+  bool isExpiredAt(DateTime now) => now.isAfter(expiresAt);
+
+  Approval copyWith({ApprovalStatus? status, ExpireReason? expireReason, DateTime? decidedAt, int? rev}) => Approval(
+    id: id,
+    kind: kind,
+    status: status ?? this.status,
+    title: title,
+    detail: detail,
+    createdAt: createdAt,
+    expiresAt: expiresAt,
+    token: token,
+    strategyId: strategyId,
+    baseRev: baseRev,
+    diff: diff,
+    amountLamports: amountLamports,
+    rev: rev ?? this.rev,
+    mode: mode,
+    pickType: pickType,
+    expireReason: expireReason ?? this.expireReason,
+    riskLevel: riskLevel,
+    riskImpact: riskImpact,
+    decidedAt: decidedAt ?? this.decidedAt,
+    reasonCode: reasonCode,
+  );
+}
+
+/// Wire reason code for coins without a SOL quote pair (screener + `order.failed`).
+/// Wire skip reason for not-tradeable picks (i18n 0.4.4 `queue.skip_reason.not_tradeable`).
+const skipReasonNotTradeable = 'not_tradeable';
+
+const unsupportedQuoteMint = 'UNSUPPORTED_QUOTE_MINT';
+
+enum ScreenerOutcome { passed, rejected, notTradeable }
+
+/// One row of the strategy screener ("Coins", WF-20/21).
+class ScreenerCoin {
+  const ScreenerCoin({
+    required this.symbol,
+    required this.strategyId,
+    required this.score,
+    required this.outcome,
+    this.reasonCode,
+    this.quoteSymbol = 'SOL',
+    this.approvalId,
+    this.note,
+    this.mint,
+    this.decimals,
+    this.tokenProgram,
+    this.quoteMint,
+  });
+  final String symbol;
+  final String? mint;
+
+  /// Coin facts (1.1.2): decimals from the mint account (never assume 6), token program, quote mint.
+  final int? decimals;
+  final String? tokenProgram;
+  final String? quoteMint;
+  final String strategyId;
+
+  /// Screener score 0–100.
+  final int score;
+  final ScreenerOutcome outcome;
+
+  /// Wire reason (e.g. `UNSUPPORTED_QUOTE_MINT`, `GUARD_FAILED`).
+  final String? reasonCode;
+
+  /// Quote asset of the coin's pool (`USDC` → not tradeable).
+  final String quoteSymbol;
+
+  /// Pending pick in the queue, if the coin passed.
+  final String? approvalId;
+  final String? note;
+
+  /// No SOL quote pair: never enters the queue, no Approve/Skip anywhere (WF-21).
+  bool get notTradeable => outcome == ScreenerOutcome.notTradeable || reasonCode == unsupportedQuoteMint;
+}
+
+class PnlPoint {
+  const PnlPoint(this.at, this.equityLamports);
+  final DateTime at;
+  final Lamports equityLamports;
+}
+
+class PortfolioSummary {
+  const PortfolioSummary({
+    required this.mode,
+    required this.cashLamports,
+    required this.startLamports,
+    required this.realizedPnlLamports,
+    required this.unrealizedPnlLamports,
+    required this.openPositions,
+    required this.history,
+  });
+
+  final TradeMode mode;
+  final Lamports cashLamports;
+  final Lamports startLamports;
+  final Lamports realizedPnlLamports;
+  final Lamports unrealizedPnlLamports;
+  final int openPositions;
+  final List<PnlPoint> history;
+
+  Lamports get totalPnlLamports => realizedPnlLamports + unrealizedPnlLamports;
+  Lamports get equityLamports => startLamports + totalPnlLamports;
+}
+
+// Errors: see data/api/api_exception.dart (ApiException, typed by errors.json).
+
+/// Batch approve (`POST /batch-decision`, buy_pick only): not-tradeable picks are
+/// left out (i18n 0.4.4 `queue.batch.excluded_not_tradeable`). Returns
+/// (approvable picks, number excluded as not tradeable).
+({List<Approval> items, int excludedNotTradeable}) batchApprovable(Iterable<Approval> picks) {
+  final pending = picks.where((a) => a.isPending && a.kind == ApprovalKind.buyPick).toList();
+  final ok = pending.where((a) => a.approvable).toList();
+  return (items: ok, excludedNotTradeable: pending.length - ok.length);
+}
