@@ -95,12 +95,23 @@
       "flat": "No change",
       "up": "Up {amount}"
     },
+    "range": {
+      "1d": "1D",
+      "30d": "30D",
+      "7d": "7D",
+      "all": "All"
+    },
     "state": {
+      "loading": "Loading…",
+      "loading_section": "Loading {section}…",
       "saved_at": "Draft saved · {time}",
       "saving": "Saving…"
     },
     "timer": {
       "left": "{mm_ss} left"
+    },
+    "value": {
+      "unavailable": "Data not available yet"
     },
     "you": "You"
   },
@@ -190,6 +201,7 @@
       "forbidden_role": "Your workspace role doesn’t allow this action.",
       "forbidden_scope": "This token doesn’t have permission for this action.",
       "guard_cooldown_active": "This guard change is in its cooldown.",
+      "guard_weaken_requires_approval": "This change loosens a guard and needs approval first. Nothing was changed.",
       "hold_too_short": "Released too early. Hold until the bar is full.",
       "internal": "Something went wrong. Try again.",
       "invalid_fraction": "Choose a sell amount from 0.01% to 100%.",
@@ -509,6 +521,17 @@
       "validation_failed": "The order didn’t pass validation"
     }
   },
+  "portfolio": {
+    "balance": {
+      "change": "{pnl} ({pct}) · {range}",
+      "hidden": "Balance hidden",
+      "label": "{mode, select, real {Balance} other {Paper balance}}",
+      "updated": "Updated {time}"
+    },
+    "sparkline": {
+      "a11y": "Balance {trend, select, up {up} down {down} other {unchanged}} over {range}, from {start} to {end}"
+    }
+  },
   "positions": {
     "empty": "{mode, select, real {No open positions} other {No paper positions}}",
     "equity": {
@@ -570,6 +593,7 @@
       "already_pumped": "Already pumped",
       "not_tradeable": "Not tradeable",
       "other": "Other…",
+      "price_moved": "Price moved",
       "suspicious_dev": "Suspicious dev",
       "thin_liquidity": "Thin liquidity"
     },
@@ -590,6 +614,29 @@
       "first_buy": "Approval mode is “Ask: first buy”. This is the strategy’s first buy.",
       "title": "Why does this need approval?"
     }
+  },
+  "reject_reason": {
+    "not_tradeable": "Not tradeable",
+    "other": "Other",
+    "price_moved": "Price moved",
+    "user_declined": "Skipped by you"
+  },
+  "review": {
+    "details_toggle": "Fees & slippage",
+    "estimate_note": "Estimates as of {time}. Final values can change with the price.",
+    "min_received": "Min. received",
+    "min_received_value": "≥ {min_out} {symbol}",
+    "network_fee": "Est. network fee",
+    "practice_note": "Practice: simulated fill. No real SOL moves.",
+    "price": "Price",
+    "price_moved": "Price moved {pct} since this pick. Review again before approving.",
+    "priority_fee": "Priority fee",
+    "real_note": "Real SOL: network fees are paid even if the order fails.",
+    "slippage": "Max slippage",
+    "swap_fee": "Swap fee",
+    "title": "{side, select, sell {Review sell} other {Review buy}}",
+    "total_max": "Total (max)",
+    "you_pay": "You pay"
   },
   "screener": {
     "action": {

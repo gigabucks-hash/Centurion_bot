@@ -1,0 +1,42 @@
+{
+  "source": "contracts ApprovalRejectReason (1.1.3)",
+  "wire": {
+    "user_declined": "reject_reason.user_declined",
+    "not_tradeable": "reject_reason.not_tradeable",
+    "price_moved": "reject_reason.price_moved",
+    "other": "reject_reason.other"
+  },
+  "skip_chips": {
+    "thin_liquidity": {
+      "label_key": "queue.skip_reason.thin_liquidity",
+      "reject_reason": "user_declined",
+      "reason": "thin_liquidity"
+    },
+    "already_pumped": {
+      "label_key": "queue.skip_reason.already_pumped",
+      "reject_reason": "user_declined",
+      "reason": "already_pumped"
+    },
+    "suspicious_dev": {
+      "label_key": "queue.skip_reason.suspicious_dev",
+      "reject_reason": "user_declined",
+      "reason": "suspicious_dev"
+    },
+    "other": {
+      "label_key": "queue.skip_reason.other",
+      "reject_reason": "other",
+      "reason": null
+    },
+    "not_tradeable": {
+      "label_key": "queue.skip_reason.not_tradeable",
+      "reject_reason": "not_tradeable",
+      "reason": null
+    },
+    "price_moved": {
+      "label_key": "queue.skip_reason.price_moved",
+      "reject_reason": "price_moved",
+      "reason": null
+    }
+  },
+  "default": "user_declined"
+}

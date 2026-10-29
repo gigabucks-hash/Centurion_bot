@@ -63,6 +63,10 @@ module.exports = {
         },
         "scrim": {
           "overlay": "var(--color-scrim-overlay)"
+        },
+        "skeleton": {
+          "base": "var(--color-skeleton-base)",
+          "highlight": "var(--color-skeleton-highlight)"
         }
       },
       "fontFamily": {

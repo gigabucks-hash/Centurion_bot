@@ -1,5 +1,5 @@
 {
-  "errors_json_version": 4,
+  "errors_json_version": 5,
   "unknown": "error.code.internal",
   "codes": {
     "UNAUTHENTICATED": {
@@ -60,6 +60,13 @@
     },
     "STRATEGY_REV_CONFLICT": {
       "key": "error.code.strategy_rev_conflict",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "GUARD_WEAKEN_REQUIRES_APPROVAL": {
+      "key": "error.code.guard_weaken_requires_approval",
       "source": "copy",
       "kind": "error",
       "http": 409,

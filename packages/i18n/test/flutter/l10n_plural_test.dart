@@ -63,4 +63,19 @@ void main() {
     // ignore: deprecated_member_use_from_same_package
     expect(AppColorsLight.bgInset, AppColorsLight.bgSunken);
   });
+  test('Rev 4.5: review sheet, portfolio, reject_reason, GUARD_WEAKEN, skeleton tokens', () {
+    expect(id.reviewTitle('other'), 'Tinjau pembelian');
+    expect(en.reviewTitle('sell'), 'Review sell');
+    expect(id.reviewMinReceivedValue('59.210', 'EXM'), '≥ 59.210 EXM'); // params alphabetical: min_out, symbol
+    expect(id.portfolioBalanceLabel('practice'), 'Saldo paper');
+    expect(en.portfolioBalanceLabel('real'), 'Balance');
+    expect(id.portfolioSparklineA11y('27,49 paper SOL', '7H', '27,80 paper SOL', 'down'), contains('turun'));
+    expect(id.commonValueUnavailable, 'Data belum tersedia');
+    expect(id.commonRange7d, '7H');
+    expect(en.rejectReasonNotTradeable, 'Not tradeable');
+    expect(id.rejectReasonUserDeclined, 'Dilewati olehmu');
+    expect(id.errorCodeGuardWeakenRequiresApproval, contains('perlu approval'));
+    expect(AppColorsDark.skeletonBase, const Color(0xFF262F43));
+    expect(AppColorsLight.skeletonHighlight, const Color(0xFFF1F3F7));
+  });
 }

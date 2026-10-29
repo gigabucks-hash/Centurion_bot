@@ -270,3 +270,13 @@ Checks: 127 · terendah relatif target: `semantic.profit` on `semantic.profitCon
 | pair | `semantic.info` #1F5FCC | `semantic.infoContainer` #E2EDFF | 4.99 | 4.5 | PASS |
 
 Total FAIL: 0
+
+## Skeleton visibility (decorative, floor 1.15:1)
+| theme | surface | ratio | ok |
+|---|---|---|---|
+| dark | `bg.canvas` | 1.44 | PASS |
+| dark | `bg.surface` | 1.34 | PASS |
+| dark | `bg.raised` | 1.20 | PASS |
+| light | `bg.canvas` | 1.20 | PASS |
+| light | `bg.surface` | 1.29 | PASS |
+| light | `bg.raised` | 1.29 | PASS |

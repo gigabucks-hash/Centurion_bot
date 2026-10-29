@@ -60,6 +60,8 @@ abstract final class AppColorsDark {
   static const inverseOnSurface = Color(0xFF121722);
   static const inversePrimary = Color(0xFF3E4FD6);
   static const scrimOverlay = Color(0xFF000000);
+  static const skeletonBase = Color(0xFF262F43);
+  static const skeletonHighlight = Color(0xFF343F58);
   @Deprecated('Use bgSunken (design-tokens 0.2.4)')
   static const bgInset = bgSunken;
 }
@@ -105,6 +107,8 @@ abstract final class AppColorsLight {
   static const inverseOnSurface = Color(0xFFE8ECF4);
   static const inversePrimary = Color(0xFF8B97FF);
   static const scrimOverlay = Color(0xFF000000);
+  static const skeletonBase = Color(0xFFDFE3EA);
+  static const skeletonHighlight = Color(0xFFF1F3F7);
   @Deprecated('Use bgSunken (design-tokens 0.2.4)')
   static const bgInset = bgSunken;
 }
@@ -152,6 +156,9 @@ class AppMotion {
   static const slowBase = Duration(milliseconds: 320);
   static const holdPracticeBase = Duration(milliseconds: 1200);
   static const holdRealBase = Duration(milliseconds: 2500);
+  static const shimmerBase = Duration(milliseconds: 1400);
+  static const skeletonDelayBase = Duration(milliseconds: 150);
+  static const skeletonMinBase = Duration(milliseconds: 300);
   static const standard = Cubic(0.2, 0, 0, 1);
   static const emphasized = Cubic(0.3, 0, 0, 1);
   static const decelerate = Cubic(0, 0, 0, 1);
@@ -165,6 +172,9 @@ class AppMotion {
   Duration get slow => reduced ? Duration.zero : slowBase;
   Duration get holdPractice => holdPracticeBase;
   Duration get holdReal => holdRealBase;
+  Duration get shimmer => reduced ? Duration.zero : shimmerBase;
+  Duration get skeletonDelay => skeletonDelayBase;
+  Duration get skeletonMin => skeletonMinBase;
 }
 
 /// Mobile = comfortable (tap 48dp Material, ≥ 44pt iOS). Compact is for desktop/tablet pointer UIs only.

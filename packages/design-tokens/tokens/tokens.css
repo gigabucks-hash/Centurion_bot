@@ -41,6 +41,8 @@
   --color-inverse-onSurface: #121722;
   --color-inverse-primary: #3E4FD6;
   --color-scrim-overlay: #000000;
+  --color-skeleton-base: #262F43;
+  --color-skeleton-highlight: #343F58;
   --color-bg-inset: var(--color-bg-sunken); /* deprecated alias (0.2.4): use --color-bg-sunken */
 }
 [data-theme="light"] {
@@ -85,6 +87,8 @@
   --color-inverse-onSurface: #E8ECF4;
   --color-inverse-primary: #8B97FF;
   --color-scrim-overlay: #000000;
+  --color-skeleton-base: #DFE3EA;
+  --color-skeleton-highlight: #F1F3F7;
   --color-bg-inset: var(--color-bg-sunken); /* deprecated alias (0.2.4): use --color-bg-sunken */
 }
 @media (prefers-color-scheme: light) {
@@ -129,6 +133,8 @@
     --color-inverse-onSurface: #E8ECF4;
     --color-inverse-primary: #8B97FF;
     --color-scrim-overlay: #000000;
+    --color-skeleton-base: #DFE3EA;
+    --color-skeleton-highlight: #F1F3F7;
     --color-bg-inset: var(--color-bg-sunken); /* deprecated alias (0.2.4): use --color-bg-sunken */
   }
 }
@@ -166,6 +172,9 @@
   --duration-slow: 320ms;
   --duration-holdPractice: 1200ms;
   --duration-holdReal: 2500ms;
+  --duration-shimmer: 1400ms;
+  --duration-skeletonDelay: 150ms;
+  --duration-skeletonMin: 300ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
   --ease-decelerate: cubic-bezier(0, 0, 0, 1);
@@ -293,8 +302,26 @@
   --mode-on: var(--color-mode-onReal);
   --hold-to-confirm: var(--duration-holdReal);
 }
+/* Skeleton: .skeleton (block) · .skeleton--text (line) · .skeleton--circle (avatar/logo).
+   Container gets aria-busy="true"; screen readers announce once, not per block. */
+.skeleton {
+  position: relative; overflow: hidden;
+  background: var(--color-skeleton-base); border-radius: var(--radius-md);
+}
+.skeleton--text { height: 0.75em; border-radius: var(--radius-sm); }
+.skeleton--circle { border-radius: var(--radius-full); }
+.skeleton::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%); will-change: transform;
+  background: linear-gradient(90deg, transparent, var(--color-skeleton-highlight), transparent);
+  animation: sentra-shimmer var(--duration-shimmer) linear infinite;
+}
+@keyframes sentra-shimmer { to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) {
   /* hold-to-confirm tetap (berbasis waktu) */
-  :root { --duration-instant: 0ms; --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms; }
+  :root {
+    --duration-instant: 0ms; --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms;
+    --duration-shimmer: 0ms;
+  }
+  .skeleton::after { animation: none; display: none; } /* static fill, no shimmer */
 }
 .num, .tabular { font-family: var(--font-mono); font-variant-numeric: tabular-nums slashed-zero; }

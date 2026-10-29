@@ -322,6 +322,35 @@
       }
     }
   },
+  "commonRange1d": "1D",
+  "@commonRange1d": {
+    "description": "chart/sparkline range chip (ID: H = hari)"
+  },
+  "commonRange30d": "30D",
+  "@commonRange30d": {
+    "description": "chart/sparkline range chip (ID: H = hari)"
+  },
+  "commonRange7d": "7D",
+  "@commonRange7d": {
+    "description": "chart/sparkline range chip (ID: H = hari)"
+  },
+  "commonRangeAll": "All",
+  "@commonRangeAll": {
+    "description": "chart/sparkline range chip (ID: H = hari)"
+  },
+  "commonStateLoading": "Loading…",
+  "@commonStateLoading": {
+    "description": "skeleton container aria-label (announce once)"
+  },
+  "commonStateLoadingSection": "Loading {section}…",
+  "@commonStateLoadingSection": {
+    "description": "section = already-translated section title",
+    "placeholders": {
+      "section": {
+        "type": "String"
+      }
+    }
+  },
   "commonStateSavedAt": "Draft saved · {time}",
   "@commonStateSavedAt": {
     "description": "time = formatted local time",
@@ -343,6 +372,10 @@
         "type": "String"
       }
     }
+  },
+  "commonValueUnavailable": "Data not available yet",
+  "@commonValueUnavailable": {
+    "description": "tooltip + aria-label for a muted “—” (e.g. Mcap until Backend ships it)"
   },
   "commonYou": "You",
   "@commonYou": {
@@ -638,6 +671,10 @@
   "errorCodeGuardCooldownActive": "This guard change is in its cooldown.",
   "@errorCodeGuardCooldownActive": {
     "description": "wire error.code GUARD_COOLDOWN_ACTIVE"
+  },
+  "errorCodeGuardWeakenRequiresApproval": "This change loosens a guard and needs approval first. Nothing was changed.",
+  "@errorCodeGuardWeakenRequiresApproval": {
+    "description": "wire error.code GUARD_WEAKEN_REQUIRES_APPROVAL"
   },
   "errorCodeHoldTooShort": "Released too early. Hold until the bar is full.",
   "@errorCodeHoldTooShort": {
@@ -1785,6 +1822,61 @@
   "@orderFailReasonValidationFailed": {
     "description": "order.failed reason_code=VALIDATION_FAILED"
   },
+  "portfolioBalanceChange": "{pnl} ({pct}) · {range}",
+  "@portfolioBalanceChange": {
+    "description": "pnl = pnlSol, pct = pnlPct (signed, T-15), range = common.range.* label",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      },
+      "pnl": {
+        "type": "String"
+      },
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "portfolioBalanceHidden": "Balance hidden",
+  "@portfolioBalanceHidden": {
+    "description": "privacy toggle (tap to reveal)"
+  },
+  "portfolioBalanceLabel": "{mode, select, real {Balance} other {Paper balance}}",
+  "@portfolioBalanceLabel": {
+    "description": "hero balance on Home/Dashboard",
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "portfolioBalanceUpdated": "Updated {time}",
+  "@portfolioBalanceUpdated": {
+    "description": "portfolio.balance.updated",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "portfolioSparklineA11y": "Balance {trend, select, up {up} down {down} other {unchanged}} over {range}, from {start} to {end}",
+  "@portfolioSparklineA11y": {
+    "description": "sparkline is decorative; this is its text alternative",
+    "placeholders": {
+      "end": {
+        "type": "String"
+      },
+      "range": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "trend": {
+        "type": "String"
+      }
+    }
+  },
   "positionsEmpty": "{mode, select, real {No open positions} other {No paper positions}}",
   "@positionsEmpty": {
     "description": "positions.empty",
@@ -2021,11 +2113,15 @@
   },
   "queueSkipReasonNotTradeable": "Not tradeable",
   "@queueSkipReasonNotTradeable": {
-    "description": "preselected skip reason for UNSUPPORTED_QUOTE_MINT picks; wire reason 'not_tradeable'"
+    "description": "preselected skip reason for UNSUPPORTED_QUOTE_MINT picks; wire reject_reason=not_tradeable (contracts 1.1.3)"
   },
   "queueSkipReasonOther": "Other…",
   "@queueSkipReasonOther": {
     "description": "queue.skip_reason.other"
+  },
+  "queueSkipReasonPriceMoved": "Price moved",
+  "@queueSkipReasonPriceMoved": {
+    "description": "chip → wire reject_reason price_moved"
   },
   "queueSkipReasonSuspiciousDev": "Suspicious dev",
   "@queueSkipReasonSuspiciousDev": {
@@ -2086,6 +2182,105 @@
   "queueWhyTitle": "Why does this need approval?",
   "@queueWhyTitle": {
     "description": "queue.why.title"
+  },
+  "rejectReasonNotTradeable": "Not tradeable",
+  "@rejectReasonNotTradeable": {
+    "description": "wire ApprovalRejectReason not_tradeable (proposal.rejected.reject_reason, audit approval.reject)"
+  },
+  "rejectReasonOther": "Other",
+  "@rejectReasonOther": {
+    "description": "wire ApprovalRejectReason other (proposal.rejected.reject_reason, audit approval.reject)"
+  },
+  "rejectReasonPriceMoved": "Price moved",
+  "@rejectReasonPriceMoved": {
+    "description": "wire ApprovalRejectReason price_moved (proposal.rejected.reject_reason, audit approval.reject)"
+  },
+  "rejectReasonUserDeclined": "Skipped by you",
+  "@rejectReasonUserDeclined": {
+    "description": "wire ApprovalRejectReason user_declined (proposal.rejected.reject_reason, audit approval.reject)"
+  },
+  "reviewDetailsToggle": "Fees & slippage",
+  "@reviewDetailsToggle": {
+    "description": "collapsible row label (mobile)"
+  },
+  "reviewEstimateNote": "Estimates as of {time}. Final values can change with the price.",
+  "@reviewEstimateNote": {
+    "description": "review.estimate_note",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewMinReceived": "Min. received",
+  "@reviewMinReceived": {
+    "description": "label"
+  },
+  "reviewMinReceivedValue": "≥ {min_out} {symbol}",
+  "@reviewMinReceivedValue": {
+    "description": "min_out = token qty (formatted), symbol untrusted",
+    "placeholders": {
+      "min_out": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewNetworkFee": "Est. network fee",
+  "@reviewNetworkFee": {
+    "description": "value = formatLamports(est_network_fee_lamports) (proposed quote field)"
+  },
+  "reviewPracticeNote": "Practice: simulated fill. No real SOL moves.",
+  "@reviewPracticeNote": {
+    "description": "review.practice_note"
+  },
+  "reviewPrice": "Price",
+  "@reviewPrice": {
+    "description": "value = price_sol"
+  },
+  "reviewPriceMoved": "Price moved {pct} since this pick. Review again before approving.",
+  "@reviewPriceMoved": {
+    "description": "pct = pnlPct (signed)",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewPriorityFee": "Priority fee",
+  "@reviewPriorityFee": {
+    "description": "value = formatLamports(priority_fee_lamports)"
+  },
+  "reviewRealNote": "Real SOL: network fees are paid even if the order fails.",
+  "@reviewRealNote": {
+    "description": "review.real_note"
+  },
+  "reviewSlippage": "Max slippage",
+  "@reviewSlippage": {
+    "description": "value = formatPct(max_slippage_bps/10000)"
+  },
+  "reviewSwapFee": "Swap fee",
+  "@reviewSwapFee": {
+    "description": "value = formatPct(fee_bps/10000)"
+  },
+  "reviewTitle": "{side, select, sell {Review sell} other {Review buy}}",
+  "@reviewTitle": {
+    "description": "transaction review sheet before Approve/Sell",
+    "placeholders": {
+      "side": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewTotalMax": "Total (max)",
+  "@reviewTotalMax": {
+    "description": "amount + all fees, worst case"
+  },
+  "reviewYouPay": "You pay",
+  "@reviewYouPay": {
+    "description": "value = formatLamports(amount_lamports)"
   },
   "screenerActionOpenQueue": "Open queue",
   "@screenerActionOpenQueue": {

@@ -23,6 +23,8 @@ Breaking v0.2.0 (untuk Flutter): `context.trade` → `context.tradeColors`, `num
 
 **v0.2.3 (29 Okt 2026, 17.36 WIB):** semua output kode (`.dart`, `.css`, `.js`) ≤ 120 kolom (T-16: header + 2 doc comment Dart, rule `[data-mode]`, `html, body`, reduced-motion, komentar Tauri/Tailwind dipecah) + lint di `scripts/build.py` (build exit 1 bila ada baris > 120). README font: 3 koreksi dari TOKENS_REVIEW Flutter (Inter dari Google Fonts **selalu** `static/Inter_18pt-*` → wajib rename; google_fonts mencocokkan **suffix** nama file; JetBrains Mono **tanpa** rename). Tidak ada perubahan nilai token / API Dart.
 
+**v0.2.5 (29 Okt 2026):** skeleton — `color.{dark,light}.skeleton.{base,highlight}` (`--color-skeleton-*`, Tailwind `bg-skeleton-base`, Dart `skeletonBase`/`skeletonHighlight`), `motion.duration.{shimmer,skeletonDelay,skeletonMin}`, CSS `.skeleton`, `.skeleton--text`, `.skeleton--circle`; reduced motion = statis; build cek visibilitas ≥1,15:1. Spec: ux-solbot `docs/PERFORMANCE_BUDGET.md`.
+
 **v0.2.4 (29 Okt 2026):** token resmi `bg.sunken` (`--color-bg-sunken`, Tailwind `bg-bg-sunken`, Dart `bgSunken`). `bg.inset` / `--color-bg-inset` / `bgInset` jadi alias deprecated yang menunjuk ke `bg.sunken`, dengan nilai sama sehingga tampilan tidak berubah. Detail di bawah.
 
 ## Surface `bg.sunken` (0.2.4)

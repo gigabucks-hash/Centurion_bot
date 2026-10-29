@@ -2,6 +2,17 @@
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
+## 0.4.5 · 29 Okt 2026 (UX Rev 4.5)
+515 key (+33). Tidak ada key dihapus/di-rename → **tidak ada breaking change**.
+
+### Ditambahkan
+- Transaction review sheet `review.*` (15): `title` (`{side}` select sell/other), `you_pay`, `price`, `network_fee`, `priority_fee`, `swap_fee`, `slippage`, `min_received`, `min_received_value` (`{min_out}`, `{symbol}`), `total_max`, `estimate_note` (`{time}`), `practice_note`, `real_note`, `price_moved` (`{pct}`), `details_toggle`.
+- Portfolio hero `portfolio.balance.{label,change,updated,hidden}`, `portfolio.sparkline.a11y` (`{trend}` select up/down/other, `{range}`, `{start}`, `{end}`); `common.range.{1d,7d,30d,all}`.
+- `common.value.unavailable` ("Data belum tersedia"): tooltip/aria untuk "—" muted (mis. Mcap sampai Backend mengirim market cap). `common.state.loading`, `common.state.loading_section` (skeleton container).
+- contracts 1.1.3 `ApprovalRejectReason` → `reject_reason.{user_declined,not_tradeable,price_moved,other}` (Activity/Audit). Build gagal bila enum di `contracts/src/wire/events.ts` ≠ key.
+- `queue.skip_reason.price_moved`; **`reject_reasons.map.json`** baru: chip skip → wire `reject_reason` (+ `reason` detail). `queue.skip_reason.not_tradeable` → wire `reject_reason: "not_tradeable"` (bukan `reason`, koreksi catatan 0.4.4).
+- errors.json **v5**: `error.code.guard_weaken_requires_approval` (`GUARD_WEAKEN_REQUIRES_APPROVAL`, 409). Coverage 57/57.
+
 ## 0.4.4 · 29 Okt 2026 (UX Rev 4.4)
 482 key (+18). Tidak ada key yang dihapus atau di-rename, jadi **tidak ada breaking change untuk konsumen paket**. Untuk Desktop: string lokal `desktop.*` diganti key paket (tabel di bawah). Tiga di antaranya mengganti nama placeholder.
 

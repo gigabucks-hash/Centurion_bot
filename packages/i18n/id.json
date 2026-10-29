@@ -95,12 +95,23 @@
       "flat": "Tidak berubah",
       "up": "Naik {amount}"
     },
+    "range": {
+      "1d": "1H",
+      "30d": "30H",
+      "7d": "7H",
+      "all": "Semua"
+    },
     "state": {
+      "loading": "Memuat…",
+      "loading_section": "Memuat {section}…",
       "saved_at": "Draf tersimpan · {time}",
       "saving": "Menyimpan…"
     },
     "timer": {
       "left": "Sisa {mm_ss}"
+    },
+    "value": {
+      "unavailable": "Data belum tersedia"
     },
     "you": "Kamu"
   },
@@ -190,6 +201,7 @@
       "forbidden_role": "Peran di workspace tidak mengizinkan tindakan ini.",
       "forbidden_scope": "Token ini tidak punya izin untuk tindakan ini.",
       "guard_cooldown_active": "Perubahan guard ini sedang cooldown.",
+      "guard_weaken_requires_approval": "Perubahan ini melonggarkan guard dan perlu approval dulu. Belum ada yang diubah.",
       "hold_too_short": "Dilepas terlalu cepat. Tahan sampai bar penuh.",
       "internal": "Terjadi kesalahan. Coba lagi.",
       "invalid_fraction": "Pilih porsi jual dari 0,01% sampai 100%.",
@@ -509,6 +521,17 @@
       "validation_failed": "Order tidak lolos validasi"
     }
   },
+  "portfolio": {
+    "balance": {
+      "change": "{pnl} ({pct}) · {range}",
+      "hidden": "Saldo disembunyikan",
+      "label": "{mode, select, real {Saldo} other {Saldo paper}}",
+      "updated": "Diperbarui {time}"
+    },
+    "sparkline": {
+      "a11y": "Saldo {trend, select, up {naik} down {turun} other {tetap}} selama {range}, dari {start} ke {end}"
+    }
+  },
   "positions": {
     "empty": "{mode, select, real {Tidak ada posisi terbuka} other {Tidak ada posisi (paper)}}",
     "equity": {
@@ -570,6 +593,7 @@
       "already_pumped": "Sudah pump",
       "not_tradeable": "Tidak bisa ditradingkan",
       "other": "Lainnya…",
+      "price_moved": "Harga bergerak",
       "suspicious_dev": "Dev mencurigakan",
       "thin_liquidity": "Likuiditas tipis"
     },
@@ -590,6 +614,29 @@
       "first_buy": "Mode approval “Tanya: buy pertama”. Ini buy pertama strategi ini.",
       "title": "Kenapa butuh approval?"
     }
+  },
+  "reject_reason": {
+    "not_tradeable": "Tidak bisa ditradingkan",
+    "other": "Lainnya",
+    "price_moved": "Harga bergerak",
+    "user_declined": "Dilewati olehmu"
+  },
+  "review": {
+    "details_toggle": "Biaya & slippage",
+    "estimate_note": "Estimasi per {time}. Nilai akhir bisa berubah mengikuti harga.",
+    "min_received": "Minimal diterima",
+    "min_received_value": "≥ {min_out} {symbol}",
+    "network_fee": "Perkiraan biaya jaringan",
+    "practice_note": "Practice: fill simulasi. Tidak ada SOL nyata yang bergerak.",
+    "price": "Harga",
+    "price_moved": "Harga bergerak {pct} sejak pick ini. Tinjau ulang sebelum approve.",
+    "priority_fee": "Priority fee",
+    "real_note": "Real SOL: biaya jaringan tetap terpakai walau order gagal.",
+    "slippage": "Slippage maks.",
+    "swap_fee": "Biaya swap",
+    "title": "{side, select, sell {Tinjau penjualan} other {Tinjau pembelian}}",
+    "total_max": "Total (maks.)",
+    "you_pay": "Kamu bayar"
   },
   "screener": {
     "action": {
