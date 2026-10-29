@@ -35,7 +35,8 @@ export function registerAuth(r: Router, d: Deps, rl: Limiter = d.limiter ?? new 
     }
     return domain;
   };
-  const ownerOk = (address: string) => cfg.ownerWallets.length === 0 || cfg.ownerWallets.includes(address);
+  // defense in depth (config already refuses to boot with an empty list): empty allowlist = nobody
+  const ownerOk = (address: string) => cfg.ownerWallets.length > 0 && cfg.ownerWallets.includes(address);
   const notOwner = () => new ApiError("FORBIDDEN_ROLE", { reason: "wallet_not_allowed", hint: "only the owner wallet may sign in" });
 
   const session = async (userId: string, client: string, family: string | null, address: string) => {

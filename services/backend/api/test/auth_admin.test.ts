@@ -64,9 +64,57 @@ describe("SIWS with AUTH_USER_CREATE=supabase_admin", () => {
 
   test("config: supabase_admin needs SUPABASE_URL + key; direct is refused in production", async () => {
     const { loadConfig, ConfigError } = await import("../src/config.ts");
-    const base = { TRADING_MODE: "paper", DATABASE_URL: "postgres://x", SUPABASE_JWT_SECRET: "x".repeat(32), AUTH_SIWS_DOMAINS: DOMAIN };
+    const base = { TRADING_MODE: "paper", DATABASE_URL: "postgres://x", SUPABASE_JWT_SECRET: "x".repeat(32), AUTH_SIWS_DOMAINS: DOMAIN, OWNER_WALLETS: wallet().address };
     assert.throws(() => loadConfig(base), ConfigError);
     assert.throws(() => loadConfig({ ...base, AUTH_USER_CREATE: "direct", NODE_ENV: "production" }), ConfigError);
     assert.equal(loadConfig({ ...base, AUTH_USER_CREATE: "direct" }).userCreate, "direct");
+  });
+});
+
+describe("B-1: OWNER_WALLETS fails closed", () => {
+  const base = {
+    TRADING_MODE: "paper", DATABASE_URL: "postgres://x", SUPABASE_JWT_SECRET: "x".repeat(32),
+    AUTH_SIWS_DOMAINS: DOMAIN, AUTH_USER_CREATE: "direct",
+  };
+  test("config refuses empty, missing or invalid OWNER_WALLETS when SIWS is enabled", async () => {
+    const { loadConfig, ConfigError } = await import("../src/config.ts");
+    assert.throws(() => loadConfig(base), /OWNER_WALLETS is empty/);
+    assert.throws(() => loadConfig({ ...base, OWNER_WALLETS: " , " }), /OWNER_WALLETS is empty/);
+    assert.throws(() => loadConfig({ ...base, OWNER_WALLETS: "not-base58!" }), ConfigError);
+    // right alphabet and length but not 32 bytes
+    assert.throws(() => loadConfig({ ...base, OWNER_WALLETS: "1".repeat(44) }), /32-byte/);
+    assert.equal(loadConfig({ ...base, OWNER_WALLETS: wallet().address }).ownerWallets.length, 1);
+    // SIWS disabled: allowlist not required
+    const { AUTH_SIWS_DOMAINS: _d, ...off } = base;
+    assert.doesNotThrow(() => loadConfig(off));
+  });
+
+  test("the API process exits 78 (EX_CONFIG) without OWNER_WALLETS", async () => {
+    const { spawnSync } = await import("node:child_process");
+    const r = spawnSync(process.execPath, ["src/main.ts"], {
+      env: { PATH: process.env.PATH ?? "", ...base }, encoding: "utf8", timeout: 20_000,
+    });
+    assert.equal(r.status, 78, r.stderr);
+    assert.match(r.stderr, /OWNER_WALLETS/);
+  });
+
+  test("runtime defense in depth: an empty allowlist denies every login", async () => {
+    const h = await startHarness({ AUTH_USER_CREATE: "direct" });
+    try {
+      // build a router whose config was mutated after boot to an empty allowlist
+      const { createApiServer } = await import("../src/server.ts");
+      const { loadConfig } = await import("../src/config.ts");
+      const w = wallet();
+      const cfg = loadConfig({ TRADING_MODE: "paper", DATABASE_URL: "postgres://unused", SUPABASE_JWT_SECRET: "x".repeat(32), AUTH_SIWS_DOMAINS: DOMAIN, OWNER_WALLETS: w.address, AUTH_USER_CREATE: "direct" });
+      cfg.ownerWallets.length = 0;
+      const srv = createApiServer({ cfg, db: h.db, marks: h.marks, feeds: h.feeds });
+      await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
+      const base2 = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
+      const r = await call(base2, "POST", "/v1/auth/siws/nonce", { body: { address: w.address, domain: DOMAIN } });
+      assert.equal(r.status, 403);
+      assert.equal(r.body.error.reason, "wallet_not_allowed");
+      srv.closeAllConnections();
+      await new Promise<void>((r) => srv.close(() => r()));
+    } finally { await h.stop(); }
   });
 });

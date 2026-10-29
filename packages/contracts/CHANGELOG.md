@@ -2,6 +2,7 @@
 
 ## Unreleased: wallet login (backend, additive; no wire-type change)
 
+- SIWS fails closed: no boot (exit 78) with SIWS enabled and an empty/invalid `OWNER_WALLETS`; empty list at runtime = no login.
 - SIWS verify returns `workspace_id`; the first login creates the owner's workspace (idempotent); users are created
   via the Supabase admin API in production.
 - Rate limits on every write route (per IP, per user, per route), optional Postgres-backed counters (API_ENDPOINTS 2.3).

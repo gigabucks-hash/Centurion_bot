@@ -1,4 +1,5 @@
 // Runtime configuration. Secrets come from the environment only and are never logged.
+import { isAddress } from "./siws.ts";
 export interface Config {
   host: string;
   port: number;
@@ -69,6 +70,19 @@ function store(env: NodeJS.ProcessEnv): "memory" | "postgres" {
   return s;
 }
 
+/** B-1 fail closed: SIWS enabled (AUTH_SIWS_DOMAINS set) requires a non-empty, valid OWNER_WALLETS. */
+function siwsConfig(env: NodeJS.ProcessEnv): { siwsDomains: string[]; ownerWallets: string[] } {
+  const siwsDomains = list(env, "AUTH_SIWS_DOMAINS", /^[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?$/);
+  const ownerWallets = list(env, "OWNER_WALLETS", B58);
+  for (const w of ownerWallets) {
+    if (!isAddress(w)) throw new ConfigError(`refusing to start: OWNER_WALLETS entry is not a 32-byte base58 address: ${JSON.stringify(String(w).slice(0, 64))}`);
+  }
+  if (siwsDomains.length > 0 && ownerWallets.length === 0) {
+    throw new ConfigError("refusing to start: AUTH_SIWS_DOMAINS is set but OWNER_WALLETS is empty (wallet login fails closed)");
+  }
+  return { siwsDomains, ownerWallets };
+}
+
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 function list(env: NodeJS.ProcessEnv, k: string, re: RegExp): string[] {
   const xs = (env[k] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -114,8 +128,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     marksChannel,
     accountDeletionGraceDays: int(env, "ACCOUNT_DELETION_GRACE_DAYS", 7, 7, 30),
     sseMemberCheckMs: int(env, "SSE_MEMBER_CHECK_MS", 30_000, 50, 600_000),
-    siwsDomains: list(env, "AUTH_SIWS_DOMAINS", /^[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?$/),
-    ownerWallets: list(env, "OWNER_WALLETS", B58),
+    ...siwsConfig(env),
     accessTtlS: int(env, "AUTH_ACCESS_TTL_S", 900, 60, 3600),
     refreshTtlS: int(env, "AUTH_REFRESH_TTL_S", 30 * 86_400, 3600, 90 * 86_400),
     trustProxy: flag(env, "TRUST_PROXY"),
