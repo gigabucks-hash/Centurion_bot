@@ -30,7 +30,9 @@ RPC (Supabase) errors: `PostgrestException.code` = SQLSTATE (`P0` + HTTP status,
 - **Actor and channel always come from the token** (Q13): every RPC uses `auth.uid()` as the actor and
   `sentra_client` (or the push token's `issued_via = push`) as `via`. No RPC accepts `p_actor`, `p_via`,
   `p_client` or `p_user`. `p_device` (free-form device label) stays as optional metadata.
-- MCP / third-party agents: OAuth 2.1 Authorization Code + PKCE (S256 only), public clients, DCR.
+- MCP / third-party agents: OAuth 2.1 Authorization Code + PKCE (S256 only), public clients; pre-registered, CIMD or DCR
+  clients stay `pending` until the owner activates them on a SIWS-gated consent screen. Agent scopes `read` / `control` /
+  `trade`, route allowlist and budgets: `services/backend/docs/MCP_DESIGN.md`.
 - Scopes:
   - `read`: all GETs, SSE, risk estimate/replay.
   - `trade`: all **practice** mutations. Implies `read`.
@@ -46,7 +48,8 @@ RPC (Supabase) errors: `PostgrestException.code` = SQLSTATE (`P0` + HTTP status,
     `mode_visible(mode)` (real rows require the `trade:real` claim).
   - Separate numbers: practice and real never share snapshots, funnels, stats or events.
 - Roles: `owner` `admin` `trader` `viewer`; `viewer` is read-only whatever the token scopes.
-- MCP can **propose** guard weakening / team actions but cannot decide them (`APPROVAL_REQUIRES_APP`).
+- MCP **cannot propose** a guard weakening or a team action, and cannot decide one (`APPROVAL_REQUIRES_APP`). A weakening
+  strategy PATCH with `sentra_client = mcp` -> `403 LOOSEN_REQUIRES_APP`, and no proposal row is created (MCP_DESIGN §3).
 
 ## 2. Idempotency, revisions, approval tokens
 
@@ -213,7 +216,7 @@ have no implementation; the rows below are kept as the earlier design.
 | GET | `/?mode=&status=` | read | with `rev`, headline stats |
 | POST | `/` | trade | `{mode, name, settings}`; settings validated by `config/strategy_settings.schema.json` + DB CHECK |
 | GET | `/{id}` / `/{id}/revisions` | read | |
-| PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge at the top level; `null` removes a key; nested objects such as `guard_checks` are replaced whole). Non-weakening -> applied (`200`, `rev+1`). **Weakening** (any guard field less strict, per SQL `guard_weakened_fields()`) -> **`202 {data: {proposal: ApprovalWire, guard_change: GuardChangeWire}}`** + `Location: /approvals/{id}`; **nothing is applied**; the whole patch (mixed strengthen + weaken too) becomes one `guard_change` proposal (24 h expiry, `base_rev` = current rev). A weakening patch cannot carry `name`/`status` (422). MCP may propose; only first-party apps decide. Stale -> 409 (2.1) |
+| PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge at the top level; `null` removes a key; nested objects such as `guard_checks` are replaced whole). Non-weakening -> applied (`200`, `rev+1`). **Weakening** (any guard field less strict, per SQL `guard_weakened_fields()`) -> **`202 {data: {proposal: ApprovalWire, guard_change: GuardChangeWire}}`** + `Location: /approvals/{id}`; **nothing is applied**; the whole patch (mixed strengthen + weaken too) becomes one `guard_change` proposal (24 h expiry, `base_rev` = current rev). A weakening patch cannot carry `name`/`status` (422). **MCP (`sentra_client = mcp`) cannot propose:** a weakening patch -> `403 LOOSEN_REQUIRES_APP`, nothing created; non-weakening patches are allowed with the agent `control` scope (MCP_DESIGN §3). Stale -> 409 (2.1) |
 | GET | `/{id}/revisions`, `/{id}/revisions/{rev}` | read | history and merge base |
 | POST | `/{id}/pause`, `/{id}/resume` | trade | `If-Match` / `expected_rev` (status changes bump `rev`) |
 | POST | `/{id}/archive`, DELETE `/{id}` | trade | `retire_strategy()`; response `{expired_proposals: n}` |
