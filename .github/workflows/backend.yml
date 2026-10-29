@@ -67,6 +67,36 @@ jobs:
       - name: migration + smoke tests (RLS, append-only, settings CHECK, proposals)
         run: scripts/check_sql.sh
 
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    defaults:
+      run:
+        working-directory: services/backend/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - run: npm ci
+      - name: typecheck
+        run: npm run typecheck
+      - name: REST/SSE tests against Postgres (TRADING_MODE=paper only)
+        run: npm test
+
   secrets:
     runs-on: ubuntu-latest
     steps:

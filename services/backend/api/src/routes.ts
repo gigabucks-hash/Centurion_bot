@@ -1,0 +1,325 @@
+// REST endpoints (packages/contracts/API_ENDPOINTS.md, contracts 1.1.2). Practice mode only.
+import { ApiError } from "./errors.ts";
+import type { Config } from "./config.ts";
+import { asService, asUser, requireMember, type Db, type Tx } from "./db.ts";
+import { Router, readJson, send, type Ctx } from "./http.ts";
+import { bearer, principal, verifyJwt, type Principal } from "./jwt.ts";
+import {
+  expectedRev, idempotencyKey, limitParam, modeParam, requireRev, requireScope, seqParam, timeRange, uuidParam,
+} from "./rules.ts";
+import {
+  APPROVAL_COLUMNS, EVENT_COLUMNS, approvalWire, decodeCursor, encodeCursor, eventWire, exitStatsWire,
+  portfolioWire, workspaceWire, type EventRow,
+} from "./wire.ts";
+import { streamEvents, type MarkHub } from "./sse.ts";
+
+export const CONTRACTS_VERSION = "1.1.2";
+
+export interface Deps {
+  cfg: Config;
+  db: Db;
+  marks: MarkHub;
+}
+
+export function authenticate(ctx: Ctx, cfg: Config): Principal {
+  const claims = verifyJwt(bearer(ctx.req.headers.authorization), cfg.jwtSecret, cfg.jwtAudience);
+  return principal(claims);
+}
+
+const etag = (rev: unknown) => ({ ETag: `"${String(rev)}"` });
+
+export function buildRouter(d: Deps): Router {
+  const r = new Router();
+  const health = async (ctx: Ctx, ready: boolean) => {
+    let db = "ok";
+    if (ready) {
+      try {
+        await d.db.query("select 1");
+      } catch {
+        db = "down";
+      }
+      if (db !== "ok") throw new ApiError("UNAVAILABLE", { db });
+    }
+    send(ctx, 200, {
+      mode: "practice",
+      real_enabled: false,
+      modes_enabled: ["practice"],
+      live_executor: "disabled",
+      contracts_version: CONTRACTS_VERSION,
+      ...(ready ? { db } : {}),
+    });
+  };
+  r.add("GET", "/healthz", (ctx) => health(ctx, false));
+  r.add("GET", "/readyz", (ctx) => health(ctx, true));
+
+  // ---- workspace --------------------------------------------------------------------------------
+  r.add("GET", "/v1/workspaces/:ws", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const row = await asUser(d.db, p.claims, async (c) => {
+      const q = await c.query("select * from public.workspaces where id = $1 and deleted_at is null", [ws]);
+      return q.rows[0] as Record<string, unknown> | undefined;
+    });
+    if (!row) throw new ApiError("NOT_FOUND");
+    send(ctx, 200, { data: workspaceWire(row) }, etag(row.rev));
+  });
+
+  // ---- positions --------------------------------------------------------------------------------
+  r.add("GET", "/v1/workspaces/:ws/positions", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const mode = modeParam(ctx);
+    const q = ctx.url.searchParams;
+    const state = q.get("state");
+    if (state !== null && state !== "open" && state !== "closed") {
+      throw new ApiError("VALIDATION_FAILED", { field: "state", allowed: ["open", "closed"] });
+    }
+    const strategy = q.get("strategy_id");
+    if (strategy !== null && !/^[0-9a-f-]{36}$/i.test(strategy)) throw new ApiError("VALIDATION_FAILED", { field: "strategy_id" });
+    const epochRaw = q.get("epoch");
+    const epoch = epochRaw === null ? null : Number(epochRaw);
+    if (epoch !== null && (!Number.isInteger(epoch) || epoch < 0)) throw new ApiError("VALIDATION_FAILED", { field: "epoch" });
+    const cur = decodeCursor(q.get("cursor"));
+    if (cur === "bad") throw new ApiError("CURSOR_INVALID", { field: "cursor" });
+    const limit = limitParam(ctx, 50, 100);
+    const rows = await asUser(d.db, p.claims, async (c) => {
+      await requireMember(c, ws);
+      const res = await c.query(
+        `select public.position_wire(p) as w, p.id,
+                to_char(p.opened_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cur_ts
+           from public.positions p
+          where p.workspace_id = $1 and p.mode = $2::public.trade_mode
+            and ($3::text is null or p.status::text = $3)
+            and ($4::uuid is null or p.strategy_id = $4)
+            and p.practice_epoch = coalesce($5::int, (select practice_epoch from public.workspaces where id = $1))
+            and ($6::timestamptz is null or (p.opened_at, p.id) < ($6::timestamptz, $7::uuid))
+          order by p.opened_at desc, p.id desc
+          limit $8`,
+        [ws, mode, state, strategy, epoch, cur?.ts ?? null, cur?.id ?? null, limit + 1],
+      );
+      return res.rows as { w: Record<string, unknown>; cur_ts: string; id: string }[];
+    });
+    const page = rows.slice(0, limit);
+    const last = page.at(-1);
+    send(ctx, 200, {
+      items: page.map((x) => x.w),
+      next_cursor: rows.length > limit && last ? encodeCursor(last.cur_ts, last.id) : null,
+    });
+  });
+
+  r.add("GET", "/v1/workspaces/:ws/positions/:id", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const w = await asUser(d.db, p.claims, async (c) => {
+      const res = await c.query("select public.position_wire(p) as w from public.positions p where p.id = $1 and p.workspace_id = $2", [id, ws]);
+      return res.rows[0]?.w as Record<string, unknown> | undefined;
+    });
+    if (!w) throw new ApiError("NOT_FOUND");
+    send(ctx, 200, { data: w }, etag(w.rev));
+  });
+
+  /** Manual sell (practice only). SQL close_position(): role, mode, fraction, rev, idempotency. */
+  r.add("POST", "/v1/workspaces/:ws/positions/:id/close", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "trade");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const body = await readJson(ctx);
+    modeParam(ctx, body.mode);
+    if ("sell_pct" in body) throw new ApiError("VALIDATION_FAILED", { field: "sell_pct", reason: "removed in 1.1.2; use fraction_bps" });
+    const f = body.fraction_bps ?? 10000;
+    if (typeof f !== "number" || !Number.isInteger(f)) throw new ApiError("INVALID_FRACTION", { range: "1-10000" });
+    const rev = expectedRev(ctx, body);
+    const key = idempotencyKey(ctx);
+    const out = await asUser(d.db, p.claims, async (c) => {
+      await inWorkspace(c, "positions", id, ws);
+      const res = await c.query("select public.close_position($1, $2, $3, $4) as r", [id, rev, key, f]);
+      return res.rows[0]?.r as Record<string, unknown>;
+    });
+    send(ctx, 200, out, out.replayed === true ? { "Idempotent-Replayed": "true" } : {});
+  });
+
+  // ---- approvals --------------------------------------------------------------------------------
+  r.add("GET", "/v1/workspaces/:ws/approvals", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const mode = modeParam(ctx);
+    const q = ctx.url.searchParams;
+    const status = q.get("status");
+    if (status !== null && !["pending", "approved", "rejected", "expired"].includes(status)) {
+      throw new ApiError("VALIDATION_FAILED", { field: "status" });
+    }
+    const kind = q.get("kind");
+    if (kind !== null && !/^[a-z_]{1,32}$/.test(kind)) throw new ApiError("VALIDATION_FAILED", { field: "kind" });
+    const limit = limitParam(ctx, 50, 100);
+    const rows = await asUser(d.db, p.claims, async (c) => {
+      await requireMember(c, ws);
+      const res = await c.query(
+        `select ${APPROVAL_COLUMNS} from public.approvals
+          where workspace_id = $1 and mode = $2::public.trade_mode
+            and ($3::text is null or status::text = $3) and ($4::text is null or kind::text = $4)
+          order by case when status = 'pending' then expires_at end asc nulls last, created_at desc, id desc
+          limit $5`,
+        [ws, mode, status, kind, limit],
+      );
+      return res.rows as Record<string, unknown>[];
+    });
+    send(ctx, 200, { items: rows.map(approvalWire), next_cursor: null });
+  });
+
+  /** Detail; members with `trade` get a fresh single-use decision token while the approval is pending. */
+  r.add("GET", "/v1/workspaces/:ws/approvals/:id", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const row = await asUser(d.db, p.claims, async (c) => {
+      const res = await c.query(`select ${APPROVAL_COLUMNS} from public.approvals where id = $1 and workspace_id = $2`, [id, ws]);
+      return res.rows[0] as Record<string, unknown> | undefined;
+    });
+    if (!row) throw new ApiError("NOT_FOUND");
+    let token: string | null = null;
+    let tokenExp: string | null = null;
+    if (row.status === "pending" && p.scopes.has("trade")) {
+      try {
+        const t = await asService(d.db, async (c) => {
+          const res = await c.query("select token, expires_at from public.issue_approval_token($1, $2, $3::public.decided_via)", [id, p.userId, p.via]);
+          return res.rows[0] as { token: string; expires_at: Date } | undefined;
+        });
+        token = t?.token ?? null;
+        tokenExp = t ? t.expires_at.toISOString() : null;
+      } catch (e) {
+        if (!(e instanceof ApiError) || !["FORBIDDEN_ROLE", "APPROVAL_EXPIRED"].includes(e.code)) throw e;
+      }
+    }
+    send(ctx, 200, { data: { ...approvalWire(row), decision_token: token, decision_token_expires_at: tokenExp } }, etag(row.rev));
+  });
+
+  /** SQL decide_approval(): actor = auth.uid(), via = JWT `sentra_client` (or push token); never the body. */
+  r.add("POST", "/v1/workspaces/:ws/approvals/:id/decision", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "trade");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const body = await readJson(ctx);
+    const decision = body.decision;
+    if (decision !== "approve" && decision !== "reject") {
+      throw new ApiError("VALIDATION_FAILED", { field: "decision", allowed: ["approve", "reject"] });
+    }
+    if (typeof body.token !== "string" || body.token.length > 64) throw new ApiError("APPROVAL_TOKEN_INVALID");
+    const rev = expectedRev(ctx, body);
+    const key = idempotencyKey(ctx);
+    const out = await asUser(d.db, p.claims, async (c) => {
+      await inWorkspace(c, "approvals", id, ws);
+      const res = await c.query("select public.decide_approval($1, $2, $3, $4, $5) as r", [id, body.token, decision, rev, key]);
+      return res.rows[0]?.r as Record<string, unknown>;
+    });
+    const { server_now, ...data } = out;
+    send(ctx, 200, { data, server_now }, {
+      ...etag(data.rev),
+      ...(data.replayed === true ? { "Idempotent-Replayed": "true" } : {}),
+    });
+  });
+
+  // ---- portfolio and stats ----------------------------------------------------------------------
+  r.add("GET", "/v1/workspaces/:ws/portfolio/overview", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const mode = modeParam(ctx);
+    const row = await asUser(d.db, p.claims, async (c) => {
+      await requireMember(c, ws);
+      const res = await c.query("select * from public.portfolio_latest where workspace_id = $1 and mode = $2::public.trade_mode", [ws, mode]);
+      return res.rows[0] as Record<string, unknown> | undefined;
+    });
+    send(ctx, 200, { data: row ? portfolioWire(row) : null });
+  });
+
+  r.add("GET", "/v1/workspaces/:ws/stats/exit-reasons", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const mode = modeParam(ctx);
+    const strategy = ctx.url.searchParams.get("strategy_id");
+    if (strategy !== null && !/^[0-9a-f-]{36}$/i.test(strategy)) throw new ApiError("VALIDATION_FAILED", { field: "strategy_id" });
+    const { from, to } = timeRange(ctx);
+    const rows = await asUser(d.db, p.claims, async (c) => {
+      await requireMember(c, ws);
+      const res = await c.query(
+        "select exit_reason::text as exit_reason, count, pnl_lamports, avg_pnl_pct, win_rate_pct, avg_hold_s from public.exit_stats($1, $2, $3::public.trade_mode, $4, $5)",
+        [ws, strategy, mode, from, to],
+      );
+      return res.rows as Record<string, unknown>[];
+    });
+    send(ctx, 200, { items: rows.map(exitStatsWire), next_cursor: null });
+  });
+
+  // ---- events (REST page + SSE) -----------------------------------------------------------------
+  r.add("GET", "/v1/workspaces/:ws/events", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const mode = modeParam(ctx);
+    const q = ctx.url.searchParams;
+    const after = seqParam(q.get("after_seq"), "after_seq");
+    const before = seqParam(q.get("before_seq"), "before_seq");
+    if (after !== null && before !== null) throw new ApiError("VALIDATION_FAILED", { reason: "after_seq and before_seq are exclusive" });
+    const types = q.get("types");
+    const typeList = types ? types.split(",").filter(Boolean) : null;
+    if (typeList && !typeList.every((t) => /^[a-z_]+(\.[a-z_]+)?$/.test(t))) throw new ApiError("VALIDATION_FAILED", { field: "types" });
+    const limit = limitParam(ctx, 100, 500);
+    const { rows, safe } = await asUser(d.db, p.claims, async (c) => {
+      await requireMember(c, ws);
+      const s = await c.query<{ s: string }>("select public.events_safe_seq()::text as s");
+      const safe = s.rows[0]?.s ?? "0";
+      const res = await c.query(
+        `select ${EVENT_COLUMNS} from public.events
+          where workspace_id = $1 and mode = $2::public.trade_mode and seq <= $3::bigint
+            and ($4::bigint is null or seq > $4) and ($5::bigint is null or seq < $5)
+            and ($6::text[] is null or type = any ($6))
+          order by seq ${before !== null ? "desc" : "asc"} limit $7`,
+        [ws, mode, safe, after, before, typeList, limit],
+      );
+      return { rows: res.rows as EventRow[], safe };
+    });
+    const now = new Date().toISOString();
+    const items = rows.map((e) => eventWire(e, now));
+    const seqs = rows.map((e) => BigInt(e.seq));
+    const max = seqs.length ? seqs.reduce((a, b) => (a > b ? a : b)) : null;
+    const min = seqs.length ? seqs.reduce((a, b) => (a < b ? a : b)) : null;
+    send(ctx, 200, {
+      items,
+      next_after_seq: before === null ? (max?.toString() ?? after ?? safe) : null,
+      next_before_seq: before !== null && rows.length === limit && min !== null ? min.toString() : null,
+      safe_seq: safe,
+      next_cursor: null,
+    });
+  });
+
+  r.add("GET", "/v1/workspaces/:ws/events/stream", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const mode = modeParam(ctx);
+    await streamEvents(ctx, d, p, ws, mode);
+  });
+
+  // removed in 1.1.2 (moved under the workspace)
+  r.add("GET", "/v1/events/stream", async () => {
+    throw new ApiError("NOT_FOUND", { moved_to: "/v1/workspaces/{ws}/events/stream" });
+  });
+
+  return r;
+}
+
+/** The resource must belong to the workspace in the path (RLS already hides other tenants). */
+async function inWorkspace(c: Tx, table: "positions" | "approvals", id: string, ws: string): Promise<void> {
+  const res = await c.query<{ workspace_id: string }>(`select workspace_id from public.${table} where id = $1`, [id]);
+  if (res.rows[0]?.workspace_id !== ws) throw new ApiError("NOT_FOUND");
+}
+

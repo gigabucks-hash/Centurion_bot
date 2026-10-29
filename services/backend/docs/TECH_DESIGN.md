@@ -133,6 +133,12 @@ under the frozen plan.
 ## 8. API (Node/TS) and MCP
 - REST and SSE as in `packages/contracts/API_ENDPOINTS.md`. Every response carries `server_now`; the
   `Idempotency-Key` store is `api_idempotency`; the error enum is shared.
+- **Phase 2 (started): `services/backend/api`** — dependency-light Node/TS server (`node:http` + `pg`).
+  Each request runs as role `authenticated` with the verified JWT claims (actor/via from the token, RLS
+  applies); mutations go through the SQL functions (`close_position`, `decide_approval`) so REST and the
+  Flutter RPCs share one implementation of rev / idempotency / role checks. SSE polls `events` up to
+  `events_safe_seq()` (strictly seq-ordered, resumable); marks come from `pg_notify`. Refuses to start unless
+  `TRADING_MODE=paper`. Tests run against local Postgres (`npm test`). See `api/README.md`.
 - MCP: Streamable HTTP. OAuth 2.1 authorization code with **PKCE S256**, dynamic client registration,
   protected-resource metadata, audience-bound tokens. Scopes `read` and `trade`; `trade:real` never.
   MCP tools: list strategies/positions/events, propose a settings change, approve a `buy_pick` in

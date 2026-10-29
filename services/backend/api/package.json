@@ -1,0 +1,21 @@
+{
+  "name": "@sentra/backend-api",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Sentra REST/SSE API (contracts 1.1.2). Practice mode only: refuses to start unless TRADING_MODE=paper.",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node src/main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test --test-concurrency=1 test/*.test.ts"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.8.0"
+  }
+}
