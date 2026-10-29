@@ -38,7 +38,7 @@ async function login(w: Wallet, client = "desktop") {
 }
 
 before(async () => {
-  h = await startHarness({ AUTH_SIWS_DOMAINS: DOMAIN, OWNER_WALLETS: OWNERS.map((w) => w.address).join(","), TRUST_PROXY: "true", AUTH_ACCESS_TTL_S: "600" });
+  h = await startHarness({ AUTH_SIWS_DOMAINS: DOMAIN, OWNER_WALLETS: OWNERS.map((w) => w.address).join(","), TRUST_PROXY: "true", AUTH_ACCESS_TTL_S: "600", AUTH_USER_CREATE: "direct" });
 });
 after(async () => {
   await h?.stop();
@@ -65,6 +65,15 @@ describe("SIWS login", () => {
     // same wallet again -> same user (identity upsert)
     const again = await login(OWNER_W, "web");
     assert.equal(again.v.body.data.user_id, s.user_id);
+    // single owner: the first login created the owner's workspace; later logins reuse it
+    assert.match(s.workspace_id, /^[0-9a-f-]{36}$/);
+    assert.equal(again.v.body.data.workspace_id, s.workspace_id);
+    const ws = await call(h.base, "GET", `/v1/workspaces/${s.workspace_id}`, { token: s.access_token });
+    assert.equal(ws.status, 200, JSON.stringify(ws.body));
+    const owned = await h.db.query("select count(*)::int as n from public.workspaces where owner_id = $1", [s.user_id]);
+    assert.equal(owned.rows[0].n, 1);
+    const role = await h.db.query("select role::text from public.workspace_members where workspace_id = $1 and user_id = $2", [s.workspace_id, s.user_id]);
+    assert.equal(role.rows[0].role, "owner");
     const ident = await h.db.query("select count(*)::int as n from public.auth_identities where provider = 'siws' and subject = $1", [OWNER_W.address]);
     assert.equal(ident.rows[0].n, 1);
   });
@@ -178,3 +187,4 @@ describe("SIWS login", () => {
     }
   });
 });
+

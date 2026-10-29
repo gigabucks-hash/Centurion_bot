@@ -136,7 +136,12 @@ match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `fro
 | POST | `/v1/auth/session/logout` | Body `{refresh_token}` -> `200 {data: {revoked: true}}` always (revokes the family if it exists). |
 
 `Session = {access_token, token_type: "bearer", expires_in, expires_at, refresh_token ("srt_..."), refresh_expires_in,
-session_id, user_id, address}`. Access token: HS256 with the API's JWT secret, `exp` = `AUTH_ACCESS_TTL_S` (default
+session_id, user_id, address}`; verify also returns `workspace_id`: the first login of an allowed wallet creates
+the owner's "Practice" workspace (`ensure_owner_workspace`, idempotent, owner membership), later logins return
+the same one. New users are created through the **Supabase admin API** (`AUTH_USER_CREATE=supabase_admin`, default;
+needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from env; wallet users get a non-routable confirmed alias email
+`w-<sha256(address)[0..32]>@wallet.sentra.invalid`, never mailed). `AUTH_USER_CREATE=direct` (insert into
+`auth.users`) is for local tests only and refused with `NODE_ENV=production`. Access token: HS256 with the API's JWT secret, `exp` = `AUTH_ACCESS_TTL_S` (default
 900 s, 60-3600), claims `{iss: "sentra-api", sub, aud, role: "authenticated", app_scopes: ["read","trade"],
 sentra_client, session_id, amr: ["siws"], wallet}`; never `trade:real`. Refresh token: opaque, `AUTH_REFRESH_TTL_S`
 (default 30 d), stored as sha256 only (`auth_refresh_tokens`). Email OTP and Telegram are **dropped from the MVP**:

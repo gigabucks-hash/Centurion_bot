@@ -28,6 +28,11 @@ export interface Config {
   trustProxy: boolean;
   /** Dropped from the MVP; routes answer 404 while off (default). No implementation behind them. */
   emailOtpEnabled: boolean;
+  /** How SIWS creates a new auth user: Supabase admin API (production) or a direct auth.users insert (local tests). */
+  userCreate: "supabase_admin" | "direct";
+  /** Supabase project URL + service-role key (admin API). From env only; never logged. */
+  supabaseUrl: string;
+  supabaseServiceRoleKey: string;
   telegramOidcEnabled: boolean;
 }
 
@@ -36,6 +41,21 @@ function flag(env: NodeJS.ProcessEnv, k: string): boolean {
   if (v === "" || v === "false" || v === "0") return false;
   if (v === "true" || v === "1") return true;
   throw new ConfigError(`${k} must be true or false`);
+}
+
+function userCreate(env: NodeJS.ProcessEnv): Pick<Config, "userCreate" | "supabaseUrl" | "supabaseServiceRoleKey"> {
+  const mode = (env.AUTH_USER_CREATE ?? "supabase_admin").trim();
+  if (mode !== "supabase_admin" && mode !== "direct") throw new ConfigError("AUTH_USER_CREATE must be supabase_admin or direct");
+  const url = (env.SUPABASE_URL ?? "").trim().replace(/\/+$/, "");
+  const key = env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  if (mode === "supabase_admin" && (env.AUTH_SIWS_DOMAINS ?? "").trim() !== "") {
+    if (!/^https?:\/\/[^\s/]+$/.test(url)) throw new ConfigError("SUPABASE_URL is required for AUTH_USER_CREATE=supabase_admin");
+    if (key.length < 20) throw new ConfigError("SUPABASE_SERVICE_ROLE_KEY is required for AUTH_USER_CREATE=supabase_admin");
+  }
+  if (mode === "direct" && (env.NODE_ENV ?? "") === "production") {
+    throw new ConfigError("AUTH_USER_CREATE=direct is for local tests only (NODE_ENV=production)");
+  }
+  return { userCreate: mode, supabaseUrl: url, supabaseServiceRoleKey: key };
 }
 
 const B58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -89,6 +109,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     refreshTtlS: int(env, "AUTH_REFRESH_TTL_S", 30 * 86_400, 3600, 90 * 86_400),
     trustProxy: flag(env, "TRUST_PROXY"),
     emailOtpEnabled: flag(env, "AUTH_EMAIL_OTP_ENABLED"),
+    ...userCreate(env),
     telegramOidcEnabled: flag(env, "AUTH_TELEGRAM_OIDC_ENABLED"),
   };
 }

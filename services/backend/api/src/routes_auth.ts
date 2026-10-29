@@ -8,6 +8,7 @@ import { asService } from "./db.ts";
 import { Router, readJson, send, type Ctx } from "./http.ts";
 import type { Deps } from "./deps.ts";
 import { signJwt } from "./jwt.ts";
+import { adminCreateWalletUser } from "./supabase_admin.ts";
 import { RateLimiter, clientIp } from "./ratelimit.ts";
 import { SIWS_CHAIN, buildMessage, hostOf, isAddress, newNonce, parseMessage, verifySignature } from "./siws.ts";
 
@@ -118,10 +119,21 @@ export function registerAuth(r: Router, d: Deps, rl: RateLimiter = new RateLimit
       (await c.query<{ ok: boolean }>("select public.consume_siws_nonce($1, $2, $3) as ok", [f.nonce, address, f.domain])).rows[0]!.ok);
     if (!consumed) throw new ApiError("SIWS_NONCE_INVALID", { reason: "unknown_used_or_expired" });
     if (!verifySignature(address, b.message, b.signature)) throw new ApiError("SIWS_SIGNATURE_INVALID");
-    const userId = await asService(d.db, async (c) =>
-      (await c.query<{ id: string }>("select public.siws_login($1)::text as id", [address])).rows[0]!.id);
+    // find or create the user (production: Supabase admin API; local tests: direct insert), then the
+    // owner's workspace (idempotent)
+    const known = await asService(d.db, async (c) =>
+      (await c.query<{ id: string | null }>("select public.siws_find_user($1)::text as id", [address])).rows[0]!.id);
+    const created = known ?? (cfg.userCreate === "supabase_admin"
+      ? await adminCreateWalletUser(cfg.supabaseUrl, cfg.supabaseServiceRoleKey, address)
+      : null);
+    const { userId, workspaceId } = await asService(d.db, async (c) => {
+      const u = (await c.query<{ id: string }>("select public.siws_login($1, $2::uuid)::text as id", [address, created])).rows[0]!.id;
+      const w = (await c.query<{ ws: string }>("select public.ensure_owner_workspace($1::uuid)::text as ws", [u])).rows[0]!.ws;
+      return { userId: u, workspaceId: w };
+    });
     const s = await session(userId, client, null, address);
-    send(ctx, 200, sessionBody(s, userId, address));
+    const out = sessionBody(s, userId, address);
+    send(ctx, 200, { data: { ...out.data, workspace_id: workspaceId } });
   });
 
   // ---- refresh (rotation) -------------------------------------------------------------------------
