@@ -20,6 +20,30 @@ async function strategyIn(c: Tx, id: string, ws: string): Promise<Record<string,
   return w;
 }
 
+/** JSON merge patch (RFC 7396 at the top level, like update_strategy): null removes a key. */
+export function mergePatch(base: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) delete out[k];
+    else out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * Guard weakening never applies directly (the 202 proposal flow is the only path). Checked here with the same
+ * SQL classifier update_strategy uses, so the API refuses before any write; the SQL check stays authoritative.
+ */
+async function rejectWeakening(c: Tx, cur: Record<string, unknown>, patch: object): Promise<void> {
+  const before = (cur.settings ?? {}) as Record<string, unknown>;
+  const after = mergePatch(before, patch as Record<string, unknown>);
+  const q = await c.query<{ f: string[] }>("select public.guard_weakened_fields($1::jsonb, $2::jsonb) as f", [JSON.stringify(before), JSON.stringify(after)]);
+  const fields = q.rows[0]?.f ?? [];
+  if (fields.length > 0) {
+    throw new ApiError("GUARD_WEAKEN_REQUIRES_APPROVAL", { weakened_fields: fields, strategy_id: cur.id, rev: cur.rev, hint: "submit the change as a guard_change proposal" });
+  }
+}
+
 function strategyBody(body: Record<string, unknown>) {
   const { name, settings, settings_patch, status } = body;
   if (name !== undefined && (typeof name !== "string" || name.length < 1 || name.length > NAME_MAX)) {
@@ -145,7 +169,8 @@ export function registerStrategies(r: Router, d: Deps): void {
     await idempotent(ctx, d.db, p, key, { ...body, expected_rev: rev }, () =>
       withCurrent(async () => {
         const w = await asUser(d.db, p.claims, async (c) => {
-          await strategyIn(c, id, ws);
+          const cur = await strategyIn(c, id, ws);
+          if (b.patch) await rejectWeakening(c, cur, b.patch);
           const q = await c.query("select public.update_strategy($1, $2, $3, $4, $5::public.strategy_status, $6, null) as r", [
             id, rev, b.patch ? JSON.stringify(b.patch) : null, b.name ?? null, b.status ?? null, device,
           ]);

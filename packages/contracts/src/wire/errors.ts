@@ -1,5 +1,5 @@
 // GENERATED from errors.json by scripts/gen-errors.mjs. Do not edit.
-export const ERROR_CODES_VERSION = 4 as const;
+export const ERROR_CODES_VERSION = 5 as const;
 export type ErrorCode =
   | "UNAUTHENTICATED"
   | "FORBIDDEN_SCOPE"
@@ -10,6 +10,7 @@ export type ErrorCode =
   | "SETTINGS_SCHEMA_INVALID"
   | "VERSION_CONFLICT"
   | "STRATEGY_REV_CONFLICT"
+  | "GUARD_WEAKEN_REQUIRES_APPROVAL"
   | "IDEMPOTENCY_KEY_REUSED"
   | "APPROVAL_ALREADY_DECIDED"
   | "APPROVAL_EXPIRED"
@@ -71,6 +72,7 @@ export const ERROR_CODES: Record<ErrorCode, ErrorCodeInfo> = {
   SETTINGS_SCHEMA_INVALID: { kind: "error", http: 422, sqlstate: "P0422", retryable: false, messages: { en: "Strategy settings do not match the JSON Schema", id: "Pengaturan strategi tidak sesuai skema" } },
   VERSION_CONFLICT: { kind: "error", http: 409, sqlstate: "P0409", retryable: false, messages: { en: "Stale rev; refetch and retry", id: "Data sudah berubah; muat ulang lalu coba lagi" } },
   STRATEGY_REV_CONFLICT: { kind: "error", http: 409, sqlstate: "P0409", retryable: false, messages: { en: "Strategy rev changed since this was based on it", id: "Strategi sudah berubah sejak usulan ini dibuat" } },
+  GUARD_WEAKEN_REQUIRES_APPROVAL: { kind: "error", http: 409, sqlstate: "P0409", retryable: false, messages: { en: "This change weakens a guard and needs an approval; it was not applied", id: "Perubahan ini melemahkan pengaman dan memerlukan persetujuan; perubahan tidak diterapkan" } },
   IDEMPOTENCY_KEY_REUSED: { kind: "error", http: 422, sqlstate: "P0422", retryable: false, messages: { en: "Idempotency-Key reused with a different request body", id: "Idempotency-Key dipakai ulang dengan isi permintaan yang berbeda" } },
   APPROVAL_ALREADY_DECIDED: { kind: "error", http: 409, sqlstate: "P0409", retryable: false, messages: { en: "Approval already decided", id: "Usulan ini sudah diputuskan" } },
   APPROVAL_EXPIRED: { kind: "error", http: 409, sqlstate: "P0409", retryable: false, messages: { en: "Approval expired; see reason", id: "Usulan sudah kedaluwarsa; lihat alasannya" } },

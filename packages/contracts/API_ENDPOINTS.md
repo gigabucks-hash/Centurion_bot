@@ -154,7 +154,7 @@ match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `fro
 | GET | `/?mode=&status=` | read | with `rev`, headline stats |
 | POST | `/` | trade | `{mode, name, settings}`; settings validated by `config/strategy_settings.schema.json` + DB CHECK |
 | GET | `/{id}` / `/{id}/revisions` | read | |
-| PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge; `null` removes a key). Non-weakening -> applied (`rev+1`). Weakening -> `202 {proposal}` (`guard_change`, 24 h). Stale -> 409 (2.1) |
+| PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge; `null` removes a key). Non-weakening -> applied (`rev+1`). Weakening -> **today `409 GUARD_WEAKEN_REQUIRES_APPROVAL {weakened_fields, strategy_id, rev}`, nothing applied** (mixed changes too); planned: `202 {proposal}` (`guard_change`, 24 h). Classifier: SQL `guard_weakened_fields()` (= Rust `weakened_fields` + settings-level guard keys, see CHANGELOG). Stale -> 409 (2.1) |
 | GET | `/{id}/revisions`, `/{id}/revisions/{rev}` | read | history and merge base |
 | POST | `/{id}/pause`, `/{id}/resume` | trade | `If-Match` / `expected_rev` (status changes bump `rev`) |
 | POST | `/{id}/archive`, DELETE `/{id}` | trade | `retire_strategy()`; response `{expired_proposals: n}` |

@@ -91,6 +91,30 @@ describe("strategies CRUD with rev", () => {
     err(await call(h.base, "PATCH", path(`/${id}`), { token: viewer(), headers: { "idempotency-key": key(), "if-match": `"${rev}"` }, body: { name: "v" } }), 403, "FORBIDDEN_ROLE");
   });
 
+  test("guard weakening is refused (409 GUARD_WEAKEN_REQUIRES_APPROVAL); strengthening applies; mixed is refused", async () => {
+    const patch = (body: object) =>
+      call(h.base, "PATCH", path(`/${id}`), { token: owner(), headers: { "idempotency-key": key(), "if-match": `"${rev}"` }, body });
+    const weak = await patch({ settings_patch: { guard_checks: { allow_mint_authority: true } } });
+    err(weak, 409, "GUARD_WEAKEN_REQUIRES_APPROVAL");
+    assert.deepEqual(weak.body.error.weakened_fields, ["allow_mint_authority"]);
+    assert.equal(weak.body.error.rev, rev);
+    const strong = await patch({ settings_patch: { guard_checks: { creator_share_pct_fail: 10 }, top_holders_share_pct_max: 30 } });
+    assert.equal(strong.status, 200, JSON.stringify(strong.body));
+    rev = strong.body.data.rev;
+    const mixed = await patch({ settings_patch: { guard_checks: { creator_share_pct_fail: 5 }, top_holders_share_pct_max: null } });
+    err(mixed, 409, "GUARD_WEAKEN_REQUIRES_APPROVAL");
+    assert.deepEqual(mixed.body.error.weakened_fields, ["top_holders_share_pct_max"]);
+    const now = await call(h.base, "GET", path(`/${id}`), { token: owner() });
+    assert.equal(now.body.data.rev, rev, "nothing applied");
+    assert.equal(now.body.data.settings.top_holders_share_pct_max, 30);
+    // the SQL function refuses on its own too (Flutter RPC path)
+    const direct = await h.db.query(
+      `select set_config('request.jwt.claim.sub', $1, true), set_config('request.jwt.claims', $2, true)`,
+      [OWNER, JSON.stringify({ sub: OWNER })],
+    ).then(() => h.db.query("select public.update_strategy($1, $2, $3) as r", [id, rev, JSON.stringify({ guard_checks: { require_sell_sim: false } })])).catch((e) => e);
+    assert.equal(direct.message, "GUARD_WEAKEN_REQUIRES_APPROVAL");
+  });
+
   test("pause / resume with rev; revisions list and merge base", async () => {
     const res = await call(h.base, "POST", path(`/${id}/resume`), { token: owner(), headers: { "idempotency-key": key() }, body: { expected_rev: rev } });
     assert.equal(res.status, 200, JSON.stringify(res.body));

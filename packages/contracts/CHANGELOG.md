@@ -1,5 +1,21 @@
 # Contracts changelog
 
+## Unreleased: errors.json v5 (ships with the next contracts version)
+
+`CONTRACTS_VERSION` stays `1.1.3`; `ERROR_CODES_VERSION` = `5`. Migration `0007_guard_weaken_requires_approval.sql`.
+
+- **New error `GUARD_WEAKEN_REQUIRES_APPROVAL`** (kind `error`, HTTP **409**, SQLSTATE `P0409`, not retryable).
+  A strategy change that weakens any guard is **refused and nothing is applied** (REST `PATCH .../strategies/{id}`
+  and RPC `update_strategy`), with flat details `{weakened_fields: string[], strategy_id, rev, hint}`.
+  Strengthening-only and neutral changes still apply directly; a change mixing both is refused as a whole.
+  This is the interim rule until the `202 {proposal}` guard_change flow ships, which will replace this 409 for
+  practice. Clients: show the fields and offer "request approval" once the proposal flow is available.
+- Classifier: SQL `guard_weakened_fields(old, new)` mirrors the Rust `guard::impact::weakened_fields` over the
+  effective GuardConfig (`guard_config_defaults()` overlaid with `settings.guard_checks`; a Rust test keeps the
+  defaults equal), plus settings-level guard keys: `*_share_pct_max` raised or turned off (0 / removed),
+  `lp_burned_pct_min` lowered or removed, any `required_checks` entry removed. Screener keys
+  (`score_threshold`, `liquidity_usd_min`, ...) are not guards.
+
 ## 1.1.3 (2026-10-29)
 
 Additive. `CONTRACTS_VERSION` = `1.1.3` (`healthz.contracts_version` too); per-event `version` stays `1`;

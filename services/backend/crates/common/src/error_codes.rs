@@ -1,7 +1,7 @@
 // GENERATED from packages/contracts/errors.json by scripts/gen-errors.mjs. Do not edit.
 use serde::{Deserialize, Serialize};
 
-pub const ERROR_CODES_VERSION: u32 = 4;
+pub const ERROR_CODES_VERSION: u32 = 5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -15,6 +15,7 @@ pub enum ErrorCode {
     SettingsSchemaInvalid,
     VersionConflict,
     StrategyRevConflict,
+    GuardWeakenRequiresApproval,
     IdempotencyKeyReused,
     ApprovalAlreadyDecided,
     ApprovalExpired,
@@ -75,6 +76,7 @@ impl ErrorCode {
         ErrorCode::SettingsSchemaInvalid,
         ErrorCode::VersionConflict,
         ErrorCode::StrategyRevConflict,
+        ErrorCode::GuardWeakenRequiresApproval,
         ErrorCode::IdempotencyKeyReused,
         ErrorCode::ApprovalAlreadyDecided,
         ErrorCode::ApprovalExpired,
@@ -135,6 +137,7 @@ impl ErrorCode {
             ErrorCode::SettingsSchemaInvalid => "SETTINGS_SCHEMA_INVALID",
             ErrorCode::VersionConflict => "VERSION_CONFLICT",
             ErrorCode::StrategyRevConflict => "STRATEGY_REV_CONFLICT",
+            ErrorCode::GuardWeakenRequiresApproval => "GUARD_WEAKEN_REQUIRES_APPROVAL",
             ErrorCode::IdempotencyKeyReused => "IDEMPOTENCY_KEY_REUSED",
             ErrorCode::ApprovalAlreadyDecided => "APPROVAL_ALREADY_DECIDED",
             ErrorCode::ApprovalExpired => "APPROVAL_EXPIRED",
@@ -196,6 +199,7 @@ impl ErrorCode {
             ErrorCode::SettingsSchemaInvalid => 422,
             ErrorCode::VersionConflict => 409,
             ErrorCode::StrategyRevConflict => 409,
+            ErrorCode::GuardWeakenRequiresApproval => 409,
             ErrorCode::IdempotencyKeyReused => 422,
             ErrorCode::ApprovalAlreadyDecided => 409,
             ErrorCode::ApprovalExpired => 409,
@@ -258,6 +262,7 @@ impl ErrorCode {
             ErrorCode::SettingsSchemaInvalid => "P0422",
             ErrorCode::VersionConflict => "P0409",
             ErrorCode::StrategyRevConflict => "P0409",
+            ErrorCode::GuardWeakenRequiresApproval => "P0409",
             ErrorCode::IdempotencyKeyReused => "P0422",
             ErrorCode::ApprovalAlreadyDecided => "P0409",
             ErrorCode::ApprovalExpired => "P0409",
@@ -320,6 +325,7 @@ impl ErrorCode {
             ErrorCode::SettingsSchemaInvalid => "error",
             ErrorCode::VersionConflict => "error",
             ErrorCode::StrategyRevConflict => "error",
+            ErrorCode::GuardWeakenRequiresApproval => "error",
             ErrorCode::IdempotencyKeyReused => "error",
             ErrorCode::ApprovalAlreadyDecided => "error",
             ErrorCode::ApprovalExpired => "error",
@@ -381,6 +387,7 @@ impl ErrorCode {
             ErrorCode::SettingsSchemaInvalid => "Strategy settings do not match the JSON Schema",
             ErrorCode::VersionConflict => "Stale rev; refetch and retry",
             ErrorCode::StrategyRevConflict => "Strategy rev changed since this was based on it",
+            ErrorCode::GuardWeakenRequiresApproval => "This change weakens a guard and needs an approval; it was not applied",
             ErrorCode::IdempotencyKeyReused => "Idempotency-Key reused with a different request body",
             ErrorCode::ApprovalAlreadyDecided => "Approval already decided",
             ErrorCode::ApprovalExpired => "Approval expired; see reason",
@@ -442,6 +449,7 @@ impl ErrorCode {
             ErrorCode::SettingsSchemaInvalid => "Pengaturan strategi tidak sesuai skema",
             ErrorCode::VersionConflict => "Data sudah berubah; muat ulang lalu coba lagi",
             ErrorCode::StrategyRevConflict => "Strategi sudah berubah sejak usulan ini dibuat",
+            ErrorCode::GuardWeakenRequiresApproval => "Perubahan ini melemahkan pengaman dan memerlukan persetujuan; perubahan tidak diterapkan",
             ErrorCode::IdempotencyKeyReused => "Idempotency-Key dipakai ulang dengan isi permintaan yang berbeda",
             ErrorCode::ApprovalAlreadyDecided => "Usulan ini sudah diputuskan",
             ErrorCode::ApprovalExpired => "Usulan sudah kedaluwarsa; lihat alasannya",
@@ -507,6 +515,7 @@ impl ErrorCode {
             ErrorCode::SettingsSchemaInvalid => false,
             ErrorCode::VersionConflict => false,
             ErrorCode::StrategyRevConflict => false,
+            ErrorCode::GuardWeakenRequiresApproval => false,
             ErrorCode::IdempotencyKeyReused => false,
             ErrorCode::ApprovalAlreadyDecided => false,
             ErrorCode::ApprovalExpired => false,

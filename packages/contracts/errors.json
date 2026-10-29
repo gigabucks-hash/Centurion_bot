@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "sqlstate_rule": "P0 + HTTP status (P0401..P0429, P0500/P0503). SQL raises MESSAGE = code, DETAIL = JSON.",
   "codes": [
     {
@@ -99,6 +99,17 @@
       "messages": {
         "en": "Strategy rev changed since this was based on it",
         "id": "Strategi sudah berubah sejak usulan ini dibuat"
+      }
+    },
+    {
+      "code": "GUARD_WEAKEN_REQUIRES_APPROVAL",
+      "kind": "error",
+      "http": 409,
+      "sqlstate": "P0409",
+      "retryable": false,
+      "messages": {
+        "en": "This change weakens a guard and needs an approval; it was not applied",
+        "id": "Perubahan ini melemahkan pengaman dan memerlukan persetujuan; perubahan tidak diterapkan"
       }
     },
     {

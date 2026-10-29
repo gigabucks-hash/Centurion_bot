@@ -58,3 +58,24 @@ impl Default for GuardConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::GuardConfig;
+
+    /// The SQL classifier (`guard_weakened_fields`, migration 0007) overlays settings.guard_checks on
+    /// `guard_config_defaults()`; it must match `GuardConfig::default()` exactly.
+    #[test]
+    fn sql_guard_defaults_match_rust() {
+        let sql =
+            include_str!("../../../supabase/migrations/0007_guard_weaken_requires_approval.sql");
+        let start = sql
+            .find("select '{\"allow_mint_authority\"")
+            .expect("defaults literal")
+            + 8;
+        let end = start + sql[start..].find("}'").expect("end of literal") + 1;
+        let from_sql: serde_json::Value = serde_json::from_str(&sql[start..end]).expect("json");
+        let rust = serde_json::to_value(GuardConfig::default()).expect("serialize");
+        assert_eq!(from_sql, rust);
+    }
+}
