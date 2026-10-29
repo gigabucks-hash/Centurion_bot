@@ -89,9 +89,9 @@ impl Pipeline {
                 &ck,
                 &c.mint,
                 c.ts,
-                EventKind::CoinFound,
+                EventKind::CoinDetected,
                 Actor::Ingest,
-                json!({ "stream": c.stream }),
+                json!({ "mint": c.mint.to_string(), "stream": c.stream, "launchpad": c.launchpad, "creator": c.creator.as_ref().map(|m| m.to_string()) }),
             )
             .with_untrusted_symbol(&c.name, &c.symbol);
         self.repo.append_event(&found).await?;
@@ -123,9 +123,9 @@ impl Pipeline {
                 &ck,
                 &c.mint,
                 c.ts + 1,
-                EventKind::CoinRejected,
+                EventKind::ScreenerScored,
                 Actor::Screener,
-                json!({ "summary": sr.summary(), "failed": failed }),
+                json!({ "mint": c.mint.to_string(), "passed": false, "summary": sr.summary(), "rejected_by": failed.first(), "failed": failed, "result": sr }),
             );
             self.repo.append_event(&e).await?;
             tracing::debug!(mint = %c.mint, summary = %sr.summary(), "rejected");
@@ -157,9 +157,9 @@ impl Pipeline {
                 &ck,
                 &c.mint,
                 c.ts + 2,
-                EventKind::CoinBlocked,
+                EventKind::GuardResult,
                 Actor::Guard,
-                json!({ "riskScore": report.risk_score, "reasons": report.reasons }),
+                json!({ "mint": c.mint.to_string(), "verdict": report.verdict, "risk_score": report.risk_score, "reasons": report.reasons, "checks": report.checks }),
             );
             self.repo.append_event(&e).await?;
             return Ok(());
@@ -171,9 +171,9 @@ impl Pipeline {
             &ck,
             &c.mint,
             c.ts + 2,
-            EventKind::CoinPassed,
+            EventKind::PickCreated,
             Actor::Screener,
-            json!({ "summary": sr.summary(), "guardVerdict": report.verdict, "guardReasons": report.reasons }),
+            json!({ "mint": c.mint.to_string(), "summary": sr.summary(), "score": sr, "guard_verdict": report.verdict, "guard_reasons": report.reasons }),
         );
         self.repo.append_event(&e).await?;
 
@@ -221,7 +221,7 @@ impl Pipeline {
                             c.ts + 3,
                             EventKind::PositionOpened,
                             Actor::Executor,
-                            json!({ "positionKey": pk.0, "fill": w, "mode": self.executor.mode() }),
+                            json!({ "position_key": pk.0, "mint": c.mint.to_string(), "fill": w, "first_buy": true }),
                         );
                         self.repo.append_event(&e).await?;
                     }
@@ -289,5 +289,12 @@ mod tests {
         assert!(fills[0].simulated && fills[0].tx_sig.is_none());
         // found + verdict per coin, + bought for the passing one
         assert_eq!(repo.event_count().await, 4 * 2 + 1);
+        // contract: every event serializes with no floats and the v1 envelope
+        for e in repo.all_events().await {
+            let v = serde_json::to_value(&e).expect("ser");
+            common::units::assert_no_floats(&v);
+            assert_eq!(v["mode"], "paper");
+            assert!(v["seq"].is_i64());
+        }
     }
 }

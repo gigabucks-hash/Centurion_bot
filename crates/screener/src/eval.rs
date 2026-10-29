@@ -17,8 +17,10 @@ pub struct CheckResult {
     pub id: String,
     pub class: RuleClass,
     pub passed: bool,
+    #[serde(with = "common::units::opt_f64_dec")]
     pub measured: Option<f64>,
     /// Points contributed (weighted only; may be negative).
+    #[serde(with = "common::units::f64_dec")]
     pub points: f64,
     pub reason: String,
 }
@@ -26,8 +28,11 @@ pub struct CheckResult {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ScreenResult {
     pub passed: bool,
+    #[serde(with = "common::units::f64_dec")]
     pub score: f64,
+    #[serde(with = "common::units::f64_dec")]
     pub pass_mark: f64,
+    #[serde(with = "common::units::f64_dec")]
     pub max_score: f64,
     pub checks: Vec<CheckResult>,
 }

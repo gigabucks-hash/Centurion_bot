@@ -232,3 +232,50 @@ mod tests {
         assert!(serde_json::from_str::<Dec>("\"-0.5\"").is_ok());
     }
 }
+
+/// `#[serde(with = "common::units::f64_dec")]`: engines compute in f64 internally, but the value
+/// crosses the wire as a decimal string (12 significant digits). Accepts strings only on input.
+pub mod f64_dec {
+    use super::Dec;
+    use serde::{de, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(x: &f64, s: S) -> Result<S::Ok, S::Error> {
+        let d = Dec::from_f64(*x, 12).map_err(serde::ser::Error::custom)?;
+        s.serialize_str(d.as_str())
+    }
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<f64, D::Error> {
+        let s = String::deserialize(d)?;
+        Dec::try_from(s).map(|v| v.to_f64()).map_err(de::Error::custom)
+    }
+}
+
+/// Optional variant of [`f64_dec`]; `None` stays JSON `null`.
+pub mod opt_f64_dec {
+    use super::Dec;
+    use serde::{de, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(x: &Option<f64>, s: S) -> Result<S::Ok, S::Error> {
+        match x {
+            Some(v) => {
+                let d = Dec::from_f64(*v, 12).map_err(serde::ser::Error::custom)?;
+                s.serialize_some(d.as_str())
+            }
+            None => s.serialize_none(),
+        }
+    }
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<f64>, D::Error> {
+        Option::<String>::deserialize(d)?
+            .map(|s| Dec::try_from(s).map(|v| v.to_f64()).map_err(de::Error::custom))
+            .transpose()
+    }
+}
+
+/// Test helper: assert a JSON value contains no floating point numbers.
+pub fn assert_no_floats(v: &serde_json::Value) {
+    match v {
+        serde_json::Value::Number(n) => assert!(!n.is_f64(), "float on the wire: {n}"),
+        serde_json::Value::Array(a) => a.iter().for_each(assert_no_floats),
+        serde_json::Value::Object(o) => o.values().for_each(assert_no_floats),
+        _ => {}
+    }
+}

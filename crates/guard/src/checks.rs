@@ -24,6 +24,7 @@ pub enum Verdict {
 pub struct GuardCheck {
     pub name: String,
     pub status: CheckStatus,
+    #[serde(with = "common::units::opt_f64_dec")]
     pub measured: Option<f64>,
     pub reason: String,
     /// Contribution to `risk_score` when WARN / UNKNOWN.

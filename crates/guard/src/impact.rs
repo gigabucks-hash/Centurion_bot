@@ -1,4 +1,4 @@
-//! Guard-change impact replay (backs `POST /v1/strategies/{id}/guard-changes/preview`).
+//! Guard-change impact replay (backs `POST /v1/strategies/{id}/guard-impact`).
 //!
 //! Inputs are *precomputed* guard-input snapshots (one per coin evaluation, stored
 //! in `guard_input_snapshots`) joined with labelled outcomes (`coin_outcomes`).
@@ -23,7 +23,7 @@ pub struct Sample {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ImpactReport {
     pub samples: usize,
     pub pass_before: usize,
@@ -34,6 +34,7 @@ pub struct ImpactReport {
     pub newly_passing_rugged: usize,
     pub newly_passing_labelled: usize,
     /// Mean max drawdown (%) of newly passing coins with a known outcome.
+    #[serde(with = "common::units::opt_f64_dec")]
     pub newly_passing_avg_drawdown_pct: Option<f64>,
     /// Which config fields got weaker (empty = strengthening/neutral change).
     pub weakened_fields: Vec<String>,

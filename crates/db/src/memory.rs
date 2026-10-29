@@ -28,6 +28,11 @@ impl MemoryRepo {
     pub async fn event_count(&self) -> usize {
         self.inner.lock().await.events.len()
     }
+    pub async fn all_events(&self) -> Vec<Event> {
+        let mut v: Vec<Event> = self.inner.lock().await.events.values().cloned().collect();
+        v.sort_by_key(|e| e.seq);
+        v
+    }
     pub async fn fills(&self) -> Vec<FillRecord> {
         self.inner.lock().await.fills.clone()
     }
@@ -106,18 +111,18 @@ mod tests {
             "ws",
             &ck.0,
             1,
-            EventKind::CoinFound,
+            EventKind::CoinDetected,
             Actor::Ingest,
             serde_json::json!({"a": 1}),
         );
         e.ck = Some(ck.0.clone());
         assert!(r.append_event(&e).await.expect("append"));
         let mut e2 = e.clone();
-        e2.data = serde_json::json!({"a": 2});
+        e2.payload = serde_json::json!({"a": 2});
         assert!(!r.append_event(&e2).await.expect("append dup"));
         let got = r.events_for(&ck).await.expect("events");
         assert_eq!(got.len(), 1);
-        assert_eq!(got[0].data, serde_json::json!({"a": 1}));
+        assert_eq!(got[0].payload, serde_json::json!({"a": 1}));
         assert_eq!(got[0].seq, Some(1));
     }
 
