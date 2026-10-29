@@ -1,6 +1,6 @@
 {
   "name": "@sentra/contracts",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "private": true,
   "type": "module",
   "description": "Shared Sentra contracts. src/wire = official v1 wire contract (events, errors, units; no floats). src/index.ts root also keeps the desktop view-model draft.",

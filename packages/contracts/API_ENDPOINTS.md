@@ -1,4 +1,6 @@
-# Sentra REST API (contract v1.1.2)
+# Sentra REST API (contract v1.1.3)
+
+v1.1.3 (2026-10-29): optional `reject_reason` on approval decisions (closed enum, reject only). See `CHANGELOG.md`.
 
 v1.1.2 (2026-10-29): manual close (`fraction_bps`), positions/approvals carry `rev`, `practice_epoch` on
 workspace/portfolio/position/fill, seq as int64 string, SSE under the workspace with `include=marks,clock`,
@@ -101,7 +103,7 @@ RPC (Supabase) errors: `PostgrestException.code` = SQLSTATE (`P0` + HTTP status,
 ### 2.2 RPC parameters clients send (complete list)
 | RPC | Client params | Notes |
 |---|---|---|
-| `decide_approval` | `p_approval_id, p_token, p_decision ('approve'\|'reject'), p_expected_rev (required), p_idempotency_key?` | via = JWT claim / push token |
+| `decide_approval` | `p_approval_id, p_token, p_decision ('approve'\|'reject'), p_expected_rev (required), p_idempotency_key?, p_reject_reason?` | via = JWT claim / push token. `p_reject_reason` (1.1.3): `user_declined\|not_tradeable\|price_moved\|other`, reject only, default `user_declined` |
 | `update_strategy` | `p_strategy, p_expected_rev, p_patch?, p_name?, p_status?, p_device?, p_challenge_id?` | |
 | `set_strategy_status` | `p_strategy, p_status ('running'\|'paused'), p_expected_rev` | |
 | `reset_practice` | `p_workspace` | REST `POST /v1/workspaces/{ws}/practice/reset` |
@@ -185,11 +187,20 @@ POST /v1/workspaces/1000.../approvals/3000.../decision
 Idempotency-Key: 6f1c2b7e-...
 If-Match: "1"
 { "decision": "approve", "token": "apt_Q2x...", "reason": null }
--> 200 { "data": { "proposal_id": "3000...", "status": "approved", "rev": 2, "replayed": false },
+-> 200 { "data": { "proposal_id": "3000...", "status": "approved", "rev": 2, "reject_reason": null, "replayed": false },
          "server_now": "2026-10-29T08:42:00.151Z" }
 ```
-Flutter: `supabase.rpc('decide_approval', {p_approval_id, p_token, p_decision, p_expected_rev, p_idempotency_key})`
-returns `{proposal_id, status, rev, replayed, server_now}`; errors are SQLSTATE `P04xx` with `message` = error code.
+**`reject_reason` (1.1.3)**: optional, only with `decision: "reject"`; closed enum `ApprovalRejectReason =
+user_declined | not_tradeable | price_moved | other`, default `user_declined`. Unknown value, non-string, or sent
+with `approve` -> `422 VALIDATION_FAILED {field: "reject_reason", allowed?}`. Stored on the approval
+(`approval_wire().reject_reason`), carried in `proposal.rejected` (`reject_reason`; `null` on `proposal.approved`)
+and in the audit row. Same `Idempotency-Key` with a different `reject_reason` is a different request -> `422 IDEMPOTENCY_KEY_REUSED`.
+```http
+{ "decision": "reject", "token": "apt_Q2x...", "reject_reason": "price_moved" }
+-> 200 { "data": { "proposal_id": "3000...", "status": "rejected", "rev": 2, "reject_reason": "price_moved", "replayed": false }, ... }
+```
+Flutter: `supabase.rpc('decide_approval', {p_approval_id, p_token, p_decision, p_expected_rev, p_idempotency_key, p_reject_reason})`
+returns `{proposal_id, status, rev, reject_reason, replayed, server_now}`; errors are SQLSTATE `P04xx` with `message` = error code.
 No `client` / `p_client`: the channel comes from the JWT claim (`push` when the token was minted for a push).
 
 ### 4.6 Proof-of-confirmation (Real SOL actions and Real guard weakening; disabled until Phase 7)
@@ -291,7 +302,7 @@ no secrets, Real SOL never actionable from a push).
 | — | worker | — | `finalize_due_account_deletions()` after `scheduled_for`: deletes identities, OTPs, passkeys, challenges, approval tokens, device tokens, memberships, display name; archives the user's strategies, closes owned workspaces, expires proposals (`account_deleted`); **audit_log rows are retained, anonymized by actor** (ip / user_agent / device nulled; actor id no longer resolves to a person); emits `account.deleted`; then the API deletes the `auth.users` row (hard delete of the login; trading history stays under the tombstoned id) |
 
 ### 4.9 Health
-`GET /healthz`, `GET /readyz` -> `{mode: "practice", real_enabled: false, modes_enabled: ["practice"], live_executor: "disabled", contracts_version: "1.1.2", server_now}`.
+`GET /healthz`, `GET /readyz` -> `{mode: "practice", real_enabled: false, modes_enabled: ["practice"], live_executor: "disabled", contracts_version: "1.1.3", server_now}`.
 (The `TRADING_MODE=paper` env gate and the `papersim` crate keep their internal names; nothing on the wire says `paper`.)
 
 ## 5. Strategy settings (v1.1.2)

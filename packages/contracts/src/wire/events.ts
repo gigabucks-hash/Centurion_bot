@@ -1,4 +1,4 @@
-// Sentra stream contract v1.1.2 (snake_case everywhere). Mirrors services/backend/crates/common/src/event.rs,
+// Sentra stream contract v1.1.3 (snake_case everywhere). Mirrors services/backend/crates/common/src/event.rs,
 // the SQL wire functions (position_wire, order_wire, fill_wire) and EVENTS_SCHEMA.md.
 // Number rule: SOL amounts = lamport integer strings, raw token amounts = integer strings, prices = decimal
 // strings, int64 ids (seq, job_id) = integer strings; percentages, ratios, bps, USD notionals, scores,
@@ -7,7 +7,7 @@ import type { ErrorCode } from "./errors";
 import type { Base58, DecimalString, Int64String, IsoTs, Lamports, RawQty, Uuid } from "./units";
 
 export const EVENT_SCHEMA_VERSION = 1 as const;
-export const CONTRACTS_VERSION = "1.1.2" as const;
+export const CONTRACTS_VERSION = "1.1.3" as const;
 
 /** Any JSON value (used instead of `unknown` on the wire). */
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
@@ -170,7 +170,14 @@ export interface ProposalCreated {
   approval_mode: ApprovalMode; amount_lamports: Lamports | null; risk_level: RiskLevel | null; summary: string;
   base_rev: number | null; weakening: boolean; diff: SettingsDiffEntry[] | null; estimate: StaticEstimate | null;
 }
-export interface ProposalDecided { proposal_id: Uuid; kind: ProposalKind; rev: number; decided_by: Uuid; decided_via: DecidedVia; reason: string | null }
+/** 1.1.3: why a proposal was rejected. Closed enum; only with decision=reject; default user_declined. */
+export type ApprovalRejectReason = "user_declined" | "not_tradeable" | "price_moved" | "other";
+export const APPROVAL_REJECT_REASONS: readonly ApprovalRejectReason[] = ["user_declined", "not_tradeable", "price_moved", "other"] as const;
+/** proposal.approved / proposal.rejected. `reject_reason` is set on rejected, null on approved (1.1.3). */
+export interface ProposalDecided {
+  proposal_id: Uuid; kind: ProposalKind; rev: number; decided_by: Uuid; decided_via: DecidedVia; reason: string | null;
+  reject_reason: ApprovalRejectReason | null;
+}
 export interface ProposalExpired { proposal_id: Uuid; kind: ProposalKind; rev: number; reason: ProposalExpiredReason; at: IsoTs }
 
 // ---------------------------------------------------------------------------
@@ -356,10 +363,23 @@ export interface ApprovalDecisionRequest {
   /** Approval rev. REQUIRED for every channel (push too); or send If-Match: "<rev>". */
   expected_rev: number;
   reason?: string | null;
+  /** 1.1.3, decision=reject only (422 VALIDATION_FAILED otherwise or on an unknown value). Default user_declined. */
+  reject_reason?: ApprovalRejectReason;
   /** Only for real mode / guard weakening (Phase 7). */
   confirmation?: ConfirmationProof;
 }
-export interface ApprovalDecisionResponse { proposal_id: Uuid; status: ProposalStatus; rev: number; replayed: boolean; server_now: IsoTs }
+export interface ApprovalDecisionResponse {
+  proposal_id: Uuid; status: ProposalStatus; rev: number; reject_reason: ApprovalRejectReason | null; replayed: boolean; server_now: IsoTs;
+}
+/** Approval resource (= SQL public.approval_wire(); also the `current` of an approval 409). */
+export interface ApprovalWire {
+  id: Uuid; proposal_id: Uuid; workspace_id: Uuid; strategy_id: Uuid | null; kind: ProposalKind; mode: Mode;
+  subject: string | null; mint: Base58 | null; amount_lamports: Lamports | null; is_first_buy: boolean;
+  risk: "low" | "medium" | "high" | "critical"; weakening: boolean; status: ProposalStatus; rev: number;
+  expire_reason: ProposalExpiredReason | null; base_rev: number | null; decision: "approve" | "reject" | null;
+  reject_reason: ApprovalRejectReason | null; decided_via: DecidedVia | null; decided_by: Uuid | null;
+  payload: { [k: string]: JsonValue }; created_at: IsoTs; expires_at: IsoTs; decided_at: IsoTs | null;
+}
 
 export interface ConfirmationProof {
   challenge_id: Uuid;
@@ -382,11 +402,12 @@ export interface ApiError {
 export interface ConflictError<T = JsonValue> {
   error: {
     code: "STRATEGY_REV_CONFLICT" | "VERSION_CONFLICT" | "CONFIRMATION_RESTART_REQUIRED";
-    message: string; request_id?: string; server_now: IsoTs;
+    message: string; request_id: string; server_now: IsoTs;
     current_rev: number; base_rev: number;
     changed_fields?: string[];
     changed_by?: { actor: Uuid | null; via: string | null; device: string | null };
     changed_at?: IsoTs | null;
+    /** REQUIRED on every 409 conflict: the resource as it is now (1f24d28). */
     current: T;
   };
   server_now: IsoTs;

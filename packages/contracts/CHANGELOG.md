@@ -1,5 +1,24 @@
 # Contracts changelog
 
+## 1.1.3 (2026-10-29)
+
+Additive. `CONTRACTS_VERSION` = `1.1.3` (`healthz.contracts_version` too); per-event `version` stays `1`;
+`ERROR_CODES_VERSION` stays `4` (no new codes). Migration `0006_contracts_v1_1_3_reject_reason.sql`.
+
+- **Approval reject reason.** Decide body (REST `POST .../approvals/{id}/decision`) gains optional
+  `reject_reason`, a closed enum `ApprovalRejectReason = user_declined | not_tradeable | price_moved | other`,
+  only for `decision: "reject"`, default `user_declined`. Unknown value or sent with `approve` ->
+  `422 VALIDATION_FAILED {field: "reject_reason"}` (API and SQL). RPC: `decide_approval(..., p_reject_reason text
+  default null)`; the 5-argument overload is dropped (named-argument calls without `p_reject_reason` still work).
+- Stored as `approvals.reject_reason` (CHECK: only on rejected). Carried in `proposal.rejected.reject_reason`
+  (`null` on `proposal.approved`), in the decision response (`reject_reason`), in `ApprovalWire`, and in the
+  `approval.reject` audit row (`after.reject_reason`). A replay must match it: same key + other reason -> 422.
+- TS: `ApprovalRejectReason`, `APPROVAL_REJECT_REASONS`, `ApprovalWire` (new; = SQL `approval_wire()`),
+  `ApprovalDecisionRequest.reject_reason?`, `ApprovalDecisionResponse.reject_reason`, `ProposalDecided.reject_reason`.
+- 409 bodies: `current` is **required** on every `VERSION_CONFLICT` / `STRATEGY_REV_CONFLICT` (the API_ENDPOINTS
+  example was fixed in 1f24d28); `decide_approval` now sends it (migration 0005), and `ConflictError.request_id`
+  is no longer optional.
+
 ## 1.1.2 (2026-10-29)
 
 Breaking-but-early corrections from the Flutter (16 items) and Desktop (Q1–Q18) reviews. No producer has shipped

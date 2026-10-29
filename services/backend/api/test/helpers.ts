@@ -19,6 +19,7 @@ export const VIEWER = "00000000-0000-0000-0000-0000000000a2";
 export const OUTSIDER = "00000000-0000-0000-0000-0000000000a3";
 export const POS = "60000000-0000-0000-0000-0000000000a1";
 export const APPROVAL = "30000000-0000-0000-0000-0000000000a1";
+export const APPROVAL2 = "30000000-0000-0000-0000-0000000000a2";
 
 const root = fileURLToPath(new URL("../..", import.meta.url)); // services/backend/
 const DB = process.env.SENTRA_API_TEST_DB ?? "sentra_api_test";

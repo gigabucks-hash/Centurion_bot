@@ -18,7 +18,7 @@ All 16 mismatches you reported are resolved below (Apex/Boss decisions folded in
 ## 2. Exactly which params you send
 | RPC | Params | Returns |
 |---|---|---|
-| `decide_approval` | `p_approval_id, p_token, p_decision ('approve'\|'reject'), p_expected_rev (required, the approval `rev`), p_idempotency_key?` | `{proposal_id, status, rev, replayed, server_now}` |
+| `decide_approval` | `p_approval_id, p_token, p_decision ('approve'\|'reject'), p_expected_rev (required, the approval `rev`), p_idempotency_key?, p_reject_reason? (1.1.3: user_declined\|not_tradeable\|price_moved\|other, reject only, default user_declined)` | `{proposal_id, status, rev, reject_reason, replayed, server_now}` |
 | `update_strategy` | `p_strategy, p_expected_rev, p_patch?, p_name?, p_status?, p_device? (label, metadata only), p_challenge_id?` | strategy `{id, rev, name, status, mode, settings, server_now}` or the restart error object |
 | `set_strategy_status` | `p_strategy, p_status ('running'\|'paused'), p_expected_rev` | same as above |
 | `reset_practice` | `p_workspace` | `{epoch, starting_balance_lamports, archived, next_allowed_at, server_now}` |

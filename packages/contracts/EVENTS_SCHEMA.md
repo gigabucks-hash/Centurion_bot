@@ -1,4 +1,4 @@
-# Sentra stream event schema (contract v1.1.2)
+# Sentra stream event schema (contract v1.1.3)
 
 Status: **v1.1.2, frozen for client work** (Web, Flutter, Desktop, MCP). See `CHANGELOG.md` for the v1.0 -> v1.1
 renames. From v1.1 on: additive changes only; a breaking change to a type's payload bumps that event's `version`.
@@ -146,7 +146,7 @@ creator_share bundled_share sniper_share transfer_fee honeypot serial_creator`.
 | `pick.created` | screener | `{mint, summary, score: <screener result>, guard_verdict, guard_reasons[]}` |
 | `entry.armed` / `entry.expired` | entry | `{pick_id, condition, expires_at}` / `{pick_id, reason}` |
 | `proposal.created` | entry\|user\|system | `{proposal_id, kind, rev, mint, symbol (untrusted text, same as envelope untrusted.symbol), price_sol (decimal string), expires_at, first_buy, approval_mode, amount_lamports, risk_level, summary, base_rev, weakening, diff: [{field, before, after, weakening}]\|null, estimate}` |
-| `proposal.approved` / `proposal.rejected` | user | `{proposal_id, kind, rev, decided_by, decided_via: web\|mobile\|desktop\|mcp\|push, reason}` (UI label for rejected: "Skipped") |
+| `proposal.approved` / `proposal.rejected` | user | `{proposal_id, kind, rev, decided_by, decided_via: web\|mobile\|desktop\|mcp\|push, reason, reject_reason}`. `reject_reason` (1.1.3): `user_declined\|not_tradeable\|price_moved\|other` on `proposal.rejected` (default `user_declined`), `null` on `proposal.approved` (UI label for rejected: "Skipped") |
 | `proposal.expired` | system | `{proposal_id, kind, rev, reason, at}` — `reason` is exactly one of the canonical wire values `timeout`, `strategy_deleted`, `strategy_archived`, `guard_failed`, `price_moved`, `practice_reset`, `account_deleted`. `reset_practice()` expires pending/approved buys with `practice_reset`; account finalization expires every open proposal with `account_deleted` (both SQL-tested) |
 | `order.submitted` | user | `{order: OrderWire, position_id, position_rev, practice_epoch}` (manual close accepted) |
 | `order.filled` | executor | `{order: OrderWire, fill: FillWire, position_id, position_rev, practice_epoch}` |

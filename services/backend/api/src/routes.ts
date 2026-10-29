@@ -1,4 +1,4 @@
-// REST endpoints (packages/contracts/API_ENDPOINTS.md, contracts 1.1.2). Practice mode only.
+// REST endpoints (packages/contracts/API_ENDPOINTS.md, contracts 1.1.3). Practice mode only.
 import { ApiError } from "./errors.ts";
 import type { Config } from "./config.ts";
 import { asService, asUser, requireMember, type Db, type Tx } from "./db.ts";
@@ -13,7 +13,9 @@ import {
 } from "./wire.ts";
 import { streamEvents, type MarkHub } from "./sse.ts";
 
-export const CONTRACTS_VERSION = "1.1.2";
+export const CONTRACTS_VERSION = "1.1.3";
+/** 1.1.3: closed enum, only with decision=reject (default user_declined, applied in SQL). */
+export const APPROVAL_REJECT_REASONS = ["user_declined", "not_tradeable", "price_moved", "other"] as const;
 
 export interface Deps {
   cfg: Config;
@@ -211,12 +213,19 @@ export function buildRouter(d: Deps): Router {
     if (decision !== "approve" && decision !== "reject") {
       throw new ApiError("VALIDATION_FAILED", { field: "decision", allowed: ["approve", "reject"] });
     }
+    const rr = body.reject_reason ?? null;
+    if (rr !== null) {
+      if (decision !== "reject") throw new ApiError("VALIDATION_FAILED", { field: "reject_reason", hint: "only with decision=reject" });
+      if (typeof rr !== "string" || !(APPROVAL_REJECT_REASONS as readonly string[]).includes(rr)) {
+        throw new ApiError("VALIDATION_FAILED", { field: "reject_reason", allowed: [...APPROVAL_REJECT_REASONS] });
+      }
+    }
     if (typeof body.token !== "string" || body.token.length > 64) throw new ApiError("APPROVAL_TOKEN_INVALID");
     const rev = expectedRev(ctx, body);
     const key = idempotencyKey(ctx);
     const out = await asUser(d.db, p.claims, async (c) => {
       await inWorkspace(c, "approvals", id, ws);
-      const res = await c.query("select public.decide_approval($1, $2, $3, $4, $5) as r", [id, body.token, decision, rev, key]);
+      const res = await c.query("select public.decide_approval($1, $2, $3, $4, $5, $6) as r", [id, body.token, decision, rev, key, rr]);
       return res.rows[0]?.r as Record<string, unknown>;
     });
     const { server_now, ...data } = out;

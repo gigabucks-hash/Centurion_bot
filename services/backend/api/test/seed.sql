@@ -23,6 +23,8 @@ update public.positions set status = 'closed', closed_at = opened_at + interval 
 insert into public.approvals (id, workspace_id, strategy_id, kind, subject, amount_lamports, is_first_buy, expires_at) values
   ('30000000-0000-0000-0000-0000000000a1', '10000000-0000-0000-0000-0000000000a1', '20000000-0000-0000-0000-0000000000a1',
    'buy_pick', 'apipick1', 250000000, true, now() + interval '10 minutes'),
+  ('30000000-0000-0000-0000-0000000000a2', '10000000-0000-0000-0000-0000000000a1', '20000000-0000-0000-0000-0000000000a1',
+   'buy_pick', 'apipick2', 250000000, false, now() + interval '11 minutes'),
   ('30000000-0000-0000-0000-0000000000a3', '10000000-0000-0000-0000-0000000000a3', null,
    'buy_pick', 'otherpick', 250000000, true, now() + interval '10 minutes');
 insert into public.portfolio_snapshots (workspace_id, cash_lamports, positions_cost_lamports, positions_value_lamports,

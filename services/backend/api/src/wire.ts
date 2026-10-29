@@ -70,6 +70,7 @@ export function approvalWire(r: Record<string, unknown>) {
     expire_reason: r.expire_reason,
     base_rev: r.base_rev,
     decision: r.decision,
+    reject_reason: r.reject_reason ?? null,
     decided_via: r.decided_via,
     decided_by: r.decided_by,
     payload: r.payload,
@@ -80,7 +81,7 @@ export function approvalWire(r: Record<string, unknown>) {
 }
 
 export const APPROVAL_COLUMNS =
-  "id, workspace_id, strategy_id, kind::text as kind, mode::text as mode, subject, mint, amount_lamports, is_first_buy, risk, weakening, status::text as status, rev, expire_reason::text as expire_reason, base_rev, decision, decided_via::text as decided_via, decided_by, payload, created_at, expires_at, decided_at";
+  "id, workspace_id, strategy_id, kind::text as kind, mode::text as mode, subject, mint, amount_lamports, is_first_buy, risk, weakening, status::text as status, rev, expire_reason::text as expire_reason, base_rev, decision, reject_reason::text as reject_reason, decided_via::text as decided_via, decided_by, payload, created_at, expires_at, decided_at";
 
 export function portfolioWire(r: Record<string, unknown>) {
   return {

@@ -3,7 +3,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { errorDef } from "../src/errors.ts";
 import {
-  APPROVAL, OTHER_WS, OUTSIDER, OWNER, POS, VIEWER, WS, call, readSse, startHarness, token, type Harness,
+  APPROVAL, APPROVAL2, OTHER_WS, OUTSIDER, OWNER, POS, VIEWER, WS, call, readSse, startHarness, token, type Harness,
 } from "./helpers.ts";
 
 let h: Harness;
@@ -35,7 +35,7 @@ describe("health, clock, envelope", () => {
     assert.equal(r.body.mode, "practice");
     assert.equal(r.body.real_enabled, false);
     assert.deepEqual(r.body.modes_enabled, ["practice"]);
-    assert.equal(r.body.contracts_version, "1.1.2");
+    assert.equal(r.body.contracts_version, "1.1.3");
     assert.ok(isIso(r.body.server_now) && isIso(r.headers.get("x-server-now")));
     assert.doesNotMatch(JSON.stringify(r.body), /paper/);
     assert.equal(r.body.trading_mode, undefined);
@@ -180,7 +180,7 @@ describe("approvals", () => {
   test("list and detail; trade scope gets a decision token, read-only does not", async () => {
     const l = await call(h.base, "GET", `/v1/workspaces/${WS}/approvals?status=pending`, { token: owner() });
     assert.equal(l.status, 200);
-    assert.deepEqual(l.body.items.map((a: any) => a.id), [APPROVAL]);
+    assert.deepEqual(l.body.items.map((a: any) => a.id), [APPROVAL, APPROVAL2]);
     assert.equal(l.body.items[0].amount_lamports, "250000000");
     const ro = await call(h.base, "GET", base, { token: token(OWNER, { scopes: ["read"] }) });
     assert.equal(ro.body.data.decision_token, null);
@@ -199,9 +199,11 @@ describe("approvals", () => {
     const stale = await call(h.base, "POST", `${base}/decision`, { token: owner(), headers: { "if-match": '"5"', "idempotency-key": "decide-key-0001" }, body });
     assertError(stale, 409, "VERSION_CONFLICT");
     assert.equal(stale.body.error.current_rev, 1);
+    assert.equal(stale.body.error.current.id, APPROVAL, "409 always carries current");
+    assert.equal(stale.body.error.current.status, "pending");
     const ok = await call(h.base, "POST", `${base}/decision`, { token: owner(), headers: { "if-match": '"1"', "idempotency-key": "decide-key-0001" }, body });
     assert.equal(ok.status, 200, JSON.stringify(ok.body));
-    assert.deepEqual({ ...ok.body.data }, { proposal_id: APPROVAL, status: "approved", rev: 2, replayed: false });
+    assert.deepEqual({ ...ok.body.data }, { proposal_id: APPROVAL, status: "approved", rev: 2, reject_reason: null, replayed: false });
     assert.ok(isIso(ok.body.server_now));
     assert.equal(ok.headers.get("etag"), '"2"');
     const row = await h.db.query("select decided_by, decided_via::text as via from public.approvals where id = $1", [APPROVAL]);
@@ -214,6 +216,31 @@ describe("approvals", () => {
     assertError(await call(h.base, "POST", `${base}/decision`, { token: owner(), headers: { "if-match": '"2"', "idempotency-key": "decide-key-0001" }, body: { ...body, decision: "reject" } }), 422, "IDEMPOTENCY_KEY_REUSED");
     assertError(await call(h.base, "POST", `${base}/decision`, { token: owner(), headers: { "if-match": '"2"', "idempotency-key": "decide-key-0002" }, body: { ...body, decision: "reject" } }), 409, "APPROVAL_ALREADY_DECIDED");
     assertError(await call(h.base, "POST", `${base}/decision`, { token: owner(), headers: { "if-match": '"2"', "idempotency-key": "decide-key-0003" }, body: { decision: "maybe", token: tok } }), 422, "VALIDATION_FAILED");
+  });
+});
+
+describe("approvals: reject_reason (1.1.3)", () => {
+  const base = `/v1/workspaces/${WS}/approvals/${APPROVAL2}`;
+  test("422 on unknown value or with approve; stored + evented + audited on reject", async () => {
+    const tok = (await call(h.base, "GET", base, { token: owner() })).body.data.decision_token as string;
+    const hdr = (k: string) => ({ "if-match": '"1"', "idempotency-key": k });
+    const bad = await call(h.base, "POST", `${base}/decision`, { token: owner(), headers: hdr("rr-api-key-01"), body: { decision: "reject", token: tok, reject_reason: "bored" } });
+    assertError(bad, 422, "VALIDATION_FAILED");
+    assert.equal(bad.body.error.field, "reject_reason");
+    assert.deepEqual(bad.body.error.allowed, ["user_declined", "not_tradeable", "price_moved", "other"]);
+    const withApprove = await call(h.base, "POST", `${base}/decision`, { token: owner(), headers: hdr("rr-api-key-02"), body: { decision: "approve", token: tok, reject_reason: "other" } });
+    assertError(withApprove, 422, "VALIDATION_FAILED");
+    assertError(await call(h.base, "POST", `${base}/decision`, { token: owner(), headers: hdr("rr-api-key-03"), body: { decision: "reject", token: tok, reject_reason: 7 } }), 422, "VALIDATION_FAILED");
+    const ok = await call(h.base, "POST", `${base}/decision`, { token: owner(), headers: hdr("rr-api-key-04"), body: { decision: "reject", token: tok, reject_reason: "not_tradeable" } });
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    assert.equal(ok.body.data.status, "rejected");
+    assert.equal(ok.body.data.reject_reason, "not_tradeable");
+    const detail = await call(h.base, "GET", base, { token: owner() });
+    assert.equal(detail.body.data.reject_reason, "not_tradeable");
+    const ev = await h.db.query("select payload from public.events where type = 'proposal.rejected' and payload->>'proposal_id' = $1", [APPROVAL2]);
+    assert.equal(ev.rows[0].payload.reject_reason, "not_tradeable");
+    const au = await h.db.query("select after from public.audit_log where action = 'approval.reject' and target = $1", [APPROVAL2]);
+    assert.equal(au.rows[0].after.reject_reason, "not_tradeable");
   });
 });
 
