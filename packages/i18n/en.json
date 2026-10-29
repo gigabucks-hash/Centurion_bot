@@ -1,0 +1,662 @@
+{
+  "builder": {
+    "approval_mode": {
+      "real_note": "Real SOL: “Off” is not available in the MVP."
+    },
+    "diff": {
+      "tag": {
+        "neutral": "neutral",
+        "new": "new",
+        "strengthens": "tightens",
+        "weakens": "loosens"
+      },
+      "title": "Changes vs rev {rev}"
+    },
+    "exit": {
+      "col": {
+        "gain": "Gain %",
+        "pullback": "Pullback %",
+        "sell": "Sell % of position"
+      },
+      "drain": "Drain: drop",
+      "hard_sl": "Hard stop loss from entry",
+      "ladder": {
+        "add": "Add rung",
+        "title": "Take-profit ladder (up to 8 rungs)",
+        "total": "Total sold: {pct}"
+      },
+      "no_trade": "No-trade exit",
+      "time_stop": "Time stop",
+      "trailing": "Trailing stop from high"
+    },
+    "guards": {
+      "preset": {
+        "balanced": "Balanced",
+        "loose": "Loose",
+        "strict": "Strict"
+      },
+      "weakening_inline": "Loosens the guard (was {from}). Needs approval."
+    },
+    "publish": "Review & publish",
+    "step": {
+      "entry": "Entry",
+      "exit": "Exit plan",
+      "guards": "Guards",
+      "progress": "Step {current} of {total} · {name}",
+      "review": "Review & sim",
+      "screener": "Screener",
+      "valid": "Valid",
+      "weakened": "{count, plural, one {# setting loosened} other {# settings loosened}}"
+    },
+    "title": {
+      "edit": "Edit strategy · {name}",
+      "new": "New strategy"
+    },
+    "validation": {
+      "range": "Must be between {min} and {max}"
+    }
+  },
+  "coin_trail": {
+    "snapshot_note": "Values and thresholds as read at that moment (rev {rev}).",
+    "step": {
+      "buy": "Buy",
+      "closed": "Closed",
+      "entry": "Entry",
+      "guard": "Guard",
+      "screen": "Screen",
+      "tp": "Take profit",
+      "trail": "Trailing stop"
+    },
+    "title": "Coin trail · {coin} ({strategy})"
+  },
+  "common": {
+    "action": {
+      "approve": "Approve",
+      "back": "Back",
+      "cancel": "Cancel",
+      "next": "Next",
+      "retry": "Try again",
+      "review": "Review",
+      "save_draft": "Save draft",
+      "skip": "Skip",
+      "undo": "Undo",
+      "view": "View"
+    },
+    "duration": {
+      "hours": "{count, plural, one {# hour} other {# hours}}",
+      "minutes": "{count, plural, one {# min} other {# min}}",
+      "seconds": "{count, plural, one {# s} other {# s}}"
+    },
+    "pnl": {
+      "down": "Down {amount}",
+      "flat": "No change",
+      "up": "Up {amount}"
+    },
+    "state": {
+      "saved_at": "Draft saved · {time}",
+      "saving": "Saving…"
+    },
+    "timer": {
+      "left": "{mm_ss} left"
+    },
+    "you": "You"
+  },
+  "conflict": {
+    "action": {
+      "discard": "Discard my edits",
+      "merge": "Reload & keep my edits",
+      "review": "Review changes"
+    },
+    "banner": {
+      "body": "Saved as rev {current_rev}. Your edits are based on rev {base_rev} and have not been saved.",
+      "changed_by": "Changed by {actor} via {via, select, web {web} mobile {mobile} desktop {desktop} mcp {MCP agent} push {notification} other {app}} on {device} · {changed_at}",
+      "conflicts": "{count, plural, =0 {No overlapping fields — your edits can be merged.} one {# field changed on both sides.} other {# fields changed on both sides.}}",
+      "fields": "Changed fields: {fields}",
+      "title": "This strategy changed while you were editing"
+    },
+    "diff": {
+      "col": {
+        "base": "Your base (rev {rev})",
+        "mine": "Your edit",
+        "theirs": "Saved (rev {rev})"
+      },
+      "pick": "Keep {side, select, mine {mine} theirs {saved} other {base}}"
+    },
+    "discard": {
+      "confirm": "Discard {count, plural, one {# edit} other {# edits}}? This can’t be undone."
+    },
+    "guard_change_cancelled": "Your pending guard change was cancelled because the strategy was edited elsewhere. Request it again.",
+    "real_guard": {
+      "reconfirm": "This loosens a guard on a Real SOL strategy. The full confirmation starts over, and the 10-minute cooldown and 24-hour auto-revert restart from the new confirmation."
+    },
+    "state": {
+      "merged": "Merged onto rev {rev}. Review, then publish.",
+      "offline": "Can’t check for newer versions while offline. Your draft is kept locally."
+    }
+  },
+  "dashboard": {
+    "feed": {
+      "filter": {
+        "all": "All",
+        "buys": "Buys",
+        "guard": "Guard",
+        "proposals": "Proposals",
+        "sells": "Sells"
+      },
+      "title": "Activity feed"
+    },
+    "kpi": {
+      "awaiting": "Awaiting approval",
+      "cash": "Cash",
+      "expiring_soon": "{count, plural, one {# expires in under 2 min} other {# expire in under 2 min}}",
+      "open_positions": "Open positions",
+      "realized_pnl": "Realized PnL"
+    },
+    "strategies": {
+      "col": {
+        "approval": "Approval",
+        "avg_hold": "Avg hold",
+        "max_dd": "Max DD",
+        "name": "Name",
+        "pnl": "PnL",
+        "status": "Status",
+        "win_rate": "Win rate"
+      },
+      "new": "New strategy",
+      "title": "Strategies"
+    },
+    "subtitle": {
+      "practice": "Practice workspace · start {start} · live updates"
+    },
+    "title": "Team overview"
+  },
+  "error": {
+    "code": {
+      "account_deletion_blocked": "Close your Real SOL positions and withdraw your trading wallet first.",
+      "account_deletion_pending": "Account deletion is already scheduled.",
+      "approval_already_decided": "This was already decided on another device.",
+      "approval_expired": "This proposal expired: {reason}",
+      "approval_token_invalid": "This notification action expired. Open the app to continue.",
+      "auth_tg_invalid": "Telegram login couldn’t be verified. Try again.",
+      "auth_tg_no_profile": "Allow Telegram to share your profile to sign in.",
+      "auth_tg_replay": "This Telegram login was already used. Start again.",
+      "confirmation_restart_required": "The strategy changed during confirmation. Start the confirmation again.",
+      "guard_cooldown_active": "This guard change is in its cooldown.",
+      "hold_too_short": "Released too early. Hold until the bar is full.",
+      "internal": "Something went wrong. Try again.",
+      "last_login_method": "This is your only sign-in method. Link another one before unlinking.",
+      "otp_invalid": "Wrong or expired code.",
+      "otp_locked": "Too many attempts. Try again in 15 minutes.",
+      "rate_limited": "Too many requests. Try again in {retry_after_s, plural, one {# second} other {# seconds}}.",
+      "real_sol_disabled": "Real SOL isn’t available yet.",
+      "reauth_required": "Please confirm it’s you again to continue.",
+      "reset_cooldown": "Practice can be reset once a day. Next: {next_allowed_at}",
+      "siws_nonce_invalid": "This sign-in request expired. Try again.",
+      "siws_signature_invalid": "The wallet signature couldn’t be verified.",
+      "strategy_rev_conflict": "This strategy changed while you were editing.",
+      "two_factor_required": "Enter your two-factor code to continue.",
+      "typed_confirmation_mismatch": "The name doesn’t match exactly.",
+      "unavailable": "Service is temporarily unavailable. Retrying…",
+      "wallet_role_conflict": "A sign-in wallet can’t also be your trading wallet."
+    }
+  },
+  "exit_reason": {
+    "drawdown_halt": "Drawdown halt",
+    "idle": "No-trade exit",
+    "loss_guard": "Stop loss",
+    "manual": "Manual sell",
+    "max_hold": "Time stop",
+    "no_new_high": "No new high",
+    "peak_trail": "Trailing stop",
+    "practice_reset": "Practice reset",
+    "profit_target": "Take profit",
+    "rug_detected": "Rug detected",
+    "sell_floor": "Sell floor",
+    "sell_pressure": "Sell pressure",
+    "strategy_retired": "Strategy retired"
+  },
+  "expire_reason": {
+    "account_deleted": {
+      "badge": "Account deleted",
+      "detail": "The account was deleted"
+    },
+    "guard_failed": {
+      "badge": "Guard failed",
+      "detail": "A guard check failed while waiting"
+    },
+    "practice_reset": {
+      "badge": "Practice reset",
+      "detail": "Practice was reset; pending buys were cleared"
+    },
+    "price_moved": {
+      "badge": "Price moved",
+      "detail": "Price moved past the entry limit"
+    },
+    "strategy_archived": {
+      "badge": "Strategy archived",
+      "detail": "{strategy} was archived while this waited"
+    },
+    "strategy_deleted": {
+      "badge": "Strategy deleted",
+      "detail": "{strategy} was deleted while this waited"
+    },
+    "timeout": {
+      "badge": "Timed out",
+      "detail": "Approval window ended"
+    }
+  },
+  "feed": {
+    "actor": {
+      "entry": "Entry",
+      "executor": "Executor",
+      "exit": "Exit",
+      "guard": "Guard",
+      "screener": "Screener",
+      "system": "System",
+      "you": "You"
+    },
+    "event": {
+      "blocked": "Blocked {coin}",
+      "bought": "Bought {coin} · {sol}",
+      "expired": "Proposal for {coin} expired",
+      "passed": "Passed {coin} · fit {score}/{pass}",
+      "skipped": "Skipped pick {coin}",
+      "sold": "Sold {coin} · {pnl}"
+    }
+  },
+  "guard": {
+    "impact": {
+      "estimate_body": "Up to {max_extra_passes} more coins could pass per {window}. Based on rules, not a replay.",
+      "estimate_label": "Estimate",
+      "replay_body": "{newly_passing} more would have passed, {newly_passing_rugged} of them rugged ({samples} samples).",
+      "replay_label": "Replay · {window}",
+      "replay_loading": "Running replay… showing the estimate meanwhile",
+      "replay_unavailable": "Replay unavailable right now. Showing the estimate."
+    },
+    "weaken": {
+      "after": {
+        "audit": "Recorded in the audit log (who, when, device, diff)",
+        "auto_revert": "Mandatory auto-revert after 24 hours unless you confirm again",
+        "cooldown": "Mandatory 10-minute cooldown before it applies (can be cancelled)",
+        "notify": "All devices and email are notified"
+      },
+      "cancel": "Cancel (Esc)",
+      "changes": "Changes (before → after)",
+      "direction": {
+        "looser": "looser",
+        "off": "turned off"
+      },
+      "hold": {
+        "practice": "Hold 1.2 s to loosen",
+        "real": "Hold 2.5 s to loosen"
+      },
+      "match": "{matched} of {total} characters match",
+      "risk": {
+        "level": "Risk level: {level, select, low {Low} medium {Medium} high {High} other {Critical}}",
+        "title": "Risk impact (7-day replay on our paper data)"
+      },
+      "title": {
+        "practice": "You’re about to loosen a guard",
+        "real": "You’re about to LOOSEN a guard on a Real SOL strategy"
+      },
+      "type_name": "Type the strategy name to confirm"
+    }
+  },
+  "login": {
+    "button": {
+      "apple": "Continue with Apple",
+      "email": "Send 6-digit code",
+      "google": "Continue with Google",
+      "telegram": "Log in with Telegram",
+      "wallet": "Connect Solana wallet"
+    },
+    "email": {
+      "label": "Email"
+    },
+    "or": "or",
+    "otp": {
+      "locked": "Too many attempts. Try again in {minutes} min.",
+      "resend_in": "Resend in {time}",
+      "sent_to": "Sent to {email}",
+      "title": "Enter the code",
+      "wrong": "{remaining, plural, one {Wrong code. # attempt left.} other {Wrong code. # attempts left.}}"
+    },
+    "practice_default": "New accounts always start in PRACTICE mode.",
+    "subtitle": "One account, many sign-in methods. You can link more later.",
+    "telegram": {
+      "cancelled": "Telegram login was cancelled. Nothing changed.",
+      "consent": "Telegram shares your name, username and photo with Sentra.",
+      "retry": "Try Telegram again",
+      "title": "Log in with Telegram",
+      "unavailable": "Telegram login is not available yet. Use another method.",
+      "waiting": "Confirm in Telegram…"
+    },
+    "terms": "By continuing you agree to the Terms and Privacy Policy.",
+    "title": "Sign in or create an account",
+    "wallet": {
+      "rejected": "Signature was declined. Nothing was signed.",
+      "sign_note": "You’ll sign a message, not a transaction. No fee.",
+      "sign_title": "Sign to sign in"
+    }
+  },
+  "mode": {
+    "practice": {
+      "banner": "Practice · paper SOL, no real SOL moves",
+      "banner_short": "Practice · paper SOL",
+      "label": "PRACTICE"
+    },
+    "real": {
+      "banner": "Real SOL · wallet connected, orders use real SOL",
+      "banner_short": "Real SOL · real money",
+      "label": "REAL SOL"
+    },
+    "switch": {
+      "to_real": {
+        "hold": "Hold to switch to Real SOL",
+        "requirements": "Requires a connected trading wallet and 2FA.",
+        "title": "Switch to Real SOL?"
+      },
+      "toast_practice": "Back to Practice"
+    }
+  },
+  "nav": {
+    "activity": "Activity",
+    "approvals": "Approvals",
+    "coins": "Coins",
+    "dashboard": "Dashboard",
+    "home": "Home",
+    "more": "More",
+    "positions": "Positions",
+    "search": {
+      "placeholder": "Search coin or strategy"
+    },
+    "settings": "Settings",
+    "strategies": "Strategies"
+  },
+  "notif": {
+    "action": {
+      "approve": "Approve",
+      "cancel_change": "Cancel change",
+      "open": "Open",
+      "skip": "Skip"
+    },
+    "approved": {
+      "body": "Order is being placed",
+      "title": "Approved: {coin}"
+    },
+    "deletion_cancelled": {
+      "body": "Your account stays active.",
+      "title": "Account deletion cancelled"
+    },
+    "deletion_scheduled": {
+      "body": "Your account will be deleted on {scheduled_for}. Cancel in Settings if this wasn’t you.",
+      "title": "Account deletion scheduled"
+    },
+    "expired": {
+      "body": "{reason}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} expired"
+    },
+    "failed": {
+      "body": "{reason}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy {coin} failed"
+    },
+    "filled": {
+      "body": "{sol} at {price} · exit plan armed",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {coin}"
+    },
+    "first_buy": {
+      "body": "This strategy hasn’t bought yet. Review before it starts · {sol} · {mm_ss} left",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {coin}"
+    },
+    "grouped": {
+      "body": "Open the queue to review",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {count, plural, one {# pick awaits approval} other {# picks await approval}}"
+    },
+    "guard_active": {
+      "body": "Auto-reverts {auto_revert_at}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} guard is now looser"
+    },
+    "guard_cancelled": {
+      "body": "{strategy} was edited elsewhere. Request the change again.",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change cancelled"
+    },
+    "guard_cooldown": {
+      "body": "{strategy}: effective {cooldown_until}. Cancel if this wasn’t you.",
+      "title": "[REAL SOL] Guard loosens in 10 min"
+    },
+    "guard_requested": {
+      "body": "{strategy}: {setting} {from} → {to} loosens a guard",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change pending"
+    },
+    "guard_reverted": {
+      "body": "{setting} back to {from}",
+      "title": "[REAL SOL] {strategy} guard restored"
+    },
+    "loss_stop": {
+      "body": "Down {pct} from peak. Re-arm needs approval.",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} paused"
+    },
+    "mode_practice": {
+      "body": "Orders use paper SOL",
+      "title": "Back to PRACTICE"
+    },
+    "mode_real": {
+      "body": "Next orders use real SOL",
+      "title": "Now in REAL SOL"
+    },
+    "offline": {
+      "body": "Data may be delayed. Retrying…",
+      "title": "Lost connection to server"
+    },
+    "pick_pending": {
+      "body": "{strategy} · {sol} · {mm_ss} left",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} awaits approval"
+    },
+    "practice_reset": {
+      "body": "Balance back to {sol}. Pending buys were cleared.",
+      "title": "[PRACTICE] Practice reset"
+    },
+    "skipped": {
+      "body": "Reason: {reason}",
+      "title": "Skipped: {coin}"
+    },
+    "sl_hit": {
+      "body": "{stop_type} · {pnl} ({pct})",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {coin}"
+    },
+    "token_invalid": {
+      "body": "Open the app to continue",
+      "title": "Notification action expired"
+    },
+    "tp_hit": {
+      "body": "Sold {pct_sold} at {pct} · {pnl}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {coin}"
+    }
+  },
+  "positions": {
+    "equity": {
+      "hwm": "High-water mark",
+      "title": "Equity · {range}"
+    },
+    "next_action": "Next: {rung} at {gain} (sell {pct})",
+    "open_count": "{count, plural, one {# open} other {# open}}",
+    "sell": {
+      "estimate": "Estimated proceeds",
+      "hold": {
+        "practice": "Hold 1.2 s to sell {pct}",
+        "real": "Hold 2.5 s to sell {pct}",
+        "released": "Released early — nothing was sold"
+      },
+      "never_from_notification": "Selling is never available from a notification or popup.",
+      "plan_cancelled": "Exit plan cancelled (100%)",
+      "remaining_plan": "Remaining position keeps its exit plan",
+      "title": "Sell {coin}"
+    },
+    "title": "Positions"
+  },
+  "queue": {
+    "batch": {
+      "approve": "{count, plural, one {Approve # pick} other {Approve # picks}}",
+      "selected": "{count, plural, one {# selected} other {# selected}}",
+      "total": "Total {sol}"
+    },
+    "guard": {
+      "reject": "Reject change"
+    },
+    "pick": {
+      "approve": "Approve",
+      "cannot_approve": "Can’t be approved",
+      "expires_in": "Expires in {mm_ss}",
+      "kind": {
+        "buy": "Buy",
+        "first_buy": "First buy",
+        "guard_change": "Loosens guard"
+      },
+      "review_change": "Review change",
+      "skip": "Skip"
+    },
+    "real": {
+      "approve_button": "Approve with Real SOL",
+      "batch_confirm": {
+        "title": "{count, plural, one {Approve # buy with REAL SOL?} other {Approve # buys with REAL SOL?}}"
+      },
+      "hold": "Hold to approve {sol}"
+    },
+    "skip_reason": {
+      "already_pumped": "Already pumped",
+      "other": "Other…",
+      "suspicious_dev": "Suspicious dev",
+      "thin_liquidity": "Thin liquidity"
+    },
+    "swipe": {
+      "disabled_real": "Swipe is off in Real SOL. Use the buttons.",
+      "hint": "Swipe right to approve · left to skip"
+    },
+    "tab": {
+      "approved": "Approved",
+      "expired": "Expired",
+      "pending": "Pending",
+      "skipped": "Skipped",
+      "with_count": "{label} · {count}"
+    },
+    "title": "Approval queue",
+    "why": {
+      "first_buy": "Approval mode is “Ask: first buy”. This is the strategy’s first buy.",
+      "title": "Why does this need approval?"
+    }
+  },
+  "settings": {
+    "appearance": {
+      "density": {
+        "comfortable": "Comfortable",
+        "compact": "Compact",
+        "label": "Density"
+      },
+      "theme": {
+        "dark": "Dark",
+        "label": "Theme",
+        "light": "Light",
+        "system": "Match system"
+      }
+    },
+    "delete": {
+      "audit_note": "Audit records are kept but anonymized; your name, devices and sign-in methods are removed.",
+      "cancel": "Cancel deletion",
+      "check": {
+        "real_positions": "Close all Real SOL positions",
+        "reauth": "Confirm it’s you (last 5 min)",
+        "two_factor": "Two-factor code (if enabled)",
+        "wallet_withdrawn": "Withdraw your trading wallet"
+      },
+      "confirm": "Schedule deletion",
+      "grace": "Grace period: {count, plural, one {# day} other {# days}}",
+      "intro": "Your account is deleted after a grace period. You can cancel until then.",
+      "scheduled": "Deletion scheduled for {scheduled_for}. We sent a confirmation email.",
+      "title": "Delete account"
+    },
+    "devices": {
+      "last_seen": "Last seen {when}",
+      "note": "Each device registers its own push token. Removing a device signs it out and stops its notifications.",
+      "push_off": "Push off",
+      "push_on": "Push on",
+      "revoke": "Remove device",
+      "title": "Devices & push"
+    },
+    "language": {
+      "label": "Language",
+      "number_format": "Numbers follow the language: {example}"
+    },
+    "login": {
+      "last_method_lock": "This is your only sign-in method. Link another before unlinking.",
+      "link": "Link",
+      "linked": "Linked",
+      "reauth": "Confirm it’s you to continue",
+      "unlink": "Unlink",
+      "wallet_note": "Sign-in wallet only proves identity. It can’t trade."
+    },
+    "mode": {
+      "default_approval": "Default approval mode",
+      "default_new_strategy": "New strategies start in"
+    },
+    "notif": {
+      "desktop_popup": "Desktop always-on-top popup",
+      "email": "Email",
+      "practice_actions": "Allow Approve from notifications (Practice only)",
+      "push": "Push notifications"
+    },
+    "section": {
+      "appearance": "Appearance",
+      "danger": "Delete account",
+      "devices": "Devices & push",
+      "language": "Language",
+      "login_methods": "Sign-in methods",
+      "mode_defaults": "Mode & defaults",
+      "notifications": "Notifications",
+      "profile": "Profile",
+      "security": "Security",
+      "trading_wallet": "Trading wallet"
+    },
+    "security": {
+      "2fa": "Two-factor authentication",
+      "audit": "Audit log",
+      "sessions": "Sessions & devices",
+      "sign_out_device": "Sign out",
+      "this_device": "This device"
+    },
+    "wallet": {
+      "not_connected": "Not connected. Real SOL stays off.",
+      "separate_note": "Separate from your sign-in wallet. Withdrawals need 2FA, email approval, and an allow-listed address.",
+      "title": "Trading wallet (Real SOL)"
+    }
+  },
+  "shortcut": {
+    "a": "Approve focused item",
+    "enter": "Pop out chart",
+    "esc": "Close / cancel",
+    "jk": "Next / previous",
+    "s": "Skip (with reason)",
+    "shift_a": "Approve selected",
+    "shift_x": "Sell focused position",
+    "space": "Details / quick look",
+    "x": "Select / deselect"
+  },
+  "strategy": {
+    "approval_mode": {
+      "ask_every_buy": "Ask: every buy",
+      "ask_first_buy": "Ask: first buy",
+      "off": "Off (auto)"
+    },
+    "status": {
+      "draft": "Draft",
+      "paused": "Paused",
+      "running": "Running"
+    }
+  },
+  "table": {
+    "mobile": {
+      "collapse": "Hide details",
+      "expand": "Show details",
+      "scroll_hint": "Scroll for more columns"
+    }
+  }
+}

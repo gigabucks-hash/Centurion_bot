@@ -1,0 +1,24 @@
+# Locale build report
+
+Keys: 400 · placeholder/whitespace issues: 0
+ID/EN length ratio (strings ≥ 12 chars): median 1.00, max 1.67 (login.wallet.sign_title)
+Over 1.30× (layout must allow ~30% growth; these need extra room or shorter ID copy): 17
+
+- `login.wallet.sign_title` 1.67×
+- `guard.weaken.hold.real` 1.60×
+- `guard.weaken.hold.practice` 1.60×
+- `settings.login.reauth` 1.54×
+- `table.mobile.collapse` 1.50×
+- `login.otp.resend_in` 1.50×
+- `notif.mode_real.body` 1.42×
+- `mode.practice.banner` 1.41×
+- `queue.pick.expires_in` 1.39×
+- `queue.pick.kind.guard_change` 1.38×
+- `notif.action.cancel_change` 1.38×
+- `positions.sell.hold.released` 1.36×
+- `settings.delete.check.reauth` 1.34×
+- `table.mobile.expand` 1.33×
+- `settings.delete.cancel` 1.33×
+- `notif.mode_real.title` 1.33×
+- `settings.devices.last_seen` 1.31×
+

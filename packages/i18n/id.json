@@ -1,0 +1,662 @@
+{
+  "builder": {
+    "approval_mode": {
+      "real_note": "Real SOL: “Off” tidak tersedia di MVP."
+    },
+    "diff": {
+      "tag": {
+        "neutral": "netral",
+        "new": "baru",
+        "strengthens": "mengetatkan",
+        "weakens": "melonggarkan"
+      },
+      "title": "Perubahan vs rev {rev}"
+    },
+    "exit": {
+      "col": {
+        "gain": "Gain %",
+        "pullback": "Pullback %",
+        "sell": "Jual % posisi"
+      },
+      "drain": "Drain: turun",
+      "hard_sl": "Hard stop loss dari entry",
+      "ladder": {
+        "add": "Tambah rung",
+        "title": "Tangga take-profit (maks 8 rung)",
+        "total": "Total terjual: {pct}"
+      },
+      "no_trade": "Exit tanpa trade",
+      "time_stop": "Time stop",
+      "trailing": "Trailing stop dari high"
+    },
+    "guards": {
+      "preset": {
+        "balanced": "Seimbang",
+        "loose": "Longgar",
+        "strict": "Ketat"
+      },
+      "weakening_inline": "Melonggarkan guard (sebelumnya {from}). Butuh approval."
+    },
+    "publish": "Tinjau & publish",
+    "step": {
+      "entry": "Entry",
+      "exit": "Exit plan",
+      "guards": "Guards",
+      "progress": "Langkah {current} dari {total} · {name}",
+      "review": "Review & sim",
+      "screener": "Screener",
+      "valid": "Valid",
+      "weakened": "{count, plural, other {# setting dilonggarkan}}"
+    },
+    "title": {
+      "edit": "Edit strategi · {name}",
+      "new": "Strategi baru"
+    },
+    "validation": {
+      "range": "Harus antara {min} dan {max}"
+    }
+  },
+  "coin_trail": {
+    "snapshot_note": "Nilai dan threshold saat itu (rev {rev}).",
+    "step": {
+      "buy": "Buy",
+      "closed": "Ditutup",
+      "entry": "Entry",
+      "guard": "Guard",
+      "screen": "Screen",
+      "tp": "Take profit",
+      "trail": "Trailing stop"
+    },
+    "title": "Jejak koin · {coin} ({strategy})"
+  },
+  "common": {
+    "action": {
+      "approve": "Setujui",
+      "back": "Kembali",
+      "cancel": "Batal",
+      "next": "Lanjut",
+      "retry": "Coba lagi",
+      "review": "Tinjau",
+      "save_draft": "Simpan draf",
+      "skip": "Lewati",
+      "undo": "Urungkan",
+      "view": "Lihat"
+    },
+    "duration": {
+      "hours": "{count, plural, other {# jam}}",
+      "minutes": "{count, plural, other {# mnt}}",
+      "seconds": "{count, plural, other {# dtk}}"
+    },
+    "pnl": {
+      "down": "Turun {amount}",
+      "flat": "Tidak berubah",
+      "up": "Naik {amount}"
+    },
+    "state": {
+      "saved_at": "Draf tersimpan · {time}",
+      "saving": "Menyimpan…"
+    },
+    "timer": {
+      "left": "Sisa {mm_ss}"
+    },
+    "you": "Kamu"
+  },
+  "conflict": {
+    "action": {
+      "discard": "Buang editanku",
+      "merge": "Muat ulang & simpan editanku",
+      "review": "Tinjau perubahan"
+    },
+    "banner": {
+      "body": "Tersimpan sebagai rev {current_rev}. Editanmu berbasis rev {base_rev} dan belum disimpan.",
+      "changed_by": "Diubah oleh {actor} via {via, select, web {web} mobile {mobile} desktop {desktop} mcp {agen MCP} push {notifikasi} other {app}} di {device} · {changed_at}",
+      "conflicts": "{count, plural, =0 {Tidak ada field yang bentrok — editanmu bisa digabung.} other {# field berubah di kedua sisi.}}",
+      "fields": "Field yang berubah: {fields}",
+      "title": "Strategi ini berubah saat kamu mengedit"
+    },
+    "diff": {
+      "col": {
+        "base": "Basismu (rev {rev})",
+        "mine": "Editanmu",
+        "theirs": "Tersimpan (rev {rev})"
+      },
+      "pick": "Pakai {side, select, mine {punyaku} theirs {tersimpan} other {basis}}"
+    },
+    "discard": {
+      "confirm": "Buang {count, plural, other {# editan}}? Tidak bisa diurungkan."
+    },
+    "guard_change_cancelled": "Perubahan guard tertunda dibatalkan karena strategi diedit di tempat lain. Ajukan ulang.",
+    "real_guard": {
+      "reconfirm": "Ini melonggarkan guard di strategi Real SOL. Konfirmasi lengkap diulang dari awal; cooldown 10 menit dan auto-revert 24 jam dimulai ulang dari konfirmasi baru."
+    },
+    "state": {
+      "merged": "Digabung ke rev {rev}. Tinjau, lalu publish.",
+      "offline": "Tidak bisa cek versi terbaru saat offline. Drafmu disimpan lokal."
+    }
+  },
+  "dashboard": {
+    "feed": {
+      "filter": {
+        "all": "Semua",
+        "buys": "Buy",
+        "guard": "Guard",
+        "proposals": "Proposal",
+        "sells": "Sell"
+      },
+      "title": "Feed aktivitas"
+    },
+    "kpi": {
+      "awaiting": "Menunggu approval",
+      "cash": "Kas",
+      "expiring_soon": "{count, plural, other {# kedaluwarsa < 2 mnt}}",
+      "open_positions": "Posisi terbuka",
+      "realized_pnl": "PnL terealisasi"
+    },
+    "strategies": {
+      "col": {
+        "approval": "Approval",
+        "avg_hold": "Rata-rata hold",
+        "max_dd": "Max DD",
+        "name": "Nama",
+        "pnl": "PnL",
+        "status": "Status",
+        "win_rate": "Win rate"
+      },
+      "new": "Strategi baru",
+      "title": "Strategi"
+    },
+    "subtitle": {
+      "practice": "Workspace Practice · mulai {start} · update realtime"
+    },
+    "title": "Ringkasan tim"
+  },
+  "error": {
+    "code": {
+      "account_deletion_blocked": "Tutup posisi Real SOL dan tarik saldo trading wallet dulu.",
+      "account_deletion_pending": "Penghapusan akun sudah dijadwalkan.",
+      "approval_already_decided": "Ini sudah diputuskan di device lain.",
+      "approval_expired": "Proposal ini kedaluwarsa: {reason}",
+      "approval_token_invalid": "Aksi notifikasi ini kedaluwarsa. Buka app untuk melanjutkan.",
+      "auth_tg_invalid": "Login Telegram tidak bisa diverifikasi. Coba lagi.",
+      "auth_tg_no_profile": "Izinkan Telegram membagikan profil untuk masuk.",
+      "auth_tg_replay": "Login Telegram ini sudah dipakai. Mulai lagi.",
+      "confirmation_restart_required": "Strategi berubah saat konfirmasi. Ulangi konfirmasi dari awal.",
+      "guard_cooldown_active": "Perubahan guard ini sedang cooldown.",
+      "hold_too_short": "Dilepas terlalu cepat. Tahan sampai bar penuh.",
+      "internal": "Terjadi kesalahan. Coba lagi.",
+      "last_login_method": "Ini satu-satunya metode masuk. Hubungkan metode lain sebelum memutus.",
+      "otp_invalid": "Kode salah atau kedaluwarsa.",
+      "otp_locked": "Terlalu banyak percobaan. Coba lagi dalam 15 menit.",
+      "rate_limited": "Terlalu banyak permintaan. Coba lagi dalam {retry_after_s, plural, other {# detik}}.",
+      "real_sol_disabled": "Real SOL belum tersedia.",
+      "reauth_required": "Konfirmasi ulang identitasmu untuk melanjutkan.",
+      "reset_cooldown": "Practice bisa di-reset sekali sehari. Berikutnya: {next_allowed_at}",
+      "siws_nonce_invalid": "Permintaan masuk kedaluwarsa. Coba lagi.",
+      "siws_signature_invalid": "Tanda tangan wallet tidak bisa diverifikasi.",
+      "strategy_rev_conflict": "Strategi ini berubah saat kamu mengedit.",
+      "two_factor_required": "Masukkan kode 2FA untuk melanjutkan.",
+      "typed_confirmation_mismatch": "Nama tidak sama persis.",
+      "unavailable": "Layanan sementara tidak tersedia. Mencoba lagi…",
+      "wallet_role_conflict": "Wallet login tidak bisa sekaligus menjadi trading wallet."
+    }
+  },
+  "exit_reason": {
+    "drawdown_halt": "Henti drawdown",
+    "idle": "Exit tanpa trade",
+    "loss_guard": "Stop loss",
+    "manual": "Jual manual",
+    "max_hold": "Time stop",
+    "no_new_high": "Tanpa high baru",
+    "peak_trail": "Trailing stop",
+    "practice_reset": "Practice di-reset",
+    "profit_target": "Take profit",
+    "rug_detected": "Rug terdeteksi",
+    "sell_floor": "Sell floor",
+    "sell_pressure": "Tekanan jual",
+    "strategy_retired": "Strategi dihentikan"
+  },
+  "expire_reason": {
+    "account_deleted": {
+      "badge": "Akun dihapus",
+      "detail": "Akun telah dihapus"
+    },
+    "guard_failed": {
+      "badge": "Guard gagal",
+      "detail": "Cek guard gagal saat menunggu"
+    },
+    "practice_reset": {
+      "badge": "Practice di-reset",
+      "detail": "Practice di-reset; buy tertunda dihapus"
+    },
+    "price_moved": {
+      "badge": "Harga bergerak",
+      "detail": "Harga melewati batas entry"
+    },
+    "strategy_archived": {
+      "badge": "Strategi diarsipkan",
+      "detail": "{strategy} diarsipkan saat menunggu"
+    },
+    "strategy_deleted": {
+      "badge": "Strategi dihapus",
+      "detail": "{strategy} dihapus saat menunggu"
+    },
+    "timeout": {
+      "badge": "Waktu habis",
+      "detail": "Waktu approval habis"
+    }
+  },
+  "feed": {
+    "actor": {
+      "entry": "Entry",
+      "executor": "Executor",
+      "exit": "Exit",
+      "guard": "Guard",
+      "screener": "Screener",
+      "system": "Sistem",
+      "you": "Kamu"
+    },
+    "event": {
+      "blocked": "Memblokir {coin}",
+      "bought": "Membeli {coin} · {sol}",
+      "expired": "Proposal {coin} kedaluwarsa",
+      "passed": "Lolos {coin} · fit {score}/{pass}",
+      "skipped": "Melewati pick {coin}",
+      "sold": "Menjual {coin} · {pnl}"
+    }
+  },
+  "guard": {
+    "impact": {
+      "estimate_body": "Hingga {max_extra_passes} koin tambahan bisa lolos per {window}. Berdasarkan aturan, bukan replay.",
+      "estimate_label": "Estimasi",
+      "replay_body": "{newly_passing} tambahan akan lolos, {newly_passing_rugged} di antaranya rug ({samples} sampel).",
+      "replay_label": "Replay · {window}",
+      "replay_loading": "Menjalankan replay… estimasi ditampilkan sementara",
+      "replay_unavailable": "Replay sedang tidak tersedia. Menampilkan estimasi."
+    },
+    "weaken": {
+      "after": {
+        "audit": "Tercatat di audit log (siapa, kapan, device, diff)",
+        "auto_revert": "Auto-revert wajib setelah 24 jam kecuali dikonfirmasi ulang",
+        "cooldown": "Cooldown wajib 10 menit sebelum berlaku (bisa dibatalkan)",
+        "notify": "Semua device dan email diberi notifikasi"
+      },
+      "cancel": "Batal (Esc)",
+      "changes": "Perubahan (sebelum → sesudah)",
+      "direction": {
+        "looser": "lebih longgar",
+        "off": "dimatikan"
+      },
+      "hold": {
+        "practice": "Tahan 1,2 dtk untuk melonggarkan",
+        "real": "Tahan 2,5 dtk untuk melonggarkan"
+      },
+      "match": "{matched} dari {total} karakter cocok",
+      "risk": {
+        "level": "Level risiko: {level, select, low {Rendah} medium {Sedang} high {Tinggi} other {Kritis}}",
+        "title": "Dampak risiko (replay 7 hari data paper kita)"
+      },
+      "title": {
+        "practice": "Kamu akan melonggarkan guard",
+        "real": "Kamu akan MELONGGARKAN guard di strategi Real SOL"
+      },
+      "type_name": "Ketik nama strategi untuk konfirmasi"
+    }
+  },
+  "login": {
+    "button": {
+      "apple": "Lanjutkan dengan Apple",
+      "email": "Kirim kode 6 digit",
+      "google": "Lanjutkan dengan Google",
+      "telegram": "Masuk dengan Telegram",
+      "wallet": "Hubungkan wallet Solana"
+    },
+    "email": {
+      "label": "Email"
+    },
+    "or": "atau",
+    "otp": {
+      "locked": "Terlalu banyak percobaan. Coba lagi dalam {minutes} mnt.",
+      "resend_in": "Kirim ulang dalam {time}",
+      "sent_to": "Dikirim ke {email}",
+      "title": "Masukkan kode",
+      "wrong": "{remaining, plural, other {Kode salah. Sisa # percobaan.}}"
+    },
+    "practice_default": "Akun baru selalu mulai di mode PRACTICE.",
+    "subtitle": "Satu akun, banyak metode masuk. Bisa ditambah nanti.",
+    "telegram": {
+      "cancelled": "Login Telegram dibatalkan. Tidak ada yang berubah.",
+      "consent": "Telegram membagikan nama, username, dan foto ke Sentra.",
+      "retry": "Coba Telegram lagi",
+      "title": "Masuk dengan Telegram",
+      "unavailable": "Login Telegram belum tersedia. Pakai metode lain.",
+      "waiting": "Konfirmasi di Telegram…"
+    },
+    "terms": "Dengan melanjutkan kamu setuju dengan Ketentuan dan Kebijakan Privasi.",
+    "title": "Masuk atau buat akun",
+    "wallet": {
+      "rejected": "Tanda tangan ditolak. Tidak ada yang ditandatangani.",
+      "sign_note": "Kamu menandatangani pesan, bukan transaksi. Tanpa biaya.",
+      "sign_title": "Tanda tangani untuk masuk"
+    }
+  },
+  "mode": {
+    "practice": {
+      "banner": "Practice · paper SOL, tidak ada SOL nyata yang bergerak",
+      "banner_short": "Practice · paper SOL",
+      "label": "PRACTICE"
+    },
+    "real": {
+      "banner": "Real SOL · wallet terhubung, order memakai SOL nyata",
+      "banner_short": "Real SOL · uang nyata",
+      "label": "REAL SOL"
+    },
+    "switch": {
+      "to_real": {
+        "hold": "Tahan untuk pindah ke Real SOL",
+        "requirements": "Butuh trading wallet terhubung dan 2FA.",
+        "title": "Pindah ke Real SOL?"
+      },
+      "toast_practice": "Kembali ke Practice"
+    }
+  },
+  "nav": {
+    "activity": "Aktivitas",
+    "approvals": "Approvals",
+    "coins": "Koin",
+    "dashboard": "Dashboard",
+    "home": "Beranda",
+    "more": "Lainnya",
+    "positions": "Posisi",
+    "search": {
+      "placeholder": "Cari koin atau strategi"
+    },
+    "settings": "Pengaturan",
+    "strategies": "Strategi"
+  },
+  "notif": {
+    "action": {
+      "approve": "Setujui",
+      "cancel_change": "Batalkan perubahan",
+      "open": "Buka",
+      "skip": "Lewati"
+    },
+    "approved": {
+      "body": "Order sedang diproses",
+      "title": "Disetujui: {coin}"
+    },
+    "deletion_cancelled": {
+      "body": "Akunmu tetap aktif.",
+      "title": "Penghapusan akun dibatalkan"
+    },
+    "deletion_scheduled": {
+      "body": "Akunmu akan dihapus pada {scheduled_for}. Batalkan di Pengaturan jika bukan kamu.",
+      "title": "Penghapusan akun dijadwalkan"
+    },
+    "expired": {
+      "body": "{reason}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} kedaluwarsa"
+    },
+    "failed": {
+      "body": "{reason}. {mode, select, real {Biaya jaringan mungkin terpakai.} other {Tidak ada SOL terpakai.}}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy {coin} gagal"
+    },
+    "filled": {
+      "body": "{sol} di {price} · exit plan aktif",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Terbeli {coin}"
+    },
+    "first_buy": {
+      "body": "Strategi ini belum pernah beli. Cek sebelum mulai · {sol} · sisa {mm_ss}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Buy pertama {strategy}: {coin}"
+    },
+    "grouped": {
+      "body": "Buka antrean untuk meninjau",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {count, plural, other {# pick menunggu approval}}"
+    },
+    "guard_active": {
+      "body": "Auto-revert {auto_revert_at}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard {strategy} kini lebih longgar"
+    },
+    "guard_cancelled": {
+      "body": "{strategy} diedit di tempat lain. Ajukan ulang perubahannya.",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Perubahan guard dibatalkan"
+    },
+    "guard_cooldown": {
+      "body": "{strategy}: berlaku {cooldown_until}. Batalkan jika bukan kamu.",
+      "title": "[REAL SOL] Guard dilonggarkan dalam 10 mnt"
+    },
+    "guard_requested": {
+      "body": "{strategy}: {setting} {from} → {to} melonggarkan guard",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Perubahan guard menunggu"
+    },
+    "guard_reverted": {
+      "body": "{setting} kembali ke {from}",
+      "title": "[REAL SOL] Guard {strategy} dikembalikan"
+    },
+    "loss_stop": {
+      "body": "Turun {pct} dari puncak. Re-arm butuh approval.",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} dijeda"
+    },
+    "mode_practice": {
+      "body": "Order memakai paper SOL",
+      "title": "Kembali ke PRACTICE"
+    },
+    "mode_real": {
+      "body": "Order berikutnya memakai SOL nyata",
+      "title": "Sekarang di REAL SOL"
+    },
+    "offline": {
+      "body": "Data mungkin tertunda. Mencoba lagi…",
+      "title": "Koneksi ke server terputus"
+    },
+    "pick_pending": {
+      "body": "{strategy} · {sol} · sisa {mm_ss}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {coin} menunggu approval"
+    },
+    "practice_reset": {
+      "body": "Saldo kembali ke {sol}. Buy tertunda dihapus.",
+      "title": "[PRACTICE] Practice di-reset"
+    },
+    "skipped": {
+      "body": "Alasan: {reason}",
+      "title": "Dilewati: {coin}"
+    },
+    "sl_hit": {
+      "body": "{stop_type} · {pnl} ({pct})",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Stop {coin}"
+    },
+    "token_invalid": {
+      "body": "Buka app untuk melanjutkan",
+      "title": "Aksi notifikasi kedaluwarsa"
+    },
+    "tp_hit": {
+      "body": "Terjual {pct_sold} di {pct} · {pnl}",
+      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Take profit {coin}"
+    }
+  },
+  "positions": {
+    "equity": {
+      "hwm": "High-water mark",
+      "title": "Ekuitas · {range}"
+    },
+    "next_action": "Berikutnya: {rung} di {gain} (jual {pct})",
+    "open_count": "{count, plural, other {# terbuka}}",
+    "sell": {
+      "estimate": "Perkiraan diterima",
+      "hold": {
+        "practice": "Tahan 1,2 dtk untuk jual {pct}",
+        "real": "Tahan 2,5 dtk untuk jual {pct}",
+        "released": "Dilepas terlalu cepat — tidak ada yang dijual"
+      },
+      "never_from_notification": "Jual tidak pernah tersedia dari notifikasi atau popup.",
+      "plan_cancelled": "Exit plan dibatalkan (100%)",
+      "remaining_plan": "Sisa posisi tetap memakai exit plan",
+      "title": "Jual {coin}"
+    },
+    "title": "Posisi"
+  },
+  "queue": {
+    "batch": {
+      "approve": "{count, plural, other {Setujui # pick}}",
+      "selected": "{count, plural, other {# dipilih}}",
+      "total": "Total {sol}"
+    },
+    "guard": {
+      "reject": "Tolak perubahan"
+    },
+    "pick": {
+      "approve": "Setujui",
+      "cannot_approve": "Tidak bisa disetujui",
+      "expires_in": "Kedaluwarsa dalam {mm_ss}",
+      "kind": {
+        "buy": "Buy",
+        "first_buy": "Buy pertama",
+        "guard_change": "Melonggarkan guard"
+      },
+      "review_change": "Tinjau perubahan",
+      "skip": "Lewati"
+    },
+    "real": {
+      "approve_button": "Setujui dengan Real SOL",
+      "batch_confirm": {
+        "title": "{count, plural, other {Setujui # buy dengan REAL SOL?}}"
+      },
+      "hold": "Tahan untuk setujui {sol}"
+    },
+    "skip_reason": {
+      "already_pumped": "Sudah pump",
+      "other": "Lainnya…",
+      "suspicious_dev": "Dev mencurigakan",
+      "thin_liquidity": "Likuiditas tipis"
+    },
+    "swipe": {
+      "disabled_real": "Geser nonaktif di Real SOL. Pakai tombol.",
+      "hint": "Geser kanan untuk setujui · kiri untuk lewati"
+    },
+    "tab": {
+      "approved": "Disetujui",
+      "expired": "Kedaluwarsa",
+      "pending": "Pending",
+      "skipped": "Dilewati",
+      "with_count": "{label} · {count}"
+    },
+    "title": "Antrean approval",
+    "why": {
+      "first_buy": "Mode approval “Tanya: buy pertama”. Ini buy pertama strategi ini.",
+      "title": "Kenapa butuh approval?"
+    }
+  },
+  "settings": {
+    "appearance": {
+      "density": {
+        "comfortable": "Comfortable",
+        "compact": "Compact",
+        "label": "Kepadatan"
+      },
+      "theme": {
+        "dark": "Gelap",
+        "label": "Tema",
+        "light": "Terang",
+        "system": "Ikuti sistem"
+      }
+    },
+    "delete": {
+      "audit_note": "Catatan audit tetap disimpan tetapi dianonimkan; nama, device, dan metode masukmu dihapus.",
+      "cancel": "Batalkan penghapusan",
+      "check": {
+        "real_positions": "Tutup semua posisi Real SOL",
+        "reauth": "Konfirmasi identitas (5 menit terakhir)",
+        "two_factor": "Kode 2FA (bila aktif)",
+        "wallet_withdrawn": "Tarik saldo trading wallet"
+      },
+      "confirm": "Jadwalkan penghapusan",
+      "grace": "Masa tenggang: {count, plural, other {# hari}}",
+      "intro": "Akun dihapus setelah masa tenggang. Kamu bisa membatalkan sebelum itu.",
+      "scheduled": "Penghapusan dijadwalkan {scheduled_for}. Email konfirmasi sudah dikirim.",
+      "title": "Hapus akun"
+    },
+    "devices": {
+      "last_seen": "Terakhir aktif {when}",
+      "note": "Tiap device mendaftarkan token push sendiri. Menghapus device = keluar dan notifikasinya berhenti.",
+      "push_off": "Push nonaktif",
+      "push_on": "Push aktif",
+      "revoke": "Hapus device",
+      "title": "Device & push"
+    },
+    "language": {
+      "label": "Bahasa",
+      "number_format": "Angka mengikuti bahasa: {example}"
+    },
+    "login": {
+      "last_method_lock": "Ini satu-satunya metode masuk. Hubungkan metode lain sebelum memutus.",
+      "link": "Hubungkan",
+      "linked": "Terhubung",
+      "reauth": "Konfirmasi bahwa ini kamu untuk melanjutkan",
+      "unlink": "Putuskan",
+      "wallet_note": "Wallet login hanya untuk identitas. Tidak bisa trading."
+    },
+    "mode": {
+      "default_approval": "Mode approval default",
+      "default_new_strategy": "Strategi baru mulai di"
+    },
+    "notif": {
+      "desktop_popup": "Popup desktop selalu di atas",
+      "email": "Email",
+      "practice_actions": "Izinkan Setujui dari notifikasi (khusus Practice)",
+      "push": "Notifikasi push"
+    },
+    "section": {
+      "appearance": "Tampilan",
+      "danger": "Hapus akun",
+      "devices": "Device & push",
+      "language": "Bahasa",
+      "login_methods": "Metode masuk",
+      "mode_defaults": "Mode & default",
+      "notifications": "Notifikasi",
+      "profile": "Profil",
+      "security": "Keamanan",
+      "trading_wallet": "Trading wallet"
+    },
+    "security": {
+      "2fa": "Autentikasi dua faktor",
+      "audit": "Audit log",
+      "sessions": "Sesi & device",
+      "sign_out_device": "Keluar",
+      "this_device": "Device ini"
+    },
+    "wallet": {
+      "not_connected": "Belum terhubung. Real SOL tetap nonaktif.",
+      "separate_note": "Terpisah dari wallet login. Withdraw butuh 2FA, approval email, dan alamat allow-list.",
+      "title": "Trading wallet (Real SOL)"
+    }
+  },
+  "shortcut": {
+    "a": "Setujui item fokus",
+    "enter": "Pop-out chart",
+    "esc": "Tutup / batal",
+    "jk": "Berikut / sebelum",
+    "s": "Lewati (dengan alasan)",
+    "shift_a": "Setujui yang dipilih",
+    "shift_x": "Jual posisi fokus",
+    "space": "Detail / quick-look",
+    "x": "Pilih / batal pilih"
+  },
+  "strategy": {
+    "approval_mode": {
+      "ask_every_buy": "Tanya: setiap buy",
+      "ask_first_buy": "Tanya: buy pertama",
+      "off": "Off (otomatis)"
+    },
+    "status": {
+      "draft": "Draf",
+      "paused": "Dijeda",
+      "running": "Berjalan"
+    }
+  },
+  "table": {
+    "mobile": {
+      "collapse": "Sembunyikan detail",
+      "expand": "Tampilkan detail",
+      "scroll_hint": "Geser untuk kolom lain"
+    }
+  }
+}

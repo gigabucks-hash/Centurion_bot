@@ -1,0 +1,384 @@
+{
+  "N-01": {
+    "type": "proposal.created",
+    "when": "kind=buy_pick, first_buy=false",
+    "title_key": "notif.pick_pending.title",
+    "body_key": "notif.pick_pending.body",
+    "vars": [
+      "coin",
+      "strategy",
+      "sol",
+      "mm_ss"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "approve",
+        "skip",
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-02": {
+    "type": "proposal.created",
+    "when": "kind=buy_pick, first_buy=true",
+    "title_key": "notif.first_buy.title",
+    "body_key": "notif.first_buy.body",
+    "vars": [
+      "coin",
+      "strategy",
+      "sol",
+      "mm_ss"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "approve",
+        "skip",
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-03": {
+    "type": "proposal.approved",
+    "when": "decided_via ≠ this device (in-app only)",
+    "title_key": "notif.approved.title",
+    "body_key": "notif.approved.body",
+    "vars": [
+      "coin"
+    ],
+    "push": false,
+    "actions": {}
+  },
+  "N-04": {
+    "type": "position.opened",
+    "when": "",
+    "title_key": "notif.filled.title",
+    "body_key": "notif.filled.body",
+    "vars": [
+      "coin",
+      "sol",
+      "price"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-05": {
+    "type": "— (no wire type in v1.1)",
+    "when": "proposed: order.failed {reason}",
+    "title_key": "notif.failed.title",
+    "body_key": "notif.failed.body",
+    "vars": [
+      "coin",
+      "reason"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-06": {
+    "type": "proposal.rejected",
+    "when": "UI label Skipped; in-app only",
+    "title_key": "notif.skipped.title",
+    "body_key": "notif.skipped.body",
+    "vars": [
+      "coin",
+      "reason"
+    ],
+    "push": false,
+    "actions": {}
+  },
+  "N-07": {
+    "type": "proposal.expired",
+    "when": "expire_reason → expire_reason.<r>.detail (uses vars.strategy) as {reason}",
+    "title_key": "notif.expired.title",
+    "body_key": "notif.expired.body",
+    "vars": [
+      "coin",
+      "reason"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-08": {
+    "type": "exit.triggered",
+    "when": "rule=profit_target",
+    "title_key": "notif.tp_hit.title",
+    "body_key": "notif.tp_hit.body",
+    "vars": [
+      "coin",
+      "pct_sold",
+      "pct",
+      "pnl"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-09": {
+    "type": "exit.triggered",
+    "when": "rule ∈ loss_guard, peak_trail, sell_floor, max_hold, rug_detected… → exit_reason.<rule> as {stop_type}",
+    "title_key": "notif.sl_hit.title",
+    "body_key": "notif.sl_hit.body",
+    "vars": [
+      "coin",
+      "stop_type",
+      "pnl",
+      "pct"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-10": {
+    "type": "proposal.created",
+    "when": "kind=guard_change (guard.changed status=requested)",
+    "title_key": "notif.guard_requested.title",
+    "body_key": "notif.guard_requested.body",
+    "vars": [
+      "strategy",
+      "setting",
+      "from",
+      "to"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-11": {
+    "type": "guard.changed",
+    "when": "status=cooling_down (Real) · push all devices + email",
+    "title_key": "notif.guard_cooldown.title",
+    "body_key": "notif.guard_cooldown.body",
+    "vars": [
+      "strategy",
+      "cooldown_until"
+    ],
+    "push": true,
+    "actions": {
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-12": {
+    "type": "guard.changed",
+    "when": "status=applied",
+    "title_key": "notif.guard_active.title",
+    "body_key": "notif.guard_active.body",
+    "vars": [
+      "strategy",
+      "auto_revert_at"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-13": {
+    "type": "guard.changed",
+    "when": "status=reverted (Real)",
+    "title_key": "notif.guard_reverted.title",
+    "body_key": "notif.guard_reverted.body",
+    "vars": [
+      "strategy",
+      "setting",
+      "from"
+    ],
+    "push": true,
+    "actions": {
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-14": {
+    "type": "— (client; Real disabled until Phase 7)",
+    "when": "mode switch to Real",
+    "title_key": "notif.mode_real.title",
+    "body_key": "notif.mode_real.body",
+    "vars": [],
+    "push": false,
+    "actions": {}
+  },
+  "N-14b": {
+    "type": "— (client)",
+    "when": "mode switch to Practice",
+    "title_key": "notif.mode_practice.title",
+    "body_key": "notif.mode_practice.body",
+    "vars": [],
+    "push": false,
+    "actions": {}
+  },
+  "N-15": {
+    "type": "exit.triggered + strategy.paused",
+    "when": "rule=drawdown_halt",
+    "title_key": "notif.loss_stop.title",
+    "body_key": "notif.loss_stop.body",
+    "vars": [
+      "strategy",
+      "pct"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-16": {
+    "type": "— (client)",
+    "when": "stream/REST unreachable",
+    "title_key": "notif.offline.title",
+    "body_key": "notif.offline.body",
+    "vars": [],
+    "push": false,
+    "actions": {}
+  },
+  "N-17": {
+    "type": "— (client)",
+    "when": "APPROVAL_TOKEN_INVALID / APPROVAL_EXPIRED after push action",
+    "title_key": "notif.token_invalid.title",
+    "body_key": "notif.token_invalid.body",
+    "vars": [],
+    "push": false,
+    "actions": {}
+  },
+  "N-18": {
+    "type": "— (client grouping)",
+    "when": ">3 N-01/N-02 in 60 s; no Approve",
+    "title_key": "notif.grouped.title",
+    "body_key": "notif.grouped.body",
+    "vars": [
+      "count"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-19": {
+    "type": "guard.changed",
+    "when": "status=cancelled (strategy edited elsewhere)",
+    "title_key": "notif.guard_cancelled.title",
+    "body_key": "notif.guard_cancelled.body",
+    "vars": [
+      "strategy"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-20": {
+    "type": "practice.reset",
+    "when": "",
+    "title_key": "notif.practice_reset.title",
+    "body_key": "notif.practice_reset.body",
+    "vars": [
+      "sol"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ]
+    }
+  },
+  "N-21": {
+    "type": "account.deletion_scheduled",
+    "when": "push + email to all devices",
+    "title_key": "notif.deletion_scheduled.title",
+    "body_key": "notif.deletion_scheduled.body",
+    "vars": [
+      "scheduled_for"
+    ],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  },
+  "N-22": {
+    "type": "account.deletion_cancelled",
+    "when": "",
+    "title_key": "notif.deletion_cancelled.title",
+    "body_key": "notif.deletion_cancelled.body",
+    "vars": [],
+    "push": true,
+    "actions": {
+      "practice": [
+        "open"
+      ],
+      "real": [
+        "open"
+      ]
+    }
+  }
+}
