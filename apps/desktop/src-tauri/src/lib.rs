@@ -12,6 +12,7 @@ mod keychain;
 mod keys;
 mod model;
 mod notify;
+mod rejmap;
 mod state;
 mod sync;
 mod util;

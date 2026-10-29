@@ -396,8 +396,11 @@ impl Server {
     fn scored_payload(&mut self, mint: &str, score: i64, quote_mint: Option<&str>) -> serde_json::Value {
         let tradeable = is_sol_quote(quote_mint);
         let mut checks = Vec::new();
+        let liq = self.coins.get(mint).map(|c| c.liquidity_usd.round_dp(0).to_f64().unwrap_or(0.0));
         for (id, reason) in CHECKS {
-            checks.push(json!({"id": id, "class": "weighted", "passed": self.rng.f64() < 0.75, "measured": null, "points": 10, "reason": reason}));
+            // The liquidity check reports what it measured (like the real screener); others stay null.
+            let measured = if *id == "liquidity_min" { json!(liq) } else { json!(null) };
+            checks.push(json!({"id": id, "class": "weighted", "passed": self.rng.f64() < 0.75, "measured": measured, "points": 10, "reason": reason}));
         }
         if let Some(q) = quote_mint {
             checks.push(json!({"id": "quote_mint", "class": "venue", "passed": tradeable, "measured": null, "points": 0,

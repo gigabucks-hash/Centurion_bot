@@ -69,7 +69,7 @@ pub fn get_candles(state: State<'_, AppState>, mint: String) -> AppResult<Vec<Ca
 /// with a different body is 422 IDEMPOTENCY_KEY_REUSED. Actor / channel come from the JWT.
 async fn decide(state: &AppState, id: &str, decision: Decision, reject_reason: Option<ApprovalRejectReason>) -> AppResult<()> {
     // 1.1.3: reject_reason only with reject (the server answers 422 VALIDATION_FAILED otherwise).
-    let reject_reason = if decision == Decision::Reject { Some(reject_reason.unwrap_or(ApprovalRejectReason::UserDeclined)) } else { None };
+    let reject_reason = if decision == Decision::Reject { Some(reject_reason.unwrap_or(crate::rejmap::map().default)) } else { None };
     let t = state.transport.clone();
     for attempt in 0..2 {
         let key = idem_key(state);
@@ -114,9 +114,9 @@ pub async fn skip_signal(state: State<'_, AppState>, id: String) -> AppResult<()
     decide(&state, &id, Decision::Reject, Some(reason)).await
 }
 
-/// `reject_reason` for a skip (1.1.3).
+/// `reject_reason` for a skip (1.1.3), from i18n `reject_reasons.map.json` (chip `not_tradeable`, else `default`).
 pub fn skip_reason(tradeable: bool) -> ApprovalRejectReason {
-    if tradeable { ApprovalRejectReason::UserDeclined } else { ApprovalRejectReason::NotTradeable }
+    crate::rejmap::skip(tradeable).0
 }
 
 /// Batch approve (UX: Practice picks only; API `/batch-decision` is buy_pick-only). The mock

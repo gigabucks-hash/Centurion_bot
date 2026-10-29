@@ -63,9 +63,13 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
                   {/* symbol is untrusted token metadata → text node only */}
                   <td><b>${c.symbol}</b></td>
                   <td className="muted">{c.venue === "curve" ? "Curve" : c.venue === "amm" ? "AMM" : "—"}</td>
-                  {/* Mcap (1.1.4): mcap_usd is display-only/indicative; the title carries the SOL value and as-of time. */}
-                  <td className="num dim" title={mcapTitle(c, lang)}>{c.mcap_usd != null ? fmtUsdLocale(Number(c.mcap_usd), lang) : "—"}</td>
-                  <td className="num">{nt || c.liquidity_usd == null ? "—" : fmtUsdLocale(c.liquidity_usd, lang)}</td>
+                  {/* Mcap (1.1.4): mcap_usd is display-only/indicative; the title carries the SOL value and as-of time.
+                      A missing value is a muted "—" with common.value.unavailable as tooltip + accessible name. */}
+                  {c.mcap_usd != null
+                    ? <td className="num dim" title={mcapTitle(c, lang)}>{fmtUsdLocale(Number(c.mcap_usd), lang)}</td>
+                    : <Unavailable label={t("common.value.unavailable")} />}
+                  {/* D11: liquidity is market data, shown on not-tradeable rows too (same value as the queue card). */}
+                  {c.liquidity_usd != null ? <td className="num">{fmtUsdLocale(c.liquidity_usd, lang)}</td> : <Unavailable label={t("common.value.unavailable")} />}
                   <td className="num">{c.score}</td>
                   <td>{nt || !c.guard_verdict ? <span className="dim">—</span> : <span className={`chip verdict v-${c.guard_verdict.toLowerCase()}`}>{c.guard_verdict}</span>}</td>
                   <td>
@@ -92,9 +96,13 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
   );
 }
 
-/** Mcap cell tooltip: SOL value (exact lamports formatter) + as-of time, or why it is empty. */
+/** Muted "—" cell whose tooltip / accessible name says the data is not available yet. */
+function Unavailable({ label }: { label: string }) {
+  return <td className="num dim" title={label}><span aria-hidden>—</span><span className="sr-only">{label}</span></td>;
+}
+
+/** Mcap cell tooltip: SOL value (exact lamports formatter) + as-of time. */
 function mcapTitle(c: ScreenedCoin, lang: Lang): string {
-  if (c.market_cap_lamports == null && c.mcap_usd == null) return "mcap: —";
   const sol = c.market_cap_lamports != null ? solText(c.market_cap_lamports, lang, false) : null;
   const at = c.mcap_as_of ? new Date(c.mcap_as_of).toLocaleTimeString(LOCALES[lang], { hour: "2-digit", minute: "2-digit" }) : null;
   return [sol, at && `@ ${at}`].filter(Boolean).join(" ");

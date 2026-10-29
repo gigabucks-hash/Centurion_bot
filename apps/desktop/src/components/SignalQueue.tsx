@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { PickView } from "../api";
-import { MOCK_SUFFIX, useLang, useT, solText } from "../i18n";
+import { MOCK_SUFFIX, skipChip, useLang, useT, solText } from "../i18n";
 import { serverNow, useTerm } from "../state/store";
 import { fmtMmSs, fmtPriceDec, fmtUsdLocale, shortMint } from "./format";
 import { NtChip, NtDetail } from "./NotTradeable";
@@ -94,10 +94,10 @@ export function SignalQueue(p: Props) {
             {nt && <NtDetail trade={s} />}
             <div className={`bar${nt ? " neutral" : urgent ? " urgent" : ""}`}><i style={{ width: `${pct}%` }} /></div>
             {nt && (
-              // Skip reason preselected (UI-local: the wire has no `not_tradeable` skip reason yet → not sent).
+              // Skip chip preselected from reject_reasons.map.json; Rust sends its reject_reason (`not_tradeable`).
               <div className="skip-reason" role="radiogroup" aria-label={t("queue.pick.skip")}>
                 <span className="dim">{t("queue.pick.skip")}:</span>
-                <span className="chip reason on" role="radio" aria-checked="true">✓ {t("queue.skip_reason.not_tradeable")}</span>
+                <span className="chip reason on" role="radio" aria-checked="true">✓ {t(skipChip("not_tradeable")?.label_key ?? "queue.skip_reason.not_tradeable")}</span>
               </div>
             )}
             <div className="actions">

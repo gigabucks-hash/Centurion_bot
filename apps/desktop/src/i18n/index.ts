@@ -1,5 +1,5 @@
 /**
- * Desktop i18n on top of @sentra/i18n 0.4.4 (packages/i18n, UX-owned, read-only): the package's
+ * Desktop i18n on top of @sentra/i18n 0.4.5 (packages/i18n, UX-owned, read-only): the package's
  * en/id ICU catalogs + format.mjs formatters, and contracts 1.1.2 errors.json v4 `messages.en|id`
  * for error text (code → key via the package's errors.map.json; registry messages as fallback). Locale = Settings.locale (default `id`); numbers are always formatted in the UI
  * language (QA-01). Lookup: package[lang] → package.en →
@@ -9,11 +9,12 @@ import en from "@sentra/i18n/en.json";
 import id from "@sentra/i18n/id.json";
 import { LOCALES, formatFractionBps, formatLamports, pnlPct, pnlSol, type Lang, type PnlParts } from "@sentra/i18n/format.mjs";
 import errorsMap from "@sentra/i18n/errors.map.json";
+import rejectMap from "@sentra/i18n/reject_reasons.map.json";
 import { ERROR_CODES } from "@sentra/contracts/wire";
 import { useCallback } from "react";
 import { useTerm } from "../state/store";
 import { formatIcu, icuArgNames, type IcuArgs } from "./icu";
-import { MOCK_SUFFIX } from "./local";
+import { LOCAL_TEMPLATES, MOCK_SUFFIX } from "./local";
 
 export type { Lang, PnlParts };
 export { formatFractionBps, formatLamports, LOCALES, MOCK_SUFFIX };
@@ -28,10 +29,11 @@ const flatten = (o: Tree, p = "", out: Record<string, string> = {}) => {
 };
 const CAT: Record<Lang, Record<string, string>> = { en: flatten(en as Tree), id: flatten(id as Tree) };
 
-export const I18N_PACKAGE_VERSION = "0.4.4";
+export const I18N_PACKAGE_VERSION = "0.4.5";
 
 function lookup(lang: Lang, key: string): string | undefined {
-  return CAT[lang][key] ?? CAT.en[key];
+  // Package copy wins; LOCAL_TEMPLATES only fill keys UX has not shipped yet (reported as UX gaps).
+  return CAT[lang][key] ?? CAT.en[key] ?? LOCAL_TEMPLATES[lang][key];
 }
 /** Translate `key`; `fallback` key (e.g. `order.fail_reason.unknown`) if missing, else the key itself. */
 export function translate(lang: Lang, key: string, args?: IcuArgs, fallback?: string): string {
@@ -46,7 +48,7 @@ export function useT(): T {
   return useCallback<T>((k, a, f) => translate(lang, k, a, f), [lang]);
 }
 
-// ---- errors: i18n errors.map.json (56 errors.json v4 codes → {key, source, kind, http, retryable})
+// ---- errors: i18n errors.map.json (57 errors.json v5 codes → {key, source, kind, http, retryable})
 interface ErrorMapEntry { key: string; source: "copy" | "fallback"; kind: "error" | "notice" | "skip"; http: number; retryable: boolean }
 const EMAP = errorsMap as unknown as { errors_json_version: number; unknown: string; codes: Record<string, ErrorMapEntry> };
 /** Legacy input spelling only (pre-1.1.2 producer); never shown. */
@@ -130,6 +132,8 @@ export type I18nArg =
   | { t: "lamports"; v: string }
   | { t: "pnl_lamports"; v: string }
   | { t: "num"; v: number }
+  | { t: "bps"; v: number }
+  | { t: "price"; v: string }
   | { t: "key"; v: string };
 export interface I18nMsg { key: string; args: Record<string, I18nArg> }
 
@@ -149,9 +153,22 @@ export function renderMsg(m: I18nMsg, lang: Lang, paper: boolean): string | null
       a.t === "lamports" ? formatLamports(a.v, lang, { paper }) :
       a.t === "pnl_lamports" ? pnlText(pnlSol(a.v, lang, { paper })) :
       a.t === "key" ? translate(lang, a.v, undefined, fallbackFor(a.v)) :
-      a.t === "num" ? new Intl.NumberFormat(LOCALES[lang]).format(a.v) : a.v;
+      a.t === "num" ? new Intl.NumberFormat(LOCALES[lang]).format(a.v) :
+      a.t === "bps" ? formatFractionBps(a.v, lang) :
+      a.t === "price" ? formatPriceLocale(a.v, lang) : a.v;
   }
   const used = icuArgNames(tmpl);
   const extra = Object.keys(args).filter((k) => !used.has(k) && m.args[k].t === "key").map((k) => args[k]);
   return [formatIcu(tmpl, args, LOCALES[lang]), ...extra].join(" · ");
 }
+
+/** A decimal-string price in the UI locale (up to 6 significant digits; tiny memecoin prices stay readable). */
+export const formatPriceLocale = (d: string, lang: Lang): string => {
+  const n = Number(d);
+  return Number.isFinite(n) ? new Intl.NumberFormat(LOCALES[lang], { maximumSignificantDigits: 6 }).format(n) : "—";
+};
+
+// ---- skip chips / reject_reason: i18n reject_reasons.map.json (contracts 1.1.3 ApprovalRejectReason)
+interface SkipChip { label_key: string; reject_reason: string; reason: string | null }
+const RMAP = rejectMap as unknown as { wire: Record<string, string>; skip_chips: Record<string, SkipChip>; default: string };
+export const skipChip = (name: string): SkipChip | undefined => RMAP.skip_chips[name];

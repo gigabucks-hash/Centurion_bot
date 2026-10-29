@@ -133,6 +133,9 @@ fn lamports_of(sol: Decimal) -> Lamports {
     Lamports::from_sol(sol)
 }
 /// Plain-text SOL (fallback copy; the UI prefers i18n). Negatives use U+2212, never a hyphen.
+/// Screener check ids that measure pool liquidity in USD (`RequiredCheck` "liquidity_usd"; mock "liquidity_min").
+const LIQUIDITY_CHECKS: [&str; 2] = ["liquidity_usd", "liquidity_min"];
+
 fn fmt_sol(l: Lamports) -> String {
     let s = l.sol().round_dp(4);
     if s < Decimal::ZERO { format!("\u{2212}{} SOL", s.abs()) } else { format!("{s} SOL") }
@@ -426,7 +429,9 @@ impl Engine {
                     passed: s.passed && tradeable,
                     guard_verdict: None,
                     status: if !tradeable { "not_tradeable" } else if s.passed { "pending_guard" } else { "rejected_score" }.into(),
-                    liquidity_usd: self.marks.get(&s.mint).map(|m| m.liquidity_usd),
+                    // D11: same value as the queue card whenever any source has it (mark → screener's
+                    // measured liquidity check → a known signal for the mint), also on not-tradeable rows.
+                    liquidity_usd: self.liquidity_of(&s.mint, Some(&s.result.checks)),
                     decimals: coin.decimals,
                     token_program: coin.token_program.clone(),
                     ts_ms,
@@ -550,11 +555,24 @@ impl Engine {
                 }
                 let via = serde_json::to_value(d.decided_via).ok().and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_default();
                 if !approved {
-                    i18n = Some(I18nMsg::new("feed.event.skipped").text("symbol", sym.clone()));
+                    let m = I18nMsg::new("feed.event.skipped").text("symbol", sym.clone());
+                    // 1.1.3 reject_reason → reject_reasons.map.json copy key (appended " · …" by the UI).
+                    i18n = Some(match d.reject_reason.and_then(crate::rejmap::copy_key) {
+                        Some(k) => m.arg("reason", I18nArg::Key(k.into())),
+                        None => m,
+                    });
                 }
                 // 1.1.3 reject_reason (closed enum) shown as its wire code for support.
                 let why = d.reject_reason.and_then(|r| serde_json::to_value(r).ok()).and_then(|v| v.as_str().map(|s| format!(" · {s}"))).unwrap_or_default();
                 act(if approved { Tone::Good } else { Tone::Neutral }, format!("{}{why} (via {via})", if approved { "Approved" } else { "Skipped" }))
+            }
+            KnownEvent::ProposalUpdated(x) => {
+                // Quote refresh: keep the newer rev (decide re-reads the approval anyway). Not a feed row.
+                if let Some(s) = self.signals.iter_mut().find(|s| s.id == x.proposal_id && x.version > s.version) {
+                    s.version = x.version;
+                    outs.push(Out::SignalUpdate(s.clone()));
+                }
+                return outs;
             }
             KnownEvent::ProposalExpired(x) => {
                 if let Some(s) = self.signals.iter_mut().find(|s| s.id == x.proposal_id) {
@@ -569,6 +587,15 @@ impl Engine {
             }
             KnownEvent::FillSimulated(f) => {
                 let side = if f.side == FillSide::Buy { "Paper buy" } else { "Paper sell" };
+                // D10: numbers are formatted in the UI locale (format.mjs), not here.
+                i18n = Some(
+                    I18nMsg::new("feed.event.fill")
+                        .arg("side", I18nArg::Key(if f.side == FillSide::Buy { "dashboard.feed.filter.buys" } else { "dashboard.feed.filter.sells" }.into()))
+                        .arg("amount_lamports", I18nArg::Lamports(f.sol_lamports))
+                        .arg("price", I18nArg::Price(f.exec_price_sol))
+                        .arg("fee", I18nArg::Bps(f.fee_bps as Num))
+                        .arg("slip", I18nArg::Bps(f.slippage_bps)),
+                );
                 act(Tone::Info, format!("{side} {} @ {} SOL (fee {} bps, slip {} bps)", fmt_sol(f.sol_lamports), f.exec_price_sol, f.fee_bps, f.slippage_bps))
             }
             KnownEvent::PositionOpened(p) => {
@@ -652,7 +679,15 @@ impl Engine {
                     format!("{}: keluar {} (PnL {}, {}%, hold {}s)", keys::exit_label(c.exit_reason), fmt_sol(c.sol_out_lamports), fmt_signed_sol(c.pnl_lamports), c.pnl_pct.map(|x| x.to_string()).unwrap_or_else(|| "—".into()), c.hold_seconds),
                 )
             }
-            KnownEvent::ExitTriggered(x) => act(Tone::Info, format!("{} {}% @ {} SOL", keys::exit_label(x.rule), x.sell_portion_pct, x.trigger_price_sol)),
+            KnownEvent::ExitTriggered(x) => {
+                i18n = Some(
+                    I18nMsg::new("feed.event.exit_triggered")
+                        .arg("rule", I18nArg::Key(format!("exit_reason.{}", keys::exit_id(x.rule))))
+                        .arg("portion", I18nArg::Bps(x.sell_portion_pct * 100.0))
+                        .arg("price", I18nArg::Price(x.trigger_price_sol)),
+                );
+                act(Tone::Info, format!("{} {}% @ {} SOL", keys::exit_label(x.rule), x.sell_portion_pct, x.trigger_price_sol))
+            }
             KnownEvent::PortfolioSnapshot(p) => {
                 outs.push(self.set_portfolio(&p));
                 return outs; // not shown in the feed (high frequency)
@@ -755,6 +790,14 @@ impl Engine {
         outs
     }
 
+    /// Best known liquidity (USD) for a mint: live mark, else the screener's measured liquidity check,
+    /// else a signal that already carries one.
+    fn liquidity_of(&self, mint: &str, checks: Option<&[ScreenerCheck]>) -> Option<Num> {
+        self.marks.get(mint).map(|m| m.liquidity_usd)
+            .or_else(|| checks?.iter().find(|c| LIQUIDITY_CHECKS.contains(&c.id.as_str())).and_then(|c| c.measured))
+            .or_else(|| self.signals.iter().find(|s| s.mint == mint).and_then(|s| s.liquidity_usd))
+    }
+
     fn revalue(&mut self, key: &str, price: Dec) {
         let Some(p) = self.positions.get_mut(key) else { return };
         p.last_price_sol = price;
@@ -792,7 +835,7 @@ impl Engine {
             s.liquidity_usd = Some(m.liquidity_usd);
             updated.push(Out::SignalUpdate(s.clone()));
         }
-        if let Some(c) = self.screened.iter_mut().find(|c| c.mint == mint && c.liquidity_usd.is_none()) {
+        for c in self.screened.iter_mut().filter(|c| c.mint == mint && c.liquidity_usd.is_none()) {
             c.liquidity_usd = Some(m.liquidity_usd);
             updated.push(Out::Screened(c.clone()));
         }
@@ -1029,6 +1072,42 @@ mod tests {
         assert_eq!((row.status.as_str(), row.trade.tradeable, row.trade.quote_symbol), ("not_tradeable", false, Some("USDC")));
         assert!(e.positions["ck1.0"].trade.reason_code.as_deref() == Some("UNSUPPORTED_QUOTE_MINT"));
         assert!(e.signals.iter().all(|p| !p.trade.tradeable), "pending pick is marked too");
+    }
+
+    #[test]
+    fn ux_requa_d10_d11_and_reject_reason_copy() {
+        const M: &str = "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr";
+        let mut e = Engine::new(WS);
+        // D11: a not-tradeable row (no mark yet) takes the screener's measured liquidity.
+        e.apply_event(&env(40, "screener.scored", json!({"mint": M, "passed": false, "summary": "x", "rejected_by": "quote_mint", "failed": ["quote_mint"],
+            "tradeable": false, "skip_reason": "UNSUPPORTED_QUOTE_MINT", "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "result": {"passed": false, "score": 71, "score_threshold": 70, "max_score": 100,
+                "checks": [{"id": "liquidity_min", "class": "weighted", "passed": true, "measured": 12345.0, "points": 10, "reason": "liquidity ok"}]}})));
+        let row = e.screened.iter().find(|c| c.mint == M).unwrap();
+        assert_eq!((row.status.as_str(), row.liquidity_usd), ("not_tradeable", Some(12345.0)));
+        // D10: executor rows are structured (numbers formatted in the UI locale, bps via formatFractionBps).
+        e.apply_event(&env(41, "fill.simulated", json!({"position_key": "ck1.0", "side": "buy", "simulated": true, "mark_price_sol": "0.00025", "exec_price_sol": "0.0002512",
+            "token_amount_raw": "1", "sol_lamports": "250000000", "fee_bps": 125, "swap_fee_lamports": "3125000", "network_fee_lamports": "5000", "slippage_bps": 48.5, "latency_ms": 400})));
+        let m = e.activity[0].i18n.clone().expect("fill row is structured");
+        assert_eq!(m.key, "feed.event.fill");
+        assert_eq!((m.args["fee"].clone(), m.args["slip"].clone()), (I18nArg::Bps(125.0), I18nArg::Bps(48.5)));
+        assert_eq!(m.args["price"], I18nArg::Price(Dec("0.0002512".parse().unwrap())));
+        e.apply_event(&env(42, "exit.triggered", json!({"position_key": "ck1.0", "rule": "profit_target", "rule_index": 0, "sell_portion_pct": 50, "trigger_price_sol": "0.0005", "detail": "x"})));
+        let m = e.activity[0].i18n.clone().unwrap();
+        assert_eq!((m.key.as_str(), m.args["portion"].clone()), ("feed.event.exit_triggered", I18nArg::Bps(5000.0)));
+        assert_eq!(m.args["rule"], I18nArg::Key("exit_reason.profit_target".into()));
+        // reject_reason → reject_reasons.map.json copy key on the skipped row.
+        proposal(&mut e, 43);
+        e.apply_event(&env(44, "proposal.rejected", json!({"proposal_id": "p1", "kind": "buy_pick", "rev": 2, "decided_by": "u", "decided_via": "desktop", "reason": null, "reject_reason": "not_tradeable"})));
+        let m = e.activity[0].i18n.clone().unwrap();
+        assert_eq!(m.key, "feed.event.skipped");
+        assert_eq!(m.args["reason"], I18nArg::Key("reject_reason.not_tradeable".into()));
+        // proposal.updated (1.1.4 quote refresh) bumps the rev without a feed row.
+        proposal(&mut e, 45);
+        let n = e.activity.len();
+        e.apply_event(&env(46, "proposal.updated", json!({"proposal_id": "p1", "kind": "buy_pick", "rev": 5, "swap_fee_bps": 125})));
+        assert_eq!(e.activity.len(), n);
+        assert!(e.signals.iter().any(|s| s.id == "p1" && s.version == 5));
     }
 
     #[test]

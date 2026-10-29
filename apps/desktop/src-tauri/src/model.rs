@@ -534,6 +534,16 @@ pub struct ProposalDecided {
     #[serde(default)]
     pub reject_reason: Option<ApprovalRejectReason>,
 }
+/// `proposal.updated` (1.1.4 cont., 7ba6273): a pending proposal's quote was set/refreshed (rev + 1).
+/// The `ProposalQuoteFields` are not decoded yet: they feed the WF-22 review sheet (post-MVP on desktop);
+/// only the new rev matters here.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProposalUpdated {
+    pub proposal_id: String,
+    pub kind: ProposalKind,
+    #[serde(rename = "rev", alias = "version")]
+    pub version: u32,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalExpired {
     pub proposal_id: String,
@@ -845,6 +855,7 @@ pub enum KnownEvent {
     EntryArmed(EntryArmed),
     EntryExpired(EntryExpired),
     ProposalCreated(ProposalCreated),
+    ProposalUpdated(ProposalUpdated),
     ProposalApproved(ProposalDecided),
     ProposalRejected(ProposalDecided),
     ProposalExpired(ProposalExpired),
@@ -882,6 +893,7 @@ impl KnownEvent {
             "entry.armed" => p(v).map(Self::EntryArmed),
             "entry.expired" => p(v).map(Self::EntryExpired),
             "proposal.created" => p(v).map(Self::ProposalCreated),
+            "proposal.updated" => p(v).map(Self::ProposalUpdated),
             "proposal.approved" => p(v).map(Self::ProposalApproved),
             "proposal.rejected" => p(v).map(Self::ProposalRejected),
             "proposal.expired" => p(v).map(Self::ProposalExpired),

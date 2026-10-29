@@ -355,5 +355,11 @@ fn contracts_1_1_4_market_cap_and_stall() {
     let old: CoinDetected = serde_json::from_value(serde_json::json!({"mint": "m", "venue": "amm", "launchpad": null, "creator": null})).unwrap();
     assert!(!old.mcap.is_known(), "pre-1.1.4 producer");
     assert_eq!(serde_json::from_value::<ExitReason>(serde_json::json!("stall")).unwrap(), ExitReason::Stall);
+    // 7ba6273: proposal.updated (quote refresh, rev + 1); quote fields are ignored by the desktop.
+    assert!(ts.contains("\"proposal.updated\": ProposalUpdated"));
+    let u: ProposalUpdated = serde_json::from_value(serde_json::json!({"proposal_id": "p", "kind": "buy_pick", "rev": 3,
+        "est_network_fee_lamports": "5000", "swap_fee_bps": 125, "max_slippage_bps": 300, "min_out_raw": "1", "total_max_lamports": "250005000",
+        "quote_ts": "2026-10-29T08:42:00.000Z", "quote_expires_at": null, "priority_fee_lamports": null})).unwrap();
+    assert_eq!(u.version, 3);
 }
 

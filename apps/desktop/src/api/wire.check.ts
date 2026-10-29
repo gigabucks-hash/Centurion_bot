@@ -127,7 +127,7 @@ export const eventTypesHandled = [
   "proposal.created", "proposal.approved", "proposal.rejected", "proposal.expired", "position.opened",
   "position.updated", "position.closed", "fill.simulated", "exit.triggered", "portfolio.snapshot",
   "strategy.created", "strategy.updated", "strategy.paused", "strategy.resumed", "strategy.archived",
-  "strategy.deleted", "practice.reset", "account.deletion_scheduled", "account.deletion_cancelled",
+  "strategy.deleted", "practice.reset", "proposal.updated", "account.deletion_scheduled", "account.deletion_cancelled",
   "account.deleted", "system.notice", "order.submitted", "order.filled", "order.failed",
 ] as const satisfies readonly EventType[];
 /** Every wire type is either handled or deliberately ignored. */
@@ -158,6 +158,9 @@ export const approvalWireSample = {
   amount_lamports: "100000000", is_first_buy: true, risk: "low", weakening: false, status: "rejected", rev: 2, expire_reason: null,
   base_rev: null, decision: "reject", reject_reason: "not_tradeable", decided_via: "desktop", decided_by: "u", payload: {},
   created_at: "2026-10-29T08:41:00.000Z", expires_at: "2026-10-29T08:42:00.000Z", decided_at: "2026-10-29T08:41:30.000Z",
+  // 1.1.4 (7ba6273) quote fields: always present on the resource, null when unset.
+  est_network_fee_lamports: null, priority_fee_lamports: null, swap_fee_bps: null, max_slippage_bps: null,
+  min_out_raw: null, total_max_lamports: null, quote_ts: null, quote_expires_at: null,
 } satisfies ApprovalWire;
 // @ts-expect-error ConflictError.current is required (1.1.3, matches Rust `required_non_null`)
 export const conflictWithoutCurrent: ConflictError = { error: { code: "VERSION_CONFLICT", message: "m", request_id: "r", server_now: "x", current_rev: 2, base_rev: 1 }, server_now: "x" };

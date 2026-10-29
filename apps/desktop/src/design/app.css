@@ -294,12 +294,15 @@ table.positions tr.cursor td:last-child { background: var(--color-brand-primaryC
 /* D7: label + value on one line */
 .coin-detail dt { flex-shrink: 0; white-space: nowrap; }
 .coin-detail dd { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-/* D9: quick-look header on one line (title ellipsizes first, hint never wraps) */
+/* D9 (re-QA): title line = title (ellipsis + title tooltip) + hint; the NT badge has its own line.
+   Nothing is clipped without an ellipsis, in ID and EN, at every density. */
 .quicklook { width: 360px; }
-.quicklook header { flex-wrap: nowrap; white-space: nowrap; min-width: 0; }
-.quicklook header b { flex-shrink: 0; max-width: 60%; overflow: hidden; text-overflow: ellipsis; } /* title keeps its width; the chip ellipsizes first */
-.quicklook header .chip.nt { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.quicklook header .ql-hint { margin-left: auto; flex-shrink: 0; }
+.quicklook header { flex-wrap: nowrap; min-width: 0; }
+.quicklook header .ql-title { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quicklook header .ql-hint { margin-left: auto; flex-shrink: 0; white-space: nowrap; }
+.quicklook .ql-badges { display: flex; min-width: 0; margin: 0 0 var(--space-2); }
+.quicklook .ql-badges .chip.nt { max-width: 100%; min-width: 0; }
+.chip.nt .nt-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* D8: PnL never truncated (T-15: a non-zero value must never read as 0); narrow centre drops low-priority columns */
 .area-positions { container-type: inline-size; }
 table.positions td.col-pnl { min-width: 14ch; }
@@ -314,3 +317,6 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 .signal .row .mono { white-space: nowrap; flex-shrink: 0; }
 .signal .row .chip.nt { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
 .signal .row:first-child { flex-wrap: nowrap; }
+/* tokens 0.2.5 skeleton: quick-look timeline while coin_timeline loads */
+.quicklook .ql-skel { display: inline-block; width: 70%; vertical-align: middle; }
+

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "tauri": "tauri",
-    "sync:tokens": "node scripts/sync-tokens.mjs"
+    "sync:tokens": "node scripts/sync-tokens.mjs",
+    "test:ui": "node --test scripts/ui-format.test.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.0",

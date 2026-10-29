@@ -42,6 +42,10 @@ pub enum I18nArg {
     Num(Num),
     /// Another catalog key (e.g. `order.fail_reason.unsupported_quote_mint`) rendered first.
     Key(String),
+    /// Basis points of a whole (10 000 = 100 %), rendered with format.mjs `formatFractionBps`.
+    Bps(Num),
+    /// A price (decimal string), rendered with the UI locale.
+    Price(crate::model::Dec),
 }
 impl I18nMsg {
     pub fn new(key: &str) -> Self {

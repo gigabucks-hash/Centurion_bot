@@ -10,13 +10,15 @@ export type QuickLookTarget = { kind: "signal"; item: PickView } | { kind: "posi
 
 /** Last few coin timeline events (`GET /coins/{mint}/timeline`, v1.0 `/trail`). */
 function Timeline({ mint }: { mint: string }) {
+  const t = useT();
   const [items, setItems] = useState<TimelineItem[] | null>(null);
   useEffect(() => {
     let live = true;
     core.coinTimeline(mint).then((x) => live && setItems(x.slice(0, 4))).catch(() => live && setItems([]));
     return () => { live = false; };
   }, [mint]);
-  if (!items) return <span className="dim">…</span>;
+  // tokens 0.2.5 `.skeleton` (static under reduced motion); common.state.loading for assistive tech.
+  if (!items) return <span className="skeleton skeleton--text ql-skel" role="status" aria-label={t("common.state.loading")} />;
   if (!items.length) return <span className="dim">—</span>;
   return <span className="mono">{items.map((t) => `${fmtTime(Date.parse(t.ts))} ${t.kind}`).join(" · ")}</span>;
 }
@@ -70,11 +72,12 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
   }
   return (
     <aside className="quicklook" role="dialog" aria-modal="false" aria-labelledby="ql-title">
+      {/* D9: title ellipsizes with a full-text tooltip; the badge gets its own line so neither is clipped. */}
       <header>
-        <b id="ql-title">{title}</b>
-        {nt && <NtChip />}
+        <b id="ql-title" className="ql-title" title={title}>{title}</b>
         <span className="dim ql-hint"><kbd>Space</kbd>/<kbd>Esc</kbd></span>
       </header>
+      {nt && <div className="ql-badges"><NtChip /></div>}
       {nt && <NtDetail trade={target.item} kind={target.kind === "position" ? "sell" : "approve"} />}
       <dl>
         {rows.map(([k, v]) => (

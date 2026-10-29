@@ -20,11 +20,11 @@
 ```
 - **Contracts:** the TS types live in `packages/contracts/src/index.ts`. The desktop imports them as `@sentra/contracts` (tsconfig `paths` + a Vite alias; no workspace install is needed). The Rust mirror stays in `src-tauri/src/model.rs`, because Rust cannot import TS. Once Backend publishes a schema (JSON Schema/OpenAPI), both sides will be generated from it (milestone W2-D6).
 - **Design tokens:** `npm run sync:tokens` copies the first file it finds from this list into `src/design/sentra-tokens.css`:
-  1. `packages/design-tokens/tokens/tauri.css` (**used now**: UX v0.2.4, dark + Compact default)
+  1. `packages/design-tokens/tokens/tauri.css` (**used now**: UX v0.2.5, dark + Compact default)
   2. `packages/design-tokens/tokens/tokens.css`
   3. `/workspace/ux-solbot/tokens/tauri.css` (legacy)
 
-  `app.css` uses the v0.2.x names: `--text-*`, `--density-*`, `--duration-*`, `--shadow-e*`. Currently synced: **v0.2.4** (de22715). WF-20 `surface.sunken` is the official `--color-bg-sunken`; `app.css` uses it everywhere (`--color-bg-inset` is a deprecated alias upstream and no longer used here). The v0.2.0 stray `}` (C18) is fixed upstream, so the workaround has been removed and the script is a plain copy again.
+  `app.css` uses the v0.2.x names: `--text-*`, `--density-*`, `--duration-*`, `--shadow-e*`. Currently synced: **v0.2.5** (bd58541; `.skeleton` / `--color-skeleton-*`, static under reduced motion — used for the quick-look timeline). WF-20 `surface.sunken` is the official `--color-bg-sunken`; `app.css` uses it everywhere (`--color-bg-inset` is a deprecated alias upstream and no longer used here). The v0.2.0 stray `}` (C18) is fixed upstream, so the workaround has been removed and the script is a plain copy again.
 
 ## 3. Windows
 | Label | Route | Purpose | Capability |
@@ -135,7 +135,9 @@
     - every `EventPayloads` type is decoded.
   - `tsc -b` → `src/api/wire.check.ts`: `satisfies` checks over wire samples, plus an exhaustive switch over event types and an assertion that amounts are strings.
 
-## 5.2 i18n (`@sentra/i18n` 0.4.4)
+## 5.2 i18n (`@sentra/i18n` 0.4.5)
+- **0.4.5** (bd58541): errors.map.json v5 (57 codes, + `GUARD_WEAKEN_REQUIRES_APPROVAL`), `reject_reasons.map.json` (skip chip → wire `reject_reason`; Rust `rejmap.rs` replaces the hand map in `commands::skip_reason`, the feed appends `reject_reason.*` copy), `common.value.unavailable` (tooltip + accessible name of a muted "—" Mcap / Likuiditas cell), `common.state.loading`. UX gaps: no `exit_reason.stall`, no `feed.event.fill` / `feed.event.exit_triggered` (local fallback templates in `local.ts`; package keys win once shipped), no errors.map v6 (`QUOTE_MISSING_OR_STALE` falls back to errors.json messages).
+- **Re-QA D9–D11:** D9 quick-look header: title ellipsizes with a full-text `title`, the NT badge has its own line and its label is a real ellipsizing span (`.chip.nt` is inline-flex, so a bare text node could not ellipsize). D10 executor rows (`fill.simulated`, `exit.triggered`) are structured `I18nMsg`s with `bps` / `price` args formatted by format.mjs `formatFractionBps` and `Intl.NumberFormat(LOCALES[lang])`. D11 Likuiditas: mark → screener measured liquidity check → known signal, shown on not-tradeable rows too.
 - **0.4.4:** every `t("desktop.*")` was replaced via `key-migrations.json`, with the placeholder renames `{pass}`→`{score_threshold}`, `{quote}`→`{quote_symbol}`, `{max}`→`{max_score}` and `{s}`→`{seconds}`. Headers use `positions.title_paper` (no string concatenation), `positions.empty` takes `{mode}`, and the batch message is `queue.batch.excluded_not_tradeable`. `cta_note` is removed. `local.ts` = the "(mock)" suffix only.
 - **0.4.3:** placeholders are wire field names: `{coin}` → `{symbol}` and `{sol}` → `{amount_lamports}`. Rust `I18nMsg` args use them, `amount_lamports` is an `I18nArg::Lamports`, and `wireVars()` formats it with `formatLamports` (exact BigInt split). `fraction_bps` uses `formatFractionBps`.
 - **Error mapping = `errors.map.json`** (`src-tauri/src/errmap.rs`, embedded with `include_str!`; frontend imports the same file). `code → {key, source, kind, http, retryable}`, unknown → `error.code.internal`. `keys::code_kind` reads `kind` from the map (no hand list). `system.notice` → `errmap::i18n_key`; `order.failed` → `errmap::order_fail_key`, covering all 8 contracts reason codes (`ORDER_FAIL_REASONS`; anything else → `order.fail_reason.unknown`). The UI resolves the key in the catalog and falls back to `errors.json` `messages.id|en`. The contract test checks map ↔ errors.json (kind, http) ↔ en/id catalogs ↔ the events.ts reason_code set.

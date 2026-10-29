@@ -1,5 +1,5 @@
 import type { PickView, ScreenedCoin } from "../api";
-import { useLang, useT } from "../i18n";
+import { skipChip, useLang, useT } from "../i18n";
 import { fmtUsdLocale, shortMint } from "./format";
 import { NtChip, NtDetail } from "./NotTradeable";
 import { PriceChart } from "./PriceChart";
@@ -58,7 +58,7 @@ export function CoinDetail({ coin, pick, onOpenQueue, onSkip }: {
           <button className="cta-disabled" disabled aria-disabled="true" aria-describedby="cd-title">{t("screener.detail.approve_unavailable")}</button>
           {pick && onSkip && (
             <>
-              <button className="ghost" data-action="skip" onClick={() => onSkip(pick)}>{t("queue.pick.skip")} · {t("queue.skip_reason.not_tradeable")}</button>
+              <button className="ghost" data-action="skip" onClick={() => onSkip(pick)}>{t("queue.pick.skip")} · {t(skipChip("not_tradeable")?.label_key ?? "queue.skip_reason.not_tradeable")}</button>
               <div className="dim note">{t("screener.detail.skip_hint")}</div>
             </>
           )}

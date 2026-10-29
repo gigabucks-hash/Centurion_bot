@@ -10,8 +10,9 @@ export function NtChip({ title, compact = false }: { title?: string; compact?: b
   const label = t("screener.not_tradeable.badge");
   // compact (dense tables): icon only, label kept for AT + hover; the row's disabled CTA spells it out.
   return (
-    <span className={`chip nt${compact ? " compact" : ""}`} title={title ?? (compact ? label : undefined)}>
-      <span aria-hidden>⊘</span>{compact ? <span className="sr-only">{label}</span> : <> {label}</>}
+    <span className={`chip nt${compact ? " compact" : ""}`} title={title ?? label}>
+      {/* The label is its own element so it can ellipsize (an inline-flex text node cannot). */}
+      <span aria-hidden>⊘</span>{compact ? <span className="sr-only">{label}</span> : <span className="nt-label">{label}</span>}
     </span>
   );
 }
