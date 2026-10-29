@@ -221,6 +221,59 @@ Allowed instructions (from the IDLs / source): pump `buy`, `buy_v2`, `buy_v3`, `
 | `BAKEOFF_SECRETS_FILE` | harness | default `/home/box/.secrets/sentra_bakeoff.env` |
 | `BAKEOFF_STATE_DIR` | harness | default `/home/box/.secrets/sentra_bakeoff_state` (devnet test keypairs, mode 600, outside the repo) |
 
+## 7. Install record (after the review)
+- Installed into `services/backend/bakeoff/` only: **`@turnkey/api-key-stamper@0.6.18`**, exact pin in `package.json`.
+  `package-lock.json` is committed, and the install ran as `npm ci --ignore-scripts` (with `.npmrc` `ignore-scripts=true`, `save-exact=true`).
+  The lockfile integrity is `sha512-qKfufzArRpuBtO+iLy90+gjYmsXr86kK2dVsY3YhXUU6qeO3LJVMyc6HIIq1ZVTCsH8fFpXRfi8btHXf9jxhbA==`, which **matches §1.2**.
+  33 packages, 0 with install scripts. `npm audit signatures`: 33 verified registry signatures and 20 verified attestations.
+  `npm audit`: 0 vulnerabilities.
+- **Not installed:** `@crossmint/wallets-sdk`, `@crossmint/server-sdk` (red flag), `@turnkey/solana` (red flag),
+  `@turnkey/http`, `@turnkey/sdk-server` (not required).
+
+## 8. Live results: Crossmint staging + Solana devnet (2026-10-29, 18:50–19:05 WIB)
+
+Run via `npm run live:crossmint` with devnet test keypairs only (owner/recovery stand-in, delegate, foreign recipient,
+stored mode 600 in `/home/box/.secrets/sentra_bakeoff_state`). No real funds. Smart wallets `B2HHttwq…KJT3Jv`
+(latency, negatives, revoke) and `A7k8M65W…9Qcoxy` (escalation probe). Raw JSON is in `bakeoff/results/` (gitignored and
+redaction-checked).
+
+**On-chain shape (observed).** Crossmint wraps our instructions: the fee payer is a Crossmint staging relayer
+(`34U6iAJm…`), our delegated key signs on chain, and smart-wallet program `XmSwiXQsxSZYKVYbSAkkvQVvdrKo1nwwfvZBPQrLzbU`
+(`ExecuteTransaction`) **CPIs** our instructions. Consequences:
+(a) Fees are sponsored (10,040 lamports per tx observed on devnet).
+(b) Our instructions are CPIs on chain, so a top-level-only parser on the final tx would see only the wrapper. Sentra's
+pre-sign must parse the **inner** tx we submit, which it does.
+(c) The wallet PDA holds 0 lamports, so our simulator substitutes a funded fee payer (`BAKEOFF_SIM_FEE_PAYER`) and
+simulates our instructions.
+
+| Test | Result |
+|---|---|
+| Latency, 60/60 memo txs through the full pipeline (pre-sign + RPC simulate + Crossmint create, approve and wait) | **60 ok, 0 failed.** Sign (create + approval round trip): **p50 524 ms, p95 999 ms**. End-to-end to Crossmint `success`: **p50 2,598 ms, p95 4,302 ms** (includes 250 ms poll granularity). |
+| Transfer out to a foreign address | Pipeline: **rejected by Sentra pre-sign** (`TRANSFER_TO_NON_OWNER`). Provider only: 422 at Crossmint's simulation, but the logs show the smart-wallet program **forwarded the transfer to the System program**, which failed with `0x1` (insufficient lamports; the wallet holds 0 SOL). So **the recipient scope did not stop it before execution**, and the outcome with funds is **untested**. |
+| Over-cap | Pipeline: **rejected by Sentra** (`OVER_CAP` on a pump.fun `buy` with `max_sol_cost` 0.025 SOL > 0.01 cap). Provider only: no per-tx cap exists (the scope is cumulative and transfer-only). The 422 came from the placeholder pump accounts (`Custom 3012`), not from a cap. |
+| Non-allowlisted program (Memo v1) | Pipeline: **rejected by Sentra** (`PROGRAM_NOT_ALLOWED`). Provider only: **Crossmint signed and landed it** (confirmed on devnet). This confirms on chain that Crossmint has **no program allowlist**. |
+| Delegated-signer escalation (delegate registers a new unscoped signer and approves it itself) | **Rejected by Crossmint**: "Signature is not pending for signer (delegate) … pending: (recovery)". Only the recovery method can approve signer changes. One dangling `awaiting-approval` signer-add tx remains, inert without the owner's signature. |
+| Outage (provider unreachable, induced with a 1 ms timeout × 5) | **5/5 failed closed** (no signature, nothing sent), and the next call recovered (confirmed, 2.65 s). Approvals are separate calls, so a create that times out can never land unsigned. |
+| Revoke (DELETE signer + owner approval) | **2.85 s** to revoke. The next sign attempt was rejected with HTTP 400 "Delegated signer … not found". |
+| Export | Not applicable to this setup: the owner (external-wallet recovery) holds its own key. Crossmint export exists only for email/phone signers. The delegate can't export. |
+| Cost | Staging is free. Public pricing (crossmint.com/pricing, read 2026-10-29): the Developer tier has **1,000 monthly active wallets free and "up to 2,000 transactions"**, with $0.025/MAU overage. The policy engine and signature-based pricing are custom (contact sales). At an assumed ~20 trades/day (~600 tx/month) the free tier covers it. Who pays production fee sponsorship is unknown. |
+
+**Not measurable this run:** the devnet RPC faucet is closed (`requestAirdrop` → 410, "use faucet.solana.com"), so the
+wallet has 0 SOL. The provider-side **recipient whitelist and spendingLimit enforcement with real funds** is
+therefore **untested**. To finish it, fund the smart wallet with ~0.05 devnet SOL (web faucet or a funded devnet
+wallet) and rerun `--phase=negatives`.
+
+**Turnkey:** no `TURNKEY_*` vars are present yet, so it stays on mocks (mock p50/p95 sign 97/148 ms, e2e 589/1,126 ms
+with an injected 5-call outage that failed closed, from Turnkey's *vendor-claimed* figures and not measured).
+`TurnkeyRest` is wired behind `BAKEOFF_LIVE=1` and the devnet guard.
+
+### 8.1 Interim recommendation
+On this evidence Crossmint fails the bake-off criterion "can the provider policy alone reject a non-allowlisted program"
+(REAL_MONEY_OPTIONS §D.3): it **landed a non-allowlisted program call** and has no per-tx cap. Its floor is
+"only the delegate key can sign, and only the owner can change signers", which is good. But swap-only rests 100% on
+Sentra's pre-sign layer. Add the full-access-only staging keys (§2.8) and the SDK telemetry (§2.3), and **Turnkey
+stays primary**, pending its live run under the same tests. Crossmint stays the fallback only if Turnkey fails.
+
 ## 6. Sources (accessed 2026-10-29)
 - npm registry: `https://registry.npmjs.org/@turnkey%2Fapi-key-stamper/latest` (and likewise for every package above);
   crates.io API `https://crates.io/api/v1/crates/turnkey_client`

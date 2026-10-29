@@ -130,6 +130,27 @@ export class CrossmintRest implements SignerProvider {
     if (tx?.id) await this.waitFinal(w, await this.approveAll(w, tx, this.owner));
   }
 
+  /**
+   * Escalation probe: the DELEGATED signer tries to register a new UNSCOPED signer and approve it itself.
+   * Must be rejected (only the recovery method may approve signer changes). Returns the outcome; never throws.
+   */
+  async escalationProbe(signer: SignerRef, newSigner: string): Promise<{ status: string; detail: string }> {
+    const w = signer.wallet.address;
+    try {
+      const r = await this.http<Tx & { transaction?: Tx }>("POST", `/wallets/${w}/signers`, { signer: { type: "external-wallet", address: newSigner } });
+      const tx = (r.transaction ?? r) as Tx;
+      if (!tx?.id) return { status: "unexpected", detail: "no approval transaction returned" };
+      try {
+        const fin = await this.waitFinal(w, await this.approveAll(w, tx, this.delegate));
+        return { status: fin.status === "success" ? "ESCALATED" : "rejected", detail: fin.status };
+      } catch (e) {
+        return { status: "rejected", detail: String((e as Error).message).slice(0, 400) };
+      }
+    } catch (e) {
+      return { status: "rejected", detail: String((e as Error).message).slice(0, 400) };
+    }
+  }
+
   async exportCheck(): Promise<ExportCheck> {
     return { signerCanExport: false, ownerCanExport: false, ownerHoldsKey: true, notes: "External-wallet recovery: owner holds its own key; Crossmint export exists only for email/phone signers (docs)." };
   }
