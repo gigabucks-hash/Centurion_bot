@@ -28,6 +28,12 @@ export type ErrorCode =
   | "MODE_NOT_ALLOWED"
   | "REAL_SOL_DISABLED"
   | "GUARD_COOLDOWN_ACTIVE"
+  | "CONFIRMATION_REQUIRED"
+  | "CONFIRMATION_INVALID"
+  | "WEBAUTHN_INVALID"
+  | "TYPED_CONFIRMATION_MISMATCH"
+  | "HOLD_TOO_SHORT"
+  | "REPLAY_UNAVAILABLE"
   | "RATE_LIMITED"
   | "UNAVAILABLE"
   | "INTERNAL";
@@ -60,6 +66,12 @@ export const ERROR_CODES: Record<ErrorCode, ErrorCodeInfo> = {
   MODE_NOT_ALLOWED: { http: 403, retryable: false, message: "Only paper mode is allowed" },
   REAL_SOL_DISABLED: { http: 403, retryable: false, message: "Real SOL execution is disabled until Phase 7 approval" },
   GUARD_COOLDOWN_ACTIVE: { http: 409, retryable: true, message: "Guard change is in its cooldown window" },
+  CONFIRMATION_REQUIRED: { http: 428, retryable: false, message: "This action needs a proof-of-confirmation (WebAuthn + typed name + hold)" },
+  CONFIRMATION_INVALID: { http: 403, retryable: false, message: "Confirmation challenge unknown, used, expired or bound to another change" },
+  WEBAUTHN_INVALID: { http: 403, retryable: false, message: "WebAuthn assertion failed verification" },
+  TYPED_CONFIRMATION_MISMATCH: { http: 422, retryable: false, message: "Typed confirmation does not match the strategy name" },
+  HOLD_TOO_SHORT: { http: 422, retryable: false, message: "Hold-to-confirm duration below the required minimum" },
+  REPLAY_UNAVAILABLE: { http: 503, retryable: true, message: "Full replay disabled or over its 2 s budget; use the static estimate" },
   RATE_LIMITED: { http: 429, retryable: true, message: "Rate limit exceeded" },
   UNAVAILABLE: { http: 503, retryable: true, message: "Dependency temporarily unavailable" },
   INTERNAL: { http: 500, retryable: true, message: "Unexpected server error" },

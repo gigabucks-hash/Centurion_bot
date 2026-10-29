@@ -52,15 +52,22 @@ pub enum SnapshotError {
 }
 
 pub fn compute_snapshot(i: &SnapshotInputs) -> Result<Snapshot, SnapshotError> {
-    let cash = i128::from(i.start_lamports) + i128::from(i.sell_proceeds_lamports) - i128::from(i.buy_cost_lamports);
+    let cash = i128::from(i.start_lamports) + i128::from(i.sell_proceeds_lamports)
+        - i128::from(i.buy_cost_lamports);
     if cash < 0 {
         return Err(SnapshotError::NegativeCash(cash));
     }
     let value: u128 = i.open.iter().map(|p| u128::from(p.value_lamports)).sum();
     let cost: u128 = i.open.iter().map(|p| u128::from(p.cost_lamports)).sum();
     let equity = cash as u128 + value;
-    let peak = equity.max(u128::from(i.prev_peak_equity_lamports)).max(u128::from(i.start_lamports));
-    let drawdown_bps = if peak == 0 { 0 } else { ((peak - equity) * 10_000 / peak) as u32 };
+    let peak = equity
+        .max(u128::from(i.prev_peak_equity_lamports))
+        .max(u128::from(i.start_lamports));
+    let drawdown_bps = if peak == 0 {
+        0
+    } else {
+        ((peak - equity) * 10_000 / peak) as u32
+    };
     Ok(Snapshot {
         cash: Lamports(cash as u64),
         positions_cost: Lamports(cost as u64),
@@ -85,7 +92,10 @@ mod tests {
             sell_proceeds_lamports: 10_000_000_000,
             buy_cost_lamports: 13_708_000_000,
             realized_pnl_lamports: -2_506_000_000,
-            open: vec![OpenLot { cost_lamports: 1_202_000_000, value_lamports: 1_186_000_000 }],
+            open: vec![OpenLot {
+                cost_lamports: 1_202_000_000,
+                value_lamports: 1_186_000_000,
+            }],
             prev_peak_equity_lamports: 30_000_000_000,
         })
         .expect("snapshot");

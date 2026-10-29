@@ -1,254 +1,167 @@
-# Stream Event Schema (v1)
+# Sentra stream event schema (contract v1)
 
-Status: **contract v1, frozen for client work** (Web, Flutter, Desktop, MCP). Additive changes only;
-breaking changes bump `version`. Owner: Backend API Specialist. Source types:
-`packages/contracts/src/events.ts` (TS) and `crates/common/src/events.rs` (Rust).
+Status: **v1, frozen for client work** (Web, Flutter, Desktop, MCP). Additive changes only; a breaking
+change to a type's payload bumps that event's `version`. Owner: Backend API Specialist.
+Sources of truth: TS `src/wire/events.ts`, Rust `services/backend/crates/common/src/event.rs`, SQL
+`public.events` in `services/backend/supabase/migrations/0001_init.sql`.
 
-## 1. Wire rules (apply to every payload)
+## 1. Wire rules (every REST body and every stream payload)
 
-| Kind of value | Wire type | Example |
+| Value | Wire type | Example |
 |---|---|---|
-| SOL / token amounts | **string**, integer base units (lamports for SOL, raw units for SPL) | `"250000000"` (= 0.25 SOL) |
-| Prices (USD or SOL per token) | **decimal string**, no exponent | `"0.000012345678"` |
-| Percentages / ratios | **decimal string**, percent units | `"-35"`, `"12.5"` |
-| Basis points, counts, seconds, slots, seq | JSON integer | `125`, `300` |
-| Timestamps | RFC 3339 UTC, millisecond precision | `"2026-10-29T08:42:00.123Z"` |
-| IDs | string (UUID v7 for rows, base58 for mints/wallets) | |
+| SOL amounts | integer **string**, lamports (`*_lamports`) | `"250000000"` = 0.25 SOL |
+| Token amounts | integer **string**, raw base units (`*_raw`) | `"44834929"` |
+| Prices, ratios, percentages, scores | **decimal string**, no exponent | `"0.000012345678"`, `"-35"`, `"85"` |
+| bps, counts, seconds, ms, slots, seq, version | JSON integer | `125`, `18234` |
+| Timestamps | RFC 3339 UTC, ms precision | `"2026-10-29T08:42:00.123Z"` |
+| Mode | `practice` \| `real` | `real` is rejected everywhere until Phase 7 |
 
-**No floats over the wire. Ever.** Clients parse amounts with BigInt / `BigInt` / Rust `u64` and prices
-with a decimal library (`decimal.js`, Dart `decimal`, Rust `rust_decimal`).
+**No floats over the wire.** Parse amounts with BigInt, prices with a decimal library.
+Token metadata (name, symbol, uri) is attacker-controlled and only ever appears under `untrusted`;
+render as plain text, never interpret, never put in an LLM prompt unescaped.
 
-Token metadata (name, symbol, image URL, description) is attacker controlled and is always placed under
-`untrusted`. Render it as plain text only; never interpret it, never feed it to an LLM prompt unescaped.
+### server_now
+Every REST response carries `server_now` (top-level body field **and** `X-Server-Now` header).
+Every stream message carries `server_now` (SSE: in the envelope; Broadcast: in the payload;
+Realtime `postgres_changes` rows: use the row's `created_at`, which is the DB clock at insert, plus the
+`clock` heartbeat below). Clients compute `skew = server_now - local_now` and render every countdown
+(proposal `expires_at`, cooldowns) as `expires_at - (local_now + skew)`. Never compute TTLs client-side.
 
 ## 2. Envelope
 
 ```json
 {
-  "id": "0192d6a4-6c1e-7b3a-9f1e-2b4f1c9d0a11",
+  "id": "k7x2m9q4:1793263320123:position.opened",
   "seq": 18234,
   "type": "position.opened",
   "version": 1,
-  "workspace_id": "0192d6a0-0000-7000-8000-000000000001",
-  "strategy_id": "0192d6a0-0000-7000-8000-0000000000aa",
+  "workspace_id": "10000000-0000-0000-0000-00000000000a",
+  "strategy_id": "20000000-0000-0000-0000-00000000000a",
+  "ck": "k7x2m9q4",
+  "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
   "ts": "2026-10-29T08:42:00.123Z",
   "actor": "executor",
-  "mode": "paper",
-  "trail_key": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU:1793263320123:position.opened",
-  "payload": { }
+  "mode": "practice",
+  "payload": { },
+  "untrusted": { "name": "Example", "symbol": "EXM" },
+  "server_now": "2026-10-29T08:42:00.151Z"
 }
 ```
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (UUID v7) | Globally unique; safe dedupe key. |
-| `seq` | integer | **Strictly increasing and gapless per workspace.** Allocated under a row lock on `workspace_counters`, so commit order == seq order inside a workspace. Resume and pagination use it. |
-| `type` | string | One of the types in section 4. Unknown types must be ignored by clients (forward compatible). |
-| `version` | integer | Payload schema version for that `type`. Currently `1` for all types. |
-| `workspace_id` | string | Always set. RLS scopes delivery to workspace members. |
-| `strategy_id` | string \| null | Null for workspace-level events (`portfolio.snapshot`, workspace guard changes). |
-| `ts` | string | When the fact happened (server clock, UTC). |
-| `actor` | enum | `ingest` `screener` `guard` `entry` `executor` `exit` `user` `system`. UI label "You" = `user`. |
-| `mode` | enum | `paper` only until Phase 7. `live` is reserved and rejected by the DB CHECK today. |
-| `trail_key` | string \| null | `<mint>:<epoch_ms>:<type>`; human-readable coin trail key (blueprint style). Not unique across strategies; use `id`. |
-| `payload` | object | Type-specific (section 4). |
+| Field | Notes |
+|---|---|
+| `id` | Deterministic `<subject>:<epoch_ms>:<type>` (subject = pick key `ck`, proposal id, strategy id). Unique; writers are idempotent; clients dedupe on it. |
+| `seq` | `bigint identity`. **Monotonic, not gapless** (rollbacks leave holes). Order by `seq`, never by `ts`. Cursor for pagination and resume. |
+| `type` | See section 4. Clients must ignore unknown types. |
+| `version` | Payload schema version for that type (all `1` today). |
+| `workspace_id`, `mode` | Every event is scoped by both. RLS hides `mode='real'` rows unless the JWT has `trade:real` (never issued before Phase 7). |
+| `strategy_id`, `ck`, `mint` | Nullable. `ck` = pick key (1 coin x 1 strategy); position key = `<ck>.<n>`. |
+| `ts` | When the fact happened (server clock). |
+| `actor` | `ingest` `screener` `guard` `entry` `executor` `exit` `user` `system` (UI: `user` = "You"). |
+| `payload` | Trusted, typed per `type`. |
+| `untrusted` | Always an object (may be `{}`). |
+| `server_now` | Added at delivery (SSE/REST); not stored. |
 
 ## 3. Transport
 
-Three channels, one schema:
-
-1. **Supabase Realtime `postgres_changes`** on `public.events` (INSERT only), filter `workspace_id=eq.<id>`.
-   RLS on `events` restricts rows to workspace members. Row columns == envelope fields (`payload` is jsonb).
-   This is the primary feed for Web and Flutter.
-2. **Supabase Realtime Broadcast** channel `marks:<workspace_id>` for mark prices (high frequency,
-   ephemeral, **never written to a table**). Private channel; authorised by a Realtime RLS policy on
-   `realtime.messages` that checks workspace membership. Message:
+1. **Supabase Realtime `postgres_changes`** (INSERT on `public.events`, filter `workspace_id=eq.<id>`):
+   primary live feed for Web and Flutter. RLS applies (membership + mode gate).
+2. **Supabase Realtime Broadcast**, private channel `marks:<workspace_id>:<mode>`: mark prices only,
+   **never written to a table**, throttled to <= 4 msg/s per mint, only for mints with an open position or
+   pending proposal. Events: `mark` and a `clock` heartbeat every 15 s:
    ```json
-   { "event": "mark", "payload": {
-       "mint": "7xKX...gAsU", "price_usd": "0.000041230000", "price_sol": "0.000000213400",
-       "liquidity_usd": "48211.50", "slot": 301223344, "ts": "2026-10-29T08:42:01.020Z",
-       "position_ids": ["0192d6a5-..."] } }
+   { "event": "mark", "payload": { "mint": "7GCi...W2hr", "price_usd": "0.000041230000",
+     "price_sol": "0.000000213400", "liquidity_usd": "48211.50", "slot": 301223344,
+     "ts": "2026-10-29T08:42:01.020Z", "position_ids": ["4000..."], "server_now": "2026-10-29T08:42:01.031Z" } }
+   { "event": "clock", "payload": { "server_now": "2026-10-29T08:42:15.000Z", "safe_seq": 18240 } }
    ```
-   Throttled server-side to <= 4 msgs/s per mint and only for mints with an open position or a pending
-   proposal in that workspace. Marks are not part of `seq`; after reconnect clients refetch positions.
-3. **SSE** `GET /v1/events/stream?after_seq=<n>` (API service) for Desktop, MCP and any non-Supabase
-   client. Each SSE message: `id: <seq>`, `event: <type>`, `data: <envelope json>`. Honours
-   `Last-Event-ID` for resume. Heartbeat comment every 15 s.
+3. **SSE** `GET /v1/events/stream?mode=practice&after_seq=<n>` for Desktop, MCP and any client without
+   Supabase. `id: <seq>`, `event: <type>`, `data: <envelope>`; honours `Last-Event-ID`; heartbeat
+   comment every 15 s. SSE only emits rows with `seq <= events_safe_seq()` so it is strictly seq-ordered.
 
-### Resume-from-seq algorithm (all clients)
+### Why seq is safe to resume from although it is not gapless
+A transaction can take seq 101 and commit after seq 102. The REST list and SSE therefore only serve
+`seq <= events_safe_seq()` (the highest seq below which no in-flight transaction can still commit; computed
+from `pg_snapshot_xmin`). The value a client persists as its **resume watermark** must come from REST
+(`next_after_seq`), SSE (`id`) or the Broadcast `clock.safe_seq`, never from a raw Realtime row.
 
 ```
-last = persisted last_seq (0 on first run)
-subscribe realtime (buffer incoming events, do not apply yet)
-loop: page = GET /v1/events?after_seq=last&limit=500
-      apply page.items in order; last = page.next_after_seq
+watermark = persisted (0 first run)
+subscribe Realtime; apply live rows immediately, dedupe by id
+loop: page = GET /v1/events?after_seq=watermark&limit=500 ; apply (dedupe) ; watermark = page.next_after_seq
       until page.has_more == false
-apply buffered events where seq > last, in seq order; then apply live
-on gap detected (incoming.seq > last + 1): re-run the backfill loop from last
+on reconnect or every clock heartbeat: repeat the loop from watermark (cheap; catches late commits)
 ```
-
-Dedupe on `seq` (or `id`). Because seq is gapless per workspace, a gap always means a missed message.
 
 ### Cursor pagination on seq
+`GET /v1/events?mode=practice&after_seq=<n>&limit=1..500&types=a,b&strategy_id=&ck=` ascending, or
+`before_seq=<n>` descending (scroll-back). Response:
+`{ "items": [..], "next_after_seq": 18234, "next_before_seq": null, "has_more": true, "safe_seq": 18240, "server_now": "..." }`.
 
-`GET /v1/events?after_seq=<n>&limit=<1..500>&types=a,b&strategy_id=<id>` ascending (forward/resume), or
-`?before_seq=<n>` descending (history scroll-back). Response:
+## 4. Event types (payloads)
 
+Vocabularies: `ExitReason` = `take_profit stop_loss trailing_stop time_out inactivity drain stall rug
+sell_floor loss_stop manual strategy_retired` (`sell_floor` is evaluated before every other exit rule).
+`GuardVerdict` = `PASS WARN FAIL`. `ProposalKind` = `buy_pick guard_change team_action`.
+`ProposalExpiredReason` = `timeout strategy_deleted strategy_archived guard_failed price_moved`.
+
+| type | actor | payload (v1) |
+|---|---|---|
+| `coin.detected` | ingest | `{mint, stream: bonding\|graduated, launchpad, creator}`; metadata in `untrusted`. Fanned out once per workspace that runs a strategy on that stream. |
+| `screener.scored` | screener | `{mint, passed, summary, rejected_by, failed[], result: {passed, score, pass_mark, max_score, checks: [{id, class: stream\|hard\|weighted, passed, measured, points, reason}]}}` (numbers as decimal strings) |
+| `guard.result` | guard | `{mint, verdict, risk_score, reasons[], checks: [{name, status: PASS\|WARN\|FAIL\|UNKNOWN, measured, reason, weight}]}` |
+| `pick.created` | screener | `{mint, summary, score: <screener result>, guard_verdict, guard_reasons[]}` |
+| `entry.armed` / `entry.expired` | entry | `{pick_id, condition, expires_at}` / `{pick_id, reason}` |
+| `proposal.created` | entry\|user\|system | `{proposal_id, kind, version, expires_at, first_buy, approval_mode, amount_lamports, risk_level, summary, base_rev, weakening, diff, estimate}` |
+| `proposal.approved` / `proposal.rejected` | user | `{proposal_id, kind, version, decided_by, decided_via: web\|mobile\|desktop\|mcp\|push, reason}` (UI label for rejected: "Skipped") |
+| `proposal.expired` | system | `{proposal_id, kind, version, reason, at}` — `reason` in `ProposalExpiredReason`; enforced by a CHECK on `events` |
+| `position.opened` | executor | `{position_key, mint, fill: {sol_lamports, token_amount_raw, exec_price_sol, swap_fee_lamports, network_fee_lamports, slippage_bps, latency_ms}, first_buy}` |
+| `position.updated` | exit\|executor | `{position_key, qty_raw, peak_price_sol, realized_lamports, plan_state}` (partial sells, plan state; at most 1 per 5 s; never per tick) |
+| `position.closed` | exit\|user | `{position_key, exit_reason, exit_price_sol, sol_out_lamports, pnl_lamports, pnl_pct, hold_seconds}` |
+| `fill.simulated` | executor | `{position_key, side, simulated: true, mark_price_sol, exec_price_sol, token_amount_raw, sol_lamports, fee_bps: 125, swap_fee_lamports, network_fee_lamports, slippage_bps, latency_ms}` |
+| `exit.triggered` | exit | `{position_key, rule: ExitReason, rule_index, sell_pct, trigger_price_sol, detail}` |
+| `portfolio.snapshot` | system | `{cash_lamports, positions_cost_lamports, positions_value_lamports, equity_lamports, peak_equity_lamports, drawdown_bps, drawdown_pct, realized_pnl_lamports, unrealized_pnl_lamports, open_positions, as_of_seq}` |
+| `guard.changed` | user\|system | `{guard_change_id, proposal_id, status: requested\|cooling_down\|applied\|reverted\|cancelled, from_rev, to_rev, weakening, weakened_fields[], cooldown_until, auto_revert_at}` |
+| `strategy.created/updated/paused/resumed/archived/deleted` | user\|system | `{rev, diff?, expired_proposals?}` |
+| `system.notice` | system | `{code, message}` |
+
+### proposal.expired example
 ```json
-{ "items": [ /* envelopes */ ], "next_after_seq": 18234, "next_before_seq": null, "has_more": true }
+{ "id": "30000000-0000-0000-0000-00000000000b:1793263320123:proposal.expired", "seq": 18300,
+  "type": "proposal.expired", "version": 1, "workspace_id": "1000...000a", "strategy_id": "2000...000c",
+  "ck": "abc123", "mint": "7GCi...W2hr", "ts": "2026-10-29T08:42:00.123Z", "actor": "system",
+  "mode": "practice", "untrusted": {},
+  "payload": { "proposal_id": "30000000-0000-0000-0000-00000000000b", "kind": "buy_pick", "version": 2,
+               "reason": "strategy_deleted", "at": "2026-10-29T08:42:00.123Z" },
+  "server_now": "2026-10-29T08:42:00.140Z" }
 ```
 
-When filters are applied, seq values in a page are not contiguous; gap detection only applies to the
-unfiltered stream. Retention: events are kept forever in paper mode (append-only); the API may archive
-events older than 90 days to cold storage with `CURSOR_EXPIRED` returned for older cursors.
+**Who expires proposals:** the worker, never a DB trigger. (a) Sweeper calls `expire_due_proposals()`
+every 2 s (`timeout`). (b) Entry engine calls `expire_proposal(id, 'guard_failed'|'price_moved')` when
+a re-check fails while waiting. (c) Archive/delete calls `retire_strategy(id, 'archive'|'delete', actor)`,
+which in **one transaction** locks the strategy, flips its status, expires every pending (and
+approved-but-unexecuted) proposal, writes one `proposal.expired` per proposal plus
+`strategy.archived|deleted`, burns outstanding decision tokens, and appends an `audit_log` row. Because
+`events` is the outbox, a client can never see a pending proposal whose strategy is gone.
 
-## 4. Event types
-
-Reason/enum vocabularies used below:
-
-- `ExitReason`: `take_profit` `stop_loss` `trailing_stop` `time_out` `inactivity` `drain` `stall` `rug`
-  `sell_floor` `loss_stop` `manual` `strategy_retired`
-- `GuardVerdict`: `PASS` `WARN` `FAIL`
-- `ProposalKind`: `buy_pick` `guard_change` `team_action`
-- `ProposalExpiredReason`: `timeout` `strategy_deleted` `strategy_archived` `guard_failed` `price_moved`
-- `Stream`: `bonding` `graduated`
-
-### coin.detected (actor `ingest`, strategy_id null)
-Ingest is global (table `coins`); the event is fanned out only to workspaces with a running strategy
-subscribed to that `stream`, at most once per workspace per mint.
+### fill.simulated example
 ```json
-{ "mint": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", "stream": "bonding",
-  "source": "pumpportal", "launchpad": "pump_fun", "pool_program": null,
-  "creator": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", "slot": 301223001,
-  "decimals": 6, "price_usd": "0.000004100000", "market_cap_usd": "4100.00",
-  "liquidity_usd": "8200.00",
-  "untrusted": { "name": "Example", "symbol": "EXM", "uri": "https://..." } }
+{ "position_key": "abc123.0", "side": "buy", "simulated": true, "mark_price_sol": "0.00000025",
+  "exec_price_sol": "0.000000255", "token_amount_raw": "980392156", "sol_lamports": "250000000",
+  "fee_bps": 125, "swap_fee_lamports": "3125000", "network_fee_lamports": "25000",
+  "slippage_bps": "2.04", "latency_ms": 450 }
 ```
 
-### screener.scored (actor `screener`)
+### portfolio.snapshot example
 ```json
-{ "pick_candidate_id": "0192...", "mint": "7xKX...gAsU", "strategy_rev": 7,
-  "passed": true, "score": 92, "pass_mark": 80,
-  "hard": [ { "rule": "min_liquidity_usd", "passed": true, "measured": "8200.00", "threshold": "5000" } ],
-  "weighted": [ { "rule": "max_top10_pct", "points": 20, "max_points": 25,
-                  "measured": "31.2", "threshold": "35" } ],
-  "rejected_by": null }
-```
-`rejected_by` = first failing hard rule id, or `"pass_mark"`, when `passed` is false.
-
-### guard.result (actor `guard`)
-```json
-{ "mint": "7xKX...gAsU", "strategy_rev": 7, "verdict": "WARN", "snapshot_id": "0192...",
-  "checks": [
-    { "check": "mint_authority", "verdict": "PASS", "reason": "Mint authority revoked" },
-    { "check": "top_holders", "verdict": "WARN", "reason": "Top 10 hold 31.2% (warn >= 30)",
-      "measured": "31.2", "threshold": "30" },
-    { "check": "sell_simulation", "verdict": "PASS", "reason": "Simulated sell ok, tax 0 bps" } ] }
-```
-
-### pick.created (actor `screener`)
-```json
-{ "pick_id": "0192...", "mint": "7xKX...gAsU", "strategy_rev": 7, "score": 92,
-  "guard_verdict": "WARN", "pick_price_usd": "0.000004100000",
-  "entry": { "state": "watching", "dip_pct": "8", "delay_seconds": 0, "max_up_pct": "17",
-             "expires_at": "2026-10-29T08:52:00.000Z" },
-  "untrusted": { "symbol": "EXM" } }
-```
-
-### proposal.created (actor `entry` | `user` | `system`)
-```json
-{ "proposal_id": "0192...", "kind": "buy_pick", "version": 1,
-  "expires_at": "2026-10-29T08:52:00.000Z", "pick_id": "0192...", "first_buy": true,
-  "approval_mode": "ask_first_buy", "amount_lamports": "187500000", "risk_level": "medium",
-  "summary": "Buy 0.1875 SOL of EXM at market", "base_rev": null, "diff": null }
-```
-For `kind: "guard_change"`: `pick_id` null, `base_rev` set, `diff` = `{ "<settings path>": [old, new] }`,
-`weakening: true|false`, `impact` = replay result (see API `POST /v1/strategies/{id}/guard-impact`),
-default TTL 24 h.
-
-### proposal.approved / proposal.rejected (actor `user`)
-```json
-{ "proposal_id": "0192...", "kind": "buy_pick", "version": 2, "decided_by": "0192...user",
-  "decided_via": "web", "reason": null }
-```
-`decided_via`: `web` `mobile` `desktop` `mcp` `push`. UI label for `rejected` is "Skipped".
-
-### proposal.expired (actor `system` | `user`)
-```json
-{ "proposal_id": "0192...", "kind": "buy_pick", "version": 2, "reason": "strategy_deleted",
-  "detail": "Strategy was deleted while the proposal was pending" }
-```
-`reason` is `ProposalExpiredReason`. `strategy_deleted`/`strategy_archived` are emitted in the same DB
-transaction that retires the strategy (`retire_strategy()`), so a client can never observe a pending
-proposal whose strategy is gone.
-
-### position.opened (actor `executor`)
-```json
-{ "position_id": "0192...", "position_key": "7xKX...gAsU.0", "pick_id": "0192...",
-  "mint": "7xKX...gAsU", "entry_price_usd": "0.000004182000", "qty_raw": "44834929",
-  "sol_in_lamports": "187500000", "fee_lamports": "2343750", "first_buy": true,
-  "exit_plan": "ladder" }
-```
-
-### position.updated (actor `exit` | `executor`)
-Emitted on partial sells, plan state changes (trail armed, step locked), and peak changes at most once
-per 5 s. Not emitted per mark tick (marks are Broadcast).
-```json
-{ "position_id": "0192...", "qty_raw": "29889953", "peak_price_usd": "0.000006010000",
-  "realized_lamports": "61120000", "plan_state": { "rungs_hit": [0], "trail_armed": true } }
-```
-
-### position.closed (actor `exit` | `user`)
-```json
-{ "position_id": "0192...", "exit_reason": "trailing_stop", "exit_price_usd": "0.000005400000",
-  "sol_out_lamports": "231200000", "pnl_lamports": "43700000", "pnl_pct": "23.31",
-  "hold_seconds": 19 }
-```
-
-### fill.simulated (actor `executor`)
-```json
-{ "fill_id": "0192...", "position_id": "0192...", "side": "buy", "simulated": true,
-  "mark_price_usd": "0.000004100000", "fill_price_usd": "0.000004182000",
-  "qty_raw": "44834929", "sol_lamports": "187500000", "fee_bps": 125, "fee_lamports": "2343750",
-  "priority_fee_lamports": "50000", "slippage_bps": 200, "latency_ms": 450,
-  "quote_slot": 301223010, "fill_slot": 301223011 }
-```
-
-### exit.triggered (actor `exit`)
-```json
-{ "position_id": "0192...", "rule": "take_profit", "rule_index": 0, "sell_pct": "33.33",
-  "trigger_price_usd": "0.000006150000", "detail": "Rung 1: +50% sell 1/3" }
-```
-`rule` is an `ExitReason`. `sell_floor` rules are evaluated before every other rule.
-
-### portfolio.snapshot (actor `system`, strategy_id null or set for per-strategy)
-```json
-{ "snapshot_id": "0192...", "scope": "workspace", "cash_lamports": "26292000000",
-  "invested_lamports": "1186000000", "equity_lamports": "27478000000",
+{ "cash_lamports": "26292000000", "positions_cost_lamports": "1202000000",
+  "positions_value_lamports": "1186000000", "equity_lamports": "27478000000",
+  "peak_equity_lamports": "30000000000", "drawdown_bps": 840, "drawdown_pct": "8.40",
   "realized_pnl_lamports": "-2506000000", "unrealized_pnl_lamports": "-16000000",
-  "peak_equity_lamports": "30000000000", "drawdown_pct": "8.41", "open_positions": 6,
-  "as_of_seq": 18233 }
+  "open_positions": 6, "as_of_seq": 18233 }
 ```
-Emitted after every fill and at most once per 60 s otherwise. Identical numbers to
-`GET /v1/portfolio/overview`, because both read `portfolio_snapshots`.
 
-### guard.changed (actor `user` | `system`)
-```json
-{ "guard_change_id": "0192...", "proposal_id": "0192...", "status": "applied",
-  "from_rev": 7, "to_rev": 8, "weakening": true, "diff": { "guard.max_dev_pct": ["5", "10"] },
-  "cooldown_until": null, "revert_at": null }
-```
-`status`: `applied` `cooldown` `reverted` `cancelled`. `cooldown`/auto-revert only applies to live
-mode and is disabled until Phase 7.
-
-### Other types (also v1)
-`strategy.created`, `strategy.updated` (`{rev, diff}`), `strategy.paused`, `strategy.resumed`,
-`strategy.archived`, `strategy.deleted`, `entry.armed`, `entry.expired`, `job.failed`,
-`system.notice`. Clients must ignore types they do not know.
-
-## 5. Ordering guarantees per pick
-
-`coin.detected` -> `screener.scored` -> `guard.result` -> `pick.created` -> [`proposal.created` ->
-`proposal.approved|rejected|expired`] -> `fill.simulated(buy)` -> `position.opened` ->
-(`exit.triggered` -> `fill.simulated(sell)` -> `position.updated`)* -> `position.closed` ->
-`portfolio.snapshot`. Within a workspace this order is reflected in `seq`.
+## 5. Ordering per pick
+`coin.detected -> screener.scored -> guard.result -> pick.created -> [proposal.created ->
+proposal.approved|rejected|expired] -> fill.simulated(buy) -> position.opened -> (exit.triggered ->
+fill.simulated(sell) -> position.updated)* -> position.closed -> portfolio.snapshot`, reflected in `seq`.

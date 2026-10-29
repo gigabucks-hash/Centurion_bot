@@ -245,7 +245,9 @@ pub mod f64_dec {
     }
     pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<f64, D::Error> {
         let s = String::deserialize(d)?;
-        Dec::try_from(s).map(|v| v.to_f64()).map_err(de::Error::custom)
+        Dec::try_from(s)
+            .map(|v| v.to_f64())
+            .map_err(de::Error::custom)
     }
 }
 
@@ -265,7 +267,11 @@ pub mod opt_f64_dec {
     }
     pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<f64>, D::Error> {
         Option::<String>::deserialize(d)?
-            .map(|s| Dec::try_from(s).map(|v| v.to_f64()).map_err(de::Error::custom))
+            .map(|s| {
+                Dec::try_from(s)
+                    .map(|v| v.to_f64())
+                    .map_err(de::Error::custom)
+            })
             .transpose()
     }
 }

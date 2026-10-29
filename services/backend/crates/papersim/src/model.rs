@@ -374,7 +374,7 @@ mod tests {
 
 /// Wire form of a [`Fill`]: integers-as-strings and decimal strings only.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct FillWire {
     pub side: Side,
     pub simulated: bool,
@@ -435,11 +435,11 @@ mod wire_tests {
         assert_eq!(w.network_fee_lamports, common::Lamports(25_000));
         let v = serde_json::to_value(&w).expect("json");
         for k in [
-            "solLamports",
-            "tokenAmountRaw",
-            "execPriceSol",
-            "swapFeeLamports",
-            "slippageBps",
+            "sol_lamports",
+            "token_amount_raw",
+            "exec_price_sol",
+            "swap_fee_lamports",
+            "slippage_bps",
         ] {
             assert!(v[k].is_string(), "{k} must be a string on the wire");
         }

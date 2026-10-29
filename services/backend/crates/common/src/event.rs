@@ -130,8 +130,13 @@ impl Event {
         }
     }
 
-    pub fn with_untrusted_symbol(mut self, name: &Untrusted<String>, symbol: &Untrusted<String>) -> Self {
-        self.untrusted = serde_json::json!({ "name": name.sanitized(), "symbol": symbol.sanitized() });
+    pub fn with_untrusted_symbol(
+        mut self,
+        name: &Untrusted<String>,
+        symbol: &Untrusted<String>,
+    ) -> Self {
+        self.untrusted =
+            serde_json::json!({ "name": name.sanitized(), "symbol": symbol.sanitized() });
         self
     }
 }
@@ -170,28 +175,64 @@ mod tests {
             assert_eq!(s, format!("\"{}\"", k.as_str()));
             assert_eq!(serde_json::from_str::<EventKind>(&s).expect("de"), *k);
         }
-        assert_eq!(serde_json::to_string(&ExpireReason::StrategyDeleted).expect("ser"), "\"strategy_deleted\"");
+        assert_eq!(
+            serde_json::to_string(&ExpireReason::StrategyDeleted).expect("ser"),
+            "\"strategy_deleted\""
+        );
     }
 
     #[test]
     fn contract_event_types_present() {
         for t in [
-            "coin.detected", "screener.scored", "guard.result", "pick.created", "proposal.created",
-            "proposal.approved", "proposal.rejected", "proposal.expired", "position.opened",
-            "position.updated", "position.closed", "fill.simulated", "exit.triggered",
-            "portfolio.snapshot", "guard.changed",
+            "coin.detected",
+            "screener.scored",
+            "guard.result",
+            "pick.created",
+            "proposal.created",
+            "proposal.approved",
+            "proposal.rejected",
+            "proposal.expired",
+            "position.opened",
+            "position.updated",
+            "position.closed",
+            "fill.simulated",
+            "exit.triggered",
+            "portfolio.snapshot",
+            "guard.changed",
         ] {
-            assert!(EventKind::ALL.iter().any(|k| k.as_str() == t), "missing {t}");
+            assert!(
+                EventKind::ALL.iter().any(|k| k.as_str() == t),
+                "missing {t}"
+            );
         }
     }
 
     #[test]
     fn envelope_shape_matches_contract() {
-        let mut e = Event::new("ws", "abc", 1_793_263_320_123, EventKind::PickCreated, Actor::Screener, serde_json::json!({}));
+        let mut e = Event::new(
+            "ws",
+            "abc",
+            1_793_263_320_123,
+            EventKind::PickCreated,
+            Actor::Screener,
+            serde_json::json!({}),
+        );
         e.seq = Some(42);
         assert_eq!(e.id, "abc:1793263320123:pick.created");
         let v = serde_json::to_value(&e).expect("ser");
-        for k in ["id", "seq", "type", "version", "workspace_id", "strategy_id", "ts", "actor", "mode", "payload", "untrusted"] {
+        for k in [
+            "id",
+            "seq",
+            "type",
+            "version",
+            "workspace_id",
+            "strategy_id",
+            "ts",
+            "actor",
+            "mode",
+            "payload",
+            "untrusted",
+        ] {
             assert!(v.get(k).is_some(), "envelope missing {k}");
         }
         assert_eq!(v["type"], "pick.created");

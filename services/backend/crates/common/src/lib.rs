@@ -7,21 +7,21 @@
 //! * Trading mode is [`Mode::Practice`] only during Phases 1–6.
 
 pub mod approval;
-pub mod error_codes;
-pub mod portfolio;
 pub mod coin;
+pub mod error_codes;
 pub mod event;
 pub mod ids;
 pub mod mode;
+pub mod portfolio;
 pub mod units;
 pub mod untrusted;
 
 pub use approval::{
-    buy_needs_approval, decide, expire, Approval, ApprovalKind, ApprovalMode, ApprovalStatus, ApprovalTtls,
-    DecidedVia, Decision, DecisionOutcome, DecisionRequest,
+    buy_needs_approval, decide, expire, Approval, ApprovalKind, ApprovalMode, ApprovalStatus,
+    ApprovalTtls, DecidedVia, Decision, DecisionOutcome, DecisionRequest,
 };
-pub use error_codes::ErrorCode;
 pub use coin::{CoinMetrics, CoinSnapshot, Launchpad, Stream};
+pub use error_codes::ErrorCode;
 pub use event::{Actor, Event, EventKind, ExpireReason, EVENT_SCHEMA_VERSION};
 pub use ids::{CoinKey, Mint, PositionKey};
 pub use mode::Mode;

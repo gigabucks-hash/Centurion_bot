@@ -8,12 +8,14 @@
 mod bundles;
 mod checks;
 mod config;
+mod estimate;
 mod impact;
 mod source;
 
 pub use bundles::{analyze_early_buys, EarlyBuy, EarlyBuyStats};
 pub use checks::{assess, CheckStatus, GuardCheck, GuardReport, Verdict};
 pub use config::GuardConfig;
+pub use estimate::{static_estimate, RiskLevel, StaticEstimate};
 pub use impact::{impact, weakened_fields, ImpactReport, Outcome, Sample};
 pub use source::{
     Authority, GuardDataSource, GuardInput, SellSimulation, SourceError, StubDataSource,

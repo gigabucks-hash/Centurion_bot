@@ -356,6 +356,26 @@ create table public.confirmation_challenges (
 alter table public.webauthn_credentials add foreign key (user_id) references public.users (id) on delete cascade;
 alter table public.confirmation_challenges add foreign key (user_id) references public.users (id) on delete cascade;
 
+-- Step 1+2 of proof-of-confirmation verification (API_ENDPOINTS.md 4.6): atomically consume a
+-- challenge bound to (user, action, target, payload_hash). WebAuthn signature checks happen in the API.
+create or replace function public.consume_confirmation_challenge(
+  p_id uuid, p_user uuid, p_action text, p_target text, p_payload_hash bytea)
+returns bytea
+language plpgsql security definer set search_path = public as $$
+declare v_challenge bytea;
+begin
+  update public.confirmation_challenges
+     set used_at = now()
+   where id = p_id and user_id = p_user and action = p_action and target = p_target
+     and payload_hash = p_payload_hash and used_at is null and expires_at > now()
+  returning challenge into v_challenge;
+  if v_challenge is null then
+    raise exception using errcode = 'P0403', message = 'CONFIRMATION_INVALID';
+  end if;
+  return v_challenge;
+end $$;
+revoke all on function public.consume_confirmation_challenge(uuid, uuid, text, text, bytea) from public;
+
 create table public.workspaces (
   id                         uuid primary key default gen_random_uuid(),
   name                       text not null check (length(name) between 1 and 80),

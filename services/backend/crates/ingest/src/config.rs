@@ -116,6 +116,9 @@ mod tests {
         let r = Config::from_lookup(lookup(HashMap::from([("TRADING_MODE", "live")])));
         assert!(matches!(r, Err(ConfigError::LiveModeRefused(..))));
         let r = Config::from_lookup(lookup(HashMap::new()));
-        assert!(matches!(r, Err(ConfigError::LiveModeRefused(..))), "unset TRADING_MODE must refuse");
+        assert!(
+            matches!(r, Err(ConfigError::LiveModeRefused(..))),
+            "unset TRADING_MODE must refuse"
+        );
     }
 }

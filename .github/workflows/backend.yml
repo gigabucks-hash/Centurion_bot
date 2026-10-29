@@ -33,6 +33,7 @@ jobs:
         working-directory: packages/contracts
         run: |
           node scripts/gen-errors.mjs
+          (cd ../../services/backend && cargo fmt -p common)
           git diff --exit-code -- . ../../services/backend/crates/common/src/error_codes.rs
           npm i --no-save typescript@5 && npx tsc --noEmit -p tsconfig.json
       - name: fmt

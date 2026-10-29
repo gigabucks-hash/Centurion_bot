@@ -236,4 +236,19 @@ do $$ begin
   assert (select name from public.strategies where id = '20000000-0000-0000-0000-00000000000a') = 'A1', 'B modified A';
 end $$;
 
+-- proof-of-confirmation challenge: single use, bound to action/target/payload hash
+do $$
+declare u uuid := (select id from public.users order by id limit 1); c uuid; ok boolean;
+begin
+  insert into public.confirmation_challenges (user_id, action, target, payload_hash, challenge)
+  values (u, 'guard.weaken', 'strategy:x', digest('diff', 'sha256'), gen_random_bytes(32)) returning id into c;
+  begin perform public.consume_confirmation_challenge(c, u, 'guard.weaken', 'strategy:x', digest('other', 'sha256'));
+    ok := false; exception when sqlstate 'P0403' then ok := true; end;
+  assert ok, 'swapped payload hash must be rejected';
+  assert length(public.consume_confirmation_challenge(c, u, 'guard.weaken', 'strategy:x', digest('diff', 'sha256'))) = 32, 'consume';
+  begin perform public.consume_confirmation_challenge(c, u, 'guard.weaken', 'strategy:x', digest('diff', 'sha256'));
+    ok := false; exception when sqlstate 'P0403' then ok := true; end;
+  assert ok, 'challenge must be single use';
+end $$;
+
 \echo 'ALL SQL SMOKE TESTS PASSED'

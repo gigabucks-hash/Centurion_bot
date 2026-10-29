@@ -35,7 +35,10 @@ impl ApprovalStatus {
     /// buy whose strategy is retired before the job executes.
     pub fn can_transition_to(self, next: ApprovalStatus) -> bool {
         use ApprovalStatus::*;
-        matches!((self, next), (Pending, Approved | Rejected | Expired) | (Approved, Expired))
+        matches!(
+            (self, next),
+            (Pending, Approved | Rejected | Expired) | (Approved, Expired)
+        )
     }
 }
 
@@ -69,7 +72,11 @@ pub enum ApprovalMode {
 /// Does this buy need a human approval?
 /// `ask_first_buy` covers BOTH the first buy of the strategy/portfolio and the first buy of each
 /// coin. A themed portfolio in `ask` autonomy passes `AskEveryBuy`; its first buy is never exempt.
-pub fn buy_needs_approval(mode: ApprovalMode, first_buy_of_owner: bool, first_buy_of_coin: bool) -> bool {
+pub fn buy_needs_approval(
+    mode: ApprovalMode,
+    first_buy_of_owner: bool,
+    first_buy_of_coin: bool,
+) -> bool {
     match mode {
         ApprovalMode::Off => false,
         ApprovalMode::AskEveryBuy => true,
@@ -87,7 +94,11 @@ pub struct ApprovalTtls {
 
 impl Default for ApprovalTtls {
     fn default() -> Self {
-        Self { pick_seconds: 600, guard_change_seconds: 86_400, team_action_seconds: 3_600 }
+        Self {
+            pick_seconds: 600,
+            guard_change_seconds: 86_400,
+            team_action_seconds: 3_600,
+        }
     }
 }
 
@@ -132,7 +143,11 @@ pub struct DecisionOutcome {
 }
 
 /// Apply a user decision (reference semantics for `public.decide_approval`).
-pub fn decide(a: &mut Approval, r: &DecisionRequest, now: TsMs) -> Result<DecisionOutcome, ErrorCode> {
+pub fn decide(
+    a: &mut Approval,
+    r: &DecisionRequest,
+    now: TsMs,
+) -> Result<DecisionOutcome, ErrorCode> {
     if !ct_eq(a.token_hash.as_bytes(), r.token_hash.as_bytes()) {
         return Err(ErrorCode::ApprovalTokenInvalid);
     }
@@ -140,10 +155,17 @@ pub fn decide(a: &mut Approval, r: &DecisionRequest, now: TsMs) -> Result<Decisi
         return Err(ErrorCode::ApprovalRequiresApp);
     }
     match (a.status, r.decision) {
-        (ApprovalStatus::Approved, Decision::Approve) | (ApprovalStatus::Rejected, Decision::Reject) => {
-            return Ok(DecisionOutcome { status: a.status, version: a.version, replayed: true })
+        (ApprovalStatus::Approved, Decision::Approve)
+        | (ApprovalStatus::Rejected, Decision::Reject) => {
+            return Ok(DecisionOutcome {
+                status: a.status,
+                version: a.version,
+                replayed: true,
+            })
         }
-        (ApprovalStatus::Approved | ApprovalStatus::Rejected, _) => return Err(ErrorCode::ApprovalAlreadyDecided),
+        (ApprovalStatus::Approved | ApprovalStatus::Rejected, _) => {
+            return Err(ErrorCode::ApprovalAlreadyDecided)
+        }
         (ApprovalStatus::Expired, _) => return Err(ErrorCode::ApprovalExpired),
         (ApprovalStatus::Pending, _) => {}
     }
@@ -159,7 +181,11 @@ pub fn decide(a: &mut Approval, r: &DecisionRequest, now: TsMs) -> Result<Decisi
         Decision::Reject => ApprovalStatus::Rejected,
     };
     a.version += 1;
-    Ok(DecisionOutcome { status: a.status, version: a.version, replayed: false })
+    Ok(DecisionOutcome {
+        status: a.status,
+        version: a.version,
+        replayed: false,
+    })
 }
 
 /// Worker-owned transition (sweeper or `retire_strategy`). Returns false if not expirable.
@@ -193,7 +219,12 @@ mod tests {
         }
     }
     fn req(d: Decision, v: u32) -> DecisionRequest {
-        DecisionRequest { token_hash: "h1".into(), decision: d, expected_version: v, via: DecidedVia::Mobile }
+        DecisionRequest {
+            token_hash: "h1".into(),
+            decision: d,
+            expected_version: v,
+            via: DecidedVia::Mobile,
+        }
     }
 
     #[test]
@@ -225,7 +256,10 @@ mod tests {
     fn approve_is_idempotent_by_token() {
         let mut a = pending();
         let o = decide(&mut a, &req(Decision::Approve, 1), 1).expect("approve");
-        assert_eq!((o.status, o.version, o.replayed), (ApprovalStatus::Approved, 2, false));
+        assert_eq!(
+            (o.status, o.version, o.replayed),
+            (ApprovalStatus::Approved, 2, false)
+        );
         let o2 = decide(&mut a, &req(Decision::Approve, 1), 2).expect("replay");
         assert!(o2.replayed);
         assert_eq!(o2.version, 2);
@@ -234,9 +268,15 @@ mod tests {
     #[test]
     fn conflicts_are_409() {
         let mut a = pending();
-        assert_eq!(decide(&mut a, &req(Decision::Approve, 9), 1), Err(ErrorCode::VersionConflict));
+        assert_eq!(
+            decide(&mut a, &req(Decision::Approve, 9), 1),
+            Err(ErrorCode::VersionConflict)
+        );
         decide(&mut a, &req(Decision::Approve, 1), 1).expect("approve");
-        assert_eq!(decide(&mut a, &req(Decision::Reject, 2), 1), Err(ErrorCode::ApprovalAlreadyDecided));
+        assert_eq!(
+            decide(&mut a, &req(Decision::Reject, 2), 1),
+            Err(ErrorCode::ApprovalAlreadyDecided)
+        );
         assert_eq!(ErrorCode::VersionConflict.http_status(), 409);
         assert_eq!(ErrorCode::ApprovalAlreadyDecided.http_status(), 409);
     }
@@ -244,10 +284,16 @@ mod tests {
     #[test]
     fn expiry_token_and_mcp_rules() {
         let mut a = pending();
-        assert_eq!(decide(&mut a, &req(Decision::Approve, 1), 600_000), Err(ErrorCode::ApprovalExpired));
+        assert_eq!(
+            decide(&mut a, &req(Decision::Approve, 1), 600_000),
+            Err(ErrorCode::ApprovalExpired)
+        );
         let mut bad = req(Decision::Approve, 1);
         bad.token_hash = "nope".into();
-        assert_eq!(decide(&mut a, &bad, 1), Err(ErrorCode::ApprovalTokenInvalid));
+        assert_eq!(
+            decide(&mut a, &bad, 1),
+            Err(ErrorCode::ApprovalTokenInvalid)
+        );
         let mut g = pending();
         g.requires_app = true;
         let mut m = req(Decision::Approve, 1);
