@@ -1,18 +1,19 @@
 # Sentra backend: technical design (Phase 1 in detail, then Phases 2 and 4)
 
-Owner: Backend API Specialist. Status: draft v1, 2026-10-29. Contracts: `packages/contracts/*`.
+Owner: Backend API Specialist. Status: v1.1, 2026-10-29. Contracts: `packages/contracts/*`.
 **Hard rules:** paper trading only. No private keys anywhere. Only `PaperExecutor` ships; `LiveExecutor`
 is a stub behind the `live-execution` cargo feature (off) and returns `LiveDisabled`. The service refuses
-to start unless `TRADING_MODE=paper`, and the DB rejects `mode='real'`. All code is original; the HotBot
-MCP was used only to understand the feature set.
+to start unless `TRADING_MODE=paper`, and the DB rejects `mode='real'`. All code, names and vocabulary are
+original; a third-party reference bot was consulted only to understand the feature set.
 
 ## 1. Architecture
 
 ```mermaid
 flowchart LR
   subgraph Sources
+    HWS[Helius WS logsSubscribe + getTransaction] --> ING
     PP[PumpPortal WS] --> ING
-    YS[Yellowstone gRPC] --> ING
+    YS[Yellowstone gRPC: pending provider choice] -.-> ING
     HEL[Helius RPC/DAS] --> GRD
   end
   ING[ingest: normalise + dedupe] --> SCR[screener: rules -> score]
@@ -36,7 +37,14 @@ flowchart LR
 Processes: (1) the **Rust worker** (`services/backend/crates/*`) handles ingest, screening, guard, entry,
 paper execution, exits, the sweeper and snapshots. (2) The **Node/TS API** (Phase 2) serves REST, SSE and
 MCP, does auth glue and mints tokens. (3) **Supabase**: Postgres, RLS, Auth, Realtime and Edge Functions
-(SIWS, Telegram, OTP).
+(SIWS, Telegram OIDC, OTP).
+
+Ingest sources implement one provider-agnostic trait, `StreamSource` (`crates/ingest/src/source`). Paper
+mode defaults to **Helius standard WebSocket** (`logsSubscribe {mentions:[launch program]}`, `confirmed`;
+Anchor `Program data:` events decoded for create / trade / curve-complete; `getTransaction` enrichment
+over HTTPS RPC; 30 s ping, jittered backoff 1–60 s, resubscribe on reconnect; key only from
+`HELIUS_API_KEY`, redacted from logs). PumpPortal stays as an alternative; Yellowstone is a stub until
+Boss picks the provider. `INGEST_SOURCES` selects them.
 
 ## 2. Data flow (per coin)
 1. Source event -> `CoinCandidate` (mint, stream, pool, creator, untrusted metadata). Dedupe on
@@ -55,7 +63,7 @@ MCP, does auth glue and mints tokens. (3) **Supabase**: Postgres, RLS, Auth, Rea
 `detected -> screened -> guarded -> armed -> (awaiting_approval) -> filling -> open` with terminal
 `rejected | expired | failed`.
 - `armed`: optional entry condition (dip %, momentum, max wait). Timeout emits `entry.expired`.
-- `awaiting_approval` when `approvalMode = ask_every_buy`, or `ask_first_buy` and the portfolio has no
+- `awaiting_approval` when `approval_mode = ask_every_buy`, or `ask_first_buy` and the portfolio has no
   prior buy (the default). The proposal TTL is 10 min. While waiting the guard and price are re-checked;
   failures expire the proposal with `guard_failed|price_moved`.
 - `filling`: a job row (`jobs`, `FOR UPDATE SKIP LOCKED`) runs the PaperExecutor idempotently, keyed by
@@ -64,10 +72,11 @@ MCP, does auth glue and mints tokens. (3) **Supabase**: Postgres, RLS, Auth, Rea
 
 ## 4. Exit engine (plans are data)
 A plan is an ordered list of rules in strategy settings, evaluated on every mark tick and on a 1 s timer.
-**`sellFloors` is evaluated first** (`{enabled, maxLossPct: 35, liquidityDropPct: 80}`): PnL <= -35% or
+**`sell_floors` is evaluated first** (`{enabled, max_loss_pct: 35, liquidity_drop_pct: 80}`): PnL <= -35% or
 pool liquidity down >= 80% from entry triggers a 100% sell (`exit_reason = sell_floor`). Then, in
-declared order: take-profit ladders, trailing stop with activation, step lock, stop-loss, time-out,
-inactivity/stall, drain/rug detection. Each rule is `{kind, params, sell_pct}`. State (peaks, executed
+declared order: `profit_targets` (ladders), `peak_trail_pct` with activation, ratchet, `loss_guards`,
+`max_hold`, `idle_exit_seconds` / no-new-high timeout, `sell_pressure_exit`, rug detection. Each rule is
+`{kind, params, sell_portion_pct}`; exit reasons are listed in EVENTS_SCHEMA.md. State (peaks, executed
 steps) lives in `positions.plan_state` jsonb, so restarts resume exactly. A strategy archive/delete
 closes positions with `strategy_retired` only if the setting says so; otherwise they keep running
 under the frozen plan.
@@ -97,7 +106,7 @@ under the frozen plan.
 
 ## 7. Guard change and replay; the < 2 s answer
 - A settings PATCH is diffed per field against the "weakening" direction table (e.g. raising
-  `maxTop10Pct`, lowering `minLiquidityUsd`, disabling a check).
+  `top_holders_share_pct_max`, lowering `liquidity_usd_min`, disabling a check).
 - **Static estimate** (`guard::static_estimate`, ships first): uses the stored per-rule `blocked_by`
   counts over the window to bound the extra passes and classify risk low/medium/high/critical. O(rules),
   under 1 ms in-process.
@@ -126,9 +135,42 @@ under the frozen plan.
 
 ## 9. Auth
 Supabase Auth: Google and Apple (native PKCE), email OTP (6 digits, HMAC-hashed, 10 min, 5 attempts,
-then a 15 min lock, 60 s resend), Telegram (Login Widget HMAC, Edge Function), and SIWS (nonce 5 min,
+then a 15 min lock, 60 s resend), Telegram (official OIDC id_token, see below), and SIWS (nonce 5 min,
 single use, bound to domain and address; ed25519). Identities link to one user in `auth_identities`; the
-last one cannot be removed. Login wallets are identity only and never trade.
+last one cannot be removed (DB trigger, `422 LAST_LOGIN_METHOD`); link/unlink need re-auth within 5 min,
+are audited and email every verified address. Login wallets are identity only and never trade; a DB
+trigger forbids the same address being both a SIWS identity and a `wallets` row (`WALLET_ROLE_CONFLICT`).
+
+**Telegram OIDC (design-only, `AUTH_TELEGRAM_OIDC_ENABLED=false` until Boss approves the security review).**
+Our own Edge Function, not Supabase's custom OIDC provider. `POST /auth/telegram/nonce` issues a
+single-use 5 min nonce bound to the install's `device_id` (stored as sha256 in `telegram_login_nonces`),
+because the native SDK carries no nonce/state. `POST /auth/telegram/verify {nonce, id_token, device_id}`:
+JWKS from `https://oauth.telegram.org/.well-known/jwks.json` cached 1 h, refetched at most every 5 min on an
+unknown `kid`, fail closed; RS256/ES256 only; `iss`, `aud = TELEGRAM_CLIENT_ID`, `exp`, `iat <= 120 s`;
+`consume_telegram_nonce()` consumes the nonce once and records `sha256(id_token)` so a token is never
+accepted twice; numeric Telegram id from the `id` claim (`profile` scope, else `AUTH_TG_NO_PROFILE`);
+rate limit 10/min/IP and 5/min per subject; upsert `auth_identities(provider='telegram')`; mint the
+Supabase session.
+
+**Account deletion.** `request_account_deletion` (re-auth, no Real positions / active wallet) -> state
+`pending_deletion`, grace 7 days by default (7–30 allowed), cancellable; the worker's
+`finalize_due_account_deletions` deletes credentials, tokens, devices and memberships, archives
+strategies, closes owned workspaces, anonymizes `audit_log` (ip/user agent/device) while keeping the rows,
+and tombstones `users`; then the API deletes the `auth.users` row.
+
+**Revisions.** Every mutable row has `rev`; writes require `If-Match`/`expected_rev` (428 otherwise) and a
+stale write returns 409 with `{current_rev, base_rev, changed_fields, changed_by, changed_at, current}`.
+Strategy writes go only through `update_strategy` (direct UPDATE revoked); `strategy_revisions` keeps the
+merge base. A stale write that carries a Real confirmation burns the challenge and returns
+`CONFIRMATION_RESTART_REQUIRED`.
+
+**Practice reset.** `reset_practice` bumps `workspaces.practice_epoch`; rows are stamped with their epoch
+by trigger, open positions close with `practice_reset` and are archived (never deleted), balance returns
+to 30 SOL, once per 24 h (`429 RESET_COOLDOWN`), event `practice.reset`.
+
+**Push.** `register_device` / `revoke_device` (rotation by `device_id`, a token moves to the latest user,
+token column not client-readable); data-only payload per EVENTS_SCHEMA.md section 6; Real SOL is never
+actionable from a push.
 
 ## 10. Security model
 - No private keys. `wallets` is a custody **reference** (public address, label), with no secret columns.
@@ -173,14 +215,13 @@ Phase 4: MCP with OAuth 2.1, push worker, device tokens.
 ## 14. Risks
 Data source rate limits or outages (mitigation: two sources plus replay). Fill-model optimism
 (calibrate against observed swaps). Realtime fan-out cost (filtered subscriptions, Broadcast throttling).
-Settings key names mirroring HotBot's vocabulary (rename before freeze). Replay window growth (cap and
+Replay window growth (cap and
 sample).
 
 ## 15. Open questions (for Apex)
-1. Rename settings keys and exit-plan ids that mirror HotBot's reference names before the v1 freeze?
-2. Settings thresholds are still JSON numbers (ratios are fractional). Switch them to decimal strings for
-   consistency?
-3. `weakened_fields` uses camelCase setting names while everything else is snake_case. Is that OK,
-   since they are setting keys?
-4. Who owns the Dart error-code generator (Backend or Flutter)?
-5. Practice starting balance and reset policy (default 30 SOL)?
+Resolved in v1.1 (Apex, 2026-10-29): own vocabulary (CHANGELOG rename table); percentages/ratios stay
+JSON numbers, lamports and prices are strings; snake_case everywhere; Flutter owns the Dart error
+generator; practice 30 SOL, reset any time, once per 24 h, history archived.
+
+Still open (Boss): Yellowstone provider; Telegram OIDC security-review sign-off; deletion grace (UX says
+7 days, default 7, configurable up to 30).

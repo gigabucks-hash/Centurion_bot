@@ -62,7 +62,7 @@ impl Pipeline {
         match ev {
             IngestEvent::NewCoin(c) => self.on_new_coin(*c).await,
             IngestEvent::Trade(_) | IngestEvent::Migrated { .. } => {
-                // Phase 2: feed exit engine / re-check rejected coins (recheckMovePct).
+                // Phase 2: feed exit engine / re-check rejected coins (revisit_after_move_pct).
                 self.stats.trades += 1;
                 Ok(())
             }
@@ -238,7 +238,7 @@ impl Pipeline {
 mod tests {
     use super::*;
     use crate::source::replay::ReplaySource;
-    use crate::source::CoinSource;
+    use crate::source::StreamSource;
     use db::MemoryRepo;
     use guard::StubDataSource;
     use papersim::PaperExecutor;

@@ -1,4 +1,5 @@
-//! Yellowstone (Geyser) gRPC source via Helius LaserStream or any Yellowstone endpoint.
+//! Yellowstone (Geyser) gRPC source — PENDING: provider (Helius LaserStream, Triton, self-hosted)
+//! awaits Boss's choice. Until then this stub returns `NotConfigured`/`NotImplemented`.
 //!
 //! Planned subscription (week 1): `SubscribeRequest` with
 //! * `transactions` filter `account_include = [pump.fun program, PumpSwap, Raydium
@@ -13,7 +14,7 @@
 use async_trait::async_trait;
 use tokio::sync::{mpsc, watch};
 
-use super::{CoinSource, IngestEvent, SourceError};
+use super::{IngestEvent, SourceError, StreamSource};
 use crate::config::Secret;
 
 /// Program ids we filter on (public, on-chain).
@@ -37,7 +38,7 @@ impl YellowstoneSource {
 }
 
 #[async_trait]
-impl CoinSource for YellowstoneSource {
+impl StreamSource for YellowstoneSource {
     fn name(&self) -> &'static str {
         "yellowstone"
     }

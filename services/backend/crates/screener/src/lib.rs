@@ -7,7 +7,7 @@
 //!
 //! Evaluation is a pure function of a [`CoinSnapshot`] so it is trivially testable and
 //! replayable. Missing data is never treated as zero: each rule declares what happens
-//! via `onMissing`.
+//! via `on_missing`.
 
 mod eval;
 mod rules;

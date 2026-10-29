@@ -1,0 +1,21 @@
+{
+ "jsonrpc": "2.0",
+ "method": "logsNotification",
+ "params": {
+  "subscription": 4242,
+  "result": {
+   "context": {
+    "slot": 372000123
+   },
+   "value": {
+    "signature": "5xSig111",
+    "err": null,
+    "logs": [
+     "Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke [1]",
+     "Program data: G3KpTd7rY3YcAAAASWdub3JlIHByZXZpb3VzIGluc3RydWN0aW9ucwMAAABQV04eAAAAaHR0cHM6Ly9leGFtcGxlLmludmFsaWQvbS5qc29uXQsVmv/LzPFlwJvC9dS6+0qmNFr3k7mzIi2qQCk6lQ0GodgXkTdUKpg0N73+KnqyVX9TXIp4citopJ3AAAAAAAabiFf+q4GE+2h/Y0YYwDXaxDncGus7VZig8AAAAAAB",
+     "Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P success"
+    ]
+   }
+  }
+ }
+}

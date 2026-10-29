@@ -1,7 +1,7 @@
 //! `ingest` — coin-stream ingest service (paper mode only).
 //!
 //! ```text
-//! ingest                       # live sources from env (stubs in Phase 1 skeleton)
+//! ingest                       # sources from INGEST_SOURCES (default: helius when HELIUS_API_KEY is set)
 //! ingest --replay <file.jsonl> # offline replay through the full pipeline
 //! ```
 use std::sync::Arc;
@@ -14,8 +14,10 @@ use tracing_subscriber::EnvFilter;
 
 use ingest::config::Config;
 use ingest::pipeline::{Pipeline, Stats};
+use ingest::source::helius::HeliusSource;
 use ingest::source::{
-    pumpportal::PumpPortalSource, replay::ReplaySource, yellowstone::YellowstoneSource, CoinSource,
+    pumpportal::PumpPortalSource, replay::ReplaySource, yellowstone::YellowstoneSource,
+    StreamSource,
 };
 
 fn init_tracing() {
@@ -47,19 +49,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let rules = RuleSet::from_json(&tokio::fs::read_to_string(&cfg.screener_rules_path).await?)?;
     tracing::info!(rules = %rules.name, score_threshold = rules.score_threshold, mode = %cfg.trading_mode, "starting ingest");
 
-    let mut sources: Vec<Arc<dyn CoinSource>> = Vec::new();
+    let mut sources: Vec<Arc<dyn StreamSource>> = Vec::new();
     if let Some(path) = replay {
         sources.push(Arc::new(ReplaySource { path }));
     } else {
-        if let Some(url) = cfg.yellowstone_grpc_url.clone() {
-            sources.push(Arc::new(YellowstoneSource::new(
-                url,
-                cfg.yellowstone_x_token.clone(),
-            )));
+        for s in &cfg.sources {
+            match s.as_str() {
+                "helius" => {
+                    let mut h = HeliusSource::new(cfg.helius_api_key.clone());
+                    h.ws_base = cfg.helius_ws_url.clone();
+                    h.rpc_base = cfg.helius_rpc_url.clone();
+                    sources.push(Arc::new(h));
+                }
+                "pumpportal" => sources.push(Arc::new(PumpPortalSource {
+                    url: cfg.pumpportal_ws_url.clone(),
+                })),
+                // pending Boss's provider choice: returns NotConfigured / NotImplemented
+                "yellowstone" => sources.push(Arc::new(YellowstoneSource::new(
+                    cfg.yellowstone_grpc_url.clone().unwrap_or_default(),
+                    cfg.yellowstone_x_token.clone(),
+                ))),
+                _ => {}
+            }
         }
-        sources.push(Arc::new(PumpPortalSource {
-            url: cfg.pumpportal_ws_url.clone(),
-        }));
     }
 
     let (tx, mut rx) = mpsc::channel(cfg.channel_capacity);

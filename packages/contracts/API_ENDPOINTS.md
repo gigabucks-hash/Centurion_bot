@@ -80,7 +80,9 @@ Every response body is an object with a top-level `server_now`; lists are
 - SQL: `update_strategy(p_strategy, p_expected_rev, p_patch, p_name, p_status, p_actor, p_via, p_device,
   p_challenge_id)` is the only write path (direct `UPDATE` is revoked); Flutter's
   `set_strategy_status(p_strategy, p_status, p_expected_rev)` wraps it. Errors: SQLSTATE `P0409`, MESSAGE = code,
-  DETAIL = the JSON above without `error`/`server_now`.
+  DETAIL = the JSON above without `error`/`server_now`. Exception: `CONFIRMATION_RESTART_REQUIRED` is *returned* as
+  `{"error":"CONFIRMATION_RESTART_REQUIRED", current_rev, ...}` (raising would roll back the challenge burn);
+  the API maps it to the same 409 body.
 
 ## 3. Pagination and filters
 Lists: keyset `?cursor=&limit<=100`, newest first by `(created_at, id)`. Events: seq cursors

@@ -143,9 +143,11 @@ begin
   end if;
   if s.rev <> p_expected_rev then
     if p_challenge_id is not null then
+      -- burn the challenge and RETURN (not raise): raising would roll the burn back.
+      -- The API maps {"error":"CONFIRMATION_RESTART_REQUIRED"} to HTTP 409 with the same body as a conflict.
       update public.confirmation_challenges set used_at = coalesce(used_at, now()) where id = p_challenge_id;
-      raise exception using errcode = 'P0409', message = 'CONFIRMATION_RESTART_REQUIRED',
-        detail = public.strategy_conflict_detail(s, p_expected_rev)::text;
+      return jsonb_build_object('error', 'CONFIRMATION_RESTART_REQUIRED', 'server_now', now())
+             || public.strategy_conflict_detail(s, p_expected_rev);
     end if;
     raise exception using errcode = 'P0409', message = 'STRATEGY_REV_CONFLICT',
       detail = public.strategy_conflict_detail(s, p_expected_rev)::text;

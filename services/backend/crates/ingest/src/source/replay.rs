@@ -4,14 +4,14 @@ use async_trait::async_trait;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::{mpsc, watch};
 
-use super::{CoinSource, IngestEvent, SourceError};
+use super::{IngestEvent, SourceError, StreamSource};
 
 pub struct ReplaySource {
     pub path: String,
 }
 
 #[async_trait]
-impl CoinSource for ReplaySource {
+impl StreamSource for ReplaySource {
     fn name(&self) -> &'static str {
         "replay"
     }

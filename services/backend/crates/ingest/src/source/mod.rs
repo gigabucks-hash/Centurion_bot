@@ -1,6 +1,14 @@
-//! Coin sources. Each source runs as its own tokio task and pushes [`IngestEvent`]s
-//! into a bounded mpsc channel (backpressure instead of unbounded memory).
+//! Stream sources. The pipeline only sees the provider-agnostic [`StreamSource`] trait; each
+//! implementation runs as its own tokio task and pushes [`IngestEvent`]s into a bounded mpsc
+//! channel (backpressure instead of unbounded memory).
+//!
+//! * [`helius::HeliusSource`]: Helius standard WebSocket (`logsSubscribe` on the launch program)
+//!   + RPC `getTransaction` enrichment. Default for paper mode (`HELIUS_API_KEY`).
+//! * [`pumpportal::PumpPortalSource`]: PumpPortal data WebSocket (kept as an alternative).
+//! * [`yellowstone::YellowstoneSource`]: Geyser gRPC, **pending** Boss's provider choice.
+//! * [`replay::ReplaySource`]: JSONL fixtures for tests and offline runs.
 
+pub mod helius;
 pub mod pumpportal;
 pub mod replay;
 pub mod yellowstone;
@@ -76,9 +84,9 @@ pub enum SourceError {
     ChannelClosed,
 }
 
-/// A long-running producer of coin events.
+/// A long-running, provider-agnostic producer of coin events.
 #[async_trait]
-pub trait CoinSource: Send + Sync {
+pub trait StreamSource: Send + Sync {
     fn name(&self) -> &'static str;
     /// Run until `shutdown` flips to `true` or the source ends. Implementations must
     /// reconnect with jittered exponential backoff and resume from the last slot.

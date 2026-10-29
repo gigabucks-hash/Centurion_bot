@@ -13,7 +13,7 @@ use papersim::{PoolState, Side};
 use serde::Deserialize;
 use tokio::sync::{mpsc, watch};
 
-use super::{CoinSource, IngestEvent, NewCoin, SourceError, TradeTick};
+use super::{IngestEvent, NewCoin, SourceError, StreamSource, TradeTick};
 
 pub struct PumpPortalSource {
     pub url: String,
@@ -80,7 +80,7 @@ pub fn parse_message(raw: &str, now_ms: i64) -> Option<IngestEvent> {
 }
 
 #[async_trait]
-impl CoinSource for PumpPortalSource {
+impl StreamSource for PumpPortalSource {
     fn name(&self) -> &'static str {
         "pumpportal"
     }

@@ -71,7 +71,7 @@ fn describe(r: &Rule) -> String {
     }
 }
 
-/// Partial credit fraction in [0, 1] for a failing value when `zeroAt` is set.
+/// Partial credit fraction in [0, 1] for a failing value when `zero_at` is set.
 fn partial_fraction(r: &Rule, x: f64) -> f64 {
     match (r.zero_at, r.value) {
         (Some(z), Threshold::Scalar(v)) if (v - z).abs() > f64::EPSILON => {

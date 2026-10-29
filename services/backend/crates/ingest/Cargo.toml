@@ -1,6 +1,6 @@
 [package]
 name = "ingest"
-description = "Coin-stream ingest service: Yellowstone gRPC + PumpPortal WS -> screener -> guard -> events"
+description = "Coin-stream ingest service: StreamSource (Helius WS, PumpPortal WS, Yellowstone pending) -> screener -> guard -> events"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -27,6 +27,12 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+base64.workspace = true
+bs58.workspace = true
+sha2.workspace = true
+futures-util.workspace = true
+tokio-tungstenite.workspace = true
+reqwest.workspace = true
 
 [lints]
 workspace = true

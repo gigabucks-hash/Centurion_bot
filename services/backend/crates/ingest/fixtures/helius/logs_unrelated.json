@@ -1,0 +1,21 @@
+{
+ "jsonrpc": "2.0",
+ "method": "logsNotification",
+ "params": {
+  "subscription": 4242,
+  "result": {
+   "context": {
+    "slot": 372000123
+   },
+   "value": {
+    "signature": "5xSig111",
+    "err": null,
+    "logs": [
+     "Program ComputeBudget111111111111111111111111111111 invoke [1]",
+     "Program data: aGVsbG8gd29ybGQ=",
+     "Program log: Instruction: Sell"
+    ]
+   }
+  }
+ }
+}

@@ -1,7 +1,8 @@
 # Backend answers for Web (dashboard)
 
 Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS types in `src/wire`
-(`import { wire } from "@sentra/contracts"`). SQL: `services/backend/supabase/migrations/0001_init.sql`.
+(`import { wire } from "@sentra/contracts"`). SQL: `services/backend/supabase/migrations/0001_init.sql`, `0002_contracts_v1_1.sql`.
+**Contract v1.1** (2026-10-29): see the v1.1 section at the end and `CHANGELOG.md`.
 
 ## Round 1 (original 7 questions)
 
@@ -108,3 +109,28 @@ Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS type
     per hour (`429 RATE_LIMITED`, `retry_after_s`).
   - `POST /auth/email/otp/verify {email, code}` uses a constant-time compare. 5 wrong attempts lock it
     for 15 min (`OTP_LOCKED`). A code is single-use (`consumed_at`).
+
+## v1.1 changes and what `apps/web` should change (checked against `lib/types.ts`, `lib/api.ts`, `lib/http-api.ts`)
+1. Paths: `/v1/workspaces/${mode}/...` -> `/v1/workspaces/{ws}/...?mode=practice`; `/v1/strategies/{id}` ->
+   `/v1/workspaces/{ws}/strategies/{id}`; `/coins/{mint}/trail` -> `/timeline`; `/stats/exits` -> `/stats/exit-reasons`.
+2. Strategy save: `PATCH .../strategies/{id}` with `If-Match: "<rev>"` (or `expected_rev`) and a flat snake_case
+   `settings_patch`; no `POST /revisions`. Handle `409 STRATEGY_REV_CONFLICT` (body has `current`, `changed_fields`,
+   `changed_by`, `changed_at`; base via `GET .../revisions/{rev}`), `428 PRECONDITION_REQUIRED`, and
+   `409 CONFIRMATION_RESTART_REQUIRED` (re-run the whole Real confirmation).
+3. Approvals: `POST .../approvals/{id}/decision` (not `/decisions`) with `Idempotency-Key`, `token`,
+   `expected_version`; skip = `decision: "reject"`; undo-skip stays client-side (send after the 5 s window);
+   cancel a cooldown with `POST .../guard-changes/{id}/cancel`.
+4. Settings model: nested camelCase `StrategySettings` (`sizing.budgetSol`, ...) -> flat snake_case keys from
+   `services/backend/config/strategy_settings.schema.json`; SOL as lamport strings (`bankroll_lamports`,
+   `ticket_lamports`); percentages as numbers. Exit plan ids (`ladder3`, `trailOnly`, `quickScalp`, `doubling`)
+   -> `exit_preset` values; must-have rules -> `required_checks`.
+5. Enums: `EXIT_REASONS` -> import `wire.EXIT_REASONS`; `CoinMeta.stream` -> `venue: "curve" | "amm"` (`CoinStream`
+   is a deprecated alias until 1.2); guard check names -> `wire.GuardCheckName` (`washTrading`, `layeredLaunch`,
+   `insiderProfit` do not exist); strategy status has no `stopped` (`draft|running|paused|archived`); funnel stages
+   are `scanned filtered signaled entered exited`.
+6. Numbers: prices are `*_price_sol` decimal strings (no `entryPriceUsd` number); pct/ratio/bps/score are numbers.
+   Guard impact responses are `StaticEstimate` / `ImpactReport` (not `RiskImpact`).
+7. `lib/contracts.ts` is imported but missing: import from `@sentra/contracts` (`wire`).
+8. New flows: practice reset (`POST .../practice/reset`, 429 `RESET_COOLDOWN` with `next_allowed_at`,
+   `practice.reset` event -> drop cached positions/equity), account deletion (`/me/deletion`), devices
+   (`PUT /devices/{device_id}` with `platform: "web"`, `provider: "webpush"`), Telegram OIDC (flag off).
