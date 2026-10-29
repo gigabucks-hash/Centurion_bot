@@ -13,7 +13,9 @@ import type { MessageKey } from "@/lib/i18n";
 import { asRevConflict, publishStrategyClient, simulateTeammateEditClient, type RevConflict } from "@/lib/client";
 import { settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
 import { errorText } from "@/lib/errors";
-import { RevisionConflict } from "./RevisionConflict";
+import dynamic from "next/dynamic";
+// Perf: the merge view only renders after a 409 → loaded on demand.
+const RevisionConflict = dynamic(() => import("./RevisionConflict").then((m) => m.RevisionConflict), { ssr: false });
 
 import { Badge, Button, Card, cn } from "@/components/ui";
 import { NumberInput, Segmented, Toggle, useToast } from "@/components/ui/client";

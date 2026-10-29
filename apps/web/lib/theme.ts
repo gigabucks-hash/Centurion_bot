@@ -14,7 +14,7 @@ export const tokenVar = {
   textPrimary: "--color-text-primary",
 } as const;
 
-/** CSS var() strings for SVG-based charts (recharts) — re-theme automatically. */
+/** CSS var() strings for SVG-based charts (server-rendered SVG) — re-theme automatically. */
 export const chartColors = {
   accent: `var(${tokenVar.brand})`,
   positive: `var(${tokenVar.profit})`,

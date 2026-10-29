@@ -15,7 +15,7 @@ import {
 } from "@/lib/client";
 import { ApiError, errorText } from "@/lib/errors";
 import { createFmt } from "@/lib/format";
-import { LOCALES } from "@/lib/i18n";
+import { LOCALES } from "@/lib/i18n/core";
 import { LOCALES as LOCALE_TAGS } from "@sentra/i18n/format";
 import { useFmt, useLocale, useT } from "@/lib/i18n/client";
 import type { ApprovalMode } from "@/lib/types";

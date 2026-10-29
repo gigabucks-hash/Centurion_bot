@@ -1,5 +1,6 @@
 import type { DashboardApi } from "@/lib/api";
-import type { Strategy } from "@/lib/types";
+import type { Approval, CoinSummary, CoinTrail, Strategy, TradeEvent } from "@/lib/types";
+import { safeName, safeSymbol } from "@/lib/untrusted";
 import { buildOverview, computeExitStats, coinSummaries, exitSamples, MOCK_NOW, recentEvents, trails } from "./data";
 import * as store from "./store";
 
@@ -10,6 +11,12 @@ const START_SOL = Number(BigInt(store.PRACTICE_START_LAMPORTS) / 1_000_000_000n)
 function practiceResetAt(mode: "practice" | "real"): number | null {
   return mode === "practice" ? store.practiceState().lastResetAt : null;
 }
+
+/** Untrusted coin text is cleaned at the data edge (lib/untrusted.ts), before any component sees it. */
+const cleanEvent = (e: TradeEvent): TradeEvent => (e.symbol == null ? e : { ...e, symbol: safeSymbol(e.symbol) });
+const cleanCoin = (c: CoinSummary): CoinSummary => ({ ...c, symbol: safeSymbol(c.symbol) });
+const cleanTrail = (t: CoinTrail): CoinTrail => ({ ...t, coin: { ...t.coin, untrusted: { symbol: safeSymbol(t.coin.untrusted.symbol), name: safeName(t.coin.untrusted.name) } }, events: t.events.map(cleanEvent) });
+const cleanApproval = (a: Approval): Approval => (a.symbol == null ? a : { ...a, symbol: safeSymbol(a.symbol) });
 
 /** After a practice reset the new epoch starts flat: no PnL, no open positions, cash = 30 paper SOL. */
 function freshEpoch(s: Strategy): Strategy {
@@ -58,13 +65,14 @@ export const mockApi: DashboardApi = {
   },
   async listRecentEvents(mode, limit = 50) {
     const ids = new Set(store.listStrategies().filter((s) => s.mode === mode).map((s) => s.id));
-    return recentEvents.filter((e) => e.strategyId && ids.has(e.strategyId)).slice(0, limit);
+    return recentEvents.filter((e) => e.strategyId && ids.has(e.strategyId)).slice(0, limit).map(cleanEvent);
   },
   async listCoins(mode) {
-    return coinSummaries.filter((c) => c.mode === mode);
+    return coinSummaries.filter((c) => c.mode === mode).map(cleanCoin);
   },
   async getCoinTrail(mint) {
-    return trails.find((t) => t.coin.mint === mint) ?? null;
+    const t = trails.find((x) => x.coin.mint === mint);
+    return t ? cleanTrail(t) : null;
   },
   async getExitStats(filter) {
     const rows = exitSamples.filter(
@@ -78,7 +86,7 @@ export const mockApi: DashboardApi = {
     return computeExitStats(rows).filter((r) => r.count > 0);
   },
   async listApprovals(mode) {
-    return store.listApprovals(mode);
+    return store.listApprovals(mode).map(cleanApproval);
   },
   async decideApproval(id, decision) {
     return store.decideApproval(id, decision);

@@ -3,7 +3,7 @@ import { ApiError, codeText, errorText } from "@/lib/errors";
 import { NotTradeableCta } from "@/components/NotTradeable";
 import { isOrderFailReason, orderFailedText } from "@/lib/notify";
 import { solToLamports } from "@/lib/contracts";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Keyboard } from "lucide-react";
@@ -13,6 +13,9 @@ import { useFmt, useT } from "@/lib/i18n/client";
 import { Badge, Button, Card, EmptyState, Pnl, cn } from "@/components/ui";
 import { HoldButton, Segmented, useNow, useToast } from "@/components/ui/client";
 import { ModeBadge } from "@/components/domain";
+import { VirtualTbody } from "@/components/ui/VirtualList";
+import { useMarks } from "@/components/shell/RealtimeProvider";
+import { applyMark } from "@/lib/marks";
 
 /** QA-11 (decision C1): Sell is always a hold — 1.2 s Practice / 2.5 s Real, on every platform. */
 const SELL_HOLD_MS: Record<TradingMode, number> = { practice: 1200, real: 2500 };
@@ -32,11 +35,14 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
   const router = useRouter();
   const now = useNow(1000);
   const [rows, setRows] = useState(initial);
+  // Live marks (rAF-batched in RealtimeProvider) only change what is displayed, never the stored rows.
+  const marks = useMarks();
+  const view = useMemo(() => rows.map((r) => applyMark(r, marks.get(r.mint))), [rows, marks]);
   const [focusId, setFocusId] = useState<string | null>(initial[0]?.key ?? null);
   const [sellOpen, setSellOpen] = useState(false);
   const [pct, setPct] = useState<(typeof PCTS)[number]>("100");
   const [busy, setBusy] = useState(false);
-  const focused = rows.find((r) => r.key === focusId) ?? null;
+  const focused = view.find((r) => r.key === focusId) ?? null;
   const sellRef = useRef<HTMLDivElement>(null);
 
   const stateRef = useRef({ rows, focused });
@@ -64,7 +70,11 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
 
-  const totals = useMemo(() => ({ cost: rows.reduce((s, r) => s + r.solIn * (1 - r.soldPct / 100), 0), unreal: rows.reduce((s, r) => s + r.pnlSol * (1 - r.soldPct / 100), 0) }), [rows]);
+  const totals = useMemo(() => ({ cost: view.reduce((s, r) => s + r.solIn * (1 - r.soldPct / 100), 0), unreal: view.reduce((s, r) => s + r.pnlSol * (1 - r.soldPct / 100), 0) }), [view]);
+  const openSell = useCallback((k: string) => {
+    setFocusId(k);
+    setSellOpen(true);
+  }, []);
 
   async function sell(heldMs: number) {
     if (!focused) return;
@@ -116,31 +126,15 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
                   <th scope="col" className="px-4 py-2"><span className="sr-only">{t("positions.sell")}</span></th>
                 </tr>
               </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr
-                    key={r.key}
-                    onClick={() => setFocusId(r.key)}
-                    aria-selected={r.key === focusId}
-                    className={cn("h-[52px] cursor-pointer border-b border-border-subtle last:border-0 hover:bg-bg-raised", r.key === focusId && "bg-brand-primaryContainer/40")}
-                  >
-                    <th scope="row" className="sticky left-0 z-10 bg-bg-surface px-4 text-left font-semibold shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:shadow-none">
-                      <Link href={`/coins/${r.mint}`} className="hover:underline">{r.symbol}</Link>
-                    </th>
-                    <td className="whitespace-nowrap px-4 text-text-secondary">{r.strategyName}</td>
-                    <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.sol(r.solIn * remaining(r), { unit: false })}</td>
-                    <td className="num whitespace-nowrap px-4 text-right text-numSm text-text-secondary">{f.usd(r.entryPriceUsd)} → {f.usd(r.nowPriceUsd)}</td>
-                    <td className="whitespace-nowrap px-4 text-right"><Pnl sol={r.pnlSol * remaining(r)} /></td>
-                    <td className="whitespace-nowrap px-4 text-right"><Pnl pct={r.pnlPct} /></td>
-                    <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.duration(holdS(r))}</td>
-                    <td className="px-4 text-right">
-                      <Button size="sm" variant="secondary" className="whitespace-nowrap" disabled={!!r.screenerState} onClick={(e) => { e.stopPropagation(); setFocusId(r.key); setSellOpen(true); }}>
-                        {t("positions.sell")} <kbd className="num hidden text-caption opacity-70 lg:inline">⇧X</kbd>
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+              <VirtualTbody
+                count={view.length}
+                rowHeight={52}
+                colSpan={8}
+                render={(i) => {
+                  const r = view[i];
+                  return <PositionRow key={r.key} r={r} focused={r.key === focusId} holdS={holdS(r)} onFocus={setFocusId} onSell={openSell} />;
+                }}
+              />
             </table>
           </div>
           <div className="mt-3 hidden flex-wrap gap-x-4 gap-y-1 text-caption text-text-tertiary lg:flex">
@@ -191,3 +185,32 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
     </>
   );
 }
+
+/** One positions row. Memoized: focus/sell-panel changes elsewhere don't re-render every row. */
+const PositionRow = memo(function PositionRow({ r, focused, holdS, onFocus, onSell }: { r: OpenPosition; focused: boolean; holdS: number; onFocus: (k: string) => void; onSell: (k: string) => void }) {
+  const t = useT();
+  const f = useFmt();
+  const remaining = 1 - r.soldPct / 100;
+  return (
+    <tr
+      onClick={() => onFocus(r.key)}
+      aria-selected={focused}
+      className={cn("h-[52px] cursor-pointer border-b border-border-subtle last:border-0 hover:bg-bg-raised", focused && "bg-brand-primaryContainer/40")}
+    >
+      <th scope="row" className="sticky left-0 z-10 bg-bg-surface px-4 text-left font-semibold shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:shadow-none">
+        <Link href={`/coins/${r.mint}`} className="inline-flex min-h-11 items-center hover:underline">{r.symbol}</Link>
+      </th>
+      <td className="whitespace-nowrap px-4 text-text-secondary">{r.strategyName}</td>
+      <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.sol(r.solIn * remaining, { unit: false })}</td>
+      <td className="num whitespace-nowrap px-4 text-right text-numSm text-text-secondary">{f.usd(r.entryPriceUsd)} → {f.usd(r.nowPriceUsd)}</td>
+      <td className="whitespace-nowrap px-4 text-right"><Pnl sol={r.pnlSol * remaining} /></td>
+      <td className="whitespace-nowrap px-4 text-right"><Pnl pct={r.pnlPct} /></td>
+      <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.duration(holdS)}</td>
+      <td className="px-4 text-right">
+        <Button size="sm" variant="secondary" className="min-h-11 whitespace-nowrap" disabled={!!r.screenerState} onClick={(e) => { e.stopPropagation(); onSell(r.key); }}>
+          {t("positions.sell")} <kbd className="num hidden text-caption opacity-70 lg:inline">⇧X</kbd>
+        </Button>
+      </td>
+    </tr>
+  );
+});

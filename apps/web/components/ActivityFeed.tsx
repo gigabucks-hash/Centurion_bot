@@ -7,6 +7,7 @@ import { useRealtime } from "@/components/shell/RealtimeProvider";
 import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { Segmented } from "@/components/ui/client";
 import { EventRow } from "@/components/EventRow";
+import { VirtualList } from "@/components/ui/VirtualList";
 import { FEED_FILTERS, filterEvents } from "@/components/OverviewFeed";
 import { useFmt, useT } from "@/lib/i18n/client";
 import { request } from "@/lib/client";
@@ -16,6 +17,7 @@ import { TZ } from "@/lib/format";
 import type { AnyEvent, EventPage } from "@sentra/contracts/wire";
 
 const PAGE = 100;
+const VIRTUAL_AFTER = 150;
 const dayKey = (ts: number) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(ts);
 
 /** QA-16: group rows by WIB day (sticky day headers), page older history by seq (before_seq). */
@@ -67,6 +69,11 @@ export function ActivityFeed({ initial, strategyNames, mode, hasMore: initialHas
     }
   }
   const liveIds = useMemo(() => new Set(live.slice(0, 2).map((e) => e.id)), [live]);
+  const dayLabel = (key: string, ts: number) => (key === today ? t("activity.today") : key === yesterday ? t("activity.yesterday") : f.day(ts));
+  const flat = useMemo(
+    () => groups.flatMap((g) => [{ kind: "day" as const, key: g.key, ts: g.ts, n: g.items.length }, ...g.items.map((e) => ({ kind: "row" as const, e }))]),
+    [groups],
+  );
 
   return (
     <Card
@@ -85,17 +92,38 @@ export function ActivityFeed({ initial, strategyNames, mode, hasMore: initialHas
         <EmptyState title={t("feed.noMatch")} detail={t("feed.noMatchDetail")} />
       ) : (
         <div aria-live="polite" aria-relevant="additions">
-          {groups.map((g) => (
-            <Fragment key={g.key}>
-              <h3 className="sticky top-22 z-10 -mx-4 flex items-baseline justify-between border-y border-border-subtle bg-bg-surface/95 px-4 py-1.5 text-overline uppercase text-text-tertiary backdrop-blur">
-                <span>{g.key === today ? t("activity.today") : g.key === yesterday ? t("activity.yesterday") : f.day(g.ts)}</span>
-                <span className="num normal-case">{t("activity.dayCount", { n: g.items.length })}</span>
-              </h3>
-              <ul className="divide-y divide-border-subtle">
-                {g.items.map((e) => <EventRow key={e.id} e={e} strategyName={strategyNames[e.strategyId ?? ""]} fresh={liveIds.has(e.id)} />)}
-              </ul>
-            </Fragment>
-          ))}
+          {/* Perf: past ~150 rows the feed is window-virtualized (TanStack Virtual); day headers become rows. */}
+          {merged.length > VIRTUAL_AFTER ? (
+            <VirtualList
+              count={flat.length}
+              threshold={0}
+              estimate={(i) => (flat[i].kind === "day" ? 32 : 64)}
+              className="divide-y divide-border-subtle"
+              render={(i) => {
+                const it = flat[i];
+                return it.kind === "day" ? (
+                  <h3 key={it.key} className="flex items-baseline justify-between bg-bg-surface px-0 py-1.5 text-overline uppercase text-text-tertiary">
+                    <span>{dayLabel(it.key, it.ts)}</span>
+                    <span className="num normal-case">{t("activity.dayCount", { n: it.n })}</span>
+                  </h3>
+                ) : (
+                  <EventRow key={it.e.id} as="div" e={it.e} strategyName={strategyNames[it.e.strategyId ?? ""]} fresh={liveIds.has(it.e.id)} />
+                );
+              }}
+            />
+          ) : (
+            groups.map((g) => (
+              <Fragment key={g.key}>
+                <h3 className="sticky top-22 z-10 -mx-4 flex items-baseline justify-between border-y border-border-subtle bg-bg-surface/95 px-4 py-1.5 text-overline uppercase text-text-tertiary backdrop-blur">
+                  <span>{dayLabel(g.key, g.ts)}</span>
+                  <span className="num normal-case">{t("activity.dayCount", { n: g.items.length })}</span>
+                </h3>
+                <ul className="divide-y divide-border-subtle">
+                  {g.items.map((e) => <EventRow key={e.id} e={e} strategyName={strategyNames[e.strategyId ?? ""]} fresh={liveIds.has(e.id)} />)}
+                </ul>
+              </Fragment>
+            ))
+          )}
         </div>
       )}
       <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-caption text-text-tertiary">

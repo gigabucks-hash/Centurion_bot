@@ -49,7 +49,31 @@ interface State {
 const g = globalThis as unknown as { __sentraMock?: State };
 
 function initApprovals(now: number, strategies: Strategy[]): Approval[] {
-  return seedApprovals(now, strategies).map((a) => ({ ...a, rev: 1 }));
+  return seedApprovals(now, strategies).map((a) => ({ ...a, rev: 1, ...(a.kind === "buy_pick" && a.status === "pending" && !a.screenerState && a.amountSol ? { quote: mockQuote(a, now) } : {}) }));
+}
+
+/**
+ * Deterministic papersim quote per pick (contracts 1.1.4 quote fields): 5 000-lamport base fee + 0.0001 SOL priority
+ * fee, 1.25 % swap fee, max slippage from the mint hash (1–3 %), min out after fee + slippage. Real ap_201 carries
+ * a +3.4 % price move since the pick to exercise review.price_moved. Never a signed transaction.
+ */
+function mockQuote(a: Omit<Approval, "rev">, now: number): NonNullable<Approval["quote"]> {
+  const h = [...(a.mint ?? a.id)].reduce((x, c) => (x * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const decimals = trails.find((t) => t.coin.mint === a.mint)?.coin.decimals ?? 6;
+  const pickPrice = 0.000004 + (h % 9000) / 1e9; // SOL per whole token
+  const price = a.id === "ap_201" ? pickPrice * 1.034 : pickPrice;
+  const slipBps = 100 + (h % 3) * 100;
+  const feeBps = 125;
+  const amountLamports = BigInt(Math.round((a.amountSol ?? 0) * 1e9));
+  const network = 5000n;
+  const priority = 100000n;
+  const tokensOut = ((a.amountSol ?? 0) / price) * (1 - feeBps / 10000) * (1 - slipBps / 10000);
+  const minOutRaw = BigInt(Math.floor(tokensOut * 10 ** decimals)).toString();
+  return {
+    networkFeeLamports: (network + priority).toString(), priorityFeeLamports: priority.toString(), swapFeeBps: feeBps, maxSlippageBps: slipBps,
+    minOutRaw, decimals, totalMaxLamports: (amountLamports + network + priority).toString(), quoteTs: now, quoteExpiresAt: now + 10 * MIN,
+    priceSol: price.toFixed(12), pickPriceSol: pickPrice.toFixed(12),
+  };
 }
 
 function seedApprovals(now: number, strategies: Strategy[]): Omit<Approval, "rev">[] {

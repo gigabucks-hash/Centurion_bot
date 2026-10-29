@@ -8,6 +8,7 @@ import { lamportsToSol, type Actor, type AnyEvent, type EventEnvelope, type Even
 import { APPROVAL_REJECT_REASONS, type ApprovalRejectReason, type ApprovalWire, type DecidedVia } from "@sentra/contracts/wire";
 import type { DecimalString, ErrorCode, ExitStatsRow, PositionWire, ProposalStatus, TokenProgram } from "@sentra/contracts/wire";
 import { pctToFractionBps } from "@sentra/i18n/format";
+import { safeSymbol } from "./untrusted";
 import { cmpSeq, maxSeq, minSeq, seqGt, seqLt, type Seq } from "./seq";
 import type { Approval, SkipReason, CoinMeta, CoinSummary, EventKind, ExitReasonStat, GuardCheck, OpenPosition, ScreenerState, StrategySettings, TradeEvent } from "./types";
 
@@ -103,7 +104,7 @@ export function envelopeToTradeEvent(env: AnyEvent | EventEnvelope<string, FeedP
     strategyId: env.strategy_id ?? undefined,
     mint: env.mint ?? undefined,
     // Untrusted token metadata is display-only text, never markup.
-    symbol: typeof env.untrusted?.symbol === "string" ? env.untrusted.symbol.slice(0, 16) : undefined,
+    symbol: typeof env.untrusted?.symbol === "string" ? safeSymbol(env.untrusted.symbol) || undefined : undefined,
     message: p.summary ?? env.type,
     reason: p.reason,
     ...(p.reason_code ? { reasonCode: p.reason_code } : {}),
@@ -177,6 +178,8 @@ export interface ApprovalPayload {
   pick?: Approval["pick"];
   diff?: Approval["diff"];
   risk_impact?: Approval["riskImpact"];
+  /** Display-only quote context: token decimals and SOL prices (now / at pick time). */
+  quote_extra?: { decimals?: number; price_sol?: string; pick_price_sol?: string };
 }
 
 /**
@@ -221,8 +224,10 @@ export function approvalToWire(a: Approval, extra: { workspaceId?: string; decid
     ...(a.pick ? { pick: a.pick } : {}),
     ...(a.diff ? { diff: a.diff } : {}),
     ...(a.riskImpact ? { risk_impact: a.riskImpact } : {}),
+    ...(a.quote ? { quote_extra: { decimals: a.quote.decimals, price_sol: a.quote.priceSol, pick_price_sol: a.quote.pickPriceSol } } : {}),
   };
   const decision = DECIDED[status] ?? null;
+  const q = a.quote;
   return {
     id: a.id,
     proposal_id: a.id,
@@ -245,6 +250,15 @@ export function approvalToWire(a: Approval, extra: { workspaceId?: string; decid
     decided_via: decision ? (extra.decidedVia ?? "web") : null,
     decided_by: null,
     payload: payload as unknown as ApprovalWire["payload"],
+    // contracts 1.1.4 quote fields (review sheet, WF-22): null when there is no quote.
+    est_network_fee_lamports: (q?.networkFeeLamports ?? null) as Lamports | null,
+    priority_fee_lamports: (q?.priorityFeeLamports ?? null) as Lamports | null,
+    swap_fee_bps: q?.swapFeeBps ?? null,
+    max_slippage_bps: q?.maxSlippageBps ?? null,
+    min_out_raw: (q?.minOutRaw ?? null) as never,
+    total_max_lamports: (q?.totalMaxLamports ?? null) as Lamports | null,
+    quote_ts: iso(q?.quoteTs),
+    quote_expires_at: iso(q?.quoteExpiresAt),
     created_at: iso(a.createdAt)!,
     expires_at: iso(a.expiresAt)!,
     decided_at: iso(a.decidedAt),
@@ -265,7 +279,7 @@ export function approvalFromWire(w: ApprovalItemWire): Approval {
     strategyName: p.strategy_name ?? undefined,
     mint: w.mint ?? undefined,
     // Untrusted token text: plain text only, clipped.
-    symbol: typeof sym === "string" ? sym.slice(0, 16) : undefined,
+    symbol: typeof sym === "string" ? safeSymbol(sym) || undefined : undefined,
     title: p.title ?? w.subject ?? w.kind,
     detail: p.detail ?? "",
     amountSol: lamportsToSolNumber(w.amount_lamports),
@@ -289,6 +303,20 @@ export function approvalFromWire(w: ApprovalItemWire): Approval {
     autoRevertAt: ms(p.guard_change?.auto_revert_at),
     guardChangeState: p.guard_change?.status ?? undefined,
     auditId: p.audit_id ?? undefined,
+    ...(quoteFromWire(w, p) ? { quote: quoteFromWire(w, p) } : {}),
+  };
+}
+
+function quoteFromWire(w: ApprovalItemWire, p: Partial<ApprovalPayload>): Approval["quote"] | undefined {
+  const x = w as Partial<ApprovalWire> & Record<string, unknown>;
+  const has = x.est_network_fee_lamports != null || x.swap_fee_bps != null || x.max_slippage_bps != null || x.total_max_lamports != null;
+  if (!has) return undefined;
+  const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+  return {
+    networkFeeLamports: str(x.est_network_fee_lamports), priorityFeeLamports: str(x.priority_fee_lamports), swapFeeBps: num(x.swap_fee_bps), maxSlippageBps: num(x.max_slippage_bps),
+    minOutRaw: str(x.min_out_raw), totalMaxLamports: str(x.total_max_lamports), quoteTs: ms(str(x.quote_ts)), quoteExpiresAt: ms(str(x.quote_expires_at)),
+    decimals: p.quote_extra?.decimals, priceSol: p.quote_extra?.price_sol, pickPriceSol: p.quote_extra?.pick_price_sol,
   };
 }
 
@@ -502,7 +530,7 @@ export function coinToWire(c: CoinMeta, s: CoinSummary): CoinWire {
 
 export function coinSummaryFromWire(w: CoinWire): CoinSummary {
   return {
-    mint: w.mint, symbol: (w.untrusted.symbol ?? "").slice(0, 16), strategyId: w.strategy_id, strategyName: w.strategy_name, mode: w.mode,
+    mint: w.mint, symbol: safeSymbol(w.untrusted.symbol ?? ""), strategyId: w.strategy_id, strategyName: w.strategy_name, mode: w.mode,
     lastEventAt: Date.parse(w.last_event_at), status: w.status, pnlSol: lamportsToSolNumber(w.pnl_lamports),
     screenerState: screenerStateOf(w),
   };
@@ -544,7 +572,7 @@ export function positionToWire(p: OpenPosition, workspaceId: string): PositionWi
 export function positionFromWire(w: PositionWireView): OpenPosition {
   return {
     key: w.position_key, strategyId: w.strategy_id ?? "", strategyName: w.strategy_name, mode: w.mode, mint: w.mint,
-    symbol: (w.untrusted.symbol ?? "").slice(0, 16),
+    symbol: safeSymbol(w.untrusted.symbol ?? ""),
     solIn: lamportsToSolNumber(w.sol_in_lamports) ?? 0,
     entryPriceUsd: Number(w.avg_entry_price_sol ?? "0") * MOCK_SOL_USD, nowPriceUsd: Number(w.mark_price_sol) * MOCK_SOL_USD,
     pnlSol: lamportsToSolNumber(w.unrealized_pnl_lamports) ?? 0, pnlPct: w.pnl_pct, openedAt: Date.parse(w.opened_at),

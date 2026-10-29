@@ -114,7 +114,7 @@ export const en = {
   kind: { found: "Found", passed: "Passed", blocked: "Blocked", armed: "Armed", expired: "Expired", proposal: "Proposal", approved: "Approved", skipped: "Skipped", bought: "Bought", sold: "Sold" },
   exitReason: {
     profit_target: "Take profit", loss_guard: "Stop loss", peak_trail: "Trailing stop", max_hold: "Time-out", idle: "No trades",
-    sell_pressure: "Drain", no_new_high: "Stall", rug_detected: "Rug / exploit", sell_floor: "Sell floor", drawdown_halt: "Loss stop", manual: "Manual", strategy_retired: "Strategy retired", practice_reset: "Practice reset",
+    sell_pressure: "Drain", no_new_high: "No new high", stall: "Stall exit", rug_detected: "Rug / exploit", sell_floor: "Sell floor", drawdown_halt: "Loss stop", manual: "Manual", strategy_retired: "Strategy retired", practice_reset: "Practice reset",
   },
   // N-07a..d bodies
   expiredReason: {
@@ -466,6 +466,34 @@ export const en = {
     reconciles: "Reconciles with the overview: {n} trades · realized {pnl}",
     exits: "Exits", avgPnl: "Avg PnL",
   },
+  walletLogin: {
+    heading: "Sign in with your wallet",
+    sub: "Private workspace: only the owner’s wallet can sign in.",
+    hero: "Your Solana trading bot, with risk always in view.",
+    v1: "Practice first: paper SOL, nothing moves on-chain",
+    v2: "Guards and the approval queue check every buy",
+    v3: "Wallet sign-in signs a message, never a transaction",
+    steps: "Step {n} of 3",
+    step1: "Connect", step2: "Review message", step3: "Sign",
+    connect: "Connect Phantom",
+    connected: "Connected · {address}",
+    disconnect: "Use a different wallet",
+    previewTitle: "Message to sign",
+    previewNote: "Check the domain and address. Signing proves you own this wallet. It is not a transaction and costs no fee.",
+    sign: "Sign message",
+    signing: "Waiting for Phantom…",
+    mockNote: "Mock build: Phantom is simulated. No wallet extension is contacted and no real signature is made.",
+    notInstalled: "Phantom isn’t available in this browser.",
+    connectRejected: "Connection was cancelled in Phantom.",
+    deniedTitle: "Access denied",
+    deniedBody: "This wallet is not on the allowlist for this private workspace. Nothing was changed.",
+    mockWallet: "Mock wallet",
+    mockOwner: "Owner wallet (allowlisted)",
+    mockOther: "Other wallet (not allowlisted)",
+    mockBehaviour: "Mock wallet behaviour",
+    beh: { ok: "Connects and signs", not_installed: "Phantom not installed", connect_rejected: "Connect cancelled", sign_rejected: "Signature declined", nonce_expired: "Nonce expired", offline: "Offline" },
+    otherMethods: "Other sign-in methods (enabled by flag)",
+  },
   login: {
     title: "Sign in",
     heading: "Sign in or create an account",
@@ -596,6 +624,7 @@ export const en = {
   apiError: {
     // errors.json v5 (contracts fdc52e3); not yet in @sentra/i18n errors.map.json → app copy until UX maps it.
     GUARD_WEAKEN_REQUIRES_APPROVAL: "This change loosens a guard, so it needs approval first. Nothing was changed.",
+    QUOTE_MISSING_OR_STALE: "This quote expired. Refresh it and review the trade again before approving.",
     UNAUTHENTICATED: "Please sign in again.",
     FORBIDDEN_SCOPE: "This session can’t do that.",
     FORBIDDEN_ROLE: "Your workspace role doesn’t allow this.",

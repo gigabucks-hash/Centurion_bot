@@ -62,7 +62,7 @@ export function errorUxKey(code: string): string {
  * know (and our client-only UNKNOWN) fall back to `error.code.internal`; OFFLINE keeps our app copy.
  */
 /** Codes newer than errors.map.json that we cover with app copy (apiError.*) until UX maps them. */
-const APP_ONLY_CODES = new Set<string>(["GUARD_WEAKEN_REQUIRES_APPROVAL"]);
+const APP_ONLY_CODES = new Set<string>(["GUARD_WEAKEN_REQUIRES_APPROVAL", "QUOTE_MISSING_OR_STALE"]);
 
 export function codeText(t: T, code: ClientErrorCode): string {
   if (code === "OFFLINE") return t(errorKey(code));

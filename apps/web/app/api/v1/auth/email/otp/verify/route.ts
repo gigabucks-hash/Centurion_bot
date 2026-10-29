@@ -1,3 +1,4 @@
+import { AUTH_FLAGS } from "@/lib/auth/flags";
 import { cookies } from "next/headers";
 import { fail, ok, readJson } from "@/lib/bff";
 import { WireError } from "@/lib/mock/store";
@@ -5,6 +6,7 @@ import { otpVerify } from "@/lib/mock/auth";
 
 /** POST /auth/email/otp/verify {email, code} → session | OTP_INVALID {attempts_left} | 429 OTP_LOCKED {retry_after_s}. */
 export async function POST(req: Request) {
+  if (!AUTH_FLAGS.emailOtp) return new Response(null, { status: 404 }); // dropped from the MVP (flag off)
   const p = await readJson(req);
   if (p instanceof Response) return p;
   const { email, code } = p.body as Record<string, string>;

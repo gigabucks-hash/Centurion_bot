@@ -44,8 +44,8 @@ async function StatsBody({ searchParams }: { searchParams: PageProps<"/stats">["
         <StatTile label={t("stats.costliest")} value={t(`exitReason.${worst.reason}`)} tone="warning" hint={<Pnl sol={worst.totalPnlSol} unit />} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card title={t("stats.byReason")}><ExitCountChart stats={stats} /></Card>
-        <Card title={t("stats.avgPct")}><ExitPnlChart stats={stats} /></Card>
+        <Card title={t("stats.byReason")}><ExitCountChart stats={stats} t={t} f={f} /></Card>
+        <Card title={t("stats.avgPct")}><ExitPnlChart stats={stats} t={t} f={f} /></Card>
       </div>
       <Card title={t("stats.breakdown")} className="mt-4">
         <Table<ExitReasonStat>

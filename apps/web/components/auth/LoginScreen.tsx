@@ -1,15 +1,24 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Check, Loader2, Lock, Mail, Wallet } from "lucide-react";
 import { request } from "@/lib/client";
 import { ApiError, errorText } from "@/lib/errors";
 import { useFmt, useLocale, useT } from "@/lib/i18n/client";
 import { Button, cn } from "@/components/ui";
-import { Dialog, useNow } from "@/components/ui/client";
+import { useNow } from "@/components/ui/client";
+import { AUTH_FLAGS, anyLegacyMethod } from "@/lib/auth/flags";
+import { safeNext } from "@/lib/auth/gate";
+import { MOCK_OTHER_WALLET, MOCK_OWNER_WALLET } from "@/lib/auth/allowlist";
+import { mockPhantom, siwsNonce, siwsVerify, WalletError, type MockWalletBehaviour, type SiwsChallenge } from "@/lib/auth/wallet";
 
 /**
- * MOCK sign-in (SPEC §5, UX SIGN_IN_BUTTONS.md, QA-05). Nothing here talks to an IdP, wallet or mail server.
+ * Sign-in. Boss decision (29 Oct 2026, via Apex): private single-owner app, Solana wallet only (Phantom + SIWS):
+ * Connect Phantom → SIWS message preview → sign → verify → session; a wallet that is not on the allowlist gets
+ * "Access denied". Mocked until Backend's SIWS route is live (lib/auth/wallet.ts: no wallet is contacted).
+ * Email OTP, Google, Apple and Telegram stay below, each behind a build flag that is OFF (lib/auth/flags.ts).
+ *
+ * Legacy notes (flagged methods, SPEC §5, UX SIGN_IN_BUTTONS.md, QA-05): Nothing here talks to an IdP, wallet or mail server.
  * - One equal-size stack (40 px tall, 320–400 px wide, 12 px gaps, radius 6): Google, Apple, [Telegram], "or", Email, Wallet.
  *   Telegram is hidden (not disabled) while AUTH_TELEGRAM_OIDC_ENABLED is off (NEXT_PUBLIC_AUTH_TELEGRAM_OIDC_ENABLED=true shows it).
  * - QA-05 official buttons: Google = Google Identity Services rendered button when NEXT_PUBLIC_GOOGLE_CLIENT_ID is set
@@ -25,8 +34,6 @@ import { Dialog, useNow } from "@/components/ui/client";
 type Method = "google" | "apple" | "telegram" | "email_otp" | "wallet_siws";
 type Scenario = "success" | "popup_blocked" | "idp_cancelled" | "telegram_invalid" | "wallet_missing" | "sign_rejected" | "nonce_expired" | "account_disabled" | "offline";
 const SCENARIOS: Scenario[] = ["success", "popup_blocked", "idp_cancelled", "telegram_invalid", "wallet_missing", "sign_rejected", "nonce_expired", "account_disabled", "offline"];
-const TELEGRAM_ENABLED = process.env.NEXT_PUBLIC_AUTH_TELEGRAM_OIDC_ENABLED === "true";
-const MOCK_ADDRESS = "MockSignInWa11et1111111111111111111111111111";
 
 export function LoginScreen() {
   const router = useRouter();
@@ -36,7 +43,8 @@ export function LoginScreen() {
   const [busy, setBusy] = useState<Method | null>(null);
   const [step, setStep] = useState<"choose" | "otp">("choose");
   const [email, setEmail] = useState("");
-  const [walletOpen, setWalletOpen] = useState(false);
+  const [mockWallet, setMockWallet] = useState(MOCK_OWNER_WALLET);
+  const [behaviour, setBehaviour] = useState<WalletBehaviour>("ok");
 
   const scenarioError = (relevant: Scenario[]): string | null => {
     if (scenario === "offline") return t("login.e.offline");
@@ -58,7 +66,7 @@ export function LoginScreen() {
     const res = await fetch("/api/auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ method }) });
     setBusy(null);
     if (!res.ok) return setError(t("login.failed"));
-    router.push("/welcome");
+    router.push(afterLogin());
   }
 
   async function sendCode() {
@@ -83,9 +91,9 @@ export function LoginScreen() {
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <section className="hidden flex-col border-r border-border-subtle bg-bg-surface p-10 lg:flex">
         <p className="text-title">◆ Sentra <span className="text-caption text-text-tertiary">{t("login.workingName")}</span></p>
-        <h1 className="mt-auto text-display text-text-primary">{t("login.hero")}</h1>
+        <h1 className="mt-auto text-display text-text-primary">{t("walletLogin.hero")}</h1>
         <ul className="mt-6 flex flex-col gap-2 text-body text-text-secondary">
-          {(["login.v1", "login.v2", "login.v3"] as const).map((k) => (
+          {(["walletLogin.v1", "walletLogin.v2", "walletLogin.v3"] as const).map((k) => (
             <li key={k} className="flex gap-2"><Check size={16} className="mt-0.5 text-semantic-profit" aria-hidden /> {t(k)}</li>
           ))}
         </ul>
@@ -97,63 +105,44 @@ export function LoginScreen() {
         <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-surface p-6 shadow-e2 sm:p-8">
           {step === "choose" ? (
             <>
-              <h2 className="text-title">{t("login.heading")}</h2>
-              <p className="mt-1 text-body text-text-secondary">{t("login.sub")}</p>
+              <h2 className="text-title">{t("walletLogin.heading")}</h2>
+              <p className="mt-1 text-body text-text-secondary">{t("walletLogin.sub")}</p>
               {error && <ErrorBox text={error} />}
-              <div className="mx-auto mt-5 flex w-full max-w-[400px] min-w-0 flex-col gap-3 sm:min-w-[320px]">
-                <GoogleButton label={t("login.google")} busy={busy === "google"} disabled={disabled("google")} onClick={() => idp("google")} />
-                <AppleButton label={t("login.apple")} busy={busy === "apple"} disabled={disabled("apple")} onClick={() => idp("apple")} />
-                {TELEGRAM_ENABLED && <TelegramButton label={t("login.telegram")} busy={busy === "telegram"} disabled={disabled("telegram")} onClick={() => idp("telegram")} />}
-
-                <Divider label={t("login.or")} />
-
-                <form
-                  className="flex flex-col gap-3"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    sendCode();
-                  }}
-                >
-                  <div>
-                    <label htmlFor="email" className="mb-1 block text-label text-text-secondary">{t("login.email")}</label>
-                    <input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="h-10 w-full rounded-sm border border-border-default bg-bg-sunken px-3 text-body outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus" />
+              <WalletFlow wallet={mockWallet} behaviour={behaviour} onDone={() => router.push(afterLogin())} />
+              {anyLegacyMethod() && (
+                <details className="mt-6">
+                  <summary className="cursor-pointer text-caption text-text-tertiary">{t("walletLogin.otherMethods")}</summary>
+                  <div className="mx-auto mt-4 flex w-full max-w-[400px] min-w-0 flex-col gap-3 sm:min-w-[320px]">
+                    {AUTH_FLAGS.google && <GoogleButton label={t("login.google")} busy={busy === "google"} disabled={disabled("google")} onClick={() => idp("google")} />}
+                    {AUTH_FLAGS.apple && <AppleButton label={t("login.apple")} busy={busy === "apple"} disabled={disabled("apple")} onClick={() => idp("apple")} />}
+                    {AUTH_FLAGS.telegram && <TelegramButton label={t("login.telegram")} busy={busy === "telegram"} disabled={disabled("telegram")} onClick={() => idp("telegram")} />}
+                    {AUTH_FLAGS.emailOtp && (
+                      <form
+                        className="flex flex-col gap-3"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          sendCode();
+                        }}
+                      >
+                        <div>
+                          <label htmlFor="email" className="mb-1 block text-label text-text-secondary">{t("login.email")}</label>
+                          <input id="email" type="email" autoComplete="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="h-10 w-full rounded-sm border border-border-default bg-bg-sunken px-3 text-body outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus" />
+                        </div>
+                        <SentraButton icon={<Mail size={16} aria-hidden />} label={t("login.sendCode")} type="submit" busy={busy === "email_otp"} disabled={disabled("email_otp")} />
+                      </form>
+                    )}
                   </div>
-                  <SentraButton icon={<Mail size={16} aria-hidden />} label={t("login.sendCode")} type="submit" busy={busy === "email_otp"} disabled={disabled("email_otp")} />
-                </form>
-                <SentraButton
-                  icon={<Wallet size={16} aria-hidden />}
-                  label={t("login.wallet")}
-                  busy={busy === "wallet_siws"}
-                  disabled={disabled("wallet_siws")}
-                  onClick={() => {
-                    setError(null);
-                    const e = scenarioError(["wallet_missing"]);
-                    if (e) return setError(e);
-                    setWalletOpen(true);
-                  }}
-                />
-                <p className="text-caption text-semantic-profit">{t("login.signNote")}</p>
-              </div>
-              <p className="mt-6 text-caption text-text-tertiary">{t("login.terms")}</p>
-              <p className="mt-2 text-label text-mode-practice">{t("login.practiceFirst")}</p>
+                </details>
+              )}
             </>
           ) : (
-            <OtpStep email={email} onBack={() => setStep("choose")} onSuccess={() => router.push("/welcome")} />
+            <OtpStep email={email} onBack={() => setStep("choose")} onSuccess={() => router.push(afterLogin())} />
           )}
         </div>
-        <MockPanel scenario={scenario} setScenario={setScenario} />
+        <WalletMockPanel wallet={mockWallet} setWallet={setMockWallet} behaviour={behaviour} setBehaviour={setBehaviour} />
+        {anyLegacyMethod() && <MockPanel scenario={scenario} setScenario={setScenario} />}
       </section>
 
-      <SiwsDialog
-        open={walletOpen}
-        scenario={scenario}
-        onClose={() => setWalletOpen(false)}
-        onDone={(err) => {
-          setWalletOpen(false);
-          if (err) setError(err);
-          else router.push("/welcome");
-        }}
-      />
     </div>
   );
 }
@@ -268,14 +257,6 @@ function SentraButton({ icon, label, onClick, busy, disabled, type = "button" }:
       {busy ? <Loader2 size={16} className="shrink-0 animate-spin" aria-hidden /> : icon}
       <span>{label}</span>
     </button>
-  );
-}
-
-function Divider({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-3 text-caption text-text-tertiary">
-      <span className="h-px flex-1 bg-border-subtle" /> {label} <span className="h-px flex-1 bg-border-subtle" />
-    </div>
   );
 }
 
@@ -407,71 +388,139 @@ function OtpStep({ email, onBack, onSuccess }: { email: string; onBack: () => vo
   );
 }
 
-function SiwsDialog({ open, scenario, onClose, onDone }: { open: boolean; scenario: Scenario; onClose: () => void; onDone: (error: string | null) => void }) {
-  const t = useT();
-  const [wallet, setWallet] = useState<string | null>(null);
-  const [msg, setMsg] = useState<{ message: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const cancelRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const tm = setTimeout(() => {
-      setWallet(null);
-      setMsg(null);
-    }, 0);
-    return () => clearTimeout(tm);
-  }, [open]);
+type WalletBehaviour = MockWalletBehaviour | "nonce_expired" | "offline";
+const BEHAVIOURS: WalletBehaviour[] = ["ok", "not_installed", "connect_rejected", "sign_rejected", "nonce_expired", "offline"];
+const AFTER_LOGIN_DEFAULT = AUTH_FLAGS.onboarding ? "/welcome" : "/";
+const afterLogin = () => (typeof window === "undefined" ? null : safeNext(new URLSearchParams(window.location.search).get("next"))) ?? AFTER_LOGIN_DEFAULT;
+/** Backend: OWNER_WALLETS miss → 403 FORBIDDEN_ROLE {reason: "wallet_not_allowed"} at /siws/nonce (and /verify, /refresh). */
+const isNotOwner = (e: unknown) => e instanceof ApiError && e.code === "FORBIDDEN_ROLE" && (e.details as { reason?: string } | undefined)?.reason === "wallet_not_allowed";
+const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 
-  async function choose(w: string) {
-    setWallet(w);
+/**
+ * Wallet-only sign-in: 1 Connect Phantom → 2 SIWS message preview (server nonce) → 3 sign → verify → session.
+ * 403 FORBIDDEN_ROLE {reason: wallet_not_allowed} → "Access denied" (no sign-up path in the private MVP).
+ */
+function WalletFlow({ wallet, behaviour, onDone }: { wallet: string; behaviour: WalletBehaviour; onDone: () => void }) {
+  const t = useT();
+  const [address, setAddress] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState<SiwsChallenge | null>(null);
+  const [busy, setBusy] = useState<"connect" | "sign" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [denied, setDenied] = useState(false);
+  const adapter = useMemo(() => mockPhantom(wallet, behaviour === "nonce_expired" || behaviour === "offline" ? "ok" : behaviour), [wallet, behaviour]);
+  const step = denied ? 3 : !address ? 1 : challenge ? 2 : 1;
+
+  function reset() {
+    setAddress(null);
+    setChallenge(null);
+    setErr(null);
+    setDenied(false);
+    adapter.disconnect();
+  }
+
+  async function connect() {
+    setErr(null);
+    setBusy("connect");
     try {
-      const { data } = await request<{ message: string }>("/api/v1/auth/siws/nonce", { body: { address: MOCK_ADDRESS, domain: window.location.host, uri: window.location.origin, chain_id: "solana:mainnet" } });
-      setMsg(data);
+      if (behaviour === "offline") throw new ApiError("OFFLINE", 0);
+      const { address: a } = await adapter.connect();
+      setAddress(a);
+      setChallenge(await siwsNonce(a));
     } catch (e) {
-      onDone(errorText(t, e));
+      if (isNotOwner(e)) {
+        setDenied(true);
+        return;
+      }
+      setAddress(null);
+      setErr(e instanceof WalletError ? t(e.code === "not_installed" ? "walletLogin.notInstalled" : "walletLogin.connectRejected") : errorText(t, e));
+    } finally {
+      setBusy(null);
     }
   }
 
   async function sign() {
-    if (!msg) return;
-    if (scenario === "sign_rejected") return onDone(t("login.e.sign_rejected"));
-    setBusy(true);
+    if (!address || !challenge) return;
+    setErr(null);
+    setBusy("sign");
     try {
-      // nonce_expired scenario: send a message whose nonce the server does not know → SIWS_NONCE_INVALID.
-      const message = scenario === "nonce_expired" ? msg.message.replace(/Nonce: \w+/, "Nonce: expired0000000000") : msg.message;
-      await request("/api/v1/auth/siws/verify", { body: { address: MOCK_ADDRESS, message, signature: "mock-signature" } });
-      onDone(null);
+      const sig = await adapter.signMessage(challenge.message);
+      // nonce_expired: send a message whose nonce the server never issued → SIWS_NONCE_INVALID.
+      const message = behaviour === "nonce_expired" ? challenge.message.replace(/Nonce: \w+/, "Nonce: expired0000000000") : challenge.message;
+      await siwsVerify(address, message, sig);
+      onDone();
     } catch (e) {
-      onDone(e instanceof ApiError && e.code === "SIWS_NONCE_INVALID" ? t("login.e.nonce_expired") : errorText(t, e));
+      if (e instanceof WalletError) setErr(t.ux("login.wallet.rejected"));
+      else if (isNotOwner(e)) setDenied(true);
+      else if (e instanceof ApiError && e.code === "SIWS_NONCE_INVALID") {
+        setErr(t("login.e.nonce_expired"));
+        setChallenge(await siwsNonce(address).catch(() => null));
+      } else setErr(errorText(t, e));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={t("login.siwsTitle")} initialFocusRef={cancelRef}>
-      {!wallet ? (
-        <>
-          <p className="text-body text-text-secondary">{t("login.chooseWallet")}</p>
-          <div className="mt-4 grid gap-2">
-            {["Phantom", "Solflare", "Backpack", "Mobile Wallet Adapter"].map((w) => (
-              <Button key={w} variant="secondary" size="lg" onClick={() => choose(w)}>{w}</Button>
-            ))}
-          </div>
-          <Button ref={cancelRef} variant="ghost" className="mt-3 w-full" onClick={onClose}>{t("common.cancel")}</Button>
-        </>
+    <div className="mt-5 flex flex-col gap-3" data-testid="wallet-flow">
+      <ol className="flex items-center gap-2 text-caption text-text-tertiary" aria-label={t("walletLogin.steps", { n: step })}>
+        {(["walletLogin.step1", "walletLogin.step2", "walletLogin.step3"] as const).map((k, i) => (
+          <li key={k} aria-current={step === i + 1 ? "step" : undefined} className={cn("flex items-center gap-1.5", step === i + 1 && "font-medium text-text-primary")}>
+            <span className={cn("num grid h-5 w-5 place-items-center rounded-full border text-[11px]", step > i + 1 ? "border-semantic-profit text-semantic-profit" : step === i + 1 ? "border-brand-primary text-brand-primary" : "border-border-default")}>{step > i + 1 ? <Check size={11} aria-hidden /> : i + 1}</span>
+            {t(k)}
+            {i < 2 && <span aria-hidden className="mx-1 h-px w-4 bg-border-subtle" />}
+          </li>
+        ))}
+      </ol>
+      {err && <ErrorBox text={err} />}
+
+      {denied ? (
+        <div role="alert" className="rounded-md border border-semantic-loss/50 bg-semantic-lossContainer p-4" data-testid="access-denied">
+          <p className="flex items-center gap-2 font-semibold text-semantic-loss"><Lock size={16} aria-hidden /> {t("walletLogin.deniedTitle")}</p>
+          <p className="mt-1 text-body text-text-secondary">{t("walletLogin.deniedBody")}</p>
+          <p className="num mt-2 break-all text-caption text-text-tertiary">{address}</p>
+          <Button className="mt-3 min-h-11 w-full" variant="secondary" onClick={reset}>{t("walletLogin.disconnect")}</Button>
+        </div>
+      ) : !address || !challenge ? (
+        <SentraButton icon={<Wallet size={16} aria-hidden />} label={t("walletLogin.connect")} busy={busy === "connect"} disabled={busy != null} onClick={connect} />
       ) : (
         <>
-          <p className="text-body text-text-secondary">{t("login.willSign", { wallet })}</p>
-          <pre className="num mt-3 whitespace-pre-wrap break-all rounded-md border border-border-subtle bg-bg-sunken p-3 text-caption text-text-secondary">{msg?.message ?? "…"}</pre>
-          <p className="mt-2 text-caption text-text-tertiary">{t("login.signinWalletNote")}</p>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <Button ref={cancelRef} variant="secondary" size="lg" onClick={onClose}>{t("common.cancel")}</Button>
-            <Button variant="primary" size="lg" onClick={sign} loading={busy} disabled={!msg}>{t("login.simulate")}</Button>
+          <p className="flex items-center justify-between gap-2 text-caption text-text-secondary">
+            <span className="num">{t("walletLogin.connected", { address: short(address) })}</span>
+            <button type="button" onClick={reset} className="min-h-11 text-brand-primary hover:underline">{t("walletLogin.disconnect")}</button>
+          </p>
+          <div>
+            <p className="text-label">{t("walletLogin.previewTitle")}</p>
+            <pre className="num mt-1 max-h-56 overflow-auto whitespace-pre-wrap break-all rounded-md border border-border-subtle bg-bg-sunken p-3 text-caption text-text-secondary" data-testid="siws-message">{challenge.message}</pre>
+            <p className="mt-1 text-caption text-text-tertiary">{t("walletLogin.previewNote")}</p>
           </div>
+          <Button variant="primary" size="lg" className="min-h-11 w-full" loading={busy === "sign"} onClick={sign}>{busy === "sign" ? t("walletLogin.signing") : t("walletLogin.sign")}</Button>
         </>
       )}
-    </Dialog>
+      <p className="text-caption text-semantic-profit">{t.ux("login.wallet.sign_note")}</p>
+      <p className="rounded-md bg-semantic-infoContainer px-3 py-2 text-caption text-semantic-info">{t("walletLogin.mockNote")}</p>
+    </div>
+  );
+}
+
+function WalletMockPanel({ wallet, setWallet, behaviour, setBehaviour }: { wallet: string; setWallet: (w: string) => void; behaviour: WalletBehaviour; setBehaviour: (b: WalletBehaviour) => void }) {
+  const t = useT();
+  const sel = "h-8 rounded-sm border border-border-default bg-bg-sunken px-2 text-text-primary";
+  return (
+    <div className="mt-4 flex w-full max-w-md flex-col gap-2 rounded-md border border-dashed border-border-default p-3 text-caption text-text-tertiary">
+      <label className="flex items-center justify-between gap-2">
+        <span>{t("walletLogin.mockWallet")}</span>
+        <select value={wallet} onChange={(e) => setWallet(e.target.value)} className={sel} data-testid="mock-wallet">
+          <option value={MOCK_OWNER_WALLET}>{t("walletLogin.mockOwner")}</option>
+          <option value={MOCK_OTHER_WALLET}>{t("walletLogin.mockOther")}</option>
+        </select>
+      </label>
+      <label className="flex items-center justify-between gap-2">
+        <span>{t("walletLogin.mockBehaviour")}</span>
+        <select value={behaviour} onChange={(e) => setBehaviour(e.target.value as WalletBehaviour)} className={sel}>
+          {BEHAVIOURS.map((b) => <option key={b} value={b}>{t(`walletLogin.beh.${b}`)}</option>)}
+        </select>
+      </label>
+    </div>
   );
 }
 

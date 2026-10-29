@@ -7,7 +7,7 @@
  * - Writes carry an Idempotency-Key; retries reuse the same key.
  */
 import { pctToFractionBps } from "@sentra/i18n/format";
-import type { ConflictError, ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof } from "@sentra/contracts/wire";
+import type { ConflictError, MarkMessage, ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof } from "@sentra/contracts/wire";
 import { observeServerNow } from "./clock";
 import { approvalFromWire, payloadHash, positionFromWire, type PositionWireView, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire, type ApprovalRejectReason, type WireSettings } from "./contracts";
 import { ApiError, toApiError } from "./errors";
@@ -21,17 +21,24 @@ const base = `/api/v1/workspaces/${WS}`;
 
 export const idempotencyKey = () => crypto.randomUUID();
 
-export async function request<T>(path: string, init: { method?: string; body?: unknown; idempotencyKey?: string; headers?: Record<string, string> } = {}): Promise<{ data: T; raw: Record<string, unknown> }> {
+export async function request<T>(path: string, init: { method?: string; body?: unknown; idempotencyKey?: string; headers?: Record<string, string>; retried?: boolean } = {}): Promise<{ data: T; raw: Record<string, unknown> }> {
   let res: Response;
+  const idem = init.idempotencyKey ?? idempotencyKey(); // reused on the post-refresh retry
   try {
     res = await fetch(path.startsWith("/api/") ? path : `${base}${path}`, {
       method: init.method ?? (init.body ? "POST" : "GET"),
       cache: "no-store",
-      headers: { "content-type": "application/json", ...(init.body !== undefined || init.method === "POST" ? { "idempotency-key": init.idempotencyKey ?? idempotencyKey() } : {}), ...init.headers },
+      headers: { "content-type": "application/json", ...(init.body !== undefined || init.method === "POST" ? { "idempotency-key": idem } : {}), ...init.headers },
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     });
   } catch {
     throw new ApiError("OFFLINE", 0);
+  }
+  // Silent refresh: one retry after a 401 on a non-auth call (tokens rotate server-side in httpOnly cookies).
+  if (res.status === 401 && !path.startsWith("/api/v1/auth/") && !init.retried && typeof window !== "undefined") {
+    const { refreshSession, toLogin } = await import("@/lib/auth/session-client");
+    if (await refreshSession()) return request<T>(path, { ...init, retried: true, idempotencyKey: init.idempotencyKey ?? idem });
+    toLogin();
   }
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   observeServerNow(json.server_now as string | undefined);
@@ -250,6 +257,6 @@ export const revokeDeviceClient = async () => (await request<unknown>(`/api/v1/d
  * Subscribe to the realtime activity stream for one workspace mode (adapter chosen by NEXT_PUBLIC_REALTIME:
  * mock SSE default, "sse" for a backend SSE URL, "supabase" skeleton). Returns an unsubscribe function.
  */
-export function subscribeActivity(mode: TradingMode, onEvent: (e: TradeEvent) => void, onStatus: (s: ConnectionState) => void): () => void {
-  return createRealtime({ workspaceId: WS, mode }).subscribe({ onEvent, onStatus });
+export function subscribeActivity(mode: TradingMode, onEvent: (e: TradeEvent) => void, onStatus: (s: ConnectionState) => void, onMark?: (m: MarkMessage) => void): () => void {
+  return createRealtime({ workspaceId: WS, mode }).subscribe({ onEvent, onStatus, onMark });
 }

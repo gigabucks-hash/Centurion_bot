@@ -337,6 +337,8 @@ const reasonProfile: Record<ExitReason, { weight: number; win: number; pct: [num
   manual: { weight: 4, win: 0.5, pct: [-20, 30], hold: [60, 3000] },
   strategy_retired: { weight: 0, win: 0.5, pct: [-10, 10], hold: [60, 600] },
   practice_reset: { weight: 0, win: 0.5, pct: [-10, 10], hold: [60, 600] },
+  // contracts 1.1.4 (working tree): stall_exit; weight 0 keeps the seeded ledger unchanged until the builder sends it.
+  stall: { weight: 0, win: 0.3, pct: [-8, 8], hold: [120, 900] },
 };
 const weightedReasons: ExitReason[] = EXIT_REASONS.flatMap((r) => Array.from({ length: reasonProfile[r].weight }, () => r));
 

@@ -8,6 +8,10 @@ import { shortMint } from "@/lib/format";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { Badge, Card, EmptyState, PageHeader, Pnl, Table, cn, type Tone } from "@/components/ui";
 import { NotTradeableChip } from "@/components/NotTradeable";
+import { CoinsVirtualList } from "@/components/CoinsVirtualList";
+
+/** Past this many rows the screener list is window-virtualized on the client (TanStack Virtual). */
+const VIRTUAL_COINS = 120;
 
 export const metadata: Metadata = { title: "Coins" };
 const statusTone: Record<CoinSummary["status"], Tone> = { open: "profit", closed: "info", watching: "brand", rejected: "neutral" };
@@ -36,7 +40,7 @@ async function List({ searchParams }: { searchParams: PageProps<"/coins">["searc
         ))}
         <Link href="/coins?status=not_tradeable" aria-current={only ? "page" : undefined} className={chip(only)}>{t("notTradeable.filter")}</Link>
       </nav>
-      <Table<CoinSummary>
+      {coins.length > VIRTUAL_COINS ? <CoinsVirtualList coins={coins} /> : <Table<CoinSummary>
         rows={coins}
         rowKey={(c) => `${c.mint}-${c.strategyId}`}
         empty={<EmptyState title={q ? t("coins.empty") : t("screener.empty")} detail={q ? t("coins.emptyDetail") : undefined} />}
@@ -50,7 +54,7 @@ async function List({ searchParams }: { searchParams: PageProps<"/coins">["searc
           { key: "pnl", header: t("coins.colPnl"), numeric: true, mobile: "primary", cell: (c) => (c.pnlSol != null && !nt(c) ? <Pnl sol={c.pnlSol} /> : <span className="text-text-tertiary">—</span>) },
           { key: "t", header: t("coins.colLast"), numeric: true, cell: (c) => f.time(c.lastEventAt) },
         ]}
-      />
+      />}
     </Card>
     </>
   );

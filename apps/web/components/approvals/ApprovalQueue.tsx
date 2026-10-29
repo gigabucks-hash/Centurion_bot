@@ -15,7 +15,9 @@ import { settingLabel } from "@/lib/strategy-schema";
 import { Badge, Button, Card, EmptyState, RiskBadge, cn } from "@/components/ui";
 import { Countdown, Dialog, HoldButton, Segmented, useNow, useToast } from "@/components/ui/client";
 import { ApprovalStatusBadge, ModeBadge } from "@/components/domain";
-import { GuardWeakeningDialog } from "./GuardWeakeningDialog";
+import dynamic from "next/dynamic";
+// Perf: the hardened guard dialog is only needed once a guard change is opened → its own chunk.
+const GuardWeakeningDialog = dynamic(() => import("./GuardWeakeningDialog").then((m) => m.GuardWeakeningDialog), { ssr: false });
 import { SwipeRow } from "./SwipeRow";
 import { NotTradeableChip, NotTradeableCta, NotTradeableReason } from "@/components/NotTradeable";
 

@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { getMode } from "@/lib/mode";
 import { listOpenPositions } from "@/lib/mock/store";
+import { safeSymbol } from "@/lib/untrusted";
 import { PageHeader } from "@/components/ui";
 import { ModeBadge } from "@/components/domain";
 import { PositionsBoard } from "@/components/positions/PositionsBoard";
@@ -16,7 +17,7 @@ async function Body() {
   return (
     <>
       <PageHeader title={t("positions.title")} subtitle={t(mode === "real" ? "positions.subtitleReal" : "positions.subtitlePractice")} actions={<ModeBadge mode={mode} />} />
-      <PositionsBoard key={mode} initial={listOpenPositions(mode)} mode={mode} />
+      <PositionsBoard key={mode} initial={listOpenPositions(mode).map((p) => ({ ...p, symbol: safeSymbol(p.symbol) }))} mode={mode} />
     </>
   );
 }

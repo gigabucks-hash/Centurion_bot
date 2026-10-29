@@ -88,7 +88,7 @@ async function Overview() {
           )}
 
           <Card title={t("overview.equity", { unit: t(mode === "practice" ? "overview.paperSol" : "overview.realSol") })}>
-            <EquityChart data={o.equityCurve} />
+            <EquityChart data={o.equityCurve} f={f} t={t} />
           </Card>
         </div>
 

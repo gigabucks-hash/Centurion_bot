@@ -125,16 +125,21 @@ const ap = await auth.newPage();
 await ap.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" }); await ap.waitForTimeout(800);
 await ap.screenshot({ path: `${OUT}14-login.png` }); console.log("saved 14-login");
 try {
-await ap.getByLabel("Email").fill("demo@example.com");
-await ap.getByRole("button", { name: /Send 6-digit code/ }).click(); await ap.waitForTimeout(1200);
-await ap.screenshot({ path: `${OUT}14b-login-otp.png` }); console.log("saved 14b-login-otp");
-await ap.getByRole("button", { name: /Other methods/ }).click();
-await ap.getByRole("button", { name: /Connect Solana wallet/ }).click();
-await ap.getByRole("button", { name: "Phantom" }).click(); await ap.waitForTimeout(300);
-await ap.screenshot({ path: `${OUT}14c-login-wallet-siws.png` }); console.log("saved 14c-login-wallet-siws");
+// Wallet-only sign-in (Boss decision): connect → SIWS preview → sign → session; and the access-denied state.
+await ap.getByRole("button", { name: /Connect Phantom/ }).click(); await ap.getByTestId("siws-message").waitFor(); await ap.waitForTimeout(200);
+await ap.screenshot({ path: `${OUT}14b-login-siws-preview.png` }); console.log("saved 14b-login-siws-preview");
+await ap.getByRole("button", { name: /Use a different wallet/ }).click();
+await ap.getByTestId("mock-wallet").selectOption({ index: 1 });
+await ap.getByRole("button", { name: /Connect Phantom/ }).click(); await ap.getByTestId("siws-message").waitFor();
+await ap.getByRole("button", { name: /Sign message/ }).click(); await ap.getByTestId("access-denied").waitFor(); await ap.waitForTimeout(200);
+await ap.screenshot({ path: `${OUT}14c-login-access-denied.png` }); console.log("saved 14c-login-access-denied");
+await ap.getByRole("button", { name: /Use a different wallet/ }).click();
+await ap.getByTestId("mock-wallet").selectOption({ index: 0 });
+await ap.getByRole("button", { name: /Connect Phantom/ }).click(); await ap.getByTestId("siws-message").waitFor();
+await ap.getByRole("button", { name: /Sign message/ }).click(); await ap.waitForURL(`${BASE}/`, { timeout: 15000 }); await ap.waitForTimeout(800);
+await ap.screenshot({ path: `${OUT}14d-login-signed-in.png` }); console.log("saved 14d-login-signed-in");
 } catch (err) { console.log("login flow shots skipped:", String(err).split("\n")[0]); }
-await ap.goto(`${BASE}/welcome`, { waitUntil: "domcontentloaded" }); await ap.waitForTimeout(600);
-await ap.screenshot({ path: `${OUT}15-welcome.png`, fullPage: true }); console.log("saved 15-welcome");
+// /welcome onboarding is flagged off (private single-owner MVP), so no 15-welcome shot.
 
 // Mobile
 const m = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: "dark", isMobile: true, hasTouch: true });

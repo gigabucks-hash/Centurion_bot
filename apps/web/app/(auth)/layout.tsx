@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import { getLocale } from "@/lib/i18n/server";
 import { I18nProvider } from "@/lib/i18n/client";
+import { messagesFor } from "@/lib/i18n";
 
 async function WithLocale({ children }: { children: React.ReactNode }) {
-  return <I18nProvider locale={await getLocale()}>{children}</I18nProvider>;
+  const locale = await getLocale();
+  return <I18nProvider locale={locale} messages={messagesFor(locale) as unknown as Record<string, unknown>}>{children}</I18nProvider>;
 }
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {

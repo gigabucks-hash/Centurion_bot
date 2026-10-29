@@ -446,8 +446,26 @@ export interface PickDetail {
 export type ScreenerState = "UNSUPPORTED_QUOTE_MINT";
 export const NOT_TRADEABLE: ScreenerState = "UNSUPPORTED_QUOTE_MINT";
 
+/** Transaction quote for the review sheet (contracts 1.1.4 ProposalQuoteFields, WF-22). Practice = papersim estimate. */
+export interface ApprovalQuote {
+  networkFeeLamports?: string;
+  priorityFeeLamports?: string;
+  swapFeeBps?: number;
+  maxSlippageBps?: number;
+  /** Minimum tokens out after max slippage, raw units (integer string) + the token's decimals. */
+  minOutRaw?: string;
+  decimals?: number;
+  totalMaxLamports?: string;
+  quoteTs?: Timestamp;
+  quoteExpiresAt?: Timestamp;
+  /** Display-only (payload): price now vs. at pick time, SOL per whole token as decimal strings. */
+  priceSol?: string;
+  pickPriceSol?: string;
+}
+
 export interface Approval {
   id: string;
+  quote?: ApprovalQuote;
   /** Set when the coin cannot be traded (no SOL quote pair): shown as "Not tradeable", never approvable. */
   screenerState?: ScreenerState;
   /** Approval rev (contracts 1.1.2): send as `If-Match: "<rev>"` (or expected_rev). expected_version is gone. */

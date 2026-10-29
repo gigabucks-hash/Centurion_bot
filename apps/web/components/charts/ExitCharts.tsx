@@ -1,50 +1,42 @@
-"use client";
-import { useFmt } from "@/lib/i18n/client";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import type { Fmt } from "@/lib/format";
+import type { T } from "@/lib/i18n/core";
 import type { ExitReasonStat } from "@/lib/types";
-import { chartColors } from "@/lib/theme";
 
-import { useT } from "@/lib/i18n/client";
-
-const tooltipStyle = { background: "var(--color-bg-overlay)", border: "1px solid var(--color-border-default)", borderRadius: 10, color: "var(--color-text-primary)", fontSize: 12 };
-
-export function ExitCountChart({ stats }: { stats: ExitReasonStat[] }) {
-  const t = useT();
-  const data = stats.map((s) => ({ name: t(`exitReason.${s.reason}`), count: s.count }));
+/**
+ * Exit-reason bar charts as Server Components (HTML/CSS bars, zero client JS; replaces recharts).
+ * Every bar has its value as text, so nothing depends on hover. Bars are horizontal so long reason labels
+ * never rotate or clip on mobile.
+ */
+function Bars({ rows, max, tone, fmt }: { rows: { name: string; v: number }[]; max: number; tone: (v: number) => string; fmt: (v: number) => string }) {
   return (
-    <div className="h-64 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-          <CartesianGrid stroke={chartColors.line} strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="name" stroke={chartColors.muted} fontSize={11} interval={0} angle={-20} textAnchor="end" height={50} />
-          <YAxis stroke={chartColors.muted} fontSize={11} allowDecimals={false} />
-          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-bg-raised)" }} />
-          <Bar dataKey="count" name={t("stats.exits")} fill={chartColors.accent} radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <ul className="flex flex-col gap-2">
+      {rows.map((r) => (
+        <li key={r.name} className="grid grid-cols-[minmax(6rem,9rem)_1fr_auto] items-center gap-2 text-caption">
+          <span className="truncate text-text-secondary" title={r.name}>{r.name}</span>
+          <span className="h-3 rounded-sm bg-bg-sunken">
+            <span className="block h-3 rounded-sm" style={{ width: `${max ? Math.max(2, (Math.abs(r.v) / max) * 100) : 0}%`, background: tone(r.v) }} />
+          </span>
+          <span className="num w-16 whitespace-nowrap text-right text-text-primary">{fmt(r.v)}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
-export function ExitPnlChart({ stats }: { stats: ExitReasonStat[] }) {
-  const t = useT();
-  const f = useFmt();
-  const data = stats.map((s) => ({ name: t(`exitReason.${s.reason}`), avg: s.avgPnlPct }));
+export function ExitCountChart({ stats, t, f }: { stats: ExitReasonStat[]; t: T; f: Fmt }) {
+  const rows = stats.map((s) => ({ name: t(`exitReason.${s.reason}`), v: s.count }));
+  return <Bars rows={rows} max={Math.max(0, ...rows.map((r) => r.v))} tone={() => "var(--color-brand-primary)"} fmt={(v) => f.int(v)} />;
+}
+
+export function ExitPnlChart({ stats, t, f }: { stats: ExitReasonStat[]; t: T; f: Fmt }) {
+  const rows = stats.map((s) => ({ name: t(`exitReason.${s.reason}`), v: s.avgPnlPct }));
   return (
-    <div className="h-64 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-          <CartesianGrid stroke={chartColors.line} strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="name" stroke={chartColors.muted} fontSize={11} interval={0} angle={-20} textAnchor="end" height={50} />
-          <YAxis stroke={chartColors.muted} fontSize={11} unit="%" />
-          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-bg-raised)" }} formatter={(v) => [f.pct(Number(v), 1), t("stats.avgPnl")]} />
-          <Bar dataKey="avg" radius={[4, 4, 0, 0]}>
-            {data.map((d) => (
-              <Cell key={d.name} fill={d.avg >= 0 ? chartColors.positive : chartColors.negative} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <Bars
+      rows={rows}
+      max={Math.max(0, ...rows.map((r) => Math.abs(r.v)))}
+      // Loss is never profit-toned: < 0 loss colour, > 0 profit, exactly 0 neutral.
+      tone={(v) => (v < 0 ? "var(--color-semantic-loss)" : v > 0 ? "var(--color-semantic-profit)" : "var(--color-text-tertiary)")}
+      fmt={(v) => f.pct(v, 1)}
+    />
   );
 }

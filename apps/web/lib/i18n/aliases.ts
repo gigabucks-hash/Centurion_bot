@@ -3,7 +3,7 @@
  * When an alias exists the UX string wins (en + id); the "app" namespace (lib/i18n/en.ts) only covers
  * copy the UX catalog does not have yet. `map` adapts our placeholder names to the UX ICU arguments.
  */
-import type { Vars } from "./index";
+import type { Vars } from "./core";
 
 type Alias = string | { key: string; map: (v: Vars) => Vars };
 const count = (name = "n") => (v: Vars) => ({ ...v, count: Number(v[name] ?? 0) });

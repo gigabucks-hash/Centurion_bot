@@ -1,8 +1,10 @@
+import { AUTH_FLAGS } from "@/lib/auth/flags";
 import { readJson } from "@/lib/bff";
 import { otpRequest } from "@/lib/mock/auth";
 
 /** POST /auth/email/otp/request {email} → always 202 {sent: true, resend_after_s: 60} (no account enumeration). */
 export async function POST(req: Request) {
+  if (!AUTH_FLAGS.emailOtp) return new Response(null, { status: 404 }); // dropped from the MVP (flag off)
   const p = await readJson(req);
   if (p instanceof Response) return p;
   const email = String((p.body as { email?: unknown }).email ?? "");

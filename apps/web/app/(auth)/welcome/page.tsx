@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { STRATEGY_PRESETS } from "@/lib/strategy-schema";
+import { redirect } from "next/navigation";
 import { getT } from "@/lib/i18n/server";
+import { AUTH_FLAGS } from "@/lib/auth/flags";
 
 export const metadata: Metadata = { title: "Welcome" };
 
 /** Onboarding: new account → Practice workspace 30 SOL → pick a preset → dashboard. */
 export default async function WelcomePage() {
+  // Private single-owner MVP: no onboarding for new users (flag off by default).
+  if (!AUTH_FLAGS.onboarding) redirect("/");
   const t = await getT();
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center p-6">

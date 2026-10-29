@@ -1,4 +1,5 @@
 "use client";
+import { memo } from "react";
 import { NotTradeableChip } from "@/components/NotTradeable";
 import { useFmt } from "@/lib/i18n/client";
 import Link from "next/link";
@@ -9,13 +10,13 @@ import { Pnl, cn } from "@/components/ui";
 
 import { EventTitle } from "@/components/EventTitle";
 
-/** Timeline-style feed row: time · dot · ACTOR / KIND $SYM / reason. */
-export function EventRow({ e, strategyName, fresh }: { e: TradeEvent; strategyName?: string; fresh?: boolean }) {
+/** Timeline-style feed row: time · dot · ACTOR / KIND $SYM / reason. Memoized: live ticks re-render only new rows. */
+export const EventRow = memo(function EventRow({ e, strategyName, fresh, as: Tag = "li" }: { e: TradeEvent; strategyName?: string; fresh?: boolean; as?: "li" | "div" }) {
   const t = useT();
   const f = useFmt();
   const m = eventKindMeta[e.kind];
   return (
-    <li className={cn("grid grid-cols-[3rem_0.75rem_1fr] gap-x-2 py-2.5", fresh && "rounded-md bg-brand-primaryContainer/40")}>
+    <Tag role={Tag === "div" ? "listitem" : undefined} className={cn("grid grid-cols-[3rem_0.75rem_1fr] gap-x-2 py-2.5", fresh && "rounded-md bg-brand-primaryContainer/40")}>
       <span className="num pt-0.5 text-numSm text-text-tertiary">{f.time(e.ts)}</span>
       <span className={cn("mt-1.5 h-2.5 w-2.5 rounded-full", m.dot)} aria-hidden />
       <span className="min-w-0">
@@ -39,6 +40,6 @@ export function EventRow({ e, strategyName, fresh }: { e: TradeEvent; strategyNa
           </span>
         )}
       </span>
-    </li>
+    </Tag>
   );
-}
+});

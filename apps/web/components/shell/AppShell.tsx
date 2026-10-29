@@ -13,6 +13,7 @@ import { ModeSwitch } from "./ModeSwitch";
 import { ThemeToggle } from "./ThemeToggle";
 import { LocaleToggle } from "./LocaleToggle";
 import { useT } from "@/lib/i18n/client";
+import { logout, useSessionKeeper } from "@/lib/auth/session-client";
 
 function Brand() {
   const t = useT();
@@ -131,8 +132,10 @@ export function ShellSkeleton() {
   );
 }
 
-export function AppShell({ children, mode, pendingApprovals, walletConnected, cashSol, lossStopPct, runningStrategies }: {
+export function AppShell({ children, sessionKeeper = true, mode, pendingApprovals, walletConnected, cashSol, lossStopPct, runningStrategies }: {
   children: ReactNode;
+  /** Silent refresh of the httpOnly session (off when SENTRA_AUTH_GATE=0 for local perf/screenshot runs). */
+  sessionKeeper?: boolean;
   mode: TradingMode;
   pendingApprovals: number;
   walletConnected: boolean;
@@ -143,8 +146,8 @@ export function AppShell({ children, mode, pendingApprovals, walletConnected, ca
   const t = useT();
   const [more, setMore] = useState(false);
   const [pending, setPending] = useState(pendingApprovals);
-  const router = useRouter();
   const pathname = usePathname();
+  useSessionKeeper(sessionKeeper);
 
   useEffect(() => {
     const refresh = () =>
@@ -179,10 +182,7 @@ export function AppShell({ children, mode, pendingApprovals, walletConnected, ca
                 className="hidden h-9 w-9 place-items-center rounded-full border border-border-default text-label text-text-secondary hover:bg-bg-raised sm:grid"
                 title={t("nav.signOut")}
                 aria-label={t("nav.signOut")}
-                onClick={async () => {
-                  await fetch("/api/auth", { method: "DELETE" });
-                  router.push("/login");
-                }}
+                onClick={() => logout()}
               >
                 Y
               </button>
@@ -216,7 +216,7 @@ export function AppShell({ children, mode, pendingApprovals, walletConnected, ca
               <div className="mt-3 flex items-center justify-between border-t border-border-subtle pt-3">
                 <ThemeToggle />
                 <LocaleToggle />
-                <Link href="/login" onClick={() => setMore(false)} className="flex items-center gap-2 text-label text-text-secondary"><LogOut size={16} /> {t("nav.signOut")}</Link>
+                <button type="button" onClick={() => logout()} className="flex min-h-11 items-center gap-2 text-label text-text-secondary"><LogOut size={16} aria-hidden /> {t("nav.signOut")}</button>
               </div>
             </div>
           </div>

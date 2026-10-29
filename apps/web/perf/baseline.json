@@ -1,0 +1,88 @@
+{
+  "label": "baseline",
+  "at": "2026-10-29T11:21:37.281Z",
+  "preset": "lighthouse 13.6 mobile (simulated slow 4G, 4x CPU)",
+  "routes": {
+    "/login": {
+      "score": 100,
+      "lcp_ms": 762,
+      "tbt_ms": 30,
+      "cls": 0,
+      "fcp_ms": 762,
+      "js_kb_gzip": 208,
+      "js_kb_raw": 663
+    },
+    "/": {
+      "score": 98,
+      "lcp_ms": 1058,
+      "tbt_ms": 166,
+      "cls": 0,
+      "fcp_ms": 1058,
+      "js_kb_gzip": 316,
+      "js_kb_raw": 1033
+    },
+    "/approvals": {
+      "score": 100,
+      "lcp_ms": 826,
+      "tbt_ms": 46,
+      "cls": 0,
+      "fcp_ms": 826,
+      "js_kb_gzip": 224,
+      "js_kb_raw": 716
+    },
+    "/positions": {
+      "score": 100,
+      "lcp_ms": 881,
+      "tbt_ms": 39,
+      "cls": 0,
+      "fcp_ms": 881,
+      "js_kb_gzip": 216,
+      "js_kb_raw": 686
+    },
+    "/coins": {
+      "score": 100,
+      "lcp_ms": 966,
+      "tbt_ms": 67,
+      "cls": 0,
+      "fcp_ms": 966,
+      "js_kb_gzip": 206,
+      "js_kb_raw": 661
+    },
+    "/activity": {
+      "score": 99,
+      "lcp_ms": 979,
+      "tbt_ms": 117,
+      "cls": 0.039,
+      "fcp_ms": 979,
+      "js_kb_gzip": 215,
+      "js_kb_raw": 683
+    },
+    "/stats": {
+      "score": 97,
+      "lcp_ms": 910,
+      "tbt_ms": 196,
+      "cls": 0,
+      "fcp_ms": 910,
+      "js_kb_gzip": 321,
+      "js_kb_raw": 1040
+    },
+    "/strategies/new": {
+      "score": 100,
+      "lcp_ms": 829,
+      "tbt_ms": 41,
+      "cls": 0,
+      "fcp_ms": 829,
+      "js_kb_gzip": 216,
+      "js_kb_raw": 694
+    },
+    "/settings": {
+      "score": 100,
+      "lcp_ms": 760,
+      "tbt_ms": 41,
+      "cls": 0,
+      "fcp_ms": 760,
+      "js_kb_gzip": 215,
+      "js_kb_raw": 683
+    }
+  }
+}
