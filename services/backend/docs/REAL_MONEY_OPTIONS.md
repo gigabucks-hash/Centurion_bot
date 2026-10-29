@@ -1,4 +1,9 @@
-# Sentra: Real-money trading options (design only, rev3: direction set)
+# Centurion Trade (repo codename Sentra): Real-money trading options (design only, rev4: Boss decisions recorded)
+
+rev4 (2026-10-29, 18:49–18:57 WIB): records **Boss's own decisions** (Apex chat t52u–t58u, verified by the parent
+agent; quoted in §D.5), the **lead design decisions** that follow from them (§D.6, marked as lead decisions, not Boss
+quotes), and the product name "Centurion Trade" (t60u) and local-only repo (t62u). Updated: §2.5, §4.5, §4.6, §5, §6,
+§7.4, §10.
 
 rev3 (2026-10-29): records Boss's direction **as relayed by Apex Dev Lead, 2026-10-29** (§D): private single-owner
 app, wallet-only login (SIWS via Phantom), option C with a delegated swap-only signer on a separate capped trading
@@ -58,7 +63,41 @@ withdrawal of Boss's funds without Boss's explicit re-confirmation.
   addresses) [A1]; we could not verify from public docs how that bot enforces swap-only. No public latency figure.
 - **Bake-off criteria (when approved):** can the provider policy alone reject a non-allowlisted program and any
   transfer-out (test on devnet with crafted txs)? p50/p95 sign latency from our region; owner = Boss's Phantom works
-  end-to-end; revoke-signer time; cost at expected trades/day; export-to-self-custody drill.
+  end-to-end; revoke-signer time; cost at expected trades/day; withdraw-to-main-wallet drill (rev4: key export is denied by policy, D.5.4).
+
+### D.5 Boss's decisions (his own words, Apex chat t52u–t58u, 29 Oct 2026 18:49–18:54 WIB)
+1. **Domain and platform: "Nanti dulu" (domain later), iOS: "Android dulu" (Android first).** Android login uses the
+   **Phantom deep link** (`/ul/v1/connect` + `/ul/v1/signMessage`). MWA is **deferred** because of a red flag found
+   in `clientlib-ktx` during the mobile review. The custom-scheme redirect back to the app is treated as
+   **hijackable**; mitigations in §2.5 (nonce bound to device and session, short TTL, domain + URI + chain in the
+   message, PKCE-style `state`).
+2. **"Tidak ada batas atas" (no upper limit).** The server-side **hard ceiling is removed**. Defaults: **0.05 SOL per
+   trade, 0.5 SOL per day, 2 SOL trading-wallet cap, 3 open positions.** Raising any limit needs a **fresh Phantom
+   signature plus a 24 h delay**; lowering applies immediately. Residual risk recorded in §4.5.
+3. **Stop = pause new buys only:** "cuma stop pembelian aja, biar gak ada cooldown, kasih opsi tombol 'jual semua'"
+   (just stop buying, no cooldown, give a "sell all" button). Stop does **not** revoke the signer, has **no cooldown**,
+   **Resume is immediate**, and existing positions' exit plans keep running. A separate **`sell_all`** action sells
+   every held position through the normal guarded swap path, with confirmation (§5). Revoking the provider permission
+   is a **separate manual action**.
+4. **Key export: "Tidak perlu" (not needed).** The Turnkey policy **denies key export** (§6).
+5. **"Tanpa backup" (no backup).** No backup owner wallet; the `real.owner_wallet.*` events are dropped. The **48 h
+   delay to change the main wallet stays.** Accepted risk: the main wallet is a single point of failure, and
+   trading-wallet funds can only be recovered by withdrawing them to that main wallet (§2.5, §6).
+
+Also (t60u, t62u): the product is named **"Centurion Trade"** ("Nama aplikasi Centurion Trade"); the repo stays
+**local only** ("Lokal": no git remote, no push). Crate, package, DB and path names keep the codename `sentra` for now.
+
+### D.6 Lead design decisions (Apex Dev Lead; not Boss quotes)
+1. **`sell_all` is authorized by the session**, not by a fresh Phantom signature: the client shows a confirmation and
+   requires a **2,500 ms hold**. It is a protective action under the delegated swap-only authority and the funds stay
+   in the trading wallet. It still runs **every pre-sign guard** (simulate and parse, slippage cap, program allowlist,
+   §4.3), is **exempt from the per-trade and daily buy caps**, and is rate-limited (**1 per 60 s per workspace**,
+   idempotent by `sell_all_id`). Positions that fail to sell stay open and keep their exit plans.
+2. **No auto-revert on loosened limits.** A raise takes effect after the 24 h delay and then **stays** until Boss
+   changes it. `real.limit.reverted` is removed; `real.limit.loosen_requested` is final.
+3. **Automatic safety trips:** a **policy hash mismatch revokes the signer** and alerts Boss with the reason; the
+   **loss-velocity** rule only **pauses buys** (exits keep running); a **provider error** switches to **exits only**.
+   (§5; listed in §10 for Boss's confirmation.)
 
 ### D.4 Deprioritized / out of scope for the MVP
 Marked, not deleted, so they can come back if the app ever goes multi-user:
@@ -231,15 +270,16 @@ Boss's sessions and Boss's devices". Email/Telegram/OAuth rows above are out of 
 | STRIDE | Threat | Mitigation |
 |---|---|---|
 | S | **Wallet-login phishing:** a look-alike site gets Boss to sign *its* SIWS message, or Boss signs ours on a fake origin | SIWS message binds `domain` and `uri`; Phantom rejects a recognised SIWS message whose `domain`/`uri` does not match the requesting page (error -32000, no prompt) [W3]; the MVP signs the **server-built** SIWS text with `signMessage` / MWA `sign_messages` (Phantom still recognises and checks it as SIWS; the wallet's own `signIn` rebuilds the text and would fail our strict parse) [W4]; server rejects any domain/URI mismatch; nonce 5 min, single use (TECH_DESIGN §9) [W5] |
+| S/T | **Deep-link redirect hijack** (rev4, Boss D.5.1: Android first via the Phantom deep link, MWA deferred) | The custom-scheme redirect back to Centurion Trade can be claimed by another app, so it is treated as hijackable: (1) nonce bound to the requesting **device and session** (device key, Phase 7 design), (2) **short TTL** (5 min, single use), (3) **domain + URI + chain** in the signed message and stored with the nonce, (4) **PKCE-style `state`**: the app keeps a random secret per login attempt, sends only its hash with `/nonce` and the secret with `/verify`, so a stolen redirect alone cannot be redeemed; the deeplink payload is also encrypted to the app's ephemeral x25519 key and responses not matching the active key are dropped |
 | S | **Phishing relay** (rev4, mobile review B-6): the owner address is public, so an attacker can request a genuine Sentra nonce for it and relay the message to Boss through its own app/deeplink | (1) **Nonce bound to the requesting session/device**: Phase 7 design (PERF_SECURITY.md §Phase 7): `/nonce` takes a `device_pubkey` (P-256, Keystore/Secure Enclave), `/verify` requires `device_sig` over the nonce, and once the owner's first device is registered only registered devices can redeem a nonce; plus Play Integrity / App Attest verdicts on `/verify` (designed, not wired). (2) **Short TTL**: 5 min, single use, a tampered message burns the nonce. (3) **domain + URI + chain in the message**, all stored with the nonce row and compared exactly at verify (with issued-at, expiry and statement version; B-3). (4) Allowlist fails closed (no boot without `OWNER_WALLETS`). Must-have before Real SOL |
 | S/T | **Malicious sign-in message:** a "login" prompt that is really a transaction or an approval, or arbitrary bytes | The app only ever asks Boss's main wallet for (a) a SIWS message and (b) a withdraw transaction it displays in full; never `signMessage` on arbitrary/base64 bytes; never `signAllTransactions`; UI teaches "Sentra never asks you to sign anything at login except the sign-in text" |
 | S/E | **Someone else's wallet logs in** | **Owner-wallet allowlist**: `OWNER_WALLETS` (public addresses, config, not secrets) checked in SIWS verify; sign-up disabled; any other address -> 403 and an alert; changing the allowlist = signed by an existing owner wallet + 48 h delay + audit |
 | S | **Session theft** (stolen JWT/refresh token from a device, XSS, malware) | Short access token (≤15 min), rotating refresh bound to `device_id`, refresh reuse = revoke all sessions; httpOnly cookies on web; **step-up for every money action**: a fresh, action-bound owner-wallet signature over `payload_hash` (plus passkey/TOTP where enrolled) for granting the signer, loosening policy, clearing a kill switch, manual sells and withdrawals. A stolen session can view and can *tighten* or trip the kill switch, nothing more |
 | T | Stolen session tries to change where funds go | There is no "where": the only withdraw destination is the main wallet, set at owner bootstrap; changing it = owner-allowlist change rules above |
 | R | Boss disputes an action | Every money action carries the owner wallet's own signature (non-repudiable) plus the audit row |
-| D | **Single point of failure: Boss's main wallet** is login + owner of the trading wallet + withdraw destination. Seed lost -> locked out; seed stolen -> attacker is Boss | Register a **backup owner wallet** (ideally hardware) on the allowlist at bootstrap; trading-wallet owner credential has a second factor at the provider (passkey) so one lost seed does not strand funds; kill switch can be tripped from any logged-in session; trading wallet stays small (cap), so a stolen seed's extra reach through Sentra is bounded by the cap. If the main wallet seed is stolen, the main wallet's funds are already at risk outside Sentra: Sentra must not make that worse (no new destinations, no loosening without delay) |
+| D | **Single point of failure: Boss's main wallet** is login + owner of the trading wallet + withdraw destination. Seed lost -> locked out; seed stolen -> attacker is Boss | **Accepted risk (Boss D.5.5, "Tanpa backup"): no backup owner wallet.** Trading-wallet funds can only be recovered by withdrawing them to the main wallet, so a lost main-wallet seed strands what is in the trading wallet (bounded by the 2 SOL default cap). Changing the main wallet keeps the 48 h delay; kill switch can be tripped from any logged-in session; trading wallet stays small (cap), so a stolen seed's extra reach through Sentra is bounded by the cap. If the main wallet seed is stolen, the main wallet's funds are already at risk outside Sentra: Sentra must not make that worse (no new destinations, no loosening without delay) |
 | D | Single point of failure: one provider, one RPC/sender, one operator | Manual (A) exits via Phantom; dual send paths; kill switch defaults to "exits only" on provider errors |
-| E | Phantom extension/app compromise or malicious update | Hardware backup owner wallet; small trading cap; review prompts show the exact destination (main wallet) |
+| E | Phantom extension/app compromise or malicious update | No backup owner wallet (accepted risk, D.5.5); small trading cap (2 SOL default); review prompts show the exact destination (main wallet) |
 
 ### 2.4 Top threats (ranked across the chosen design, C + A fallback)
 
@@ -257,7 +297,7 @@ Boss's sessions and Boss's devices". Email/Telegram/OAuth rows above are out of 
 
 Rev3 re-ranking for the single-owner design (§2.5): T1 stolen signer credential, T2 value extraction via allowed
 trades, **T3' wallet-login phishing / malicious signing prompts against Boss's main wallet**, **T4' session theft
-(contained by action-bound wallet step-up)**, **T5' single point of failure on the main wallet (backup owner wallet)**.
+(contained by action-bound wallet step-up)**, **T5' single point of failure on the main wallet (accepted risk, no backup owner, D.5.5)**.
 Policy drift (old T4) and provider outage (old T5) stay as next in line.
 
 ---
@@ -352,9 +392,17 @@ Same checks 1–9 run when *preparing* the unsigned tx; the user's wallet signs;
   max_open_positions, max_slippage_bps, max_price_impact_bps, buys_enabled: bool, sells_enabled: bool,
   mints_from: "screener_picks", rate_limits: {tx_per_min, entries_per_hour, failed_tx_per_15m},
   auto_trip: {...}, signer_ttl_days }`.
-- Versioning: a new version is a new row; tightening activates immediately; **loosening activates after 24 h** and
-  needs Owner passkey + TOTP + typed name + 2,500 ms hold (contracts §4.6) and, for Boss's workspace, Boss's explicit
-  re-confirmation. Loosening auto-reverts after 24 h unless re-confirmed (mirrors the Real guard rule).
+- Versioning: a new version is a new row; **lowering a limit (tightening) activates immediately**; **raising
+  (loosening) needs a fresh action-bound Phantom signature and activates after a 24 h delay** (Boss D.5.2), then
+  **stays** until Boss changes it (no auto-revert; lead D.6.2). Event `real.limit.loosen_requested` at request,
+  `real.limit.changed` at activation.
+- **No server-side hard ceiling** ("Tidak ada batas atas", D.5.2). Defaults: `per_trade_max_lamports` 50,000,000
+  (0.05 SOL), `daily_max_lamports` 500,000,000 (0.5 SOL), trading-wallet cap 2,000,000,000 (2 SOL),
+  `max_open_positions` 3.
+- **Residual risk (recorded):** with no ceiling, an attacker who holds a stolen session **and** can obtain a fresh
+  Phantom signature from Boss (phishing) can raise limits arbitrarily; the 24 h delay plus the alert on
+  `real.limit.loosen_requested` (cancellable) is then the only brake. A stolen session alone cannot raise limits.
+  Exposure is still bounded by what Boss has funded into the trading wallet.
 - Sync: on activate, the provider policy is written from `body` and its hash stored; every sign compares the live
   provider policy hash (cached, refreshed on webhook/poll) to `provider_policy_hash` -> mismatch trips the workspace
   kill switch (`PROVIDER_POLICY_MISMATCH`).
@@ -367,36 +415,48 @@ Same checks 1–9 run when *preparing* the unsigned tx; the user's wallet signs;
   withdraw tx to that address, Boss reviews it in Phantom, and every withdrawal still requires Boss's explicit
   re-confirmation at that moment (action-bound wallet signature, §2.5).
 - **Delay rule:** with a single fixed destination, the "new withdraw address" delay applies to **changing the main
-  wallet or adding a backup owner wallet**: 48 h minimum, cancellable, alerted. 48 h equals the 2-day delay a
+  wallet** (no backup owner wallet, Boss D.5.5): 48 h minimum, cancellable, alerted. 48 h equals the 2-day delay a
   comparable Solana trading bot is reported to use [A1], so it matches; it stays a minimum (longer allowed, never
   shorter).
 
 ---
 
-## 5. Kill switch
+## 5. Kill switch, Stop and sell all (rev4)
 
-Scopes (all must be "on" to trade; checked before build and again immediately before sign):
+**Stop (Boss D.5.3) = pause new buys only.** Owner taps Stop: no new real buys anywhere in scope; **no signer
+revocation, no cooldown; Resume is immediate**; open positions keep their exit plans (sells continue). Events
+`real.buys.paused` / `real.buys.resumed`.
+
+**Sell all** (Boss D.5.3; authorization per lead D.6.1): a separate action that sells **every held position** through
+the normal guarded swap path. Session-authorized with a confirmation and a 2,500 ms hold (no fresh Phantom
+signature); every pre-sign guard (§4.3: simulate + parse, slippage cap, program allowlist) still runs; exempt from
+the per-trade and daily *buy* caps; rate-limited to 1 per 60 s per workspace and idempotent (`sell_all_id`).
+Positions that fail stay open and keep their exit plans. Events `real.sell_all.requested` / `real.sell_all.completed`.
+
+**Revoke provider permission** is a separate, manual owner action (signer grant revoked at the provider; after
+that even a compromised backend cannot sign; re-granting needs Boss). Event `real.signer.revoked {reason: "user"}`.
+
+Scopes for automatic trips and the global halt (checked before build and again immediately before sign):
 
 | Scope | Who flips it | Effect |
 |---|---|---|
 | Global `REAL_TRADING_ENABLED` (env) + `real_global_halt` (DB) | Ops / Boss; auto rules | No new real orders anywhere; in-flight orders not yet signed are cancelled |
-| Workspace `real_trading` | Owner; auto rules | Same, per workspace; optionally "exits only" mode |
-| Strategy `real_enabled` | Owner/Admin; auto rules | Strategy stops entering; exits continue unless "freeze" |
+| Workspace `real_trading` | Owner; auto rules | Same, per workspace, or "exits only" |
+| Strategy `real_enabled` | Owner; auto rules | Strategy stops entering; exits continue |
 
-- **Revocation at the provider** (C): a "hard stop" also revokes our signer grant through the provider's signer
-  management (Privy signers / key quorums [P3][P4]; Turnkey policy or API-key deletion [T3]; Dynamic
-  `wallet.delegation.revoked` flow [D1]). After revocation even a compromised backend cannot sign. Re-granting needs the
-  user (passkey) — by design.
-- **Auto-trip conditions** (thresholds are policy data, defaults for Boss to set):
-  - Loss velocity: realized + marked loss > X% of trading-wallet value within 15 min, or > Y% in 24 h.
-  - Error rate: > N failed/reverted/expired txs in 15 min; simulation-vs-landed balance divergence on any tx.
-  - **Any** pre-sign security-rule hit (unknown program, foreign destination, authority change, policy hash
-    mismatch) trips the workspace immediately and pages Ops; this indicates a bug or a compromise.
-  - Provider anomaly: sign latency p95 > budget for 5 min, unexpected policy denials, unknown signer activity in
-    the provider's activity log.
-  - Data quality: `SOURCE_DEGRADED`, ingest silence > 60 s, server clock skew, quote divergence between sources.
-- Clearing a trip: Owner passkey + TOTP; for security-rule trips also a written incident note; every trip/clear is an
-  event and an audit row.
+**Automatic safety trips (lead D.6.3; Boss to confirm, §10):**
+
+| Trip (`kill_switch_reason`) | Effect |
+|---|---|
+| `policy_mismatch`: live provider policy hash != `provider_policy_hash`, or any security-rule pre-sign hit | **Revoke the signer** at the provider and **alert Boss with the reason**; nothing signs until Boss re-grants |
+| `loss_velocity`: realized + marked loss > X% of trading-wallet value in 15 min, or > Y% in 24 h | **Pause buys only**; exits keep running (same as Stop) |
+| `provider_error`: sign errors, latency p95 over budget for 5 min, unexpected policy denials | **Exits only** (owner path if the provider is down) |
+| `other` (data quality: `SOURCE_DEGRADED`, ingest silence > 60 s, clock skew, quote divergence; failed-tx budget) | Pause buys; alert |
+
+Resuming after a trip is immediate by the owner (`real.kill_switch.resumed`); there is no clear-request/cooldown
+step any more. A `policy_mismatch` trip additionally needs a signer re-grant (fresh Phantom signature). Every trip,
+pause, resume and sell-all is an event and an audit row. Pending buy proposals expire with
+`expire_reason: "kill_switch"` when buys are paused or a trip fires.
 
 ---
 
@@ -405,10 +465,10 @@ Scopes (all must be "on" to trade; checked before build and again immediately be
 | | A | B | C |
 |---|---|---|---|
 | Key holder | User's wallet (seed phrase / hardware) | Us | Provider TEE/MPC; user owns via login + MFA |
-| Recovery | User's own seed; we can't help | Ours (and so is the liability) | Provider's recovery (login re-auth, passkey, recovery share) [P1][T2]; user can **export** the key to self-custody |
+| Recovery | User's own seed; we can't help | Ours (and so is the liability) | **rev4: key export is denied by the Turnkey policy** (Boss D.5.4 "Tidak perlu"). The only way funds leave the trading wallet to Boss is an owner-signed **withdraw to the main wallet** (no backup owner, D.5.5) |
 | Lost login | Unaffected (wallet is separate) | We reset | Provider account recovery; our app requires passkey re-enrol + TOTP |
 | Device lost | Wallet-specific | N/A | Revoke device; signer grant unaffected (server-side); review notifications |
-| Provider exit / lock-in | N/A | N/A | Export-to-self-custody path documented and tested on devnet before launch; policy-as-data lets us re-create policy at another provider |
+| Provider exit / lock-in | N/A | N/A | No key export (D.5.4): leaving a provider = withdraw everything to the main wallet, then fund a new trading wallet at the other provider; policy-as-data lets us re-create the policy there. The withdraw drill replaces the export drill before launch |
 | Account deletion (§9 TECH_DESIGN) | Unlink wallet; nothing to destroy | Must return funds first | Blocked while real positions or balance > dust (`ACCOUNT_DELETION_BLOCKED`); revoke signer; user exports or withdraws; then normal 7–30 day grace |
 | Signer rotation | N/A | Key rotation = fund move | Rotate our authorization key in KMS and re-register the key quorum; old one revoked; no fund move |
 | Crossmint (backup) | — | — | Recovery = user's passkey or email/phone OTP (must stay user-controlled [C2]); signer rotation = remove + re-add operational signer, approved by the user's recovery method [C3][C4] |
@@ -445,9 +505,35 @@ Scopes (all must be "on" to trade; checked before build and again immediately be
 `WITHDRAW_ADDRESS_PENDING`, `WITHDRAW_ADDRESS_UNKNOWN`, `POLICY_LOOSEN_DELAYED`.
 
 ### 7.4 Events (real stream only, never mixed with practice)
-`real.order.created|signed|sent|landed|finalized|failed|expired`, `real.presign.denied`,
-`real.kill_switch.tripped|cleared`, `real.signer.granted|revoked`, `real.policy.activated|mismatch`,
-`real.withdraw_address.added|usable|cancelled`. Push: informational only; Real is never actionable from a push (§9).
+Order flow: `real.order.created|signed|sent|landed|finalized|failed|expired`, `real.presign.denied`.
+
+**Reserved for Phase 7 (not emitted; mirrors `EVENTS_SCHEMA.md` "Reserved for Phase 7" and the `phase7` TS types):**
+
+| Event | Payload |
+|---|---|
+| `real.signer.granted` | `{signer_id, provider, expires_at, actor, device}` |
+| `real.signer.revoked` | `{signer_id, provider, reason: kill_switch\|expiry\|user, actor}` |
+| `real.policy.activated` | `{version, policy_hash, actor}` |
+| `real.policy.mismatch` | `{version, policy_hash, expected_hash, actual_hash}` |
+| `real.limit.changed` | `{setting, from, to (typed), policy_version, actor}` |
+| `real.limit.loosen_requested` | `{setting, from, to, policy_version, activates_at, actor, device}` (final; no auto-revert, `real.limit.reverted` removed) |
+| `real.kill_switch.tripped` | `{scope: global\|workspace\|strategy, target_id, reason: kill_switch_reason \| rule_id, actor, at}` |
+| `real.kill_switch.resumed` | `{scope, target_id, actor, device, at}` (replaces `cleared`; `clear_requested` dropped) |
+| `real.buys.paused` / `real.buys.resumed` | `{scope, target_id, actor, device, at}` |
+| `real.sell_all.requested` | `{sell_all_id, requested_count, actor, device, at}` |
+| `real.sell_all.completed` | `{sell_all_id, requested_count, sold_count, failed_count, amount_out_lamports (integer string \| null), failures: [{position_id, mint, reason_code}], completed_at}` |
+| `real.withdraw_address.added` | `{address, usable_at, cancel_until, actor, device}` (main-wallet change, 48 h) |
+| `real.withdraw_address.usable` / `.cancelled` | `{address, at, actor?}` |
+| `real.deposit.detected` | `{amount_lamports, balance_lamports, tx_signature, slot, at}` |
+| `real.withdraw.requested` | `{withdraw_id, amount_lamports, address, tx_signature: null, actor, device}` |
+| `real.withdraw.confirmed` | `{withdraw_id, amount_lamports, address, tx_signature, slot}` |
+| `real.withdraw.failed` | `{withdraw_id, amount_lamports, address, tx_signature \| null, reason_code}` |
+
+Rules: lamport amounts (`amount_lamports`, `balance_lamports`, `cap_lamports`) are integer strings; times ISO UTC;
+addresses in full. `actor = {actor_type: user|rule|system, user_id?}`; `device = {device_id, device_label}`;
+`kill_switch_reason = policy_mismatch | loss_velocity | provider_error | other`. `real.owner_wallet.*` is dropped
+(no backup owner, D.5.5). `proposal.expired` gains `expire_reason: "kill_switch"`. Push: informational only; Real is
+never actionable from a push (§9).
 
 ### 7.5 Executor interface (description)
 A separate, separately deployed `real-executor` process (never the practice services) behind `live-execution`.
@@ -474,7 +560,7 @@ Per-step latency histograms (§3 rows), land rate by path, tip/fee spend, presig
 - §16.4: align hold to **2,500 ms** (contracts §4.6 already says 2,500; §16.4 says 2 s). Delegated auto-trades
   don't prompt per trade; the four-factor confirmation applies to granting the signer, activating/loosening policy,
   adding withdraw addresses, clearing kill switches, and every manual (A) sell.
-- §16.5: limits become policy-as-data (§4.5); loosen after 24 h and auto-revert.
+- §16.5: limits become policy-as-data (§4.5); raise = fresh Phantom signature + 24 h delay, then stays (rev4: no auto-revert, no hard ceiling).
 - New §16.8 Kill switch (§5), §16.9 Withdrawals (§4.6), §16.10 Provider choice and exit plan.
 
 ### 7.9 TECH_DESIGN §16 is a CANDIDATE TO REVISE (Boss has now picked C)
@@ -549,10 +635,11 @@ Where we still challenge C (and what we add because of it):
    (§D.3 criteria)? Nothing is signed up until you say so.
 2. **Budget:** Turnkey per-signature vs Crossmint per-wallet pricing [A1] at your expected trades/day; Jito tips and
    priority fees; a dedicated RPC/sender; an external security review before mainnet.
-3. **Owner wallets:** your main Phantom address (login + only withdraw destination) and a backup owner wallet
-   (hardware preferred). OK with a 48 h delay to change either?
-4. **Limits:** per-trade cap, daily cap, max open positions, trading-wallet maximum balance, max slippage bps, max tip.
-5. **Auto-trip thresholds:** loss velocity (% in 15 min / 24 h), failed-tx count, and whether a trip halts exits too.
+3. **Owner wallet:** decided (D.5.5): main Phantom address only, no backup, 48 h delay to change it.
+4. **Limits:** defaults decided (D.5.2: 0.05 / 0.5 / 2 SOL, 3 positions, no ceiling); still open: max slippage bps, max tip.
+5. **Automatic safety trips (please confirm the lead's proposal, D.6.3):** policy mismatch revokes the signer and
+   alerts you; loss velocity only pauses buys (exits keep running); provider error = exits only. Also the loss-velocity
+   thresholds (% in 15 min / 24 h) and the failed-tx count.
 6. **Step-up:** is a fresh wallet signature enough for money actions, or do you also want passkey/TOTP on top?
 7. **Rollout:** agree to the 4 stages, sells-only first, and who signs off each (you alone, or you + Apex).
 8. **§16 proposal:** review `TECH_DESIGN_S16_PROPOSAL.md`; it is applied to `TECH_DESIGN.md` only after Phase 7 is approved.

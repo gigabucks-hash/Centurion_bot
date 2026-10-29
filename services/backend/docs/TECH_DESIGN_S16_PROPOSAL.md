@@ -10,6 +10,23 @@ with a delegated swap-only signer on a separate capped trading wallet Boss funds
 delegated; withdrawals are user-signed to Boss's main wallet only. Provider: Turnkey primary vs Crossmint, decided by a
 bake-off that waits for Boss's explicit approval.
 
+**rev4 (2026-10-29, 18:49–18:57 WIB): Boss's own decisions** (Apex chat t52u–t58u, verified; quoted):
+1. "Nanti dulu" (domain later), "Android dulu" (Android first): Android login via the Phantom deep link; MWA deferred
+   (red flag in `clientlib-ktx`); custom-scheme redirect treated as hijackable (nonce bound to device + session, short
+   TTL, domain + URI + chain in the message, PKCE-style `state`).
+2. "Tidak ada batas atas": no server-side hard ceiling; defaults 0.05 SOL/trade, 0.5 SOL/day, 2 SOL wallet cap,
+   3 positions; raise = fresh Phantom signature + 24 h delay; lower = immediate. Residual risk recorded (REAL_MONEY_OPTIONS §4.5).
+3. "cuma stop pembelian aja, biar gak ada cooldown, kasih opsi tombol 'jual semua'": Stop pauses new buys only; no
+   revoke, no cooldown, Resume immediate, exit plans keep running; separate `sell_all`; provider revoke is manual.
+4. Key export "Tidak perlu": the Turnkey policy denies export.
+5. "Tanpa backup": no backup owner wallet; the 48 h delay to change the main wallet stays; accepted single point of failure.
+Also "Nama aplikasi Centurion Trade" (t60u) and "Lokal" (t62u: local repo, no remote/push).
+
+**Lead design decisions (Apex Dev Lead, not Boss quotes):** `sell_all` is session-authorized (confirmation + 2,500 ms
+hold, no fresh Phantom signature), runs every pre-sign guard, is exempt from the buy caps, rate-limited 1/60 s per
+workspace, idempotent; no auto-revert on raised limits (`real.limit.reverted` removed); automatic trips: policy
+mismatch = revoke signer + alert, loss velocity = pause buys only, provider error = exits only.
+
 Notation: `-` = current §16 text (quoted or summarised), `+` = proposed text, **Why** = rationale.
 
 ---
@@ -101,7 +118,7 @@ parameter makes "main wallet only" structural, not a check.
 +   payload_hash, nonce, expiry; domain/uri bound) from an `OWNER_WALLETS` address.
 + - Factor 2 (if enrolled; recommended): passkey (WebAuthn UV) or TOTP. Email OTP is not used (flag off).
 + - Typed name + hold **≥ 2,500 ms** (aligns with contracts §4.6, which already says 2,500).
-+ - Required for: granting/renewing the signer, activating or loosening policy, clearing a kill switch, every
++ - Required for: granting/renewing the signer, activating or loosening policy (raising a limit), every
 +   owner-path order, every withdrawal, changing OWNER_WALLETS. NOT required per delegated engine trade.
 ```
 **Why:** with wallet-only login the wallet signature is the strongest factor we have and binds the exact action;
@@ -114,7 +131,10 @@ delegated trades must not prompt or auto-trading cannot work; §16.4's "2 s" con
 - - Real sells only (no real buys) in the first Phase 7 increment.
 + - Limits become policy-as-data (`real_policies`, versioned, hash-pinned to the provider policy): per-trade cap,
 +   daily cap, max open positions, trading-wallet max balance, slippage/price-impact caps, CU price/tip caps.
-+ - Tighten = immediate; loosen = 24 h delay + owner step-up + auto-revert after 24 h unless re-confirmed.
++ - No server-side hard ceiling (Boss: "Tidak ada batas atas"). Defaults: 0.05 SOL per trade, 0.5 SOL per day,
++   2 SOL trading-wallet cap, 3 open positions.
++ - Lower = immediate; raise = fresh Phantom signature + 24 h delay, then stays (no auto-revert; lead decision).
++ - Residual risk: stolen session + phished Phantom signature can raise limits; only the 24 h delay + alert brake it.
 + - Rollout stages: 0 devnet; 1 sells-only (delegated exits on positions Boss opened by hand); 2 tiny buys
 +   (screener-pick mints only); 3 raise limits after N clean days. Each stage = Boss sign-off.
 ```
@@ -136,7 +156,7 @@ delegated trades must not prompt or auto-trading cannot work; §16.4's "2 s" con
   Threat model review, external security review of the prepare/verify path, devnet-only end-to-end with a
   hardware wallet, and written Boss/Apex sign-off.
 + Plus: Boss's explicit approval of vendor signup; Turnkey vs Crossmint devnet bake-off (provider policy alone must
-+ reject a non-allowlisted program and any transfer-out); export-to-self-custody drill; signer-revocation drill.
++ reject a non-allowlisted program and any transfer-out); withdraw-to-main-wallet drill (no key export); signer-revocation drill.
 - (legal review)                                   [not present today; NOT added: deprioritized for a private single-owner app]
 ```
 **Why:** provider choice and the provider-side floor must be proven before code depends on them.
@@ -144,11 +164,16 @@ delegated trades must not prompt or auto-trading cannot work; §16.4's "2 s" con
 ## P10. New §16.8 Kill switch
 
 ```diff
-+ ### 16.8 Kill switch
-+ Global (env + DB), workspace, strategy; checked before build and again right before sign. Hard stop also revokes
-+ the provider signer grant. Auto-trip: loss velocity, failed-tx rate, any security-rule presign hit (immediate),
-+ provider anomalies/policy-hash mismatch, data-quality (SOURCE_DEGRADED, ingest silence). Default on provider error:
-+ "exits only" via the owner path. Clearing = owner step-up.
++ ### 16.8 Stop, sell all and automatic trips
++ Stop (Boss) = pause new buys only: no signer revoke, no cooldown, Resume immediate, exit plans keep running
++ (`real.buys.paused|resumed`). Sell all: separate action, every held position via the normal guarded swap path;
++ session-authorized with confirmation + 2,500 ms hold (lead), all pre-sign guards, exempt from buy caps, 1 per 60 s per
++ workspace, idempotent; failures stay open with their exit plans (`real.sell_all.requested|completed`). Revoking the
++ provider permission is a separate manual owner action. Scopes global (env + DB) / workspace / strategy, checked
++ before build and right before sign. Automatic trips (lead): `policy_mismatch` (or any security-rule presign hit) =
++ revoke signer + alert Boss with the reason; `loss_velocity` = pause buys only, exits keep running; `provider_error` =
++ exits only; `other` (data quality, failed-tx budget) = pause buys + alert. Resume is immediate
++ (`real.kill_switch.resumed`; no clear-request/cooldown); a policy-mismatch trip also needs a signer re-grant.
 ```
 **Why:** fast containment that does not depend on our server being healthy (provider-side revoke).
 
@@ -158,8 +183,10 @@ delegated trades must not prompt or auto-trading cannot work; §16.4's "2 s" con
 + ### 16.9 Withdrawals
 + Our signer has no transfer permission. Withdrawals are owner-signed, from the trading wallet to the main wallet only
 + (fixed at bootstrap; no address book). Every withdrawal needs Boss's explicit re-confirmation (owner step-up).
-+ Changing the main wallet or adding a backup owner wallet: 48 h minimum delay, cancellable, alerted (matches the
-+ 2-day delay a comparable Solana trading bot is reported to use).
++ Changing the main wallet: 48 h minimum delay, cancellable, alerted (matches the 2-day delay a comparable Solana
++ trading bot is reported to use). No backup owner wallet (Boss: "Tanpa backup"); accepted risk: the main wallet is a
++ single point of failure and trading-wallet funds are recoverable only by withdrawing to it. Key export is denied by
++ the Turnkey policy (Boss: "Tidak perlu").
 ```
 **Why:** implements the shared hard rule structurally.
 
@@ -168,8 +195,8 @@ delegated trades must not prompt or auto-trading cannot work; §16.4's "2 s" con
 ```diff
 + ### 16.10 Provider
 + Turnkey (primary) vs Crossmint, chosen by the approved bake-off. Policy-as-data lets us re-create the policy at the
-+ other vendor; export-to-self-custody is drilled before Stage 1; owner path (Phantom) keeps exits possible during an
-+ outage.
++ other vendor; with key export denied, leaving a vendor = withdraw to the main wallet and re-fund at the other one
++ (withdraw drill before Stage 1); owner path (Phantom) keeps exits possible during an outage.
 ```
 **Why:** lock-in and availability risks from `REAL_MONEY_OPTIONS.md` §9.
 
@@ -193,8 +220,8 @@ so our checks are the swap-only guarantee with either vendor.
 - **§9 Auth:** login = SIWS via Phantom only, `OWNER_WALLETS` allowlist, sign-up disabled. Email OTP, Google/Apple
   and Telegram OIDC stay in code behind off-by-default flags (`AUTH_EMAIL_OTP_ENABLED=false`,
   `AUTH_OAUTH_ENABLED=false`, existing `AUTH_TELEGRAM_OIDC_ENABLED=false`). `LAST_LOGIN_METHOD` becomes "last owner
-  wallet" (a backup owner wallet is required before the main one can be removed). Prefer the wallet-standard
-  `solana:signIn` flow so Phantom builds and domain-checks the message.
+  wallet" (no backup owner wallet; changing the main wallet = 48 h delay). Android first via the Phantom deep link
+  (`signMessage` over the server-built SIWS text; MWA deferred); iOS later.
 - **§9 Sessions:** access token ≤ 15 min, rotating refresh bound to `device_id`, refresh-reuse revokes all sessions.
 - **§10 Security model:** first bullet changes from "No private keys" to "No wallet private keys or key shares; one
   KMS-resident provider authorization credential in Phase 7 only".
