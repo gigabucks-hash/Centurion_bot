@@ -237,7 +237,89 @@ pub struct CurveCache {
     entries: HashMap<String, Entry>,
     by_mint: HashMap<String, String>,
     pub stats: CacheStats,
+    /// Mint accounts (decimals + token program). Shared by every source that owns this cache.
+    pub mints: MintCache,
 }
+
+/// Bounded cache of decoded mint accounts. `decimals` and the owning program never change after
+/// `InitializeMint`, so entries do not expire; they are evicted oldest-first at capacity.
+/// Failed reads are not cached (the next create/lookup retries).
+#[derive(Debug)]
+pub struct MintCache {
+    capacity: usize,
+    entries: HashMap<String, MintInfo>,
+    order: std::collections::VecDeque<String>,
+    pub stats: CacheStats,
+}
+
+impl MintCache {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            capacity: capacity.max(1),
+            entries: HashMap::new(),
+            order: std::collections::VecDeque::new(),
+            stats: CacheStats::default(),
+        }
+    }
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+    pub fn get(&self, mint: &str) -> Option<&MintInfo> {
+        self.entries.get(mint)
+    }
+    pub fn insert(&mut self, mint: &str, info: MintInfo) {
+        if self.entries.insert(mint.to_string(), info).is_none() {
+            self.order.push_back(mint.to_string());
+            while self.entries.len() > self.capacity {
+                if let Some(old) = self.order.pop_front() {
+                    self.entries.remove(&old);
+                    self.stats.evictions += 1;
+                }
+            }
+        }
+    }
+    pub async fn get_or_fetch(
+        &mut self,
+        mint: &str,
+        fetcher: &dyn AccountFetcher,
+    ) -> Result<MintInfo, CurveError> {
+        if let Some(m) = self.entries.get(mint) {
+            self.stats.hits += 1;
+            return Ok(m.clone());
+        }
+        self.stats.fetches += 1;
+        let m = fetch_mint(fetcher, mint).await?;
+        self.insert(mint, m.clone());
+        Ok(m)
+    }
+}
+
+/// Fill `decimals` / `token_program` on a new coin from its mint account (cached).
+/// On failure the coin keeps `decimals: None` and loses its pool: decimals are never assumed,
+/// so the pipeline reports `order.failed POOL_STALE` instead of filling.
+pub async fn attach_mint(
+    mints: &mut MintCache,
+    fetcher: &dyn AccountFetcher,
+    c: &mut crate::source::NewCoin,
+) {
+    match mints.get_or_fetch(c.mint.as_str(), fetcher).await {
+        Ok(m) => {
+            c.decimals = Some(m.decimals);
+            c.token_program = Some(m.token_program);
+        }
+        Err(e) => {
+            tracing::warn!(mint = %c.mint, error = %e, "mint account unavailable");
+            c.decimals = None;
+            c.token_program = None;
+            c.pool = None;
+        }
+    }
+}
+
+pub const MINT_CACHE_CAPACITY: usize = 50_000;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct CacheStats {
@@ -257,6 +339,7 @@ impl CurveCache {
             entries: HashMap::new(),
             by_mint: HashMap::new(),
             stats: CacheStats::default(),
+            mints: MintCache::new(MINT_CACHE_CAPACITY),
         }
     }
     pub fn len(&self) -> usize {

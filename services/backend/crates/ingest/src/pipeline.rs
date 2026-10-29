@@ -322,7 +322,7 @@ impl Pipeline {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::source::replay::ReplaySource;
     use crate::source::StreamSource;
@@ -434,6 +434,28 @@ mod tests {
             .into_iter()
             .map(|e| serde_json::to_value(&e).expect("ser"))
             .filter(|v| v["type"] == kind)
+            .collect()
+    }
+
+    /// Run a source-produced coin through screener + guard + demo buy. Screener/guard inputs come
+    /// from the passing fixture coin; the mint facts (mint, decimals, token program, pool, quote)
+    /// come from `c`. Returns every emitted event as wire JSON.
+    pub(crate) async fn run_coin_through_demo_buy(c: NewCoin) -> Vec<serde_json::Value> {
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        let mut base = passing_coin();
+        base.mint = c.mint;
+        base.decimals = c.decimals;
+        base.token_program = c.token_program;
+        base.pool = c.pool;
+        base.quote_mint = c.quote_mint;
+        p.process(IngestEvent::NewCoin(Box::new(base)))
+            .await
+            .expect("process");
+        repo.all_events()
+            .await
+            .into_iter()
+            .map(|e| serde_json::to_value(&e).expect("ser"))
             .collect()
     }
 

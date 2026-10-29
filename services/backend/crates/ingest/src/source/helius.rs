@@ -30,7 +30,7 @@ use super::yellowstone::PUMP_FUN_PROGRAM;
 use super::{IngestEvent, NewCoin, SourceError, StreamSource, TradeTick};
 use crate::config::Secret;
 use crate::curve::{
-    fetch_mint, get_account_info_request, AccountFetcher, CurveCache, CurveError, TradeReserves,
+    attach_mint, get_account_info_request, AccountFetcher, CurveCache, CurveError, TradeReserves,
 };
 
 pub const DEFAULT_WS_BASE: &str = "wss://mainnet.helius-rpc.com/";
@@ -108,17 +108,8 @@ pub async fn attach_curve(
                 }
                 Err(e) => tracing::warn!(%mint, error = %e, "bonding curve unavailable"),
             }
-            match fetch_mint(fetcher, mint).await {
-                Ok(m) => {
-                    c.decimals = Some(m.decimals);
-                    c.token_program = Some(m.token_program);
-                }
-                Err(e) => {
-                    // decimals unknown: never assumed; the coin cannot be filled until they are read
-                    tracing::warn!(%mint, error = %e, "mint account unavailable");
-                    c.pool = None;
-                }
-            }
+            // decimals unknown are never assumed; same mint-cache path as PumpPortal
+            attach_mint(&mut cache.mints, fetcher, &mut c).await;
             IngestEvent::NewCoin(c)
         }
         (
@@ -522,14 +513,14 @@ pub fn parse_get_transaction(raw: &str, mint: &str) -> Option<CreateTxDetails> {
 // Socket loop
 // ---------------------------------------------------------------------------
 
-fn now_ms() -> TsMs {
+pub(crate) fn now_ms() -> TsMs {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
 }
 
-fn backoff(attempt: u32) -> Duration {
+pub(crate) fn backoff(attempt: u32) -> Duration {
     let base = 1000u64.saturating_mul(1u64 << attempt.min(6)).min(60_000);
     let jitter = (now_ms() as u64) % (base / 4 + 1);
     Duration::from_millis(base / 2 + jitter + base / 4)

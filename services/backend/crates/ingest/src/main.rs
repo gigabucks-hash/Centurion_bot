@@ -61,9 +61,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     h.rpc_base = cfg.helius_rpc_url.clone();
                     sources.push(Arc::new(h));
                 }
-                "pumpportal" => sources.push(Arc::new(PumpPortalSource {
-                    url: cfg.pumpportal_ws_url.clone(),
-                })),
+                // read-only mint/curve reads use the Helius RPC key when set
+                "pumpportal" => sources.push(Arc::new(PumpPortalSource::new(
+                    cfg.pumpportal_ws_url.clone(),
+                    cfg.helius_rpc_url.clone(),
+                    cfg.helius_api_key.clone(),
+                ))),
                 // pending Boss's provider choice: returns NotConfigured / NotImplemented
                 "yellowstone" => sources.push(Arc::new(YellowstoneSource::new(
                     cfg.yellowstone_grpc_url.clone().unwrap_or_default(),

@@ -45,7 +45,11 @@ Anchor `Program data:` events decoded for create / trade / curve-complete; `getT
 over HTTPS RPC; 30 s ping, jittered backoff 1–60 s, resubscribe on reconnect; key only from
 `HELIUS_API_KEY`, redacted from logs). Parser tests use captured mainnet frames (`services/backend/fixtures/mainnet/`). The capture
 showed that some curves use a non-SOL quote token, so pool state for paper fills must come from the bonding-curve
-account, never from the event's reserves. PumpPortal stays as an alternative; Yellowstone is a stub until
+account, never from the event's reserves. PumpPortal is an alternative WS source (`subscribeNewToken` +
+`subscribeMigration`, same backoff). Its frames carry no decimals or token program, so every create goes through
+the same read-only mint cache as Helius (`curve::MintCache` / `attach_mint`, inside `CurveCache`), and through the
+curve cache when `bondingCurveKey` is present. With no RPC key, or a failed mint read, decimals stay unknown and the
+pipeline emits `order.failed POOL_STALE` (never assumes 6). Yellowstone is a stub until
 Boss picks the provider. `INGEST_SOURCES` selects them.
 
 ## 2. Data flow (per coin)
