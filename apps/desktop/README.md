@@ -28,7 +28,8 @@ npm run sync:tokens         # pull tokens from packages/design-tokens (falls bac
 | S | Skip |
 | X | Select |
 | ⇧A | Approve selected (Practice only) |
-| ⇧X | Sell: opens the dialog, then hold Enter |
+| ⇧X | Sell: opens the dialog, then hold Enter (1.2 s Practice / 2.5 s Real) |
+| Space | Quick-look: toggle the detail panel for the focused row (row click also opens it) |
 | ↵ | Detach the chart |
 | L | Activity window |
 | P | Approval popup (360×232, bottom-right; PRACTICE: Approve/Skip; REAL: Skip + "Buka untuk approve ↗") |

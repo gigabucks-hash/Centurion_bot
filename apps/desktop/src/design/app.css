@@ -203,3 +203,14 @@ button:disabled { opacity: .5; cursor: not-allowed; }
   .mode-strip, .timerbar > i, .exitbar > i.fill { forced-color-adjust: none; }
 }
 button.primary kbd, button.real kbd, button.success kbd, button.danger kbd { color: inherit; border-color: currentColor; opacity: .8; }
+
+/* ---- Space quick-look (C2): non-modal detail panel for the focused row ---- */
+.quicklook { position: fixed; right: var(--space-4); bottom: 40px; width: 320px; z-index: 5; background: var(--color-bg-overlay); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); box-shadow: var(--shadow-e3); padding: var(--space-3); font-size: var(--text-body); }
+.quicklook header { display: flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-6) var(--space-2) 0; font-size: var(--text-caption); }
+.quicklook header b { font-size: var(--text-titleSm); }
+.quicklook dl { margin: 0 0 var(--space-2); display: grid; gap: 2px; }
+.quicklook dl > div { display: grid; grid-template-columns: 96px 1fr; gap: var(--space-2); min-height: 20px; align-items: center; }
+.quicklook dt { color: var(--color-text-tertiary); font-size: var(--text-caption); }
+.quicklook dd { margin: 0; overflow-wrap: anywhere; }
+.quicklook .close { position: absolute; top: 6px; right: 6px; min-height: 24px; padding: 0 6px; }
+.warn { color: var(--color-semantic-warning); }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { core, EVT, runtime, type Position, type SellQuote, type Signal } from "../api";
 import { ApproveConfirm } from "../components/ApproveConfirm";
+import { QuickLook, type QuickLookTarget } from "../components/QuickLook";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { ModeChrome } from "../components/ModeChrome";
 import { PositionsSummary, PositionsTable } from "../components/PositionsTable";
@@ -16,6 +17,8 @@ export function TerminalView() {
   const [quote, setQuote] = useState<SellQuote | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [realApprove, setRealApprove] = useState<Signal | null>(null);
+  // Quick-look (C2 decided): which kind of row it shows; content stays live from the store.
+  const [ql, setQl] = useState<{ kind: "signal" | "position"; mint: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const pending = useMemo(() => pendingSorted(st.signals), [st.signals]);
 
@@ -34,6 +37,27 @@ export function TerminalView() {
   const chartSym = st.signals.find((s) => s.mint === chartMint)?.symbol ?? st.positions.find((p) => p.mint === chartMint)?.symbol;
 
   // REAL SOL: approve always goes through dialog + hold 2.5 s (UX); Practice approves directly.
+  const qlTarget: QuickLookTarget | null = (() => {
+    if (!ql) return null;
+    if (ql.kind === "position") {
+      const p = st.positions.find((x) => x.mint === ql.mint);
+      return p ? { kind: "position", item: p } : null;
+    }
+    const s = st.signals.find((x) => x.mint === ql.mint);
+    return s ? { kind: "signal", item: s } : null;
+  })();
+  const toggleQuickLook = () => {
+    if (ql) return setQl(null);
+    if (cursorSig) setQl({ kind: "signal", mint: cursorSig.mint });
+    else if (cursorPos) setQl({ kind: "position", mint: cursorPos.mint });
+  };
+  // Row click = cursor + quick-look (C2); while open, the panel follows the cursor.
+  const clickSignal = (mint: string) => { st.setCursor(mint); setQl({ kind: "signal", mint }); };
+  const clickPosition = (mint: string) => { st.setCursor(mint); setQl({ kind: "position", mint }); };
+  useEffect(() => {
+    if (ql?.kind === "signal" && cursorSig && cursorSig.mint !== ql.mint) setQl({ kind: "signal", mint: cursorSig.mint });
+  }, [cursorSig, ql]);
+
   const approve = (s?: Signal) => s && (st.mode === "real" ? setRealApprove(s) : run(() => core.approveSignal(s.id)));
 
   // Popup hand-off ("Buka untuk approve ↗"): Rust focused this window; open the pick here.
@@ -73,7 +97,8 @@ export function TerminalView() {
       x: () => cursorSig && st.toggleSelected(cursorSig.id),
       "shift+a": approveSelected,
       enter: () => chartMint && run(() => core.openChartWindow(chartMint)),
-      escape: () => st.clearSelected(),
+      escape: () => (ql ? setQl(null) : st.clearSelected()),
+      space: toggleQuickLook,
       "shift+x": () => sell(cursorPos),
       l: () => run(() => core.openActivityWindow()),
       p: () => run(() => core.openApprovalWindow()),
@@ -89,7 +114,7 @@ export function TerminalView() {
         <span className="chip">src: {st.source}</span>
         <span className="muted num">Cash {st.paperCashSol.toFixed(3)} SOL</span>
         <span style={{ marginLeft: "auto" }} className="dim">
-          <kbd>J/K</kbd> nav <kbd>A</kbd> approve <kbd>S</kbd> skip <kbd>X</kbd> pilih <kbd>⇧A</kbd> approve terpilih <kbd>⇧X</kbd> sell <kbd>↵</kbd> chart <kbd>L</kbd> feed <kbd>P</kbd> popup
+          <kbd>J/K</kbd> nav <kbd>A</kbd> approve <kbd>S</kbd> skip <kbd>X</kbd> pilih <kbd>⇧A</kbd> approve terpilih <kbd>⇧X</kbd> sell <kbd>Space</kbd> quick-look <kbd>↵</kbd> chart <kbd>L</kbd> feed <kbd>P</kbd> popup
         </span>
         <button className="ghost" onClick={() => setSettingsOpen(true)}>Settings<kbd>,</kbd></button>
       </ModeChrome>
@@ -103,7 +128,7 @@ export function TerminalView() {
               signals={pending}
               cursorMint={st.cursorMint}
               selectedIds={st.selectedIds}
-              onCursor={st.setCursor}
+              onCursor={clickSignal}
               onToggleSelect={st.toggleSelected}
               onApprove={approve}
               onSkip={skip}
@@ -127,7 +152,7 @@ export function TerminalView() {
         <section className="panel area-positions">
           <header>Positions (paper) <PositionsSummary positions={st.positions} /></header>
           <div className="body">
-            <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={st.setCursor} onSell={(p) => sell(p)} />
+            <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onSell={(p) => sell(p)} />
           </div>
         </section>
       </div>
@@ -137,6 +162,7 @@ export function TerminalView() {
         <span className="dim">global: focus {sc.focusTerminal}{sc.openApprovals ? ` · approvals ${sc.openApprovals}` : ""}</span>
         {(err ?? st.lastError) && <span className="neg" style={{ marginLeft: "auto" }}>{err ?? st.lastError}</span>}
       </div>
+      {qlTarget && <QuickLook target={qlTarget} onClose={() => setQl(null)} />}
       {realApprove && (
         <ApproveConfirm
           signal={realApprove}

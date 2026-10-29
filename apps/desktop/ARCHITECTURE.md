@@ -25,7 +25,7 @@
   3. `/workspace/ux-solbot/tokens/tauri.css` (legacy)
 
   `app.css` uses the v0.2.0 names: `--text-*`, `--density-*`, `--duration-*`, `--shadow-e*`. The old Phase 0 names (`--type-*`, `--size-control-*`, `--motion-*`, `--elevation-*`) are gone.
-  **Upstream bug:** `tauri.css` v0.2.0 has one stray `}` after the light-theme block, so lightningcss fails with "Invalid empty selector". The sync script drops unmatched closing braces and prints a warning. UX should fix `scripts/build.py`.
+  **Upstream bug** (TODO: remove the guard at design-tokens v0.2.1, which UX will release with the fix; the guard is a no-op without a stray brace): `tauri.css` v0.2.0 has one stray `}` after the light-theme block, so lightningcss fails with "Invalid empty selector". The sync script drops unmatched closing braces and prints a warning. UX should fix `scripts/build.py`.
 
 ## 3. Windows
 | Label | Route | Purpose | Capability |
@@ -38,6 +38,10 @@
 - One Vite bundle serves every window, with hash routes.
 - `single-instance` focuses the existing window instead of starting a second one.
 - Every window has a 4px mode strip and a "◇ PRACTICE" label, and its title is prefixed `[PRACTICE]`.
+
+**Keymap (main window):** J/K or ↑/↓ move · A approve (REAL → dialog + hold 2.5 s) · S skip · X select · ⇧A approve selected (Practice only) · ⇧X sell (dialog + hold 1.2 s / 2.5 s) · **Space quick-look** (row click also opens it) · ↵ detach chart · L activity · P popup · , settings · Esc closes quick-look, else clears the selection.
+**Popup:** J/K, A (Practice only), S, Esc hide.
+**Global (open-only):** Ctrl/Cmd+Shift+H, Ctrl/Cmd+Shift+A.
 
 ### 3.1 Approval popup (UX DESKTOP_COMPACT_AND_POPUP §4, WF-13)
 - **Window:** 360×232, fixed size, undecorated, shadow, `skipTaskbar`, `alwaysOnTop`, `visibleOnAllWorkspaces`, dark theme, `visible:false` + `focused:false`. On macOS, `acceptFirstMouse(false)`. It is created once and reused; items never spawn new windows.
@@ -137,8 +141,8 @@
 ### 11.1 UX `DESKTOP_COMPACT_AND_POPUP.md` + WF-11/WF-13 vs this document (§12)
 | # | Spec says | Prototype / §12 | Status |
 |---|---|---|---|
-| C1 | WF-11 note: "Practice: dialog sama, konfirmasi **Enter (tanpa hold)**" | D1: Practice uses **hold 1.2 s** (from the UX SPEC motion token `holdPractice`) | **Conflict.** Kept the 1.2 s hold; UX/Apex to pick one |
-| C2 | `Enter` = detail | `↵` = detach chart window (the detail panel/ladder is not built yet) | Conflict (minor); remap when the WF-11 detail panel lands |
+| C1 | WF-11 note: "Practice: dialog sama, konfirmasi **Enter (tanpa hold)**" | Sell confirmation is **hold 1.2 s Practice / 2.5 s Real** | **DECIDED** (Apex + UX, 29 Okt): the hold stays in both modes; WF-11 note superseded |
+| C2 | `Enter` = detail | `↵` = **detach chart**; row detail = **Space** (toggle quick-look) or **row click**; `X` select, `⇧X` sell | **DECIDED** (Apex + UX, 29 Okt); implemented |
 | C3 | Popup capability: event listen/emit + window show/hide/setPosition | Popup gets **no window API**; hide and position are done by Rust commands | Stricter than spec, OK |
 | C4 | Drag position remembered per monitor; "monitor kursor" option; move to primary on unplug | Bottom-right of main's monitor only | Gap (W1-D3) |
 | C5 | DND: do not show over fullscreen/presentation apps | Not implemented | Gap (W1-D3, needs per-OS checks) |
@@ -160,7 +164,8 @@
 ## 12. Decisions
 | # | Topic | Decision | Status |
 |---|---|---|---|
-| D1 | Sell hotkey | **⇧X opens a confirmation dialog, then hold Enter** (1.2 s Practice / 2.5 s Real) | **DECIDED** (Apex) |
+| D1 | Sell hotkey | **⇧X opens a confirmation dialog, then hold Enter** (1.2 s Practice / 2.5 s Real). The hold is kept in Practice too (C1) | **DECIDED** (Apex + UX) |
+| D12 | Row detail | **Space** toggles a non-modal quick-look for the focused row (signal or position), row click opens it, Esc closes; `↵` stays "detach chart" (C2). The quick-look is read-only | **DECIDED** (Apex + UX) |
 | D2 | Theme | **Dark is the default**; light and system are optional | **DECIDED** |
 | D3 | Density | **Compact "Signal Terminal" is the desktop default** | **DECIDED** |
 | D4 | Approval popup | Small always-on-top window, **opt-in, OFF by default** | **DECIDED** |

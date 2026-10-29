@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 
-/** Keys: "a", "shift+a", "enter", "escape", "arrowdown", ",". */
+/** Keys: "a", "shift+a", "enter", "escape", "arrowdown", "space", ",". */
 export type KeyMap = Record<string, (e: KeyboardEvent) => void>;
 
 export function keyName(e: KeyboardEvent): string {
+  if (e.key === " ") return "space";
   const k = e.key.toLowerCase();
   return e.shiftKey && /^[a-z]$/.test(k) ? `shift+${k}` : k;
 }

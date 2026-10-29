@@ -35,7 +35,7 @@ export function SignalQueue(p: Props) {
         const pct = (left / Math.max(1, s.expiresAt - s.createdAt)) * 100;
         const urgent = left < URGENT_MS;
         return (
-          <div key={s.id} className={`signal ${s.mint === p.cursorMint ? "cursor" : ""}`} onClick={() => p.onCursor(s.mint)} role="listitem">
+          <div key={s.id} className={`signal ${s.mint === p.cursorMint ? "cursor" : ""}`} onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) p.onCursor(s.mint); }} role="listitem">
             <div className="row">
               {p.onToggleSelect && (
                 <input

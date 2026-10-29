@@ -16,6 +16,8 @@ if (!src) {
   process.exit(1);
 }
 const dst = here("../src/design/sentra-tokens.css");
+// TODO(design-tokens v0.2.1): remove this guard once UX ships v0.2.1 (fixes the stray "}" in tauri.css).
+// It only fires when an unmatched "}" exists, so it is a no-op on fixed releases.
 // Guard: drop unmatched closing braces (tauri.css v0.2.0 has one stray "}" after the light theme
 // block — reported to UX). Anything else malformed is left for the CSS build to reject.
 let depth = 0, dropped = 0, css = "";
