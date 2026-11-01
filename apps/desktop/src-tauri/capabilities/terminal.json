@@ -29,6 +29,7 @@
     "allow-auth-status",
     "allow-auth-login",
     "allow-auth-logout",
-    "allow-patch-strategy"
+    "allow-patch-strategy",
+    "allow-stop-trading"
   ]
 }

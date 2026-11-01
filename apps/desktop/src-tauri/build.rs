@@ -21,6 +21,7 @@ fn main() {
             "get_coin_timeline",
             "get_exit_reason_stats",
             "refresh_quote",
+            "stop_trading",
             "patch_strategy",
             "auth_status",
             "auth_login",

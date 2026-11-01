@@ -25,7 +25,17 @@ apps/desktop/scripts/smoke-real.sh --serve   # fresh DB + API only; writes .env.
   Unset → the in-process mock (default). Plain `http://` is allowed to loopback only. A set but unusable value
   stops the app instead of silently falling back to the mock.
 
-## Results: 35 / 35 PASS
+## Re-run 2026-11-01 12:14 WIB against HEAD ef74131 (contracts 1.1.5, auth 99d1595): 40 / 40 PASS
+The API now runs with SIWS on (`AUTH_SIWS_DOMAINS=app.centuriontrade.local`, `OWNER_WALLETS` = the wSOL mint address, which has no
+private key, `AUTH_USER_CREATE=direct`, session secret from the gitignored `.env.local`). The 5 new cases sign nothing:
+- nonce for the owner → 200, and the desktop's message pre-check accepts the server's exact message;
+- verify with a bad signature → 401 `SIWS_SIGNATURE_INVALID`;
+- nonce for a stranger → 403 `FORBIDDEN_ROLE` `wallet_not_allowed`;
+- refresh with an unknown token → 401 `UNAUTHENTICATED` `refresh_invalid`;
+- logout with an unknown token → 200.
+The only mismatch is still S1 (`next_allowed_at` offset + µs).
+
+## Results (2026-10-29): 35 / 35 PASS
 
 | Case | Result |
 |---|---|

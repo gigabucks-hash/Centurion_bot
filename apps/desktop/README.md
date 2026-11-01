@@ -1,4 +1,7 @@
-# Sentra Desktop (apps/desktop)
+# Centurion Trade — Desktop (apps/desktop)
+
+> Visible product name **Centurion Trade** (Boss decision 2026-10-29; from `@sentra/i18n` `app.name`), identifier
+> `com.centuriontrade.app`. Internal crate / package / repo names stay `sentra` (`sentra_lib`, `@sentra/*`).
 
 Tauri v2 + React 19 trading terminal prototype. **Mock data only**: no wallet, no chain network, no real trading.
 See `ARCHITECTURE.md` and `MILESTONES.md`. Types come from `../../packages/contracts`.
@@ -16,7 +19,7 @@ npm run dev                 # browser-only UI with the built-in mock adapter (ht
 cargo tauri dev             # full desktop app
 npm run build               # typecheck + Vite build
 (cd src-tauri && cargo check && cargo test)
-cargo tauri build --bundles deb   # unsigned Linux release (MVP)
+cargo tauri build --bundles deb   # unsigned Linux release (MVP) → src-tauri/target/release/bundle/deb/Centurion Trade_0.1.0_amd64.deb
 npm run sync:tokens         # pull tokens from packages/design-tokens (falls back to the embedded copy)
 ```
 
@@ -82,3 +85,16 @@ Real backend (dev): `SENTRA_BACKEND=http://127.0.0.1:<port>` + `SENTRA_WORKSPACE
 Contracts: `packages/contracts` **v1.1.4** (read-only; mirror `CONTRACTS_VERSION = "1.1.4"`; tests read the committed HEAD version). `cargo test` includes contract tests against those files (errors.json v4+, typed 1.1.2 examples, 1.1.3 `ApprovalRejectReason` / `ApprovalWire`, 1.1.4 `MarketCapFields` / `stall`), and `npm run build` typechecks `src/api/wire.check.ts`. Design tokens: `packages/design-tokens` v0.2.5 (`--color-bg-sunken`, `.skeleton` for loading states).
 
 Practice reset is limited to once per 24 h. A second reset gets `429 RESET_COOLDOWN` with `{next_allowed_at}` and `Retry-After` (the in-process mock carries `retry_after_s`). Settings shows it as neutral text, not an error ("Berikutnya: <local date, time>"), and disables the button until then (`docs/practice-reset-cooldown.png`).
+
+## Stop (quick actions)
+- In-app: **■ Stop sekarang** in the title bar → confirm dialog → pauses every running strategy in the current mode.
+- Tray menu: **Stop trading…** (tooltip = `app.name`).
+- Linux app-shortcut action (right-click the launcher): **Stop trading** = `sentra --stop` (binary keeps the internal name; package `centurion-trade`).
+  A running instance receives it through single-instance argv.
+- Every path only opens the confirm dialog. Pausing happens in one Rust command, `stop_trading(mode, source, confirm="STOP")`.
+- Windows jump list / macOS dock menu: not buildable here (see ARCHITECTURE §12 D17). Both would run the same `--stop` argv.
+
+## Wallet login (SIWS) — backend mode only
+`SENTRA_BACKEND=<url>` without `SENTRA_BACKEND_TOKEN` → wallet login through the **system browser** (`SENTRA_LOGIN_URL`,
+default `https://app.centuriontrade.local/auth/desktop`). Tokens live only in the OS keychain (`com.centuriontrade.app` / `siws-session`).
+Manual round-trip test (needs the Web `/auth/desktop` page + Phantom; not headless): see ARCHITECTURE §12 D15.

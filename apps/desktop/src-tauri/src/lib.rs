@@ -17,7 +17,9 @@ mod model;
 mod notify;
 mod rejmap;
 mod state;
+mod stop;
 mod sync;
+mod tray;
 mod util;
 mod view;
 mod windows;
@@ -29,7 +31,14 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         // Second launch just focuses the running terminal (avoids double global hotkeys).
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| windows::focus_main(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            // A second launch focuses the running app; `--stop` (app-shortcut quick action) asks for a Stop.
+            if stop::wants_stop(&argv) {
+                stop::request(app, stop::StopSource::Shortcut);
+            } else {
+                windows::focus_main(app);
+            }
+        }))
         .plugin(tauri_plugin_notification::init())
         .plugin(hotkeys::plugin())
         .manage({
@@ -52,6 +61,17 @@ pub fn run() {
             let cfg = handle.state::<state::AppState>().engine.lock().unwrap().settings.shortcuts.clone();
             if let Err(e) = hotkeys::apply(&handle, &cfg) {
                 log::warn!("global shortcuts not registered: {e}");
+            }
+            if let Err(e) = tray::build(&handle) {
+                log::warn!("tray not available: {e}");
+            }
+            // First launch from the quick action (`centurion-trade --stop`): ask once the UI is up.
+            if stop::wants_stop(&std::env::args().collect::<Vec<_>>()) {
+                let h = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                    stop::request(&h, stop::StopSource::Shortcut);
+                });
             }
             let t = handle.state::<state::AppState>().transport.clone();
             t.start();
@@ -81,6 +101,7 @@ pub fn run() {
             commands::reset_practice,
             commands::get_coin_timeline,
             commands::get_exit_reason_stats,
+            commands::stop_trading,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Centurion Trade");

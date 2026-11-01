@@ -351,6 +351,13 @@ export const browserMockAdapter: CoreApi = {
   },
   async authLogin() {},
   async authLogout() {},
+  async stopTrading(_mode, _source, confirm) {
+    if (confirm !== "STOP") throw new Error("VALIDATION_FAILED: stop confirm");
+    const paused: string[] = [], already: string[] = [];
+    strategies = strategies.map((x) => (x.status === "paused" ? (already.push(x.id), x) : (paused.push(x.id), { ...x, rev: x.rev + 1, status: "paused" })));
+    emit(EVT.strategies, strategies);
+    return { paused, already_paused: already, failed: [] };
+  },
   async setStrategyPaused(id, paused, baseRev) {
     const s = strategies.find((x) => x.id === id);
     if (!s) throw new Error("NOT_FOUND");

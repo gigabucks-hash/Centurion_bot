@@ -1,7 +1,8 @@
-# Sentra Desktop — Architecture (Phase 6)
+# Centurion Trade Desktop — Architecture (Phase 6)
 
 > Status: prototype, **mock data only**. No real trading, no wallet, no chain network.
-> Path: `/workspace/sentra/apps/desktop` (monorepo). Product name **Sentra**, identifier **`com.sentra.app`** (placeholder).
+> Path: `/workspace/sentra/apps/desktop` (monorepo). Product name **Centurion Trade**, identifier **`com.centuriontrade.app`**
+> (rebrand 2026-10-29; internal crate/package names stay `sentra`).
 > All code is original. No HOTBOT code was copied; HOTBOT is only a feature-parity reference.
 
 ## 1. Goals and non-goals
@@ -177,7 +178,7 @@
 - Theme: **dark is the default**; light and system are optional.
 
 ## 7. Security
-- **No private keys** in the webview or in Rust. Signing happens only in the backend. Backend API tokens (Week 2) go in the OS keychain via `keyring` behind the `keychain` cargo feature (service `com.sentra.app`). They are never stored in localStorage.
+- **No private keys** in the webview or in Rust. Signing happens only in the backend. Backend API tokens (Week 2) go in the OS keychain via `keyring` behind the `keychain` cargo feature (service `com.centuriontrade.app`, account `siws-session`; see D15). They are never stored in localStorage.
 - Capabilities are scoped per window label and deny by default. The approval popup and viewers **cannot sell**.
 - CSP:
   - `default-src 'self'`, `script-src 'self'`
@@ -263,8 +264,11 @@
 | D4 | Approval popup | Small always-on-top window, **opt-in, OFF by default** | **DECIDED** |
 | D5 | Global shortcuts | Focus or open only; never approve, skip or sell | **DECIDED** |
 | D6 | Signing / updater | **Out of MVP scope.** MVP = unsigned Linux builds; signing, notarization and updater come Post-MVP | **DECIDED** |
-| D7 | Identity | Product name `Sentra`, identifier `com.sentra.app` (placeholder) | **DECIDED** (identifier may change before signing) |
+| D7 | Identity | Product name **Centurion Trade** (from i18n `app.name`: window titles, tray tooltip, notification titles, loopback page), identifier `com.centuriontrade.app`; crate `sentra` / `sentra_lib` and `@sentra/*` unchanged | **DONE** (rebrand, Boss 2026-10-29) |
 | D8 | Contracts | Backend owns `packages/contracts` (v1.1.2). The desktop imports `src/wire` types directly. The Rust mirror is hand-written and guarded by contract tests until codegen exists | **DONE for v1.1.4** (codegen open) |
 | D10 | Popup in REAL SOL | No Approve; "Buka untuk approve ↗" hands off to main (dialog + hold 2.5 s). Enforced in Rust by window label | **DECIDED** (UX, via Apex) |
 | D11 | Popup focus | Shown without activation; shortcuts only after a click. **Enabled on Linux only**; Windows/macOS are disabled until W-NOFOCUS passes (C19) | **DECIDED** (test gate) |
 | D9 | Real mode on desktop | **Real SOL on desktop = Phase 7 (out of MVP).** It needs the backend signer, the server clock (C6, done for countdowns in v1.1), 2.5 s hold and per-trade caps. The Real code paths remain as a mock-flag-only reference (C15) | **DECIDED** |
+| D15 | Desktop login (SIWS) | **Wallet-only, system browser, never the webview.** Rust opens the browser (`xdg-open` / `open` / `rundll32 url.dll`, URL built from config only) to the Web `/auth/desktop` page with `redirect_uri` + 128-bit `state`. The page connects Phantom, asks `POST /v1/auth/siws/nonce` (its origin = SIWS domain), the wallet signs the **message** (no transaction), and the page returns `state` + `address` + `message` + `signature` to a **loopback** listener (`127.0.0.1:<random>/siws/callback`; exact method/path, constant-time state, size caps, 20-request / 5-min limit, single use). Rust pre-checks the message (domain, address, expiry) and calls `/siws/verify {client:"desktop"}` itself. Session → OS keychain only. Refresh: **single-flight** (one tokio mutex held across the refresh; the rotated token is saved before release; a 401 seen with an old access token reuses the new one) because a reused refresh token revokes the family. `refresh_reused/revoked/expired/invalid` → signed out + keychain cleared; `403 FORBIDDEN_ROLE wallet_not_allowed` → its own screen. **Target (Boss): `centurion://auth` deep link carrying only a one-time code, PKCE S256 verifier kept and exchanged in Rust** — implemented and tested as `deeplink.rs` (strict scheme/host/path, no extra params, state, single use, 5-min expiry), **not wired** because (a) `tauri-plugin-deep-link` is not in the offline crate cache (not installed without review) and (b) Backend has no code/PKCE exchange endpoint. Proposed: `/siws/verify {…, code_challenge, code_challenge_method:"S256", client:"desktop"}` → `{code}`; `POST /v1/auth/desktop/exchange {code, code_verifier}` → Session. Threats: a local process can hit the loopback port, but it cannot forge a signed SIWS message or guess the state; no token is ever in a URL. Full browser round trip = manual test (Phantom is not headless) | **PARTIAL** (loopback live; deep link blocked) |
+| D16 | Stop | One Rust command `stop_trading(mode, source, confirm)`, with validated args (mode = current mode, source ∈ ui/tray/shortcut, confirm == "STOP"). It pauses every running strategy with If-Match. The in-app button, tray "Stop trading…" and the `--stop` app-shortcut action (Linux `.desktop` `Actions=Stop`, `linux/main.desktop.hbs`) only *request* it: they open the confirm dialog. No workspace stop / kill-switch endpoint exists yet (1.1.5 reserves phase7 KillSwitch types only), so there is no sell_all and proposals are not expired server-side | **DONE** (gap reported) |
+| D17 | Windows / macOS quick actions | Windows jump list (`ICustomDestinationList` task "Stop trading" → `"Centurion Trade.exe" --stop`) and macOS dock menu (`applicationDockMenu:` item → the same `stop::request`). Neither is buildable or testable on this Linux box | **DOCUMENTED** |

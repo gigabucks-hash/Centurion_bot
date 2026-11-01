@@ -164,7 +164,7 @@ export function TerminalView() {
   const sc = st.settings.shortcuts;
   return (
     <div className="window">
-      <ModeChrome title="Terminal">
+      <ModeChrome title="Terminal" stop>
         <span className="chip">src: {st.source}</span>
         <span className="muted num" title={`practice_epoch ${st.account.epoch ?? "—"} · as_of_seq ${st.account.as_of_seq ?? "—"}`}>Cash {solText(st.account.cash_lamports, lang, paper)} · Equity {solText(st.account.equity_lamports, lang, paper)}</span>
         <span style={{ marginLeft: "auto" }} className="dim">

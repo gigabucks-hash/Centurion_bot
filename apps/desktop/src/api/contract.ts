@@ -321,7 +321,11 @@ export const EVT = {
   focusSignal: "ui:focus-signal",
   screened: "screener:update",
   auth: "auth://state",
+  stopRequest: "ui:stop-request",
 } as const;
+
+/** STOP (pause every running strategy in the current mode). */
+export interface StopResult { paused: string[]; already_paused: string[]; failed: [string, string][] }
 export type EvtName = (typeof EVT)[keyof typeof EVT];
 
 export interface CoreApi {
@@ -347,5 +351,7 @@ export interface CoreApi {
   authStatus(): Promise<AuthView>;
   authLogin(): Promise<void>;
   authLogout(): Promise<void>;
+  /** One Rust command for every Stop entry point; `confirm` must be "STOP". */
+  stopTrading(mode: Mode, source: "ui" | "tray" | "shortcut", confirm: string): Promise<StopResult>;
   on<T>(event: EvtName, cb: (payload: T) => void): Promise<() => void>;
 }

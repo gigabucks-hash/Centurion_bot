@@ -26,6 +26,10 @@ export const LOCAL_TEMPLATES: Record<"en" | "id", Record<string, string>> = {
     "desktop.auth.not_allowed.body": "{app} is private. Only the owner wallet can sign in. {address}",
     "desktop.auth.try_other": "Use another wallet",
     "desktop.auth.sign_out": "Sign out",
+    "desktop.stop.title_practice": "Stop all Practice trading?",
+    "desktop.stop.effect_practice": "Every running strategy is paused. New picks stop; open positions keep their exit plan.",
+    "desktop.stop.done": "{count, plural, one {# strategy paused} other {# strategies paused}}",
+    "desktop.stop.failed": "Not paused: {list}",
   },
   id: {
     "feed.event.fill": "Paper {side} {amount_lamports} @ {price} SOL · biaya {fee} · slippage {slip}",
@@ -40,6 +44,10 @@ export const LOCAL_TEMPLATES: Record<"en" | "id", Record<string, string>> = {
     "desktop.auth.not_allowed.body": "{app} bersifat privat. Hanya wallet pemilik yang bisa masuk. {address}",
     "desktop.auth.try_other": "Pakai wallet lain",
     "desktop.auth.sign_out": "Keluar",
+    "desktop.stop.title_practice": "Stop semua trading Practice?",
+    "desktop.stop.effect_practice": "Semua strategi yang berjalan dijeda. Pick baru berhenti; posisi terbuka tetap memakai exit plan.",
+    "desktop.stop.done": "{count, plural, other {# strategi dijeda}}",
+    "desktop.stop.failed": "Belum dijeda: {list}",
   },
 };
 

@@ -334,3 +334,4 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 .auth-gate { min-height: 100vh; display: grid; place-items: center; background: var(--color-bg-canvas); }
 .auth-gate section { max-width: 420px; display: grid; gap: var(--space-3); padding: var(--space-4); }
 .auth-gate h1 { margin: 0; font-size: 20px; }
+.titlebar .stop-btn { flex: none; white-space: nowrap; width: auto; }

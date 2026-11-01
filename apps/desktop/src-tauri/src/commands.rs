@@ -408,3 +408,36 @@ pub async fn auth_logout<R: Runtime>(app: AppHandle<R>, state: State<'_, AppStat
     }
     Ok(())
 }
+
+/// STOP (one command for every entry point; see `stop.rs`): pause every running strategy in the current
+/// mode with If-Match = its cached rev. Already paused strategies are left alone. Validated arguments only.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn stop_trading<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>, mode: String, source: String, confirm: String) -> AppResult<crate::stop::StopResult> {
+    let (current, strategies) = {
+        let e = state.engine.lock().unwrap();
+        (e.mode, e.strategies_vec())
+    };
+    let req = crate::stop::StopRequest::parse(&mode, current, &source, &confirm).map_err(|w| AppError::Invalid(format!("stop: {w}")))?;
+    log::info!("stop requested via {:?} in {:?}", req.source, req.mode);
+    let mut out = crate::stop::StopResult::default();
+    for s in strategies {
+        if s.status == "paused" {
+            out.already_paused.push(s.id);
+            continue;
+        }
+        let idem = idem_key(&state);
+        match state.transport.set_strategy_paused(&s.id, &idem, Some(s.rev), true).await {
+            Ok(r) => {
+                let o = {
+                    let mut e = state.engine.lock().unwrap();
+                    e.observe_server_now(&r.server_now);
+                    e.set_strategies(std::slice::from_ref(&r.data))
+                };
+                dispatch(&app, vec![o]);
+                out.paused.push(s.id);
+            }
+            Err(e) => out.failed.push((s.id, e.code().to_owned())),
+        }
+    }
+    Ok(out)
+}
