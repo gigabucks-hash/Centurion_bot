@@ -132,11 +132,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     cfg.helius_rpc_url.clone(),
                     cfg.helius_api_key.clone(),
                 ))),
-                // pending Boss's provider choice: returns NotConfigured / NotImplemented
-                "yellowstone" => sources.push(Arc::new(YellowstoneSource::new(
-                    cfg.yellowstone_grpc_url.clone().unwrap_or_default(),
-                    cfg.yellowstone_x_token.clone(),
-                ))),
+                // provider-agnostic Geyser; NotConfigured without endpoint/token, NotImplemented until the gRPC transport lands
+                "yellowstone" => sources.push(Arc::new(YellowstoneSource::new(cfg.geyser.clone()))),
                 _ => {}
             }
         }

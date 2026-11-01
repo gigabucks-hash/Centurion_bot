@@ -4,7 +4,17 @@ use std::fmt;
 #[derive(Clone, Default)]
 pub struct Secret(String);
 
+impl PartialEq for Secret {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
 impl Secret {
+    /// Wrap a value read from the environment.
+    pub fn from_env_value(s: String) -> Self {
+        Self(s)
+    }
     #[cfg(test)]
     pub fn from_test(s: &str) -> Self {
         Self(s.to_string())
@@ -43,6 +53,8 @@ pub struct Config {
     pub screener_rules_path: String,
     pub yellowstone_grpc_url: Option<String>,
     pub yellowstone_x_token: Secret,
+    /// Provider-agnostic Geyser settings (`YELLOWSTONE_*`); `None` when no endpoint is set.
+    pub geyser: Option<crate::source::yellowstone::GeyserConfig>,
     pub helius_api_key: Secret,
     /// Helius WebSocket / RPC base URLs (no key; the key is appended from `HELIUS_API_KEY`).
     pub helius_ws_url: String,
@@ -151,7 +163,9 @@ impl Config {
             burst: bounded("BACKFILL_BURST", "10", 1.0, 1000.0)?,
         };
         let meter_flush_s = bounded("INGEST_METER_FLUSH_S", "60", 5.0, 3600.0)? as u64;
+        let geyser = crate::source::yellowstone::GeyserConfig::from_lookup(&get)?;
         Ok(Self {
+            geyser,
             backfill,
             meter_flush_s,
             trading_mode,
