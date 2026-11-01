@@ -16,6 +16,15 @@ dependencies:
   go_router: ">=14.2.0 <18.0.0"
   google_fonts: ^9.0.0
   intl: ">=0.19.0 <1.0.0"
+  # Task (e), approved by Boss 29 Okt 2026 after the code review in docs/SIWS_LOGIN_REVIEW.md §11.
+  # EXACT pins; lockfile sha256 checked against /workspace/dev_team/siws_review/cr/PUB_SHA256.txt.
+  pinenacl: 0.6.0
+  flutter_secure_storage: 11.2.0
+
+# Pin the reviewed federated implementations exactly (SIWS_LOGIN_REVIEW §11.2).
+dependency_overrides:
+  flutter_secure_storage_darwin: 0.4.3
+  flutter_secure_storage_platform_interface: 2.1.1
 
 dev_dependencies:
   flutter_test:
