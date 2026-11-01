@@ -58,6 +58,11 @@ pub struct Config {
     pub marks_sol_usd: Option<f64>,
     pub marks_min_interval_ms: i64,
     pub marks_channel: String,
+    /// Gap/reconnect JSON-RPC backfill (`BACKFILL_ENABLED`, `BACKFILL_MAX_SLOTS`, `BACKFILL_MAX_SIGNATURES`,
+    /// `BACKFILL_MAX_PAGES`, `BACKFILL_RPS`, `BACKFILL_BURST`).
+    pub backfill: crate::backfill::BackfillConfig,
+    /// Bytes/day meter: DB flush and log interval (`INGEST_METER_FLUSH_S`, default 60; summary log every 15 min).
+    pub meter_flush_s: u64,
 }
 
 fn var(k: &str) -> Option<String> {
@@ -129,7 +134,26 @@ impl Config {
         if !crate::marks::valid_channel(&marks_channel) {
             return Err(ConfigError::Invalid("SSE_MARKS_CHANNEL", marks_channel));
         }
+        let bounded = |k: &'static str, d: &str, lo: f64, hi: f64| -> Result<f64, ConfigError> {
+            let v = parse_num(k, d)?;
+            if !(lo..=hi).contains(&v) || !v.is_finite() {
+                return Err(ConfigError::Invalid(k, v.to_string()));
+            }
+            Ok(v)
+        };
+        let backfill = crate::backfill::BackfillConfig {
+            enabled: get("BACKFILL_ENABLED").is_none_or(|v| v.trim() != "false"),
+            max_slots: bounded("BACKFILL_MAX_SLOTS", "1500", 1.0, 216_000.0)? as u64,
+            max_signatures: bounded("BACKFILL_MAX_SIGNATURES", "2000", 1.0, 50_000.0)? as usize,
+            max_pages: bounded("BACKFILL_MAX_PAGES", "5", 1.0, 100.0)? as usize,
+            page_limit: 1000,
+            rps: bounded("BACKFILL_RPS", "5", 0.1, 100.0)?,
+            burst: bounded("BACKFILL_BURST", "10", 1.0, 1000.0)?,
+        };
+        let meter_flush_s = bounded("INGEST_METER_FLUSH_S", "60", 5.0, 3600.0)? as u64;
         Ok(Self {
+            backfill,
+            meter_flush_s,
             trading_mode,
             workspace_id: get("WORKSPACE_ID").unwrap_or_else(|| "local-dev".into()),
             strategy_id: get("STRATEGY_ID").unwrap_or_else(|| "example".into()),
@@ -198,6 +222,29 @@ mod tests {
             ("HELIUS_WS_URL", "wss://x/?api-key=leak"),
         ])));
         assert!(matches!(r, Err(ConfigError::Invalid("HELIUS_WS_URL", _))));
+    }
+
+    #[test]
+    fn backfill_bounds_from_env() {
+        let c =
+            Config::from_lookup(lookup(HashMap::from([("TRADING_MODE", "paper")]))).expect("cfg");
+        assert_eq!(c.backfill, crate::backfill::BackfillConfig::default());
+        assert_eq!(c.meter_flush_s, 60);
+        let c = Config::from_lookup(lookup(HashMap::from([
+            ("TRADING_MODE", "paper"),
+            ("BACKFILL_ENABLED", "false"),
+            ("BACKFILL_RPS", "2.5"),
+            ("BACKFILL_MAX_SLOTS", "300"),
+        ])))
+        .expect("cfg");
+        assert!(!c.backfill.enabled);
+        assert_eq!(c.backfill.rps, 2.5);
+        assert_eq!(c.backfill.max_slots, 300);
+        let r = Config::from_lookup(lookup(HashMap::from([
+            ("TRADING_MODE", "paper"),
+            ("BACKFILL_RPS", "0"),
+        ])));
+        assert!(matches!(r, Err(ConfigError::Invalid("BACKFILL_RPS", _))));
     }
 
     #[test]

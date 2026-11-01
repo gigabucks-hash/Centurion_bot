@@ -42,6 +42,12 @@ describe("health, clock, envelope", () => {
     const ready = await call(h.base, "GET", "/readyz");
     assert.equal(ready.status, 200);
     assert.equal(ready.body.db, "ok");
+    // ingest bytes/day meter detail (UTC day, per source; int64 strings)
+    await h.db.query("select public.ingest_bytes_add((now() at time zone 'utc')::date, 'helius', 2048, 3)");
+    const meter = (await call(h.base, "GET", "/readyz")).body.ingest_bytes_today;
+    assert.equal(meter.day_utc, new Date().toISOString().slice(0, 10));
+    assert.deepEqual(meter.sources.helius, { bytes: "2048", frames: "3" });
+    assert.equal((await call(h.base, "GET", "/healthz")).body.ingest_bytes_today, undefined, "liveness stays DB-free");
   });
 
   test("unknown route, auth failures and localized messages use the errors.json envelope", async () => {

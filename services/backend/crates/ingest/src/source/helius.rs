@@ -13,6 +13,7 @@
 //! Decoding is pure and unit-tested against real mainnet frames in `services/backend/fixtures/mainnet/`
 //! (plus synthetic frames for shapes mainnet no longer emits). Event reserves are not used as a SOL pool:
 //! some curves quote in a non-SOL token and the event carries no quote mint.
+use crate::backfill::{backfill, BackfillConfig, HttpRpc, StreamCursor};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -48,7 +49,14 @@ pub struct HeliusSource {
     pub enrich: bool,
     /// Bonding-curve accounts (pool state + quote mint), refreshed from trades and `getAccountInfo`.
     pub curves: tokio::sync::Mutex<CurveCache>,
+    /// Gap/reconnect backfill (JSON-RPC `getSignaturesForAddress` + `getTransaction`).
+    pub backfill: BackfillConfig,
+    /// Newest stream slot + signatures already delivered (dedup between stream and backfill).
+    pub cursor: tokio::sync::Mutex<StreamCursor>,
 }
+
+/// Signatures remembered for stream/backfill dedup.
+pub const SEEN_SIGNATURES_CAPACITY: usize = 50_000;
 
 pub const CURVE_CACHE_CAPACITY: usize = 20_000;
 pub const CURVE_CACHE_TTL_MS: i64 = 30_000;
@@ -165,6 +173,8 @@ impl HeliusSource {
                 CURVE_CACHE_TTL_MS,
                 CURVE_CACHE_MAX_SLOT_LAG,
             )),
+            backfill: BackfillConfig::default(),
+            cursor: tokio::sync::Mutex::new(StreamCursor::new(SEEN_SIGNATURES_CAPACITY)),
         }
     }
     fn ws_url(&self) -> String {
@@ -534,6 +544,39 @@ enum Exit {
 }
 
 impl HeliusSource {
+    /// Push decoded launch-program events downstream (stream and backfill share this path).
+    #[allow(clippy::too_many_arguments)]
+    async fn emit(
+        &self,
+        tx: &mpsc::Sender<IngestEvent>,
+        fetcher: &dyn AccountFetcher,
+        http: &reqwest::Client,
+        signature: &str,
+        slot: u64,
+        events: Vec<CurveEvent>,
+        enrich: bool,
+    ) -> Result<(), ()> {
+        for ev in events {
+            let created_mint = match &ev {
+                CurveEvent::Created { mint, .. } => Some(mint.clone()),
+                _ => None,
+            };
+            if let Some(ie) = to_ingest(ev.clone(), now_ms()) {
+                let ie = {
+                    let mut cache = self.curves.lock().await;
+                    attach_curve(&mut cache, fetcher, &ev, slot, ie, now_ms()).await
+                };
+                if tx.send(ie).await.is_err() {
+                    return Err(());
+                }
+            }
+            if let (true, Some(m)) = (enrich, created_mint) {
+                self.enrich_created(http, signature, &m).await;
+            }
+        }
+        Ok(())
+    }
+
     async fn enrich_created(&self, http: &reqwest::Client, sig: &str, mint: &str) {
         let res = http
             .post(self.rpc_url())
@@ -576,9 +619,44 @@ impl HeliusSource {
             return Exit::Reconnect(format!("subscribe: {e}"));
         }
         tracing::info!(program = %self.program, "helius logsSubscribe sent");
+        // reconnect = possible gap: backfill from the last stream slot, concurrently with the new stream
+        let resume = self.cursor.lock().await.last_slot;
+        let rpc = HttpRpc {
+            url: self.rpc_url(),
+            http: http.clone(),
+        };
+        let mut bf = match (self.backfill.enabled, resume) {
+            (true, Some(slot)) => Some(Box::pin(backfill(
+                &rpc,
+                &self.backfill,
+                &self.program,
+                slot,
+                &self.cursor,
+            ))),
+            _ => None,
+        };
         let mut ping = tokio::time::interval(Duration::from_secs(30));
         loop {
             tokio::select! {
+                r = async { match bf.as_mut() { Some(f) => f.await, None => std::future::pending().await } } => {
+                    bf = None;
+                    match r {
+                        Ok(rep) => {
+                            tracing::info!(from_slot = resume, pages = rep.pages, scanned = rep.scanned, fetched = rep.fetched,
+                                recovered = rep.recovered.len(), dup = rep.dup_skipped, failed = rep.failed_skipped,
+                                truncated_by = rep.truncated_by, "helius backfill done");
+                            for r in rep.recovered {
+                                if self.emit(tx, fetcher, http, &r.signature, r.slot, r.events, false).await.is_err() {
+                                    return Exit::Downstream;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            let why = e.to_string().replace(self.api_key.expose(), "***");
+                            tracing::warn!(error = %why, from_slot = resume, "helius backfill failed (gap not recovered)");
+                        }
+                    }
+                }
                 _ = shutdown.changed() => {
                     if *shutdown.borrow() { let _ = ws.close(None).await; return Exit::Shutdown; }
                 }
@@ -589,22 +667,12 @@ impl HeliusSource {
                 }
                 msg = ws.next() => match msg {
                     Some(Ok(Message::Text(t))) => {
+                        crate::meter::global().add("helius", t.len());
                         let Some(batch) = parse_logs_notification(t.as_str()) else { continue };
-                        for ev in batch.events {
-                            let created_mint = match &ev {
-                                CurveEvent::Created { mint, .. } => Some(mint.clone()),
-                                _ => None,
-                            };
-                            if let Some(ie) = to_ingest(ev.clone(), now_ms()) {
-                                let ie = {
-                                    let mut cache = self.curves.lock().await;
-                                    attach_curve(&mut cache, fetcher, &ev, batch.slot, ie, now_ms()).await
-                                };
-                                if tx.send(ie).await.is_err() { return Exit::Downstream; }
-                            }
-                            if let (true, Some(m)) = (self.enrich, created_mint) {
-                                self.enrich_created(http, &batch.signature, &m).await;
-                            }
+                        // dedup: a backfill may already have delivered this signature
+                        if !self.cursor.lock().await.observe(&batch.signature, batch.slot) { continue }
+                        if self.emit(tx, fetcher, http, &batch.signature, batch.slot, batch.events, self.enrich).await.is_err() {
+                            return Exit::Downstream;
                         }
                     }
                     Some(Ok(Message::Close(_))) | None => return Exit::Reconnect("closed by server".into()),

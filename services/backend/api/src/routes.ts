@@ -29,8 +29,24 @@ const etag = (rev: unknown) => ({ ETag: `"${String(rev)}"` });
 
 export function buildRouter(d: Deps): Router {
   const r = new Router();
+  /** Ingest bytes/day meter (UTC day, per source); null when the meter table is unavailable. */
+  const ingestBytesToday = async () => {
+    try {
+      const q = await d.db.query(
+        `select source, bytes::text as bytes, frames::text as frames from public.ingest_bytes_daily
+          where day = (now() at time zone 'utc')::date order by source`,
+      );
+      return {
+        day_utc: new Date().toISOString().slice(0, 10),
+        sources: Object.fromEntries(q.rows.map((r) => [r.source, { bytes: r.bytes, frames: r.frames }])),
+      };
+    } catch {
+      return null;
+    }
+  };
   const health = async (ctx: Ctx, ready: boolean) => {
     let db = "ok";
+    let ingest: Awaited<ReturnType<typeof ingestBytesToday>> = null;
     if (ready) {
       try {
         await d.db.query("select 1");
@@ -38,6 +54,7 @@ export function buildRouter(d: Deps): Router {
         db = "down";
       }
       if (db !== "ok") throw new ApiError("UNAVAILABLE", { db });
+      ingest = await ingestBytesToday();
     }
     send(ctx, 200, {
       service: `${PRODUCT_NAME} API`,
@@ -47,7 +64,7 @@ export function buildRouter(d: Deps): Router {
       modes_enabled: ["practice"],
       live_executor: "disabled",
       contracts_version: CONTRACTS_VERSION,
-      ...(ready ? { db } : {}),
+      ...(ready ? { db, ingest_bytes_today: ingest } : {}),
     });
   };
   r.add("GET", "/healthz", (ctx) => health(ctx, false));

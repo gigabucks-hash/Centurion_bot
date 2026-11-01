@@ -62,6 +62,43 @@ async fn marks_sink(cfg: &Config) -> Option<MarkSink> {
     }
 }
 
+/// Bytes/day meter: flush deltas to `public.ingest_bytes_daily` (when DATABASE_URL is set) and log a
+/// per-source summary every 15 min. A failed flush keeps the deltas for the next round.
+async fn spawn_meter(cfg: &Config) {
+    let client = if cfg.database_url.is_empty() {
+        None
+    } else {
+        match tokio_postgres::connect(cfg.database_url.expose(), tokio_postgres::NoTls).await {
+            Ok((c, conn)) => {
+                tokio::spawn(conn);
+                Some(c)
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "bytes/day meter: DB sink unavailable (logs only)");
+                None
+            }
+        }
+    };
+    let every = std::time::Duration::from_secs(cfg.meter_flush_s);
+    tokio::spawn(async move {
+        let meter = ingest::meter::global();
+        let mut tick = tokio::time::interval(every);
+        let mut last_log = std::time::Instant::now();
+        loop {
+            tick.tick().await;
+            if let Some(c) = &client {
+                if let Err(e) = ingest::meter::flush_pg(meter, c).await {
+                    tracing::warn!(error = %e, "bytes/day meter flush failed");
+                }
+            }
+            if last_log.elapsed() >= std::time::Duration::from_secs(900) {
+                meter.log_today();
+                last_log = std::time::Instant::now();
+            }
+        }
+    });
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     init_tracing();
@@ -86,6 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     let mut h = HeliusSource::new(cfg.helius_api_key.clone());
                     h.ws_base = cfg.helius_ws_url.clone();
                     h.rpc_base = cfg.helius_rpc_url.clone();
+                    h.backfill = cfg.backfill.clone();
                     sources.push(Arc::new(h));
                 }
                 // read-only mint/curve reads use the Helius RPC key when set
@@ -103,6 +141,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
         }
     }
+
+    spawn_meter(&cfg).await;
 
     let (tx, mut rx) = mpsc::channel(cfg.channel_capacity);
     let (shutdown_tx, shutdown_rx) = watch::channel(false);

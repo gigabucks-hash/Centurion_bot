@@ -199,6 +199,7 @@ impl PumpPortalSource {
                     None => return Exit::Reconnect("closed".into()),
                     Some(Err(e)) => return Exit::Reconnect(format!("read: {e}")),
                     Some(Ok(Message::Text(raw))) => {
+                        crate::meter::global().add("pumpportal", raw.len());
                         let now = now_ms();
                         let Some(frame) = parse_frame(&raw, now) else { continue };
                         let ev = {
