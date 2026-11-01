@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-refresh-quote"
+description = "Enables the refresh_quote command without any pre-configured scope."
+commands.allow = ["refresh_quote"]
+
+[[permission]]
+identifier = "deny-refresh-quote"
+description = "Denies the refresh_quote command without any pre-configured scope."
+commands.deny = ["refresh_quote"]

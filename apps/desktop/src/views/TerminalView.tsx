@@ -246,7 +246,7 @@ export function TerminalView() {
       {qlTarget && <QuickLook target={qlTarget} onClose={() => setQl(null)} />}
       {realApprove && (
         <ApproveConfirm
-          signal={realApprove}
+          signal={st.signals.find((x) => x.id === realApprove.id) ?? realApprove}
           onCancel={() => setRealApprove(null)}
           onConfirm={() => {
             const id = realApprove.id;

@@ -1,6 +1,9 @@
 //! Sentra desktop core (Tauri v2). Prototype: mock backend (wire v1.1) only (PRACTICE by default; SENTRA_MOCK_MODE=real previews Real chrome/gating, still mock).
 
+mod auth;
 mod backend;
+mod brand;
+mod deeplink;
 mod commands;
 #[cfg(test)]
 mod contract_tests;
@@ -43,7 +46,7 @@ pub fn run() {
             if std::env::var("SENTRA_MOCK_MODE").as_deref() == Ok("real") {
                 handle.state::<state::AppState>().engine.lock().unwrap().mode = model::Mode::Real;
                 if let Some(w) = handle.get_webview_window("main") {
-                    let _ = w.set_title(&format!("{} Sentra — Terminal (mock)", notify::mode_prefix(model::Mode::Real)));
+                    let _ = w.set_title(&format!("{} {}", notify::mode_prefix(model::Mode::Real), brand::app_name()));
                 }
             }
             let cfg = handle.state::<state::AppState>().engine.lock().unwrap().settings.shortcuts.clone();
@@ -60,6 +63,11 @@ pub fn run() {
             commands::get_candles,
             commands::approve_signal,
             commands::skip_signal,
+            commands::refresh_quote,
+            commands::patch_strategy,
+            commands::auth_status,
+            commands::auth_login,
+            commands::auth_logout,
             commands::request_sell,
             commands::confirm_sell,
             commands::open_chart_window,
@@ -75,5 +83,5 @@ pub fn run() {
             commands::get_exit_reason_stats,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Sentra");
+        .expect("error while running Centurion Trade");
 }

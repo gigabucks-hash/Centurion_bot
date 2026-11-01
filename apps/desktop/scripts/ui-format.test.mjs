@@ -44,10 +44,37 @@ test("Mcap / liquidity '—' tooltip key exists (common.value.unavailable)", () 
   assert.equal(typeof get(cat.id, "common.state.loading"), "string");
 });
 
-test("errors.map.json v5 covers 57 codes incl. guard_weaken_requires_approval", () => {
+test("errors.map.json v6 covers 58 codes incl. guard weaken (pending tone) + quote stale (refresh CTA)", () => {
   const e = pkg("errors.map.json");
-  assert.equal(e.errors_json_version, 5);
-  assert.equal(Object.keys(e.codes).length, 57);
-  const k = e.codes.GUARD_WEAKEN_REQUIRES_APPROVAL.key;
-  for (const l of ["en", "id"]) assert.equal(typeof get(cat[l], k), "string", `${l} ${k}`);
+  assert.equal(e.errors_json_version, 6);
+  assert.equal(Object.keys(e.codes).length, 58);
+  for (const c of ["GUARD_WEAKEN_REQUIRES_APPROVAL", "QUOTE_MISSING_OR_STALE"]) {
+    const k = e.codes[c].key;
+    for (const l of ["en", "id"]) assert.equal(typeof get(cat[l], k), "string", `${l} ${k}`);
+  }
+  assert.equal(e.codes.GUARD_WEAKEN_REQUIRES_APPROVAL.tone, "pending");
+  assert.equal(e.codes.QUOTE_MISSING_OR_STALE.cta_key, "review.quote.refresh");
+});
+
+test("1.1.4 quote formatters (i18n 0.4.7): bps → %, fee/total dash on null, quoteState from server clock", async () => {
+  const f = await import("../../../packages/i18n/format.mjs");
+  assert.equal(f.formatBps(300, "en"), "3%");
+  assert.equal(f.formatBps(25, "id"), "0,25%");
+  assert.equal(f.formatLamportsOrDash(null, "id"), "—");
+  const now = Date.parse("2026-10-29T12:00:00.000Z");
+  const q = { quote_ts: "2026-10-29T11:59:50.000Z", quote_expires_at: "2026-10-29T12:00:20.000Z" };
+  // 0.4.7: `complete` needs the 1.1.5 fields (quote_id, est_ata_rent_lamports); a 1.1.4 quote is fresh but
+  // incomplete, which is why the desktop gates Real on freshness only (QuoteBlock) until 1.1.5 ships.
+  assert.deepEqual(f.quoteState(q, 0, { mode: "real", localNowMs: now }), { state: "fresh", ageS: 10, expiresInS: 20, complete: false, blocksApprove: true });
+  const full = { ...q, quote_id: "7", est_network_fee_lamports: "25000", est_ata_rent_lamports: "0", min_out_raw: "1", total_max_lamports: "250025000" };
+  assert.equal(f.quoteState(full, 0, { mode: "real", localNowMs: now }).blocksApprove, false);
+  assert.equal(f.quoteState(full, 30_000, { mode: "real", localNowMs: now }).state, "stale"); // server clock ahead → stale
+  assert.equal(f.quoteState(q, 30_000, { mode: "practice", localNowMs: now }).blocksApprove, false); // practice never blocked
+  for (const k of ["review.quote.refresh", "review.quote.stale", "review.quote.practice_stale", "review.quote.expires_in", "guard.weaken.pending.title", "exit_reason.stall", "exit_reason.max_hold", "mcap.as_of"])
+    for (const l of ["en", "id"]) assert.equal(typeof get(cat[l], k), "string", `${l} ${k}`);
+  assert.equal(get(cat.id, "exit_reason.stall"), "Exit stagnan");
+});
+
+test("i18n 0.4.7 brand: app.name = Centurion Trade (tray tooltip + notification titles)", () => {
+  for (const l of ["en", "id"]) assert.equal(get(cat[l], "app.name"), "Centurion Trade");
 });

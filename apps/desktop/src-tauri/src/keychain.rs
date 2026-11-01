@@ -6,7 +6,7 @@
 #[cfg(feature = "keychain")]
 #[allow(dead_code)] // wired up in Week 2 (backend auth)
 mod imp {
-    const SERVICE: &str = "com.sentra.app";
+    const SERVICE: &str = "com.centuriontrade.app"; // = bundle identifier (rebrand 2026-10-29)
 
     pub fn set_token(account: &str, token: &str) -> Result<(), String> {
         keyring::Entry::new(SERVICE, account)

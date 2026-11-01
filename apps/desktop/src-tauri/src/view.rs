@@ -122,6 +122,11 @@ pub struct PickView {
     pub expired_reason: Option<ProposalExpiredReason>,
     #[serde(flatten)]
     pub trade: Tradeability,
+    /// 1.1.4 quote (fee, total max, slippage, expiry), merged from proposal.created / proposal.updated.
+    #[serde(flatten)]
+    pub quote: crate::model::ProposalQuote,
+    /// Last approve was refused with `409 QUOTE_MISSING_OR_STALE` → the card shows "refresh quote".
+    pub quote_stale: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -262,6 +267,9 @@ pub struct StrategyView {
     pub name: String,
     pub rev: u64,
     pub status: String,
+    /// 1.1.4 exit timers from settings (`time_stop_s`, `stall_exit`).
+    #[serde(flatten)]
+    pub exits: crate::model::ExitTimers,
 }
 
 /// Result of a stale write (409) shown as a conflict toast; the UI refreshes from `current`.

@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { CandleView, CoreApi, ExitReasonStatView, SellQuote, Settings, Snapshot, StrategyView, TimelineItem } from "./contract";
+import type { AuthView, CandleView, CoreApi, PatchOutcome, ExitReasonStatView, SellQuote, Settings, Snapshot, StrategyView, TimelineItem } from "./contract";
 
 /** Thin typed wrapper over Tauri IPC. Commands use snake_case args (`#[tauri::command(rename_all = "snake_case")]`). */
 export const tauriAdapter: CoreApi = {
@@ -21,6 +21,11 @@ export const tauriAdapter: CoreApi = {
   focusMainForSignal: (id) => invoke<void>("focus_main_for_signal", { id }),
   hideApprovalPopup: () => invoke<void>("hide_approval_popup"),
   setSettings: (settings: Settings) => invoke<Settings>("set_settings", { settings }),
+  refreshQuote: (id) => invoke<void>("refresh_quote", { id }),
+  patchStrategy: (id, settingsPatch) => invoke<PatchOutcome>("patch_strategy", { id, settings_patch: settingsPatch }),
+  authStatus: () => invoke<AuthView>("auth_status"),
+  authLogin: () => invoke<void>("auth_login"),
+  authLogout: () => invoke<void>("auth_logout"),
   on: async (event, cb) => {
     const un = await listen(event, (e) => cb(e.payload as never));
     return un;

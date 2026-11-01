@@ -16,7 +16,7 @@
 //! (`DROP_LIVE_PCT`) so the client's gap → catch-up resync path is exercised constantly.
 //! Its clock runs `SKEW_MS` ahead of the local clock so countdowns must use `server_now`.
 
-use super::{ApiFailure, ApiResult, Inbound, Transport};
+use super::{ApiFailure, ApiResult, Inbound, StrategyPatch, Transport};
 use crate::model::*;
 use crate::util::{fake_mint, now_ms, Rng};
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
@@ -91,6 +91,17 @@ const RESET_COOLDOWN_MS: i64 = 24 * 3_600_000;
 /// Mock "other device" edits a strategy this often (exercises `strategy.*` + rev refresh).
 const REMOTE_EDIT_EVERY_MS: i64 = 75_000;
 const FEE_BPS: i64 = 125;
+/// 1.1.4 quote estimate constants (papersim-like) and refresh cadence (~15 s in practice, valid 30 s).
+const BASE_FEE_LAMPORTS: i128 = 5_000;
+const PRIORITY_FEE_LAMPORTS: i128 = 20_000;
+const MAX_SLIPPAGE_BPS: i64 = 300;
+/// 1.1.5 token-account rent (first buy of a mint creates the ATA; ~0.00204 SOL).
+const ATA_RENT_LAMPORTS: i128 = 2_039_280;
+const QUOTE_TTL_MS: i64 = 30_000;
+const QUOTE_REFRESH_MS: i64 = 15_000;
+const MOCK_TIME_STOP_S: i64 = 600;
+const MOCK_STALL_WINDOW_S: i64 = 90;
+const MOCK_STALL_MIN_MOVE_PCT: f64 = 1.0;
 const NETWORK_FEE: i128 = 25_000;
 const SOL_USD: i64 = 150;
 
@@ -165,6 +176,9 @@ struct Prop {
     status: ProposalStatus,
     expires_ms: i64,
     token: Option<String>,
+    /// 1.1.4 quote (papersim-style estimate) and when it was last refreshed.
+    quote: ProposalQuote,
+    quoted_ms: i64,
 }
 struct Pos {
     /// Server position id (1.1.2 close path `/positions/{id}/close`).
@@ -181,6 +195,8 @@ struct Pos {
     realized: i128,
     rev: u64,
     decimals: u8,
+    /// Stall-exit reference (price, ms): reset whenever the price moves ≥ min_move_pct from it.
+    stall_ref: (Decimal, i64),
 }
 
 const NT_WATCH_MAX: usize = 8;
@@ -205,6 +221,10 @@ struct Server {
     idem: HashMap<String, (String, serde_json::Value)>,
     /// WF-20: not-tradeable screener coins keep getting marks (chart & metrics stay viewable, read-only). Bounded.
     nt_watch: std::collections::VecDeque<String>,
+    /// Dev knob `SENTRA_MOCK_QUOTE_STRICT=1`: apply the server's Real-mode rule (approve with a missing or
+    /// expired quote → 409 QUOTE_MISSING_OR_STALE) so the refresh-quote UI can be exercised. Practice
+    /// servers never block on the quote, so it is off by default.
+    quote_strict: bool,
     /// PRACTICE_CASH_INSUFFICIENT notice already sent (cleared by the next filled entry / reset).
     entries_paused: bool,
     slot: i64,
@@ -507,13 +527,87 @@ impl Server {
         self.emit("entry.armed", Actor::Entry, &ck, Some(&sid), Some(&ck), Some(&mint),
             json!({"pick_id": pick_id, "condition": "momentum_entry", "expires_at": IsoTs::from_ms(expires)}), untrusted.clone());
         let pid = self.uuid('3');
-        self.proposals.insert(pid.clone(), Prop { id: pid.clone(), ck: ck.clone(), mint: mint.clone(), strategy_id: sid.clone(), version: 1, status: ProposalStatus::Pending, expires_ms: expires, token: None });
-        self.emit("proposal.created", Actor::Entry, &pid, Some(&sid), Some(&ck), Some(&mint), json!({
+        let now = self.now();
+        let quote = self.quote_for(&mint, now);
+        self.proposals.insert(pid.clone(), Prop { id: pid.clone(), ck: ck.clone(), mint: mint.clone(), strategy_id: sid.clone(), version: 1, status: ProposalStatus::Pending, expires_ms: expires, token: None, quote: quote.clone(), quoted_ms: now });
+        let mut created = json!({
             "proposal_id": pid, "kind": "buy_pick", "rev": 1, "expires_at": IsoTs::from_ms(expires), "first_buy": true,
             "approval_mode": "ask_every_buy", "amount_lamports": BUY_LAMPORTS.to_string(), "risk_level": "medium",
             "summary": format!("Beli {} SOL (paper)", sol_of_lam(BUY_LAMPORTS).normalize()), "base_rev": null, "weakening": false, "diff": null, "estimate": null,
             // 1.1.2: self-contained card
-            "mint": mint, "symbol": untrusted.symbol, "price_sol": Dec(price)}), untrusted);
+            "mint": mint, "symbol": untrusted.symbol, "price_sol": Dec(price)});
+        merge(&mut created, serde_json::to_value(&quote).unwrap_or_default());
+        self.emit("proposal.created", Actor::Entry, &pid, Some(&sid), Some(&ck), Some(&mint), created, untrusted);
+    }
+
+    /// 1.1.4 quote estimate (papersim-like): network fee = base 5 000 + priority 20 000 lamports, swap fee
+    /// `FEE_BPS`, max slippage 300 bps, min out after max slippage, total max = SOL in + network fee.
+    /// Valid for `QUOTE_TTL_MS`.
+    fn quote_for(&self, mint: &str, now: i64) -> ProposalQuote {
+        let (price, decimals) = self.coins.get(mint).map(|c| (c.price_sol, c.decimals)).unwrap_or((Decimal::ONE, 6));
+        let net_sol = sol_of_lam(BUY_LAMPORTS) * (Decimal::ONE - Decimal::from(FEE_BPS) / Decimal::from(10_000));
+        let min_ui = if price.is_zero() { Decimal::ZERO } else { net_sol / price * (Decimal::ONE - Decimal::from(MAX_SLIPPAGE_BPS) / Decimal::from(10_000)) };
+        let min_raw = (min_ui * Decimal::from(10u64.pow(decimals as u32))).floor().to_u128().unwrap_or(0);
+        let network = BASE_FEE_LAMPORTS + PRIORITY_FEE_LAMPORTS;
+        ProposalQuote {
+            est_network_fee_lamports: Some(Lamports(network)),
+            priority_fee_lamports: Some(Lamports(PRIORITY_FEE_LAMPORTS)),
+            swap_fee_bps: Some(FEE_BPS as Num),
+            max_slippage_bps: Some(MAX_SLIPPAGE_BPS as Num),
+            min_out_raw: Some(RawQty(min_raw)),
+            total_max_lamports: Some(Lamports(BUY_LAMPORTS + network + ATA_RENT_LAMPORTS)),
+            quote_ts: Some(IsoTs::from_ms(now)),
+            quote_expires_at: Some(IsoTs::from_ms(now + QUOTE_TTL_MS)),
+            // 1.1.5: a new quote_id per quote (int64 string; ms-based in the mock, monotonic per proposal).
+            quote_id: Some(now.to_string()),
+            est_ata_rent_lamports: Some(Lamports(ATA_RENT_LAMPORTS)),
+            expected_out_lamports: None,
+            min_out_lamports: None,
+        }
+    }
+
+    /// A guard-loosening PATCH: `proposal.created` (kind guard_change, weakening, 24 h expiry, base_rev =
+    /// current rev) and the 202 body. The desktop never decides it (Web/Mobile review flow).
+    fn guard_change_proposal(&mut self, i: usize, base: u64, patch: serde_json::Value, weakened: Vec<String>, now: i64) -> StrategyPatch {
+        let (sid, name) = (self.strategies[i].id.clone(), self.strategies[i].name.clone());
+        let pid = self.uuid('3');
+        let expires = now + 24 * 3_600_000;
+        let diff: Vec<serde_json::Value> = weakened.iter().map(|f| json!({"field": f, "before": self.strategies[i].settings.get(f), "after": patch.get(f)})).collect();
+        self.emit("proposal.created", Actor::User, &pid, Some(&sid), None, None, json!({
+            "proposal_id": pid, "kind": "guard_change", "rev": 1, "expires_at": IsoTs::from_ms(expires), "first_buy": false,
+            "approval_mode": "ask_every_buy", "amount_lamports": null, "risk_level": "high", "summary": format!("Guard change: {name}"),
+            "base_rev": base, "weakening": true, "diff": diff, "estimate": null}), Untrusted::default());
+        let proposal = json!({"id": pid, "proposal_id": pid, "workspace_id": WORKSPACE_ID, "strategy_id": sid, "kind": "guard_change", "mode": "practice",
+            "subject": name, "mint": null, "amount_lamports": null, "is_first_buy": false, "risk": "high", "weakening": true, "status": "pending", "rev": 1,
+            "expire_reason": null, "base_rev": base, "decision": null, "reject_reason": null, "decided_via": null, "decided_by": null,
+            "payload": {"settings_patch": patch}, "created_at": IsoTs::from_ms(now), "expires_at": IsoTs::from_ms(expires), "decided_at": null,
+            "est_network_fee_lamports": null, "priority_fee_lamports": null, "swap_fee_bps": null, "max_slippage_bps": null,
+            "min_out_raw": null, "total_max_lamports": null, "quote_ts": null, "quote_expires_at": null});
+        StrategyPatch::PendingApproval {
+            proposal: Box::new(serde_json::from_value(proposal).expect("mock ApprovalWire")),
+            guard_change: json!({"strategy_id": sid, "base_rev": base, "fields": weakened, "status": "pending"}),
+            server_now: IsoTs::from_ms(now),
+        }
+    }
+
+    /// Silent quote refresh of pending proposals every `QUOTE_REFRESH_MS` (`proposal.updated`, rev + 1).
+    fn refresh_quotes(&mut self, now: i64) {
+        let due: Vec<String> = self.proposals.values().filter(|p| p.status == ProposalStatus::Pending && now - p.quoted_ms >= QUOTE_REFRESH_MS).map(|p| p.id.clone()).collect();
+        for id in due {
+            let mint = self.proposals[&id].mint.clone();
+            let q = self.quote_for(&mint, now);
+            let (ck, sid, rev) = {
+                let p = self.proposals.get_mut(&id).unwrap();
+                // 1.1.5: a re-quote is a new quote_id, not a new rev (decision tokens stay valid).
+                p.quote = q.clone();
+                p.quoted_ms = now;
+                (p.ck.clone(), p.strategy_id.clone(), p.version)
+            };
+            let mut payload = json!({"proposal_id": id, "kind": "buy_pick", "rev": rev});
+            merge(&mut payload, serde_json::to_value(&q).unwrap_or_default());
+            let untrusted = self.coins.get(&mint).map(|c| c.untrusted.clone()).unwrap_or_default();
+            self.emit("proposal.updated", Actor::Entry, &id, Some(&sid), Some(&ck), Some(&mint), payload, untrusted);
+        }
     }
 
     fn watch_not_tradeable(&mut self, mint: &str) {
@@ -594,7 +688,10 @@ impl Server {
             let entry = sol_of_lam(p.cost) / ui_qty(p.qty_raw, p.decimals).max(Decimal::new(1, 12));
             let (r, peak_r) = (price / entry, p.peak / entry);
             let two = Decimal::from(2);
-            if r >= two {
+            let timers = self.strategies.iter().find(|s| s.id == p.strategy_id).map(|s| crate::model::ExitTimers::from_settings(&s.settings)).unwrap_or_default();
+            if let Some(why) = timer_exit(&timers, p, price, now) {
+                exits.push((p.key.clone(), why.0, why.1, why.2));
+            } else if r >= two {
                 exits.push((p.key.clone(), ExitReason::ProfitTarget, 0, "Profit target +100%: sell 100%"));
             } else if peak_r >= dec(1.3) && price <= p.peak * dec(0.8) {
                 exits.push((p.key.clone(), ExitReason::PeakTrail, 1, "Peak trail 20% below high"));
@@ -605,6 +702,14 @@ impl Server {
         for (key, rule, idx, detail) in exits {
             self.sell_inner(&key, Decimal::from(100), rule, idx, detail, Actor::Exit);
         }
+        // Move the stall references of the survivors.
+        for p in self.positions.values_mut() {
+            let price = self.coins.get(&p.mint).map(|c| c.price_sol).unwrap_or_default();
+            if moved_pct(p.stall_ref.0, price) >= Decimal::from_f64(MOCK_STALL_MIN_MOVE_PCT).unwrap_or_default() {
+                p.stall_ref = (price, now);
+            }
+        }
+        self.refresh_quotes(now);
 
         let expired: Vec<String> = self.proposals.values().filter(|p| p.status == ProposalStatus::Pending && p.expires_ms <= now).map(|p| p.id.clone()).collect();
         for id in expired {
@@ -684,7 +789,7 @@ impl Server {
         let mut fill = fill;
         fill["id"] = json!(self.uuid('6'));
         fill["created_at"] = json!(IsoTs::from_ms(opened));
-        self.positions.insert(key.clone(), Pos { id: pos_id.clone(), key: key.clone(), ck: ck.clone(), mint: mint.clone(), strategy_id: sid.clone(), qty_raw, cost: BUY_LAMPORTS, peak: mark, opened_ms: opened, untrusted: untrusted.clone(), realized: 0, rev: 1, decimals });
+        self.positions.insert(key.clone(), Pos { id: pos_id.clone(), key: key.clone(), ck: ck.clone(), mint: mint.clone(), strategy_id: sid.clone(), qty_raw, cost: BUY_LAMPORTS, peak: mark, opened_ms: opened, untrusted: untrusted.clone(), realized: 0, rev: 1, decimals, stall_ref: (mark, opened) });
         self.emit("position.opened", Actor::Executor, &key, Some(&sid), Some(&ck), Some(&mint),
             json!({"position_key": key, "position_id": pos_id, "mint": mint, "fill": fill, "first_buy": true, "rev": 1, "practice_epoch": self.epoch,
                 "decimals": decimals, "token_program": token_program}), untrusted);
@@ -803,7 +908,60 @@ fn default_settings(full: bool) -> serde_json::Value {
             k::LOSS_GUARDS: [{ k::AT_LOSS_PCT: 40, k::SELL_PORTION_PCT: 100 }],
         }));
     }
+    // 1.1.4 exit timers (every mock strategy): time stop 10 min (exit_reason max_hold) and stall exit
+    // (|move| < 1 % over 90 s → exit_reason stall).
+    m.insert("time_stop_s".into(), json!(MOCK_TIME_STOP_S));
+    m.insert("stall_exit".into(), json!({"window_s": MOCK_STALL_WINDOW_S, "min_move_pct": MOCK_STALL_MIN_MOVE_PCT}));
     serde_json::Value::Object(m)
+}
+
+/// A complete 1.1.4 `ApprovalWire` body (tests of the HTTP adapters).
+#[cfg(test)]
+pub fn sample_approval_wire(kind: &str) -> serde_json::Value {
+    json!({"id": "a", "proposal_id": "30000000-0000-4000-8000-000000000001", "workspace_id": WORKSPACE_ID, "strategy_id": null, "kind": kind,
+        "mode": "practice", "subject": null, "mint": null, "amount_lamports": null, "is_first_buy": false, "risk": "high", "weakening": kind == "guard_change",
+        "status": "pending", "rev": 1, "expire_reason": null, "base_rev": 3, "decision": null, "reject_reason": null, "decided_via": null, "decided_by": null,
+        "payload": {}, "created_at": "2026-10-29T08:41:00.000Z", "expires_at": "2026-10-30T08:41:00.000Z", "decided_at": null,
+        "est_network_fee_lamports": null, "priority_fee_lamports": null, "swap_fee_bps": null, "max_slippage_bps": null,
+        "min_out_raw": null, "total_max_lamports": null, "quote_ts": null, "quote_expires_at": null})
+}
+
+/// Guard fields a patch makes less strict (mock subset of SQL `guard_weakened_fields()`): a lower
+/// score threshold / liquidity floor, a higher holder-share cap, or a guard check switched off.
+fn weakened_fields(cur: &serde_json::Value, patch: &serde_json::Value) -> Vec<String> {
+    let num = |v: Option<&serde_json::Value>| v.and_then(|x| x.as_f64());
+    let mut out = Vec::new();
+    for (k, lower_is_looser) in [("score_threshold", true), ("min_liquidity_usd", true), ("max_top_holders_share_pct", false)] {
+        if let (Some(old), Some(new)) = (num(cur.get(k)), num(patch.get(k))) {
+            if (lower_is_looser && new < old) || (!lower_is_looser && new > old) {
+                out.push(k.to_string());
+            }
+        }
+    }
+    if let Some(g) = patch.get("guard_checks").and_then(|v| v.as_object()) {
+        if g.values().any(|v| v == &json!(false)) {
+            out.push("guard_checks".into());
+        }
+    }
+    out
+}
+
+/// |price / reference − 1| in percent.
+fn moved_pct(reference: Decimal, price: Decimal) -> Decimal {
+    if reference.is_zero() { return Decimal::from(100) }
+    ((price / reference - Decimal::ONE) * Decimal::from(100)).abs()
+}
+
+/// 1.1.4 timer exits (sell 100 %): `time_stop_s` → `max_hold`; `stall_exit` → `stall` once a full
+/// window passed without a ≥ min_move_pct move from the reference (never before a full window since entry).
+fn timer_exit(t: &crate::model::ExitTimers, p: &Pos, price: Decimal, now: i64) -> Option<(ExitReason, i64, &'static str)> {
+    if t.time_stop_s.is_some_and(|s| now - p.opened_ms >= s * 1000) {
+        return Some((ExitReason::MaxHold, 3, "Time stop"));
+    }
+    let st = t.stall_exit?;
+    let window_ms = st.window_s * 1000;
+    let flat = moved_pct(p.stall_ref.0, price) < Decimal::from_f64(st.min_move_pct).unwrap_or_default();
+    (now - p.opened_ms >= window_ms && now - p.stall_ref.1 >= window_ms && flat).then_some((ExitReason::Stall, 4, "Stall exit"))
 }
 
 /// Mock `plan_state` (1.1.2 `PlanState`, discriminated `PlanStep`) for the mock exit plan:
@@ -854,6 +1012,7 @@ impl MockTransport {
             decided: HashMap::new(),
             idem: HashMap::new(),
             nt_watch: Default::default(),
+            quote_strict: std::env::var("SENTRA_MOCK_QUOTE_STRICT").is_ok_and(|v| v == "1"),
             entries_paused: false,
             seq_job: 9_000_000_000,
             slot: 301_223_344,
@@ -960,6 +1119,7 @@ impl Transport for MockTransport {
             expires_at: IsoTs::from_ms(p.expires_ms),
             decision_token: pending.then_some(token),
             decision_token_expires_at: pending.then(|| IsoTs::from_ms(p.expires_ms.min(now + 15 * 60_000))),
+            quote: p.quote.clone(),
         };
         Ok(ApiItem { data: d, server_now: IsoTs::from_ms(now) })
     }
@@ -1003,6 +1163,11 @@ impl Transport for MockTransport {
             return s.err(409, "VERSION_CONFLICT", &format!("Approval rev is {v}"), json!({"current_rev": v, "base_rev": req.expected_rev, "current": {"proposal_id": proposal_id, "rev": v}}));
         }
         let (ck, mint, sid) = (p.ck.clone(), p.mint.clone(), p.strategy_id.clone());
+        if req.decision == Decision::Approve && s.quote_strict && p.quote.is_stale(now) {
+            // Real-mode server rule (SQL approval_quote_check); practice never blocks.
+            let exp = p.quote.quote_expires_at.clone();
+            return s.err(409, "QUOTE_MISSING_OR_STALE", "Quote missing or expired; refresh it before approving", json!({"quote_expires_at": exp}));
+        }
         if req.decision == Decision::Approve && !s.coins.get(&mint).is_some_and(Coin::tradeable) {
             // Server-side WF-20 guard (desktop already blocks): N-05 order.failed + 422.
             s.order_failed(&mint, "buy", Some(proposal_id), Some(BUY_LAMPORTS), None);
@@ -1120,7 +1285,7 @@ impl Transport for MockTransport {
         Ok(ApiItem { data: out, server_now: IsoTs::from_ms(now) })
     }
 
-    async fn patch_strategy(&self, id: &str, _idem_key: &str, if_match: Option<u64>, settings_patch: serde_json::Value) -> ApiResult<ApiItem<StrategySummary>> {
+    async fn patch_strategy(&self, id: &str, _idem_key: &str, if_match: Option<u64>, settings_patch: serde_json::Value) -> ApiResult<StrategyPatch> {
         let mut s = self.inner.lock().unwrap();
         let now = s.now();
         let Some(i) = s.strategies.iter().position(|x| x.id == id) else { return s.err(404, "NOT_FOUND", "Resource not found or not visible", json!({})) };
@@ -1131,6 +1296,11 @@ impl Transport for MockTransport {
         let mut patch = settings_patch;
         crate::keys::normalize(&mut patch);
         let keys: Vec<String> = patch.as_object().map(|m| m.keys().cloned().collect()).unwrap_or_default();
+        // 1.1.4: loosening any guard → 202 + guard_change proposal; nothing is applied (SQL guard_weakened_fields()).
+        let weakened = weakened_fields(&s.strategies[i].settings, &patch);
+        if !weakened.is_empty() {
+            return Ok(s.guard_change_proposal(i, base, patch, weakened, now));
+        }
         let st = &mut s.strategies[i];
         if let (Some(dst), Some(src)) = (st.settings.as_object_mut(), patch.as_object()) {
             for (k, v) in src {
@@ -1145,7 +1315,7 @@ impl Transport for MockTransport {
         st.history.push((st.rev, keys.clone(), "desktop".into(), now));
         let out = st.summary();
         s.emit("strategy.updated", Actor::User, id, Some(id), None, None, json!({"rev": out.rev, "base_rev": base, "changed_fields": keys}), Untrusted::default());
-        Ok(ApiItem { data: out, server_now: IsoTs::from_ms(now) })
+        Ok(StrategyPatch::Applied(ApiItem { data: out, server_now: IsoTs::from_ms(now) }))
     }
 
     async fn reset_practice(&self, _idem_key: &str, if_match: Option<u64>) -> ApiResult<ApiItem<PracticeResetResponse>> {
@@ -1266,7 +1436,8 @@ mod tests {
         let t = MockTransport::new(0);
         let id = "20000000-0000-0000-0000-00000000000a";
         assert_eq!(t.set_strategy_paused(id, "k0", None, true).await.unwrap_err(), ApiFailure::PreconditionRequired);
-        let s1 = t.patch_strategy(id, "k", Some(1), json!({"peak_trail_pct": 25})).await.unwrap().data;
+        let StrategyPatch::Applied(s1) = t.patch_strategy(id, "k", Some(1), json!({"peak_trail_pct": 25})).await.unwrap() else { panic!("applied") };
+        let s1 = s1.data;
         assert_eq!(s1.rev, 2);
         t.with(|s| s.remote_edit(0, "status")); // mobile pauses it → rev 3
         let err = t.set_strategy_paused(id, "k2", Some(2), false).await.unwrap_err();
@@ -1386,5 +1557,83 @@ mod tests {
         assert_eq!(crate::commands::skip_reason(true), ApprovalRejectReason::UserDeclined);
         let ap = ApprovalDecisionRequest { decision: Decision::Approve, token: "x".into(), expected_rev: 1, reason: None, reject_reason: None };
         assert!(serde_json::to_value(&ap).unwrap().get("reject_reason").is_none());
+    }
+
+    #[tokio::test]
+    async fn quote_1_1_5_refresh_new_quote_id_same_rev_and_strict_mode_refuses_stale() {
+        let t = MockTransport::new(0);
+        let pid = pending_id(&t);
+        let ev = t.list_events(0, 1000).await.unwrap();
+        let created = ev.items.iter().find(|e| e.kind == "proposal.created" && e.payload["proposal_id"] == pid.as_str()).unwrap();
+        assert_eq!(created.payload["total_max_lamports"], (BUY_LAMPORTS + 25_000 + ATA_RENT_LAMPORTS).to_string());
+        assert_eq!(created.payload["swap_fee_bps"], 125.0);
+        assert!(created.payload["quote_expires_at"].is_string());
+        // refresh due → silent proposal.updated, same rev + new quote_id (1.1.5), approval resource carries the new quote
+        let now = t.with(|s| {
+            s.proposals.get_mut(&pid).unwrap().quoted_ms -= QUOTE_REFRESH_MS;
+            let n = s.now();
+            s.refresh_quotes(n);
+            n
+        });
+        let ev = t.list_events(0, 1000).await.unwrap();
+        let up = ev.items.iter().rev().find(|e| e.kind == "proposal.updated").expect("proposal.updated");
+        assert_eq!(up.payload["rev"], 1);
+        assert!(up.payload["quote_id"].is_string());
+        assert!(matches!(KnownEvent::decode(up), Some(Ok(KnownEvent::ProposalUpdated(ref u))) if u.version == 1 && u.quote.is_set() && u.quote.quote_id.is_some()));
+        let a = t.get_approval(&pid).await.unwrap().data;
+        assert_eq!(a.version, 1);
+        assert!(!a.quote.is_stale(now));
+        // strict (Real-rule) knob: expired quote → 409 QUOTE_MISSING_OR_STALE; practice default never blocks
+        t.with(|s| {
+            s.quote_strict = true;
+            s.proposals.get_mut(&pid).unwrap().quote.quote_expires_at = Some(IsoTs::from_ms(now - 1));
+        });
+        let req = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.clone().unwrap(), expected_rev: 1, reason: None, reject_reason: None };
+        assert_eq!(t.decide(&pid, "kq", req.clone()).await.unwrap_err().code(), "QUOTE_MISSING_OR_STALE");
+        t.with(|s| s.quote_strict = false);
+        assert!(t.decide(&pid, "kq2", req).await.is_ok(), "practice is never blocked by the quote");
+    }
+
+    #[tokio::test]
+    async fn guard_weakening_patch_is_202_pending_and_applies_nothing() {
+        let t = MockTransport::new(0);
+        let id = "20000000-0000-0000-0000-00000000000a";
+        let before = t.with(|s| s.strategies[0].settings.clone());
+        match t.patch_strategy(id, "kw", Some(1), json!({"score_threshold": 40})).await.unwrap() {
+            StrategyPatch::PendingApproval { proposal, guard_change, .. } => {
+                assert!(proposal.weakening);
+                assert_eq!(proposal.kind, ProposalKind::GuardChange);
+                assert_eq!(guard_change["fields"], json!(["score_threshold"]));
+            }
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(t.with(|s| (s.strategies[0].rev, s.strategies[0].settings.clone())), (1, before), "nothing applied");
+        let ev = t.list_events(0, 1000).await.unwrap();
+        assert!(ev.items.iter().any(|e| e.kind == "proposal.created" && e.payload["kind"] == "guard_change" && e.payload["weakening"] == true));
+        // stricter → applied
+        assert!(matches!(t.patch_strategy(id, "ks", Some(1), json!({"score_threshold": 90})).await.unwrap(), StrategyPatch::Applied(_)));
+    }
+
+    #[test]
+    fn timer_exits_time_stop_and_stall_1_1_4() {
+        let timers = crate::model::ExitTimers::from_settings(&default_settings(false));
+        assert_eq!(timers.time_stop_s, Some(MOCK_TIME_STOP_S));
+        let st = timers.stall_exit.unwrap();
+        let p0 = 1_000_000i64;
+        let px = Decimal::from_str("0.001").unwrap();
+        let pos = |opened: i64, refp: Decimal, ref_ms: i64| Pos { id: "p".into(), key: "k".into(), ck: "c".into(), mint: "m".into(), strategy_id: "s".into(), qty_raw: 1, cost: 1,
+            peak: refp, opened_ms: opened, untrusted: Untrusted::default(), realized: 0, rev: 1, decimals: 6, stall_ref: (refp, ref_ms) };
+        let w = st.window_s * 1000;
+        // flat for a full window → stall
+        assert_eq!(timer_exit(&timers, &pos(p0, px, p0), px, p0 + w).map(|x| x.0), Some(ExitReason::Stall));
+        // not before a full window since entry
+        assert_eq!(timer_exit(&timers, &pos(p0, px, p0), px, p0 + w - 1), None);
+        // moved ≥ min_move_pct → no stall
+        assert_eq!(timer_exit(&timers, &pos(p0, px, p0), px * Decimal::from_str("1.02").unwrap(), p0 + w), None);
+        // time stop wins once the hold time passed
+        assert_eq!(timer_exit(&timers, &pos(p0, px, p0 + 1), px * Decimal::from(2), p0 + MOCK_TIME_STOP_S * 1000).map(|x| x.0), Some(ExitReason::MaxHold));
+        // out-of-range settings are ignored
+        let bad = crate::model::ExitTimers::from_settings(&json!({"time_stop_s": 0, "stall_exit": {"window_s": 2, "min_move_pct": 1}}));
+        assert_eq!(bad, crate::model::ExitTimers::default());
     }
 }

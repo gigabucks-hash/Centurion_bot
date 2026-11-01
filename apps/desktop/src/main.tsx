@@ -6,6 +6,7 @@ import { TerminalView } from "./views/TerminalView";
 import { ChartView } from "./views/ChartView";
 import { ActivityView } from "./views/ActivityView";
 import { ApprovalView } from "./views/ApprovalView";
+import { AuthGate } from "./views/AuthGate";
 import { useCoreEvents, useDocumentAttributes } from "./hooks/useCoreEvents";
 import { useTerm } from "./state/store";
 
@@ -26,10 +27,11 @@ function Root() {
   useCoreEvents();
   useDocumentAttributes();
   const { path, params } = parseRoute();
-  if (path === "/chart" && params.get("mint")) return <ChartView mint={params.get("mint")!} />;
-  if (path === "/activity") return <ActivityView />;
-  if (path === "/popup" || path === "/approval") return <ApprovalView />;
-  return <TerminalView />;
+  // SIWS builds: every window waits for a session (Rust holds it; the webview only sees the state).
+  if (path === "/chart" && params.get("mint")) return <AuthGate><ChartView mint={params.get("mint")!} /></AuthGate>;
+  if (path === "/activity") return <AuthGate><ActivityView /></AuthGate>;
+  if (path === "/popup" || path === "/approval") return <AuthGate><ApprovalView /></AuthGate>;
+  return <AuthGate><TerminalView /></AuthGate>;
 }
 
 createRoot(document.getElementById("root")!).render(

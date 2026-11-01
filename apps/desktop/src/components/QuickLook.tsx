@@ -5,6 +5,18 @@ import { pnlLamports, pnlPercent, pnlText, solText, TONE_CLASS, useLang, useT } 
 import { useTerm } from "../state/store";
 import { fmtMmSs, fmtPriceDec, fmtTime, fmtUsdLocale, shortMint } from "./format";
 import { NtChip, NtDetail } from "./NotTradeable";
+import { QuoteBlock } from "./QuoteBlock";
+import type { StrategyView } from "../api";
+
+/** 1.1.4 exit timers of the position's strategy: time stop (`max_hold`) and stall exit (`stall`). */
+function timerText(st: StrategyView | undefined, t: (k: string, a?: Record<string, string | number>) => string): string {
+  if (!st) return "";
+  const dur = (s: number) => (s >= 3600 ? `${Math.round(s / 360) / 10} h` : s >= 60 ? `${Math.round(s / 6) / 10} min` : `${s} s`);
+  const parts: string[] = [];
+  if (st.time_stop_s) parts.push(t("builder.exit.time_stop_hint", { duration: dur(st.time_stop_s) }));
+  if (st.stall_exit) parts.push(t("builder.exit.stall_hint", { min_move_pct: `${st.stall_exit.min_move_pct}%`, window: dur(st.stall_exit.window_s) }));
+  return parts.length ? ` · ${parts.join(" · ")}` : "";
+}
 
 export type QuickLookTarget = { kind: "signal"; item: PickView } | { kind: "position"; item: PositionView };
 
@@ -32,6 +44,7 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
   const t = useT();
   const lang = useLang();
   const paper = useTerm((s) => s.mode) === "practice";
+  const strategies = useTerm((s) => s.strategies);
   const rows: [string, React.ReactNode][] = [];
   const nt = target.item.tradeable === false;
   let title: string;
@@ -45,6 +58,7 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
       ["Harga", <span className="num">{fmtPriceDec(s.price_sol)} SOL</span>],
       ["Liq · Guard", <span className="num">{s.liquidity_usd != null ? fmtUsdLocale(s.liquidity_usd, lang) : "—"} · {s.guard_verdict ?? "—"}</span>],
       ["Ukuran", <span className="num">{solText(s.amount_lamports, lang, paper)}</span>],
+      ...(nt ? [] : [["Quote", <QuoteBlock s={s} />] as [string, React.ReactNode]]),
       ["Status", s.status === "pending" ? <span className={`num ${nt ? "countdown neutral" : s.expires_at_ms - now < 120_000 ? "neg" : ""}`}>pending · {fmtMmSs(s.expires_at_ms - now)}</span> : s.status === "rejected" ? "skipped" : s.status],
       ["Alasan", s.reasons.join(" · ") || "—"],
       ["Timeline", <Timeline mint={s.mint} />],
@@ -64,7 +78,7 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
         const pct = pnlPercent(p.pnl_pct, lang);
         return <span className={`num ${sol ? TONE_CLASS[sol.tone] : "muted"}`}>{pnlText(sol)} · {pnlText(pct)}</span>;
       })()],
-      ["Exit plan", <span>target profit 2x · trail dari puncak 20% {armed ? <b className="warn">aktif</b> : "setelah +30%"} · batas rugi −40%</span>],
+      ["Exit plan", <span>target profit 2x · trail dari puncak 20% {armed ? <b className="warn">aktif</b> : "setelah +30%"} · batas rugi −40%{timerText(strategies.find((x) => x.id === p.strategy_id), t)}</span>],
       ["Hold", <span className="num">{Math.floor((now - p.opened_at_ms) / 60000)}m {Math.floor(((now - p.opened_at_ms) / 1000) % 60)}s</span>],
       ["Rev · decimals", <span className="num">{p.rev ?? "—"} · {p.decimals ?? "—"}</span>],
       ["Timeline", <Timeline key={p.mint} mint={p.mint} />],

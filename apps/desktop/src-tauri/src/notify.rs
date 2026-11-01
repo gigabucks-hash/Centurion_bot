@@ -27,9 +27,9 @@ pub fn new_signal<R: Runtime>(app: &AppHandle<R>, s: &PickView, mode: Mode) {
     let res = app
         .notification()
         .builder()
-        // UX rule: notification title always starts with the mode prefix.
-        .title(format!("{} Pick baru: {sym}{fit}", mode_prefix(mode)))
-        .body("Buka approval queue: A approve · S skip")
+        // Title = i18n app.name (brand); the body keeps the mode prefix first (UX rule).
+        .title(crate::brand::app_name())
+        .body(format!("{} Pick baru: {sym}{fit} · A approve · S skip", mode_prefix(mode)))
         .show();
     if let Err(e) = res {
         log::warn!("notification failed (headless/permission?): {e}");

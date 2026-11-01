@@ -375,6 +375,41 @@ async fn smoke_real_transport() {
     }
     println!("scanned {} raw bodies/frames", seen.len());
 
+    // ---- SIWS (wallet-only login), non-signing paths: the desktop pre-check must accept the server's
+    // own message format; strangers get wallet_not_allowed; bad signature / refresh are 401 with reasons.
+    if let (Ok(domain), Ok(owner)) = (std::env::var("SMOKE_SIWS_DOMAIN"), std::env::var("SMOKE_OWNER_WALLET")) {
+        let ac = crate::auth::AuthClient::new(t.base()).expect("auth client");
+        match ac.nonce(&owner, &domain).await {
+            Ok(v) => {
+                let msg = v["data"]["message"].as_str().unwrap_or("").to_owned();
+                let pre = crate::auth::check_message(&msg, &domain, &owner, crate::util::now_ms() as i64);
+                r.check("siws nonce (owner) + desktop message pre-check", pre.is_ok(), format!("{pre:?} expires_at={}", v["data"]["expires_at"]));
+                match ac.verify(&owner, &msg, &"1".repeat(88)).await {
+                    Err(e) => r.check("siws verify bad signature → 401", e.code().starts_with("SIWS_") || e.code() == "UNAUTHENTICATED", format!("{} {:?}", e.code(), e)),
+                    Ok(_) => r.check("siws verify bad signature → 401", false, "accepted!"),
+                }
+            }
+            Err(e) => r.check("siws nonce (owner) + desktop message pre-check", false, e),
+        }
+        let stranger = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";
+        match ac.nonce(stranger, &domain).await {
+            Err(e) => {
+                let reason = if let ApiFailure::Api { details: Some(d), .. } = &e { d["reason"].as_str().unwrap_or("").to_owned() } else { String::new() };
+                r.check("siws nonce (stranger) → 403 wallet_not_allowed", e.code() == "FORBIDDEN_ROLE" && reason == "wallet_not_allowed", format!("{} reason={reason}", e.code()));
+            }
+            Ok(_) => r.check("siws nonce (stranger) → 403 wallet_not_allowed", false, "nonce issued"),
+        }
+        match ac.refresh("srt_notarealtoken0000000000000000").await {
+            Err(e) => {
+                let reason = if let ApiFailure::Api { details: Some(d), .. } = &e { d["reason"].as_str().unwrap_or("").to_owned() } else { String::new() };
+                r.check("siws refresh unknown token → 401", e.code() == "UNAUTHENTICATED", format!("{} reason={reason}", e.code()));
+            }
+            Ok(_) => r.check("siws refresh unknown token → 401", false, "refreshed!"),
+        }
+        let lo = ac.logout("srt_notarealtoken0000000000000000").await;
+        r.check("siws logout unknown token (idempotent or 401)", lo.is_ok() || lo.as_ref().err().is_some_and(|e| e.code() == "UNAUTHENTICATED"), format!("{lo:?}"));
+    }
+
     println!("SUMMARY fails={} mismatches={}", r.fails.len(), r.mismatches.len());
     for m in &r.mismatches {
         println!("  mismatch: {m}");

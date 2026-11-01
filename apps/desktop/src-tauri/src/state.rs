@@ -195,7 +195,7 @@ impl Engine {
     /// Replace/merge strategies from `GET /strategies` or a 409 `current` body (higher rev wins).
     pub fn set_strategies(&mut self, list: &[StrategySummary]) -> Out {
         for s in list {
-            let v = StrategyView { id: s.id.clone(), name: crate::model::plain_text(&s.name, 40), rev: s.rev, status: s.status.clone().unwrap_or_else(|| "active".into()) };
+            let v = StrategyView { id: s.id.clone(), name: crate::model::plain_text(&s.name, 40), rev: s.rev, status: s.status.clone().unwrap_or_else(|| "active".into()), exits: crate::model::ExitTimers::from_settings(&s.settings) };
             match self.strategies.get(&s.id) {
                 Some(old) if old.rev > s.rev => {}
                 _ => {
@@ -212,7 +212,6 @@ impl Engine {
         v
     }
 
-    #[cfg(test)]
     pub fn strategy_rev(&self, id: &str) -> Option<u64> {
         self.strategies.get(id).map(|s| s.rev)
     }
@@ -492,6 +491,12 @@ impl Engine {
             }
             KnownEvent::EntryArmed(e) => act(Tone::Neutral, format!("Entry armed ({})", crate::model::plain_text(&e.condition, 32))),
             KnownEvent::EntryExpired(e) => act(Tone::Neutral, format!("Entry expired: {}", crate::model::plain_text(&e.reason, 32))),
+            KnownEvent::ProposalCreated(p) if p.kind != ProposalKind::BuyPick => {
+                // guard_change / team_action: decided in the Web/Mobile review flow, never a desktop card.
+                // A loosening patch shows as "waiting for approval" (i18n guard.weaken.pending.title).
+                i18n = Some(I18nMsg::new(if p.weakening { "guard.weaken.pending.title" } else { "feed.event.proposal_pending" }));
+                act(Tone::Neutral, format!("Menunggu approval: {}", crate::model::plain_text(&p.summary, 80)))
+            }
             KnownEvent::ProposalCreated(p) => {
                 let info = self.picks.get(&ck).cloned().unwrap_or_default();
                 // 1.1.2: proposal carries mint/symbol/price itself; fall back to the envelope/marks.
@@ -527,6 +532,8 @@ impl Engine {
                     status: ProposalStatus::Pending,
                     expired_reason: None,
                     trade: self.trade_of(&mint),
+                    quote: p.quote.clone(),
+                    quote_stale: false,
                 };
                 self.signals.retain(|s| s.id != view.id);
                 self.signals.push_front(view.clone());
@@ -567,9 +574,13 @@ impl Engine {
                 act(if approved { Tone::Good } else { Tone::Neutral }, format!("{}{why} (via {via})", if approved { "Approved" } else { "Skipped" }))
             }
             KnownEvent::ProposalUpdated(x) => {
-                // Quote refresh: keep the newer rev (decide re-reads the approval anyway). Not a feed row.
-                if let Some(s) = self.signals.iter_mut().find(|s| s.id == x.proposal_id && x.version > s.version) {
+                // Silent quote refresh: merge the quote, keep the newer rev for expected_rev / If-Match. Not a feed row.
+                if let Some(s) = self.signals.iter_mut().find(|s| s.id == x.proposal_id && x.version >= s.version) {
                     s.version = x.version;
+                    if x.quote.is_set() {
+                        s.quote = x.quote.clone();
+                        s.quote_stale = false;
+                    }
                     outs.push(Out::SignalUpdate(s.clone()));
                 }
                 return outs;
@@ -788,6 +799,29 @@ impl Engine {
         a.i18n = i18n;
         outs.push(self.push_activity(a));
         outs
+    }
+
+    /// 409 QUOTE_MISSING_OR_STALE on approve → flag the card ("refresh quote").
+    pub fn mark_quote_stale(&mut self, id: &str) -> Vec<Out> {
+        self.signals.iter_mut().find(|s| s.id == id).map(|s| {
+            s.quote_stale = true;
+            vec![Out::SignalUpdate(s.clone())]
+        }).unwrap_or_default()
+    }
+
+    /// Quote read back from `GET /approvals/{id}`: newer-or-equal rev wins; fresh quote clears the flag.
+    pub fn apply_quote(&mut self, id: &str, rev: u32, quote: &ProposalQuote) -> Vec<Out> {
+        let now = self.server_now_ms();
+        let Some(s) = self.signals.iter_mut().find(|s| s.id == id) else { return vec![] };
+        if rev < s.version {
+            return vec![];
+        }
+        s.version = rev;
+        if quote.is_set() {
+            s.quote = quote.clone();
+        }
+        s.quote_stale = s.quote.is_stale(now);
+        vec![Out::SignalUpdate(s.clone())]
     }
 
     /// Best known liquidity (USD) for a mint: live mark, else the screener's measured liquidity check,
@@ -1039,7 +1073,7 @@ mod tests {
         let before = e.sync.ignored;
         e.apply_event(&env(32, "exit.triggered", json!({"position_key": "ck1.0", "rule": "trailing_stop", "rule_index": 1, "sell_pct": 100, "trigger_price_sol": "0.0002", "detail": "x"})));
         assert_eq!(e.sync.ignored, before);
-        assert!(e.activity[0].message.starts_with("Trail dari puncak"));
+        assert!(e.activity[0].message.starts_with("Trailing stop"));
     }
 
     #[test]
@@ -1085,7 +1119,7 @@ mod tests {
                 "checks": [{"id": "liquidity_min", "class": "weighted", "passed": true, "measured": 12345.0, "points": 10, "reason": "liquidity ok"}]}})));
         let row = e.screened.iter().find(|c| c.mint == M).unwrap();
         assert_eq!((row.status.as_str(), row.liquidity_usd), ("not_tradeable", Some(12345.0)));
-        // D10: executor rows are structured (numbers formatted in the UI locale, bps via formatFractionBps).
+        // D10: executor rows are structured (numbers formatted in the UI locale, bps via format.mjs formatBps).
         e.apply_event(&env(41, "fill.simulated", json!({"position_key": "ck1.0", "side": "buy", "simulated": true, "mark_price_sol": "0.00025", "exec_price_sol": "0.0002512",
             "token_amount_raw": "1", "sol_lamports": "250000000", "fee_bps": 125, "swap_fee_lamports": "3125000", "network_fee_lamports": "5000", "slippage_bps": 48.5, "latency_ms": 400})));
         let m = e.activity[0].i18n.clone().expect("fill row is structured");

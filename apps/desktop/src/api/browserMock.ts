@@ -49,8 +49,8 @@ const signals: PickView[] = [];
 const positions = new Map<string, PositionView>();
 const activity: ActivityView[] = [];
 let strategies: StrategyView[] = [
-  { id: "20000000-0000-0000-0000-00000000000a", name: "Mock · Curve", rev: 1, status: "active" },
-  { id: "20000000-0000-0000-0000-00000000000b", name: "Mock · AMM", rev: 1, status: "active" },
+  { id: "20000000-0000-0000-0000-00000000000a", name: "Mock · Curve", rev: 1, status: "active", time_stop_s: 600, stall_exit: { window_s: 90, min_move_pct: "1" } },
+  { id: "20000000-0000-0000-0000-00000000000b", name: "Mock · AMM", rev: 1, status: "active", time_stop_s: null, stall_exit: null },
 ];
 let settings: Settings = {
   theme: "dark",
@@ -148,6 +148,8 @@ function spawnSignal() {
     expires_at_ms: now + 90_000,
     status: "pending",
     expired_reason: null,
+    ...mockQuote(now),
+    quote_stale: false,
   };
   signals.unshift(s);
   log("screener", "proposal.created", "info", mint, symbol, `Fit ${s.score}/${s.score_threshold} — menunggu approval`);
@@ -155,6 +157,26 @@ function spawnSignal() {
   // race: the pool "migrates" to a non-SOL quote ~8 s later → card + position become not tradeable
   if (NT === "race" && Math.random() < 0.5) setTimeout(() => flip(mint), 8000);
 }
+
+/** 1.1.4 ProposalQuoteFields (mock): 30 s quote, re-quoted every 15 s while pending (silent rev bump). */
+const QUOTE_TTL_MS = 30_000;
+function mockQuote(now: number) {
+  const fee = 5000n + 20000n;
+  return {
+    est_network_fee_lamports: lam(fee), priority_fee_lamports: lam(20000n), swap_fee_bps: 25, max_slippage_bps: 300,
+    min_out_raw: String(Math.round(Number(BUY) * 0.97 * 1000)), total_max_lamports: lam(BUY + fee),
+    quote_ts: new Date(now).toISOString(), quote_expires_at: new Date(now + QUOTE_TTL_MS).toISOString(),
+  };
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const s of signals) {
+    // ~1 in 4 cards is left un-refreshed so the stale state is reachable in the browser preview
+    if (s.status !== "pending" || s.quote_stale || s.id.endsWith("3") ) continue;
+    Object.assign(s, mockQuote(now), { rev: s.rev + 1 });
+    emit(EVT.signalUpdate, s);
+  }
+}, 15_000);
 
 function flip(mint: string) {
   for (const s of signals) if (s.mint === mint) Object.assign(s, NOT_TRADEABLE), emit(EVT.signalUpdate, s);
@@ -307,6 +329,28 @@ export const browserMockAdapter: CoreApi = {
     emit(EVT.positions, [...positions.values()]);
     emit(EVT.account, account());
   },
+  async refreshQuote(id) {
+    const s = signals.find((x) => x.id === id && x.status === "pending");
+    if (!s) throw new Error("NOT_FOUND");
+    Object.assign(s, mockQuote(Date.now()), { rev: s.rev + 1, quote_stale: false });
+    emit(EVT.signalUpdate, s);
+  },
+  async patchStrategy(id, patch) {
+    const s = strategies.find((x) => x.id === id);
+    if (!s) throw new Error("NOT_FOUND");
+    // loosening a guard (mock rule: any lower threshold or guard_checks=false) → 202 waiting for approval
+    const weak = Object.keys(patch).filter((k) => (k === "guard_checks" && patch[k] === false) || (k === "score_threshold" && Number(patch[k]) < 70));
+    if (weak.length) return { status: "pending_approval", proposal_id: crypto.randomUUID(), expires_at: new Date(Date.now() + 600_000).toISOString(), fields: weak };
+    const next = { ...s, rev: s.rev + 1 };
+    strategies = strategies.map((x) => (x.id === id ? next : x));
+    emit(EVT.strategies, strategies);
+    return { status: "applied", rev: next.rev };
+  },
+  async authStatus() {
+    return { mode: "mock", state: "signed_in", address: null, workspace_id: null };
+  },
+  async authLogin() {},
+  async authLogout() {},
   async setStrategyPaused(id, paused, baseRev) {
     const s = strategies.find((x) => x.id === id);
     if (!s) throw new Error("NOT_FOUND");

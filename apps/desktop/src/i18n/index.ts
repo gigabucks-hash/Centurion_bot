@@ -7,7 +7,7 @@
  */
 import en from "@sentra/i18n/en.json";
 import id from "@sentra/i18n/id.json";
-import { LOCALES, formatFractionBps, formatLamports, pnlPct, pnlSol, type Lang, type PnlParts } from "@sentra/i18n/format.mjs";
+import { LOCALES, formatBps, formatFractionBps, formatLamports, formatLamportsOrDash, formatMcapUsd, formatRelativeSeconds, mcapView, pnlPct, pnlSol, quoteState, type Lang, type PnlParts } from "@sentra/i18n/format.mjs";
 import errorsMap from "@sentra/i18n/errors.map.json";
 import rejectMap from "@sentra/i18n/reject_reasons.map.json";
 import { ERROR_CODES } from "@sentra/contracts/wire";
@@ -17,7 +17,7 @@ import { formatIcu, icuArgNames, type IcuArgs } from "./icu";
 import { LOCAL_TEMPLATES, MOCK_SUFFIX } from "./local";
 
 export type { Lang, PnlParts };
-export { formatFractionBps, formatLamports, LOCALES, MOCK_SUFFIX };
+export { formatBps, formatFractionBps, formatLamports, formatLamportsOrDash, formatMcapUsd, formatRelativeSeconds, LOCALES, mcapView, MOCK_SUFFIX, quoteState };
 
 type Tree = { [k: string]: string | Tree };
 const flatten = (o: Tree, p = "", out: Record<string, string> = {}) => {
@@ -29,7 +29,7 @@ const flatten = (o: Tree, p = "", out: Record<string, string> = {}) => {
 };
 const CAT: Record<Lang, Record<string, string>> = { en: flatten(en as Tree), id: flatten(id as Tree) };
 
-export const I18N_PACKAGE_VERSION = "0.4.5";
+export const I18N_PACKAGE_VERSION = "0.4.7";
 
 function lookup(lang: Lang, key: string): string | undefined {
   // Package copy wins; LOCAL_TEMPLATES only fill keys UX has not shipped yet (reported as UX gaps).
@@ -154,7 +154,7 @@ export function renderMsg(m: I18nMsg, lang: Lang, paper: boolean): string | null
       a.t === "pnl_lamports" ? pnlText(pnlSol(a.v, lang, { paper })) :
       a.t === "key" ? translate(lang, a.v, undefined, fallbackFor(a.v)) :
       a.t === "num" ? new Intl.NumberFormat(LOCALES[lang]).format(a.v) :
-      a.t === "bps" ? formatFractionBps(a.v, lang) :
+      a.t === "bps" ? formatBps(a.v, lang) : // D10: fee / slippage / portion bps → % (0.4.6+ formatBps, null-safe)
       a.t === "price" ? formatPriceLocale(a.v, lang) : a.v;
   }
   const used = icuArgNames(tmpl);

@@ -20,11 +20,20 @@ if [[ ! -f "$env_file" ]] || ! grep -q '^SENTRA_DEV_JWT_SECRET=' "$env_file"; th
   umask 077; echo "SENTRA_DEV_JWT_SECRET=$(openssl rand -hex 32)" >> "$env_file"
 fi
 SENTRA_DEV_JWT_SECRET="$(grep '^SENTRA_DEV_JWT_SECRET=' "$env_file" | head -1 | cut -d= -f2-)"
+grep -q '^SENTRA_DEV_SESSION_SECRET=' "$env_file" || { umask 077; echo "SENTRA_DEV_SESSION_SECRET=$(openssl rand -hex 32)" >> "$env_file"; }
+SENTRA_DEV_SESSION_SECRET="$(grep '^SENTRA_DEV_SESSION_SECRET=' "$env_file" | head -1 | cut -d= -f2-)"
+# SIWS on (fails closed without an owner): the "owner" is the wSOL mint address — a public key nobody
+# holds a private key for, so no real login can succeed; the smoke only exercises non-signing paths.
+SMOKE_SIWS_DOMAIN="app.centuriontrade.local"
+SMOKE_OWNER_WALLET="So11111111111111111111111111111111111111112"
+export SMOKE_SIWS_DOMAIN SMOKE_OWNER_WALLET
 git -C "$desk" check-ignore -q "$env_file" || { echo ".env.local is not gitignored — refusing" >&2; exit 4; }
 
 db_url="$("$here/dev-seed/reset-db.sh")"
 log="$(mktemp -t sentra-api-smoke.XXXX.log)"
 ( cd "$api" && TRADING_MODE=paper DATABASE_URL="$db_url" SUPABASE_JWT_SECRET="$SENTRA_DEV_JWT_SECRET" \
+  AUTH_SIWS_DOMAINS="$SMOKE_SIWS_DOMAIN" OWNER_WALLETS="$SMOKE_OWNER_WALLET" AUTH_USER_CREATE=direct \
+  SENTRA_SESSION_SECRET="$SENTRA_DEV_SESSION_SECRET" \
   API_HOST=127.0.0.1 API_PORT="$SMOKE_PORT" exec node src/main.ts ) >"$log" 2>&1 &
 api_pid=$!
 trap 'kill $api_pid 2>/dev/null || true' EXIT

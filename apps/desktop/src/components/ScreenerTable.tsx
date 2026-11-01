@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ScreenedCoin } from "../api";
-import { LOCALES, solText, useLang, useT, type Lang } from "../i18n";
+import { formatRelativeSeconds, LOCALES, mcapView, useLang, useT, type Lang, type T } from "../i18n";
+import { serverNow } from "../state/store";
 import { fmtUsdLocale } from "./format";
 import { NtChip } from "./NotTradeable";
 
@@ -65,9 +66,12 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
                   <td className="muted">{c.venue === "curve" ? "Curve" : c.venue === "amm" ? "AMM" : "—"}</td>
                   {/* Mcap (1.1.4): mcap_usd is display-only/indicative; the title carries the SOL value and as-of time.
                       A missing value is a muted "—" with common.value.unavailable as tooltip + accessible name. */}
-                  {c.mcap_usd != null
-                    ? <td className="num dim" title={mcapTitle(c, lang)}>{fmtUsdLocale(Number(c.mcap_usd), lang)}</td>
-                    : <Unavailable label={t("common.value.unavailable")} />}
+                  {(() => {
+                    const mv = mcapView(c, lang); // i18n 0.4.7: USD primary (SOL when no USD), "—" when unavailable
+                    return mv.tooltipKeys.includes("common.value.unavailable")
+                      ? <Unavailable label={t("common.value.unavailable")} />
+                      : <td className="num dim" title={mcapTitle(c, lang, t)}>{mv.primary}</td>;
+                  })()}
                   {/* D11: liquidity is market data, shown on not-tradeable rows too (same value as the queue card). */}
                   {c.liquidity_usd != null ? <td className="num">{fmtUsdLocale(c.liquidity_usd, lang)}</td> : <Unavailable label={t("common.value.unavailable")} />}
                   <td className="num">{c.score}</td>
@@ -101,10 +105,19 @@ function Unavailable({ label }: { label: string }) {
   return <td className="num dim" title={label}><span aria-hidden>—</span><span className="sr-only">{label}</span></td>;
 }
 
-/** Mcap cell tooltip: SOL value (exact lamports formatter) + as-of time. */
-function mcapTitle(c: ScreenedCoin, lang: Lang): string {
-  const sol = c.market_cap_lamports != null ? solText(c.market_cap_lamports, lang, false) : null;
-  const at = c.mcap_as_of ? new Date(c.mcap_as_of).toLocaleTimeString(LOCALES[lang], { hour: "2-digit", minute: "2-digit" }) : null;
-  return [sol, at && `@ ${at}`].filter(Boolean).join(" ");
+/** Mcap cell tooltip (i18n 0.4.7 `mcap.*` + mcapView): label, ≈ SOL value (formatMcapSol), "as of HH:MM ·
+ *  N s ago" (server clock), then mcapView's extra tooltip keys (mcap.usd_indicative for curve/pool USD).
+ *  The age is computed when the tooltip is rendered (row update / hover). */
+export function mcapTitle(c: ScreenedCoin, lang: Lang, t: T, nowMs = serverNow()): string {
+  const mv = mcapView(c, lang);
+  const lines = [t("mcap.label")];
+  if (mv.secondary) lines.push(t("mcap.sol_value", { amount: mv.secondary }));
+  const asOf = c.mcap_as_of ? Date.parse(c.mcap_as_of) : NaN;
+  if (Number.isFinite(asOf)) {
+    const hhmm = new Date(asOf).toLocaleTimeString(LOCALES[lang], { hour: "2-digit", minute: "2-digit" });
+    lines.push(`${t("mcap.as_of", { time: hhmm })} · ${formatRelativeSeconds(-Math.max(0, Math.round((nowMs - asOf) / 1000)), lang)}`);
+  }
+  for (const k of mv.tooltipKeys) if (k !== "mcap.as_of") lines.push(t(k));
+  return lines.join("\n");
 }
 

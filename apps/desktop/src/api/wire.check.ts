@@ -161,6 +161,9 @@ export const approvalWireSample = {
   // 1.1.4 (7ba6273) quote fields: always present on the resource, null when unset.
   est_network_fee_lamports: null, priority_fee_lamports: null, swap_fee_bps: null, max_slippage_bps: null,
   min_out_raw: null, total_max_lamports: null, quote_ts: null, quote_expires_at: null,
+  // 1.1.5 (ef74131): quote identity, ATA rent, sell quote outs, mint decimals/program, position for sells.
+  quote_id: "1", est_ata_rent_lamports: null, expected_out_lamports: null, min_out_lamports: null,
+  decimals: null, token_program: null, position_id: null,
 } satisfies ApprovalWire;
 // @ts-expect-error ConflictError.current is required (1.1.3, matches Rust `required_non_null`)
 export const conflictWithoutCurrent: ConflictError = { error: { code: "VERSION_CONFLICT", message: "m", request_id: "r", server_now: "x", current_rev: 2, base_rev: 1 }, server_now: "x" };

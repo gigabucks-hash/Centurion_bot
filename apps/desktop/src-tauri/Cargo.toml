@@ -20,7 +20,11 @@ tauri-plugin-notification = "2"
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["time", "sync", "macros", "rt"] }
+tokio = { version = "1", features = ["time", "sync", "macros", "rt", "net", "io-util"] }
+# OS CSPRNG for the SIWS loopback `state` (already in the dependency tree; no new download).
+getrandom = "0.2"
+# PKCE S256 for the centurion://auth code exchange (already in Cargo.lock / offline cache).
+sha2 = "0.10"
 thiserror = "2"
 log = "0.4"
 # Wire contract v1: decimal strings parsed for internal math/display only (never f64 on the wire).
@@ -33,7 +37,8 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 keyring = { version = "3", optional = true, features = ["apple-native", "windows-native", "sync-secret-service"] }
 
 [features]
-default = []
+# The keychain is on by default: the SIWS session (and nothing else) is stored there.
+default = ["keychain"]
 keychain = ["dep:keyring"]
 
 [profile.release]

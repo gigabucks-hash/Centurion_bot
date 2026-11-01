@@ -20,7 +20,7 @@ use std::str::FromStr;
 
 pub const EVENT_SCHEMA_VERSION: u32 = 1;
 /// Contracts release this mirror was verified against (contract test checks major.minor).
-pub const CONTRACTS_VERSION: &str = "1.1.4";
+pub const CONTRACTS_VERSION: &str = "1.1.5";
 /// JSON number on the wire (pcts, ratios, bps, USD notionals, scores). Display/threshold only.
 pub type Num = f64;
 pub const LAMPORTS_PER_SOL: i128 = 1_000_000_000;
@@ -231,6 +231,8 @@ pub enum ProposalExpiredReason {
     PriceMoved,
     PracticeReset,
     AccountDeleted,
+    /// 1.1.5: Stop / kill switch expired every pending proposal.
+    KillSwitch,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -280,6 +282,81 @@ pub enum ExitReason {
     PracticeReset,
     /// 1.1.4 `stall_exit` (|move| over `window_s` below `min_move_pct`). Not the v1.0 `stall` (= `no_new_high`).
     Stall,
+}
+
+/// 1.1.4 `ProposalQuoteFields` (7ba6273): transaction quote for the approval card / review sheet. All
+/// optional and nullable; practice values are papersim estimates (never a signed transaction). Real approve
+/// with a missing or expired quote → `409 QUOTE_MISSING_OR_STALE`; practice is never blocked.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ProposalQuote {
+    /// Base fee + priority fee.
+    #[serde(default)]
+    pub est_network_fee_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub priority_fee_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub swap_fee_bps: Option<Num>,
+    #[serde(default)]
+    pub max_slippage_bps: Option<Num>,
+    /// Minimum tokens out after max slippage (raw units).
+    #[serde(default)]
+    pub min_out_raw: Option<RawQty>,
+    /// Most the buy can cost: SOL in + estimated network fee.
+    #[serde(default)]
+    pub total_max_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub quote_ts: Option<IsoTs>,
+    #[serde(default)]
+    pub quote_expires_at: Option<IsoTs>,
+    /// 1.1.5: quote identity (int64 string). A refresh sets a new quote_id and does NOT bump rev.
+    #[serde(default)]
+    pub quote_id: Option<String>,
+    /// 1.1.5: rent for the buyer's token account if it must be created ("0" when it exists).
+    #[serde(default)]
+    pub est_ata_rent_lamports: Option<Lamports>,
+    /// 1.1.5 sell quotes: SOL expected / minimum after max slippage (null on buys).
+    #[serde(default)]
+    pub expected_out_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub min_out_lamports: Option<Lamports>,
+}
+impl ProposalQuote {
+    pub fn is_set(&self) -> bool {
+        self.quote_ts.is_some() || self.total_max_lamports.is_some() || self.est_network_fee_lamports.is_some()
+    }
+    /// Missing or expired at `server_now_ms` (Real approve would be refused).
+    #[allow(dead_code)] // used by the mock's Real-mode check and tests
+    pub fn is_stale(&self, server_now_ms: i64) -> bool {
+        match self.quote_expires_at.as_ref().and_then(|t| t.ms()) {
+            Some(exp) => exp <= server_now_ms,
+            None => true,
+        }
+    }
+}
+
+/// 1.1.4 `StallExit`: sell all when |price change| over the last `window_s` s is below `min_move_pct`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct StallExit {
+    pub window_s: i64,
+    pub min_move_pct: Num,
+}
+/// The 1.1.4 exit settings keys the desktop shows (`ExitSettings.time_stop_s` → exit_reason `max_hold`,
+/// `stall_exit` → `stall`). Out-of-range values (contract: 1-604800 s; 5-86400 s and 0.01-100 %) are
+/// dropped rather than shown.
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+pub struct ExitTimers {
+    pub time_stop_s: Option<i64>,
+    pub stall_exit: Option<StallExit>,
+}
+impl ExitTimers {
+    pub fn from_settings(settings: &serde_json::Value) -> Self {
+        let time_stop_s = settings.get("time_stop_s").and_then(|v| v.as_i64()).filter(|s| (1..=604_800).contains(s));
+        let stall_exit = settings
+            .get("stall_exit")
+            .and_then(|v| serde_json::from_value::<StallExit>(v.clone()).ok())
+            .filter(|s| (5..=86_400).contains(&s.window_s) && (0.01..=100.0).contains(&s.min_move_pct));
+        ExitTimers { time_stop_s, stall_exit }
+    }
 }
 
 /// 1.1.4 `MarketCapFields` (coin.detected, screener.scored, pick.created, REST coin/pick). One backend
@@ -512,6 +589,9 @@ pub struct ProposalCreated {
     pub weakening: bool,
     pub diff: Option<serde_json::Value>,
     pub estimate: Option<StaticEstimate>,
+    /// 1.1.4 quote fields (absent from older producers → all None).
+    #[serde(flatten)]
+    pub quote: ProposalQuote,
     /// 1.1.2 additions (self-contained card: no join with pick/mark needed).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mint: Option<String>,
@@ -535,14 +615,15 @@ pub struct ProposalDecided {
     pub reject_reason: Option<ApprovalRejectReason>,
 }
 /// `proposal.updated` (1.1.4 cont., 7ba6273): a pending proposal's quote was set/refreshed (rev + 1).
-/// The `ProposalQuoteFields` are not decoded yet: they feed the WF-22 review sheet (post-MVP on desktop);
-/// only the new rev matters here.
+/// Silent (i18n notifications.meta `silent_events`): merge the quote, keep the new rev for `expected_rev`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalUpdated {
     pub proposal_id: String,
     pub kind: ProposalKind,
     #[serde(rename = "rev", alias = "version")]
     pub version: u32,
+    #[serde(flatten)]
+    pub quote: ProposalQuote,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProposalExpired {
@@ -1005,6 +1086,13 @@ pub struct ApprovalDecisionResponse {
 #[allow(dead_code)] // typed body for the Phase-2 HttpTransport; asserted by the contract test
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ApprovalWire {
+    /// 1.1.5: mint decimals / token program (null on guard_change) and the position a sell refers to.
+    #[serde(default)]
+    pub decimals: Option<u8>,
+    #[serde(default)]
+    pub token_program: Option<String>,
+    #[serde(default)]
+    pub position_id: Option<String>,
     pub id: String,
     pub proposal_id: String,
     pub workspace_id: String,
@@ -1029,6 +1117,9 @@ pub struct ApprovalWire {
     pub created_at: IsoTs,
     pub expires_at: IsoTs,
     pub decided_at: Option<IsoTs>,
+    /// 1.1.4: always present on the resource, null when unset.
+    #[serde(flatten)]
+    pub quote: ProposalQuote,
 }
 /// `GET /approvals/{id}` (subset the desktop needs).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1041,6 +1132,9 @@ pub struct ApprovalDetail {
     pub expires_at: IsoTs,
     pub decision_token: Option<String>,
     pub decision_token_expires_at: Option<IsoTs>,
+    /// 1.1.4 quote (refresh-quote reads it back after a 409 QUOTE_MISSING_OR_STALE).
+    #[serde(flatten)]
+    pub quote: ProposalQuote,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ApiItem<T> {

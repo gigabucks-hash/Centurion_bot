@@ -20,7 +20,7 @@ pub fn open_chart<R: Runtime>(app: &AppHandle<R>, mint: &str) -> AppResult<()> {
         return Ok(());
     }
     WebviewWindowBuilder::new(app, &label, WebviewUrl::App(format!("index.html#/chart?mint={mint}").into()))
-        .title(format!("{} Sentra — Chart {}…", prefix(app), &mint[..6]))
+        .title(format!("{} {} — Chart {}…", prefix(app), crate::brand::app_name(), &mint[..6]))
         .inner_size(960.0, 600.0)
         .min_inner_size(480.0, 320.0)
         .build()?;
@@ -34,7 +34,7 @@ pub fn open_activity<R: Runtime>(app: &AppHandle<R>) -> AppResult<()> {
         return Ok(());
     }
     WebviewWindowBuilder::new(app, "activity", WebviewUrl::App("index.html#/activity".into()))
-        .title(format!("{} Sentra — Activity", prefix(app)))
+        .title(format!("{} {} — Activity", prefix(app), crate::brand::app_name()))
         .inner_size(520.0, 760.0)
         .build()?;
     Ok(())
@@ -58,7 +58,7 @@ pub fn open_approval_popup<R: Runtime>(app: &AppHandle<R>, focus: bool) -> AppRe
         Some(w) => w,
         None => {
             let b = WebviewWindowBuilder::new(app, APPROVAL_LABEL, WebviewUrl::App("index.html#/popup".into()))
-                .title(format!("{} Sentra — Approval", prefix(app)))
+                .title(format!("{} {} — Approval", prefix(app), crate::brand::app_name()))
                 .inner_size(POPUP_W, POPUP_H)
                 .resizable(false)
                 .maximizable(false)

@@ -13,6 +13,7 @@
     "allow-approve-signal",
     "allow-skip-signal",
     "allow-focus-main-for-signal",
-    "allow-hide-approval-popup"
+    "allow-hide-approval-popup",
+    "allow-refresh-quote"
   ]
 }

@@ -302,7 +302,7 @@ fn errors_map_and_order_fail_reasons_match_contracts_and_catalog() {
 fn contracts_1_1_3_reject_reason_and_approval_wire() {
     let ts = read("src/wire/events.ts");
     assert!(ts.contains(&format!("CONTRACTS_VERSION = \"{}\"", crate::model::CONTRACTS_VERSION)), "mirror == committed contracts");
-    assert_eq!(crate::model::CONTRACTS_VERSION, "1.1.4");
+    assert_eq!(crate::model::CONTRACTS_VERSION, "1.1.5");
     let i = ts.find("export type ApprovalRejectReason").unwrap();
     let line = &ts[i..i + ts[i..].find(';').unwrap()];
     let theirs: Vec<String> = line.split('"').skip(1).step_by(2).map(str::to_owned).collect();
@@ -310,9 +310,16 @@ fn contracts_1_1_3_reject_reason_and_approval_wire() {
     assert_eq!(ours, theirs, "APPROVAL_REJECT_REASONS");
     assert!(serde_json::from_str::<ApprovalRejectReason>("\"bored\"").is_err(), "closed enum");
     // ApprovalWire field set == TS interface field set
-    let j = ts.find("export interface ApprovalWire").unwrap();
-    let body = &ts[j + ts[j..].find('{').unwrap() + 1..j + ts[j..].find("\n}").unwrap()];
-    let mut ts_fields: Vec<&str> = body.split(';').filter_map(|f| f.trim().split(':').next()).map(|f| f.trim().trim_end_matches('?')).filter(|f| !f.is_empty() && !f.starts_with('/')).collect();
+    let fields_of = |body: &'static str| -> Vec<&'static str> {
+        body.split(';').filter_map(|f| f.trim().rsplit('\n').next().and_then(|l| l.split(':').next())).map(|f| f.trim().trim_end_matches('?')).filter(|f| !f.is_empty() && !f.starts_with('/') && !f.starts_with('*')).collect()
+    };
+    let ts: &'static str = Box::leak(ts.into_boxed_str());
+    let mut ts_fields = fields_of(body_of(ts, "export interface ApprovalWire"));
+    // 1.1.4 (7ba6273): `ApprovalWire extends Required<ProposalQuoteFields>` → those 8 fields are part of it.
+    assert!(ts.contains("export interface ApprovalWire extends Required<ProposalQuoteFields>"));
+    let quote_fields = fields_of(body_of(ts, "export interface ProposalQuoteFields"));
+    assert_eq!(quote_fields.len(), 12, "{quote_fields:?}"); // 1.1.5: + quote_id, est_ata_rent, expected/min_out_lamports
+    ts_fields.extend(quote_fields);
     let sample = serde_json::json!({
         "id": "a", "proposal_id": "p", "workspace_id": "w", "strategy_id": null, "kind": "buy_pick", "mode": "practice",
         "subject": null, "mint": null, "amount_lamports": "100000000", "is_first_buy": true, "risk": "low", "weakening": false,
@@ -363,3 +370,8 @@ fn contracts_1_1_4_market_cap_and_stall() {
     assert_eq!(u.version, 3);
 }
 
+/// Body between `{` and the closing `\n}` of the TS declaration starting with `head`.
+fn body_of<'a>(ts: &'a str, head: &str) -> &'a str {
+    let j = ts.find(head).unwrap_or_else(|| panic!("{head} not found"));
+    &ts[j + ts[j..].find('{').unwrap() + 1..j + ts[j..].find("\n}").unwrap()]
+}

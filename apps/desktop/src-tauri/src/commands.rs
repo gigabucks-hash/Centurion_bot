@@ -9,7 +9,7 @@ use crate::model::*;
 use crate::state::AppState;
 use crate::util::is_valid_mint;
 use crate::view::*;
-use tauri::{AppHandle, Emitter, Runtime, State, Window};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State, Window};
 
 fn idem_key(state: &AppState) -> String {
     format!("desk-{}", state.engine.lock().unwrap().rng.hex(24))
@@ -98,7 +98,63 @@ pub async fn approve_signal<R: Runtime>(window: Window<R>, state: State<'_, AppS
         // WF-20: a not-tradeable coin can never be approved (UI disables the button too).
         e.check_tradeable(&pick.mint)?;
     }
-    decide(&state, &id, Decision::Approve, None).await
+    let r = decide(&state, &id, Decision::Approve, None).await;
+    // 1.1.4: 409 QUOTE_MISSING_OR_STALE (Real only on the server) → the card switches to "refresh quote".
+    if let Err(AppError::Api(m)) = &r {
+        if m.starts_with("QUOTE_MISSING_OR_STALE") {
+            let outs = state.engine.lock().unwrap().mark_quote_stale(&id);
+            crate::events::dispatch(window.app_handle(), outs);
+        }
+    }
+    r
+}
+
+/// Refresh a proposal's quote (CTA `review.quote.refresh`): re-read `GET /approvals/{id}`, which carries
+/// the current quote and rev (the server refreshes quotes itself and announces them with the silent
+/// `proposal.updated`). Clears the stale flag when the quote is fresh again.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn refresh_quote<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>, id: String) -> AppResult<()> {
+    state.engine.lock().unwrap().check_pending(&id)?; // known + pending (validates the id)
+    let a = state.transport.get_approval(&id).await?;
+    let outs = {
+        let mut e = state.engine.lock().unwrap();
+        e.observe_server_now(&a.server_now);
+        e.apply_quote(&id, a.data.version, &a.data.quote)
+    };
+    crate::events::dispatch(&app, outs);
+    Ok(())
+}
+
+/// Outcome of a strategy settings patch for the UI: a guard-loosening patch is **waiting for approval**
+/// (202, nothing applied), never shown as success.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum PatchOutcome {
+    Applied { rev: u64 },
+    PendingApproval { proposal_id: String, expires_at: String, fields: Vec<String> },
+}
+
+/// `PATCH /strategies/{id}` with the cached rev as If-Match. Only plain JSON objects with at most 32 keys
+/// are accepted (the server validates every field again).
+#[tauri::command(rename_all = "snake_case")]
+pub async fn patch_strategy<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>, id: String, settings_patch: serde_json::Value) -> AppResult<PatchOutcome> {
+    let obj = settings_patch.as_object().ok_or_else(|| AppError::Invalid("settings_patch must be an object".into()))?;
+    if obj.is_empty() || obj.len() > 32 || obj.keys().any(|k| k.len() > 64 || !k.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')) {
+        return Err(AppError::Invalid("settings_patch keys".into()));
+    }
+    let rev = state.engine.lock().unwrap().strategy_rev(&id).ok_or_else(|| AppError::Invalid("unknown strategy".into()))?;
+    let key = idem_key(&state);
+    match state.transport.patch_strategy(&id, &key, Some(rev), settings_patch).await? {
+        crate::backend::StrategyPatch::Applied(s) => {
+            let out = state.engine.lock().unwrap().set_strategies(std::slice::from_ref(&s.data));
+            crate::events::dispatch(&app, vec![out]);
+            Ok(PatchOutcome::Applied { rev: s.data.rev })
+        }
+        crate::backend::StrategyPatch::PendingApproval { proposal, guard_change, .. } => {
+            let fields = guard_change["fields"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default();
+            Ok(PatchOutcome::PendingApproval { proposal_id: proposal.proposal_id, expires_at: proposal.expires_at.0, fields })
+        }
+    }
 }
 
 /// Skip (reject). Allowed on not-tradeable picks (UX Rev 4.4: skipping is not a trade). Contracts
@@ -290,4 +346,65 @@ pub fn focus_main_for_signal<R: Runtime>(app: AppHandle<R>, state: State<'_, App
 #[tauri::command(rename_all = "snake_case")]
 pub fn hide_approval_popup<R: Runtime>(app: AppHandle<R>) {
     crate::windows::hide_approval_popup(&app);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Wallet login (SIWS through the system browser). The webview learns only the state + address.
+// ---------------------------------------------------------------------------------------------
+
+/// Event carrying [`crate::auth::AuthState`] after every change.
+pub const AUTH_STATE: &str = "auth://state";
+
+/// `{mode: "mock"|"static"|"siws", ...AuthState}`. Mock and dev-token builds report `signed_in`.
+#[tauri::command(rename_all = "snake_case")]
+pub fn auth_status(state: State<'_, AppState>) -> serde_json::Value {
+    match state.transport.session() {
+        Some(s) => {
+            let mut v = serde_json::to_value(s.state()).unwrap_or_default();
+            v["mode"] = "siws".into();
+            v
+        }
+        None => serde_json::json!({"mode": state.transport.label(), "state": "signed_in", "address": null, "workspace_id": null}),
+    }
+}
+
+/// Start a browser login: bind the loopback, open the system browser, return at once. The result
+/// arrives as [`AUTH_STATE`] events (`signed_in` / `wallet_not_allowed` / `failed` / `signed_out`).
+#[tauri::command(rename_all = "snake_case")]
+pub async fn auth_login<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>) -> AppResult<()> {
+    use tauri::Emitter;
+    let Some(sm) = state.transport.session().cloned() else { return Ok(()) };
+    if matches!(sm.state(), crate::auth::AuthState::WaitingForBrowser) {
+        return Ok(()); // one login at a time
+    }
+    let page = std::env::var("SENTRA_LOGIN_URL").unwrap_or_else(|_| "https://app.centuriontrade.local/auth/desktop".into());
+    let lb = crate::auth::Loopback::bind().await.map_err(AppError::Invalid)?;
+    let url = crate::auth::login_url(&page, &lb.redirect_uri(), lb.state()).map_err(AppError::Invalid)?;
+    crate::auth::open_system_browser(&url).map_err(AppError::Invalid)?;
+    sm.set_state(crate::auth::AuthState::WaitingForBrowser);
+    let _ = app.emit(AUTH_STATE, sm.state());
+    let domain = crate::auth::login_domain(&page);
+    tauri::async_runtime::spawn(async move {
+        let st = match lb.wait(crate::auth::LOGIN_TIMEOUT).await {
+            Ok(cb) => sm.complete(&cb, &domain).await,
+            Err(code) => {
+                let st = if code == "user_rejected" { crate::auth::AuthState::SignedOut { reason: Some(code) } } else { crate::auth::AuthState::Failed { code } };
+                sm.set_state(st.clone());
+                st
+            }
+        };
+        let _ = app.emit(AUTH_STATE, st);
+    });
+    Ok(())
+}
+
+/// Revoke the refresh token on the server (best effort) and clear the keychain entry.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn auth_logout<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>) -> AppResult<()> {
+    use tauri::Emitter;
+    if let Some(sm) = state.transport.session().cloned() {
+        sm.logout().await;
+        let _ = app.emit(AUTH_STATE, sm.state());
+    }
+    Ok(())
 }

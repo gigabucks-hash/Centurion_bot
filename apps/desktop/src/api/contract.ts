@@ -104,6 +104,19 @@ export interface PickView extends Tradeability {
   expires_at_ms: number;
   status: ProposalStatus;
   expired_reason: ProposalExpiredReason | null;
+  /** 1.1.4 ProposalQuoteFields (null until the server quotes; refreshed via silent `proposal.updated`). */
+  est_network_fee_lamports: Lamports | null;
+  priority_fee_lamports: Lamports | null;
+  swap_fee_bps: number | null;
+  max_slippage_bps: number | null;
+  min_out_raw: RawQty | null;
+  total_max_lamports: Lamports | null;
+  quote_ts: IsoTs | null;
+  quote_expires_at: IsoTs | null;
+  /** 1.1.5 (not sent by 1.1.4 servers): identity of the quote; part of the Real hold identity. */
+  quote_id?: string | null;
+  /** The server refused approve with 409 QUOTE_MISSING_OR_STALE → show "refresh quote". */
+  quote_stale: boolean;
 }
 
 export interface PositionView extends Tradeability {
@@ -197,7 +210,24 @@ export interface StrategyView {
   name: string;
   rev: number;
   status: string;
+  /** 1.1.4 exit timers (settings): exit_reason `max_hold` / `stall`. */
+  time_stop_s?: number | null;
+  stall_exit?: { window_s: number; min_move_pct: DecimalString | number } | null;
 }
+
+/** PATCH /strategies/{id}: loosening a guard is a 202 proposal, waiting for approval — never success. */
+export type PatchOutcome =
+  | { status: "applied"; rev: number }
+  | { status: "pending_approval"; proposal_id: Uuid; expires_at: IsoTs; fields: string[] };
+
+/** Wallet login (SIWS via the system browser). Tokens never reach the webview. */
+export type AuthView = { mode: "mock" | "http" | "siws" } & (
+  | { state: "signed_in"; address: string | null; workspace_id: string | null }
+  | { state: "signed_out"; reason: string | null }
+  | { state: "waiting_for_browser" }
+  | { state: "wallet_not_allowed"; address: string | null }
+  | { state: "failed"; code: string }
+);
 
 /** 409 on a write (STRATEGY_REV_CONFLICT / VERSION_CONFLICT / CONFIRMATION_RESTART_REQUIRED). */
 export interface ConflictView {
@@ -290,6 +320,7 @@ export const EVT = {
   conflict: "write:conflict",
   focusSignal: "ui:focus-signal",
   screened: "screener:update",
+  auth: "auth://state",
 } as const;
 export type EvtName = (typeof EVT)[keyof typeof EVT];
 
@@ -311,5 +342,10 @@ export interface CoreApi {
   focusMainForSignal(id: string): Promise<void>;
   hideApprovalPopup(): Promise<void>;
   setSettings(s: Settings): Promise<Settings>;
+  refreshQuote(id: string): Promise<void>;
+  patchStrategy(id: string, settingsPatch: Record<string, unknown>): Promise<PatchOutcome>;
+  authStatus(): Promise<AuthView>;
+  authLogin(): Promise<void>;
+  authLogout(): Promise<void>;
   on<T>(event: EvtName, cb: (payload: T) => void): Promise<() => void>;
 }

@@ -24,6 +24,11 @@
     "allow-set-strategy-paused",
     "allow-reset-practice",
     "allow-get-coin-timeline",
-    "allow-get-exit-reason-stats"
+    "allow-get-exit-reason-stats",
+    "allow-refresh-quote",
+    "allow-auth-status",
+    "allow-auth-login",
+    "allow-auth-logout",
+    "allow-patch-strategy"
   ]
 }

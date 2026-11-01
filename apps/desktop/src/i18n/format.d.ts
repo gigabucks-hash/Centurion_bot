@@ -1,4 +1,4 @@
-/** Types for `@sentra/i18n/format.mjs` (packages/i18n 0.4.3, UX-owned JS; read-only for Desktop). */
+/** Types for `@sentra/i18n/format.mjs` (packages/i18n 0.4.7, UX-owned JS; read-only for Desktop). */
 declare module "@sentra/i18n/format.mjs" {
   export type Lang = "en" | "id";
   export interface PnlParts { text: string; tone: "profit" | "loss" | "neutral"; arrow: "▲" | "▼" | ""; sign: "+" | "−" | "" }
@@ -19,4 +19,17 @@ declare module "@sentra/i18n/format.mjs" {
   export function pctToFractionBps(pct: number): number;
   export function fractionBpsToPct(bps: number): number;
   export function formatFractionBps(bps: number, loc: Lang): string;
+  // 0.4.6+ (contracts 1.1.4)
+  export function formatBps(bps: number | null | undefined, loc: Lang): string;
+  export function formatLamportsOrDash(l: string | bigint | null | undefined, loc: Lang, o?: { kind?: "amount" | "pnl"; paper?: boolean }): string;
+  export function formatRawQty(raw: string | null | undefined, decimals: number | null | undefined, loc: Lang): string;
+  export interface QuoteState { state: "missing" | "fresh" | "stale"; ageS: number | null; expiresInS: number | null; complete: boolean; blocksApprove: boolean }
+  export function quoteState(q: { quote_ts?: string | null; quote_expires_at?: string | null }, skewMs?: number, o?: { mode?: "practice" | "real"; localNowMs?: number }): QuoteState;
+  export function formatRelativeSeconds(sec: number, loc: Lang): string;
+  export function formatMcapUsd(usd: string | number | null | undefined, loc: Lang): string;
+  export function formatMcapSol(lamports: string | null | undefined, loc: Lang): string;
+  // 0.4.7
+  export const DASH: string;
+  export function quoteChanged(prev: { quote_id?: string | null } | null | undefined, next: { quote_id?: string | null } | null | undefined): boolean;
+  export function mcapView(c: { mcap_source?: string | null; market_cap_lamports?: string | null; mcap_usd?: string | null }, loc: Lang): { primary: string; secondary: string | null; sourceKey: string | null; tooltipKeys: string[] };
 }

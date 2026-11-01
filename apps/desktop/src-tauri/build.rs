@@ -20,6 +20,11 @@ fn main() {
             "reset_practice",
             "get_coin_timeline",
             "get_exit_reason_stats",
+            "refresh_quote",
+            "patch_strategy",
+            "auth_status",
+            "auth_login",
+            "auth_logout",
         ]),
     ))
     .expect("failed to run tauri-build");

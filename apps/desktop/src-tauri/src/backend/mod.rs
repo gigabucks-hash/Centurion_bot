@@ -216,6 +216,14 @@ impl std::fmt::Display for ApiFailure {
 
 pub type ApiResult<T> = Result<T, ApiFailure>;
 
+/// Result of `PATCH /strategies/{id}` (1.1.4): applied (200) or a guard-loosening proposal waiting for
+/// approval (202). The UI shows the second as "waiting for approval", never as success.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StrategyPatch {
+    Applied(ApiItem<StrategySummary>),
+    PendingApproval { proposal: Box<crate::model::ApprovalWire>, guard_change: serde_json::Value, server_now: IsoTs },
+}
+
 /// The only way the desktop reaches the backend. Static dispatch (`impl Future`) — the app holds
 /// one concrete transport (`ActiveTransport`), swapped from mock to HTTP in Week 2.
 ///
@@ -245,8 +253,9 @@ pub trait Transport: Send + Sync + 'static {
     fn close(&self, position_id: &str, idem_key: &str, if_match: Option<u64>, fraction_bps: u16) -> impl Future<Output = ApiResult<CloseResponse>> + Send;
     /// `POST /strategies/{id}/pause|resume` with `If-Match` (status changes bump `rev`).
     fn set_strategy_paused(&self, id: &str, idem_key: &str, if_match: Option<u64>, paused: bool) -> impl Future<Output = ApiResult<ApiItem<StrategySummary>>> + Send;
-    /// `PATCH /strategies/{id}` `{settings_patch}` + `If-Match`. Stale → 409 [`Conflict`]. No desktop UI yet.
-    fn patch_strategy(&self, id: &str, idem_key: &str, if_match: Option<u64>, settings_patch: serde_json::Value) -> impl Future<Output = ApiResult<ApiItem<StrategySummary>>> + Send;
+    /// `PATCH /strategies/{id}` `{settings_patch}` + `If-Match`. Stale → 409 [`Conflict`]. A patch that
+    /// loosens any guard → `202 {data: {proposal, guard_change}}`, nothing applied ([`StrategyPatch::PendingApproval`]).
+    fn patch_strategy(&self, id: &str, idem_key: &str, if_match: Option<u64>, settings_patch: serde_json::Value) -> impl Future<Output = ApiResult<StrategyPatch>> + Send;
     /// `POST /workspaces/{ws}/practice/reset` `{}` + `If-Match` workspace rev. 429 `RESET_COOLDOWN`.
     fn reset_practice(&self, idem_key: &str, if_match: Option<u64>) -> impl Future<Output = ApiResult<ApiItem<PracticeResetResponse>>> + Send;
     /// `GET /coins/{mint}/timeline?mode=practice` (v1.0 `/trail`).
@@ -286,6 +295,17 @@ impl ActiveTransport {
     /// `SENTRA_BACKEND` unset → mock. Set but invalid → refuse to fall back silently (panic with the reason).
     pub fn from_env(mock_skew_ms: i64) -> Self {
         match std::env::var("SENTRA_BACKEND") {
+            // No dev token → wallet login (SIWS via the system browser); tokens live in the OS keychain.
+            Ok(v) if !v.trim().is_empty() && v.trim() != "mock" && std::env::var("SENTRA_BACKEND_TOKEN").is_err() => {
+                let ws = std::env::var("SENTRA_WORKSPACE_ID").ok();
+                match crate::auth::AuthClient::new(&v).and_then(|c| http::HttpTransport::with_session(&v, ws.as_deref(), crate::auth::SessionManager::new(c, crate::auth::default_store()))) {
+                    Ok(t) => {
+                        log::info!("transport: http {} (SIWS session)", t.base());
+                        Self::Http(t)
+                    }
+                    Err(e) => panic!("SENTRA_BACKEND set but unusable: {e}"),
+                }
+            }
             Ok(v) if !v.trim().is_empty() && v.trim() != "mock" => match http::HttpTransport::from_env() {
                 Ok(t) => {
                     log::info!("transport: http {}", t.base());
@@ -300,6 +320,13 @@ impl ActiveTransport {
         match self {
             Self::Mock(_) => "mock",
             Self::Http(_) => "http",
+        }
+    }
+    /// The SIWS session manager (HTTP transport in wallet-login mode only).
+    pub fn session(&self) -> Option<&std::sync::Arc<crate::auth::SessionManager>> {
+        match self {
+            Self::Http(t) => t.session(),
+            Self::Mock(_) => None,
         }
     }
     /// Mock: start the simulated server. HTTP: nothing to start.
@@ -341,7 +368,7 @@ impl Transport for ActiveTransport {
     async fn set_strategy_paused(&self, id: &str, idem_key: &str, if_match: Option<u64>, paused: bool) -> ApiResult<ApiItem<StrategySummary>> {
         delegate!(self, t => t.set_strategy_paused(id, idem_key, if_match, paused).await)
     }
-    async fn patch_strategy(&self, id: &str, idem_key: &str, if_match: Option<u64>, settings_patch: serde_json::Value) -> ApiResult<ApiItem<StrategySummary>> {
+    async fn patch_strategy(&self, id: &str, idem_key: &str, if_match: Option<u64>, settings_patch: serde_json::Value) -> ApiResult<StrategyPatch> {
         delegate!(self, t => t.patch_strategy(id, idem_key, if_match, settings_patch).await)
     }
     async fn reset_practice(&self, idem_key: &str, if_match: Option<u64>) -> ApiResult<ApiItem<PracticeResetResponse>> {

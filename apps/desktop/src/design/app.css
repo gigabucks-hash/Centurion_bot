@@ -320,3 +320,17 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 /* tokens 0.2.5 skeleton: quick-look timeline while coin_timeline loads */
 .quicklook .ql-skel { display: inline-block; width: 70%; vertical-align: middle; }
 
+
+/* 1.1.4 quote line (card + quick-look): fee · total max · slippage · expiry; stale → refresh. */
+.quote { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 11px; color: var(--color-text-secondary); }
+.quote.is-stale { color: inherit; }
+.quote .quote-refresh { padding: 1px 8px; min-height: 0; }
+
+/* 202 guard-weaken: pending (info tone), never success-green or error-red. */
+.notice.pending { flex-basis: 100%; margin-top: 4px; padding: 6px 8px; border-left: 3px solid var(--color-semantic-info); background: var(--color-bg-sunken); font-size: var(--d-small); }
+.settings-section .toggle-row { flex-wrap: wrap; }
+
+/* SIWS login gate (system-browser flow; no wallet UI in the webview). */
+.auth-gate { min-height: 100vh; display: grid; place-items: center; background: var(--color-bg-canvas); }
+.auth-gate section { max-width: 420px; display: grid; gap: var(--space-3); padding: var(--space-4); }
+.auth-gate h1 { margin: 0; font-size: 20px; }

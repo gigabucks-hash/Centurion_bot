@@ -16,7 +16,7 @@
 //!   `Last-Event-ID` = the resume seq (int64 string). `event: mark|clock` frames have no `id:`.
 //! - Response envelopes follow API_ENDPOINTS (lists `{items, next_cursor, server_now}`, single
 //!   resources `{data, server_now}`, a few RPC results flat) and are adapted to the trait types.
-use super::{sse_path, ws_path, ApiFailure, ApiResult, Inbound, Transport};
+use super::{sse_path, ws_path, ApiFailure, ApiResult, Inbound, StrategyPatch, Transport};
 use crate::model::*;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::{Method, StatusCode};
@@ -35,21 +35,40 @@ fn capture(what: String, v: &Value) {
 #[cfg(not(test))]
 fn capture(_: String, _: &Value) {}
 
+/// No usable session → a wire-shaped 401 so callers treat it like the server saying so.
+fn auth_failure(e: crate::auth::AuthError) -> ApiFailure {
+    use crate::auth::AuthError::*;
+    let (http, code, reason) = match &e {
+        SignedOut => (401, "UNAUTHENTICATED", "signed_out"),
+        WalletNotAllowed => (403, "FORBIDDEN_ROLE", "wallet_not_allowed"),
+        Unavailable(_) => return ApiFailure::Network("auth service unavailable".into()),
+    };
+    ApiFailure::Api { http, code: code.into(), message: String::new(), details: Some(json!({"reason": reason})) }
+}
+
 const UA: &str = concat!("sentra-desktop/", env!("CARGO_PKG_VERSION"));
 const MAX_BODY: usize = 4 * 1024 * 1024;
 const MAX_SSE_LINE: usize = 256 * 1024;
+
+/// Where the bearer comes from: a dev JWT from env (smoke tests) or the SIWS session (OS keychain).
+#[derive(Clone)]
+pub enum Credential {
+    Static(String),
+    Session(std::sync::Arc<crate::auth::SessionManager>),
+}
 
 #[derive(Clone)]
 pub struct HttpTransport {
     client: reqwest::Client,
     base: String,
+    /// Static mode: from env. Session mode: env override or "" until the first login sets it.
     ws: String,
-    token: String,
+    cred: Credential,
 }
 
 impl std::fmt::Debug for HttpTransport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HttpTransport").field("base", &self.base).field("ws", &self.ws).field("token", &"<redacted>").finish()
+        f.debug_struct("HttpTransport").field("base", &self.base).field("ws", &self.ws).field("credential", &match self.cred { Credential::Static(_) => "static <redacted>", Credential::Session(_) => "siws session" }).finish()
     }
 }
 
@@ -91,7 +110,31 @@ impl HttpTransport {
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|e| e.to_string())?;
-        Ok(Self { client, base, ws: ws.to_ascii_lowercase(), token: token.to_owned() })
+        Ok(Self { client, base, ws: ws.to_ascii_lowercase(), cred: Credential::Static(token.to_owned()) })
+    }
+
+    /// SIWS mode: the bearer comes from `session` (single-flight refresh); the workspace from the session.
+    pub fn with_session(base: &str, ws_override: Option<&str>, session: std::sync::Arc<crate::auth::SessionManager>) -> Result<Self, String> {
+        let mut t = Self::new(base, ws_override.unwrap_or("00000000-0000-0000-0000-000000000000"), "placeholder")?;
+        if ws_override.is_none() {
+            t.ws = String::new();
+        }
+        t.cred = Credential::Session(session);
+        Ok(t)
+    }
+
+    pub fn session(&self) -> Option<&std::sync::Arc<crate::auth::SessionManager>> {
+        match &self.cred {
+            Credential::Session(s) => Some(s),
+            Credential::Static(_) => None,
+        }
+    }
+
+    fn ws(&self) -> &str {
+        match &self.cred {
+            Credential::Session(s) if self.ws.is_empty() => s.workspace.get().map(String::as_str).unwrap_or(""),
+            _ => &self.ws,
+        }
     }
 
     /// From `SENTRA_BACKEND`, `SENTRA_WORKSPACE_ID`, `SENTRA_BACKEND_TOKEN` (dev only).
@@ -106,9 +149,19 @@ impl HttpTransport {
         &self.base
     }
 
-    fn headers(&self) -> HeaderMap {
+    /// The current bearer (SIWS: refreshed first when it expires within a minute).
+    async fn bearer(&self) -> ApiResult<String> {
+        match &self.cred {
+            Credential::Static(t) => Ok(t.clone()),
+            Credential::Session(s) => s.access_token().await.map_err(auth_failure),
+        }
+    }
+
+    fn headers(&self, token: &str) -> HeaderMap {
         let mut h = HeaderMap::new();
-        h.insert(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", self.token)).expect("token validated"));
+        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {token}")) {
+            h.insert(AUTHORIZATION, v);
+        }
         h.insert(ACCEPT, HeaderValue::from_static("application/json"));
         h.insert("Accept-Language", HeaderValue::from_static("id"));
         h
@@ -116,8 +169,14 @@ impl HttpTransport {
 
     /// One request → (status, headers, JSON body). Non-2xx → [`ApiFailure`] (with `Retry-After`).
     pub async fn raw(&self, method: Method, path: &str, body: Option<&Value>, extra: &[(&str, String)]) -> ApiResult<(StatusCode, HeaderMap, Value)> {
-        for attempt in 0..2 {
-            let mut rb = self.client.request(method.clone(), format!("{}{path}", self.base)).headers(self.headers()).timeout(Duration::from_secs(15));
+        if self.ws().is_empty() {
+            return Err(auth_failure(crate::auth::AuthError::SignedOut));
+        }
+        let mut token = self.bearer().await?;
+        let mut refreshed = false;
+        let mut attempt = 0;
+        while attempt < 2 {
+            let mut rb = self.client.request(method.clone(), format!("{}{path}", self.base)).headers(self.headers(&token)).timeout(Duration::from_secs(15));
             for (k, v) in extra {
                 rb = rb.header(*k, v);
             }
@@ -136,9 +195,16 @@ impl HttpTransport {
             if status.is_success() {
                 return Ok((status, headers, v));
             }
+            // SIWS: one forced refresh (single flight; skipped if someone else already refreshed), then retry.
+            if let (StatusCode::UNAUTHORIZED, false, Credential::Session(s)) = (status, refreshed, &self.cred) {
+                refreshed = true;
+                token = s.on_unauthorized(&token).await.map_err(auth_failure)?;
+                continue;
+            }
             let retry_after = headers.get("retry-after").and_then(|h| h.to_str().ok()).and_then(|s| s.trim().parse::<u64>().ok());
             if status == StatusCode::SERVICE_UNAVAILABLE && attempt == 0 && retry_after.is_some_and(|s| s <= 2) {
                 tokio::time::sleep(Duration::from_secs(retry_after.unwrap_or(1))).await;
+                attempt += 1;
                 continue; // identical request (same key + same body) — the only allowed reuse
             }
             let mut f = ApiFailure::from_body(status.as_u16(), &v);
@@ -150,7 +216,7 @@ impl HttpTransport {
             }
             return Err(f);
         }
-        unreachable!("loop returns")
+        Err(ApiFailure::Network("retry budget exhausted".into()))
     }
 
     async fn get<T: DeserializeOwned>(&self, path: &str) -> ApiResult<(T, HeaderMap)> {
@@ -170,18 +236,22 @@ impl HttpTransport {
     /// Raw status + headers + body without error mapping (smoke tests: 429 Retry-After header).
     #[cfg(test)]
     pub async fn client_raw_status(&self, path: &str, idem: &str) -> Result<(u16, HeaderMap, Value), String> {
-        let r = self.client.post(format!("{}{path}", self.base)).headers(self.headers()).header("Idempotency-Key", idem).json(&json!({})).send().await.map_err(|e| e.to_string())?;
+        let r = self.client.post(format!("{}{path}", self.base)).headers(self.headers(&self.bearer().await.map_err(|e| e.code().to_owned())?)).header("Idempotency-Key", idem).json(&json!({})).send().await.map_err(|e| e.to_string())?;
         let (st, h) = (r.status().as_u16(), r.headers().clone());
         Ok((st, h, r.json().await.unwrap_or(Value::Null)))
     }
 
     fn p(&self, rest: &str) -> String {
-        ws_path(&self.ws, rest)
+        ws_path(self.ws(), rest)
     }
 
     /// Open the SSE stream. `last_event_id` wins over `after_seq` on the server (both are sent on a resume).
     pub async fn open_stream(&self, after_seq: i64, last_event_id: Option<i64>) -> ApiResult<mpsc::Receiver<Inbound>> {
-        let mut rb = self.client.get(format!("{}{}", self.base, sse_path(&self.ws, after_seq))).headers(self.headers()).header(ACCEPT, "text/event-stream");
+        if self.ws().is_empty() {
+            return Err(auth_failure(crate::auth::AuthError::SignedOut));
+        }
+        let token = self.bearer().await?;
+        let mut rb = self.client.get(format!("{}{}", self.base, sse_path(self.ws(), after_seq))).headers(self.headers(&token)).header(ACCEPT, "text/event-stream");
         if let Some(id) = last_event_id {
             rb = rb.header("Last-Event-ID", id.to_string());
         }
@@ -240,6 +310,51 @@ fn list<T: DeserializeOwned>(v: Value) -> ApiResult<ApiItem<Vec<T>>> {
     Ok(ApiItem { data: decode(v.get("items").cloned().unwrap_or(Value::Array(vec![])))?, server_now })
 }
 
+/// Most pages one list read follows (100 items each); a longer list is truncated rather than looping forever.
+const MAX_PAGES: usize = 20;
+
+/// `path` + `cursor=` (opaque, percent-encoded).
+fn with_cursor(path: &str, cursor: Option<&str>) -> String {
+    match cursor {
+        None => path.to_owned(),
+        Some(c) => {
+            let enc: String = c.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect();
+            format!("{path}{}cursor={enc}", if path.contains('?') { '&' } else { '?' })
+        }
+    }
+}
+
+/// Keyset paging (contracts §1): follow `next_cursor` until null. `400 CURSOR_INVALID` (malformed, or
+/// from another list) restarts once from the first page with an empty accumulator; a second one fails.
+/// `server_now` is the last page's.
+pub(crate) async fn paginate<T, F, Fut>(path: &str, fetch: F) -> ApiResult<ApiItem<Vec<T>>>
+where
+    T: DeserializeOwned,
+    F: Fn(String) -> Fut,
+    Fut: std::future::Future<Output = ApiResult<Value>>,
+{
+    let (mut items, mut cursor, mut restarted) = (Vec::new(), None::<String>, false);
+    let mut pages = 0;
+    loop {
+        let v = match fetch(with_cursor(path, cursor.as_deref())).await {
+            Ok(v) => v,
+            Err(e) if e.code() == "CURSOR_INVALID" && cursor.is_some() && !restarted => {
+                restarted = true;
+                (items, cursor, pages) = (Vec::new(), None, 0);
+                continue;
+            }
+            Err(e) => return Err(e),
+        };
+        let page: ApiItem<Vec<T>> = list(v.clone())?;
+        items.extend(page.data);
+        pages += 1;
+        cursor = v.get("next_cursor").and_then(|c| c.as_str()).filter(|c| !c.is_empty()).map(str::to_owned);
+        if cursor.is_none() || pages >= MAX_PAGES {
+            return Ok(ApiItem { data: items, server_now: page.server_now });
+        }
+    }
+}
+
 /// `ETag: "<rev>"` (weak or strong) → rev.
 pub fn etag_rev(h: &HeaderMap) -> Option<u64> {
     h.get("etag")?.to_str().ok()?.trim().trim_start_matches("W/").trim_matches('"').parse().ok()
@@ -295,7 +410,7 @@ impl Frame {
 
 impl Transport for HttpTransport {
     fn workspace_id(&self) -> &str {
-        &self.ws
+        self.ws()
     }
 
     async fn subscribe(&self, after_seq: i64) -> ApiResult<mpsc::Receiver<Inbound>> {
@@ -337,8 +452,8 @@ impl Transport for HttpTransport {
     }
 
     async fn list_strategies(&self) -> ApiResult<ApiItem<Vec<StrategySummary>>> {
-        let (_, _, v) = self.raw(Method::GET, &self.p("/strategies?mode=practice"), None, &[]).await?;
-        list(v)
+        let path = self.p("/strategies?mode=practice&limit=100");
+        paginate(&path, |p| async move { self.raw(Method::GET, &p, None, &[]).await.map(|(_, _, v)| v) }).await
     }
 
     async fn get_approval(&self, proposal_id: &str) -> ApiResult<ApiItem<ApprovalDetail>> {
@@ -367,8 +482,13 @@ impl Transport for HttpTransport {
         self.write(Method::POST, &self.p(&format!("/strategies/{id}/{verb}")), idem_key, if_match, &json!({})).await
     }
 
-    async fn patch_strategy(&self, id: &str, idem_key: &str, if_match: Option<u64>, settings_patch: Value) -> ApiResult<ApiItem<StrategySummary>> {
-        self.write(Method::PATCH, &self.p(&format!("/strategies/{id}")), idem_key, if_match, &json!({ "settings_patch": settings_patch })).await
+    async fn patch_strategy(&self, id: &str, idem_key: &str, if_match: Option<u64>, settings_patch: Value) -> ApiResult<StrategyPatch> {
+        let mut h = vec![("Idempotency-Key", idem_key.to_owned())];
+        if let Some(r) = if_match {
+            h.push(("If-Match", format!("\"{r}\"")));
+        }
+        let (status, _, v) = self.raw(Method::PATCH, &self.p(&format!("/strategies/{id}")), Some(&json!({ "settings_patch": settings_patch })), &h).await?;
+        patch_outcome(status.as_u16(), v)
     }
 
     async fn reset_practice(&self, idem_key: &str, if_match: Option<u64>) -> ApiResult<ApiItem<PracticeResetResponse>> {
@@ -394,9 +514,66 @@ impl Transport for HttpTransport {
     }
 }
 
+/// 200 → applied strategy; 202 → `{data: {proposal: ApprovalWire, guard_change}}` (nothing applied).
+pub(crate) fn patch_outcome(status: u16, v: Value) -> ApiResult<StrategyPatch> {
+    let server_now: IsoTs = decode(v["server_now"].clone())?;
+    if status == 202 {
+        let d = &v["data"];
+        return Ok(StrategyPatch::PendingApproval { proposal: Box::new(decode(d["proposal"].clone())?), guard_change: d["guard_change"].clone(), server_now });
+    }
+    Ok(StrategyPatch::Applied(ApiItem { data: decode(v["data"].clone())?, server_now }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn cursor_paging_follows_next_cursor_and_resets_on_cursor_invalid() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let now = "2026-10-29T08:42:00.000Z";
+        let page = |ids: &[i64], next: Option<&str>| json!({"items": ids, "next_cursor": next, "server_now": now});
+        // a → b → end
+        let calls = std::sync::Mutex::new(Vec::<String>::new());
+        let r: ApiItem<Vec<i64>> = paginate("/x?limit=2", |p| {
+            calls.lock().unwrap().push(p.clone());
+            async move {
+                Ok(if p.contains("cursor=b%2B") { page(&[3], None) } else if p.contains("cursor=a") { page(&[2], Some("b+")) } else { page(&[1], Some("a")) })
+            }
+        }).await.unwrap();
+        assert_eq!(r.data, vec![1, 2, 3]);
+        assert_eq!(calls.lock().unwrap().as_slice(), ["/x?limit=2", "/x?limit=2&cursor=a", "/x?limit=2&cursor=b%2B"]);
+        // CURSOR_INVALID on page 2 → restart from page 1 once (no duplicates), then succeed
+        let n = AtomicUsize::new(0);
+        let r: ApiItem<Vec<i64>> = paginate("/y", |p| {
+            let k = n.fetch_add(1, Ordering::SeqCst);
+            async move {
+                if p.contains("cursor=") && k == 1 {
+                    return Err(ApiFailure::Api { http: 400, code: "CURSOR_INVALID".into(), message: "bad".into(), details: None });
+                }
+                Ok(if p.contains("cursor=") { page(&[2], None) } else { page(&[1], Some("c")) })
+            }
+        }).await.unwrap();
+        assert_eq!(r.data, vec![1, 2]);
+        assert_eq!(n.load(Ordering::SeqCst), 4, "p1, p2(invalid), p1 again, p2");
+        // a second CURSOR_INVALID is an error, not a loop
+        let r: ApiResult<ApiItem<Vec<i64>>> = paginate("/z", |p| async move {
+            if p.contains("cursor=") { Err(ApiFailure::Api { http: 400, code: "CURSOR_INVALID".into(), message: "bad".into(), details: None }) } else { Ok(page(&[1], Some("c"))) }
+        }).await;
+        assert_eq!(r.unwrap_err().code(), "CURSOR_INVALID");
+    }
+
+    #[test]
+    fn guard_weakening_patch_is_pending_approval_not_success() {
+        let body = json!({"data": {"proposal": crate::backend::mock::sample_approval_wire("guard_change"), "guard_change": {"fields": ["score_threshold"]}}, "server_now": "2026-10-29T08:42:00.000Z"});
+        match patch_outcome(202, body).unwrap() {
+            StrategyPatch::PendingApproval { proposal, guard_change, .. } => {
+                assert!(proposal.weakening);
+                assert_eq!(guard_change["fields"][0], "score_threshold");
+            }
+            other => panic!("expected pending approval, got {other:?}"),
+        }
+    }
 
     #[test]
     fn base_url_rules_and_redaction() {
@@ -436,5 +613,40 @@ mod tests {
         let mut h = HeaderMap::new();
         h.insert("etag", HeaderValue::from_static("W/\"7\""));
         assert_eq!(etag_rev(&h), Some(7));
+    }
+
+    /// SIWS mode: a 401 on an API call triggers one (single-flight) refresh and one retry with the new
+    /// bearer; a second 401 is returned to the caller (no refresh loop).
+    #[tokio::test]
+    async fn siws_session_401_refreshes_once_and_retries() {
+        use crate::auth::tests::*;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let refreshes = std::sync::Arc::new(AtomicUsize::new(0));
+        let r2 = refreshes.clone();
+        let base = stub(std::sync::Arc::new(move |_, path, auth, _| {
+            if path == "/v1/auth/session/refresh" {
+                r2.fetch_add(1, Ordering::SeqCst);
+                return (200, session_json(2));
+            }
+            if auth == "Bearer at2.x.y" {
+                (200, json!({"data": {"ok": true}, "server_now": "2026-10-29T12:00:00.000Z"}))
+            } else {
+                (401, json!({"error": {"code": "UNAUTHENTICATED", "message": "expired"}}))
+            }
+        }))
+        .await;
+        let store = crate::auth::MemoryStore::default();
+        crate::auth::TokenStore::save(&store, &session(1, 600_000)).unwrap(); // looks valid locally, server says expired
+        let sm = crate::auth::SessionManager::new(crate::auth::AuthClient::new(&base).unwrap(), Box::new(store));
+        let t = HttpTransport::with_session(&base, None, sm).unwrap();
+        assert_eq!(t.workspace_id(), "10000000-0000-0000-0000-0000000000a1");
+        let (st, _, v) = t.raw(Method::GET, "/v1/workspaces/x/ping", None, &[]).await.unwrap();
+        assert_eq!((st.as_u16(), v["data"]["ok"].as_bool()), (200, Some(true)));
+        assert_eq!(refreshes.load(Ordering::SeqCst), 1);
+
+        // signed out → no request at all, a wire-shaped 401
+        let sm = crate::auth::SessionManager::new(crate::auth::AuthClient::new(&base).unwrap(), Box::new(crate::auth::MemoryStore::default()));
+        let t = HttpTransport::with_session(&base, None, sm).unwrap();
+        assert_eq!(t.raw(Method::GET, "/v1/x", None, &[]).await.unwrap_err().code(), "UNAUTHENTICATED");
     }
 }

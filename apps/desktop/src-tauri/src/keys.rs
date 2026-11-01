@@ -148,24 +148,24 @@ pub fn normalize_with(v: &mut serde_json::Value, keys: &[(&str, &str)], values: 
     }
 }
 
-/// Wire exit-rule id → short Indonesian UI label (activity feed, quick-look, positions).
+/// Wire exit-rule id → short Indonesian UI label (activity feed, quick-look, positions). Same text as
+/// @sentra/i18n 0.4.6 `exit_reason.<id>` (id) — checked by `exit_labels_match_i18n_package`.
 pub fn exit_label(r: ExitReason) -> &'static str {
     match r {
         ExitReason::SellFloor => "Sell floor",
-        ExitReason::ProfitTarget => "Target profit",
-        ExitReason::LossGuard => "Batas rugi",
-        ExitReason::PeakTrail => "Trail dari puncak",
-        ExitReason::MaxHold => "Batas waktu tahan",
-        ExitReason::Idle => "Tidak aktif",
+        ExitReason::ProfitTarget => "Take profit",
+        ExitReason::LossGuard => "Stop loss",
+        ExitReason::PeakTrail => "Trailing stop",
+        ExitReason::MaxHold => "Time stop",
+        ExitReason::Idle => "Exit tanpa trade",
         ExitReason::SellPressure => "Tekanan jual",
         ExitReason::NoNewHigh => "Tanpa high baru",
         ExitReason::RugDetected => "Rug terdeteksi",
         ExitReason::DrawdownHalt => "Henti drawdown",
         ExitReason::Manual => "Jual manual",
         ExitReason::StrategyRetired => "Strategi dihentikan",
-        ExitReason::PracticeReset => "Reset practice",
-        // i18n 0.4.5 has no exit_reason.stall copy yet (UX gap) → local label.
-        ExitReason::Stall => "Harga stagnan",
+        ExitReason::PracticeReset => "Practice di-reset",
+        ExitReason::Stall => "Exit stagnan",
     }
 }
 
@@ -177,6 +177,15 @@ pub fn exit_id(r: ExitReason) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn exit_labels_match_i18n_package() {
+        let id: serde_json::Value = serde_json::from_str(include_str!("../../../../packages/i18n/id.json")).unwrap();
+        for r in [ExitReason::SellFloor, ExitReason::ProfitTarget, ExitReason::LossGuard, ExitReason::PeakTrail, ExitReason::MaxHold, ExitReason::Idle, ExitReason::SellPressure, ExitReason::NoNewHigh, ExitReason::RugDetected, ExitReason::DrawdownHalt, ExitReason::Manual, ExitReason::StrategyRetired, ExitReason::PracticeReset, ExitReason::Stall] {
+            assert_eq!(id["exit_reason"][exit_id(r)].as_str(), Some(exit_label(r)), "{}", exit_id(r));
+        }
+        assert_eq!(exit_label(ExitReason::Stall), "Exit stagnan");
+        assert_eq!(exit_label(ExitReason::MaxHold), "Time stop");
+    }
     #[test]
     fn error_codes_and_quote_labels() {
         assert_eq!(error_code("PAPER_CASH_INSUFFICIENT"), "PRACTICE_CASH_INSUFFICIENT");

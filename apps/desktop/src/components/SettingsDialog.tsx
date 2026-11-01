@@ -1,9 +1,10 @@
 import { popupSupported, POPUP_DISABLED_REASON } from "./platform";
-import { useState } from "react";
-import { core, type Settings } from "../api";
+import { useEffect, useState } from "react";
+import { core, type PatchOutcome, type Settings } from "../api";
 import { useTerm } from "../state/store";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { errorCodeOf, errorDetails, errorText, useLang, useT } from "../i18n";
+import { fmtTime } from "./format";
 
 /** Wire strategy status → @sentra/i18n `strategy.status.*` (unknown → raw value never shown: "—"). */
 const STATUS_KEY: Record<string, string> = { active: "strategy.status.running", running: "strategy.status.running", paused: "strategy.status.paused", draft: "strategy.status.draft" };
@@ -30,6 +31,24 @@ function StrategiesSection() {
       setBusy(null);
     }
   };
+  // 1.1.4: PATCH settings. Loosening a guard → 202 + proposal: shown as "waiting for approval" (pending
+  // tone, guard.weaken.pending.*), never as success; nothing changed until the proposal is approved.
+  const [fit, setFit] = useState<Record<string, string>>({});
+  const [outcome, setOutcome] = useState<{ id: string; o: PatchOutcome } | null>(null);
+  const save = async (id: string) => {
+    const v = Number(fit[id]);
+    if (!Number.isInteger(v) || v < 0 || v > 115) return setErr("score_threshold 0–115");
+    setBusy(id);
+    setErr(null);
+    setOutcome(null);
+    try {
+      setOutcome({ id, o: await core.patchStrategy(id, { score_threshold: v }) });
+    } catch (e) {
+      setErr(errorText(e, lang));
+    } finally {
+      setBusy(null);
+    }
+  };
   return (
     <div className="settings-section">
       <div className="muted">Strategi (practice) · pause/resume pakai If-Match rev</div>
@@ -37,12 +56,39 @@ function StrategiesSection() {
         <div className="toggle-row" key={s.id}>
           {/* name is server text, rendered as plain text */}
           <span>{s.name} <span className="dim num">rev {s.rev} · {STATUS_KEY[s.status] ? t(STATUS_KEY[s.status]) : "—"}</span></span>
-          <button className="sm" disabled={busy === s.id} onClick={() => toggle(s.id, s.status !== "paused", s.rev)}>
-            {s.status === "paused" ? "Resume" : "Pause"}
-          </button>
+          <span className="row" style={{ gap: 4 }}>
+            <input className="sm num" style={{ width: 56 }} inputMode="numeric" aria-label={`Fit threshold ${s.name}`} placeholder="fit" value={fit[s.id] ?? ""} onChange={(e) => setFit({ ...fit, [s.id]: e.target.value.replace(/[^0-9]/g, "").slice(0, 3) })} />
+            <button className="sm ghost" disabled={busy === s.id || !fit[s.id]} onClick={() => save(s.id)}>Simpan</button>
+            <button className="sm" disabled={busy === s.id} onClick={() => toggle(s.id, s.status !== "paused", s.rev)}>
+              {s.status === "paused" ? "Resume" : "Pause"}
+            </button>
+          </span>
+          {outcome?.id === s.id && (outcome.o.status === "pending_approval" ? (
+            <div className="notice pending" role="status" data-outcome="pending_approval">
+              <b>{t("guard.weaken.pending.title")}</b>
+              <div>{t("guard.weaken.pending.body", { expires_at: fmtTime(Date.parse(outcome.o.expires_at)) })}</div>
+              <div className="dim mono">{outcome.o.fields.join(", ")}</div>
+            </div>
+          ) : (
+            <div className="dim num" role="status" data-outcome="applied">rev {outcome.o.rev}</div>
+          ))}
         </div>
       ))}
       {err && <div className="neg" style={{ fontSize: "var(--d-small)" }}>{err}</div>}
+    </div>
+  );
+}
+
+/** SIWS builds only: revoke the refresh token on the server and clear the keychain entry. */
+function SessionSection() {
+  const t = useT();
+  const [siws, setSiws] = useState<string | null>(null);
+  useEffect(() => void core.authStatus().then((a) => a.mode === "siws" && a.state === "signed_in" && setSiws(a.address ?? "")).catch(() => {}), []);
+  if (siws == null) return null;
+  return (
+    <div className="settings-section toggle-row">
+      <span className="mono dim">{siws}</span>
+      <button className="sm" onClick={() => core.authLogout()}>{t("desktop.auth.sign_out")}</button>
     </div>
   );
 }
@@ -171,6 +217,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           Global shortcut hanya membuka UI — tidak pernah approve, skip, atau sell langsung.
         </div>
         <StrategiesSection />
+        <SessionSection />
         <PracticeResetSection />
         {err && <div className="neg" style={{ marginTop: 8 }}>{err}</div>}
         <div className="actions">
