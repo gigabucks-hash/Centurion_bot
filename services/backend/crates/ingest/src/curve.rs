@@ -31,7 +31,6 @@ pub const BONDING_CURVE_DISCRIMINATOR: [u8; 8] = [0x17, 0xb7, 0xf8, 0x37, 0x60, 
 const MIN_LEN: usize = 81;
 const QUOTE_LEN: usize = 115;
 const LAMPORTS_PER_SOL: f64 = 1_000_000_000.0;
-const TOKEN_UNITS: f64 = 1_000_000.0;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BondingCurve {
@@ -105,6 +104,8 @@ pub enum NotTradeable {
     UnsupportedQuoteMint(Option<String>),
     Complete,
     Empty,
+    /// The mint's decimals are not known yet (never assumed; the mint account must be read first).
+    DecimalsUnknown,
 }
 
 fn u64_at(d: &[u8], at: usize) -> u64 {
@@ -151,7 +152,8 @@ impl BondingCurve {
         self.quote.map(|q| q.mint())
     }
     /// Pool for the paper simulator. Only SOL-quoted, live curves qualify; reserves are never converted.
-    pub fn pool_state(&self) -> Result<PoolState, NotTradeable> {
+    /// Token reserves are scaled by the **mint's** `decimals` (from the mint account), never an assumed 6.
+    pub fn pool_state(&self, decimals: Option<u8>) -> Result<PoolState, NotTradeable> {
         match self.quote {
             Some(q) if q.is_sol() => {}
             other => return Err(NotTradeable::UnsupportedQuoteMint(other.map(|q| q.mint()))),
@@ -162,9 +164,10 @@ impl BondingCurve {
         if self.virtual_quote_reserves == 0 || self.virtual_token_reserves == 0 {
             return Err(NotTradeable::Empty);
         }
+        let decimals = decimals.ok_or(NotTradeable::DecimalsUnknown)?;
         Ok(PoolState {
             sol_reserve: self.virtual_quote_reserves as f64 / LAMPORTS_PER_SOL,
-            token_reserve: self.virtual_token_reserves as f64 / TOKEN_UNITS,
+            token_reserve: self.virtual_token_reserves as f64 / 10f64.powi(i32::from(decimals)),
             quote: QuoteAsset::Sol,
         })
     }
@@ -517,9 +520,17 @@ mod tests {
             }
         );
         assert_eq!(c.quote_mint().as_deref(), Some(common::WSOL_MINT));
-        let p = c.pool_state().expect("SOL curve is tradeable");
+        let p = c.pool_state(Some(6)).expect("SOL curve is tradeable");
         assert!((p.sol_reserve - 0.095_584_963).abs() < 1e-12);
         assert!((p.token_reserve - 1_397_948_479.570_101).abs() < 1e-6);
+        // the mint's decimals scale the token side (a 9-decimal mint has 1000x fewer whole tokens)
+        let p9 = c.pool_state(Some(9)).expect("9 decimals");
+        assert!((p9.token_reserve - 1_397_948.479_570_101).abs() < 1e-6);
+        assert_eq!(
+            c.pool_state(None),
+            Err(NotTradeable::DecimalsUnknown),
+            "decimals never assumed"
+        );
     }
 
     #[test]
@@ -536,7 +547,7 @@ mod tests {
         assert_eq!(c.flags, Some([0, 0]));
         assert_eq!(c.quote_mint().as_deref(), Some(PUMP_QUOTE));
         assert_eq!(
-            c.pool_state(),
+            c.pool_state(Some(6)),
             Err(NotTradeable::UnsupportedQuoteMint(Some(PUMP_QUOTE.into())))
         );
     }
@@ -548,7 +559,7 @@ mod tests {
         assert_eq!((c.virtual_token_reserves, c.virtual_quote_reserves), (0, 0));
         assert_eq!(c.creator, "92rjsyV1bKBwW5e4ikXucq6gNCisKYPf9xHYpoJJTKU4");
         assert_eq!(c.quote, Some(QuoteAsset::Sol));
-        assert_eq!(c.pool_state(), Err(NotTradeable::Complete));
+        assert_eq!(c.pool_state(Some(6)), Err(NotTradeable::Complete));
     }
 
     #[test]
@@ -558,7 +569,7 @@ mod tests {
         let legacy = decode_bonding_curve(&data[..81]).expect("legacy prefix");
         assert_eq!(legacy.quote, None, "no quote field -> unknown, not SOL");
         assert_eq!(
-            legacy.pool_state(),
+            legacy.pool_state(Some(6)),
             Err(NotTradeable::UnsupportedQuoteMint(None))
         );
         data[0] ^= 0xff;
@@ -671,7 +682,7 @@ mod tests {
         assert_eq!(f.calls.load(Ordering::SeqCst), 1);
         c.mark_complete(SOL_MINT_COIN);
         assert_eq!(
-            c.fresh(SOL_CURVE, 4_001).expect("c").pool_state(),
+            c.fresh(SOL_CURVE, 4_001).expect("c").pool_state(Some(6)),
             Err(NotTradeable::Complete)
         );
     }

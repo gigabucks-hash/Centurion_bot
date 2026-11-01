@@ -152,17 +152,18 @@ pub async fn enrich(
         c.pool = None;
         return IngestEvent::NewCoin(c);
     };
+    attach_mint(&mut cache.mints, fetcher, &mut c).await;
     if let Some(bc) = frame.bonding_curve.as_deref() {
         match cache.get_or_fetch(bc, c.mint.as_str(), fetcher, now).await {
             Ok(curve) => {
                 c.quote_mint = curve.quote_mint();
-                c.pool = curve.pool_state().ok();
+                // scaled by the mint's own decimals (None -> no pool, never assumed)
+                c.pool = curve.pool_state(c.decimals).ok();
             }
             // keep PumpPortal's own reserves (SOL-quoted by protocol) when the curve read fails
             Err(e) => tracing::warn!(mint = %c.mint, error = %e, "bonding curve unavailable"),
         }
     }
-    attach_mint(&mut cache.mints, fetcher, &mut c).await;
     IngestEvent::NewCoin(c)
 }
 

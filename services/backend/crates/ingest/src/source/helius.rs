@@ -106,18 +106,21 @@ pub async fn attach_curve(
             },
             IngestEvent::NewCoin(mut c),
         ) => {
+            // decimals first (never assumed; same mint-cache path as PumpPortal): they scale the pool
+            attach_mint(&mut cache.mints, fetcher, &mut c).await;
             match cache.get_or_fetch(bonding_curve, mint, fetcher, now).await {
                 Ok(curve) => {
                     c.quote_mint = curve.quote_mint();
-                    c.pool = curve.pool_state().ok();
-                    if let Err(why) = curve.pool_state() {
-                        tracing::debug!(%mint, ?why, "curve not tradeable in paper mode");
+                    match curve.pool_state(c.decimals) {
+                        Ok(p) => c.pool = Some(p),
+                        Err(why) => {
+                            c.pool = None;
+                            tracing::debug!(%mint, ?why, "curve not tradeable in paper mode");
+                        }
                     }
                 }
                 Err(e) => tracing::warn!(%mint, error = %e, "bonding curve unavailable"),
             }
-            // decimals unknown are never assumed; same mint-cache path as PumpPortal
-            attach_mint(&mut cache.mints, fetcher, &mut c).await;
             IngestEvent::NewCoin(c)
         }
         (
@@ -149,7 +152,17 @@ pub async fn attach_curve(
                 // curve never seen (coin created before we connected): no pool until a create or lookup
                 (_, None) => None,
             };
-            t.pool = curve.and_then(|c| c.pool_state().ok());
+            let decimals = match cache.mints.get_or_fetch(mint, fetcher).await {
+                Ok(m) => Some(m.decimals),
+                Err(e) => {
+                    tracing::debug!(%mint, error = %e, "mint decimals unavailable; trade has no pool");
+                    None
+                }
+            };
+            if let (Some(d), CurveEvent::Trade { token_amount, .. }) = (decimals, ev) {
+                t.tokens = *token_amount as f64 / 10f64.powi(i32::from(d));
+            }
+            t.pool = curve.and_then(|c| c.pool_state(decimals).ok());
             IngestEvent::Trade(t)
         }
         (CurveEvent::Completed { mint, .. }, ie) => {
