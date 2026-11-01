@@ -12,14 +12,23 @@
 /// Telegram OIDC stays a stub behind `FeatureFlags.telegramOidcEnabled=false`
 /// ([TelegramAuthStub]); no Telegram SDK installed.
 ///
-/// No wallet SDK is installed (separate review): [WalletSigner] is an interface;
-/// the only implementation is the test/mock signer. Tokens live in memory
-/// ([InMemorySessionStore]) until the secure-storage package is approved.
+/// No wallet SDK is installed (MWA deferred): [WalletSigner] has the Phantom
+/// deeplink implementation (`core/auth/phantom_deeplink.dart`, Android first) and
+/// the test/mock signer. Only the refresh token is persisted ([SecureSessionStore]
+/// over flutter_secure_storage); the access token stays in memory.
+///
+/// Before `/verify` the client checks the payload ([SiwsGuard]): address = base58
+/// of 32 bytes and equal to the connected wallet, signature = base58 of 64 bytes,
+/// and the signed message is byte-identical to the server's (whose header names
+/// our domain and that address). The server re-checks everything (ed25519, nonce).
 library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+
+import '../../core/auth/base58.dart';
+import '../../core/auth/secure_token_store.dart';
 
 import 'api_exception.dart';
 
@@ -88,8 +97,20 @@ class Session {
 }
 
 class SiwsChallenge {
-  const SiwsChallenge({required this.nonce, required this.message, required this.issuedAt, required this.expiresAt});
+  const SiwsChallenge({
+    required this.nonce,
+    required this.message,
+    required this.issuedAt,
+    required this.expiresAt,
+    this.statementVersion = SiwsChallenge.currentStatementVersion,
+  });
+
+  /// B-7 (CHANGELOG "Unreleased: wallet login"): statement text is versioned.
+  static const currentStatementVersion = 1;
   final String nonce;
+
+  /// Statement version the server bound to this nonce (verify accepts only it).
+  final int statementVersion;
 
   /// Exact UTF-8 bytes the wallet must sign (send back unchanged).
   final String message;
@@ -101,7 +122,51 @@ class SiwsChallenge {
     message: j['message']! as String,
     issuedAt: DateTime.parse(j['issued_at']! as String),
     expiresAt: DateTime.parse(j['expires_at']! as String),
+    statementVersion: (j['statement_version'] as num?)?.toInt() ?? currentStatementVersion,
   );
+}
+
+/// Client-side payload checks before `/v1/auth/siws/verify` (hijack defense for
+/// the custom-scheme redirect; SIWS_LOGIN_REVIEW §12). Throws [SiwsPayloadRejected].
+abstract final class SiwsGuard {
+  static void checkAddress(String address) {
+    if (Base58.tryDecodeLength(address, 32) == null) throw const SiwsPayloadRejected('address_format');
+  }
+
+  /// The server's message must be a SIWS message for OUR domain and THIS address.
+  /// We never sign text whose header names another domain or wallet.
+  static void checkChallenge(SiwsChallenge ch, {required String domain, required String address}) {
+    final lines = ch.message.split('\n');
+    if (lines.length < 2 ||
+        lines[0] != '$domain wants you to sign in with your Solana account:' ||
+        lines[1] != address) {
+      throw const SiwsPayloadRejected('message_header');
+    }
+    if (!ch.message.contains('\nNonce: ${ch.nonce}\n') && !ch.message.endsWith('\nNonce: ${ch.nonce}')) {
+      throw const SiwsPayloadRejected('message_nonce');
+    }
+  }
+
+  static void checkSigned({
+    required String connectedAddress,
+    required String address,
+    required String serverMessage,
+    required String signedMessage,
+    required String signatureBase58,
+  }) {
+    checkAddress(address);
+    if (address != connectedAddress) throw const SiwsPayloadRejected('address_mismatch');
+    if (signedMessage != serverMessage) throw const SiwsPayloadRejected('message_mismatch');
+    if (Base58.tryDecodeLength(signatureBase58, 64) == null) throw const SiwsPayloadRejected('signature_format');
+  }
+}
+
+/// Client refused to send a login payload (never reaches the server).
+class SiwsPayloadRejected implements Exception {
+  const SiwsPayloadRejected(this.reason);
+  final String reason;
+  @override
+  String toString() => 'SiwsPayloadRejected($reason)';
 }
 
 /// REST contract for `/v1/auth/*`. Errors are typed [ApiException]s:
@@ -110,8 +175,21 @@ class SiwsChallenge {
 /// UNAUTHENTICATED {reason: refresh_reused|refresh_revoked|refresh_expired|refresh_invalid}
 /// / FORBIDDEN_ROLE.
 abstract interface class SiwsAuthRepository {
-  Future<SiwsChallenge> nonce({required String address, required String domain, String? uri, String? chainId});
-  Future<Session> verify({required String address, required String message, required String signatureBase58});
+  Future<SiwsChallenge> nonce({
+    required String address,
+    required String domain,
+    String? uri,
+    String? chainId,
+    int statementVersion = SiwsChallenge.currentStatementVersion,
+  });
+
+  /// [client] is always `mobile` from this app (becomes the `sentra_client` claim).
+  Future<Session> verify({
+    required String address,
+    required String message,
+    required String signatureBase58,
+    String client = 'mobile',
+  });
   Future<Session> refresh(String refreshToken);
 
   /// Always succeeds (`{revoked: true}`).
@@ -156,6 +234,34 @@ class InMemorySessionStore implements SessionStore {
   Future<Session?> read() async => _s;
   @override
   Future<void> write(Session? s) async => _s = s;
+}
+
+/// Production store: the [Session] (incl. the 15-min access token) lives in memory;
+/// ONLY the rotating refresh token goes to Keychain/Keystore via [SecureTokenStore].
+/// After a cold start [read] is null and [persistedRefreshToken] lets
+/// [AuthController.restore] trade it for a fresh session.
+class SecureSessionStore implements SessionStore {
+  SecureSessionStore(this.tokens);
+  final SecureTokenStore tokens;
+  Session? _s;
+
+  @override
+  Future<Session?> read() async => _s;
+
+  @override
+  Future<void> write(Session? s) async {
+    _s = s;
+    if (s == null) {
+      await tokens.clear();
+    } else {
+      await tokens.save(s.refreshToken);
+    }
+  }
+
+  Future<String?> persistedRefreshToken() async {
+    await tokens.firstRunCleanup();
+    return tokens.load();
+  }
 }
 
 // ------------------------------------------------------------------ state
@@ -216,7 +322,11 @@ class AuthController {
 
   Future<void> restore() async {
     final s = await store.read();
-    if (s == null) return;
+    if (s == null) {
+      final st = store;
+      if (st is SecureSessionStore) await _restoreFromRefresh(await st.persistedRefreshToken());
+      return;
+    }
     _set(SignedIn(s));
     if (!_clock().isBefore(s.refreshAt)) {
       await refreshNow();
@@ -225,11 +335,27 @@ class AuthController {
     }
   }
 
+  /// Cold start: only the refresh token survived. Same single-flight path.
+  Future<void> _restoreFromRefresh(String? refreshToken) async {
+    if (refreshToken == null) return;
+    await (_inflight ??= _refreshWith(refreshToken).whenComplete(() => _inflight = null));
+  }
+
   Future<Session> signIn() async {
     final address = await signer.connect();
+    SiwsGuard.checkAddress(address);
     final ch = await repo.nonce(address: address, domain: domain, chainId: 'solana:mainnet');
-    final sig = await signer.signMessageBase58(address, ch.message);
-    final s = await repo.verify(address: address, message: ch.message, signatureBase58: sig);
+    SiwsGuard.checkChallenge(ch, domain: domain, address: address);
+    final message = ch.message; // exact server bytes, never rebuilt
+    final sig = await signer.signMessageBase58(address, message);
+    SiwsGuard.checkSigned(
+      connectedAddress: address,
+      address: address,
+      serverMessage: ch.message,
+      signedMessage: message,
+      signatureBase58: sig,
+    );
+    final s = await repo.verify(address: address, message: message, signatureBase58: sig, client: 'mobile');
     await _accept(s);
     return s;
   }
@@ -240,8 +366,12 @@ class AuthController {
   Future<Session?> _doRefresh() async {
     final cur = _state;
     if (cur is! SignedIn) return null;
+    return _refreshWith(cur.session.refreshToken);
+  }
+
+  Future<Session?> _refreshWith(String refreshToken) async {
     try {
-      final s = await repo.refresh(cur.session.refreshToken);
+      final s = await repo.refresh(refreshToken);
       await _accept(s);
       return s;
     } on ApiException catch (e) {
@@ -335,7 +465,13 @@ class MockSiwsAuth implements SiwsAuthRepository {
   }
 
   @override
-  Future<SiwsChallenge> nonce({required String address, required String domain, String? uri, String? chainId}) async {
+  Future<SiwsChallenge> nonce({
+    required String address,
+    required String domain,
+    String? uri,
+    String? chainId,
+    int statementVersion = SiwsChallenge.currentStatementVersion,
+  }) async {
     _allow(address);
     final now = _clock();
     final n = _rand(32);
@@ -344,7 +480,7 @@ class MockSiwsAuth implements SiwsAuthRepository {
       '$domain wants you to sign in with your Solana account:',
       address,
       '',
-      'Sign in to Centurion Trade',
+      statementV1,
       '',
       'URI: ${uri ?? 'https://$domain'}',
       'Version: 1',
@@ -356,12 +492,38 @@ class MockSiwsAuth implements SiwsAuthRepository {
     return SiwsChallenge(nonce: n, message: message, issuedAt: now, expiresAt: now.add(nonceTtl));
   }
 
-  /// Mock "signature": base64url of `address|message` (the real server checks ed25519).
-  static String fakeSignature(String address, String message) =>
-      base64Url.encode(utf8.encode('$address|$message')).replaceAll('=', '');
+  /// API_ENDPOINTS 4.1 B-7, statement_version 1.
+  static const statementV1 =
+      'Sign in to Sentra (practice). This request does not trigger a transaction or cost any fees.';
+
+  /// Last `client` seen by [verify] (tests).
+  String? lastClient;
+
+  /// Mock "signature": 64 deterministic bytes (FNV-1a expansion of `address|message`)
+  /// in base58, so it has the wire shape of an ed25519 signature. The real server
+  /// checks ed25519; this is NOT a signature.
+  static String fakeSignature(String address, String message) {
+    final input = utf8.encode('$address|$message');
+    final out = <int>[];
+    var h = 0x811c9dc5;
+    for (var round = 0; out.length < 64; round++) {
+      for (final b in [...input, round]) {
+        h = ((h ^ b) * 0x01000193) & 0xffffffff;
+      }
+      out.addAll([h & 0xff, (h >> 8) & 0xff, (h >> 16) & 0xff, (h >> 24) & 0xff]);
+    }
+    out[0] |= 1; // no leading zero byte → fixed 64-byte decode
+    return Base58.encode(out.sublist(0, 64));
+  }
 
   @override
-  Future<Session> verify({required String address, required String message, required String signatureBase58}) async {
+  Future<Session> verify({
+    required String address,
+    required String message,
+    required String signatureBase58,
+    String client = 'web',
+  }) async {
+    lastClient = client;
     final m = RegExp(r'^Nonce: (\w+)$', multiLine: true).firstMatch(message);
     final rec = m == null ? null : _nonces.remove(m.group(1)); // consumed even if the signature is bad
     if (rec == null || rec.address != address || _clock().isAfter(rec.exp)) {

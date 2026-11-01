@@ -401,5 +401,30 @@ Approval: Boss ("Boleh", lewat Apex), hanya `pinenacl` 0.6.0 dan `flutter_secure
 - `data_extraction_rules.xml` sudah mengecualikan seluruh domain `sharedpref` (termasuk `FlutterSecureStorage*`).
 - Belum: interop fixture dari tweetnacl-js/Phantom asli (butuh perangkat), cek ukuran APK untuk `tink-android`/`path_provider_*` (§11.4 g).
 
+## 12. Implementasi Android: Phantom deeplink SIWS (1 Nov 2026)
+
+Keputusan Apex/Boss: MWA ditunda (red flag), Android dulu lewat deeplink Phantom, redirect skema custom `centurion://auth` (domain nanti). Tidak ada paket baru selain dua paket di §11.7.
+
+**Alur** (`lib/core/auth/phantom_deeplink.dart`, `lib/data/api/auth.dart`, `lib/data/api/auth_http.dart`):
+1. `https://phantom.app/ul/v1/connect?app_url=<placeholder https://centurion.trade.invalid>&dapp_encryption_public_key=<x25519 baru>&cluster=mainnet-beta&redirect_link=centurion://auth?state=<S>&step=connect`.
+2. Redirect → `PhantomBox.openBase58(phantom_encryption_public_key)` (tolak titik orde rendah) → dekripsi `{public_key, session}`; `public_key` wajib base58 32 byte.
+3. `POST /v1/auth/siws/nonce {address, domain, chain_id:"solana:mainnet", statement_version:1}`. Header pesan wajib `"<domain> wants you to sign in with your Solana account:"` + baris alamat yang sama, dan memuat `Nonce: <nonce>`; kalau tidak, app **tidak** menandatangani (`SiwsPayloadRejected`).
+4. `https://phantom.app/ul/v1/signMessage?dapp_encryption_public_key&nonce&payload&redirect_link=centurion://auth?state=<S>&step=sign`; payload = Box(`{message: base58(byte UTF-8 persis dari server), session, display:"utf8"}`).
+5. Redirect → dekripsi `{signature}` (base58 64 byte; `public_key` bila ada harus sama).
+6. `POST /v1/auth/siws/verify {address, message, signature, client:"mobile"}` → `Session` + `workspace_id`. Refresh token ke `SecureTokenStore`; access token di memori.
+7. `/v1/auth/session/refresh` single-flight (juga dipakai saat cold start dari refresh token tersimpan); `UNAUTHENTICATED` (refresh_reused/revoked/expired/invalid, session_revoked) atau `FORBIDDEN_ROLE` → `ForcedLogout` + hapus storage. `/v1/auth/session/logout` best effort, token lokal dihapus dulu.
+
+**Pertahanan hijack:** state acak 128-bit, TTL 5 menit, sekali pakai per langkah, terikat ke keypair x25519 + session Phantom di memori; redirect tanpa state/step yang cocok, kedaluwarsa, replay, atau skema/host lain diabaikan (`rejectedRedirects`). Kode error Phantom `4001` → "Tanda tangan ditolak". Keypair/session dibuang setelah percobaan selesai atau gagal.
+
+**Native:** `MainActivity.kt` punya channel sendiri `centurion/deeplink` (`openUrl` hanya `https://phantom.app`) dan `centurion/deeplink/events` (intent `VIEW` `centurion://auth`, cold start + `onNewIntent`, tanpa log). Manifest: intent-filter `centurion`/`auth` (tanpa `autoVerify`), `<queries><package android:name="app.phantom"/>`.
+
+**UI:** `LoginScreen` (`/login`), satu tombol "Masuk dengan Phantom". Gate login aktif lewat `FeatureFlags.authGateEnabled` (ON di komposisi prod `prodAuthOverrides`, OFF di build mock/test). Tidak ada rute email OTP/Telegram; stub Telegram tetap di balik flag OFF.
+
+**Error → copy:** `SIWS_NONCE_INVALID`, `SIWS_SIGNATURE_INVALID`, `FORBIDDEN_ROLE`, `RATE_LIMITED` (+`Retry-After` → `retry_after_s`), `UNAVAILABLE` (juga timeout/jaringan/TLS/404 tanpa envelope), `VALIDATION_FAILED`, `UNAUTHENTICATED` lewat `api_errors.g.dart` + `errorText` (i18n). Copy khusus Phantom sementara di `lib/features/auth/login_strings.dart` (ARB vendored tidak boleh diubah): `loginButtonPhantom`, `loginPhantomWaiting`, `loginPhantomNotInstalled`, `loginPhantomExpired`, `loginPhantomBadResponse` → **minta UX menambahkan ke @sentra/i18n**.
+
+**Test:** `test/phantom_login_test.dart` (FakePhantom yang benar-benar mengenkripsi dengan Box; redirect palsu/replay/TTL; titik orde rendah; alamat 31 byte; signature 63 byte; decline 4001; Phantom tidak terpasang; pesan domain lain tidak ditandatangani; storage hanya refresh token; restore cold start; reuse → forced logout; bentuk body REST; pemetaan error), `test/login_screen_test.dart` (gate ON → login → tab Home; decline; wallet bukan owner).
+
+**Belum diverifikasi (butuh perangkat + Phantom asli):** apakah Phantom mempertahankan query `state/step` yang sudah ada di `redirect_link` (kalau tidak, pindahkan state ke path `centurion://auth/<state>/<step>`); nama field respons signMessage (`signature`, opsional `publicKey`); perilaku `app_url` placeholder (`.invalid`) di layar connect Phantom; build APK nyata.
+
 ## Lampiran: lokasi bahan baca
 `/workspace/dev_team/siws_review/`: `mobile-wallet-adapter/`, `sign-in-with-solana/`, `deep-link-demo-app/`, `espresso/`, `pub/` (arsip pub.dev), `gotrue_2/`, `sb/`, `sbauth/`. Semuanya untuk dibaca saja dan tidak terhubung ke project.

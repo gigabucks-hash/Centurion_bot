@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sentra_mobile/data/api/api_exception.dart';
 import 'package:sentra_mobile/data/api/auth.dart';
 
-const owner = 'Own3rWa11etDemo1111111111111111111111111111';
-const stranger = 'Str4ngerWa11et11111111111111111111111111111';
+const owner = '451rpun8ivZ7knpEnMs7HkurvtoUFE8u8ZFvNERWk7hG';
+const stranger = 'HNahkrkFQ2oGJNdHXxfecChYoj6PiHZko7HWPivyvBg';
 
 Matcher _api(String code, [String? reason]) => throwsA(
   isA<ApiException>()

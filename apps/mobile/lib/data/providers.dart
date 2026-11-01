@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/approval_guard.dart';
 import '../core/feature_flags.dart';
 import '../core/perf/per_key_throttle.dart';
+import '../core/auth/deep_link_channel.dart';
+import '../core/auth/phantom_deeplink.dart';
+import '../core/auth/secure_token_store.dart';
 import 'api/auth.dart';
+import 'api/auth_http.dart';
 import 'api/events_feed.dart';
 import 'api/marks.dart';
 import 'api/sentra_rpc.dart';
@@ -62,21 +66,53 @@ final sentraRpcProvider = Provider<SentraRpc>((ref) => MockSentraRpc(ref.watch(m
 
 /// Wallet-only SIWS (1.1.4). Mock until the wallet SDK review lands; the mock
 /// allowlist holds the demo owner wallet only.
-const mockOwnerWallet = 'Own3rWa11etDemo1111111111111111111111111111';
+const mockOwnerWallet = '451rpun8ivZ7knpEnMs7HkurvtoUFE8u8ZFvNERWk7hG';
 final siwsAuthRepositoryProvider = Provider<SiwsAuthRepository>((_) => MockSiwsAuth(ownerWallets: {mockOwnerWallet}));
 final walletSignerProvider = Provider<WalletSigner>((_) => MockWalletSigner(mockOwnerWallet));
 final telegramAuthProvider = Provider<TelegramAuthStub>(
   (ref) => TelegramAuthStub(enabled: ref.watch(featureFlagsProvider).telegramOidcEnabled),
 );
+
+/// SIWS `domain` (must be in the API's AUTH_SIWS_DOMAINS). Placeholder until Boss has a domain.
+final authDomainProvider = Provider<String>((_) => 'app.sentra.local');
+
+/// Mock build: memory. Prod: [SecureSessionStore] (refresh token only in Keychain/Keystore).
+final sessionStoreProvider = Provider<SessionStore>((_) => InMemorySessionStore());
+
 final authControllerProvider = Provider<AuthController>((ref) {
   final c = AuthController(
     repo: ref.watch(siwsAuthRepositoryProvider),
     signer: ref.watch(walletSignerProvider),
-    domain: 'app.sentra.local',
+    domain: ref.watch(authDomainProvider),
+    store: ref.watch(sessionStoreProvider),
   );
   ref.onDispose(c.dispose);
   return c;
 });
+
+/// Prod composition for the wallet login (Android first): real REST client,
+/// Phantom deeplink signer, secure refresh-token store, login gate ON.
+/// `ProviderScope(overrides: prodAuthOverrides(apiBase: Uri.parse('https://...'), domain: '...'))`.
+List<Override> prodAuthOverrides({
+  required Uri apiBase,
+  required String domain,
+  FeatureFlags flags = const FeatureFlags(),
+}) => [
+  siwsAuthRepositoryProvider.overrideWith((_) => HttpSiwsAuthRepository(IoJsonTransport(apiBase))),
+  walletSignerProvider.overrideWith((ref) {
+    final s = PhantomDeeplinkSigner(MethodChannelDeepLinks());
+    ref.onDispose(s.dispose);
+    return s;
+  }),
+  sessionStoreProvider.overrideWith(
+    (_) => SecureSessionStore(SecureTokenStore(FlutterSecureKeyValue(), marker: FileInstallMarker.forPlatform())),
+  ),
+  authDomainProvider.overrideWithValue(domain),
+  featureFlagsProvider.overrideWithValue(
+    FeatureFlags(realSolEnabled: false, telegramOidcEnabled: flags.telegramOidcEnabled, authGateEnabled: true),
+  ),
+];
+
 final authStateProvider = StreamProvider<AuthState>((ref) {
   final c = ref.watch(authControllerProvider);
   Stream<AuthState> gen() async* {

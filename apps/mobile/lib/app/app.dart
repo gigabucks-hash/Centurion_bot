@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/feature_flags.dart';
 import '../core/notifications/local_notifier.dart';
+import '../data/api/auth.dart';
+import '../data/providers.dart';
 import '../core/startup/deferred_init.dart';
 import '../l10n/gen/app_localizations.dart';
 
@@ -19,7 +24,20 @@ class SentraApp extends ConsumerStatefulWidget {
 }
 
 class _SentraAppState extends ConsumerState<SentraApp> {
-  late final GoRouter _router = buildRouter(initialLocation: widget.initialLocation);
+  late final GoRouter _router = _build();
+  final _authTick = ValueNotifier<int>(0);
+  StreamSubscription<AuthState>? _authSub;
+
+  GoRouter _build() {
+    if (!ref.read(featureFlagsProvider).authGateEnabled) return buildRouter(initialLocation: widget.initialLocation);
+    final auth = ref.read(authControllerProvider);
+    _authSub = auth.states.listen((_) => _authTick.value++);
+    return buildRouter(
+      initialLocation: widget.initialLocation,
+      isSignedIn: () => auth.state is SignedIn,
+      authChanges: _authTick,
+    );
+  }
 
   @override
   void initState() {
@@ -30,6 +48,8 @@ class _SentraAppState extends ConsumerState<SentraApp> {
 
   @override
   void dispose() {
+    _authSub?.cancel();
+    _authTick.dispose();
     _router.dispose();
     super.dispose();
   }

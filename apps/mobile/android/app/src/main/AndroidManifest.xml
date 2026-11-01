@@ -36,6 +36,16 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Phantom deeplink login redirect (centurion://auth?state=..&step=..).
+                 Custom schemes can be claimed by other apps: the Dart side only accepts a
+                 redirect matching its in-memory pending state (SIWS_LOGIN_REVIEW §12).
+                 No autoVerify/App Links until Boss has a domain. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="centurion" android:host="auth"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
@@ -49,6 +59,8 @@
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Phantom (package visibility, Android 11+) for the wallet login. -->
+        <package android:name="app.phantom"/>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

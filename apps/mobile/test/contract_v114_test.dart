@@ -271,7 +271,11 @@ void main() {
     test('errors.map.json parity + tones: GUARD_WEAKEN pending (not error), QUOTE stale warning', () {
       final map = jsonDecode(File('../../packages/i18n/errors.map.json').readAsStringSync()) as Map;
       expect(errorL10nCodes.toSet(), (map['codes'] as Map).keys.toSet());
-      final errs = jsonDecode(File('../../packages/contracts/errors.json').readAsStringSync()) as Map;
+      final errs =
+          jsonDecode(
+                File(Platform.environment['ERRORS_JSON'] ?? '../../packages/contracts/errors.json').readAsStringSync(),
+              )
+              as Map;
       final wire = {for (final e in errs['codes'] as List) (e as Map)['code']};
       expect(errorL10nCodes.toSet(), wire, reason: 'errors.json v6 (58 codes)');
       expect(errorL10nCodes, hasLength(58));

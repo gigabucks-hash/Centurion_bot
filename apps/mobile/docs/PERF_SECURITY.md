@@ -126,13 +126,35 @@ flutter run --profile -d <device>   # DevTools → Performance: jank %, p90/p99 
   therefore useless without Boss's wallet. Refresh-token reuse revokes the session (1.1.4).
 - **Blast radius:** a stolen session can approve/skip **practice** picks and sell positions
   within guards; Real SOL is server-flag-off and will need biometric + server confirmation.
+- **Phantom deeplink login over a custom scheme (1 Nov 2026, Android first).** `centurion://auth`
+  is not verified (no domain yet → no App Links), so another app can register the same scheme
+  and receive or forge redirects. Controls (`lib/core/auth/phantom_deeplink.dart`,
+  SIWS_LOGIN_REVIEW §12):
+  - x25519 + XSalsa20-Poly1305 session with Phantom (pinenacl `Box`): fresh keypair per login,
+    memory only; a low-order `phantom_encryption_public_key` (all-zero shared secret) is rejected;
+    the MAC authenticates every redirect payload;
+  - pending-login state: random 128-bit `state`, TTL 5 min, single use per step (connect/sign),
+    bound to the in-memory keypair + Phantom `session`; any redirect with another state/step,
+    after expiry, or replayed is dropped without parsing its payload;
+  - payload checks before `/v1/auth/siws/verify`: address = base58 of 32 bytes and equal to the
+    connected wallet, signature = base58 of 64 bytes, signed text byte-identical to the server's
+    message, whose header must name our domain and that address (we never sign other text);
+  - the server re-verifies ed25519 + single-use nonce + allowlist, so a hijacker can at most
+    make a login attempt fail (DoS), never obtain a session for Boss's wallet.
+  - Residual: a malicious app that wins the scheme can see the encrypted `data`/`nonce` (useless
+    without our in-memory key) and can make the login fail; the Phantom `session` it could see in
+    a forged flow is bound to its own dapp key. App Links (`autoVerify`) remove this once Boss has
+    a domain.
+- **Session storage:** only the rotating refresh token is persisted (flutter_secure_storage,
+  Keystore/Keychain `first_unlock_this_device`); access token, Phantom session and x25519 key
+  are memory only. Refresh is single-flight; refresh reuse/revocation → forced logout + wipe.
 
 ### 3.2 Checklist
 
 | # | MASVS | Item | Status |
 |---|---|---|---|
 | S1 | STORAGE-1/2 | No secrets in the app: only the Supabase **anon** key (public by design, RLS-protected) + short-lived tokens. Repo scan: no keys/tokens committed | **Done** (no backend wiring yet; anon key will come from `--dart-define`, never a service key) |
-| S1b | STORAGE-1 | Tokens in Keystore/Keychain via `flutter_secure_storage` | **PENDING BOSS APPROVAL**, review §3.3, **not installed** |
+| S1b | STORAGE-1 | Tokens in Keystore/Keychain via `flutter_secure_storage` | **Done** (1 Nov 2026): 11.2.0 pinned + hash-verified, refresh token only (`SecureTokenStore`, SIWS_LOGIN_REVIEW §11.7) |
 | S2a | RESILIENCE-3 | `--obfuscate --split-debug-info` in release builds | **Done**: `tool/build_release.sh`, CI `release-build` job (symbols as a private 90-day artifact) |
 | S2b | RESILIENCE-2 | `debuggable=false` in release | **Done**: explicit `isDebuggable = false`; verified the release manifest has no `debuggable` (aapt2) |
 | S2c | STORAGE-2 | `android:allowBackup="false"`, `fullBackupContent="false"`, `dataExtractionRules` (cloud + device transfer excluded) | **Done**, verified in the release APK |
@@ -149,9 +171,10 @@ flutter run --profile -d <device>   # DevTools → Performance: jank %, p90/p99 
 | S5c | CODE-3 | SBOM (CycloneDX) | **Documented only, PENDING REVIEW**: no first-party Dart CycloneDX generator; options: (a) `anchore/syft` (Apache-2.0, reads `pubspec.lock`, CycloneDX/SPDX) via `anchore/sbom-action` in CI; (b) `osv-scanner --format cyclonedx-1-5` (same tool as S5b, so no new vendor). Recommendation: (b). Not installed |
 | S5d | CODE | MobSF static scan | **Plan only**: run the official container `opensecurity/mobile-security-framework-mobsf` (pin by digest, GPL-3.0) on a disposable runner/VM with no network secrets, upload the release APK/IPA, keep the PDF report as an artifact. Pending review; not pulled on the box |
 | S6 | PLATFORM-2 | Untrusted token metadata (symbol/name) rendered as plain text only, never as links/HTML | **Done** (existing `untrusted` handling) |
-| S7 | AUTH-1 | SIWS: nonce single-use + expiry, domain/URI/chain-id in the signed message, allowlist check server-side; access 15 min, refresh rotation with reuse detection → forced logout | **Contract 1.1.4**: client work queued (task d) |
+| S7 | AUTH-1 | SIWS: nonce single-use + expiry, domain/URI/chain-id in the signed message, allowlist check server-side; access 15 min, refresh rotation with reuse detection → forced logout | **Done (client)**: Phantom deeplink SIWS + `/session/refresh` single-flight + `/logout`; mock/fake tests (`test/phantom_login_test.dart`). Device test with real Phantom PENDING |
+| S8 | PLATFORM-1 | Custom-scheme redirect hijack (`centurion://auth`) | **Mitigated**: state/TTL/single-use + Box MAC + payload checks (§3.1). App Links when a domain exists |
 
-### 3.3 Review: `flutter_secure_storage` (pending Boss approval, NOT installed)
+### 3.3 Review: `flutter_secure_storage` (installed 1 Nov 2026 after Boss approval; review kept for reference)
 
 | Aspect | Finding (pub.dev, 29 Oct 2026) |
 |---|---|

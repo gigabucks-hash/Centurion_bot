@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../features/activity/activity_screen.dart';
 import '../features/approvals/approvals_screen.dart';
 import '../features/approvals/guard_review_screen.dart';
+import '../features/auth/login_screen.dart';
 import '../features/coins/coins_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/positions/positions_screen.dart';
@@ -12,12 +13,25 @@ import '../features/settings/settings_screen.dart';
 import '../features/shell/home_shell.dart';
 import '../features/strategies/strategies_screen.dart';
 
-GoRouter buildRouter({String initialLocation = '/'}) {
+/// [isSignedIn] + [authChanges]: wallet-login gate (prod). Null = no gate (mock build,
+/// widget tests); `/login` is always routable.
+GoRouter buildRouter({String initialLocation = '/', bool Function()? isSignedIn, Listenable? authChanges}) {
   final rootKey = GlobalKey<NavigatorState>();
   return GoRouter(
     navigatorKey: rootKey,
     initialLocation: initialLocation,
+    refreshListenable: authChanges,
+    redirect: isSignedIn == null
+        ? null
+        : (_, state) {
+            final atLogin = state.matchedLocation == '/login';
+            final ok = isSignedIn();
+            if (!ok && !atLogin) return '/login';
+            if (ok && atLogin) return '/';
+            return null;
+          },
     routes: [
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => HomeShell(shell: shell),
         branches: [
