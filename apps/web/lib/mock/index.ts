@@ -1,3 +1,4 @@
+import { paginate } from "@/lib/paging";
 import type { DashboardApi } from "@/lib/api";
 import type { Approval, CoinSummary, CoinTrail, Strategy, TradeEvent } from "@/lib/types";
 import { safeName, safeSymbol } from "@/lib/untrusted";
@@ -69,6 +70,10 @@ export const mockApi: DashboardApi = {
   },
   async listCoins(mode) {
     return coinSummaries.filter((c) => c.mode === mode).map(cleanCoin);
+  },
+  async listCoinsPage(mode, o = {}) {
+    const p = paginate(coinSummaries.filter((c) => c.mode === mode), `coins:${mode}:`, (s) => ({ t: s.lastEventAt, id: `${s.mint}:${s.strategyId}` }), { cursor: o.cursor ?? null, limit: o.limit ?? 50 });
+    return { items: p.items.map(cleanCoin), nextCursor: p.next_cursor };
   },
   async getCoinTrail(mint) {
     const t = trails.find((x) => x.coin.mint === mint);

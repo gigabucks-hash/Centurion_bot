@@ -90,7 +90,7 @@ export function LoginScreen() {
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <section className="hidden flex-col border-r border-border-subtle bg-bg-surface p-10 lg:flex">
-        <p className="text-title">◆ Sentra <span className="text-caption text-text-tertiary">{t("login.workingName")}</span></p>
+        <p className="text-title"><span aria-hidden>◆ </span>{t.ux("app.name")}</p>
         <h1 className="mt-auto text-display text-text-primary">{t("walletLogin.hero")}</h1>
         <ul className="mt-6 flex flex-col gap-2 text-body text-text-secondary">
           {(["walletLogin.v1", "walletLogin.v2", "walletLogin.v3"] as const).map((k) => (
@@ -101,7 +101,7 @@ export function LoginScreen() {
       </section>
 
       <section className="flex flex-col items-center justify-center p-4 sm:p-10">
-        <div className="mb-6 text-title lg:hidden">◆ Sentra</div>
+        <div className="mb-6 text-title lg:hidden"><span aria-hidden>◆ </span>{t.ux("app.name")}</div>
         <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-surface p-6 shadow-e2 sm:p-8">
           {step === "choose" ? (
             <>

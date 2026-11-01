@@ -1,5 +1,5 @@
 "use client";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 /**
@@ -7,8 +7,10 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
  * stay plain server-rendered markup (SEO/AT/no-JS friendly) and long ones (target 1000+ rows) render ~a screenful.
  * Rows are measured (measureElement), so variable heights (day headers, wrapped titles) are fine.
  */
-export function VirtualList({ count, estimate, render, threshold = 120, overscan = 8, as: Tag = "div", className }: {
+export function VirtualList({ count, estimate, render, threshold = 120, overscan = 8, as: Tag = "div", className, onEndReached }: {
   count: number;
+  /** Cursor paging (1.1.4): called when the last row is rendered (virtualized) — the caller loads the next page. */
+  onEndReached?: () => void;
   estimate: (i: number) => number;
   render: (i: number) => ReactNode;
   threshold?: number;
@@ -17,14 +19,18 @@ export function VirtualList({ count, estimate, render, threshold = 120, overscan
   className?: string;
 }) {
   if (count <= threshold) return <Tag className={className}>{Array.from({ length: count }, (_, i) => render(i))}</Tag>;
-  return <Virtual count={count} estimate={estimate} render={render} overscan={overscan} Tag={Tag} className={className} />;
+  return <Virtual count={count} estimate={estimate} render={render} overscan={overscan} Tag={Tag} className={className} onEndReached={onEndReached} />;
 }
 
-function Virtual({ count, estimate, render, overscan, Tag, className }: { count: number; estimate: (i: number) => number; render: (i: number) => ReactNode; overscan: number; Tag: "div" | "ul"; className?: string }) {
+function Virtual({ count, estimate, render, overscan, Tag, className, onEndReached }: { count: number; estimate: (i: number) => number; render: (i: number) => ReactNode; overscan: number; Tag: "div" | "ul"; className?: string; onEndReached?: () => void }) {
   const parent = useRef<HTMLDivElement>(null);
   const margin = useScrollMargin(parent);
   const v = useWindowVirtualizer({ count, estimateSize: estimate, overscan, scrollMargin: margin });
   const items = v.getVirtualItems();
+  const lastIndex = items.length ? items[items.length - 1].index : -1;
+  useEffect(() => {
+    if (onEndReached && lastIndex >= count - 1 && count > 0) onEndReached();
+  }, [lastIndex, count, onEndReached]);
   return (
     <div ref={parent} data-virtualized={count}>
       <Tag className={className} style={{ height: v.getTotalSize(), position: "relative" }}>

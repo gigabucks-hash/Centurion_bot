@@ -10,9 +10,11 @@ import { getT } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Approvals" };
 
-async function Queue() {
+async function Queue({ searchParams }: { searchParams: Promise<{ focus?: string | string[] }> }) {
   await connection(); // always read fresh mock state at request time
-  const [mode, t] = await Promise.all([getMode(), getT()]);
+  const [mode, t, sp] = await Promise.all([getMode(), getT(), searchParams]);
+  // ?focus=<approval id> (builder "Open the proposal"): validated as a plain id, ignored otherwise.
+  const focus = typeof sp.focus === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(sp.focus) ? sp.focus : null;
   const approvals = await getApi().listApprovals(mode);
   return (
     <>
@@ -21,15 +23,15 @@ async function Queue() {
         subtitle={t(mode === "real" ? "approvals.subtitleReal" : "approvals.subtitlePractice")}
         actions={<ModeBadge mode={mode} />}
       />
-      <ApprovalQueue key={mode} initial={approvals} mode={mode} />
+      <ApprovalQueue key={mode} initial={approvals} mode={mode} initialFocus={focus} />
     </>
   );
 }
 
-export default function ApprovalsPage() {
+export default function ApprovalsPage({ searchParams }: PageProps<"/approvals">) {
   return (
     <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-bg-surface" />}>
-      <Queue />
+      <Queue searchParams={searchParams as Promise<{ focus?: string | string[] }>} />
     </Suspense>
   );
 }

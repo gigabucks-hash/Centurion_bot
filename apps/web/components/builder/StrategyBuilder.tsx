@@ -2,6 +2,7 @@
 import { useFmt } from "@/lib/i18n/client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { AlertTriangle, Check, CircleDot, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type { ApprovalMode, Venue, ExitPlanPreset, GuardPreset, StrategySettings, TradingMode } from "@/lib/types";
 import {
@@ -12,7 +13,9 @@ import { useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n";
 import { asRevConflict, publishStrategyClient, simulateTeammateEditClient, type RevConflict } from "@/lib/client";
 import { settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
-import { errorText } from "@/lib/errors";
+import { errorPresentation, errorText } from "@/lib/errors";
+
+const pendingPr = errorPresentation("GUARD_WEAKEN_REQUIRES_APPROVAL");
 import dynamic from "next/dynamic";
 // Perf: the merge view only renders after a 409 → loaded on demand.
 const RevisionConflict = dynamic(() => import("./RevisionConflict").then((m) => m.RevisionConflict), { ssr: false });
@@ -55,6 +58,8 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
   const [restorable, setRestorable] = useState<StrategySettings | null>(null);
   const [onlyWeak, setOnlyWeak] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  /** 1.1.4: a guard-loosening save returns 202 {proposal, guard_change}; nothing applied → "Sent for approval". */
+  const [sent, setSent] = useState<{ approvalId: string; fields: string[]; expiresAt?: number } | null>(null);
   // The revision the user's edits are based on (If-Match). Moves forward after a merge.
   const [baseRev, setBaseRev] = useState<{ rev: number; settings: StrategySettings } | null>(base && rev != null ? { rev, settings: base } : null);
   const [conflict, setConflict] = useState<{ c: RevConflict; base: WireSettings; mine: WireSettings } | null>(null);
@@ -113,7 +118,9 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
   // 1.1.2: the hard stop (from ENTRY, stop_loss_pct) and the trailing stop (from PEAK, peak_trail_pct) are two
   // separate settings; their hints name the wire key and the reference price so they are never confused.
   const wireHint = (path: string): string | null =>
-    path === "exit.stopLossPct" ? t("builder.hintStopLoss") : path === "exit.trailingPct" ? t("builder.hintTrail") : path === "exit.timeStopMinutes" ? t("builder.notOnWire") : null;
+    path === "exit.stopLossPct" ? t("builder.hintStopLoss") : path === "exit.trailingPct" ? t("builder.hintTrail") : path === "exit.timeStopMinutes" ? t.ux("builder.exit.time_stop_hint", { duration: v2dur(getPath(s, path) as number) }) : null;
+  /** minutes → "5m" / "1h 30m" style text via the shared duration formatter (seconds in). 0 → "off". */
+  const v2dur = (minutes: number) => (minutes > 0 ? fm.duration(Math.round(minutes * 60)) : t("common.off"));
   const field = (path: string) => {
     const f = NUMBER_FIELDS.find((x) => x.path === path)!;
     const v = getPath(s, path) as number;
@@ -150,8 +157,9 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
       const r = await publishStrategyClient(strategyId, s, baseRev ?? undefined);
       localStorage.removeItem(draftKey);
       if (r.outcome === "needs_approval") {
-        toast({ kind: "warning", text: t("builder.guardPending", { mode: t(mode === "real" ? "mode.real" : "mode.practice"), strategy: s.name }) });
-        router.push("/approvals");
+        setSent({ approvalId: r.approvalId ?? "", fields: r.weakenedFields ?? [], expiresAt: r.expiresAt });
+        setDirty(false);
+        window.scrollTo({ top: 0 });
       } else {
         toast({ kind: "success", text: t("builder.published", { rev: r.rev }) });
         router.push("/strategies");
@@ -187,6 +195,18 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
 
   return (
     <div data-mode={mode}>
+      {sent && (
+        <div role="status" data-testid="sent-for-approval" className="mb-4 rounded-md border border-semantic-warning/60 bg-semantic-warningContainer px-4 py-3 text-body">
+          {/* errors.map.json GUARD_WEAKEN_REQUIRES_APPROVAL: tone pending → status banner, not an error; title_key/cta_key. */}
+          <p className="flex items-center gap-2 font-semibold"><CircleDot size={14} className="text-semantic-warning" aria-hidden /> {pendingPr.titleKey ? t.ux(pendingPr.titleKey as never) : t("builder.sentTitle")}</p>
+          <p className="mt-1 text-text-secondary">{sent.expiresAt ? t.ux("guard.weaken.pending.body", { expires_at: fm.dateTime(sent.expiresAt) }) : t("builder.sentBody", { strategy: s.name })}</p>
+          {sent.fields.length > 0 && <p className="num mt-1 text-caption text-text-tertiary">{t("builder.sentFields", { fields: sent.fields.map((k) => settingLabel(t, k, k)).join(", ") })}</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href={`/approvals?focus=${encodeURIComponent(sent.approvalId)}`} className="inline-flex min-h-11 items-center rounded-md bg-brand-primary px-4 text-label text-text-onAccent hover:bg-brand-primaryHover">{pendingPr.ctaKey ? t.ux(pendingPr.ctaKey as never) : t("builder.openProposal")}</Link>
+            <Button variant="ghost" className="min-h-11" onClick={() => setSent(null)}>{t("builder.keepEditing")}</Button>
+          </div>
+        </div>
+      )}
       {conflict && (
         <RevisionConflict conflict={conflict.c} base={conflict.base} mine={conflict.mine} onMerged={(m) => resolveConflict(m)} onDiscard={() => resolveConflict(null)} />
       )}
@@ -334,8 +354,10 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
                 options={[...Object.keys(EXIT_PRESETS), "custom"].map((k) => ({ value: k as ExitPlanPreset, label: t(`exitPlan.${k as ExitPlanPreset}`) }))}
               />
               <Ladder s={s} errors={errors} onChange={(tps) => { update("exit.takeProfits", tps); update("exit.plan", "custom"); }} />
-              <div className="grid gap-3 sm:grid-cols-2">{NUMBER_FIELDS.filter((f) => f.step === "exit").map((f) => field(f.path))}</div>
-              <Toggle label={t("builder.stallExit")} hint={`${t("builder.stallExitHint")} · ${t("builder.notOnWire")}`} checked={s.exit.stallExit} onChange={(v) => update("exit.stallExit", v)} />
+              <div className="grid gap-3 sm:grid-cols-2">{NUMBER_FIELDS.filter((f) => f.step === "exit" && !f.when).map((f) => field(f.path))}</div>
+              {/* 1.1.4 stall_exit {window_s, min_move_pct}; off = null. Sells all when the price barely moves over the window. */}
+              <Toggle label={t.ux("builder.exit.stall")} hint={t.ux("builder.exit.stall_hint", { min_move_pct: fm.pct(s.exit.stallMinMovePct, 2, false), window: v2dur(s.exit.stallWindowS / 60) })} checked={s.exit.stallExit} onChange={(v) => update("exit.stallExit", v)} />
+              {s.exit.stallExit && <div className="grid gap-3 sm:grid-cols-2">{NUMBER_FIELDS.filter((f) => f.step === "exit" && f.when).map((f) => field(f.path))}</div>}
             </div>
           )}
 

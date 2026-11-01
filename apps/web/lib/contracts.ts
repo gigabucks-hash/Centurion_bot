@@ -6,7 +6,7 @@
  */
 import { lamportsToSol, type Actor, type AnyEvent, type EventEnvelope, type EventPage, type ExitReason, type Lamports, type Mode } from "@sentra/contracts/wire";
 import { APPROVAL_REJECT_REASONS, type ApprovalRejectReason, type ApprovalWire, type DecidedVia } from "@sentra/contracts/wire";
-import type { DecimalString, ErrorCode, ExitStatsRow, PositionWire, ProposalStatus, TokenProgram } from "@sentra/contracts/wire";
+import type { DecimalString, ErrorCode, ExitStatsRow, MarketCapFields, PositionWire, ProposalStatus, ProposalUpdated, TokenProgram } from "@sentra/contracts/wire";
 import { pctToFractionBps } from "@sentra/i18n/format";
 import { safeSymbol } from "./untrusted";
 import { cmpSeq, maxSeq, minSeq, seqGt, seqLt, type Seq } from "./seq";
@@ -259,6 +259,14 @@ export function approvalToWire(a: Approval, extra: { workspaceId?: string; decid
     total_max_lamports: (q?.totalMaxLamports ?? null) as Lamports | null,
     quote_ts: iso(q?.quoteTs),
     quote_expires_at: iso(q?.quoteExpiresAt),
+    // contracts 1.1.5: quote_id counts refreshes (never bumps rev); ATA rent; mint decimals/program.
+    quote_id: (q?.quoteId ?? "0") as never,
+    est_ata_rent_lamports: (q?.ataRentLamports ?? (q ? "0" : null)) as Lamports | null,
+    expected_out_lamports: null,
+    min_out_lamports: null,
+    decimals: q?.decimals ?? null,
+    token_program: null,
+    position_id: null,
     created_at: iso(a.createdAt)!,
     expires_at: iso(a.expiresAt)!,
     decided_at: iso(a.decidedAt),
@@ -307,6 +315,17 @@ export function approvalFromWire(w: ApprovalItemWire): Approval {
   };
 }
 
+/** proposal.updated (1.1.4) → in-place patch: new rev + new quote (decimals/price display extras kept from the item). */
+export function applyProposalUpdated(a: Approval, u: ProposalUpdated): Approval {
+  // 1.1.5: rev is unchanged by a re-quote; quote_id (int64 string) increments. Ignore older/equal quote ids and older revs.
+  if (a.id !== u.proposal_id || u.rev < a.rev) return a;
+  const prev = a.quote?.quoteId != null ? BigInt(a.quote.quoteId) : -1n;
+  const next = typeof u.quote_id === "string" && /^\d{1,19}$/.test(u.quote_id) ? BigInt(u.quote_id) : null;
+  if (u.rev === a.rev && (next == null || next <= prev)) return a;
+  const q = quoteFromWire(u as unknown as ApprovalItemWire, { quote_extra: { decimals: u.decimals ?? a.quote?.decimals, price_sol: a.quote?.priceSol, pick_price_sol: a.quote?.pickPriceSol } });
+  return { ...a, rev: u.rev, ...(q ? { quote: q } : {}) };
+}
+
 function quoteFromWire(w: ApprovalItemWire, p: Partial<ApprovalPayload>): Approval["quote"] | undefined {
   const x = w as Partial<ApprovalWire> & Record<string, unknown>;
   const has = x.est_network_fee_lamports != null || x.swap_fee_bps != null || x.max_slippage_bps != null || x.total_max_lamports != null;
@@ -316,7 +335,9 @@ function quoteFromWire(w: ApprovalItemWire, p: Partial<ApprovalPayload>): Approv
   return {
     networkFeeLamports: str(x.est_network_fee_lamports), priorityFeeLamports: str(x.priority_fee_lamports), swapFeeBps: num(x.swap_fee_bps), maxSlippageBps: num(x.max_slippage_bps),
     minOutRaw: str(x.min_out_raw), totalMaxLamports: str(x.total_max_lamports), quoteTs: ms(str(x.quote_ts)), quoteExpiresAt: ms(str(x.quote_expires_at)),
-    decimals: p.quote_extra?.decimals, priceSol: p.quote_extra?.price_sol, pickPriceSol: p.quote_extra?.pick_price_sol,
+    // 1.1.5 (pending, additive): read when present so the review sheet already keys holds by quote_id.
+    quoteId: str(x.quote_id)?.slice(0, 20), ataRentLamports: str(x.est_ata_rent_lamports),
+    decimals: typeof x.decimals === "number" ? x.decimals : p.quote_extra?.decimals, priceSol: p.quote_extra?.price_sol, pickPriceSol: p.quote_extra?.pick_price_sol,
   };
 }
 
@@ -389,10 +410,9 @@ export function settingsToWire(s: StrategySettings): WireSettings {
     peak_trail_pct: ex.trailingPct,
     // Deterministic floors stay on with the server default max_loss_pct (35); only the liquidity floor is set here.
     sell_floors: { enabled: true, liquidity_drop_pct: 80 },
-    // Time stop / stall exit have NO settings key up to contracts 1.1.3, so they stay "device only" (not sent;
-    // settingsFromWire keeps the local values). TODO(contracts 1.1.4): send `time_stop_s` (= timeStopMinutes * 60,
-    // null = off) and `stall_exit: { window_s, min_move_pct } | null` (null = off; stallExit:false → null), read them
-    // back in settingsFromWire, add them to settingsPatch/diff keys, and drop the builder's "device only" hint.
+    // contracts 1.1.4: time stop (exit_reason max_hold) and stall exit (exit_reason stall); null = off.
+    time_stop_s: ex.timeStopMinutes > 0 ? Math.round(ex.timeStopMinutes * 60) : null,
+    stall_exit: ex.stallExit ? { window_s: Math.round(ex.stallWindowS), min_move_pct: ex.stallMinMovePct } : null,
     idle_exit_seconds: ex.noTradeSeconds || null,
     sell_pressure_exit: ex.drainDropPct ? { fall_pct: ex.drainDropPct, window_minutes: 5 } : null,
   };
@@ -456,13 +476,19 @@ export function settingsFromWire(w: WireSettings, fallback: StrategySettings): S
       takeProfits: pt.map((r) => ({ gainPct: r.at_gain_pct, sellPct: r.sell_portion_pct, ...(r.giveback_pct != null ? { pullbackPct: r.giveback_pct } : {}) })),
       trailingPct: num(w.peak_trail_pct, f.exit.trailingPct),
       stopLossPct: num(w.stop_loss_pct, f.exit.stopLossPct),
-      // not on the wire in 1.1.2 (see settingsToWire): keep the local value
-      timeStopMinutes: f.exit.timeStopMinutes,
+      // 1.1.4 time_stop_s (seconds, null/absent = off) → minutes; absent key keeps the fallback (older servers).
+      timeStopMinutes: "time_stop_s" in w ? (typeof w.time_stop_s === "number" ? w.time_stop_s / 60 : 0) : f.exit.timeStopMinutes,
       noTradeSeconds: num(w.idle_exit_seconds, 0),
       drainDropPct: num((w.sell_pressure_exit as { fall_pct?: number } | null)?.fall_pct, 0),
-      stallExit: f.exit.stallExit,
+      ...stallFromWire(w, f.exit),
     },
   };
+}
+
+function stallFromWire(w: WireSettings, f: StrategySettings["exit"]): Pick<StrategySettings["exit"], "stallExit" | "stallWindowS" | "stallMinMovePct"> {
+  if (!("stall_exit" in w)) return { stallExit: f.stallExit, stallWindowS: f.stallWindowS, stallMinMovePct: f.stallMinMovePct };
+  const x = w.stall_exit as { window_s?: number; min_move_pct?: number } | null;
+  return x ? { stallExit: true, stallWindowS: num(x.window_s, f.stallWindowS), stallMinMovePct: num(x.min_move_pct, f.stallMinMovePct) } : { stallExit: false, stallWindowS: f.stallWindowS, stallMinMovePct: f.stallMinMovePct };
 }
 
 /** JSON-merge `settings_patch` (only changed top-level keys) for PATCH /strategies/{id}. */
@@ -518,6 +544,8 @@ export interface CoinWire {
   /** mock display extras */
   strategy_id: string; strategy_name: string; mode: Mode; status: CoinSummary["status"]; last_event_at: string; pnl_lamports: Lamports | null;
 }
+/** + contracts 1.1.4 MarketCapFields (coins and picks). */
+export type CoinWireWithMcap = CoinWire & MarketCapFields;
 
 export function coinToWire(c: CoinMeta, s: CoinSummary): CoinWire {
   return {
@@ -525,7 +553,23 @@ export function coinToWire(c: CoinMeta, s: CoinSummary): CoinWire {
     tradeable: c.tradeable, skip_reason: c.skipReason, untrusted: { symbol: c.untrusted.symbol, name: c.untrusted.name },
     strategy_id: s.strategyId, strategy_name: s.strategyName, mode: s.mode, status: s.status, last_event_at: new Date(s.lastEventAt).toISOString(),
     pnl_lamports: s.pnlSol != null ? solToLamports(s.pnlSol) : null,
-  };
+    ...mcapToWire(s.mcap),
+  } as CoinWireWithMcap;
+}
+
+export const mcapToWire = (m?: CoinSummary["mcap"]): MarketCapFields => ({
+  mcap_source: m?.source ?? (m?.lamports ? "curve" : "unavailable"),
+  market_cap_lamports: m?.lamports ?? null, mcap_usd: m?.usd ?? null, mcap_as_of: m?.asOf != null ? new Date(m.asOf).toISOString() : null,
+});
+/** Lenient: absent fields (pre-1.1.4 servers) → undefined; strings validated as integer / decimal. */
+export function mcapFromWire(w: Partial<MarketCapFields>): CoinSummary["mcap"] {
+  if (!("market_cap_lamports" in w) && !("mcap_usd" in w)) return undefined;
+  const lamports = typeof w.market_cap_lamports === "string" && /^\d+$/.test(w.market_cap_lamports) ? w.market_cap_lamports : null;
+  // eslint-disable-next-line security/detect-unsafe-regex -- linear, length-capped
+  const usd = typeof w.mcap_usd === "string" && w.mcap_usd.length <= 40 && /^\d+(\.\d+)?$/.test(w.mcap_usd) ? w.mcap_usd : null;
+  const asOf = typeof w.mcap_as_of === "string" ? Date.parse(w.mcap_as_of) : NaN;
+  const source = w.mcap_source === "curve" || w.mcap_source === "pool" || w.mcap_source === "unavailable" ? w.mcap_source : undefined;
+  return { lamports, usd, asOf: Number.isFinite(asOf) ? asOf : null, ...(source ? { source } : {}) };
 }
 
 export function coinSummaryFromWire(w: CoinWire): CoinSummary {
@@ -533,6 +577,7 @@ export function coinSummaryFromWire(w: CoinWire): CoinSummary {
     mint: w.mint, symbol: safeSymbol(w.untrusted.symbol ?? ""), strategyId: w.strategy_id, strategyName: w.strategy_name, mode: w.mode,
     lastEventAt: Date.parse(w.last_event_at), status: w.status, pnlSol: lamportsToSolNumber(w.pnl_lamports),
     screenerState: screenerStateOf(w),
+    mcap: mcapFromWire(w as Partial<MarketCapFields>),
   };
 }
 

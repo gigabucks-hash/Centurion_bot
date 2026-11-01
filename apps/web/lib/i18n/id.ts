@@ -7,6 +7,7 @@ import type { PartialMessages } from "./index.ts";
  */
 export const id: PartialMessages = {
   common: {
+    loadMore: "Muat lagi",
     loading: "Memuat…", cancel: "Batal", cancelEsc: "Batal (Esc)", close: "Tutup", back: "Kembali", next: "Lanjut",
     on: "Aktif", off: "Mati", all: "Semua", allStrategies: "Semua strategi", strategy: "Strategi", details: "detail ›", seeAll: "Semua ›",
     restore: "Pulihkan", discard: "Buang", releaseCancel: "Lepas = batal.", holdSeconds: "Tahan {s} dtk. Lepas = batal.",
@@ -69,9 +70,16 @@ export const id: PartialMessages = {
     hintTrail: "peak_trail_pct · dihitung dari harga tertinggi sejak masuk",
     notOnWire: "Hanya tersimpan di perangkat ini: belum ada pengaturan server",
     // N-10
+    sentTitle: "Dikirim untuk persetujuan",
+    sentBody: "Perubahan ini melonggarkan pengaman, jadi belum ada yang diterapkan. {strategy} tetap berjalan dengan pengaturan sekarang sampai proposal disetujui.",
+    sentFields: "Dilonggarkan: {fields}",
+    openProposal: "Buka proposal",
+    keepEditing: "Lanjut mengedit",
     guardPending: "[{mode}] Perubahan guard menunggu · {strategy}: melonggarkan guard",
   },
   guardDialog: { locked: "Wajib · tidak bisa dimatikan", ruleRevert: "Auto-revert 24 jam setelah berlaku (selalu aktif untuk Real SOL)" },
+  // 1.1.4 labels from @sentra/i18n id.json exit_reason.*
+  exitReason: { max_hold: "Time stop", stall: "Exit stagnan" },
   walletLogin: {
     heading: "Masuk dengan wallet",
     sub: "Workspace privat: hanya wallet pemilik yang bisa masuk.",
@@ -105,7 +113,7 @@ export const id: PartialMessages = {
   notFound: { title: "Tidak ditemukan", back: "Kembali ke dasbor" },
   notTradeable: { ctaNote: "Bukan error. Approve dan Jual tetap nonaktif; Skip hanya menutupnya." },
   apiError: {
-    GUARD_WEAKEN_REQUIRES_APPROVAL: "Perubahan ini melonggarkan pengaman, jadi perlu persetujuan dulu. Belum ada yang diubah.",
+    GUARD_WEAKEN_REQUIRES_APPROVAL: "Perubahan menunggu approval. Ini melonggarkan guard, jadi belum berlaku sampai kamu approve.",
     QUOTE_MISSING_OR_STALE: "Kuotasi ini kedaluwarsa. Perbarui lalu tinjau transaksi lagi sebelum menyetujui.",
     UNAUTHENTICATED: "Silakan masuk lagi.",
     NOT_FOUND: "Tidak ditemukan di workspace ini.",

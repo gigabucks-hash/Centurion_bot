@@ -21,12 +21,12 @@ async function Builder({ searchParams }: { searchParams: PageProps<"/strategies/
   const active = source ? "" : preset;
   return (
     <>
-      <PageHeader title={t("builder.newTitle")} breadcrumb={<Link href="/strategies" className="hover:underline">{t("nav.strategies")}</Link>} subtitle={t("builder.newSubtitle")} />
+      <PageHeader title={t("builder.newTitle")} breadcrumb={<Link href="/strategies" className="tap hover:underline">{t("nav.strategies")}</Link>} subtitle={t("builder.newSubtitle")} />
       {!source && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <span className="text-label text-text-secondary">{t("builder.startFrom")}</span>
           {[...STRATEGY_PRESETS.map((p) => ({ id: p.id, label: t(`preset.${p.id}`) })), { id: "blank", label: t("builder.blank") }].map((p) => (
-            <Link key={p.id} href={`/strategies/new?preset=${p.id}`} className={cn("h-8 rounded-full border px-3 text-label leading-8", active === p.id ? "border-brand-primary bg-brand-primaryContainer text-brand-onPrimaryContainer" : "border-border-default text-text-secondary hover:text-text-primary")}>
+            <Link key={p.id} href={`/strategies/new?preset=${p.id}`} className={cn("tap h-8 justify-center rounded-full border px-3 text-label leading-8", active === p.id ? "border-brand-primary bg-brand-primaryContainer text-brand-onPrimaryContainer" : "border-border-default text-text-secondary hover:text-text-primary")}>
               {p.label}
             </Link>
           ))}

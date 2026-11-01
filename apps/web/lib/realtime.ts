@@ -11,7 +11,7 @@
  * seq is an int64 string: the watermark advances with BigInt (lib/seq.ts), from SSE ids and clock.safe_seq only.
  * Every `server_now` / clock frame updates lib/clock.ts.
  */
-import type { AnyEvent, ClockMessage, MarkMessage, Mode } from "@sentra/contracts/wire";
+import type { AnyEvent, ClockMessage, EventEnvelope, MarkMessage, Mode, ProposalUpdated } from "@sentra/contracts/wire";
 import { observeServerNow } from "./clock";
 import { envelopeToTradeEvent, KIND_TO_TYPE } from "./contracts";
 import { isSeq, seqGt, type Seq } from "./seq";
@@ -29,6 +29,8 @@ export interface RealtimeHandlers {
   onEvent: (e: TradeEvent) => void;
   onStatus: (s: ConnectionState) => void;
   onMark?: (m: MarkMessage) => void;
+  /** 1.1.4 proposal.updated (quote refreshed, rev + 1): patch the approval in place. */
+  onProposalUpdated?: (p: ProposalUpdated) => void;
   onClock?: (c: ClockMessage) => void;
 }
 
@@ -99,6 +101,17 @@ function sseAdapter(kind: "mock" | "sse", baseUrl: string, o: RealtimeOptions): 
             arm();
           } catch {
             /* ignore */
+          }
+        });
+        es.addEventListener("proposal.updated", (msg) => {
+          try {
+            const m = msg as MessageEvent;
+            const env = JSON.parse(m.data) as EventEnvelope<"proposal.updated", ProposalUpdated>;
+            if (env.mode !== o.mode) return;
+            lastSeq = advance(advance(lastSeq, m.lastEventId), env.seq);
+            h.onProposalUpdated?.(env.payload);
+          } catch {
+            /* ignore malformed */
           }
         });
         es.addEventListener("mark", (msg) => {

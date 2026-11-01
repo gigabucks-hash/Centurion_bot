@@ -51,6 +51,40 @@ export function httpStatus(code: ErrorCode): number {
   return ERROR_CODES[code].http;
 }
 
+/** errors.map.json per-code presentation (i18n 0.4.6+, additive; all optional). */
+type MapEntry = { key: string; tone?: "error" | "warning" | "pending" | "info"; title_key?: string; cta_key?: string; inline_key?: string; modes?: string[] };
+
+export type ErrorPresentation = {
+  /** toast = transient; inline = next to the control that failed (no toast); banner = persistent status (pending/info, not an error). */
+  surface: "toast" | "inline" | "banner";
+  tone: "error" | "warning" | "pending" | "info";
+  key: string;
+  titleKey?: string;
+  ctaKey?: string;
+  inlineKey?: string;
+};
+
+/**
+ * Drives error UI from @sentra/i18n errors.map.json (0.4.6: tone/title_key/cta_key/inline_key/modes) instead of
+ * per-screen ifs: `inline_key` → inline (with `cta_key` as its action), tone pending/info → banner, else toast.
+ * A code whose `modes` excludes the current mode is not blocking there → downgraded to an info toast.
+ */
+export function errorPresentation(code: ClientErrorCode, mode?: "practice" | "real"): ErrorPresentation {
+  const m = (ERRORS_MAP as unknown as { unknown: string; codes: Record<string, MapEntry> }).codes[code];
+  if (!m) return { surface: "toast", tone: code === "OFFLINE" ? "warning" : "error", key: errorUxKey(code) };
+  const tone = m.tone ?? "error";
+  const base = { key: m.key, titleKey: m.title_key, ctaKey: m.cta_key, inlineKey: m.inline_key };
+  if (mode && m.modes && !m.modes.includes(mode)) return { ...base, surface: "toast", tone: "info" };
+  if (m.inline_key) return { ...base, surface: "inline", tone };
+  if (tone === "pending" || tone === "info") return { ...base, surface: "banner", tone };
+  return { ...base, surface: "toast", tone };
+}
+
+/** Toast kind for a presentation tone. */
+export function toastKind(p: ErrorPresentation): "error" | "warning" | "info" {
+  return p.tone === "error" ? "error" : p.tone === "warning" ? "warning" : "info";
+}
+
 /** UX key for a contract code via @sentra/i18n 0.4.3 errors.map.json (`codes[code].key`); unknown → `error.code.internal`. */
 export function errorUxKey(code: string): string {
   const m = ERRORS_MAP as { unknown: string; codes: Record<string, { key: string }> };

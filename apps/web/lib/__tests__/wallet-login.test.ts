@@ -32,7 +32,7 @@ test("mock Phantom adapter: connect → sign returns the mock signature, never a
 
 test("SIWS mock: nonce message names the address; nonce is single-use", () => {
   const c = siwsNonce(MOCK_OWNER_WALLET, "localhost:3100", "http://localhost:3100");
-  assert.match(c.message, new RegExp(MOCK_OWNER_WALLET));
+  assert.ok(c.message.includes(MOCK_OWNER_WALLET));
   assert.ok(siwsVerify(MOCK_OWNER_WALLET, c.message, "mock-signature"));
   assert.throws(() => siwsVerify(MOCK_OWNER_WALLET, c.message, "mock-signature"));
 });

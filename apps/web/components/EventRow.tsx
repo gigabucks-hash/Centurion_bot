@@ -25,7 +25,7 @@ export const EventRow = memo(function EventRow({ e, strategyName, fresh, as: Tag
         </span>
         <span className="block text-body font-semibold">
           {e.mint ? (
-            <Link href={`/coins/${e.mint}`} className="hover:underline">
+            <Link href={`/coins/${e.mint}`} className="tap hover:underline">
               <EventTitle e={e} />
             </Link>
           ) : (

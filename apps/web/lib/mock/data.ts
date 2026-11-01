@@ -2,7 +2,7 @@
  * Mock dataset (seeded, deterministic). Two separate workspaces — Practice and
  * Real SOL — whose numbers are never mixed. All coins and mints are fictional.
  */
-import { screenerStateOf } from "@/lib/contracts";
+import { MOCK_SOL_USD, screenerStateOf } from "@/lib/contracts";
 const SPL_TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as const;
 const TOKEN_2022 = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb" as const;
 /** Mock non-SOL quote (USDC mint). Display only. */
@@ -273,8 +273,9 @@ function buildTrail(i: number, strat: Strategy) {
   } else {
     anchors.push({ t: t + 120_000, p: p0 * between(rng, 0.7, 1.4) });
   }
-  const trail: CoinTrail = { coin, strategyId: strat.id, strategyName: strat.name, mode: strat.mode, score: { value: scoreValue, passMark }, positions, events, prices: pricePath(anchors) };
-  const summary: CoinSummary = { mint, symbol, strategyId: strat.id, strategyName: strat.name, mode: strat.mode, lastEventAt: t, status, pnlSol };
+  const mcap = mockMcap(mint, coin.decimals, t);
+  const trail: CoinTrail = { mcap, coin, strategyId: strat.id, strategyName: strat.name, mode: strat.mode, score: { value: scoreValue, passMark }, positions, events, prices: pricePath(anchors) };
+  const summary: CoinSummary = { mint, symbol, strategyId: strat.id, strategyName: strat.name, mode: strat.mode, lastEventAt: t, status, pnlSol, mcap };
   return { trail, summary };
 }
 
@@ -314,6 +315,17 @@ for (const mode of ["practice", "real"] as const) {
 }
 export const NOT_TRADEABLE_MINTS = new Set(built.filter((b) => b.trail.events.some((e) => e.reasonCode === "UNSUPPORTED_QUOTE_MINT")).map((b) => b.trail.coin.mint));
 export const trails: CoinTrail[] = built.map((b) => b.trail);
+/**
+ * contracts 1.1.4 market cap (mock of backend common::mcap): deterministic per mint, SOL first, USD from the same
+ * reference SOL price as the marks (MOCK_SOL_USD). null when decimals are unknown (never assumed).
+ */
+function mockMcap(mint: string, decimals: number | null, at: number): CoinSummary["mcap"] {
+  if (decimals == null) return { lamports: null, usd: null, asOf: null };
+  const h = [...mint].reduce((x, c) => (x * 33 + c.charCodeAt(0)) >>> 0, 5381);
+  const sol = 60 + (h % 40_000); // 60 – 40 060 SOL
+  return { lamports: (BigInt(sol) * 1_000_000_000n).toString(), usd: String(sol * MOCK_SOL_USD), asOf: at - (h % 50_000) };
+}
+
 export const coinSummaries: CoinSummary[] = built.map((b) => b.summary).sort((a, b) => b.lastEventAt - a.lastEventAt);
 export const recentEvents: TradeEvent[] = trails.flatMap((t) => t.events).sort((a, b) => b.ts - a.ts);
 
@@ -337,8 +349,8 @@ const reasonProfile: Record<ExitReason, { weight: number; win: number; pct: [num
   manual: { weight: 4, win: 0.5, pct: [-20, 30], hold: [60, 3000] },
   strategy_retired: { weight: 0, win: 0.5, pct: [-10, 10], hold: [60, 600] },
   practice_reset: { weight: 0, win: 0.5, pct: [-10, 10], hold: [60, 600] },
-  // contracts 1.1.4 (working tree): stall_exit; weight 0 keeps the seeded ledger unchanged until the builder sends it.
-  stall: { weight: 0, win: 0.3, pct: [-8, 8], hold: [120, 900] },
+  // contracts 1.1.4 stall_exit (exit_reason stall); max_hold also covers time_stop_s.
+  stall: { weight: 4, win: 0.3, pct: [-8, 8], hold: [120, 900] },
 };
 const weightedReasons: ExitReason[] = EXIT_REASONS.flatMap((r) => Array.from({ length: reasonProfile[r].weight }, () => r));
 

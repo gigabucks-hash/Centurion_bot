@@ -19,8 +19,8 @@ function Brand() {
   const t = useT();
   return (
     <Link href="/" className="flex items-baseline gap-2 text-text-primary">
-      <span className="text-titleSm">{t("common.brand")}</span>
-      <span className="hidden text-caption text-text-tertiary md:inline">{t("common.workingName")}</span>
+      {/* Brand = @sentra/i18n app.name ("Centurion Trade", Boss 2026-10-29); short form on narrow phones. */}
+      <span className="text-titleSm"><span aria-hidden>◆ </span><span className="hidden min-[400px]:inline">{t.ux("app.name")}</span><span className="min-[400px]:hidden">{t("common.brandShort")}</span></span>
     </Link>
   );
 }

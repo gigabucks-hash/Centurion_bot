@@ -7,8 +7,10 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Ban, Check, Fingerprint, Keyboard, ShieldAlert, Timer, X } from "lucide-react";
 import { NOT_TRADEABLE } from "@/lib/types";
 import type { Approval, SkipReason, TradingMode } from "@/lib/types";
-import { cancelGuardChangeClient, decideApprovalClient, fetchApproval, fetchApprovals, type DecideOptions } from "@/lib/client";
-import { ApiError, errorText } from "@/lib/errors";
+import { cancelGuardChangeClient, decideApprovalClient, fetchApproval, fetchApprovals, PROPOSAL_UPDATED, refreshQuoteClient, type DecideOptions } from "@/lib/client";
+import { applyProposalUpdated } from "@/lib/contracts";
+import type { ProposalUpdated } from "@sentra/contracts/wire";
+import { ApiError, errorPresentation, errorText, toastKind } from "@/lib/errors";
 import { fmtCountdown } from "@/lib/format";
 import { useT, useFmt } from "@/lib/i18n/client";
 import { settingLabel } from "@/lib/strategy-schema";
@@ -18,13 +20,14 @@ import { ApprovalStatusBadge, ModeBadge } from "@/components/domain";
 import dynamic from "next/dynamic";
 // Perf: the hardened guard dialog is only needed once a guard change is opened → its own chunk.
 const GuardWeakeningDialog = dynamic(() => import("./GuardWeakeningDialog").then((m) => m.GuardWeakeningDialog), { ssr: false });
+const ReviewSheet = dynamic(() => import("./ReviewSheet").then((m) => m.ReviewSheet), { ssr: false });
 import { SwipeRow } from "./SwipeRow";
 import { NotTradeableChip, NotTradeableCta, NotTradeableReason } from "@/components/NotTradeable";
 
 /** QA-06: one tab per contract ProposalStatus (pending · approved · rejected="Skipped" · expired). executing/filled/failed are approved sub-states. */
 type Tab = "pending" | "approved" | "rejected" | "expired";
 const TAB_OF = (a: Approval): Tab => (a.status === "pending" ? "pending" : a.status === "rejected" ? "rejected" : a.status === "expired" ? "expired" : "approved");
-const KIND_KEY = { buy_pick: "approvals.kindPick", guard_change: "approvals.kindGuard", team_action: "approvals.kindTeam" } as const;
+const KIND_KEY = { buy_pick: "approvals.kindPick", guard_change: "approvals.kindGuard", team_action: "approvals.kindTeam", sell_position: "approvals.kindSell" } as const;
 const PICK_KEY = { first_buy: "approvals.pickFirst", buy: "approvals.pickBuy", rebuy: "approvals.pickRebuy" } as const;
 const HOLD = { practice: 1200, real: 2500 } as const;
 const SKIP_REASONS: SkipReason[] = ["thin_liquidity", "already_pumped", "dev_suspicious", "other"];
@@ -37,14 +40,14 @@ const SKIP_REASONS: SkipReason[] = ["thin_liquidity", "already_pumped", "dev_sus
  * - Team actions on Real: mock passkey + hold 2.5 s.
  * Keyboard (QA-12): J/K move · A approve · S skip · X select · ⇧A approve selected · Space details · ↵ chart · Esc clear.
  */
-export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: TradingMode }) {
+export function ApprovalQueue({ initial, mode, initialFocus = null }: { initial: Approval[]; mode: TradingMode; initialFocus?: string | null }) {
   const toast = useToast();
   const t = useT();
   const f = useFmt();
   const now = useNow(1000);
   const [items, setItems] = useState(initial);
   const [tab, setTab] = useState<Tab>("pending");
-  const [focusId, setFocusId] = useState<string | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(initialFocus);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [skipFor, setSkipFor] = useState<Approval | null>(null);
@@ -52,6 +55,8 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
   const [guardFor, setGuardFor] = useState<Approval | null>(null);
   const [teamFor, setTeamFor] = useState<Approval | null>(null);
   const [quickLook, setQuickLook] = useState<Approval | null>(null);
+  /** Review step (WF-22) for a single buy pick: id only, so the sheet always renders the latest item/rev. */
+  const [reviewId, setReviewId] = useState<string | null>(null);
   const router = useRouter();
   const real = mode === "real";
 
@@ -72,6 +77,15 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
     const id = setInterval(refresh, 4000);
     return () => clearInterval(id);
   }, [refresh]);
+  // 1.1.4 proposal.updated: patch the item in place (rev + quote). An open review sheet sees the new rev and resets.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const u = (e as CustomEvent<ProposalUpdated>).detail;
+      setItems((p) => p.map((x) => applyProposalUpdated(x, u)));
+    };
+    window.addEventListener(PROPOSAL_UPDATED, on);
+    return () => window.removeEventListener(PROPOSAL_UPDATED, on);
+  }, []);
 
   // Client-side expiry so countdown → expired is immediate (server is authoritative on next poll).
   const view = useMemo(
@@ -115,8 +129,15 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
             setItems((p) => p.map((x) => (x.id === fresh.id ? fresh : x)));
             setConflict(fresh);
           }
+        } else if (e instanceof ApiError && errorPresentation(e.code, a.mode).surface === "inline") {
+          // errors.map.json inline_key (QUOTE_MISSING_OR_STALE, Real): no toast. The review sheet stays open and shows
+          // the inline stale state + its cta_key ("Refresh quote") from the item's merged quote. If the 409 carries
+          // `current` (on_current), that is the newer proposal → render it as Updated.
+          const fresh = await fetchApproval(a.id).catch(() => null);
+          if (fresh) setItems((p) => p.map((x) => (x.id === fresh.id ? fresh : x)));
         } else {
-          toast({ kind: "error", text: errorText(t, e) });
+          const pr = e instanceof ApiError ? errorPresentation(e.code, a.mode) : null;
+          toast({ kind: pr ? toastKind(pr) : "error", text: errorText(t, e) });
           if (e instanceof ApiError && (e.code === "APPROVAL_ALREADY_DECIDED" || e.code === "APPROVAL_EXPIRED")) refresh();
         }
         return null;
@@ -145,10 +166,10 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
       if (a.status !== "pending" || isNotTradeable(a)) return;
       if (a.kind === "guard_change") return setGuardFor(a);
       if (a.kind === "team_action") return setTeamFor(a);
-      if (a.mode === "real") return setRealPick([a]);
-      decide(a, { decision: "approve" }).then((n) => n && toast({ kind: "success", text: t("approvals.approvedToast", { symbol: a.symbol ? `$${a.symbol}` : a.title }) }));
+      // Every single buy goes through the review step (amount, coin, mode, fees/slippage) first; batch Real uses RealPickDialog.
+      setReviewId(a.id);
     },
-    [decide, toast, t],
+    [],
   );
 
   const skip = useCallback(
@@ -204,7 +225,8 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
   }, [selPicks, real, toast, refresh, t]);
 
   // Keyboard shortcuts
-  const dialogOpen = !!(skipFor || realPick || guardFor || teamFor || quickLook);
+  const dialogOpen = !!(skipFor || realPick || guardFor || teamFor || quickLook || reviewId);
+  const reviewing = reviewId ? (items.find((x) => x.id === reviewId) ?? null) : null;
   const stateRef = useRef({ list, focused, approve, skip, batchApprove, dialogOpen });
   useEffect(() => {
     stateRef.current = { list, focused, approve, skip, batchApprove, dialogOpen };
@@ -335,6 +357,19 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
         </div>
       </div>
 
+      {/* WF-22 thumb zone: on phones the focused pending item's primary actions sit in a sticky bar above the tab bar. */}
+      {tab === "pending" && focused && focused.status === "pending" && !isNotTradeable(focused) && (
+        <>
+          <div aria-hidden className="h-20 lg:hidden" />
+          <div data-testid="thumb-bar" className={cn("fixed inset-x-0 bottom-[calc(3rem+env(safe-area-inset-bottom))] z-20 grid grid-cols-[1fr_2fr] gap-2 border-t bg-bg-surface/95 px-4 py-2 shadow-e3 backdrop-blur lg:hidden", focused.mode === "real" ? "border-mode-real" : "border-border-subtle")}>
+            <p className="col-span-2 truncate text-caption text-text-secondary">{focused.kind === "buy_pick" ? `$${focused.symbol}` : focused.title} · {focused.amountSol != null ? f.sol(focused.amountSol) : focused.strategyName}</p>
+            <Button className="min-h-12" onClick={() => (focused.kind === "buy_pick" ? setSkipFor(focused) : skip(focused))}><X size={16} aria-hidden /> {focused.kind === "buy_pick" ? t("approvals.skip") : t("approvals.rejectChange")}</Button>
+            <Button className="min-h-12" variant={focused.mode === "real" ? "real" : focused.kind === "buy_pick" ? "success" : "primary"} onClick={() => approve(focused)}>
+              <ShieldAlert size={16} aria-hidden /> {t("approvals.review")}
+            </Button>
+          </div>
+        </>
+      )}
       {quickLook && (
         <Dialog open onClose={() => setQuickLook(null)} title={t("approvals.quickLook")}>
           <DetailPane a={quickLook} onApprove={() => (setQuickLook(null), approve(quickLook))} onSkip={() => (setQuickLook(null), quickLook.kind === "buy_pick" && !isNotTradeable(quickLook) ? setSkipFor(quickLook) : skip(quickLook))} />
@@ -352,6 +387,29 @@ export function ApprovalQueue({ initial, mode }: { initial: Approval[]; mode: Tr
             setSelected(new Set());
             const ok = res.filter(Boolean).length;
             if (ok) toast({ kind: "success", text: t("approvals.approvedReal", { n: ok }) });
+          }}
+        />
+      )}
+      {reviewing && (
+        <ReviewSheet
+          a={reviewing}
+          busy={busy}
+          onClose={() => setReviewId(null)}
+          onRefresh={async () => {
+            try {
+              const n = await refreshQuoteClient(reviewing.id);
+              setItems((p) => p.map((x) => (x.id === n.id ? n : x)));
+            } catch (e) {
+              toast({ kind: "error", text: errorText(t, e) });
+            }
+          }}
+          onApprove={async ({ holdMs, reviewedRev, reviewedQuoteId }) => {
+            const a = reviewing;
+            const n = await decide(a, { decision: "approve", reviewedRev, reviewedQuoteId, ...(holdMs != null ? { confirmation: { holdMs } } : {}) });
+            if (n) {
+              setReviewId(null);
+              toast({ kind: "success", text: a.mode === "real" ? t("approvals.approvedReal", { n: 1 }) : t("approvals.approvedToast", { symbol: a.symbol ? `$${a.symbol}` : a.title }) });
+            }
           }}
         />
       )}
@@ -411,7 +469,9 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
       )}
     >
       {isPick && actionable ? (
-        <input type="checkbox" checked={selected} onChange={onToggle} onClick={(e) => e.stopPropagation()} aria-label={t("approvals.selectAria", { symbol: `$${a.symbol}` })} className="h-4 w-4 accent-[var(--color-brand-primary)]" />
+        <label className="-m-3.5 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center" onClick={(e) => e.stopPropagation()}>
+          <input type="checkbox" checked={selected} onChange={onToggle} aria-label={t("approvals.selectAria", { symbol: `$${a.symbol}` })} className="h-4 w-4 accent-[var(--color-brand-primary)]" />
+        </label>
       ) : (
         <span className="w-4" aria-hidden />
       )}

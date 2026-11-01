@@ -7,11 +7,11 @@
  * - Writes carry an Idempotency-Key; retries reuse the same key.
  */
 import { pctToFractionBps } from "@sentra/i18n/format";
-import type { ConflictError, MarkMessage, ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof } from "@sentra/contracts/wire";
+import type { ConflictError, GuardChangeProposed, MarkMessage, ProposalUpdated, ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof } from "@sentra/contracts/wire";
 import { observeServerNow } from "./clock";
-import { approvalFromWire, payloadHash, positionFromWire, type PositionWireView, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire, type ApprovalRejectReason, type WireSettings } from "./contracts";
+import { approvalFromWire, coinSummaryFromWire, type CoinWireWithMcap, payloadHash, positionFromWire, type PositionWireView, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire, type ApprovalRejectReason, type WireSettings } from "./contracts";
 import { ApiError, toApiError } from "./errors";
-import type { Approval, ConnectionState, OpenPosition, PublishResult, StrategySettings, TradeEvent, TradingMode } from "./types";
+import type { Approval, CoinSummary, ConnectionState, OpenPosition, PublishResult, StrategySettings, TradeEvent, TradingMode } from "./types";
 import { createRealtime } from "./realtime";
 
 /** Window event fired after an approval change so other UI (nav badge) can refresh. */
@@ -49,8 +49,23 @@ export async function request<T>(path: string, init: { method?: string; body?: u
 // --- Approvals ---------------------------------------------------------------
 
 export async function fetchApprovals(mode: TradingMode): Promise<Approval[]> {
-  const { raw } = await request<unknown>(`/approvals?mode=${mode}`);
-  return (raw.items as ApprovalItemWire[]).map(approvalFromWire);
+  // 1.1.4 keyset paging: follow next_cursor (pending pages soonest expires_at first); restart once on CURSOR_INVALID.
+  const out: ApprovalItemWire[] = [];
+  let cursor: string | null = null;
+  for (let i = 0, restarted = false; i < 20; i++) {
+    try {
+      const res: { raw: Record<string, unknown> } = await request<unknown>(`/approvals?mode=${mode}&limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+      out.push(...(res.raw.items as ApprovalItemWire[]));
+      cursor = (res.raw.next_cursor as string | null | undefined) ?? null;
+      if (!cursor) break;
+    } catch (e) {
+      if (restarted || !(e instanceof ApiError && e.code === "CURSOR_INVALID")) throw e;
+      restarted = true;
+      out.length = 0;
+      cursor = null;
+    }
+  }
+  return out.map(approvalFromWire);
 }
 
 /** GET /approvals/{id}: fresh item + single-use decision token. */
@@ -70,6 +85,10 @@ export interface DecideOptions {
   rejectReason?: ApprovalRejectReason;
   /** Hold / typed name / passkey collected by the dialog; turned into a ConfirmationProof here. */
   confirmation?: { holdMs: number; typedName?: string; passkey?: boolean };
+  /** Rev the user reviewed (review sheet). A newer server rev → VERSION_CONFLICT, nothing sent. */
+  reviewedRev?: number;
+  /** contracts 1.1.5: quote_id shown in the review sheet → expected_quote_id (server 409 reason "mismatch" if newer). */
+  reviewedQuoteId?: string;
 }
 
 /**
@@ -78,6 +97,9 @@ export interface DecideOptions {
  */
 export async function decideApprovalClient(a: Approval, o: DecideOptions): Promise<{ status: string; rev: number; replayed: boolean }> {
   const fresh = await fetchApproval(a.id);
+  // 1.1.4: the user reviewed rev N; if the proposal moved on (e.g. proposal.updated re-quoted it) the decision is
+  // stale → surface as VERSION_CONFLICT with the fresh item instead of silently approving values not reviewed.
+  if (o.reviewedRev != null && fresh.rev !== o.reviewedRev) throw new ApiError("VERSION_CONFLICT", 409, { error: { code: "VERSION_CONFLICT", current_rev: fresh.rev, base_rev: o.reviewedRev, current: fresh } });
   if (!fresh.decisionToken) throw new ApiError(fresh.status === "expired" ? "APPROVAL_EXPIRED" : "APPROVAL_ALREADY_DECIDED", 409);
   let confirmation: ConfirmationProof | undefined;
   if (o.confirmation) {
@@ -93,7 +115,7 @@ export async function decideApprovalClient(a: Approval, o: DecideOptions): Promi
     } as unknown as ConfirmationProof;
   }
   // 1.1.2: approval rev via If-Match (expected_rev mirrors it for RPC parity); no `client` field (channel comes from the JWT).
-  const body: ApprovalDecisionRequest = { decision: o.decision, token: fresh.decisionToken, expected_rev: fresh.rev, reason: o.reason ?? null, ...(o.decision === "reject" ? { reject_reason: o.rejectReason ?? "user_declined" } : {}), ...(confirmation ? { confirmation } : {}) };
+  const body: ApprovalDecisionRequest = { decision: o.decision, token: fresh.decisionToken, expected_rev: fresh.rev, reason: o.reason ?? null, ...(o.decision === "reject" ? { reject_reason: o.rejectReason ?? "user_declined" } : {}), ...(confirmation ? { confirmation } : {}), ...(o.decision === "approve" && o.reviewedQuoteId ? { expected_quote_id: o.reviewedQuoteId } : {}) } as ApprovalDecisionRequest;
   const { data } = await request<ApprovalDecisionResponse>(`/approvals/${a.id}/decision`, { body, headers: { "If-Match": `"${fresh.rev}"` } });
   window.dispatchEvent(new Event(APPROVALS_CHANGED));
   return data;
@@ -173,7 +195,7 @@ export async function publishStrategyClient(id: string | null, settings: Strateg
     return { strategyId: data.id, outcome: "published", rev: data.rev };
   }
   const patch = settingsPatch(settingsToWire(base.settings), settingsToWire(settings));
-  const res = await request<StrategyWire | { proposal: ApprovalItemWire; strategy: StrategyWire }>(`/strategies/${id}?mode=${settings.mode}`, {
+  const res = await request<StrategyWire | GuardChangeProposed>(`/strategies/${id}?mode=${settings.mode}`, {
     method: "PATCH",
     body: { settings_patch: patch },
     headers: { "If-Match": `"${base.rev}"` },
@@ -181,7 +203,8 @@ export async function publishStrategyClient(id: string | null, settings: Strateg
   const d = res.data;
   if ("proposal" in d) {
     window.dispatchEvent(new Event(APPROVALS_CHANGED));
-    return { strategyId: id, outcome: "needs_approval", rev: d.strategy.rev, approvalId: d.proposal.id };
+    // 1.1.4: 202 {proposal, guard_change}; nothing applied, the strategy stays on guard_change.from_rev.
+    return { strategyId: id, outcome: "needs_approval", rev: d.guard_change.from_rev, approvalId: d.proposal.id, weakenedFields: d.guard_change.weakened_fields, expiresAt: Date.parse(d.proposal.expires_at) || undefined };
   }
   return { strategyId: id, outcome: "published", rev: d.rev };
 }
@@ -257,6 +280,26 @@ export const revokeDeviceClient = async () => (await request<unknown>(`/api/v1/d
  * Subscribe to the realtime activity stream for one workspace mode (adapter chosen by NEXT_PUBLIC_REALTIME:
  * mock SSE default, "sse" for a backend SSE URL, "supabase" skeleton). Returns an unsubscribe function.
  */
+/** Window event fired for every 1.1.4 proposal.updated (detail = ProposalUpdated wire payload). */
+export const PROPOSAL_UPDATED = "sentra:proposal-updated";
+
 export function subscribeActivity(mode: TradingMode, onEvent: (e: TradeEvent) => void, onStatus: (s: ConnectionState) => void, onMark?: (m: MarkMessage) => void): () => void {
-  return createRealtime({ workspaceId: WS, mode }).subscribe({ onEvent, onStatus, onMark });
+  return createRealtime({ workspaceId: WS, mode }).subscribe({
+    onEvent,
+    onStatus,
+    onMark,
+    onProposalUpdated: (p) => window.dispatchEvent(new CustomEvent<ProposalUpdated>(PROPOSAL_UPDATED, { detail: p })),
+  });
+}
+
+/** GET /coins one keyset page (1.1.4): `{items, next_cursor}`; 400 CURSOR_INVALID → ApiError. */
+export async function fetchCoinsPage(mode: TradingMode, cursor: string | null, limit = 100): Promise<{ items: CoinSummary[]; nextCursor: string | null }> {
+  const { raw } = await request<unknown>(`/coins?mode=${mode}&limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+  return { items: (raw.items as CoinWireWithMcap[]).map(coinSummaryFromWire), nextCursor: (raw.next_cursor as string | null) ?? null };
+}
+
+/** Mock-only "Refresh quote" (backend set_approval_quote; see app/api/.../approvals/[id]/quote). */
+export async function refreshQuoteClient(id: string): Promise<Approval> {
+  const { data } = await request<ApprovalItemWire>(`/approvals/${id}/quote`, { body: {} });
+  return approvalFromWire(data);
 }

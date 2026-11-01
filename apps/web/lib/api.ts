@@ -31,7 +31,10 @@ export interface DashboardApi {
   /** Create (id = null) or publish a new revision. Weakening guards → approval item instead. */
   publishStrategy(id: string | null, settings: StrategySettings): Promise<PublishResult>;
   listRecentEvents(mode: TradingMode, limit?: number): Promise<TradeEvent[]>;
+  /** Whole list (follows next_cursor; used when the page filters locally). */
   listCoins(mode: TradingMode): Promise<CoinSummary[]>;
+  /** One keyset page (1.1.4): newest first, `nextCursor` null on the last page. */
+  listCoinsPage(mode: TradingMode, o?: { cursor?: string | null; limit?: number }): Promise<{ items: CoinSummary[]; nextCursor: string | null }>;
   getCoinTrail(mint: Mint): Promise<CoinTrail | null>;
   getExitStats(filter: StatsFilter): Promise<ExitReasonStat[]>;
   listApprovals(mode: TradingMode): Promise<Approval[]>;

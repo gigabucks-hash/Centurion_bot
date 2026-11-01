@@ -68,6 +68,7 @@ function build(locale: Locale, mode: TradingMode) {
     countdown: fmtCountdown,
     /** Re-formats a canonical diff value ("12.5 SOL", "40%", "1500") in the UI locale; other text passes through. */
     value: (raw: string) => {
+      // eslint-disable-next-line security/detect-unsafe-regex -- anchored, no nested quantifiers (linear); inputs are short app strings
       const m = /^(-?\d+(?:\.\d+)?)(%| .+)?$/.exec(raw);
       if (!m) return raw;
       const n = Number(m[1]);

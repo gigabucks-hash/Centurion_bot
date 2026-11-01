@@ -41,6 +41,13 @@ await page.waitForURL(/\/edit$/); await page.waitForTimeout(800);
 await page.getByRole("button", { name: /Guards/ }).first().click();
 await page.getByRole("radio", { name: "Loose" }).click(); await page.waitForTimeout(400);
 await shot("03d-builder-edit-weakening");
+// 1.1.4: a guard-loosening publish returns 202 + proposal → "Sent for approval" with a link to it.
+try {
+  await page.getByRole("button", { name: /Review & sim/ }).first().click(); await page.waitForTimeout(400);
+  await page.getByRole("button", { name: /^Publish/ }).first().click({ timeout: 6000 });
+  await page.getByTestId("sent-for-approval").waitFor({ timeout: 8000 }); await page.waitForTimeout(300);
+  await shot("03e-builder-sent-for-approval", { full: false });
+} catch (err) { console.log("sent-for-approval shot skipped:", String(err).split("\n")[0]); }
 await go("/activity", 6000); await shot("04-activity");
 await go("/coins"); await shot("05-coins");
 await go(coin, 2000); await shot("06-coin-trail-chart");
@@ -88,6 +95,14 @@ await page.locator("article:not([data-not-tradeable])").getByRole("button", { na
 await page.keyboard.press("Escape");
 await page.getByRole("button", { name: /Review/ }).first().click(); await page.waitForTimeout(400); await shot("08c-guard-weakening-practice", { full: false });
 await page.keyboard.press("Escape");
+// 1.1.4 review step: quote rows (lamports/min-out/bps), quote age + expiry, refresh-quote state.
+try {
+  await page.locator("article:not([data-not-tradeable])", { hasNotText: "Guard change" }).getByRole("button", { name: /^Approve$/ }).first().click();
+  await page.getByTestId("review-sheet").waitFor({ timeout: 5000 }); await page.waitForTimeout(400);
+  await shot("08e-review-sheet-practice", { full: false });
+  await page.waitForTimeout(16000); await shot("08f-review-sheet-quote-stale", { full: false });
+  await page.keyboard.press("Escape");
+} catch (err) { console.log("review sheet shots skipped:", String(err).split("\n")[0]); }
 
 // Real SOL workspace
 await setMode("real");
@@ -96,6 +111,14 @@ await go("/approvals"); await shot("10-approvals-real");
 const boxes = page.locator('input[type="checkbox"][aria-label^="Select"]');
 for (let i = 0; i < Math.min(2, await boxes.count()); i++) await boxes.nth(i).check();
 await page.waitForTimeout(300); await shot("10b-approvals-real-batch", { full: false });
+for (let i = 0; i < Math.min(2, await boxes.count()); i++) await boxes.nth(i).uncheck();
+try {
+  await page.locator("article:not([data-not-tradeable])", { hasNotText: "Guard change" }).getByRole("button", { name: /^Approve$|Review/ }).first().click();
+  await page.getByTestId("review-sheet").waitFor({ timeout: 5000 }); await page.waitForTimeout(400);
+  await shot("10c-review-sheet-real-hold", { full: false });
+  await page.keyboard.press("Escape");
+} catch (err) { console.log("real review sheet shot skipped:", String(err).split("\n")[0]); }
+for (let i = 0; i < Math.min(2, await boxes.count()); i++) await boxes.nth(i).check();
 try {
 await page.getByRole("button", { name: /Approve \d+ picks|Approve selected/ }).click(); await page.waitForTimeout(400);
 await shot("11-real-pick-confirm", { full: false });
@@ -130,8 +153,11 @@ await ap.getByRole("button", { name: /Connect Phantom/ }).click(); await ap.getB
 await ap.screenshot({ path: `${OUT}14b-login-siws-preview.png` }); console.log("saved 14b-login-siws-preview");
 await ap.getByRole("button", { name: /Use a different wallet/ }).click();
 await ap.getByTestId("mock-wallet").selectOption({ index: 1 });
-await ap.getByRole("button", { name: /Connect Phantom/ }).click(); await ap.getByTestId("siws-message").waitFor();
-await ap.getByRole("button", { name: /Sign message/ }).click(); await ap.getByTestId("access-denied").waitFor(); await ap.waitForTimeout(200);
+// A non-owner is refused at the nonce step already (403 FORBIDDEN_ROLE wallet_not_allowed), or at verify.
+await ap.getByRole("button", { name: /Connect Phantom/ }).click();
+await ap.getByTestId("access-denied").or(ap.getByTestId("siws-message")).first().waitFor();
+if (await ap.getByTestId("siws-message").count()) { await ap.getByRole("button", { name: /Sign message/ }).click(); await ap.getByTestId("access-denied").waitFor(); }
+await ap.waitForTimeout(200);
 await ap.screenshot({ path: `${OUT}14c-login-access-denied.png` }); console.log("saved 14c-login-access-denied");
 await ap.getByRole("button", { name: /Use a different wallet/ }).click();
 await ap.getByTestId("mock-wallet").selectOption({ index: 0 });
@@ -148,6 +174,13 @@ for (const [n, p] of [["16-mobile-overview", "/"], ["16b-mobile-approvals", "/ap
   await mp.goto(`${BASE}${p}`, { waitUntil: "domcontentloaded" }); await mp.waitForTimeout(1300);
   await mp.screenshot({ path: `${OUT}${n}.png` }); console.log("saved", n);
 }
+// thumb-zone bar on approvals (above the tab bar) → review sheet
+try {
+  await mp.goto(`${BASE}/approvals`, { waitUntil: "domcontentloaded" }); await mp.waitForTimeout(1300);
+  await mp.getByTestId("thumb-bar").waitFor({ timeout: 4000 }); await mp.screenshot({ path: `${OUT}16g-mobile-thumb-bar.png` }); console.log("saved 16g-mobile-thumb-bar");
+  await mp.getByTestId("thumb-bar").getByRole("button", { name: /Review/ }).click(); await mp.getByTestId("review-sheet").waitFor({ timeout: 4000 }); await mp.waitForTimeout(400);
+  await mp.screenshot({ path: `${OUT}16h-mobile-review-sheet.png` }); console.log("saved 16h-mobile-review-sheet");
+} catch (err) { console.log("mobile thumb-bar shots skipped:", String(err).split("\n")[0]); }
 await mp.goto(`${BASE}/`, { waitUntil: "domcontentloaded" }); await mp.waitForTimeout(1000);
 await mp.getByRole("button", { name: "More" }).click({ force: true }); await mp.waitForTimeout(400);
 await mp.screenshot({ path: `${OUT}16d-mobile-more.png` }); console.log("saved 16d-mobile-more");

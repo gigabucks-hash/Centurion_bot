@@ -6,9 +6,10 @@
  */
 export const en = {
   common: {
+    loadMore: "Load more",
     dismiss: "Dismiss",
-    brand: "◆ Sentra",
-    workingName: "(working name)",
+    /** PWA short_name / narrow header; the full name is @sentra/i18n app.name. */
+    brandShort: "Centurion",
     mockBuild: "Mock data build · no wallet, RPC or chain access",
     loading: "Loading…",
     cancel: "Cancel",
@@ -113,7 +114,7 @@ export const en = {
   actor: { ingest: "Ingest", screener: "Screener", guard: "Guard", entry: "Entry", executor: "Executor", exit: "Exit", user: "You", system: "System" },
   kind: { found: "Found", passed: "Passed", blocked: "Blocked", armed: "Armed", expired: "Expired", proposal: "Proposal", approved: "Approved", skipped: "Skipped", bought: "Bought", sold: "Sold" },
   exitReason: {
-    profit_target: "Take profit", loss_guard: "Stop loss", peak_trail: "Trailing stop", max_hold: "Time-out", idle: "No trades",
+    profit_target: "Take profit", loss_guard: "Stop loss", peak_trail: "Trailing stop", max_hold: "Time stop", idle: "No trades",
     sell_pressure: "Drain", no_new_high: "No new high", stall: "Stall exit", rug_detected: "Rug / exploit", sell_floor: "Sell floor", drawdown_halt: "Loss stop", manual: "Manual", strategy_retired: "Strategy retired", practice_reset: "Practice reset",
   },
   // N-07a..d bodies
@@ -125,6 +126,7 @@ export const en = {
     price_moved: "Price ran past the entry limit",
     practice_reset: "Practice was reset",
     account_deleted: "Account deleted",
+    kill_switch: "Real stopped",
   },
   skipReason: { thin_liquidity: "Thin liquidity", already_pumped: "Already pumped", dev_suspicious: "Suspicious dev", other: "Other" },
   feed: {
@@ -251,6 +253,11 @@ export const en = {
     fixSteps: "Fix the highlighted steps before publishing.",
     published: "Published rev {rev} (mock)",
     // N-10
+    sentTitle: "Sent for approval",
+    sentBody: "This change loosens a guard, so nothing was applied yet. {strategy} keeps running on its current settings until you approve the proposal.",
+    sentFields: "Loosened: {fields}",
+    openProposal: "Open the proposal",
+    keepEditing: "Keep editing",
     guardPending: "[{mode}] Guard change pending · {strategy}: loosens a guard",
     activeValue: "active: {v}",
     ladder: "Take-profit ladder",
@@ -335,7 +342,7 @@ export const en = {
     shortcuts: "Shortcuts",
     sc: { jk: "next / previous", a: "approve", s: "skip (reason)", x: "select pick", sa: "approve selected", enter: "open review", esc: "clear / close" },
     swipeNote: "Mobile: swipe right to approve, left to skip (Practice picks only).",
-    kindPick: "Pick", kindGuard: "Guard change", kindTeam: "Team action",
+    kindPick: "Pick", kindGuard: "Guard change", kindTeam: "Team action", kindSell: "Sell",
     pickFirst: "First buy", pickBuy: "Buy", pickRebuy: "Re-buy",
     skip: "Skip", approve: "Approve", review: "Review",
     skipKey: "Skip (S)", approveKey: "Approve (A)", reviewKey: "Review (Enter)",
@@ -547,8 +554,7 @@ export const en = {
       offline: "You're offline. Check your connection and try again.",
       generic: "Something went wrong.",
     },
-    siwsStatement: "Sign in to Sentra. This does not move any funds.",
-    workingName: "(working name)",
+    siwsStatement: "Sign in to Centurion Trade",
     logo: "logo placeholder",
     otpExpires: "Expires in {time}.",
   },
@@ -623,12 +629,12 @@ export const en = {
   },
   apiError: {
     // errors.json v5 (contracts fdc52e3); not yet in @sentra/i18n errors.map.json → app copy until UX maps it.
-    GUARD_WEAKEN_REQUIRES_APPROVAL: "This change loosens a guard, so it needs approval first. Nothing was changed.",
+    GUARD_WEAKEN_REQUIRES_APPROVAL: "Change waiting for approval. It loosens a guard, so nothing applies until you approve it.",
     QUOTE_MISSING_OR_STALE: "This quote expired. Refresh it and review the trade again before approving.",
     UNAUTHENTICATED: "Please sign in again.",
     FORBIDDEN_SCOPE: "This session can’t do that.",
     FORBIDDEN_ROLE: "Your workspace role doesn’t allow this.",
-    APPROVAL_REQUIRES_APP: "Decide this in the Sentra app.",
+    APPROVAL_REQUIRES_APP: "Decide this in the Centurion Trade app.",
     NOT_FOUND: "Not found in this workspace.",
     VALIDATION_FAILED: "Some values are invalid. Check the highlighted fields.",
     SETTINGS_SCHEMA_INVALID: "These settings don’t match the schema.",

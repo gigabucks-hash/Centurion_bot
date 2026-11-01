@@ -7,13 +7,15 @@ import { cn } from "./cn";
  * the same hold duration. Works with pointer and keyboard (hold Space/Enter).
  * Releasing early cancels.
  */
-export function HoldButton({ durationMs, onConfirm, children, disabled, variant = "real", hint }: {
+export function HoldButton({ durationMs, onConfirm, children, disabled, variant = "real", hint, onHoldChange }: {
   durationMs: number;
   onConfirm: (heldMs: number) => void;
   children: ReactNode;
   disabled?: boolean;
   variant?: "real" | "practice" | "warning";
   hint?: ReactNode;
+  /** true while the user is holding (lets the parent tell "hold reset by a quote change" apart from idle). */
+  onHoldChange?: (holding: boolean) => void;
 }) {
   const [progress, setProgress] = useState(0);
   const start = useRef<number | null>(null);
@@ -21,6 +23,7 @@ export function HoldButton({ durationMs, onConfirm, children, disabled, variant 
   const done = useRef(false);
 
   const stop = () => {
+    if (start.current != null) onHoldChange?.(false);
     start.current = null;
     if (raf.current) cancelAnimationFrame(raf.current);
     raf.current = null;
@@ -33,6 +36,7 @@ export function HoldButton({ durationMs, onConfirm, children, disabled, variant 
     if (held >= durationMs) {
       done.current = true;
       start.current = null;
+      onHoldChange?.(false);
       onConfirm(Math.round(held));
       return;
     }
@@ -42,8 +46,11 @@ export function HoldButton({ durationMs, onConfirm, children, disabled, variant 
   const begin = (ts: number) => {
     if (disabled || start.current != null || done.current) return;
     start.current = ts;
+    onHoldChange?.(true);
     raf.current = requestAnimationFrame(loop);
   };
+  // unmount-only cleanup (cancel rAF); onHoldChange is a stable state setter in all callers
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => stop(), []);
 
   const fill = { real: "bg-mode-real/45", practice: "bg-mode-practice/45", warning: "bg-semantic-warning/40" }[variant];

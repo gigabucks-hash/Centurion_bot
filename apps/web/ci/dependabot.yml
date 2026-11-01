@@ -1,0 +1,15 @@
+# PROPOSAL: merge into the repo-root .github/dependabot.yml (owned by the repo owner). Weekly, grouped minor/patch.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule: { interval: weekly, day: monday, time: "03:00", timezone: Asia/Jakarta }
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    groups:
+      web-minor-patch:
+        update-types: [minor, patch]
+    labels: [web, dependencies]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

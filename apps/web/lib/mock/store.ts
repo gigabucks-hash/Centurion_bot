@@ -20,6 +20,8 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 export const PICK_TTL_MS = 10 * MIN;
 export const GUARD_TTL_MS = 24 * HOUR;
+/** papersim quote validity (API_ENDPOINTS 1.1.4: valid while server_now < quote_expires_at, papersim +15 s). */
+export const QUOTE_TTL_MS = 15_000;
 /** Server-owned TTLs (contracts v1): pick 10 min, guard change 24 h, team action 1 h. */
 export const TEAM_TTL_MS = 1 * HOUR;
 export const REAL_GUARD_COOLDOWN_MS = 10 * MIN;
@@ -71,7 +73,9 @@ function mockQuote(a: Omit<Approval, "rev">, now: number): NonNullable<Approval[
   const minOutRaw = BigInt(Math.floor(tokensOut * 10 ** decimals)).toString();
   return {
     networkFeeLamports: (network + priority).toString(), priorityFeeLamports: priority.toString(), swapFeeBps: feeBps, maxSlippageBps: slipBps,
-    minOutRaw, decimals, totalMaxLamports: (amountLamports + network + priority).toString(), quoteTs: now, quoteExpiresAt: now + 10 * MIN,
+    // 1.1.5: total_max = SOL in + network fee (priority included) + ATA rent; quote_id counts refreshes.
+    quoteId: String(Number(a.quote?.quoteId ?? "0") + 1), ataRentLamports: "0",
+    minOutRaw, decimals, totalMaxLamports: (amountLamports + network + priority).toString(), quoteTs: now, quoteExpiresAt: now + QUOTE_TTL_MS,
     priceSol: price.toFixed(12), pickPriceSol: pickPrice.toFixed(12),
   };
 }
@@ -490,6 +494,16 @@ export function decideApprovalWire(id: string, req: ApprovalDecisionRequest, now
   if (req.expected_rev == null) throw wireErr("PRECONDITION_REQUIRED");
   if (req.expected_rev !== a.rev) throw wireErr("VERSION_CONFLICT", { current_rev: a.rev, base_rev: req.expected_rev, current: approvalToWire(a) as unknown as Record<string, unknown> } /* ConflictError<ApprovalWire>: current REQUIRED */);
 
+  // 1.1.4 approval_quote_check: Real approve needs a live quote; practice is never blocked by a missing/stale quote.
+  if (req.decision === "approve" && a.mode === "real" && a.kind === "buy_pick") {
+    const q = a.quote;
+    const exp = (req as { expected_quote_id?: string | null }).expected_quote_id ?? null;
+    const reason = !q?.quoteTs || !q.quoteExpiresAt ? "missing" : q.quoteExpiresAt <= now ? "stale" : exp != null && exp !== (q.quoteId ?? null) ? "mismatch" : null;
+    if (reason) {
+      // 1.1.5 QuoteMissingOrStaleError: reason + quote ids + current (the proposal as it is now).
+      throw wireErr("QUOTE_MISSING_OR_STALE", { reason, quote_ts: q?.quoteTs ? new Date(q.quoteTs).toISOString() : null, quote_expires_at: q?.quoteExpiresAt ? new Date(q.quoteExpiresAt).toISOString() : null, missing: !q?.quoteTs, quote_id: q?.quoteId ?? "0", expected_quote_id: exp, current: approvalToWire(a) as unknown as Record<string, unknown> });
+    }
+  }
   let confirmation: { typedName?: string; secondFactor?: "mock_passkey"; holdMs: number } | undefined;
   if (req.confirmation) {
     const c = req.confirmation;
@@ -512,6 +526,27 @@ export function decideApprovalWire(id: string, req: ApprovalDecisionRequest, now
   tok.used = { decision: req.decision, result };
   return result;
 }
+
+/**
+ * Mock of backend `set_approval_quote` (pending only; rev + 1; emits proposal.updated). Exposed to the web as the
+ * mock-only POST /approvals/{id}/quote ("Refresh quote"); contracts 1.1.4 has no client route for this yet.
+ */
+export function refreshQuote(id: string, now = Date.now()): Approval {
+  tick(now);
+  const a = state().approvals.find((x) => x.id === id);
+  if (!a) throw wireErr("NOT_FOUND");
+  if (a.status !== "pending") throw wireErr(a.status === "expired" ? "APPROVAL_EXPIRED" : "APPROVAL_ALREADY_DECIDED");
+  if (a.kind !== "buy_pick" || !a.amountSol || a.screenerState) throw wireErr("VALIDATION_FAILED", { field: "kind" });
+  a.quote = mockQuote(a, now);
+  // contracts 1.1.5: a quote refresh increments quote_id and never bumps rev (decision tokens stay valid).
+  proposalUpdates.push({ at: now, approval: { ...a } });
+  if (proposalUpdates.length > 100) proposalUpdates.shift();
+  return { ...a };
+}
+
+/** proposal.updated outbox for the mock SSE stream (drained by events/stream). */
+const gp = globalThis as unknown as { __sentraProposalUpdates?: { at: number; approval: Approval }[] };
+export const proposalUpdates = (gp.__sentraProposalUpdates ??= []);
 
 export function getApproval(id: string): Approval | null {
   tick();

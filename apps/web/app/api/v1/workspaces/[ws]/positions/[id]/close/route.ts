@@ -1,3 +1,4 @@
+import { CloseBody, parse } from "@/lib/schemas/wire";
 import type { ClosePositionResponse, FillWire, OrderWire } from "@sentra/contracts/wire";
 import { fail, gateMode, idempotent, now, readJson } from "@/lib/bff";
 import { expectedRev, guarded } from "@/lib/bff-wrap";
@@ -16,6 +17,8 @@ export async function POST(req: Request, ctx: RouteContext<"/api/v1/workspaces/[
   const { ws, id } = await ctx.params;
   const parsed = await readJson(req);
   if (parsed instanceof Response) return parsed;
+  const v = parse(CloseBody, parsed.body);
+  if (!v.ok && !("sell_pct" in parsed.body)) return v.res;
   return idempotent(req, parsed.raw, () =>
     guarded(() => {
       const mode = gateMode(new URL(req.url).searchParams.get("mode") ?? parsed.body.mode);

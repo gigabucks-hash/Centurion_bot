@@ -150,10 +150,14 @@ export interface StrategySettings {
     takeProfits: TakeProfitRung[];
     trailingPct: number;
     stopLossPct: number;
+    /** contracts 1.1.4 `time_stop_s` = minutes × 60 (1–604800 s); 0 = off (null on the wire). exit_reason max_hold. */
     timeStopMinutes: number;
     noTradeSeconds: number;
     drainDropPct: number;
+    /** contracts 1.1.4 `stall_exit {window_s, min_move_pct}`; false = off (null on the wire). exit_reason stall. */
     stallExit: boolean;
+    stallWindowS: number;
+    stallMinMovePct: number;
   };
 }
 
@@ -215,6 +219,10 @@ export interface PublishResult {
   outcome: "published" | "needs_approval";
   rev: number;
   approvalId?: string;
+  /** 1.1.4 guard_change.weakened_fields of the 202 response. */
+  weakenedFields?: string[];
+  /** proposal.expires_at (epoch ms) for guard.weaken.pending.body {expires_at}. */
+  expiresAt?: Timestamp;
 }
 
 // ---------------------------------------------------------------------------
@@ -324,6 +332,8 @@ export interface PricePoint {
 }
 
 export interface CoinTrail {
+  /** contracts 1.1.4 market cap (same computation as the coin list). */
+  mcap?: MarketCap;
   coin: CoinMeta;
   strategyId: string;
   strategyName: string;
@@ -377,6 +387,19 @@ export interface CoinSummary {
   pnlSol?: Sol;
   /** UNSUPPORTED_QUOTE_MINT → "Not tradeable" (WF-20/21). */
   screenerState?: ScreenerState;
+  /** contracts 1.1.4 MarketCapFields (one backend computation). usd is indicative (reference SOL price). */
+  mcap?: MarketCap;
+}
+
+export interface MarketCap {
+  /** Integer lamport string; null when decimals/supply are unknown (never assumed). */
+  lamports: string | null;
+  /** Decimal string, display-only and indicative. */
+  usd: string | null;
+  /** When the inputs were observed; null when both are null. */
+  asOf: Timestamp | null;
+  /** contracts 1.1.5 mcap_source: curve / pool (indicative, computed by us) or unavailable. */
+  source?: "curve" | "pool" | "unavailable";
 }
 
 // ---------------------------------------------------------------------------
@@ -448,6 +471,10 @@ export const NOT_TRADEABLE: ScreenerState = "UNSUPPORTED_QUOTE_MINT";
 
 /** Transaction quote for the review sheet (contracts 1.1.4 ProposalQuoteFields, WF-22). Practice = papersim estimate. */
 export interface ApprovalQuote {
+  /** contracts 1.1.5 (pending): a re-quote sets a new id and does not bump rev. Absent on the 1.1.4 wire. */
+  quoteId?: string;
+  /** contracts 1.1.5 (pending): rent for a new token account; "0" when none (row hidden). */
+  ataRentLamports?: string;
   networkFeeLamports?: string;
   priorityFeeLamports?: string;
   swapFeeBps?: number;

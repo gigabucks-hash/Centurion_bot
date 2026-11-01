@@ -20,13 +20,20 @@ export interface CspOptions {
   apiOrigin?: string | null;
 }
 
+/**
+ * lightweight-charts injects one fixed <style> for its (required) TradingView attribution logo. Allowed by hash
+ * instead of 'unsafe-inline'; lib/__tests__/contracts-114.test.ts recomputes it from the installed library, so a
+ * library upgrade that changes the CSS fails the test instead of silently breaking the logo style.
+ */
+export const LWC_ATTRIBUTION_STYLE_HASH = "'sha256-3pRED1tOXas1FXFoPb9TGCjmYe9XQsmO9OV23khV2nY='";
+
 export function buildCsp(o: CspOptions): string {
   const google = o.googleClientId ? " https://accounts.google.com" : "";
   const api = o.apiOrigin ? ` ${o.apiOrigin}` : "";
   const d: [string, string][] = [
     ["default-src", "'self'"],
     ["script-src", `'self' 'nonce-${o.nonce}' 'strict-dynamic' ${THEME_INIT_HASH}${o.dev ? " 'unsafe-eval'" : ""}`],
-    ["style-src", `'self' 'nonce-${o.nonce}'${google ? `${google}/gsi/style` : ""}`],
+    ["style-src", `'self' 'nonce-${o.nonce}' ${LWC_ATTRIBUTION_STYLE_HASH}${google ? `${google}/gsi/style` : ""}`],
     ["style-src-attr", "'unsafe-inline'"],
     ["img-src", "'self' data: blob: https://appleid.cdn-apple.com"],
     ["font-src", "'self'"],
@@ -50,7 +57,7 @@ export const SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=(), interest-cohort=()",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()",
   "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
   "Cross-Origin-Resource-Policy": "same-origin",
   "X-DNS-Prefetch-Control": "off",

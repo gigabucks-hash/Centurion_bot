@@ -10,6 +10,7 @@ import { getMode } from "@/lib/mode";
 import type { Position } from "@/lib/types";
 import { shortMint } from "@/lib/format";
 import { Badge, Card, EmptyState, PageHeader, Pnl, StatTile, Table } from "@/components/ui";
+import { Mcap } from "@/components/Mcap";
 import { eventKindMeta, ModeBadge } from "@/components/domain";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
@@ -44,6 +45,7 @@ async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] 
             <Badge>{coin.venue}</Badge>
             {notTradeable && <NotTradeableChip label={t("screener.notTradeable")} />}
             <span>{t("trail.strategy", { name: trail.strategyName })}</span>
+            <Mcap m={trail.mcap} t={t} locale={t.locale} time={f.dateTime} />
           </span>
         }
         actions={<ModeBadge mode={trail.mode} />}

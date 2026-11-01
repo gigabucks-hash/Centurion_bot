@@ -7,6 +7,7 @@ import { pnlPct, pnlSol, type PnlOut } from "@sentra/i18n/format";
 
 export type PnlTone = "profit" | "loss" | "neutral";
 
+// eslint-disable-next-line security/detect-unsafe-regex -- anchored, no nested quantifiers (linear); inputs are short app strings
 const DECIMAL = /^([+\-\u2212])?(\d+)(?:\.(\d*))?$/;
 
 /**

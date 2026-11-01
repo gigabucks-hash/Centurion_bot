@@ -254,6 +254,7 @@ export const ALIASES = {
   "expiredReason.strategy_archived": "expire_reason.strategy_archived.badge",
   "expiredReason.strategy_deleted": "expire_reason.strategy_deleted.badge",
   "expiredReason.timeout": "expire_reason.timeout.badge",
+  "expiredReason.kill_switch": "expire_reason.kill_switch.badge",
   "apiError.ACCOUNT_DELETION_BLOCKED": "error.code.account_deletion_blocked",
   "apiError.ACCOUNT_DELETION_PENDING": "error.code.account_deletion_pending",
   "apiError.APPROVAL_ALREADY_DECIDED": "error.code.approval_already_decided",

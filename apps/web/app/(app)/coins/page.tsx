@@ -9,6 +9,7 @@ import { getT, getFmt } from "@/lib/i18n/server";
 import { Badge, Card, EmptyState, PageHeader, Pnl, Table, cn, type Tone } from "@/components/ui";
 import { NotTradeableChip } from "@/components/NotTradeable";
 import { CoinsVirtualList } from "@/components/CoinsVirtualList";
+import { Mcap } from "@/components/Mcap";
 
 /** Past this many rows the screener list is window-virtualized on the client (TanStack Virtual). */
 const VIRTUAL_COINS = 120;
@@ -22,7 +23,11 @@ async function List({ searchParams }: { searchParams: PageProps<"/coins">["searc
   const q = (typeof sp.q === "string" ? sp.q : "").trim().toLowerCase();
   const status = typeof sp.status === "string" ? sp.status : "all";
   const only = status === "not_tradeable";
-  const coins = (await getApi().listCoins(mode))
+  // 1.1.4 cursor paging: unfiltered → first keyset page + client load-more; filters run locally → whole list
+  // (proposed to Backend: server-side ?q=&status= so filtered views can page too).
+  const filtered = !!q || status !== "all";
+  const first = filtered ? null : await getApi().listCoinsPage(mode, { limit: 100 });
+  const coins = (first ? first.items : await getApi().listCoins(mode))
     .filter((c) => !q || c.symbol.toLowerCase().includes(q) || c.mint.toLowerCase().startsWith(q) || c.strategyName.toLowerCase().includes(q))
     .filter((c) => (only ? c.screenerState === "UNSUPPORTED_QUOTE_MINT" : status === "passed" ? c.status !== "rejected" : status === "rejected" ? c.status === "rejected" : true));
   const nt = (c: CoinSummary) => c.screenerState === "UNSUPPORTED_QUOTE_MINT";
@@ -40,18 +45,19 @@ async function List({ searchParams }: { searchParams: PageProps<"/coins">["searc
         ))}
         <Link href="/coins?status=not_tradeable" aria-current={only ? "page" : undefined} className={chip(only)}>{t("notTradeable.filter")}</Link>
       </nav>
-      {coins.length > VIRTUAL_COINS ? <CoinsVirtualList coins={coins} /> : <Table<CoinSummary>
+      {coins.length > VIRTUAL_COINS || first?.nextCursor ? <CoinsVirtualList coins={coins} nextCursor={first?.nextCursor ?? null} mode={mode} /> : <Table<CoinSummary>
         rows={coins}
         rowKey={(c) => `${c.mint}-${c.strategyId}`}
         empty={<EmptyState title={q ? t("coins.empty") : t("screener.empty")} detail={q ? t("coins.emptyDetail") : undefined} />}
         mobile="cards"
         labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
         columns={[
-          { key: "sym", header: t("screener.colCoin"), cell: (c) => <Link href={`/coins/${c.mint}`} className={cn("font-semibold hover:underline", nt(c) ? "text-text-tertiary" : "text-brand-primary")}>${c.symbol}</Link> },
+          { key: "sym", header: t("screener.colCoin"), cell: (c) => <Link href={`/coins/${c.mint}`} className={cn("tap font-semibold hover:underline", nt(c) ? "text-text-tertiary" : "text-brand-primary")}>${c.symbol}</Link> },
           { key: "mint", header: t("coins.colMint"), cell: (c) => <span className="num text-caption text-text-secondary">{shortMint(c.mint)}</span> },
           { key: "strat", header: t("coins.colStrategy"), cell: (c) => c.strategyName },
           { key: "status", header: t("screener.colStatus"), mobile: "status", nowrap: true, cell: (c) => (nt(c) ? <NotTradeableChip label={t("screener.notTradeable")} /> : <Badge tone={statusTone[c.status]}>{c.status === "rejected" ? t("screener.statusRejected") : t(`coins.status.${c.status}`)}</Badge>) },
           { key: "pnl", header: t("coins.colPnl"), numeric: true, mobile: "primary", cell: (c) => (c.pnlSol != null && !nt(c) ? <Pnl sol={c.pnlSol} /> : <span className="text-text-tertiary">—</span>) },
+          { key: "mcap", header: t.ux("screener.col.mcap"), numeric: true, cell: (c) => <Mcap m={c.mcap} t={t} locale={t.locale} time={f.time} compact /> },
           { key: "t", header: t("coins.colLast"), numeric: true, cell: (c) => f.time(c.lastEventAt) },
         ]}
       />}

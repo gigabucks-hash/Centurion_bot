@@ -3,7 +3,8 @@ import type { ClockMessage, MarkMessage } from "@sentra/contracts/wire";
 import { gateMode } from "@/lib/bff";
 import { usdToPriceSol, toDecimalString } from "@/lib/contracts";
 import { liveEnvelope, workspaceEnvelopes } from "@/lib/mock/events";
-import { listOpenPositions } from "@/lib/mock/store";
+import { listOpenPositions, proposalUpdates } from "@/lib/mock/store";
+import { approvalToWire } from "@/lib/contracts";
 import { cmpSeq, maxSeq, parseSeq, seqGt, type Seq } from "@/lib/seq";
 
 /** SSE clock frame cadence with include=clock (EVENTS_SCHEMA 1.1.2: every 5 s). */
@@ -66,6 +67,23 @@ export async function GET(req: Request, ctx: RouteContext<"/api/v1/workspaces/[w
           }
         }, MARK_MS);
       }
+      // 1.1.4 proposal.updated (quote set/refreshed, rev + 1) from the mock set_approval_quote outbox.
+      let lastUpd = Date.now();
+      every(() => {
+        for (const u of proposalUpdates.filter((x) => x.at > lastUpd && x.approval.mode === mode)) {
+          const w = approvalToWire(u.approval);
+          const ts = new Date(u.at).toISOString();
+          const seq = (BigInt(lastSeq) + 1n).toString();
+          lastSeq = seq;
+          const payload = {
+            proposal_id: w.id, kind: w.kind, rev: w.rev,
+            est_network_fee_lamports: w.est_network_fee_lamports, priority_fee_lamports: w.priority_fee_lamports, swap_fee_bps: w.swap_fee_bps, max_slippage_bps: w.max_slippage_bps,
+            min_out_raw: w.min_out_raw, total_max_lamports: w.total_max_lamports, quote_ts: w.quote_ts, quote_expires_at: w.quote_expires_at,
+          };
+          send("proposal.updated", { id: `${w.id}:${u.at}:proposal.updated`, seq, type: "proposal.updated", version: 1, workspace_id: ws, strategy_id: w.strategy_id, ck: null, mint: w.mint, ts, actor: "system", mode, payload, untrusted: {}, server_now: new Date().toISOString() }, seq);
+        }
+        lastUpd = Math.max(lastUpd, ...proposalUpdates.map((x) => x.at));
+      }, 1000);
       let n = 0;
       const loop = () => {
         const e = liveEnvelope(ws, mode, n++, lastSeq);

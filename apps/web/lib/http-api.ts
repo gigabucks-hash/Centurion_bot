@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import type { AnyEvent, EventPage, ExitStatsRow } from "@sentra/contracts/wire";
 import type { DashboardApi } from "./api";
 import { approvalFromWire, coinSummaryFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings } from "./contracts";
-import { toApiError } from "./errors";
+import { ApiError, toApiError } from "./errors";
 import { blankSettings } from "./strategy-schema";
 import type { Strategy, TradeEvent, TradingMode } from "./types";
 
@@ -31,7 +31,35 @@ async function req<T>(path: string, init: RequestInit & { idempotent?: boolean }
   return { data: (json.data ?? json) as T, raw: json };
 }
 
-const items = async <T>(path: string) => ((await req<unknown>(path)).raw.items ?? []) as T[];
+/**
+ * 1.1.4 keyset paging: follow `next_cursor` (limit=100) up to MAX_PAGES; a 400 CURSOR_INVALID mid-walk (list changed
+ * under a cursor) restarts once from the first page.
+ */
+const MAX_PAGES = 20;
+async function items<T>(path: string, restarted = false): Promise<T[]> {
+  const out: T[] = [];
+  let cursor: string | null = null;
+  for (let i = 0; i < MAX_PAGES; i++) {
+    const sep = path.includes("?") ? "&" : "?";
+    try {
+      const res: { raw: Record<string, unknown> } = await req<unknown>(`${path}${sep}limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+      const raw = res.raw;
+      out.push(...((raw.items ?? []) as T[]));
+      cursor = (raw.next_cursor as string | null | undefined) ?? null;
+      if (!cursor) break;
+    } catch (e) {
+      if (!restarted && e instanceof ApiError && e.code === "CURSOR_INVALID") return items<T>(path, true);
+      throw e;
+    }
+  }
+  return out;
+}
+
+async function page<T>(path: string, o: { cursor?: string | null; limit?: number } = {}): Promise<{ items: T[]; nextCursor: string | null }> {
+  const sep = path.includes("?") ? "&" : "?";
+  const { raw } = await req<unknown>(`${path}${sep}limit=${o.limit ?? 50}${o.cursor ? `&cursor=${encodeURIComponent(o.cursor)}` : ""}`);
+  return { items: (raw.items ?? []) as T[], nextCursor: (raw.next_cursor as string | null | undefined) ?? null };
+}
 
 interface StrategyWire { id: string; rev: number; name: string; status: Strategy["status"]; mode: TradingMode; settings: WireSettings; updated_at?: string; created_at?: string; stats?: Record<string, number> }
 
@@ -67,6 +95,10 @@ export const httpApi: DashboardApi = {
     return (page.items as AnyEvent[]).map(envelopeToTradeEvent).filter((e): e is TradeEvent => e != null);
   },
   listCoins: async (mode) => (await items<CoinWire>(wsPath(`/coins?mode=${mode}`))).map(coinSummaryFromWire),
+  listCoinsPage: async (mode, o) => {
+    const p = await page<CoinWire>(wsPath(`/coins?mode=${mode}`), o);
+    return { items: p.items.map(coinSummaryFromWire), nextCursor: p.nextCursor };
+  },
   getCoinTrail: async (mint) => (await req<never>(wsPath(`/coins/${encodeURIComponent(mint)}/timeline`))).data,
   getExitStats: async (f) => {
     const q = new URLSearchParams({ mode: f.mode, ...(f.strategyId ? { strategy_id: f.strategyId } : {}), ...(f.windowHours ? { window: `${f.windowHours}h` } : {}) });

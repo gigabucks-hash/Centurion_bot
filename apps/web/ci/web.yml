@@ -1,0 +1,48 @@
+# PROPOSAL (apps/web team): GitHub only runs workflows from the repo-root .github/workflows/, which other teams
+# own, so this file lives here until the repo owner moves it to .github/workflows/web.yml (no edits needed).
+name: web
+
+on:
+  push:
+    paths: ['apps/web/**', 'packages/contracts/**', 'packages/i18n/**', 'packages/design-tokens/**', '.github/workflows/web.yml']
+  pull_request:
+    paths: ['apps/web/**', 'packages/contracts/**', 'packages/i18n/**', 'packages/design-tokens/**', '.github/workflows/web.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run lint        # eslint-config-next + eslint-plugin-security
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+      - name: No secrets in the client bundle
+        run: |
+          ! grep -rEl '(sk_live|sk_test|service_role|-----BEGIN|SUPABASE_SERVICE|OWNER_WALLETS|JWT_SECRET|srt_[A-Za-z0-9]{8,})' .next/static
+      - run: npm audit --audit-level=moderate
+      - name: osv-scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v2.2.4
+        with:
+          scan-args: --lockfile=apps/web/package-lock.json

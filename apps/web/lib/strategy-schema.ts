@@ -35,6 +35,8 @@ export interface NumberField {
   inc?: number;
   /** Guard semantics: raising a "max" threshold or lowering a "min" one loosens the filter. */
   guard?: "max" | "min";
+  /** Only shown/validated/diffed on its own when true (sub-fields of an optional rule). */
+  when?: (s: StrategySettings) => boolean;
 }
 
 export const NUMBER_FIELDS: NumberField[] = [
@@ -63,7 +65,11 @@ export const NUMBER_FIELDS: NumberField[] = [
   { path: "entry.entryMaxUpPct", label: "Skip if already up", step: "entry", unit: "%", min: 0, max: 500 },
   { path: "exit.trailingPct", label: "Trailing stop from high", step: "exit", unit: "%", min: 0, max: 49 },
   { path: "exit.stopLossPct", label: "Hard stop loss from entry", step: "exit", unit: "%", min: 5, max: 49 },
-  { path: "exit.timeStopMinutes", label: "Time stop", step: "exit", unit: "min", min: 0, max: 1440 },
+  // 1.1.4 time_stop_s 1–604800 s → 0 (off) or 1–10080 min.
+  { path: "exit.timeStopMinutes", label: "Time stop", step: "exit", unit: "min", min: 0, max: 10080 },
+  // 1.1.4 stall_exit (only shown/validated while the stall exit is on): window_s 5–86400, min_move_pct 0.01–100.
+  { path: "exit.stallWindowS", label: "Stall window", step: "exit", unit: "s", min: 5, max: 86400, when: (s) => s.exit.stallExit },
+  { path: "exit.stallMinMovePct", label: "Stall: min move", step: "exit", unit: "%", min: 0.01, max: 100, inc: 0.5, when: (s) => s.exit.stallExit },
   { path: "exit.noTradeSeconds", label: "No-trade exit", step: "exit", unit: "s", min: 5, max: 3600 },
   { path: "exit.drainDropPct", label: "Drain: drop", step: "exit", unit: "%", min: 1, max: 90 },
 ];
@@ -139,7 +145,7 @@ export function blankSettings(): StrategySettings {
       tradingHoursUtc: { enabled: false, from: 0, to: 23 },
     },
     exit: applyExitPresetTo(
-      { plan: "custom", takeProfits: [], trailingPct: 0, timeStopMinutes: 0, stallExit: false, stopLossPct: 30, noTradeSeconds: 300, drainDropPct: 25 },
+      { plan: "custom", takeProfits: [], trailingPct: 0, timeStopMinutes: 0, stallExit: false, stallWindowS: 300, stallMinMovePct: 2, stopLossPct: 30, noTradeSeconds: 300, drainDropPct: 25 },
       "three_step_ladder",
     ),
   };
@@ -198,6 +204,7 @@ export function validate(s: StrategySettings): Errors {
   const e: Errors = {};
   for (const f of NUMBER_FIELDS) {
     const v = getPath(s, f.path);
+    if (f.when && !f.when(s)) continue;
     if (typeof v !== "number" || Number.isNaN(v)) e[f.path] = m("err.required");
     else if (v < f.min || v > f.max) e[f.path] = m("err.range", { min: f.min, max: f.max, unit: f.unit ? ` ${f.unit}` : "" });
   }
@@ -252,6 +259,7 @@ export function diffSettings(before: StrategySettings, after: StrategySettings):
     push("approvalMode", "Approval mode", before.approvalMode, after.approvalMode, order[after.approvalMode] < order[before.approvalMode] ? "weakens" : "strengthens");
   }
   for (const f of NUMBER_FIELDS) {
+    if (f.when) continue; // diffed as part of their rule (stall exit row below)
     const b = getPath(before, f.path) as number;
     const a = getPath(after, f.path) as number;
     if (b === a) continue;
@@ -280,7 +288,8 @@ export function diffSettings(before: StrategySettings, after: StrategySettings):
     const s = (r?: TakeProfitRung) => (r ? `+${r.gainPct}% · ${r.sellPct}%${r.pullbackPct ? ` · pb ${r.pullbackPct}%` : ""}` : "—");
     push(`exit.tp[${i + 1}]`, `Take-profit rung ${i + 1}`, s(b), s(a), !b ? "new" : "neutral");
   }
-  if (before.exit.stallExit !== after.exit.stallExit) push("exit.stallExit", "Stall exit", String(before.exit.stallExit), String(after.exit.stallExit), "neutral");
+  const stall = (x: StrategySettings["exit"]) => (x.stallExit ? `${x.stallMinMovePct}% / ${x.stallWindowS}s` : "off");
+  if (stall(before.exit) !== stall(after.exit)) push("exit.stallExit", "Stall exit", stall(before.exit), stall(after.exit), "neutral");
   return rows;
 }
 

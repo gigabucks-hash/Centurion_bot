@@ -7,6 +7,10 @@
  */
 import { WireError } from "./store";
 
+/** Backend SIWS_STATEMENTS[2] (current, = UX auth.siws.statement since i18n 0.4.7). The server builds the signed text. */
+export const SIWS_STATEMENT = "Sign in to Centurion Trade";
+export const SIWS_STATEMENT_VERSION = 2;
+
 const MIN = 60_000;
 export const MOCK_OTP = "123456";
 const g = globalThis as unknown as {
@@ -19,8 +23,8 @@ export function siwsNonce(address: string, domain: string, uri: string, now = Da
   const issued = new Date(now).toISOString();
   const exp = now + 5 * MIN;
   st.nonces.set(nonce, { address, domain, exp });
-  const message = `${domain} wants you to sign in with your Solana account:\n${address}\n\nSign in to Sentra. This does not move any funds.\n\nURI: ${uri}\nVersion: 1\nChain ID: solana:mainnet\nNonce: ${nonce}\nIssued At: ${issued}\nExpiration Time: ${new Date(exp).toISOString()}`;
-  return { nonce, message, issued_at: issued, expires_at: new Date(exp).toISOString() };
+  const message = `${domain} wants you to sign in with your Solana account:\n${address}\n\n${SIWS_STATEMENT}\n\nURI: ${uri}\nVersion: 1\nChain ID: solana:mainnet\nNonce: ${nonce}\nIssued At: ${issued}\nExpiration Time: ${new Date(exp).toISOString()}`;
+  return { nonce, message, issued_at: issued, expires_at: new Date(exp).toISOString(), statement_version: SIWS_STATEMENT_VERSION };
 }
 
 export function siwsVerify(address: string, message: string, signature: string, now = Date.now()) {

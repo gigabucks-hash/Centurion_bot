@@ -26,4 +26,22 @@ declare module "@sentra/i18n/format" {
   /** Ratio in (0.084 = 8.4%). Exact 0 → "0.0%" neutral; tiny non-zero → "<0.1%" signed. */
   export function pnlPct(r: number, loc: string, o?: { dp?: number }): PnlOut;
   export function remainingMs(untilIso: string, skewMs: number, localNowMs?: number): number;
+  /** i18n 0.4.5: bps (JSON number) → percent text; null → DASH. */
+  export function formatBps(bps: number | null | undefined, loc: string): string;
+  /** i18n 0.4.5: raw integer string + decimals → token quantity text; DASH when either is missing. */
+  export function formatRawQty(raw: string | null | undefined, decimals: number | null | undefined, loc: string): string;
+  export type QuoteState = { state: "missing" | "fresh" | "stale"; ageS: number | null; expiresInS: number | null; complete: boolean; blocksApprove: boolean };
+  /** i18n 0.4.7: `complete` = every REQUIRED_QUOTE_FIELDS present (1.1.5 fields incl. quote_id, est_ata_rent_lamports). */
+  export function quoteState(q: Record<string, string | null | undefined> | null | undefined, skewMs?: number, o?: { mode?: "practice" | "real"; localNowMs?: number }): QuoteState;
+  export const REQUIRED_QUOTE_FIELDS: readonly string[];
+  export const DASH: string;
+  /** i18n 0.4.6: lamports string or null → SOL text or DASH. */
+  export function formatLamportsOrDash(lamports: string | null | undefined, loc: string, o?: SolOpts): string;
+  /** i18n 0.4.6: Intl.RelativeTimeFormat seconds ("5 sec. ago" / "in 9 sec."). */
+  export function formatRelativeSeconds(sec: number, loc: string): string;
+  /** i18n 0.4.7 (1.1.5): true only when next has a quote_id different from prev's. */
+  export function quoteChanged(prev: { quote_id?: string | null } | null | undefined, next: { quote_id?: string | null } | null | undefined): boolean;
+  /** i18n 0.4.5: market cap formatters (indicative USD, compact SOL); null → DASH. */
+  export function formatMcapUsd(usd: string | null | undefined, loc: string): string;
+  export function formatMcapSol(lamports: string | null | undefined, loc: string): string;
 }

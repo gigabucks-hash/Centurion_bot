@@ -12,3 +12,29 @@ body {
   outline: 2px solid var(--color-border-focus);
   outline-offset: 2px;
 }
+
+/*
+ * Touch targets (PERF_SECURITY.md §Design): on coarse pointers every control gets a ≥ 44×44 CSS px hit box
+ * (Apple HIG / WCAG 2.5.5). Zero-specificity :where() so components keep their look; min-* wins over the
+ * fixed h-8/h-9 heights used for dense desktop layouts. Inline text links inside prose are exempt (WCAG 2.5.8).
+ */
+@media (pointer: coarse) {
+  :where(button, select, summary, [role="button"], [role="tab"], [role="switch"],
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"]),
+    a[class*="flex"], a[class*="block"]) {
+    min-height: 44px;
+  }
+  :where(button, [role="button"], [role="tab"], [role="switch"], a[class*="flex"]) {
+    min-width: 44px;
+  }
+  :where(label:has(> input[type="checkbox"]), label:has(> input[type="radio"])) {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* Opt-in for list/table text links that are primary tap targets on phones (e.g. coin symbol, feed titles). */
+@media (pointer: coarse) {
+  .tap { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+}

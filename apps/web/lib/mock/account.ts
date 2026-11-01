@@ -32,6 +32,7 @@ export function cancelDeletion() {
 }
 
 const DEVICE_ID = /^[A-Za-z0-9_-]{8,128}$/;
+// eslint-disable-next-line security/detect-unsafe-regex -- anchored, no nested quantifiers (linear); inputs are short app strings
 const SEMVER = /^\d+\.\d+\.\d+([-+].*)?$/;
 
 export function registerDevice(deviceId: string, body: Record<string, unknown>, now = Date.now()) {

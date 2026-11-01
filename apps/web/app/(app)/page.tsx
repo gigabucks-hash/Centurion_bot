@@ -62,7 +62,7 @@ async function Overview() {
               mobile="cards"
               labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
               columns={[
-                { key: "name", header: t("overview.colName"), cell: (s) => <Link href={`/strategies/${s.id}/edit`} className="font-medium text-text-primary hover:underline">{s.name}</Link> },
+                { key: "name", header: t("overview.colName"), cell: (s) => <Link href={`/strategies/${s.id}/edit`} className="tap font-medium text-text-primary hover:underline">{s.name}</Link> },
                 { key: "status", header: t("overview.colStatus"), mobile: "status", nowrap: true, cell: (s) => <StatusBadge status={s.status} /> },
                 { key: "ap", header: t("overview.colApproval"), mobile: "status", nowrap: true, cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
                 { key: "pnl", header: t("overview.colPnl"), numeric: true, mobile: "primary", cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} />) },
@@ -78,7 +78,7 @@ async function Overview() {
           {trail && (
             <Card
               title={t("overview.coinTrail", { symbol: trail.coin.untrusted.symbol, strategy: trail.strategyName })}
-              action={trail.positions[0] && <Link href={`/coins/${trail.coin.mint}`} className="text-caption"><Pnl sol={trail.positions[0].pnlSol} unit /> · {t("common.details")}</Link>}
+              action={trail.positions[0] && <Link href={`/coins/${trail.coin.mint}`} className="tap text-caption"><Pnl sol={trail.positions[0].pnlSol} unit /> · {t("common.details")}</Link>}
             >
               <CoinTrailSteps trail={trail} />
               <p className="mt-3 rounded-md bg-bg-sunken p-3 text-caption text-text-secondary">
@@ -93,7 +93,7 @@ async function Overview() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <Card title={t("overview.activity")} action={<Link href="/activity" className="text-caption text-brand-primary hover:underline">{t("common.seeAll")}</Link>}>
+          <Card title={t("overview.activity")} action={<Link href="/activity" className="tap text-caption text-brand-primary hover:underline">{t("common.seeAll")}</Link>}>
             <OverviewFeed initial={events} names={names} />
           </Card>
           <Card title={t("overview.warnings")} action={<Badge tone={o.alerts.some((a) => a.severity === "critical") ? "loss" : "warning"}>{o.alerts.length}</Badge>} bodyClassName="px-0 pb-1">

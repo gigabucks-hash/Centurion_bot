@@ -9,32 +9,36 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "screenshots": "node scripts/screenshots.mjs",
-    "test": "node --import tsx --test 'lib/__tests__/*.test.ts'"
+    "test": "node --import tsx --test 'lib/__tests__/*.test.ts'",
+    "audit": "npm audit --audit-level=moderate",
+    "audit:osv": "osv-scanner scan --lockfile package-lock.json",
+    "ci": "npm run lint && npm run typecheck && npm test && npm run build && npm run audit"
   },
   "dependencies": {
     "@sentra/contracts": "file:../../packages/contracts",
     "@sentra/design-tokens": "file:../../packages/design-tokens",
     "@sentra/i18n": "file:../../packages/i18n",
     "@tanstack/react-virtual": "3.14.24",
-    "clsx": "^2.1.1",
-    "lightweight-charts": "^5.2.1",
-    "lucide-react": "^1.64.0",
+    "clsx": "2.1.1",
+    "lightweight-charts": "5.2.1",
+    "lucide-react": "1.64.0",
     "next": "16.4.3",
-    "next-intl": "^4.14.9",
+    "next-intl": "4.14.9",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "20.19.43",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
     "eslint-config-next": "16.4.3",
-    "playwright-core": "^1.64.1",
-    "tailwindcss": "^4",
-    "tsx": "^4.23.15",
-    "typescript": "^5"
+    "eslint-plugin-security": "4.2.0",
+    "playwright-core": "1.64.1",
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
   }
 }

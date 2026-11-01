@@ -1,3 +1,4 @@
+import { parse, StrategyCreateBody } from "@/lib/schemas/wire";
 import { fail, gateMode, idempotent, list, ok, readJson } from "@/lib/bff";
 import { guarded } from "@/lib/bff-wrap";
 import { settingsFromWire, type WireSettings } from "@/lib/contracts";
@@ -17,6 +18,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const parsed = await readJson(req);
   if (parsed instanceof Response) return parsed;
+  const v = parse(StrategyCreateBody, parsed.body);
+  if (!v.ok) return v.res;
   const { settings, name } = parsed.body as { settings?: WireSettings; name?: string };
   if (!settings || typeof settings !== "object") return fail("VALIDATION_FAILED", {}, { field: "settings" });
   return idempotent(req, parsed.raw, () =>

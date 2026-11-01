@@ -12,7 +12,8 @@ const variants: Record<ButtonVariant, string> = {
   /** Only for actions that move REAL SOL. */
   real: "bg-mode-real text-mode-onReal hover:brightness-110",
 };
-const sizes = { sm: "h-8 px-3 text-label", md: "h-10 px-4 text-label", lg: "h-12 px-5 text-titleSm" } as const;
+// Touch targets: on coarse pointers every size is at least 44 px tall (WCAG 2.5.5 / PERF_SECURITY touch audit).
+const sizes = { sm: "h-8 px-3 text-label pointer-coarse:h-11", md: "h-10 px-4 text-label pointer-coarse:h-11", lg: "h-12 px-5 text-titleSm" } as const;
 
 export function Button({ variant = "secondary", size = "md", loading, className, children, disabled, ...props }: ComponentProps<"button"> & {
   variant?: ButtonVariant;

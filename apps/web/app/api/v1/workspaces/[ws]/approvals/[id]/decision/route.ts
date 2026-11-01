@@ -1,3 +1,4 @@
+import { DecisionBody, parse } from "@/lib/schemas/wire";
 import type { ApprovalDecisionRequest } from "@sentra/contracts/wire";
 import { fail, idempotent, now, readJson, realSolDisabled } from "@/lib/bff";
 import { expectedRev } from "@/lib/bff-wrap";
@@ -16,6 +17,8 @@ export async function POST(req: Request, ctx: RouteContext<"/api/v1/workspaces/[
   const { id } = await ctx.params;
   const parsed = await readJson(req);
   if (parsed instanceof Response) return parsed;
+  const v = parse(DecisionBody, parsed.body);
+  if (!v.ok) return v.res;
   return idempotent(req, parsed.raw, async () => {
     const b = parsed.body as Partial<ApprovalDecisionRequest>;
     if ((b.decision !== "approve" && b.decision !== "reject") || typeof b.token !== "string") {
