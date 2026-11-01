@@ -8,6 +8,7 @@ import { lamportsToSol, type Actor, type AnyEvent, type EventEnvelope, type Even
 import { APPROVAL_REJECT_REASONS, type ApprovalRejectReason, type ApprovalWire, type DecidedVia } from "@sentra/contracts/wire";
 import type { DecimalString, ErrorCode, ExitStatsRow, MarketCapFields, PositionWire, ProposalStatus, ProposalUpdated, TokenProgram } from "@sentra/contracts/wire";
 import { pctToFractionBps } from "@sentra/i18n/format";
+import { logoHintFromWire, wireLogoUrl } from "./media";
 import { safeSymbol } from "./untrusted";
 import { cmpSeq, maxSeq, minSeq, seqGt, seqLt, type Seq } from "./seq";
 import type { Approval, SkipReason, CoinMeta, CoinSummary, EventKind, ExitReasonStat, GuardCheck, OpenPosition, ScreenerState, StrategySettings, TradeEvent } from "./types";
@@ -267,6 +268,8 @@ export function approvalToWire(a: Approval, extra: { workspaceId?: string; decid
     decimals: q?.decimals ?? null,
     token_program: null,
     position_id: null,
+    // 1.1.6 (Backend working tree): our logo proxy URL; spread so it type-checks with and without the field.
+    ...wireLogoUrl(a.mint),
     created_at: iso(a.createdAt)!,
     expires_at: iso(a.expiresAt)!,
     decided_at: iso(a.decidedAt),
@@ -279,6 +282,7 @@ export function approvalFromWire(w: ApprovalItemWire): Approval {
   return {
     id: w.id,
     rev: w.rev,
+    logoUrl: logoHintFromWire((w as { logo_url?: unknown }).logo_url),
     decisionToken: w.decision_token,
     kind: w.kind,
     status: p.execution ?? w.status,
@@ -554,6 +558,7 @@ export function coinToWire(c: CoinMeta, s: CoinSummary): CoinWire {
     strategy_id: s.strategyId, strategy_name: s.strategyName, mode: s.mode, status: s.status, last_event_at: new Date(s.lastEventAt).toISOString(),
     pnl_lamports: s.pnlSol != null ? solToLamports(s.pnlSol) : null,
     ...mcapToWire(s.mcap),
+    ...wireLogoUrl(c.mint),
   } as CoinWireWithMcap;
 }
 
@@ -578,6 +583,7 @@ export function coinSummaryFromWire(w: CoinWire): CoinSummary {
     lastEventAt: Date.parse(w.last_event_at), status: w.status, pnlSol: lamportsToSolNumber(w.pnl_lamports),
     screenerState: screenerStateOf(w),
     mcap: mcapFromWire(w as Partial<MarketCapFields>),
+    logoUrl: logoHintFromWire((w as { logo_url?: unknown }).logo_url),
   };
 }
 
@@ -601,6 +607,7 @@ export function positionToWire(p: OpenPosition, workspaceId: string): PositionWi
   const qty = p.entryPriceUsd > 0 ? (p.solIn * MOCK_SOL_USD * remaining) / p.entryPriceUsd : 0;
   return {
     id: p.key, position_key: p.key, workspace_id: workspaceId, strategy_id: p.strategyId, mint: p.mint, mode: p.mode,
+    ...wireLogoUrl(p.mint),
     status: "open", rev: p.rev, practice_epoch: p.practiceEpoch,
     qty_raw: BigInt(Math.round(qty * 10 ** Math.min(dec, 9))).toString() + "0".repeat(Math.max(0, dec - 9)),
     decimals: p.decimals, token_program: p.tokenProgram,
@@ -617,6 +624,7 @@ export function positionToWire(p: OpenPosition, workspaceId: string): PositionWi
 export function positionFromWire(w: PositionWireView): OpenPosition {
   return {
     key: w.position_key, strategyId: w.strategy_id ?? "", strategyName: w.strategy_name, mode: w.mode, mint: w.mint,
+    logoUrl: logoHintFromWire((w as { logo_url?: unknown }).logo_url),
     symbol: safeSymbol(w.untrusted.symbol ?? ""),
     solIn: lamportsToSolNumber(w.sol_in_lamports) ?? 0,
     entryPriceUsd: Number(w.avg_entry_price_sol ?? "0") * MOCK_SOL_USD, nowPriceUsd: Number(w.mark_price_sol) * MOCK_SOL_USD,

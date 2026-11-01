@@ -233,6 +233,8 @@ export interface CoinMeta {
   mint: Mint;
   /** Token metadata is UNTRUSTED. Render as plain text only. */
   untrusted: { symbol: string; name: string };
+  /** logo_url hint (contracts 1.1.6, pending); see CoinSummary.logoUrl. */
+  logoUrl?: string | null;
   launchpad: string;
   venue: Venue;
   createdAt: Timestamp;
@@ -351,6 +353,8 @@ export interface CoinTrail {
 /** Positions screen row (GET /positions?state=open view model). */
 export interface OpenPosition {
   key: string;
+  /** 1.1.6 logo_url hint (lib/media.ts). */
+  logoUrl?: string | null;
   strategyId: string;
   strategyName: string;
   mode: TradingMode;
@@ -389,6 +393,8 @@ export interface CoinSummary {
   screenerState?: ScreenerState;
   /** contracts 1.1.4 MarketCapFields (one backend computation). usd is indicative (reference SOL price). */
   mcap?: MarketCap;
+  /** logo_url hint (contracts 1.1.6, pending): null = no logo; the value is never used as an image src (lib/media.ts). */
+  logoUrl?: string | null;
 }
 
 export interface MarketCap {
@@ -492,6 +498,8 @@ export interface ApprovalQuote {
 
 export interface Approval {
   id: string;
+  /** 1.1.6 logo_url hint (lib/media.ts). */
+  logoUrl?: string | null;
   quote?: ApprovalQuote;
   /** Set when the coin cannot be traded (no SOL quote pair): shown as "Not tradeable", never approvable. */
   screenerState?: ScreenerState;

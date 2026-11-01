@@ -23,6 +23,7 @@ const GuardWeakeningDialog = dynamic(() => import("./GuardWeakeningDialog").then
 const ReviewSheet = dynamic(() => import("./ReviewSheet").then((m) => m.ReviewSheet), { ssr: false });
 import { SwipeRow } from "./SwipeRow";
 import { NotTradeableChip, NotTradeableCta, NotTradeableReason } from "@/components/NotTradeable";
+import { CoinAvatar } from "@/components/CoinAvatar";
 
 /** QA-06: one tab per contract ProposalStatus (pending · approved · rejected="Skipped" · expired). executing/filled/failed are approved sub-states. */
 type Tab = "pending" | "approved" | "rejected" | "expired";
@@ -477,6 +478,7 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
       )}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
+          {isPick && a.mint && <CoinAvatar mint={a.mint} logoUrl={a.logoUrl} />}
           <span className="text-titleSm">{isPick ? `$${a.symbol}` : a.title}</span>
           <Badge tone={a.kind === "guard_change" ? "warning" : a.kind === "team_action" ? "loss" : "brand"}>{isPick && a.pick ? t(PICK_KEY[a.pick.pickKind]) : t(KIND_KEY[a.kind])}</Badge>
           {a.mode === "real" && <ModeBadge mode="real" />}
@@ -522,7 +524,7 @@ function DetailPane({ a, onApprove, onSkip }: { a: Approval; onApprove: () => vo
   const f = useFmt();
   const p = a.pick;
   return (
-    <Card title={a.kind === "buy_pick" ? `$${a.symbol} · ${t(p ? PICK_KEY[p.pickKind] : "approvals.kindPick")}` : a.title} subtitle={t("approvals.requested", { strategy: a.strategyName ?? "", time: f.time(a.createdAt) })} action={<ModeBadge mode={a.mode} />}>
+    <Card title={a.kind === "buy_pick" ? <span className="inline-flex items-center gap-2">{a.mint && <CoinAvatar mint={a.mint} logoUrl={a.logoUrl} size="md" />}{`$${a.symbol} · ${t(p ? PICK_KEY[p.pickKind] : "approvals.kindPick")}`}</span> : a.title} subtitle={t("approvals.requested", { strategy: a.strategyName ?? "", time: f.time(a.createdAt) })} action={<ModeBadge mode={a.mode} />}>
       {p?.pickKind === "first_buy" && <p className="mb-2 rounded-md bg-semantic-warningContainer px-3 py-2 text-caption text-text-primary">{t("approvals.firstBuyNote")}</p>}
       <p className="text-body text-text-secondary">{a.detail}</p>
       {p && (

@@ -16,6 +16,7 @@ import { getT, getFmt } from "@/lib/i18n/server";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
 import { EventTitle } from "@/components/EventTitle";
 import { PriceChart } from "@/components/charts/PriceChartLazy";
+import { CoinAvatar } from "@/components/CoinAvatar";
 
 export const metadata: Metadata = { title: "Coin trail" };
 
@@ -37,7 +38,7 @@ async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] 
     <>
       <Link href="/coins" className="mb-3 inline-flex items-center gap-1 text-caption text-text-secondary hover:text-text-primary"><ArrowLeft size={14} /> {t("trail.all")}</Link>
       <PageHeader
-        title={t("trail.title", { symbol: coin.untrusted.symbol })}
+        title={<span className="inline-flex items-center gap-3"><CoinAvatar mint={coin.mint} logoUrl={coin.logoUrl} size="lg" eager />{t("trail.title", { symbol: coin.untrusted.symbol })}</span>}
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
             <span className="num text-caption" title={coin.mint}>{shortMint(coin.mint)}</span>

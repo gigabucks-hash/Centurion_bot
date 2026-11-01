@@ -16,6 +16,7 @@ import { ModeBadge } from "@/components/domain";
 import { VirtualTbody } from "@/components/ui/VirtualList";
 import { useMarks } from "@/components/shell/RealtimeProvider";
 import { applyMark } from "@/lib/marks";
+import { CoinAvatar } from "@/components/CoinAvatar";
 
 /** QA-11 (decision C1): Sell is always a hold — 1.2 s Practice / 2.5 s Real, on every platform. */
 const SELL_HOLD_MS: Record<TradingMode, number> = { practice: 1200, real: 2500 };
@@ -146,7 +147,7 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
         </Card>
 
         {focused && (
-          <Card title={`${focused.symbol} · ${focused.strategyName}`} action={<ModeBadge mode={mode} />}>
+          <Card title={<span className="inline-flex items-center gap-2"><CoinAvatar mint={focused.mint} logoUrl={focused.logoUrl} size="md" />{focused.symbol} · {focused.strategyName}</span>} action={<ModeBadge mode={mode} />}>
             <dl className="grid grid-cols-2 gap-2 text-caption">
               <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colSize", { unit })}</dt><dd className="num whitespace-nowrap">{f.sol(focused.solIn * remaining(focused))}</dd></div>
               <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colPnlSol", { unit })}</dt><dd><Pnl sol={focused.pnlSol * remaining(focused)} unit /></dd></div>
@@ -198,7 +199,7 @@ const PositionRow = memo(function PositionRow({ r, focused, holdS, onFocus, onSe
       className={cn("h-[52px] cursor-pointer border-b border-border-subtle last:border-0 hover:bg-bg-raised", focused && "bg-brand-primaryContainer/40")}
     >
       <th scope="row" className="sticky left-0 z-10 bg-bg-surface px-4 text-left font-semibold shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:shadow-none">
-        <Link href={`/coins/${r.mint}`} className="inline-flex min-h-11 items-center hover:underline">{r.symbol}</Link>
+        <Link href={`/coins/${r.mint}`} className="inline-flex min-h-11 items-center gap-2 hover:underline"><CoinAvatar mint={r.mint} logoUrl={r.logoUrl} />{r.symbol}</Link>
       </th>
       <td className="whitespace-nowrap px-4 text-text-secondary">{r.strategyName}</td>
       <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.sol(r.solIn * remaining, { unit: false })}</td>

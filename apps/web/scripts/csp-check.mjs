@@ -6,7 +6,10 @@ const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH 
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
 const page = await ctx.newPage();
 const problems = [];
-page.on("console", (m) => { if (m.type() === "error" || /Content Security Policy|Refused to/.test(m.text())) problems.push(`[${page.url()}] ${m.type()}: ${m.text().slice(0, 300)}`); });
+// 404s from the logo mirror are expected (no logo → identicon fallback, contracts 1.1.6); everything else counts.
+const expected404 = new Set();
+page.on("response", (r) => { if (r.status() === 404 && new URL(r.url()).pathname.startsWith("/api/v1/logos/")) expected404.add(r.url()); });
+page.on("console", (m) => { if (m.type() === "error" && /status of 404/.test(m.text()) && expected404.size && m.location()?.url && expected404.has(m.location().url)) return; if (m.type() === "error" || /Content Security Policy|Refused to/.test(m.text())) problems.push(`[${page.url()}] ${m.type()}: ${m.text().slice(0, 300)}`); });
 page.on("pageerror", (e) => problems.push(`[${page.url()}] pageerror: ${String(e).slice(0, 300)}`));
 await page.goto(`${BASE}/positions`, { waitUntil: "networkidle" });
 console.log("gate →", new URL(page.url()).pathname + new URL(page.url()).search);

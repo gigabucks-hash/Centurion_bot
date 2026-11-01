@@ -125,6 +125,13 @@ export const id: PartialMessages = {
   apiError: {
     GUARD_WEAKEN_REQUIRES_APPROVAL: "Perubahan menunggu approval. Ini melonggarkan guard, jadi belum berlaku sampai kamu approve.",
     QUOTE_MISSING_OR_STALE: "Kuotasi ini kedaluwarsa. Perbarui lalu tinjau transaksi lagi sebelum menyetujui.",
+    LOOSEN_REQUIRES_APP: "Melonggarkan limit atau guard hanya bisa diminta di aplikasi Centurion Trade.",
+    RESUME_REQUIRES_APP: "Pembelian dijeda di aplikasi. Lanjutkan lagi di aplikasi Centurion Trade.",
+    BUYS_PAUSED: "Pembelian sedang dijeda. Exit tetap berjalan.",
+    AGENT_BUDGET_EXCEEDED: "Agen terlalu banyak memanggil. Coba lagi nanti.",
+    AGENT_TRADE_DISABLED: "Trading oleh agen mati. Nyalakan di aplikasi Centurion Trade.",
+    SIWS_SESSION_REQUIRED: "Masuk dengan wallet kamu di aplikasi Centurion Trade.",
+    AGENT_REQUEST_EXPIRED: "Permintaan koneksi agen ini kedaluwarsa. Mulai lagi dari agennya.",
     UNAUTHENTICATED: "Silakan masuk lagi.",
     NOT_FOUND: "Tidak ditemukan di workspace ini.",
     VERSION_CONFLICT: "Item ini berubah sejak kamu buka. Versi terbaru dimuat ulang.",

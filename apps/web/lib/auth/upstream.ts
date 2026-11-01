@@ -12,3 +12,9 @@ export async function forward(path: string, body: unknown, req: Request): Promis
   });
   return { status: res.status, json: (await res.json().catch(() => ({}))) as Record<string, unknown> };
 }
+
+/** DATA_SOURCE=http: Backend base URL (no trailing slash), else null → mock. */
+export function upstreamBase(): string | null {
+  return process.env.DATA_SOURCE === "http" && process.env.API_BASE_URL ? process.env.API_BASE_URL.replace(/\/$/, "") : null;
+}
+

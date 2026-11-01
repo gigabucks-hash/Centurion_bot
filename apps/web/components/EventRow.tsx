@@ -9,6 +9,7 @@ import { useT } from "@/lib/i18n/client";
 import { Pnl, cn } from "@/components/ui";
 
 import { EventTitle } from "@/components/EventTitle";
+import { CoinAvatar } from "@/components/CoinAvatar";
 
 /** Timeline-style feed row: time · dot · ACTOR / KIND $SYM / reason. Memoized: live ticks re-render only new rows. */
 export const EventRow = memo(function EventRow({ e, strategyName, fresh, as: Tag = "li" }: { e: TradeEvent; strategyName?: string; fresh?: boolean; as?: "li" | "div" }) {
@@ -25,7 +26,8 @@ export const EventRow = memo(function EventRow({ e, strategyName, fresh, as: Tag
         </span>
         <span className="block text-body font-semibold">
           {e.mint ? (
-            <Link href={`/coins/${e.mint}`} className="tap hover:underline">
+            <Link href={`/coins/${e.mint}`} className="tap gap-2 hover:underline">
+              <CoinAvatar mint={e.mint} size="xs" />
               <EventTitle e={e} />
             </Link>
           ) : (

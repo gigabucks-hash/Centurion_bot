@@ -11,6 +11,7 @@ import { EquityChart } from "@/components/charts/EquityChart";
 import { OverviewFeed } from "@/components/OverviewFeed";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
 import { getT, getFmt } from "@/lib/i18n/server";
+import { CoinAvatar } from "@/components/CoinAvatar";
 
 async function Overview() {
   const [mode, t] = await Promise.all([getMode(), getT()]);
@@ -77,7 +78,7 @@ async function Overview() {
 
           {trail && (
             <Card
-              title={t("overview.coinTrail", { symbol: trail.coin.untrusted.symbol, strategy: trail.strategyName })}
+              title={<span className="inline-flex items-center gap-2"><CoinAvatar mint={trail.coin.mint} logoUrl={trail.coin.logoUrl} size="md" />{t("overview.coinTrail", { symbol: trail.coin.untrusted.symbol, strategy: trail.strategyName })}</span>}
               action={trail.positions[0] && <Link href={`/coins/${trail.coin.mint}`} className="tap text-caption"><Pnl sol={trail.positions[0].pnlSol} unit /> · {t("common.details")}</Link>}
             >
               <CoinTrailSteps trail={trail} />

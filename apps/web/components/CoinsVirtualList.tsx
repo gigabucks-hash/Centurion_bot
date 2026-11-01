@@ -12,6 +12,7 @@ import { NotTradeableChip } from "@/components/NotTradeable";
 import { VirtualList } from "@/components/ui/VirtualList";
 import { safeText } from "@/lib/untrusted";
 import { Mcap } from "@/components/Mcap";
+import { CoinAvatar } from "@/components/CoinAvatar";
 
 const statusTone: Record<CoinSummary["status"], Tone> = { open: "profit", closed: "info", watching: "brand", rejected: "neutral" };
 
@@ -26,7 +27,7 @@ const Row = memo(function Row({ c }: { c: CoinSummary }) {
   const nt = c.screenerState === "UNSUPPORTED_QUOTE_MINT";
   return (
     <div role="row" className="grid min-h-12 grid-cols-[minmax(5rem,1fr)_auto_auto] items-center gap-3 border-b border-border-subtle px-1 py-2 sm:grid-cols-[8rem_8rem_minmax(0,1fr)_8rem_7rem_6rem_5rem]">
-      <span role="cell"><Link href={`/coins/${c.mint}`} className={cn("inline-flex min-h-11 items-center font-semibold hover:underline", nt ? "text-text-tertiary" : "text-brand-primary")}>${safeText(c.symbol, 16)}</Link></span>
+      <span role="cell"><Link href={`/coins/${c.mint}`} className={cn("inline-flex min-h-11 items-center gap-2 font-semibold hover:underline", nt ? "text-text-tertiary" : "text-brand-primary")}><CoinAvatar mint={c.mint} logoUrl={c.logoUrl} />${safeText(c.symbol, 16)}</Link></span>
       <span role="cell" className="num hidden text-caption text-text-secondary sm:block">{shortMint(c.mint)}</span>
       <span role="cell" className="hidden truncate text-text-secondary sm:block">{c.strategyName}</span>
       <span role="cell" className="whitespace-nowrap">{nt ? <NotTradeableChip label={t("screener.notTradeable")} /> : <Badge tone={statusTone[c.status]}>{c.status === "rejected" ? t("screener.statusRejected") : t(`coins.status.${c.status}`)}</Badge>}</span>

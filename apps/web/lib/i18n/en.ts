@@ -641,6 +641,14 @@ export const en = {
     // errors.json v5 (contracts fdc52e3); not yet in @sentra/i18n errors.map.json → app copy until UX maps it.
     GUARD_WEAKEN_REQUIRES_APPROVAL: "Change waiting for approval. It loosens a guard, so nothing applies until you approve it.",
     QUOTE_MISSING_OR_STALE: "This quote expired. Refresh it and review the trade again before approving.",
+    // errors.json codes newer than @sentra/i18n errors.map.json (contracts working tree: MCP/agent + kill switch).
+    LOOSEN_REQUIRES_APP: "Loosening limits or guards can only be requested in the Centurion Trade app.",
+    RESUME_REQUIRES_APP: "Buying was paused in the app. Resume it in the Centurion Trade app.",
+    BUYS_PAUSED: "Buys are paused. Exits keep running.",
+    AGENT_BUDGET_EXCEEDED: "The agent made too many calls. Try again later.",
+    AGENT_TRADE_DISABLED: "Agent trading is off. Turn it on in the Centurion Trade app.",
+    SIWS_SESSION_REQUIRED: "Sign in with your wallet in the Centurion Trade app.",
+    AGENT_REQUEST_EXPIRED: "This agent connection request expired. Start again from the agent.",
     UNAUTHENTICATED: "Please sign in again.",
     FORBIDDEN_SCOPE: "This session can’t do that.",
     FORBIDDEN_ROLE: "Your workspace role doesn’t allow this.",

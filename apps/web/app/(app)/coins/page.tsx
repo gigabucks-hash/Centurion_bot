@@ -10,6 +10,7 @@ import { Badge, Card, EmptyState, PageHeader, Pnl, Table, cn, type Tone } from "
 import { NotTradeableChip } from "@/components/NotTradeable";
 import { CoinsVirtualList } from "@/components/CoinsVirtualList";
 import { Mcap } from "@/components/Mcap";
+import { CoinAvatar } from "@/components/CoinAvatar";
 
 /** Past this many rows the screener list is window-virtualized on the client (TanStack Virtual). */
 const VIRTUAL_COINS = 120;
@@ -52,7 +53,7 @@ async function List({ searchParams }: { searchParams: PageProps<"/coins">["searc
         mobile="cards"
         labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
         columns={[
-          { key: "sym", header: t("screener.colCoin"), cell: (c) => <Link href={`/coins/${c.mint}`} className={cn("tap font-semibold hover:underline", nt(c) ? "text-text-tertiary" : "text-brand-primary")}>${c.symbol}</Link> },
+          { key: "sym", header: t("screener.colCoin"), cell: (c) => <Link href={`/coins/${c.mint}`} className={cn("tap gap-2 font-semibold hover:underline", nt(c) ? "text-text-tertiary" : "text-brand-primary")}><CoinAvatar mint={c.mint} logoUrl={c.logoUrl} />${c.symbol}</Link> },
           { key: "mint", header: t("coins.colMint"), cell: (c) => <span className="num text-caption text-text-secondary">{shortMint(c.mint)}</span> },
           { key: "strat", header: t("coins.colStrategy"), cell: (c) => c.strategyName },
           { key: "status", header: t("screener.colStatus"), mobile: "status", nowrap: true, cell: (c) => (nt(c) ? <NotTradeableChip label={t("screener.notTradeable")} /> : <Badge tone={statusTone[c.status]}>{c.status === "rejected" ? t("screener.statusRejected") : t(`coins.status.${c.status}`)}</Badge>) },
