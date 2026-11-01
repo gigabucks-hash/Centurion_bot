@@ -115,6 +115,8 @@ export interface PickView extends Tradeability {
   quote_expires_at: IsoTs | null;
   /** 1.1.5 (not sent by 1.1.4 servers): identity of the quote; part of the Real hold identity. */
   quote_id?: string | null;
+  /** 1.1.5: token-account rent when the buy must create it ("0" when it exists). */
+  est_ata_rent_lamports?: Lamports | null;
   /** The server refused approve with 409 QUOTE_MISSING_OR_STALE → show "refresh quote". */
   quote_stale: boolean;
 }

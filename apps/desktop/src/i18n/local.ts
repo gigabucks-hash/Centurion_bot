@@ -6,9 +6,9 @@
 export const MOCK_SUFFIX = "(mock)";
 
 /**
- * Templates for activity rows whose keys @sentra/i18n 0.4.7 does not ship yet (UX gap, requested as
+ * Templates for activity rows whose keys @sentra/i18n 0.4.8 does not ship yet (UX gap, requested as
  * `feed.event.fill` / `feed.event.exit_triggered` / `feed.event.proposal_pending`, and the desktop
- * SIWS screens `desktop.auth.*` incl. wallet_not_allowed — 0.4.7 has only the web wallet-connect copy). Used only when the package has no such key, so a
+ * SIWS screens `desktop.auth.*` incl. wallet_not_allowed — 0.4.8 has only the web wallet-connect copy). Used only when the package has no such key, so a
  * later package version replaces them without a code change. All numbers inside are formatted by
  * format.mjs in the UI locale (D10).
  */

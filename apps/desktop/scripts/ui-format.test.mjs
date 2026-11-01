@@ -63,8 +63,8 @@ test("1.1.4 quote formatters (i18n 0.4.7): bps → %, fee/total dash on null, qu
   assert.equal(f.formatLamportsOrDash(null, "id"), "—");
   const now = Date.parse("2026-10-29T12:00:00.000Z");
   const q = { quote_ts: "2026-10-29T11:59:50.000Z", quote_expires_at: "2026-10-29T12:00:20.000Z" };
-  // 0.4.7: `complete` needs the 1.1.5 fields (quote_id, est_ata_rent_lamports); a 1.1.4 quote is fresh but
-  // incomplete, which is why the desktop gates Real on freshness only (QuoteBlock) until 1.1.5 ships.
+  // 0.4.7+: `complete` needs the 1.1.5 fields (quote_id, est_ata_rent_lamports); a fresh but incomplete quote
+  // still blocks Real (QuoteBlock / SignalQueue use blocksApprove as-is since contracts 1.1.5).
   assert.deepEqual(f.quoteState(q, 0, { mode: "real", localNowMs: now }), { state: "fresh", ageS: 10, expiresInS: 20, complete: false, blocksApprove: true });
   const full = { ...q, quote_id: "7", est_network_fee_lamports: "25000", est_ata_rent_lamports: "0", min_out_raw: "1", total_max_lamports: "250025000" };
   assert.equal(f.quoteState(full, 0, { mode: "real", localNowMs: now }).blocksApprove, false);

@@ -49,7 +49,7 @@ export function SignalQueue(p: Props) {
         const urgent = !nt && left < URGENT_MS;
         const fit = s.score != null && s.score_threshold != null;
         // 1.1.4: Real refuses approve on a missing/stale quote (409 QUOTE_MISSING_OR_STALE) → refresh first.
-        const quoteBlocked = !paper && (s.quote_stale || quoteState(s, skew, { mode: "real" }).state !== "fresh"); // freshness only (1.1.4; see QuoteBlock)
+        const quoteBlocked = !paper && (s.quote_stale || quoteState(s, skew, { mode: "real" }).blocksApprove); // fresh + complete (1.1.5)
         // WF-20: not tradeable (no SOL pair) → dimmed card, neutral chip, Approve disabled + labelled,
         // Skip enabled with the reason preselected, left out of batch approve (checkbox disabled).
         return (

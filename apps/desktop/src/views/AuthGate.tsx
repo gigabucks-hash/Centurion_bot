@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { core, EVT, type AuthView } from "../api";
-import { useT } from "../i18n";
+import { errorEntry, errorMessage, useLang, useT } from "../i18n";
 import { shortMint } from "../components/format";
 
 /**
@@ -10,6 +10,7 @@ import { shortMint } from "../components/format";
  */
 export function AuthGate({ children }: { children: ReactNode }) {
   const t = useT();
+  const lang = useLang();
   const [a, setA] = useState<AuthView | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -40,7 +41,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   } else {
     const note =
       a.state === "waiting_for_browser" ? t("desktop.auth.waiting")
-      : a.state === "failed" ? (a.code === "user_rejected" ? t("login.wallet.rejected") : t("desktop.auth.failed", { code: a.code }))
+      : a.state === "failed" ? (a.code === "user_rejected" ? t("login.wallet.rejected") : errorEntry(a.code) ? errorMessage(a.code, lang) : t("desktop.auth.failed", { code: a.code }))
       : a.state === "signed_out" && a.reason && a.reason !== "signed_out" ? (a.reason === "user_rejected" ? t("login.wallet.rejected") : t("desktop.auth.session_ended", { reason: a.reason }))
       : null;
     body = (

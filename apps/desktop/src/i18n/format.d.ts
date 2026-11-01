@@ -1,4 +1,4 @@
-/** Types for `@sentra/i18n/format.mjs` (packages/i18n 0.4.7, UX-owned JS; read-only for Desktop). */
+/** Types for `@sentra/i18n/format.mjs` (packages/i18n 0.4.8, UX-owned JS; read-only for Desktop). */
 declare module "@sentra/i18n/format.mjs" {
   export type Lang = "en" | "id";
   export interface PnlParts { text: string; tone: "profit" | "loss" | "neutral"; arrow: "▲" | "▼" | ""; sign: "+" | "−" | "" }
@@ -29,6 +29,7 @@ declare module "@sentra/i18n/format.mjs" {
   export function formatMcapUsd(usd: string | number | null | undefined, loc: Lang): string;
   export function formatMcapSol(lamports: string | null | undefined, loc: Lang): string;
   // 0.4.7
+  export function showAtaRent(v: string | null | undefined): boolean;
   export const DASH: string;
   export function quoteChanged(prev: { quote_id?: string | null } | null | undefined, next: { quote_id?: string | null } | null | undefined): boolean;
   export function mcapView(c: { mcap_source?: string | null; market_cap_lamports?: string | null; mcap_usd?: string | null }, loc: Lang): { primary: string; secondary: string | null; sourceKey: string | null; tooltipKeys: string[] };

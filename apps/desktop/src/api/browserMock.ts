@@ -166,6 +166,7 @@ function mockQuote(now: number) {
     est_network_fee_lamports: lam(fee), priority_fee_lamports: lam(20000n), swap_fee_bps: 25, max_slippage_bps: 300,
     min_out_raw: String(Math.round(Number(BUY) * 0.97 * 1000)), total_max_lamports: lam(BUY + fee),
     quote_ts: new Date(now).toISOString(), quote_expires_at: new Date(now + QUOTE_TTL_MS).toISOString(),
+    quote_id: String(now), est_ata_rent_lamports: "0", // 1.1.5 (re-quote = new quote_id, same rev)
   };
 }
 setInterval(() => {
@@ -173,7 +174,7 @@ setInterval(() => {
   for (const s of signals) {
     // ~1 in 4 cards is left un-refreshed so the stale state is reachable in the browser preview
     if (s.status !== "pending" || s.quote_stale || s.id.endsWith("3") ) continue;
-    Object.assign(s, mockQuote(now), { rev: s.rev + 1 });
+    Object.assign(s, mockQuote(now)); // 1.1.5: no rev bump
     emit(EVT.signalUpdate, s);
   }
 }, 15_000);
@@ -332,7 +333,7 @@ export const browserMockAdapter: CoreApi = {
   async refreshQuote(id) {
     const s = signals.find((x) => x.id === id && x.status === "pending");
     if (!s) throw new Error("NOT_FOUND");
-    Object.assign(s, mockQuote(Date.now()), { rev: s.rev + 1, quote_stale: false });
+    Object.assign(s, mockQuote(Date.now()), { quote_stale: false });
     emit(EVT.signalUpdate, s);
   },
   async patchStrategy(id, patch) {
