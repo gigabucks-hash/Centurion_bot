@@ -473,6 +473,16 @@ export const en = {
     reconciles: "Reconciles with the overview: {n} trades · realized {pnl}",
     exits: "Exits", avgPnl: "Avg PnL",
   },
+  desktopAuth: {
+    title: "Sign in to the desktop app",
+    body: "Connect the owner wallet and sign the message. You’ll be sent back to the Centurion Trade desktop app.",
+    cancel: "Cancel and return to the app",
+    sentTitle: "Signed. Returning to the desktop app…",
+    failedTitle: "Sign-in was not completed",
+    returnBody: "You can close this tab if the app doesn’t open on its own.",
+    invalid: "This sign-in link is invalid or incomplete. Start sign-in again from the desktop app.",
+    noTokens: "This page never receives or passes on a session; the app finishes sign-in itself.",
+  },
   walletLogin: {
     heading: "Sign in with your wallet",
     sub: "Private workspace: only the owner’s wallet can sign in.",

@@ -21,9 +21,12 @@ function deepMerge<A extends Record<string, unknown>>(base: A, over: Record<stri
   return out as A;
 }
 
+// Our dictionary lives under "app", which is also a UX namespace since i18n 0.4.7 (app.name/title/splash/about):
+// merge the UX app.* leaves underneath ours (no key overlap; checked by the i18n test) so t.ux("app.name") resolves.
+const uxIdAll = deepMerge(uxEn as Record<string, unknown>, uxId as Record<string, unknown>);
 const MESSAGES = {
-  en: { ...uxEn, app: en },
-  id: { ...deepMerge(uxEn as Record<string, unknown>, uxId as Record<string, unknown>), app: deepMerge(en as unknown as Record<string, unknown>, id as Record<string, unknown>) },
+  en: { ...uxEn, app: deepMerge(uxEn.app as unknown as Record<string, unknown>, en as unknown as Record<string, unknown>) },
+  id: { ...uxIdAll, app: deepMerge(uxIdAll.app as Record<string, unknown>, deepMerge(en as unknown as Record<string, unknown>, id as Record<string, unknown>)) },
 } as const;
 
 export function messagesFor(locale: Locale) {

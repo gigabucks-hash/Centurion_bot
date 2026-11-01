@@ -80,6 +80,16 @@ export const id: PartialMessages = {
   guardDialog: { locked: "Wajib · tidak bisa dimatikan", ruleRevert: "Auto-revert 24 jam setelah berlaku (selalu aktif untuk Real SOL)" },
   // 1.1.4 labels from @sentra/i18n id.json exit_reason.*
   exitReason: { max_hold: "Time stop", stall: "Exit stagnan" },
+  desktopAuth: {
+    title: "Masuk ke aplikasi desktop",
+    body: "Hubungkan wallet pemilik dan tanda tangani pesannya. Setelah itu kamu dikembalikan ke aplikasi desktop Centurion Trade.",
+    cancel: "Batal dan kembali ke aplikasi",
+    sentTitle: "Sudah ditandatangani. Kembali ke aplikasi desktop…",
+    failedTitle: "Login belum selesai",
+    returnBody: "Tutup tab ini kalau aplikasinya tidak terbuka sendiri.",
+    invalid: "Link login ini tidak valid atau tidak lengkap. Mulai login lagi dari aplikasi desktop.",
+    noTokens: "Halaman ini tidak pernah menerima atau meneruskan sesi; aplikasinya yang menyelesaikan login.",
+  },
   walletLogin: {
     heading: "Masuk dengan wallet",
     sub: "Workspace privat: hanya wallet pemilik yang bisa masuk.",
