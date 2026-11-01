@@ -1,5 +1,46 @@
 # Contracts changelog
 
+## 1.1.5 (2026-10-29, backend ef74131): quotes without rev bumps, sell quotes, Centurion Trade
+
+Product name is now **Centurion Trade** in user-facing strings, docs, `/healthz` (`service`, `product`) and the SIWS
+statement. Repo, crate, package, DB, JWT claim (`sentra_client`) and header (`X-Sentra-*`) names keep `sentra`.
+
+- **`quote_id`** (int64 string) on `ApprovalWire` / `ProposalWire` / `proposal.updated`: `"0"` = never quoted, + 1 per
+  refresh. **A quote refresh no longer bumps `rev`** (1.1.4 did), so decision tokens and push actions stay valid.
+  Decisions accept `expected_quote_id`; SQL `decide_approval` gains `p_expected_quote_id bigint` (8 args).
+- `409 QUOTE_MISSING_OR_STALE` details (TS `QuoteMissingOrStaleError`): `reason: missing|stale|mismatch`, `missing`,
+  `quote_ts`, `quote_expires_at`, `quote_id`, `expected_quote_id`, `current: ApprovalWire`, `hint`. Real approve needs
+  a fresh quote and the matching `expected_quote_id`; a mismatching id is refused in practice too.
+- `POST /v1/workspaces/{ws}/approvals/{id}/quote` (trade): refresh, coalesced at 3 s; `GET .../approvals/{id}`
+  auto-refreshes a stale pending quote; no background timer. `proposal.updated` <= 1 per proposal per 3 s, pending only.
+- `decimals` and `token_program` on `ApprovalWire` / `ProposalWire` / `proposal.created` / `proposal.updated`;
+  `position_id` on `ApprovalWire`.
+- **`total_max_lamports`, exact:** buy = SOL in + `est_network_fee_lamports` (includes priority) +
+  `est_ata_rent_lamports` (new: `"2039280"` when the token account does not exist, `"0"` when it does); the swap fee
+  is taken from SOL in. Sell = `est_network_fee_lamports`.
+- Sell quotes: `ProposalKind` gains `sell_position`; `expected_out_lamports`, `min_out_lamports` on approvals;
+  `POST /v1/workspaces/{ws}/positions/{id}/close/preview` (read) -> `ClosePreview` (15 s TTL). papersim
+  `estimate_sell`; shared Rust/TS quote vectors (`crates/papersim/tests/quote_vectors.json`).
+- `mcap_source: curve|pool|unavailable` on every market-cap field set (`MarketCapFields`, coin/pick wires, events).
+- Guard weakening: clients always use REST `PATCH` (202 + proposal); `409 GUARD_WEAKEN_REQUIRES_APPROVAL` from the
+  `update_strategy` RPC is internal. Real: same flow + 2,500 ms hold (step-up in Phase 7). **An agent (MCP) cannot
+  propose a loosening at all:** `403 FORBIDDEN_ROLE {reason: "agent_cannot_loosen"}`, no proposal row (SQL trigger
+  on `approvals`). "MCP may propose" is removed everywhere; `LOOSEN_REQUIRES_APP` was never an error code.
+- SIWS statement v2 = `Sign in to Centurion Trade` (UX key `auth.siws.statement`, default). v1 (Sentra) stays
+  accepted until `AUTH_SIWS_LEGACY_STATEMENT_UNTIL` (default `2026-11-05T12:00:00Z`) unless
+  `AUTH_SIWS_LEGACY_STATEMENT=false`; afterwards nonce `422`, verify on an old v1 nonce `401 SIWS_NONCE_INVALID
+  {reason: "statement_retired"}`.
+- Reserved for Phase 7 (types/docs only, never emitted): `real.*` payloads with flat `actor_type, user_id, device_id,
+  device_label`; `real.kill_switch.cleared {..., signer_state: active|revoked}`; `real.sell_all.requested|completed`;
+  limit keys `per_trade_lamports|daily_lamports|cap_lamports|max_positions|max_slippage_bps`; `WithdrawFailReason`
+  (not in errors.json); `kill_switch_reason`; `proposal.expired.reason` `kill_switch`. EVENTS_SCHEMA §7.
+- Schema: migration `0016_contracts_v1_1_5.sql` (`pool_states`, quote columns, 7-arg `approval_quote_check`).
+
+## Unreleased: ingest (backend 01fd8b3, no wire-type change)
+
+- `/readyz` adds `ingest_bytes_today {day_utc, sources: {<source>: {bytes, frames}}} | null` (bytes/day meter per
+  source per UTC day; table `ingest_bytes_daily`, migration 0018).
+
 ## Unreleased: wallet login (backend, additive; no wire-type change)
 
 - SIWS fails closed: no boot (exit 78) with SIWS enabled and an empty/invalid `OWNER_WALLETS`; empty list at runtime = no login.

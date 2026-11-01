@@ -3,7 +3,7 @@
   "version": "1.1.5",
   "private": true,
   "type": "module",
-  "description": "Shared Sentra contracts. src/wire = official v1 wire contract (events, errors, units; no floats). src/index.ts root also keeps the desktop view-model draft.",
+  "description": "Shared Centurion Trade contracts (codename sentra). src/wire = official v1 wire contract (events, errors, units; no floats). src/index.ts root also keeps the desktop view-model draft.",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {

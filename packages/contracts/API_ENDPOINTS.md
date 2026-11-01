@@ -1,4 +1,10 @@
-# Sentra REST API (contract v1.1.3)
+# Centurion Trade REST API (contract v1.1.5)
+
+Product name: **Centurion Trade** (user facing). Repo, crate, package and DB names keep the codename `sentra`.
+
+v1.1.5 (2026-10-29): `quote_id` (quote refresh no longer bumps `rev`), `expected_quote_id` on decisions, quote refresh
+and close-preview endpoints, sell quotes, ATA rent in `total_max_lamports`, `mcap_source`, `decimals` /
+`token_program` on proposals, agents cannot propose a guard loosening (`403 FORBIDDEN_ROLE`), SIWS statement v2.
 
 v1.1.3 (2026-10-29): optional `reject_reason` on approval decisions (closed enum, reject only). See `CHANGELOG.md`.
 
@@ -48,8 +54,10 @@ RPC (Supabase) errors: `PostgrestException.code` = SQLSTATE (`P0` + HTTP status,
     `mode_visible(mode)` (real rows require the `trade:real` claim).
   - Separate numbers: practice and real never share snapshots, funnels, stats or events.
 - Roles: `owner` `admin` `trader` `viewer`; `viewer` is read-only whatever the token scopes.
-- MCP **cannot propose** a guard weakening or a team action, and cannot decide one (`APPROVAL_REQUIRES_APP`). A weakening
-  strategy PATCH with `sentra_client = mcp` -> `403 LOOSEN_REQUIRES_APP`, and no proposal row is created (MCP_DESIGN §3).
+- MCP (agent) **cannot propose** a guard loosening at all, and cannot decide a weakening or team action
+  (`403 APPROVAL_REQUIRES_APP`). An agent-source (`sentra_client = mcp`) write that weakens -> `403 FORBIDDEN_ROLE
+  {reason: "agent_cannot_loosen"}`; no proposal row is created (enforced on the `approvals` row in SQL, so the REST
+  PATCH and the `propose_guard_change` RPC both refuse it). Tightening patches stay allowed.
 
 ## 2. Idempotency, revisions, approval tokens
 
@@ -106,7 +114,7 @@ RPC (Supabase) errors: `PostgrestException.code` = SQLSTATE (`P0` + HTTP status,
 ### 2.2 RPC parameters clients send (complete list)
 | RPC | Client params | Notes |
 |---|---|---|
-| `decide_approval` | `p_approval_id, p_token, p_decision ('approve'\|'reject'), p_expected_rev (required), p_idempotency_key?, p_reject_reason?, p_hold_ms?` | via = JWT claim / push token. `p_reject_reason` (1.1.3): `user_declined\|not_tradeable\|price_moved\|other`, reject only, default `user_declined`. `p_hold_ms`: required (>= 1200) to approve a weakening guard_change |
+| `decide_approval` | `p_approval_id, p_token, p_decision ('approve'\|'reject'), p_expected_rev (required), p_idempotency_key?, p_reject_reason?, p_hold_ms?, p_expected_quote_id? (1.1.5, bigint)` | via = JWT claim / push token. `p_reject_reason` (1.1.3): `user_declined\|not_tradeable\|price_moved\|other`, reject only, default `user_declined`. `p_hold_ms`: required (>= 1200) to approve a weakening guard_change |
 | `propose_guard_change` | `p_strategy, p_expected_rev, p_patch, p_device?` | the only path for a guard-weakening change; returns `{proposal, guard_change, server_now}`. `update_strategy` refuses weakening with `409 GUARD_WEAKEN_REQUIRES_APPROVAL` |
 | `update_strategy` | `p_strategy, p_expected_rev, p_patch?, p_name?, p_status?, p_device?, p_challenge_id?` | |
 | `set_strategy_status` | `p_strategy, p_status ('running'\|'paused'), p_expected_rev` | |
@@ -164,11 +172,16 @@ family (`refresh_reused`).
 
 **SIWS statement versions (B-7).** Message format `Version: 1` (SIWS) is fixed; the statement line is versioned
 separately. Nonce body `statement_version?` (integer, default current) and the nonce response's `statement_version`;
-the row stores it and verify accepts only that version. Every listed version stays accepted:
+the row stores it and verify accepts only that version. **1.1.5:** current = 2 (`Sign in to Centurion Trade`, UX key
+`auth.siws.statement`). v1 is legacy: accepted on nonce and verify only until `AUTH_SIWS_LEGACY_STATEMENT_UNTIL`
+(default `2026-11-05T12:00:00Z`, 7 days after the rename) and never when `AUTH_SIWS_LEGACY_STATEMENT=false`.
+A retired version -> nonce `422 VALIDATION_FAILED {field: "statement_version", allowed}`; verify on an older v1 nonce
+-> `401 SIWS_NONCE_INVALID {reason: "statement_retired"}`.
 
-| statement_version | statement |
-|---|---|
-| 1 | `Sign in to Sentra (practice). This request does not trigger a transaction or cost any fees.` |
+| statement_version | statement | status |
+|---|---|---|
+| 1 | `Sign in to Sentra (practice). This request does not trigger a transaction or cost any fees.` | legacy (transition only) |
+| 2 | `Sign in to Centurion Trade` | current (default) |
 
 Changing the text adds a new version (contract change, CHANGELOG); old ones are only removed in a major version.
 
@@ -216,7 +229,7 @@ have no implementation; the rows below are kept as the earlier design.
 | GET | `/?mode=&status=` | read | with `rev`, headline stats |
 | POST | `/` | trade | `{mode, name, settings}`; settings validated by `config/strategy_settings.schema.json` + DB CHECK |
 | GET | `/{id}` / `/{id}/revisions` | read | |
-| PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge at the top level; `null` removes a key; nested objects such as `guard_checks` are replaced whole). Non-weakening -> applied (`200`, `rev+1`). **Weakening** (any guard field less strict, per SQL `guard_weakened_fields()`) -> **`202 {data: {proposal: ApprovalWire, guard_change: GuardChangeWire}}`** + `Location: /approvals/{id}`; **nothing is applied**; the whole patch (mixed strengthen + weaken too) becomes one `guard_change` proposal (24 h expiry, `base_rev` = current rev). A weakening patch cannot carry `name`/`status` (422). **MCP (`sentra_client = mcp`) cannot propose:** a weakening patch -> `403 LOOSEN_REQUIRES_APP`, nothing created; non-weakening patches are allowed with the agent `control` scope (MCP_DESIGN §3). Stale -> 409 (2.1) |
+| PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge at the top level; `null` removes a key; nested objects such as `guard_checks` are replaced whole). Non-weakening -> applied (`200`, `rev+1`). **Weakening** (any guard field less strict, per SQL `guard_weakened_fields()`) -> **`202 {data: {proposal: ApprovalWire, guard_change: GuardChangeWire}}`** + `Location: /approvals/{id}`; **nothing is applied**; the whole patch (mixed strengthen + weaken too) becomes one `guard_change` proposal (24 h expiry, `base_rev` = current rev). A weakening patch cannot carry `name`/`status` (422). **MCP (`sentra_client = mcp`) cannot propose:** a weakening patch -> `403 FORBIDDEN_ROLE {reason: "agent_cannot_loosen"}`, nothing created; non-weakening patches are allowed with the agent `control` scope. **Clients (1.1.5):** use this REST PATCH (202 + proposal) for every guard change; `409 GUARD_WEAKEN_REQUIRES_APPROVAL` from the `update_strategy` RPC is an internal guard, not a client flow. Real uses the same flow plus a 2,500 ms hold (step-up in Phase 7, 4.6). Stale -> 409 (2.1) |
 | GET | `/{id}/revisions`, `/{id}/revisions/{rev}` | read | history and merge base |
 | POST | `/{id}/pause`, `/{id}/resume` | trade | `If-Match` / `expected_rev` (status changes bump `rev`) |
 | POST | `/{id}/archive`, DELETE `/{id}` | trade | `retire_strategy()`; response `{expired_proposals: n}` |
@@ -230,6 +243,7 @@ have no implementation; the rows below are kept as the earlier design.
 | GET | `/coins?mode=&strategy_id=&window=`, `/coins/{mint}`, `/coins/{mint}/timeline?mode=&strategy_id=` | read | `CoinWire`: coin carries `decimals` (integer, from the mint account; never assume 6), `token_program`, `quote_mint` (null = SOL), and (1.1.4) `market_cap_lamports` / `mcap_usd` / `mcap_as_of` (below); timeline = events by `mint`, seq ordered |
 | GET | `/picks?mode=&strategy_id=&stage=`, `/picks/{id}` | read | `PickWire`; market cap as of the pick (fields below) |
 | GET | `/positions?mode=&state=open\|closed&strategy_id=&window=&epoch=`, `/positions/{id}` | read | `PositionWire` (= SQL `position_wire()`): `rev`, `practice_epoch`, `qty_raw`, `decimals`, `token_program`, `cost_basis_lamports`, ... |
+| POST | `/positions/{id}/close/preview` | read | 1.1.5 sell quote, no side effects. Body `{fraction_bps?: 1-10000 (default 10000), max_slippage_bps?: 0-10000 (default 500)}` (unknown fields 422). `200 {data: ClosePreview}` = `{position_id, mint, fraction_bps, qty_raw (tokens sold), decimals, token_program, est_network_fee_lamports, priority_fee_lamports, swap_fee_bps, max_slippage_bps, expected_out_lamports, min_out_lamports, total_max_lamports (= est_network_fee_lamports), quote_ts, quote_expires_at (+15 s)}`. `expected_out_lamports` = CPMM SOL out minus the swap fee (taken from SOL out); `min_out_lamports` = that x (1 - max slippage), floored. Pool missing or older than 30 s -> `409 POOL_STALE {reason}`; closed position -> 422 |
 | POST | `/positions/{id}/close` | trade | Manual sell, practice only. Headers `If-Match: "<position rev>"` (or body `expected_rev`) + `Idempotency-Key`. Body `{fraction_bps?: 1-10000 (default 10000 = all)}`. SQL `close_position()`. `200 ClosePositionResponse {position (rev at request time), order: OrderWire, order_id, fill: null\|FillWire (only if the simulated fill completed synchronously), job_id (int64 string, if async), status: queued\|filled\|failed, replayed, server_now}`. Then `order.submitted` -> `fill.simulated` + `position.updated` (partial, new rev) or `position.closed` (`exit_reason: manual`) + `order.filled`; or `order.failed`. Errors `404 NOT_FOUND`, `403 FORBIDDEN_ROLE`, `403 MODE_NOT_ALLOWED`, `422 INVALID_FRACTION`, `409 POSITION_ALREADY_CLOSED`, `428 PRECONDITION_REQUIRED`, `409 VERSION_CONFLICT {current_rev, base_rev, current}`, `422 IDEMPOTENCY_KEY_REUSED`. `sell_pct` is gone everywhere. |
 | GET | `/orders/{id}`, `/jobs/{job_id}` | read | `OrderWire`, `JobWire` (poll if you do not consume the stream) |
 | GET | `/fills?mode=&position_id=&window=` | read | `simulated: true` always until Phase 7 |
@@ -245,12 +259,15 @@ have no implementation; the rows below are kept as the earlier design.
   screener's `mcap_usd` rule measured (`checks[].measured` for `mcap`), so the column and the check agree. When
   `market_cap_lamports` is null it is the data source's own figure, or null.
 - `mcap_as_of`: ISO timestamp the inputs were observed; `null` when both values are null.
+- `mcap_source` (1.1.5): `curve` (bonding-curve reserves) | `pool` (AMM pool, after migration) | `unavailable`
+  (`market_cap_lamports` is null: supply or decimals unknown, or no price). Always present.
 
 ### 4.5 Approvals (`/workspaces/{ws}/approvals`)
 | Method | Path | Scope | Notes |
 |---|---|---|---|
 | GET | `/?mode=&status=pending\|approved\|rejected\|expired&kind=` | read | pending sorted by `expires_at` |
 | GET | `/{id}` | read (+trade to get a token) | `{..., rev, expires_at, decision_token, decision_token_expires_at, server_now}` |
+| POST | `/{id}/quote` | trade | 1.1.5: refresh the quote of a pending `buy_pick` / `sell_position` proposal. Body `{}` (unknown fields 422). Coalesced: a quote younger than 3 s is returned as is (no new `quote_id`, no event). Otherwise papersim re-estimates from the latest pool state, `quote_id + 1`, `rev` unchanged, `proposal.updated` (at most 1 per proposal per 3 s). `200 {data: ApprovalWire}`. Decided -> `409 APPROVAL_ALREADY_DECIDED`; other kinds -> 422; pool missing/older than 30 s -> `409 POOL_STALE`. No background timer: `GET /{id}` also refreshes a stale quote of a pending proposal (same coalescing) |
 | POST | `/{id}/decision` | trade (+app for weakening/team actions; + proof for real) | below |
 | POST | `/batch-decision` | trade | `buy_pick` only; per-item results |
 
@@ -288,16 +305,28 @@ event context, and as `proposal` in the 202 guard-change response. Every field i
 | `swap_fee_bps` | number \| null | 1.1.4 quote: swap fee |
 | `max_slippage_bps` | number \| null | 1.1.4 quote: slippage cap |
 | `min_out_raw` | integer string \| null | 1.1.4 quote: minimum tokens out, raw units |
-| `total_max_lamports` | integer string \| null | 1.1.4 quote: SOL in + network fee (most the buy can cost) |
+| `total_max_lamports` | integer string \| null | quote, most it can cost. **Buy (1.1.5, exact):** `amount_lamports + est_network_fee_lamports + est_ata_rent_lamports`. The network fee already includes the priority fee (base 5,000 per signature + CU limit x CU price); the swap fee is taken from SOL in and is not added. **Sell:** `= est_network_fee_lamports` |
+| `est_ata_rent_lamports` | integer string \| null | 1.1.5: `"2039280"` when the owner's token account for the mint does not exist yet (rent-exempt minimum, 165 bytes), `"0"` when it exists (practice: an open position with qty > 0 in the same workspace, mode and mint) |
+| `expected_out_lamports` | integer string \| null | 1.1.5 sell quote: SOL out after the swap fee |
+| `min_out_lamports` | integer string \| null | 1.1.5 sell quote: `expected_out_lamports` x (1 - max slippage) |
+| `quote_id` | integer string | 1.1.5: `"0"` = never quoted; + 1 on every refresh. A refresh never changes `rev` |
+| `position_id` | uuid \| null | 1.1.5: the position a `sell_position` proposal sells |
+| `decimals` | integer \| null | 1.1.5: the mint's decimals (null for kinds without a mint) |
+| `token_program` | string \| null | 1.1.5: Token or Token-2022 program id |
 | `quote_ts` | ISO ts \| null | 1.1.4 quote: when estimated |
 | `quote_expires_at` | ISO ts \| null | 1.1.4 quote: valid while `server_now < quote_expires_at` (papersim: +15 s) |
 
-`ProposalWire` (TS) is the same type. Quotes are set or refreshed only while pending (`set_approval_quote`, backend
-only; rev + 1, `proposal.updated`) and frozen once decided. **Real approve rule (1.1.4):** `decision: "approve"`
-with `mode=real` and a missing quote or `quote_expires_at <= server now` -> `409 QUOTE_MISSING_OR_STALE
-{quote_ts, quote_expires_at, missing, hint}` (retryable: refresh the quote, review, approve with the new rev).
-Implemented in SQL `decide_approval` via `approval_quote_check(mode, quote_ts, quote_expires_at, now)`, so it
-applies once Real exists; practice is never blocked by a missing or stale quote.
+`ProposalWire` (TS) is the same type. Quotes are set or refreshed only while pending (`set_approval_quote`, backend,
+or `POST /{id}/quote`): **1.1.5: `quote_id + 1`, `rev` unchanged** (decision tokens and push actions stay valid),
+`proposal.updated` coalesced to at most one per proposal per 3 s; frozen once decided. Decision body (1.1.5)
+`expected_quote_id?` (integer string): the `quote_id` the user reviewed. **Real approve rule:** `decision: "approve"`
+with `mode=real` and a missing quote, `quote_expires_at <= server now`, or `expected_quote_id` missing / different
+from the current `quote_id` -> `409 QUOTE_MISSING_OR_STALE {reason: missing|stale|mismatch, missing (bool), quote_ts,
+quote_expires_at, quote_id, expected_quote_id, current: ApprovalWire, hint}` (TS `QuoteMissingOrStaleError`;
+retryable: show `current`, review, approve with its `quote_id`). In practice a sent `expected_quote_id` that differs
+is also `409 ... {reason: "mismatch"}`; a missing or stale quote never blocks practice. SQL: `decide_approval(...,
+p_expected_quote_id)` via `approval_quote_check(mode, quote_ts, quote_expires_at, now, quote_id, expected_quote_id,
+current)`.
 
 `GET /{id}` adds `decision_token`, `decision_token_expires_at` (with trade scope) and `server_now`.
 
@@ -436,7 +465,7 @@ no secrets, Real SOL never actionable from a push).
 | — | worker | — | `finalize_due_account_deletions()` after `scheduled_for`: deletes identities, OTPs, passkeys, challenges, approval tokens, device tokens, memberships, display name; archives the user's strategies, closes owned workspaces, expires proposals (`account_deleted`); **audit_log rows are retained, anonymized by actor** (ip / user_agent / device nulled; actor id no longer resolves to a person); emits `account.deleted`; then the API deletes the `auth.users` row (hard delete of the login; trading history stays under the tombstoned id) |
 
 ### 4.9 Health
-`GET /healthz`, `GET /readyz` -> `{mode: "practice", real_enabled: false, modes_enabled: ["practice"], live_executor: "disabled", contracts_version: "1.1.3", server_now}`.
+`GET /healthz`, `GET /readyz` -> `{service: "Centurion Trade API", product: "Centurion Trade", mode: "practice", real_enabled: false, modes_enabled: ["practice"], live_executor: "disabled", contracts_version: "1.1.5", server_now}`. `/readyz` adds `db` and `ingest_bytes_today: {day_utc, sources: {<source>: {bytes, frames}}} | null` (ingest bytes/day meter, int64 strings, UTC day; `null` when the meter table is unavailable).
 (The `TRADING_MODE=paper` env gate and the `papersim` crate keep their internal names; nothing on the wire says `paper`.)
 
 ## 5. Strategy settings (v1.1.2; 1.1.4 adds `time_stop_s`, `stall_exit`)

@@ -1,6 +1,6 @@
 # @sentra/contracts (DRAFT)
 
-Tipe bersama API/WS untuk apps Sentra.
+Tipe bersama API/WS untuk apps Centurion Trade (codename repo: `sentra`).
 
 **Status:** draft. Isinya saat ini adalah *view-model* dari Desktop (`apps/desktop`), dipakai sampai Backend API Specialist menerbitkan spec resmi (OpenAPI REST + JSON Schema event WS). Setelah spec resmi ada:
 - Backend jadi owner package ini; tipe di-generate dari OpenAPI/JSON Schema (TS untuk web/desktop, Dart untuk mobile, Rust via `typify`/`schemars`).

@@ -1,4 +1,6 @@
-# Sentra stream event schema (contract v1.1.3)
+# Centurion Trade stream event schema (contract v1.1.5)
+
+Product name **Centurion Trade**; code/DB names keep the codename `sentra` (e.g. JWT claim `sentra_client`).
 
 Status: **v1.1.2, frozen for client work** (Web, Flutter, Desktop, MCP). See `CHANGELOG.md` for the v1.0 -> v1.1
 renames. From v1.1 on: additive changes only; a breaking change to a type's payload bumps that event's `version`.
@@ -147,9 +149,9 @@ creator_share bundled_share sniper_share transfer_fee honeypot serial_creator`.
 | `pick.created` | screener | `{mint, summary, score: <screener result>, guard_verdict, guard_reasons[], market_cap_lamports, mcap_usd, mcap_as_of}` (market cap fields 1.1.4) |
 | `entry.armed` / `entry.expired` | entry | `{pick_id, condition, expires_at}` / `{pick_id, reason}` |
 | `proposal.created` | entry\|user\|system | `{proposal_id, kind, rev, mint, symbol (untrusted text, same as envelope untrusted.symbol), price_sol (decimal string), expires_at, first_buy, approval_mode, amount_lamports, risk_level, summary, base_rev, weakening, diff: [{field, before, after, weakening}]\|null, estimate}` + optional nullable quote fields (1.1.4, below) |
-| `proposal.updated` | system | 1.1.4. A pending proposal's quote was set or refreshed (`set_approval_quote`): `{proposal_id, kind, rev, est_network_fee_lamports, priority_fee_lamports, swap_fee_bps, max_slippage_bps, min_out_raw, total_max_lamports, quote_ts, quote_expires_at}`. `rev` is the new approval rev (send it as `expected_rev`). Nothing else on the proposal changes. |
+| `proposal.updated` | system | A pending proposal's quote was set or refreshed (`set_approval_quote` / `POST .../approvals/{id}/quote` / GET auto-refresh): `{proposal_id, kind, rev, quote_id, decimals, token_program, est_network_fee_lamports, priority_fee_lamports, swap_fee_bps, max_slippage_bps, min_out_raw, est_ata_rent_lamports, expected_out_lamports, min_out_lamports, total_max_lamports, quote_ts, quote_expires_at}`. **1.1.5: `rev` is unchanged** (keep using it as `expected_rev`); `quote_id` (int64 string) increments; send it as `expected_quote_id`. **Coalescing:** at most one `proposal.updated` per proposal per 3 s, only while the proposal is pending (a refresh inside 3 s of the last quote returns that quote and emits nothing). Clients that hold a press-and-hold reset it when `quote_id` changes. |
 | `proposal.approved` / `proposal.rejected` | user | `{proposal_id, kind, rev, decided_by, decided_via: web\|mobile\|desktop\|mcp\|push, reason, reject_reason}`. `reject_reason` (1.1.3): `user_declined\|not_tradeable\|price_moved\|other` on `proposal.rejected` (default `user_declined`), `null` on `proposal.approved` (UI label for rejected: "Skipped") |
-| `proposal.expired` | system | `{proposal_id, kind, rev, reason, at}` — `reason` is exactly one of the canonical wire values `timeout`, `strategy_deleted`, `strategy_archived`, `guard_failed`, `price_moved`, `practice_reset`, `account_deleted`. `reset_practice()` expires pending/approved buys with `practice_reset`; account finalization expires every open proposal with `account_deleted` (both SQL-tested) |
+| `proposal.expired` | system | `{proposal_id, kind, rev, reason, at}` — `reason` is exactly one of the canonical wire values `timeout`, `strategy_deleted`, `strategy_archived`, `guard_failed`, `price_moved`, `practice_reset`, `account_deleted`; plus `kill_switch` (1.1.5, **reserved for Phase 7**, never emitted in practice: buys paused or a safety trip). `reset_practice()` expires pending/approved buys with `practice_reset`; account finalization expires every open proposal with `account_deleted` (both SQL-tested) |
 | `order.submitted` | user | `{order: OrderWire, position_id, position_rev, practice_epoch}` (manual close accepted) |
 | `order.filled` | executor | `{order: OrderWire, fill: FillWire, position_id, position_rev, practice_epoch}` |
 | `order.failed` | executor | N-05. `{order_id, proposal_id, position_id?, mint, side, amount_lamports (string\|null), qty_raw?, fraction_bps?, reason_code, detail, quote_mint?, mode, practice_epoch?, server_now}`. `reason_code` from errors.json: `SLIPPAGE_EXCEEDED`, `INSUFFICIENT_PRACTICE_BALANCE`, `GUARD_FAILED`, `UNSUPPORTED_QUOTE_MINT`, `POOL_STALE`, `POSITION_ALREADY_CLOSED`, `VALIDATION_FAILED`, `MODE_NOT_ALLOWED`. Symbol is in envelope `untrusted`. Emitted whenever a simulated fill is rejected (papersim and `fail_order()`) |
@@ -166,14 +168,23 @@ creator_share bundled_share sniper_share transfer_fee honeypot serial_creator`.
 | `account.deletion_cancelled` / `account.deleted` | user | `{at}` |
 | `system.notice` | system | `{code, message}`; `code` is an errors.json code with `kind: "notice"` (e.g. `PRACTICE_CASH_INSUFFICIENT`, `JOB_DEAD_LETTERED`, `SOURCE_DEGRADED`) |
 
+`proposal.created` (1.1.5) also carries `decimals` and `token_program` (null for `guard_change`), and `kind` may be
+`sell_position` (sell quote fields: `expected_out_lamports`, `min_out_lamports`, `total_max_lamports` = network fee).
+`coin.detected` / `screener.scored` / `pick.created` market-cap fields gain `mcap_source: curve|pool|unavailable` (1.1.5).
+
 **Quote fields (1.1.4, UX WF-22 transaction review sheet)** on `proposal.created`, `proposal.updated` and
 `ApprovalWire` (TS `ProposalQuoteFields`; all optional and nullable): `est_network_fee_lamports`,
 `priority_fee_lamports`, `min_out_raw` (raw token units), `total_max_lamports` are integer strings; `swap_fee_bps`,
 `max_slippage_bps` are JSON numbers; `quote_ts`, `quote_expires_at` are ISO timestamps. Practice values are papersim
 estimates (`papersim::quote::estimate_buy`): network fee = base + priority (CU limit x CU price), `min_out_raw` =
-CPMM tokens out after the swap fee x (1 - max slippage), `total_max_lamports` = SOL in + network fee, validity 15 s.
-Rule: for `mode=real`, approving with a missing quote or `quote_expires_at <= server now` -> `409
-QUOTE_MISSING_OR_STALE` (SQL `approval_quote_check` inside `decide_approval`); practice is never blocked.
+CPMM tokens out after the swap fee x (1 - max slippage), validity 15 s. **1.1.5 exact definition:** buy
+`total_max_lamports = amount_lamports + est_network_fee_lamports + est_ata_rent_lamports` (the network fee already
+includes the priority fee; the swap fee is taken out of SOL in, never added; `est_ata_rent_lamports` = `"2039280"`
+when the token account does not exist yet, else `"0"`); sell `total_max_lamports = est_network_fee_lamports`.
+Rule: for `mode=real`, approving with a missing quote, `quote_expires_at <= server now`, or an `expected_quote_id`
+that is missing or not the current `quote_id` -> `409 QUOTE_MISSING_OR_STALE {reason, missing, quote_ts,
+quote_expires_at, quote_id, expected_quote_id, current}` (SQL `approval_quote_check` inside `decide_approval`);
+practice is never blocked by a missing/stale quote.
 
 ### proposal.expired example
 ```json
@@ -261,3 +272,42 @@ expires_at)`. **Real SOL is never actionable from a push**: no `token`, `actions
 opened in-app). Guard changes and team actions: `["open"]` only. Clients fail closed on unknown `v`/`event`,
 missing `mode`, or real-only events in practice. Device registration, rotation and revocation:
 API_ENDPOINTS.md 4.10.
+
+
+## 7. Reserved for Phase 7 (not emitted)
+
+Contracts 1.1.5 reserve these names and payloads for Real SOL (UX N-23..N-46). **Nothing emits them before Phase 7;**
+they only appear on the real stream (never mixed with practice). TS: `ReservedPhase7Payloads`,
+`RESERVED_PHASE7_EVENTS` and the `Real*` interfaces in `src/wire/events.ts` (marked `phase7`); they are deliberately
+not part of `EventPayloads`. Mirrored in `services/backend/docs/REAL_MONEY_OPTIONS.md` §7.4.
+
+Payload rules: lamport amounts are integer strings; times ISO UTC; addresses and signatures in full. Actor and device
+are **flat fields**: `actor_type: user|rule|system`, `user_id` (uuid | null), `device_id` (string | null),
+`device_label` (string | null). `kill_switch_reason = policy_mismatch | loss_velocity | provider_error | other`.
+Limit `setting` keys: `per_trade_lamports`, `daily_lamports` (rolling 24 h), `cap_lamports`, `max_positions`,
+`max_slippage_bps`; `from`/`to` are integer strings for `*_lamports`, JSON numbers otherwise.
+
+| Event | Payload |
+|---|---|
+| `real.signer.granted` | `{signer_id, provider, expires_at, actor_type, user_id, device_id, device_label}` |
+| `real.signer.revoked` | `{signer_id, provider, reason: kill_switch\|expiry\|user, actor_type, user_id}` |
+| `real.policy.activated` | `{version, policy_hash, actor_type, user_id}` |
+| `real.policy.mismatch` | `{version, policy_hash, expected_hash, actual_hash}` |
+| `real.limit.changed` | `{setting, from, to, policy_version, actor_type, user_id}` |
+| `real.limit.loosen_requested` | `{setting, from, to, policy_version, activates_at, actor_type, user_id, device_id, device_label}`; final (no auto-revert; `real.limit.reverted` does not exist) |
+| `real.kill_switch.tripped` | `{scope: global\|workspace\|strategy, target_id, reason: kill_switch_reason \| null, rule_id, actor_type, user_id, at}` |
+| `real.kill_switch.cleared` | `{scope, target_id, reason, actor_type, user_id, device_id, device_label, at, signer_state: active\|revoked}`; after a `policy_mismatch` trip the signer stays `revoked` until a manual re-grant |
+| `real.buys.paused` / `real.buys.resumed` | `{scope, target_id, actor_type, user_id, device_id, device_label, at}` (Stop = pause new buys; exits keep running) |
+| `real.sell_all.requested` | `{sell_all_id, requested_count, actor_type, user_id, device_id, device_label, at}` (session-authorized, 2.5 s hold, 1 per 60 s, idempotent) |
+| `real.sell_all.completed` | `{sell_all_id, requested_count, sold_count, failed_count, amount_out_lamports \| null, failures: [{position_id, mint, reason_code}], completed_at}` (failed positions stay open with their exit plans) |
+| `real.withdraw_address.added` | `{address, usable_at, cancel_until, actor_type, user_id, device_id, device_label}` (main-wallet change, 48 h) |
+| `real.withdraw_address.usable` / `.cancelled` | `{address, at, actor_type, user_id}` |
+| `real.deposit.detected` | `{amount_lamports, balance_lamports, tx_signature, slot, at}` |
+| `real.withdraw.requested` | `{withdraw_id, amount_lamports, address, tx_signature: null, actor_type, user_id, device_id, device_label}` |
+| `real.withdraw.confirmed` | `{withdraw_id, amount_lamports, address, tx_signature, slot}` |
+| `real.withdraw.failed` | `{withdraw_id, amount_lamports, address, tx_signature \| null, reason_code}` |
+
+`real.withdraw.failed.reason_code` is a reserved enum documented here and in TS (`WithdrawFailReason`), **not** in
+`errors.json`: `withdraw_simulation_failed | insufficient_balance | destination_not_owned | tx_expired |
+provider_error | user_rejected | other`. `proposal.expired.reason` gains `kill_switch` (reserved). Push for these
+events is informational only; Real is never actionable from a push.

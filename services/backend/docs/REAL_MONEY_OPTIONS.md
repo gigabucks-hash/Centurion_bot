@@ -274,7 +274,7 @@ Boss's sessions and Boss's devices". Email/Telegram/OAuth rows above are out of 
 | S | **Phishing relay** (rev4, mobile review B-6): the owner address is public, so an attacker can request a genuine Sentra nonce for it and relay the message to Boss through its own app/deeplink | (1) **Nonce bound to the requesting session/device**: Phase 7 design (PERF_SECURITY.md §Phase 7): `/nonce` takes a `device_pubkey` (P-256, Keystore/Secure Enclave), `/verify` requires `device_sig` over the nonce, and once the owner's first device is registered only registered devices can redeem a nonce; plus Play Integrity / App Attest verdicts on `/verify` (designed, not wired). (2) **Short TTL**: 5 min, single use, a tampered message burns the nonce. (3) **domain + URI + chain in the message**, all stored with the nonce row and compared exactly at verify (with issued-at, expiry and statement version; B-3). (4) Allowlist fails closed (no boot without `OWNER_WALLETS`). Must-have before Real SOL |
 | S/T | **Malicious sign-in message:** a "login" prompt that is really a transaction or an approval, or arbitrary bytes | The app only ever asks Boss's main wallet for (a) a SIWS message and (b) a withdraw transaction it displays in full; never `signMessage` on arbitrary/base64 bytes; never `signAllTransactions`; UI teaches "Sentra never asks you to sign anything at login except the sign-in text" |
 | S/E | **Someone else's wallet logs in** | **Owner-wallet allowlist**: `OWNER_WALLETS` (public addresses, config, not secrets) checked in SIWS verify; sign-up disabled; any other address -> 403 and an alert; changing the allowlist = signed by an existing owner wallet + 48 h delay + audit |
-| S | **Session theft** (stolen JWT/refresh token from a device, XSS, malware) | Short access token (≤15 min), rotating refresh bound to `device_id`, refresh reuse = revoke all sessions; httpOnly cookies on web; **step-up for every money action**: a fresh, action-bound owner-wallet signature over `payload_hash` (plus passkey/TOTP where enrolled) for granting the signer, loosening policy, clearing a kill switch, manual sells and withdrawals. A stolen session can view and can *tighten* or trip the kill switch, nothing more |
+| S | **Session theft** (stolen JWT/refresh token from a device, XSS, malware) | Short access token (≤15 min), rotating refresh bound to `device_id`, refresh reuse = revoke all sessions; httpOnly cookies on web; **step-up for every money action**: a fresh, action-bound owner-wallet signature over `payload_hash` (plus passkey/TOTP where enrolled) for granting the signer, loosening policy, resuming after a kill-switch trip, manual sells and withdrawals. A stolen session can view and can *tighten* or trip the kill switch, nothing more |
 | T | Stolen session tries to change where funds go | There is no "where": the only withdraw destination is the main wallet, set at owner bootstrap; changing it = owner-allowlist change rules above |
 | R | Boss disputes an action | Every money action carries the owner wallet's own signature (non-repudiable) plus the audit row |
 | D | **Single point of failure: Boss's main wallet** is login + owner of the trading wallet + withdraw destination. Seed lost -> locked out; seed stolen -> attacker is Boss | **Accepted risk (Boss D.5.5, "Tanpa backup"): no backup owner wallet.** Trading-wallet funds can only be recovered by withdrawing them to the main wallet, so a lost main-wallet seed strands what is in the trading wallet (bounded by the 2 SOL default cap). Changing the main wallet keeps the 48 h delay; kill switch can be tripped from any logged-in session; trading wallet stays small (cap), so a stolen seed's extra reach through Sentra is bounded by the cap. If the main wallet seed is stolen, the main wallet's funds are already at risk outside Sentra: Sentra must not make that worse (no new destinations, no loosening without delay) |
@@ -453,7 +453,7 @@ Scopes for automatic trips and the global halt (checked before build and again i
 | `provider_error`: sign errors, latency p95 over budget for 5 min, unexpected policy denials | **Exits only** (owner path if the provider is down) |
 | `other` (data quality: `SOURCE_DEGRADED`, ingest silence > 60 s, clock skew, quote divergence; failed-tx budget) | Pause buys; alert |
 
-Resuming after a trip is immediate by the owner (`real.kill_switch.resumed`); there is no clear-request/cooldown
+Resuming after a trip is immediate by the owner (`real.kill_switch.cleared`, with `signer_state`); there is no clear-request/cooldown
 step any more. A `policy_mismatch` trip additionally needs a signer re-grant (fresh Phantom signature). Every trip,
 pause, resume and sell-all is an event and an audit row. Pending buy proposals expire with
 `expire_reason: "kill_switch"` when buys are paused or a trip fires.
@@ -494,7 +494,7 @@ pause, resume and sell-all is an event and an audit row. Pending buy proposals e
 - `POST /real/signer-grants` (user grants signer; passkey), `DELETE /real/signer-grants/{id}` (revoke)
 - `GET/POST /real/policies`, `POST /real/policies/{id}/activate` (loosen = delayed + confirmation)
 - `GET/POST /real/withdraw-addresses`, `DELETE ...` (cancel during delay)
-- `POST /real/kill-switches/{scope}` (trip/clear), `GET /real/kill-switches`
+- `POST /real/kill-switches/{scope}` (trip / resume = `real.kill_switch.cleared`), `GET /real/kill-switches`
 - `GET /real/orders`, `GET /real/orders/{id}` (attempts, presign verdict)
 - Existing §16.3 `prepare_real_sell` / `submit_real_sell` stay as the option-A path.
 
@@ -509,31 +509,36 @@ Order flow: `real.order.created|signed|sent|landed|finalized|failed|expired`, `r
 
 **Reserved for Phase 7 (not emitted; mirrors `EVENTS_SCHEMA.md` "Reserved for Phase 7" and the `phase7` TS types):**
 
+Payload rules: lamport amounts are integer strings; times ISO UTC; addresses and signatures in full. Actor and device
+are **flat fields**: `actor_type: user|rule|system`, `user_id` (uuid | null), `device_id` (string | null),
+`device_label` (string | null). `kill_switch_reason = policy_mismatch | loss_velocity | provider_error | other`.
+Limit `setting` keys: `per_trade_lamports`, `daily_lamports` (rolling 24 h), `cap_lamports`, `max_positions`,
+`max_slippage_bps`; `from`/`to` are integer strings for `*_lamports`, JSON numbers otherwise.
+
 | Event | Payload |
 |---|---|
-| `real.signer.granted` | `{signer_id, provider, expires_at, actor, device}` |
-| `real.signer.revoked` | `{signer_id, provider, reason: kill_switch\|expiry\|user, actor}` |
-| `real.policy.activated` | `{version, policy_hash, actor}` |
+| `real.signer.granted` | `{signer_id, provider, expires_at, actor_type, user_id, device_id, device_label}` |
+| `real.signer.revoked` | `{signer_id, provider, reason: kill_switch\|expiry\|user, actor_type, user_id}` |
+| `real.policy.activated` | `{version, policy_hash, actor_type, user_id}` |
 | `real.policy.mismatch` | `{version, policy_hash, expected_hash, actual_hash}` |
-| `real.limit.changed` | `{setting, from, to (typed), policy_version, actor}` |
-| `real.limit.loosen_requested` | `{setting, from, to, policy_version, activates_at, actor, device}` (final; no auto-revert, `real.limit.reverted` removed) |
-| `real.kill_switch.tripped` | `{scope: global\|workspace\|strategy, target_id, reason: kill_switch_reason \| rule_id, actor, at}` |
-| `real.kill_switch.resumed` | `{scope, target_id, actor, device, at}` (replaces `cleared`; `clear_requested` dropped) |
-| `real.buys.paused` / `real.buys.resumed` | `{scope, target_id, actor, device, at}` |
-| `real.sell_all.requested` | `{sell_all_id, requested_count, actor, device, at}` |
-| `real.sell_all.completed` | `{sell_all_id, requested_count, sold_count, failed_count, amount_out_lamports (integer string \| null), failures: [{position_id, mint, reason_code}], completed_at}` |
-| `real.withdraw_address.added` | `{address, usable_at, cancel_until, actor, device}` (main-wallet change, 48 h) |
-| `real.withdraw_address.usable` / `.cancelled` | `{address, at, actor?}` |
+| `real.limit.changed` | `{setting, from, to, policy_version, actor_type, user_id}` |
+| `real.limit.loosen_requested` | `{setting, from, to, policy_version, activates_at, actor_type, user_id, device_id, device_label}`; final (no auto-revert; `real.limit.reverted` does not exist) |
+| `real.kill_switch.tripped` | `{scope: global\|workspace\|strategy, target_id, reason: kill_switch_reason \| null, rule_id, actor_type, user_id, at}` |
+| `real.kill_switch.cleared` | `{scope, target_id, reason, actor_type, user_id, device_id, device_label, at, signer_state: active\|revoked}`; after a `policy_mismatch` trip the signer stays `revoked` until a manual re-grant |
+| `real.buys.paused` / `real.buys.resumed` | `{scope, target_id, actor_type, user_id, device_id, device_label, at}` (Stop = pause new buys; exits keep running) |
+| `real.sell_all.requested` | `{sell_all_id, requested_count, actor_type, user_id, device_id, device_label, at}` (session-authorized, 2.5 s hold, 1 per 60 s, idempotent) |
+| `real.sell_all.completed` | `{sell_all_id, requested_count, sold_count, failed_count, amount_out_lamports \| null, failures: [{position_id, mint, reason_code}], completed_at}` (failed positions stay open with their exit plans) |
+| `real.withdraw_address.added` | `{address, usable_at, cancel_until, actor_type, user_id, device_id, device_label}` (main-wallet change, 48 h) |
+| `real.withdraw_address.usable` / `.cancelled` | `{address, at, actor_type, user_id}` |
 | `real.deposit.detected` | `{amount_lamports, balance_lamports, tx_signature, slot, at}` |
-| `real.withdraw.requested` | `{withdraw_id, amount_lamports, address, tx_signature: null, actor, device}` |
+| `real.withdraw.requested` | `{withdraw_id, amount_lamports, address, tx_signature: null, actor_type, user_id, device_id, device_label}` |
 | `real.withdraw.confirmed` | `{withdraw_id, amount_lamports, address, tx_signature, slot}` |
 | `real.withdraw.failed` | `{withdraw_id, amount_lamports, address, tx_signature \| null, reason_code}` |
 
-Rules: lamport amounts (`amount_lamports`, `balance_lamports`, `cap_lamports`) are integer strings; times ISO UTC;
-addresses in full. `actor = {actor_type: user|rule|system, user_id?}`; `device = {device_id, device_label}`;
-`kill_switch_reason = policy_mismatch | loss_velocity | provider_error | other`. `real.owner_wallet.*` is dropped
-(no backup owner, D.5.5). `proposal.expired` gains `expire_reason: "kill_switch"`. Push: informational only; Real is
-never actionable from a push (§9).
+`real.withdraw.failed.reason_code` is a reserved enum documented here and in TS (`WithdrawFailReason`), **not** in
+`errors.json`: `withdraw_simulation_failed | insufficient_balance | destination_not_owned | tx_expired |
+provider_error | user_rejected | other`. `proposal.expired.reason` gains `kill_switch` (reserved). Push for these
+events is informational only; Real is never actionable from a push (§9). `real.owner_wallet.*` is dropped (no backup owner, D.5.5).
 
 ### 7.5 Executor interface (description)
 A separate, separately deployed `real-executor` process (never the practice services) behind `live-execution`.
@@ -559,7 +564,7 @@ Per-step latency histograms (§3 rows), land rate by path, tip/fee spend, presig
 - §16.3: generalise from sells to orders; add `presign_check_id`; add the delegated sign path.
 - §16.4: align hold to **2,500 ms** (contracts §4.6 already says 2,500; §16.4 says 2 s). Delegated auto-trades
   don't prompt per trade; the four-factor confirmation applies to granting the signer, activating/loosening policy,
-  adding withdraw addresses, clearing kill switches, and every manual (A) sell.
+  adding withdraw addresses, resuming after a kill-switch trip, and every manual (A) sell.
 - §16.5: limits become policy-as-data (§4.5); raise = fresh Phantom signature + 24 h delay, then stays (rev4: no auto-revert, no hard ceiling).
 - New §16.8 Kill switch (§5), §16.9 Withdrawals (§4.6), §16.10 Provider choice and exit plan.
 
@@ -578,7 +583,7 @@ picks C, these exact changes go into §16 in a separate, reviewed commit (not in
 5. §16.3 RPC shape: generalise prepare/submit from sells to `real_orders`; add `presign_check_id`; add the delegated
    sign step and the error codes in §7.3.
 6. §16.4 confirmation: hold 2 s -> **2,500 ms** (match contracts §4.6); four factors move from "every real sell" to
-   "every manual sell + grant signer + activate/loosen policy + add withdraw address + clear kill switch".
+   "every manual sell + grant signer + activate/loosen policy + add withdraw address + resume after a kill-switch trip".
 7. §16.5 limits: become policy-as-data (§4.5); buys allowed only in rollout stage 2+, screener-pick mints only.
 8. §16.6 audit: add presign verdicts, provider activity IDs, policy hash syncs, signer grant/revoke.
 9. §16.7 before any code: add provider security review, Boss's provider choice, and the legal opinion (§8).
