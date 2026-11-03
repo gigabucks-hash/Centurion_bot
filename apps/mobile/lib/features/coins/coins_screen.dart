@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/l10n_format.dart';
-import '../../core/theme/sentra_theme.dart';
+import '../../core/theme/centurion_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';

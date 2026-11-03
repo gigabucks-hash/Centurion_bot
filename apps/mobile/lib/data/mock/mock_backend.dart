@@ -1012,7 +1012,7 @@ class MockBackend
         'kind': Wire.approvalKind(a.kind),
         'rev': rev,
         'decided_by': 'mock_user',
-        // From the JWT `sentra_client` claim on the server; never a client param.
+        // From the JWT `centurion_client` claim on the server; never a client param.
         'decided_via': Wire.clientMobile,
         'reason': r.approve ? null : r.reasonDetail,
         'reject_reason': rejectReason?.wire,

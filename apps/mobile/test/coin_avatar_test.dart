@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/app/app.dart';
-import 'package:sentra_mobile/core/approval_guard.dart';
-import 'package:sentra_mobile/core/startup/deferred_init.dart';
-import 'package:sentra_mobile/data/mock/mock_backend.dart';
-import 'package:sentra_mobile/data/providers.dart';
-import 'package:sentra_mobile/core/theme/sentra_theme.dart';
-import 'package:sentra_mobile/core/widgets/coin_avatar.dart';
-import 'package:sentra_mobile/data/models/models.dart';
+import 'package:centurion_mobile/app/app.dart';
+import 'package:centurion_mobile/core/approval_guard.dart';
+import 'package:centurion_mobile/core/startup/deferred_init.dart';
+import 'package:centurion_mobile/data/mock/mock_backend.dart';
+import 'package:centurion_mobile/data/providers.dart';
+import 'package:centurion_mobile/core/theme/centurion_theme.dart';
+import 'package:centurion_mobile/core/widgets/coin_avatar.dart';
+import 'package:centurion_mobile/data/models/models.dart';
 
 const wsol = 'So11111111111111111111111111111111111111112';
 
 Widget _host(Widget child, {Uri? apiBase}) => ProviderScope(
   overrides: [apiBaseUrlProvider.overrideWithValue(apiBase)],
   child: MaterialApp(
-    theme: SentraTheme.dark(),
+    theme: CenturionTheme.dark(),
     home: Scaffold(
       body: Center(child: RepaintBoundary(child: child)),
     ),
@@ -144,7 +144,7 @@ void main() {
               deferredInitProvider.overrideWithValue(DeferredInit(const [])),
               approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
             ],
-            child: SentraApp(initialLocation: route),
+            child: CenturionApp(initialLocation: route),
           ),
         );
         await tester.pump();
