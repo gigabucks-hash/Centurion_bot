@@ -447,6 +447,8 @@ describe("practice reset", () => {
     const r = await call(h.base, "POST", path, { token: owner(), headers: { "idempotency-key": k } });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.equal(r.body.replayed, false);
+    assert.ok(isIso(r.body.next_allowed_at), `next_allowed_at IsoTs: ${r.body.next_allowed_at}`);
+    assert.ok(isIso(r.body.server_now), `server_now IsoTs: ${r.body.server_now}`);
     const replay = await call(h.base, "POST", path, { token: owner(), headers: { "idempotency-key": k } });
     assert.equal(replay.status, 200);
     assert.equal(replay.body.replayed, true);

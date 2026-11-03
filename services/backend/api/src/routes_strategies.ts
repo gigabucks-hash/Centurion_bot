@@ -262,7 +262,9 @@ export function registerStrategies(r: Router, d: Deps): void {
       const out = await asUser(d.db, p.claims, async (c) => {
         await requireMember(c, ws);
         const q = await c.query("select public.reset_practice($1) as r", [ws]);
-        return q.rows[0]?.r as Record<string, unknown>;
+        const r = q.rows[0]?.r as Record<string, unknown>;
+        // SQL returns raw timestamptz in jsonb (session-zone offset, microseconds); the wire is IsoTs (UTC, ms, Z)
+        return { ...r, next_allowed_at: iso(r.next_allowed_at), server_now: iso(r.server_now) };
       });
       return { status: 200, body: out };
     });
