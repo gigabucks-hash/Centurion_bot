@@ -470,7 +470,7 @@ no secrets, Real SOL never actionable from a push).
 | GET | `/v1/img/coin/{mint}?s={48\|64\|96\|128\|192}[&fmt=webp\|png]&v={logo_hash}` | none (public image) | Our proxy, never a token-provided URI. Re-encoded **WebP** (default) or **PNG** (`fmt=png`, or an `Accept` that names `image/png` but not `image/webp`, or refuses `image/webp;q=0`; negotiated answers carry `Vary: Accept`); never SVG; metadata (EXIF etc.) stripped. `200` image with `ETag`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'`, `Cross-Origin-Resource-Policy: cross-origin`, `Referrer-Policy: no-referrer`; `Cache-Control: public, max-age=31536000, immutable` only when `v` equals the current `logo_hash`, else a short max-age (`LOGO_SHORT_MAX_AGE_S`, 300 s). `If-None-Match` -> `304`. `404 LOGO_NOT_FOUND` (no logo / proxy disabled) and `422 LOGO_REJECTED {reason}` (size, format, bomb, blocked, svg, ...) -> client shows the deterministic identicon (UX COIN_LOGO §4) and does not retry that mint+v. Bad `s`/`fmt` -> `422 VALIDATION_FAILED {field, allowed}`. Per-IP and cold-fetch rate limits (`LOGO_RATE_IP_PER_MIN`, `LOGO_COLD_*`). |
 
 Wires: `logo_hash` (string\|null, content hash = `v`) + `logo_url` (our URL with `s=96`, null when the proxy is off or
-there is no mint) on coin, pick and position wires; `logo_url` on proposals/approvals and on every SSE/REST event
+there is no mint) on coin, pick, position and approval wires and on every SSE/REST event
 envelope that carries a mint. Clients pick the size with `logoSizeFor(px, dpr)` and rewrite with `logoUrlFor()`
 (`@centurion/contracts/wire`). Server design, SSRF rules and the transcoder dependency review:
 `services/backend/docs/LOGO_PROXY.md`. Off unless `LOGO_PROXY_ENABLED=true`.

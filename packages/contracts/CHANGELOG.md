@@ -28,6 +28,9 @@ rewritten in place to the new names. Clients import `@centurion/contracts` / `@c
 - **`MODE_NOT_ALLOWED` redefined** (403, same code/sqlstate): now means "this strategy is not approved for Real"
   (en "This strategy is not approved for Real mode", id "Strategi ini belum disetujui untuk mode Real"); was "only
   practice mode is allowed".
+- **`logo_hash` next to `logo_url`** (desktop request): on `ApprovalWire` (required, nullable) and on the event
+  envelope (`logo_hash?: string | null`, delivered with `logo_url` on SSE/REST, so it covers coin.detected and every
+  coin payload). `logo_url` there now carries `&v={logo_hash}` when known.
 - **Push coin fields (EVENTS_SCHEMA §6):** coin pushes carry `mint` + `logo_hash` (strings; `logo_hash` omitted when
   there is no logo, never empty). `PushPayload.mint?`, `PushPayload.logo_hash?`; helper `coinLogoUrl(origin, mint,
   size, logo_hash)`. Logo variants: 16 KiB hard cap each (oversize variant omitted, next smaller served);

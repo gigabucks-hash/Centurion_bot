@@ -81,6 +81,9 @@ export interface EventEnvelope<T extends string = string, P = JsonValue> {
    *  null when the event has no mint or the proxy is disabled. Covers coin.detected, pick.created, position.*,
    *  proposal.* and every other feed item that carries a mint. */
   logo_url?: LogoUrl | null;
+  /** 1.1.6: logo content hash (`v` of logo_url) for `mint`; null = no mint / no logo yet -> identicon. Same
+   *  delivery as logo_url (SSE/REST). */
+  logo_hash?: string | null;
   ts: IsoTs;
   actor: Actor;
   mode: Mode;
@@ -529,6 +532,8 @@ export interface ApprovalDecisionResponse {
 /** = ApprovalWire (the proposal/approval resource). Quote fields (1.1.4) are always present, null when unset. */
 export type ProposalWire = ApprovalWire;
 export interface ApprovalWire extends Required<ProposalQuoteFields> {
+  /** 1.1.6: logo content hash of `mint` (null: no mint / no logo yet). */
+  logo_hash: string | null;
   /** 1.1.6: logo of `mint` (null when mint is null or the proxy is disabled). */
   logo_url: LogoUrl | null;
   /** 1.1.5 */
