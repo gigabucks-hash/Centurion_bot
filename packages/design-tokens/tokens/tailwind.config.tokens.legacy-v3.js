@@ -161,6 +161,13 @@ module.exports = {
             "lineHeight": "var(--text-numSm--line-height)",
             "fontWeight": "var(--text-numSm--font-weight)"
           }
+        ],
+        "eyebrow": [
+          "var(--text-eyebrow)",
+          {
+            "lineHeight": "var(--text-eyebrow--line-height)",
+            "fontWeight": "var(--text-eyebrow--font-weight)"
+          }
         ]
       },
       "borderRadius": {

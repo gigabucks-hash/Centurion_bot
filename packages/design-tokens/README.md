@@ -1,6 +1,6 @@
 # @sentra/design-tokens
 
-Owner: UX UI Designer. Sentra adalah working name.
+Owner: UX UI Designer. Aplikasi: **Centurion Trade**. Nama package tetap `@sentra/design-tokens` (codename internal).
 **Sumber kebenaran:** `src/tokens.json` (W3C DTCG). Jalankan `python3 scripts/build.py` (atau `npm run build`). Tidak butuh dependency, cukup Python 3.9+. `dart format` dipakai otomatis kalau tersedia. Build gagal kalau ada pasangan warna di bawah WCAG AA (`tokens/contrast-report.md`).
 Sumber desain beserta wireframe dan spec: `/workspace/ux-solbot` (tokens.json di sana identik, disinkronkan oleh UX).
 
@@ -16,6 +16,13 @@ Atribut runtime: `data-theme="dark|light"` · `data-mode="practice|real"` · `da
 Panduan lengkap (font bundling, Tailwind v4 utilities, mapping M3, aturan Tauri, WCAG 2.5.8): `/workspace/ux-solbot/tokens/README.md`.
 
 Breaking v0.2.0 (untuk Flutter): `context.trade` → `context.tradeColors`, `numStyle()` → `AppText.num()`, `AppSpace.s0_5` → `AppSpace.sHalf`. Warna berubah: dark `border.strong` #6B7995, `text.tertiary` #919CB2.
+
+**v0.3.0 (3 Nov 2026) — G1-blue (arah pilihan Boss: Canva G1, aksen violet → biru).** Perubahan nilai, bukan rename: **tidak ada token yang di-rename atau dihapus** (`bg.inset` tetap alias deprecated; penghapusan ditunda ke ≥ 0.4.0). Detail lengkap + tabel old → new: `CHANGELOG.md`.
+- Warna dark: surface near-black (`bg.canvas` #0A0B10 …), border/teks dirapikan, `brand.primary` **#4F8CFF** (biru, hue 219°; dulu violet #8B97FF), `border.focus` #8AB4FF, `semantic.info` #7AA7FF (keluarga biru). Light: `brand.primary` #1F5FD1.
+- `mode.practice` (#3FD0E0) dan `mode.real` (#FF7DC4) **tidak berubah**. Build sekarang mengecek ΔE2000 `brand.primary` vs `mode.practice`/`mode.real`/`semantic.profit`/`semantic.loss` ≥ 20 (dark: 30,6 / 36,0 / 50,5 / 42,0).
+- Tipografi: token baru `font.family.display` = **Sora** (OFL) untuk display/headline/title, plus style baru `typography.*.eyebrow` (Sora 600, 11/10 px, tracking 0,16em; CSS `--text-eyebrow`, Dart `AppText.eyebrow()`). `overline` tidak berubah. Body tetap Inter, angka tetap JetBrains Mono. CSS `--font-display` (Tailwind `font-display`), Dart `AppFonts.display` + slot M3 display*/headline*/titleLarge memakai `GoogleFonts.sora`. Bundling: tambah `Sora-SemiBold.ttf` (+ `Sora-OFL.txt`).
+- Density baru: `density.{comfortable,compact}.tableHeader` (36/28) dan `.coinLogo` (32/24) → CSS `--density-tableHeader`, `--density-coinLogo`, Dart `AppDensity.tableHeader/coinLogo`. Compact row tetap 32 px.
+- Coin logo (final, COIN_LOGO.md): `coin.logo.size.{sm,md,lg,card,detail}` 20/24/32/48/64, `coin.logo.ring.{dark,light}`, `coin.logo.notTradeableOpacity` 0,55, `coin.identicon.fg` + `coin.identicon.palette.0..11`. CSS `--coin-logo-size-*`, `--coin-logo-ring` (per tema), `--color-identicon-{0..11,fg}` (Tailwind `bg-identicon-7`), Dart `AppCoinLogo`. Build mengecek fg vs 12 palet ≥ 4,5:1.
 
 **v0.2.1 (29 Okt 2026, fix):** `tauri.css` v0.2.0 punya satu `}` berlebih setelah blok light (sisa penghapusan `@media prefers-color-scheme` di generator) → build Desktop gagal. Diperbaiki di `scripts/build.py`. Build sekarang memvalidasi CSS: brace-balance selalu + parse penuh `lightningcss` (errorRecovery off) bila tersedia (`LIGHTNINGCSS_NODE_PATH`, default `/tmp/twcheck/node_modules`). Build exit 1 kalau CSS invalid. Tidak ada perubahan token/nilai.
 
@@ -42,6 +49,7 @@ MVP: `google_fonts` (unduh runtime). Production: google_fonts 9.x mencocokkan as
 | Family | Weight dipakai | Nama file yang dibundel (harus berakhiran ini) | Dari unduhan Google Fonts |
 |---|---|---|---|
 | Inter | 400 · 500 · 600 | `Inter-Regular.ttf` · `Inter-Medium.ttf` · `Inter-SemiBold.ttf` | `static/Inter_18pt-{Regular,Medium,SemiBold}.ttf`, **wajib rename** ke `Inter-*.ttf` |
+| Sora (0.3.0) | 600 (display/headline/title) | `Sora-SemiBold.ttf` | `static/Sora-SemiBold.ttf`, **tanpa rename** |
 | JetBrains Mono | 500 · 600 (angka, `AppText.num`) | `JetBrainsMono-Medium.ttf` · `JetBrainsMono-SemiBold.ttf` | `static/JetBrainsMono-{Medium,SemiBold}.ttf`, **tanpa rename** |
 
 Weight lain (mis. JetBrains Mono 700) tidak dibundel: `AppText.num(weight: w700)` gagal saat runtime fetching OFF. Pakai w500/w600.

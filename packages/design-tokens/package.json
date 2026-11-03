@@ -1,13 +1,14 @@
 {
   "name": "@sentra/design-tokens",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "private": true,
-  "description": "Sentra (working name) design tokens — source src/tokens.json (W3C DTCG), generated Tailwind v4 / CSS / Tauri / Flutter outputs.",
+  "description": "Centurion Trade design tokens (G1-blue) — source src/tokens.json (W3C DTCG), generated Tailwind v4 / CSS / Tauri / Flutter outputs.",
   "files": [
     "src",
     "tokens",
     "scripts",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
   "exports": {
     "./tokens.json": "./src/tokens.json",

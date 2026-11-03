@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sentra design tokens build. Source: tokens.json (W3C DTCG). No deps (Python 3.9+).
+"""Centurion Trade design tokens build (package @sentra/design-tokens). Source: tokens.json (W3C DTCG). No deps (Python 3.9+).
 usage: python3 build.py [SRC_JSON] [OUT_DIR]
 Outputs: tokens.css · tailwind.theme.css (Tailwind v4, CSS-first @theme) · tauri.css (dark + Compact default)
          app_tokens.dart (Flutter M3 + google_fonts) · tailwind.config.tokens.legacy-v3.js · contrast-report.md
@@ -35,6 +35,14 @@ DUR={p.split('.')[-1]:px(v) for p,v in leaves(tok["motion"]["duration"])}
 EASE={p:v["$value"] for p,v in leaves(tok["motion"]["easing"])}
 SANS=", ".join(f"'{f}'" if " " in f else f for f in tok["font"]["family"]["sans"]["$value"])
 MONO=", ".join(f"'{f}'" if " " in f else f for f in tok["font"]["family"]["mono"]["$value"])
+DISPLAY=", ".join(f"'{f}'" if " " in f else f for f in tok["font"]["family"]["display"]["$value"])  # 0.3.0
+# Coin logo + identicon (0.3.0, COIN_LOGO.md)
+COIN=tok["coin"]; COIN_SIZE={k:px(v) for k,v in COIN["logo"]["size"].items()}
+COIN_RING={th:COIN["logo"]["ring"][th]["$value"] for th in ("dark","light")}
+ID_FG=COIN["identicon"]["fg"]["$value"]; ID_PAL=[COIN["identicon"]["palette"][str(i)]["$value"] for i in range(12)]
+NT_OPACITY=COIN["logo"]["notTradeableOpacity"]["$value"]
+def rgba8(h):  # #RRGGBBAA → rgba()
+    h=h.lstrip("#"); r,g,b,a=(int(h[i:i+2],16) for i in (0,2,4,6)); return f"rgba({r}, {g}, {b}, {round(a/255,2)})"
 def shadow(v): return "none" if v=="none" else f"0 {v['offsetY']['value']}px {v['blur']['value']}px {v['spread']['value']}px {v['color']}"
 cv=lambda k:"--color-"+k.replace('.','-')
 dv=lambda k:"--density-"+k.replace('.','-')
@@ -79,11 +87,44 @@ for th in ("dark","light"):
     for bg in ("bg.canvas","bg.surface","bg.raised"):
         r_=cr(COL[th]["skeleton.base"],COL[th][bg]); rep.append(f"| {th} | `{bg}` | {r_:.2f} | {'PASS' if r_>=1.15 else 'FAIL'} |")
         if r_<1.15: fails.append(("skeleton.base",bg,r_,1.15,"skeleton"))
+# Identicon initials (0.3.0): fg on each palette hue ≥ 4.5:1 (text)
+rep+=["","## Identicon (coin.identicon.fg on palette, text ≥ 4.5:1)","| idx | bg | ratio | ok |","|---|---|---|---|"]
+for i,h in enumerate(ID_PAL):
+    r_=cr(ID_FG,h); rep.append(f"| {i} | {h} | {r_:.2f} | {'PASS' if r_>=4.5 else 'FAIL'} |")
+    if r_<4.5: fails.append(f"identicon.palette.{i} {r_:.2f} < 4.5")
+# Accent vs mode distinctness (0.3.0 G1-blue): brand must never read as Practice cyan / Real magenta / PnL
+import math
+def _lab(h):
+    def l(c):
+        c/=255; return c/12.92 if c<=0.04045 else ((c+0.055)/1.055)**2.4
+    h=h.lstrip('#'); r,g,b=(l(int(h[i:i+2],16)) for i in (0,2,4))
+    X=(r*.4124+g*.3576+b*.1805)/.95047; Y=r*.2126+g*.7152+b*.0722; Z=(r*.0193+g*.1192+b*.9505)/1.08883
+    f=lambda t:t**(1/3) if t>0.008856 else 7.787*t+16/116
+    return 116*f(Y)-16,500*(f(X)-f(Y)),200*(f(Y)-f(Z))
+def de00(a,b):
+    L1,a1,b1=_lab(a); L2,a2,b2=_lab(b); C1=math.hypot(a1,b1); C2=math.hypot(a2,b2); Cb=(C1+C2)/2
+    G=.5*(1-math.sqrt(Cb**7/(Cb**7+25**7))); a1p=(1+G)*a1; a2p=(1+G)*a2
+    C1p=math.hypot(a1p,b1); C2p=math.hypot(a2p,b2)
+    h1=math.degrees(math.atan2(b1,a1p))%360; h2=math.degrees(math.atan2(b2,a2p))%360
+    dL=L2-L1; dC=C2p-C1p; dh=h2-h1
+    dh=dh-360 if dh>180 else (dh+360 if dh<-180 else dh)
+    dH=2*math.sqrt(C1p*C2p)*math.sin(math.radians(dh/2)); Lb=(L1+L2)/2; Cbp=(C1p+C2p)/2
+    hb=(h1+h2)/2 if abs(h1-h2)<=180 else (h1+h2+360)/2
+    T=(1-.17*math.cos(math.radians(hb-30))+.24*math.cos(math.radians(2*hb))
+       +.32*math.cos(math.radians(3*hb+6))-.2*math.cos(math.radians(4*hb-63)))
+    SL=1+.015*(Lb-50)**2/math.sqrt(20+(Lb-50)**2); SC=1+.045*Cbp; SH=1+.015*Cbp*T
+    dth=30*math.exp(-((hb-275)/25)**2); RC=2*math.sqrt(Cbp**7/(Cbp**7+25**7)); RT=-math.sin(math.radians(2*dth))*RC
+    return math.sqrt((dL/SL)**2+(dC/SC)**2+(dH/SH)**2+RT*(dC/SC)*(dH/SH))
+rep+=["","## Accent distinctness (ΔE2000 ≥ 20 vs mode + PnL colors)","| theme | pair | ΔE00 | ok |","|---|---|---|---|"]
+for th in ("dark","light"):
+    for o in ("mode.practice","mode.real","semantic.profit","semantic.loss"):
+        e=de00(COL[th]["brand.primary"],COL[th][o]); rep.append(f"| {th} | `brand.primary` vs `{o}` | {e:.1f} | {'PASS' if e>=20 else 'FAIL'} |")
+        if e<20: fails.append(f"{th}: brand.primary vs {o} ΔE00 {e:.1f} < 20")
 open(os.path.join(OUT,"contrast-report.md"),"w").write("\n".join(rep)+"\n")
 
 # ---------------- CSS blocks ----------------
 def colvars(th,ind="  "):
-    return [f"{ind}{cv(k)}: {v};" for k,v in COL[th].items()]+[f"{ind}{cv(a)}: var({cv(t)}); /* deprecated alias (0.2.4): use {cv(t)} */" for a,t in ALIAS[th].items()]
+    return [f"{ind}{cv(k)}: {v};" for k,v in COL[th].items()]+[f"{ind}--coin-logo-ring: {rgba8(COIN_RING[th])};"]+[f"{ind}{cv(a)}: var({cv(t)}); /* deprecated alias (0.2.4): use {cv(t)} */" for a,t in ALIAS[th].items()]
 def typevars(den,ind="  "):
     o=[]
     for k,v in TYP[den].items():
@@ -95,7 +136,9 @@ def denvars(den,ind="  "):
     o+=[f"{ind}--spacing-control-sm: {d['control.sm']}px;",f"{ind}--spacing-control-md: {d['control.md']}px;",f"{ind}--spacing-control-lg: {d['control.lg']}px;",
         f"{ind}--spacing-hit: {d['hitMin']}px;",f"{ind}--spacing-row: {d['rowHeight']}px;",f"{ind}--spacing-chip: {d['chipHeight']}px;",f"{ind}--spacing-pad-x: {d['paddingX']}px;"]
     return o
-STATIC=[f"  --font-sans: {SANS};",f"  --font-mono: {MONO};","  --spacing: 4px;"]
+STATIC=[f"  --font-sans: {SANS};",f"  --font-mono: {MONO};",f"  --font-display: {DISPLAY};","  --spacing: 4px;"]
+STATIC+=[f"  --coin-logo-size-{k}: {v}px;" for k,v in COIN_SIZE.items()]+[f"  --coin-logo-not-tradeable-opacity: {NT_OPACITY};"]
+STATIC+=[f"  --color-identicon-fg: {ID_FG};"]+[f"  --color-identicon-{i}: {h};" for i,h in enumerate(ID_PAL)]
 STATIC+=[f"  --space-{k}: {v}px;" for k,v in SPACE.items()]
 STATIC+=[f"  --radius-{k}: {v}px;" for k,v in RAD.items()]
 STATIC+=[f"  --shadow-e{k}: {shadow(v)};" for k,v in EL.items()]
@@ -118,7 +161,7 @@ SKEL=["/* Skeleton: .skeleton (block) · .skeleton--text (line) · .skeleton--ci
       "  background: linear-gradient(90deg, transparent, var(--color-skeleton-highlight), transparent);",
       "  animation: sentra-shimmer var(--duration-shimmer) linear infinite;","}",
       "@keyframes sentra-shimmer { to { transform: translateX(100%); } }"]
-HDR="/* GENERATED by build.py from tokens.json — do not edit by hand. Sentra (working name). */"
+HDR="/* GENERATED by build.py from tokens.json — do not edit by hand. Centurion Trade (@sentra/design-tokens). */"
 
 def plain_css(default_density):
     o=[HDR,":root, [data-theme=\"dark\"] {","  color-scheme: dark;"]+colvars("dark")+["}",
@@ -182,10 +225,10 @@ M3=[("displayLarge","display"),("displayMedium","display"),("displaySmall","disp
 SANS_FB=[f for f in tok["font"]["family"]["sans"]["$value"][1:] if f not in ("system-ui","sans-serif")]
 MONO_FB=[f for f in tok["font"]["family"]["mono"]["$value"][1:] if f not in ("ui-monospace",)]
 q=lambda xs:", ".join(f"'{x}'" for x in xs)
-d=["// GENERATED by build.py from tokens.json — do not edit by hand. Sentra (working name).",
+d=["// GENERATED by build.py from tokens.json — do not edit by hand. Centurion Trade (@sentra/design-tokens).",
 "// Requires google_fonts >= 6.2 (verified with 9.x) for the MVP.",
 "// Production: bundle static OFL .ttf under assets/google_fonts/ whose names END WITH",
-"//   Inter-Regular, Inter-Medium, Inter-SemiBold, JetBrainsMono-Medium, JetBrainsMono-SemiBold (.ttf).",
+"//   Inter-Regular, Inter-Medium, Inter-SemiBold, Sora-SemiBold, JetBrainsMono-Medium, JetBrainsMono-SemiBold (.ttf).",
 "//   Google ships Inter only as static/Inter_18pt-*.ttf: re-bundle as Inter-*.ttf.",
 "//   Variable fonts never match (see README).",
 "// Then set GoogleFonts.config.allowRuntimeFetching = false; google_fonts loads the bundled files (same family names).",
@@ -194,11 +237,17 @@ d=["// GENERATED by build.py from tokens.json — do not edit by hand. Sentra (w
 "import 'package:flutter/material.dart';","import 'package:google_fonts/google_fonts.dart';","",
 "/// One family name everywhere: tokens.json, google_fonts, and pubspec `fonts:` when bundled.",
 "abstract final class AppFonts {","  static const sans = 'Inter';","  static const mono = 'JetBrains Mono';",
+"  /// Headings / brand (display, headline, title slots). 0.3.0 G1-blue.","  static const display = 'Sora';",
 f"  static const sansFallback = <String>[{q(SANS_FB)}];",f"  static const monoFallback = <String>[{q(MONO_FB)}];",
 "  static const numericFeatures = <FontFeature>[FontFeature.tabularFigures(), FontFeature.slashedZero()];","}",""]
 for th in ("dark","light"):
     d.append(f"abstract final class AppColors{th.capitalize()} {{"); d+=[f"  static const {camel(k)} = {dc(v)};" for k,v in COL[th].items()]
     d+=[f"  @Deprecated('Use {camel(t)} (design-tokens 0.2.4)')\n  static const {camel(a)} = {camel(t)};" for a,t in ALIAS[th].items()]; d.append("}\n")
+d+=["/// Coin logo sizes, ring and identicon fallback (COIN_LOGO.md). 0.3.0.","abstract final class AppCoinLogo {"]
+d+=[f"  static const double {k} = {v};" for k,v in COIN_SIZE.items()]
+d+=[f"  static const ring{th.capitalize()} = Color(0x{COIN_RING[th][7:9].upper()}{COIN_RING[th][1:7].upper()});" for th in ("dark","light")]
+d+=[f"  static const notTradeableOpacity = {NT_OPACITY};",f"  static const identiconFg = {dc(ID_FG)};","  static const identiconPalette = <Color>["]
+d+=[f"    {dc(h)}," for h in ID_PAL]+["  ];","}\n"]
 d+=["abstract final class AppSpace {"]+[f"  static const double {ident(k)} = {v};" for k,v in SPACE.items()]+["}\n"]
 d+=["abstract final class AppRadius {"]+[f"  static const double {k} = {min(v,999)};" for k,v in RAD.items()]+["}\n"]
 def bs(v):
@@ -217,10 +266,10 @@ for k in DUR:
     else: d.append(f"  Duration get {k} => reduced ? Duration.zero : {k}Base;")
 d+=["}\n"]
 d+=["/// Mobile = comfortable (tap 48dp Material, ≥ 44pt iOS). Compact is for desktop/tablet pointer UIs only.","class AppDensity {",
-"  const AppDensity({","    required this.controlSm,","    required this.controlMd,","    required this.controlLg,","    required this.hitMin,","    required this.paddingX,","    required this.rowHeight,","    required this.chipHeight,","    required this.gap,","    required this.icon,","  });",
-"  final double controlSm, controlMd, controlLg, hitMin, paddingX, rowHeight, chipHeight, gap, icon;"]
+"  const AppDensity({","    required this.controlSm,","    required this.controlMd,","    required this.controlLg,","    required this.hitMin,","    required this.paddingX,","    required this.rowHeight,","    required this.chipHeight,","    required this.gap,","    required this.icon,","    required this.tableHeader,","    required this.coinLogo,","  });",
+"  final double controlSm, controlMd, controlLg, hitMin, paddingX, rowHeight, chipHeight, gap, icon, tableHeader, coinLogo;"]
 for den in ("comfortable","compact"):
-    x=DEN[den]; d+=[f"  static const {den} = AppDensity(",f"    controlSm: {x['control.sm']},",f"    controlMd: {x['control.md']},",f"    controlLg: {x['control.lg']},",f"    hitMin: {x['hitMin']},",f"    paddingX: {x['paddingX']},",f"    rowHeight: {x['rowHeight']},",f"    chipHeight: {x['chipHeight']},",f"    gap: {x['gap']},",f"    icon: {x['icon']},","  );"]
+    x=DEN[den]; d+=[f"  static const {den} = AppDensity(",f"    controlSm: {x['control.sm']},",f"    controlMd: {x['control.md']},",f"    controlLg: {x['control.lg']},",f"    hitMin: {x['hitMin']},",f"    paddingX: {x['paddingX']},",f"    rowHeight: {x['rowHeight']},",f"    chipHeight: {x['chipHeight']},",f"    gap: {x['gap']},",f"    icon: {x['icon']},",f"    tableHeader: {x['tableHeader']},",f"    coinLogo: {x['coinLogo']},","  );"]
 d+=["  static const double tapMin = 48;","}\n"]
 d+=["/// Semantic colors outside ColorScheme: PnL (neutral = exact 0), guard, info, trading mode.","@immutable","class TradeColors extends ThemeExtension<TradeColors> {","  const TradeColors({"]+[f"    required this.{f}," for f in F]+["  });"]
 d+=[f"  final Color {f};" for f in F]
@@ -235,6 +284,9 @@ d+=["  /// T-15 PnL rule: tone by the EXACT value (lamports/BigInt or num). 0 �
     "  @override","  TradeColors lerp(ThemeExtension<TradeColors>? other, double t) {","    if (other is! TradeColors) return this;","    return TradeColors("]+[f"      {f}: Color.lerp({f}, other.{f}, t)!," for f in F]+["    );","  }","}\n"]
 d+=["abstract final class AppText {","  static TextStyle _s(double size, double line, FontWeight w, double ls, Color c) => GoogleFonts.inter(",
     "        fontSize: size,","        height: line / size,","        fontWeight: w,","        letterSpacing: ls,","        color: c,","      ).copyWith(fontFamilyFallback: AppFonts.sansFallback);","",
+    "  /// Sora for display / headline / title (G1 pairing, 0.3.0).",
+    "  static TextStyle _d(double size, double line, FontWeight w, double ls, Color c) => GoogleFonts.sora(",
+    "        fontSize: size,","        height: line / size,","        fontWeight: w,","        letterSpacing: ls,","        color: c,","      ).copyWith(fontFamilyFallback: AppFonts.sansFallback);","",
     "  /// All 15 Material 3 slots (mapping documented in README).","  static TextTheme theme(Color c, {bool compact = false}) {","    if (compact) {","      return TextTheme("]
 def slots(den,ind):
     o=[]
@@ -242,9 +294,14 @@ def slots(den,ind):
         v=TYP[den][k]; s=v["fontSize"]["value"]; w=v["fontWeight"]
         if m=="titleSmall": w=600
         if m=="labelMedium": w=500
-        o.append(f"{ind}{m}: _s({s}, {round(s*v['lineHeight'])}, FontWeight.w{w}, {v['letterSpacing']['value']}, c),")
+        fn="_d" if m.startswith(("display","headline","titleLarge")) else "_s"
+        o.append(f"{ind}{m}: {fn}({s}, {round(s*v['lineHeight'])}, FontWeight.w{w}, {v['letterSpacing']['value']}, c),")
     return o
 d+=slots("compact","        ")+["      );","    }","    return TextTheme("]+slots("comfortable","      ")+["    );","  }","",
+    "  /// Section eyebrow (G1, 0.3.0): Sora 600, uppercase the string yourself, color = brand.primary.",
+    f"  static TextStyle eyebrow(Color c, {{bool compact = false}}) => _d(compact ? {TYP['compact']['eyebrow']['fontSize']['value']} : {TYP['comfortable']['eyebrow']['fontSize']['value']}, "
+    f"compact ? {round(TYP['compact']['eyebrow']['fontSize']['value']*TYP['compact']['eyebrow']['lineHeight'])} : {round(TYP['comfortable']['eyebrow']['fontSize']['value']*TYP['comfortable']['eyebrow']['lineHeight'])}, "
+    f"FontWeight.w600, compact ? {TYP['compact']['eyebrow']['letterSpacing']['value']} : {TYP['comfortable']['eyebrow']['letterSpacing']['value']}, c);","",
     "  /// Monospace tabular numbers for SOL / PnL / % / timers. Use for every number.",
     "  static TextStyle num(double size, {FontWeight weight = FontWeight.w500, Color? color}) => GoogleFonts.jetBrainsMono(",
     "        fontSize: size,","        fontWeight: weight,","        color: color,","        fontFeatures: AppFonts.numericFeatures,","      ).copyWith(fontFamilyFallback: AppFonts.monoFallback);","}\n"]
