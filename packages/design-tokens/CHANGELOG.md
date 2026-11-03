@@ -1,5 +1,32 @@
 # Changelog — @centurion/design-tokens (Centurion Trade)
 
+## 0.3.3 — 3 Nov 2026 · G1-blue v2 light theme
+Perubahan source sudah masuk di `ed273fc` (checkpoint sebelum rename). Rilis ini menambahkan bump versi + catatan. Tidak ada rename atau penghapusan.
+
+### Changed
+| token | 0.3.2 | 0.3.3 |
+|---|---|---|
+| `color.light.brand.primary` | #1F5FD1 | **#2456D6** |
+| `color.light.border.focus` | #1F5FD1 | **#2456D6** |
+
+Lolos AA di bg/surface/raised light. Teks putih di tombol biru light juga AA.
+
+### Added
+| token | dark | light | Dart |
+|---|---|---|---|
+| `mode.practiceStripe` | #164D56 | #CDEBF0 | `TradeColors.practiceStripe` |
+| `mode.onPracticeContainer` | #3FD0E0 (= `mode.practice`) | **#064E5B** | `TradeColors.onPracticeContainer` |
+
+Alasannya: label badge Practice/Paper light (#0B7285) hanya 3,73:1 di atas garis stripe. #064E5B di #CDEBF0 lolos AA. CSS: `--color-mode-practiceStripe`, `--color-mode-onPracticeContainer`.
+
+### Build
+- Bagian baru "Mode treatments" di `contrast-report.md`: strip practice/real, label badge di container + stripe, onReal di real.
+- Accent distinctness kini juga mencakup `brand.primary` vs `semantic.guard` / `semantic.warning`.
+- Contrast FAIL 0, CSS valid, baris ≤ 120.
+
+### Catatan copy
+Mulai `@centurion/i18n` 0.4.10, treatment "Practice" di UI berlabel **Paper** (mode per strategi). Nama token tidak berubah.
+
 ## 0.3.2 — 3 Nov 2026 · docs (keputusan lead)
 Tidak ada perubahan nilai, nama token, atau output generator. Build + semua cek dijalankan ulang: contrast FAIL 0, CSS valid, baris ≤ 120.
 - **Guard vs warning:** di light theme, ΔE2000 guard #A85400 vs warning #8A5A00 = 10,1, **diterima apa adanya berdasarkan keputusan lead**. Aturan di README: guard selalu pakai ikon perisai + label, warning selalu pakai segitiga, dan warna tidak pernah jadi satu-satunya penanda.
