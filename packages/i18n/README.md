@@ -33,6 +33,14 @@ Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/
 ## Changelog
 Lihat [`CHANGELOG.md`](CHANGELOG.md) (0.4.0–0.4.9, BREAKING ditandai). 0.4.9: key copy G1-blue (kepadatan tabel, stop/resume, baris quote, exit ditahan, jual manual, izin ulang, dashboard); 2 key `kill_switch.*` deprecated (masih dipakai Desktop).
 
+### Deprecated: rencana penghapusan
+| Key | Pengganti | Dihapus |
+|---|---|---|
+| `kill_switch.action.open` | `kill_switch.action.engage` | rilis i18n pertama setelah Desktop `StopControl.tsx` migrasi |
+| `kill_switch.dialog.effect.buys` | `kill_switch.dialog.effect.exits_keep` | idem |
+
+Metadata mesin: `key-migrations.json` `releases[].deprecated[]` (`key`, `use`, `note`, `remove_when`), plus description ARB berawalan `DEPRECATED`.
+
 ### Migrasi key Desktop (0.4.4)
 | Lama (`apps/desktop` local.ts) | Baru (`@sentra/i18n`) | Catatan |
 |---|---|---|

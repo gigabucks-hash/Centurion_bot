@@ -38,9 +38,14 @@ Toggle Nyaman/Ringkas → `settings.appearance.density.{comfortable,compact}` ·
 `kill_switch.option.exits_freeze`, `kill_switch.option.revoke`, `kill_switch.reenable.action`, `kill_switch.reenable.resume_note`, `kill_switch.revoke_pending`,
 `wallet.owner.add_backup`, `wallet.owner.backup` (Rev 5.1; keputusan Boss: Stop = buy saja, tanpa wallet cadangan). Hanya ada di salinan ARB `apps/mobile/lib/l10n`.
 
-### Deprecated (tetap ada, hapus ≥ 0.5.0)
+### Deprecated (tetap ada sampai Desktop migrasi)
 `kill_switch.action.open` → pakai `kill_switch.action.engage`; `kill_switch.dialog.effect.buys` → pakai `kill_switch.dialog.effect.exits_keep`.
 Keduanya masih dibaca `apps/desktop/src/components/StopControl.tsx`, jadi tidak dihapus di rilis ini.
+**Catatan penghapusan:** kedua key ini **dihapus di rilis i18n pertama setelah** `StopControl.tsx` Desktop pindah ke `kill_switch.action.engage` dan
+`kill_switch.dialog.effect.exits_keep` (bukan versi tertentu). Metadata: `key-migrations.json` → `releases[0.4.9].deprecated[]` (`use`, `remove_when`) dan
+description ARB berawalan `DEPRECATED 0.4.9`. Hanya metadata/docs yang berubah di 0.4.9, copy tetap sama.
+`kill_switch.status.exits` (teks polos sejak 0.4.9): tidak ada pemanggil runtime di apps/web, apps/desktop, atau kode Dart apps/mobile (rg 3 Nov 2026). Hanya salinan ARB +
+gen l10n `apps/mobile/lib/l10n` yang masih punya versi `{state}` lama, dan tidak ada yang memanggilnya. Re-sync ARB aman.
 
 ### Validasi
 ICU parse + paritas argumen EN/ID 691/691 (bad 0) · ARB tanpa `#` (26 plural ditulis ulang ke `{var}`) · `flutter gen-l10n` + `dart analyze` 0 issue ·
