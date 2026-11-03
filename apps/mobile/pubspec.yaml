@@ -39,3 +39,10 @@ flutter:
   # Do NOT list them under `fonts:` as well. OFL texts ship next to the files.
   assets:
     - assets/google_fonts/
+  # Inter Bold (rsms/inter v4.1, OFL: assets/fonts/Inter-OFL.txt) for coin identicon initials only (COIN_LOGO §4:
+  # Inter 700). From design-tokens 5594cee; sha256 pinned in tool/ci_check_vendored.sh.
+  fonts:
+    - family: InterIdenticon
+      fonts:
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700

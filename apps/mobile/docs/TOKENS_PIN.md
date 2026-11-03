@@ -1,4 +1,16 @@
-# Design-tokens pin and i18n sync (3 Nov 2026)
+# Vendored pins: contracts, i18n, design-tokens, fonts (3 Nov 2026)
+
+| What | Pin | Where it is enforced |
+|---|---|---|
+| @centurion/contracts 1.1.6 (errors.json v7, 67 codes) | `4e0d7f3` | `lib/data/api/contracts_pin.dart`; `tool/ci_check_errors.sh` generates from `git show <pin>:packages/contracts/errors.json` |
+| @centurion/i18n 0.4.11 (786 keys) | `714beb2` | ARB sha256 in `tool/ci_check_vendored.sh`; `tool/gen_error_l10n.py` + tests read `errors.map.json` at the pin |
+| @centurion/design-tokens 0.2.5 | `bd58541` | sha256 in `tool/ci_check_vendored.sh` (G1-blue 0.3.x on hold) |
+| Inter Bold (rsms/inter v4.1, OFL) | `5594cee` | sha256 `2883160…947f` in `tool/ci_check_vendored.sh`; `assets/fonts/` + pubspec family `InterIdenticon` (weight 700) |
+
+None of the gates read the monorepo working tree, so other agents' uncommitted work cannot break mobile CI. CI needs
+git history for the contracts pin (`fetch-depth: 0`); without it the errors gate falls back to the working-tree file
+only if its `version` matches `contractsErrorsJsonVersion`. Bump a pin = copy at the new commit, update the hash/constant,
+run gen-l10n / the generators, read the CHANGELOG.
 
 ## design-tokens: pinned to 0.2.5
 `lib/core/theme/app_tokens.dart` stays on **@centurion/design-tokens 0.2.5** (commit `bd58541`), with only the
@@ -21,7 +33,11 @@ appear in 0.3.0. They are not G1-blue colours: they are the COIN_LOGO spec. `lib
 carries them as constants until the pin is lifted. The skeleton colour uses the pinned token
 (`skeletonBase` #262F43 dark), not 0.3.x #272D3C.
 
-## i18n: ARB = @centurion/i18n 0.4.9 verbatim
+## i18n history
+0.4.11 (714beb2) removed `kill_switch.action.open` and `kill_switch.dialog.effect.buys` (no Dart usage); 0.4.10 added
+97 keys incl. the 9 errors-v7 `error.code.*` messages (app-local fallbacks gone) and Paper copy.
+
+### 0.4.9 sync notes
 - Removed (only existed in the app copy; no call sites): `kill_switch.option.exits_freeze`,
   `kill_switch.option.revoke`, `kill_switch.reenable.action`, `kill_switch.reenable.resume_note`,
   `kill_switch.revoke_pending`, `wallet.owner.add_backup`, `wallet.owner.backup`.
@@ -36,10 +52,6 @@ carries them as constants until the pin is lifted. The skeleton colour uses the 
   Only tests called them (Phase 7 reserved copy).
 - The 12 G1-blue copy keys are in the ARB but unused: no G1-blue UI is built.
 
-## errors.json ahead of errors.map.json
-`packages/contracts/errors.json` (Backend working tree, still `version: 6`) has 67 codes, but
-`@centurion/i18n` 0.4.9 `errors.map.json` covers the 58 at contracts HEAD. `tool/gen_error_l10n.py` adds an
-app-local fallback for the other codes: the errors.json catalog message (en/id), which is the same text the
-server sends. These codes need copy from UX: AGENT_BUDGET_EXCEEDED, AGENT_REQUEST_EXPIRED,
-AGENT_TRADE_DISABLED, BUYS_PAUSED, LOGO_NOT_FOUND, LOGO_REJECTED, LOOSEN_REQUIRES_APP, RESUME_REQUIRES_APP,
-SIWS_SESSION_REQUIRED.
+## errors.json vs errors.map.json
+Since i18n 0.4.10 errors.map.json covers all 67 codes. `tool/gen_error_l10n.py` still emits the errors.json-message
+fallback automatically if contracts ever run ahead of i18n again.

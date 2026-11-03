@@ -5,12 +5,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:centurion_mobile/data/api/api_exception.dart';
 
 import '../tool/gen_errors.dart' as gen;
+import 'support/contracts_source.dart';
 
 /// The generated enum must track `errors.json` exactly. No count is hardcoded
 /// here: everything is read from the JSON the generator consumes.
 void main() {
-  final source = Platform.environment['ERRORS_JSON'] ?? '../../packages/contracts/errors.json';
-  final json = jsonDecode(File(source).readAsStringSync()) as Map<String, Object?>;
+  // errors.json at the contracts pin (lib/data/api/contracts_pin.dart), not the working tree.
+  final pinned = pinnedErrorsJson();
+  final source = '${Directory.systemTemp.createTempSync('errors_pin').path}/errors.json';
+  File(source).writeAsStringSync(pinned);
+  final json = jsonDecode(pinned) as Map<String, Object?>;
   final codes = [for (final c in json['codes']! as List) (c as Map)['code'] as String];
 
   test('count + version + every code match errors.json', () {
@@ -60,7 +64,7 @@ void main() {
   }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('a new code in errors.json is generated with no manual edits', () {
-    final fixture = jsonDecode(File(source).readAsStringSync()) as Map<String, dynamic>;
+    final fixture = jsonDecode(pinned) as Map<String, dynamic>;
     (fixture['codes'] as List).add({
       'code': 'BRAND_NEW_CODE',
       'kind': 'error',
@@ -78,7 +82,7 @@ void main() {
     (fixture['codes'] as List).add({'code': 'BRAND_NEW_CODE', 'http': 418, 'retryable': false, 'message': 'dup'});
     expect(() => gen.generate(jsonEncode(fixture)), throwsA(anything));
     // sqlstate must be P0 + http.
-    final bad = jsonDecode(File(source).readAsStringSync()) as Map<String, dynamic>;
+    final bad = jsonDecode(pinned) as Map<String, dynamic>;
     ((bad['codes'] as List).first as Map)['sqlstate'] = 'P0999';
     expect(() => gen.generate(jsonEncode(bad)), throwsA(isA<FormatException>()));
   });

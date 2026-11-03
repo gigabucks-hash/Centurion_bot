@@ -6,10 +6,27 @@ Needs lib/l10n/gen (flutter gen-l10n) to resolve getter/method signatures.
 """
 import json, os, re, sys, textwrap
 
-src = os.environ.get('ERRORS_MAP_JSON', '../../packages/i18n/errors.map.json')
-m = json.load(open(src))
+_pins = open('lib/data/api/contracts_pin.dart').read()
+
+
+def _git_or_file(pin_name, path):
+    import subprocess
+    pin = re.search(pin_name + r" = '([^']+)'", _pins).group(1)
+    r = subprocess.run(['git', 'show', f'{pin}:{path}'], capture_output=True, text=True)
+    return json.loads(r.stdout) if r.returncode == 0 else json.load(open('../../' + path))
+
+
+# errors.map.json at i18nPin (or $ERRORS_MAP_JSON), never the working tree.
+m = json.load(open(os.environ['ERRORS_MAP_JSON'])) if os.environ.get('ERRORS_MAP_JSON') else _git_or_file(
+    'i18nPin', 'packages/i18n/errors.map.json')
 # errors.json (Backend) may be ahead of errors.map.json (UX): those codes get an app-local fallback.
-wire = [c['code'] for c in json.load(open(os.environ.get('ERRORS_JSON', '../../packages/contracts/errors.json')))['codes']]
+def _pinned_errors():
+    if os.environ.get('ERRORS_JSON'):
+        return json.load(open(os.environ['ERRORS_JSON']))
+    return _git_or_file('contractsPin', 'packages/contracts/errors.json')
+
+
+wire = [c['code'] for c in _pinned_errors()['codes']]
 gen = open('lib/l10n/gen/app_localizations.dart').read()
 
 

@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/contracts_source.dart';
 import 'package:centurion_mobile/core/error_l10n.g.dart';
 import 'package:centurion_mobile/core/exit_reason_l10n.dart';
 import 'package:centurion_mobile/core/l10n_format.dart';
@@ -269,13 +270,9 @@ void main() {
     });
 
     test('errors.map.json parity + tones: GUARD_WEAKEN pending (not error), QUOTE stale warning', () {
-      final map = jsonDecode(File('../../packages/i18n/errors.map.json').readAsStringSync()) as Map;
+      final map = jsonDecode(pinnedI18n('errors.map.json')) as Map;
       expect(errorL10nCodes.toSet(), (map['codes'] as Map).keys.toSet());
-      final errs =
-          jsonDecode(
-                File(Platform.environment['ERRORS_JSON'] ?? '../../packages/contracts/errors.json').readAsStringSync(),
-              )
-              as Map;
+      final errs = jsonDecode(pinnedErrorsJson()) as Map;
       final wire = {for (final e in errs['codes'] as List) (e as Map)['code'] as String};
       // errors.json (Backend) can run ahead of errors.map.json (UX). Every mapped code must exist on the
       // wire; wire codes without i18n copy fall back to the errors.json catalog message (never the key).
@@ -288,7 +285,11 @@ void main() {
         expect(errorText(en, c), c.message('en'), reason: code);
         expect(errorText(idL, c), c.message('id'), reason: code);
       }
-      expect(errorText(idL, ApiErrorCode.fromWire('LOGO_NOT_FOUND')), 'Logo untuk koin ini tidak tersedia');
+      expect(errorText(idL, ApiErrorCode.fromWire('LOGO_NOT_FOUND')), idL.errorCodeLogoNotFound); // i18n 0.4.10
+      expect(
+        errorText(idL, ApiErrorCode.fromWire('MODE_NOT_ALLOWED')),
+        startsWith('Strategi ini belum disetujui untuk mode Real'),
+      );
       expect(errorTone(ApiErrorCode.guardWeakenRequiresApproval), ErrorTone.pending);
       expect(errorTone(ApiErrorCode.quoteMissingOrStale), ErrorTone.warning);
       expect(errorTone(ApiErrorCode.versionConflict), ErrorTone.error);

@@ -125,7 +125,7 @@ void main() {
             expect('${n.title}${n.body}', isNot(contains('{')), reason: label);
             expect(n.body, isNot(contains('–')), reason: '$label: unfilled var in "${n.body}"');
             if (!unprefixed.contains(n.copyKey)) {
-              expect(n.title, startsWith(mode == NotifMode.real ? '[REAL SOL] ' : '[PRACTICE] '), reason: label);
+              expect(n.title, startsWith(mode == NotifMode.real ? '[REAL] ' : '[PAPER] '), reason: label);
             }
             expect(n.actions, expectedActions(e, mode), reason: label);
             if (!(mode == NotifMode.practice && e.isPick)) {
@@ -163,7 +163,7 @@ void main() {
 
   test('locale number formats and units (ID 0,24 / EN 0.24), per format.mjs', () {
     final id = r.render(msg(NotifEvent.n01PickPending, NotifMode.practice), NotifLocale.id, now);
-    expect(id.title, r'[PRACTICE] $KEPL menunggu approval');
+    expect(id.title, r'[PAPER] Tinjau $KEPL: menunggu approval');
     expect(id.body, 'Pullback v2 · 0,24\u00A0paper SOL · sisa 01:42');
     final en = r.render(msg(NotifEvent.n01PickPending, NotifMode.real), NotifLocale.en, now);
     // Server clock skew (server_now − device now) shifts the countdown.
@@ -174,7 +174,7 @@ void main() {
       clockSkew: const Duration(seconds: 40),
     );
     expect(skewed.body, endsWith('sisa 01:02'));
-    expect(en.title, r'[REAL SOL] $KEPL awaits approval');
+    expect(en.title, r'[REAL] Review $KEPL: awaiting approval');
     expect(en.body, 'Pullback v2 · 0.24\u00A0SOL · 01:42 left');
     final tp = r.render(msg(NotifEvent.n08TpHit, NotifMode.practice), NotifLocale.id, now);
     expect(tp.body, 'Terjual 33% di +12,5% · ▲ +0,031\u00A0paper SOL');
@@ -205,17 +205,17 @@ void main() {
       r
           .render(msg(NotifEvent.n07Expired, NotifMode.practice, expireReason: 'practice_reset'), NotifLocale.en, now)
           .body,
-      'Practice was reset; pending buys were cleared',
+      'Paper was reset; pending buys were cleared',
     );
     expect(
       r.render(msg(NotifEvent.n07Expired, NotifMode.practice, expireReason: 'bogus'), NotifLocale.en, now).copyKey,
       'N-07.timeout',
     );
     final toReal = r.render(msg(NotifEvent.n14ModeSwitch, NotifMode.real), NotifLocale.id, now);
-    expect(toReal.title, 'Sekarang di REAL SOL');
+    expect(toReal.title, 'Cek mode strategi: sekarang di REAL');
     expect(toReal.priority, NotifPriority.high);
     final toPractice = r.render(msg(NotifEvent.n14ModeSwitch, NotifMode.practice), NotifLocale.en, now);
-    expect(toPractice.title, 'Back to PRACTICE');
+    expect(toPractice.title, 'Check strategy mode: back to PAPER');
     expect(toPractice.priority, NotifPriority.normal);
   });
 
@@ -228,10 +228,10 @@ void main() {
     expect(count, 4);
     final n = r.render(msg(NotifEvent.n01PickPending, NotifMode.practice), NotifLocale.id, now, groupCount: count);
     expect(n.grouped, isTrue);
-    expect(n.title, '[PRACTICE] 4 pick menunggu approval');
+    expect(n.title, '[PAPER] Tinjau 4 pick yang menunggu approval');
     expect(
       r.render(msg(NotifEvent.n01PickPending, NotifMode.real), NotifLocale.en, now, groupCount: 5).title,
-      '[REAL SOL] 5 picks await approval',
+      '[REAL] Review 5 picks awaiting approval',
     );
     expect(n.actions, isEmpty);
     expect(n.tapRoute, '/approvals');
@@ -252,7 +252,7 @@ void main() {
       NotifLocale.en,
       now,
     );
-    expect(en.title, r'[PRACTICE] Buy $KEPL failed');
+    expect(en.title, r'[PAPER] Check $KEPL: buy failed');
     expect(en.body, 'Price moved more than your slippage limit · 0.25\u00A0paper SOL. No SOL was spent.');
     final id = r.render(
       msg(
@@ -263,7 +263,7 @@ void main() {
       NotifLocale.id,
       now,
     );
-    expect(id.title, r'[REAL SOL] Jual $KEPL gagal');
+    expect(id.title, r'[REAL] Cek $KEPL: jual gagal');
     expect(id.body, startsWith('Data pool'));
     expect(id.body, contains('1,23\u00A0SOL'));
     // Unknown reason code → generic copy, never the raw code.

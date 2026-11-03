@@ -355,7 +355,6 @@ class CoinIdenticon extends StatelessWidget {
     final seed = mint ?? symbol;
     final idx = Identicon.paletteIndex(seed);
     final text = Identicon.initials(symbol);
-    final base = Theme.of(context).textTheme.labelSmall ?? const TextStyle();
     return SizedBox.square(
       key: ValueKey('identicon_${idx}_$text'),
       dimension: size,
@@ -366,7 +365,8 @@ class CoinIdenticon extends StatelessWidget {
             text,
             maxLines: 1,
             textScaler: TextScaler.noScaling, // sized to the circle, not to body text
-            style: base.copyWith(
+            style: TextStyle(
+              fontFamily: Identicon.fontFamily, // bundled Inter Bold (pubspec `fonts:`)
               color: const Color(Identicon.fg),
               fontWeight: FontWeight.w700,
               fontSize: size * (text.length == 2 ? 0.42 : 0.5),
@@ -388,6 +388,9 @@ abstract final class Identicon {
     0xFF8A2E3B, 0xFF8A4A1F, 0xFF6E5A12, 0xFF4C6A1A, 0xFF1F6B3A, 0xFF146560, //
     0xFF16607E, 0xFF2A4F94, 0xFF4A3F9C, 0xFF6A3592, 0xFF86306F, 0xFF5A5F6E,
   ];
+
+  /// Bundled Inter 700 (assets/fonts/Inter-Bold.ttf).
+  static const fontFamily = 'InterIdenticon';
 
   /// `coin.identicon.fg`.
   static const fg = 0xFFF4F6FB;

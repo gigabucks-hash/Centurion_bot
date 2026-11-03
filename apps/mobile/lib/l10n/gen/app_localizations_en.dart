@@ -9,6 +9,21 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String alertApproveBefore(String mm_ss, String symbol) {
+    return 'Approve $symbol before $mm_ss';
+  }
+
+  @override
+  String alertGuardRejected(String symbol) {
+    return 'Review $symbol: Guard rejected the buy';
+  }
+
+  @override
+  String alertTpHit(String n, String pct, String symbol) {
+    return 'Check $symbol: TP$n hit, $pct% sold';
+  }
+
+  @override
   String get appAboutTitle => 'About Centurion Trade';
 
   @override
@@ -463,6 +478,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get conflictStateOffline => 'Can’t check for newer versions while offline. Your draft is kept locally.';
 
   @override
+  String get dashboardBalanceRealLabel => 'Real balance · trading wallet';
+
+  @override
+  String get dashboardBalanceToday => 'today';
+
+  @override
   String get dashboardEyebrow => 'Command deck';
 
   @override
@@ -513,6 +534,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboardKpiRealizedPnl => 'Realized PnL';
 
   @override
+  String dashboardNeedsActionCount(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$countString new',
+      one: '$countString new',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get dashboardNeedsActionTitle => 'Needs action';
+
+  @override
+  String get dashboardStatDailyLimitReal => 'Real daily limit';
+
+  @override
+  String get dashboardStatOpenPositions => 'Open positions';
+
+  @override
+  String get dashboardStatPaperStrategies => 'Paper strategies';
+
+  @override
+  String get dashboardStatRealizedToday => 'Realized PnL · today';
+
+  @override
+  String get dashboardStatWinRate7d => 'Win rate · 7 days';
+
+  @override
   String get dashboardStrategiesColApproval => 'Approval';
 
   @override
@@ -541,7 +594,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String dashboardSubtitlePractice(String start) {
-    return 'Practice workspace · start $start · live updates';
+    return 'Paper strategies · start $start · live updates';
   }
 
   @override
@@ -552,6 +605,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorCodeAccountDeletionPending => 'Account deletion is already scheduled.';
+
+  @override
+  String get errorCodeAgentBudgetExceeded => 'The agent hit its call limit. Try again later.';
+
+  @override
+  String get errorCodeAgentRequestExpired => 'This agent connection request expired. Start again from the agent.';
+
+  @override
+  String get errorCodeAgentTradeDisabled => 'Agent trading is off. Turn it on in the Centurion Trade app.';
 
   @override
   String get errorCodeApprovalAlreadyDecided => 'This was already decided on another device.';
@@ -575,6 +637,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorCodeAuthTgReplay => 'This Telegram login was already used. Start again.';
+
+  @override
+  String get errorCodeBuysPaused => 'New buys are stopped. Resume buying first.';
 
   @override
   String get errorCodeConfirmationInvalid => 'This confirmation expired or was already used. Start again.';
@@ -615,7 +680,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorCodeLastLoginMethod => 'This is your only sign-in method. Link another one before unlinking.';
 
   @override
-  String get errorCodeModeNotAllowed => 'Only Practice is available. Real SOL isn’t enabled yet.';
+  String get errorCodeLogoNotFound => 'No logo for this coin. The symbol initials are shown instead.';
+
+  @override
+  String get errorCodeLogoRejected => 'This coin\'s logo was rejected. The symbol initials are shown instead.';
+
+  @override
+  String get errorCodeLoosenRequiresApp => 'Open the Centurion Trade app to loosen limits or guards.';
+
+  @override
+  String get errorCodeModeNotAllowed => 'This strategy is not approved for Real mode';
 
   @override
   String get errorCodeNotFound => 'Not found, or you don’t have access.';
@@ -631,7 +705,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorCodePracticeCashInsufficient =>
-      'Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.';
+      'Paper cash is too low for the next entry. Entries pause until cash recovers or you reset Paper.';
 
   @override
   String get errorCodeQuoteMissingOrStale => 'Quote expired — refresh it and check the values again before approving.';
@@ -661,14 +735,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String errorCodeResetCooldown(String next_allowed_at) {
-    return 'Practice can be reset once a day. Next: $next_allowed_at';
+    return 'Paper can be reset once a day. Next: $next_allowed_at';
   }
+
+  @override
+  String get errorCodeResumeRequiresApp => 'Buying was paused in the app. Resume it in the Centurion Trade app.';
 
   @override
   String get errorCodeSettingsSchemaInvalid => 'These strategy settings aren’t valid. Check the highlighted fields.';
 
   @override
   String get errorCodeSiwsNonceInvalid => 'This sign-in request expired. Try again.';
+
+  @override
+  String get errorCodeSiwsSessionRequired => 'Sign in with your wallet in the Centurion Trade app.';
 
   @override
   String get errorCodeSiwsSignatureInvalid => 'The wallet signature couldn’t be verified.';
@@ -728,7 +808,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exitReasonPeakTrail => 'Trailing stop';
 
   @override
-  String get exitReasonPracticeReset => 'Practice reset';
+  String get exitReasonPracticeReset => 'Paper reset';
 
   @override
   String get exitReasonProfitTarget => 'Take profit';
@@ -767,10 +847,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get expireReasonKillSwitchDetail => 'Real trading was stopped';
 
   @override
-  String get expireReasonPracticeResetBadge => 'Practice reset';
+  String get expireReasonPracticeResetBadge => 'Paper reset';
 
   @override
-  String get expireReasonPracticeResetDetail => 'Practice was reset; pending buys were cleared';
+  String get expireReasonPracticeResetDetail => 'Paper was reset; pending buys were cleared';
 
   @override
   String get expireReasonPriceMovedBadge => 'Price moved';
@@ -957,13 +1037,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get killSwitchActionEngage => 'Stop buying';
 
   @override
-  String get killSwitchActionOpen => 'Stop all Real trading';
-
-  @override
   String get killSwitchActionResume => 'Resume buying';
-
-  @override
-  String get killSwitchDialogEffectBuys => 'New buys are blocked and all Real strategies pause.';
 
   @override
   String get killSwitchDialogEffectExitsKeep => 'Exit plans, TP and SL keep running.';
@@ -1062,6 +1136,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String killSwitchSellAllRetryTitle(String symbol) {
+    return 'Retry selling $symbol';
+  }
+
+  @override
   String killSwitchSellAllTitle(int count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
     final String countString = countNumberFormat.format(count);
@@ -1099,6 +1178,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get killSwitchStatusResumeHint => 'Bot authority stays active. No cooldown: resume any time with one click.';
+
+  @override
+  String get killSwitchStatusResumeWhenReady => 'Resume Real buying when ready';
 
   @override
   String get killSwitchStatusTitle => 'New buys stopped';
@@ -1157,7 +1239,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get loginPracticeDefault => 'New accounts always start in PRACTICE mode.';
+  String get loginPracticeDefault => 'New strategies always start in Paper.';
 
   @override
   String get loginSubtitle => 'One account, many sign-in methods. You can link more later.';
@@ -1212,13 +1294,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mcapUsdIndicative => 'USD is indicative (reference SOL price), not live.';
 
   @override
-  String get modePracticeBanner => 'Practice · paper SOL, no real SOL moves';
+  String get modePracticeBanner => 'Paper · paper SOL, no real SOL moves';
 
   @override
-  String get modePracticeBannerShort => 'Practice · paper SOL';
+  String get modePracticeBannerShort => 'Paper · paper SOL';
 
   @override
-  String get modePracticeLabel => 'PRACTICE';
+  String get modePracticeLabel => 'PAPER';
 
   @override
   String get modeRealBanner => 'Real SOL · wallet connected, orders use real SOL';
@@ -1239,7 +1321,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modeSwitchToRealTitle => 'Switch to Real SOL?';
 
   @override
-  String get modeSwitchToastPractice => 'Back to Practice';
+  String get modeSwitchToastPractice => 'Strategy back to Paper';
 
   @override
   String get navActivity => 'Activity';
@@ -1288,14 +1370,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifApprovedTitle(String symbol) {
-    return 'Approved: $symbol';
+    return 'View $symbol: approved';
   }
 
   @override
   String get notifDeletionCancelledBody => 'Your account stays active.';
 
   @override
-  String get notifDeletionCancelledTitle => 'Account deletion cancelled';
+  String get notifDeletionCancelledTitle => 'Check account: deletion cancelled';
 
   @override
   String notifDeletionScheduledBody(String scheduled_for) {
@@ -1303,7 +1385,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifDeletionScheduledTitle => 'Account deletion scheduled';
+  String get notifDeletionScheduledTitle => 'Check account: deletion scheduled';
 
   @override
   String notifExpiredBody(String reason) {
@@ -1312,8 +1394,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifExpiredTitle(String mode, String symbol) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] $symbol expired';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    return '[$_temp0] Re-check $symbol: approval expired';
   }
 
   @override
@@ -1324,9 +1406,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifFailedTitle(String mode, String side, String symbol) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    String _temp1 = intl.Intl.selectLogic(side, {'sell': 'Sell', 'other': 'Buy'});
-    return '[$_temp0] $_temp1 $symbol failed';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    String _temp1 = intl.Intl.selectLogic(side, {'sell': 'sell', 'other': 'buy'});
+    return '[$_temp0] Check $symbol: $_temp1 failed';
   }
 
   @override
@@ -1336,8 +1418,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifFilledTitle(String mode, String symbol) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Bought $symbol';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    return '[$_temp0] View $symbol: bought';
   }
 
   @override
@@ -1347,8 +1429,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifFirstBuyTitle(String mode, String strategy, String symbol) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] First buy for $strategy: $symbol';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    return '[$_temp0] Review first buy for $strategy: $symbol';
   }
 
   @override
@@ -1359,14 +1441,14 @@ class AppLocalizationsEn extends AppLocalizations {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
     final String countString = countNumberFormat.format(count);
 
-    String _temp0 = intl.Intl.selectLogic(mode, {'other': 'PRACTICE', 'real': 'REAL SOL'});
+    String _temp0 = intl.Intl.selectLogic(mode, {'other': 'PAPER', 'real': 'REAL'});
     String _temp1 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$countString picks await approval',
-      one: '$countString pick awaits approval',
+      other: '$countString picks',
+      one: '$countString pick',
     );
-    return '[$_temp0] $_temp1';
+    return '[$_temp0] Review $_temp1 awaiting approval';
   }
 
   @override
@@ -1376,8 +1458,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifGuardActiveTitle(String mode, String strategy) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] $strategy guard is now looser';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    return '[$_temp0] Review $strategy: guard is now looser';
   }
 
   @override
@@ -1387,8 +1469,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifGuardCancelledTitle(String mode) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Guard change cancelled';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    return '[$_temp0] Check guard: change cancelled';
   }
 
   @override
@@ -1397,7 +1479,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifGuardCooldownTitle => '[REAL SOL] Guard loosens in 10 min';
+  String get notifGuardCooldownTitle => '[REAL] Cancel within 10 min to keep the guard';
 
   @override
   String notifGuardRequestedBody(String from, String setting, String strategy, String to) {
@@ -1406,8 +1488,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifGuardRequestedTitle(String mode) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Guard change pending';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    return '[$_temp0] Confirm the pending guard change';
   }
 
   @override
@@ -1417,7 +1499,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifGuardRevertedTitle(String strategy) {
-    return '[REAL SOL] $strategy guard restored';
+    return '[REAL] Check $strategy: guard restored';
   }
 
   @override
@@ -1427,27 +1509,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifLossStopTitle(String mode, String strategy) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] $strategy paused';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    return '[$_temp0] Review $strategy: paused by loss stop';
   }
 
   @override
-  String get notifModePracticeBody => 'Orders use paper SOL';
+  String get notifModePracticeBody => 'This strategy’s orders use paper SOL';
 
   @override
-  String get notifModePracticeTitle => 'Back to PRACTICE';
+  String get notifModePracticeTitle => 'Check strategy mode: back to PAPER';
 
   @override
-  String get notifModeRealBody => 'Next orders use real SOL';
+  String get notifModeRealBody => 'Next orders of this strategy use real SOL';
 
   @override
-  String get notifModeRealTitle => 'Now in REAL SOL';
+  String get notifModeRealTitle => 'Check strategy mode: now in REAL';
 
   @override
   String get notifOfflineBody => 'Data may be delayed. Retrying…';
 
   @override
-  String get notifOfflineTitle => 'Lost connection to server';
+  String get notifOfflineTitle => 'Reconnect: lost connection to server';
 
   @override
   String notifPickPendingBody(String amount_lamports, String mm_ss, String strategy) {
@@ -1456,8 +1538,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifPickPendingTitle(String mode, String symbol) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] $symbol awaits approval';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    return '[$_temp0] Review $symbol: awaiting approval';
   }
 
   @override
@@ -1466,7 +1548,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifPracticeResetTitle => '[PRACTICE] Practice reset';
+  String get notifPracticeResetTitle => '[PAPER] Check balance: Paper reset';
 
   @override
   String notifRealBuysPausedBody(String actor_type, String device_label) {
@@ -1475,7 +1557,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealBuysPausedTitle => '[REAL SOL] New buys stopped';
+  String get notifRealBuysPausedTitle => '[REAL] Resume buying when ready: new buys stopped';
 
   @override
   String notifRealBuysResumedBody(String actor_type, String device_label) {
@@ -1484,7 +1566,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealBuysResumedTitle => '[REAL SOL] New buys resumed';
+  String get notifRealBuysResumedTitle => '[REAL] Check buys: new buys resumed';
 
   @override
   String notifRealDepositDetectedBody(String amount_lamports, String balance_lamports) {
@@ -1492,7 +1574,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealDepositDetectedTitle => '[REAL SOL] Deposit received';
+  String get notifRealDepositDetectedTitle => '[REAL] View deposit: received';
 
   @override
   String notifRealKillSwitchClearedBody(String signer_state) {
@@ -1504,7 +1586,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealKillSwitchClearedTitle => '[REAL SOL] Automatic stop cleared';
+  String get notifRealKillSwitchClearedTitle => '[REAL] Check Real: automatic stop cleared';
 
   @override
   String notifRealKillSwitchTrippedBody(String reason) {
@@ -1518,7 +1600,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealKillSwitchTrippedTitle => '[REAL SOL] Real trading stopped automatically';
+  String get notifRealKillSwitchTrippedTitle => '[REAL] Review Real: trading stopped automatically';
 
   @override
   String notifRealLimitChangedBody(String from, String setting, String to) {
@@ -1526,7 +1608,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealLimitChangedTitle => '[REAL SOL] Limits updated';
+  String get notifRealLimitChangedTitle => '[REAL] Check limits: updated';
 
   @override
   String notifRealLimitLoosenRequestedBody(String activates_at, String from, String setting, String to) {
@@ -1534,14 +1616,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealLimitLoosenRequestedTitle => '[REAL SOL] Limit change pending';
+  String get notifRealLimitLoosenRequestedTitle => '[REAL] Review limit change: pending';
 
   @override
   String get notifRealPolicyActivatedBody => 'Matches what you approved.';
 
   @override
   String notifRealPolicyActivatedTitle(String version) {
-    return '[REAL SOL] Wallet rules v$version active';
+    return '[REAL] Check wallet rules: v$version active';
   }
 
   @override
@@ -1550,7 +1632,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealPolicyMismatchTitle => '[REAL SOL] Wallet rules don’t match';
+  String get notifRealPolicyMismatchTitle => '[REAL] Compare wallet rules: they don’t match';
 
   @override
   String notifRealSellAllCompletedBody(int failed_count, int requested_count, int sold_count) {
@@ -1585,10 +1667,10 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       failed_count,
       locale: localeName,
-      zero: 'Sell all done',
-      other: 'Sell all: $failed_countString failed',
+      zero: 'View sell all: done',
+      other: 'Retry sell all: $failed_countString failed',
     );
-    return '[REAL SOL] $_temp0';
+    return '[REAL] $_temp0';
   }
 
   @override
@@ -1611,7 +1693,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealSellAllRequestedTitle => '[REAL SOL] Selling all positions';
+  String get notifRealSellAllRequestedTitle => '[REAL] Track sell all: selling all positions';
 
   @override
   String notifRealSignerGrantedBody(String expires_at) {
@@ -1619,7 +1701,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealSignerGrantedTitle => '[REAL SOL] Trading authority granted';
+  String get notifRealSignerGrantedTitle => '[REAL] Check trading authority: granted';
 
   @override
   String notifRealSignerRevokedBody(String reason) {
@@ -1632,7 +1714,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealSignerRevokedTitle => '[REAL SOL] Bot authority revoked';
+  String get notifRealSignerRevokedTitle => '[REAL] Grant authority again: bot authority revoked';
 
   @override
   String notifRealWithdrawConfirmedBody(String address_short, String amount_lamports) {
@@ -1640,7 +1722,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealWithdrawConfirmedTitle => '[REAL SOL] Withdrawal received';
+  String get notifRealWithdrawConfirmedTitle => '[REAL] View withdrawal: received';
 
   @override
   String notifRealWithdrawFailedBody(String amount_lamports, String reason_code) {
@@ -1648,7 +1730,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealWithdrawFailedTitle => '[REAL SOL] Withdrawal failed';
+  String get notifRealWithdrawFailedTitle => '[REAL] Check withdrawal: failed';
 
   @override
   String notifRealWithdrawRequestedBody(String address_short, String amount_lamports) {
@@ -1656,7 +1738,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealWithdrawRequestedTitle => '[REAL SOL] Withdrawal sent';
+  String get notifRealWithdrawRequestedTitle => '[REAL] Track withdrawal: sent';
 
   @override
   String notifRealWithdrawAddressAddedBody(String address_short, String cancel_until, String usable_at) {
@@ -1664,7 +1746,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealWithdrawAddressAddedTitle => '[REAL SOL] New main wallet registered';
+  String get notifRealWithdrawAddressAddedTitle => '[REAL] Review new main wallet: registered';
 
   @override
   String notifRealWithdrawAddressCancelledBody(String address_short) {
@@ -1672,7 +1754,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealWithdrawAddressCancelledTitle => '[REAL SOL] Main wallet change cancelled';
+  String get notifRealWithdrawAddressCancelledTitle => '[REAL] Check main wallet: change cancelled';
 
   @override
   String notifRealWithdrawAddressUsableBody(String address_short) {
@@ -1680,7 +1762,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get notifRealWithdrawAddressUsableTitle => '[REAL SOL] Main wallet active';
+  String get notifRealWithdrawAddressUsableTitle => '[REAL] Check main wallet: active';
 
   @override
   String notifSkippedBody(String reason) {
@@ -1689,7 +1771,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifSkippedTitle(String symbol) {
-    return 'Skipped: $symbol';
+    return 'View $symbol: skipped';
   }
 
   @override
@@ -1699,15 +1781,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifSlHitTitle(String mode, String symbol) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Stopped out of $symbol';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    return '[$_temp0] Check $symbol: stop loss hit';
   }
 
   @override
   String get notifTokenInvalidBody => 'Open the app to continue';
 
   @override
-  String get notifTokenInvalidTitle => 'Notification action expired';
+  String get notifTokenInvalidTitle => 'Open the app: notification action expired';
 
   @override
   String notifTpHitBody(String pct, String pct_sold, String pnl) {
@@ -1716,8 +1798,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String notifTpHitTitle(String mode, String symbol) {
-    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL SOL', 'other': 'PRACTICE'});
-    return '[$_temp0] Took profit on $symbol';
+    String _temp0 = intl.Intl.selectLogic(mode, {'real': 'REAL', 'other': 'PAPER'});
+    return '[$_temp0] Check $symbol: take profit hit';
   }
 
   @override
@@ -1727,7 +1809,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get orderFailReasonInsufficientPracticeBalance => 'Not enough paper SOL';
 
   @override
-  String get orderFailReasonModeNotAllowed => 'Only Practice orders run; Real SOL isn’t enabled yet';
+  String get orderFailReasonModeNotAllowed => 'This strategy is not approved for Real mode';
 
   @override
   String get orderFailReasonPoolStale => 'Pool data was out of date; the order was not sent';
@@ -1815,6 +1897,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get positionsPnlUnrealized => 'Unrealized PnL';
+
+  @override
   String get positionsSellConfirmTitle => 'Confirm sell';
 
   @override
@@ -1866,10 +1951,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get positionsSellUnavailable => 'Sell — not available';
 
   @override
+  String get positionsStatsAge => 'Position age';
+
+  @override
+  String get positionsStatsEntryPrice => 'Entry price';
+
+  @override
+  String get positionsStatsMcap => 'Market cap';
+
+  @override
+  String get positionsStatsQty => 'Amount';
+
+  @override
+  String get positionsStatsTitle => 'Stats';
+
+  @override
+  String get positionsStatsValueCost => 'Value / cost';
+
+  @override
+  String get positionsStatsVolume24h => 'Volume 24h';
+
+  @override
   String get positionsTitle => 'Positions';
 
   @override
   String get positionsTitlePaper => 'Positions (paper)';
+
+  @override
+  String get positionsTpslNote =>
+      'Thin line = previous value. Applies to the rest of the position; sends no transaction.';
+
+  @override
+  String get positionsTpslReset => 'Reset';
+
+  @override
+  String get positionsTpslSave => 'Save exit plan';
+
+  @override
+  String positionsTpslSellPct(String pct) {
+    return 'sell $pct%';
+  }
+
+  @override
+  String get positionsTpslStopLoss => 'Stop loss';
+
+  @override
+  String positionsTpslTakeProfit(String n) {
+    return 'Take profit $n';
+  }
+
+  @override
+  String get positionsTpslTitle => 'Edit TP / SL';
+
+  @override
+  String positionsTpslWas(String value) {
+    return 'was $value';
+  }
 
   @override
   String queueBatchApprove(int count) {
@@ -2035,6 +2172,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queueWhyTitle => 'Why does this need approval?';
 
   @override
+  String get receiptDone => 'Done';
+
+  @override
+  String get receiptExitPlanArmed => 'Exit plan armed';
+
+  @override
+  String get receiptFees => 'Fees';
+
+  @override
+  String get receiptPaid => 'Paid';
+
+  @override
+  String get receiptReceived => 'Received';
+
+  @override
+  String receiptTitleBuy(String symbol) {
+    return 'Bought $symbol';
+  }
+
+  @override
+  String receiptTitleSell(String symbol) {
+    return 'Sold $symbol';
+  }
+
+  @override
+  String get receiptViewTx => 'View transaction';
+
+  @override
   String get rejectReasonNotTradeable => 'Not tradeable';
 
   @override
@@ -2048,6 +2213,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewAtaRent => 'Token account rent (new)';
+
+  @override
+  String reviewBuyTitle(String symbol) {
+    return 'Approve buying $symbol';
+  }
 
   @override
   String get reviewDetailsToggle => 'Fees & slippage';
@@ -2074,7 +2244,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get reviewPracticeNote => 'Practice: simulated fill. No real SOL moves.';
+  String get reviewPracticeNote => 'Paper: simulated fill. No real SOL moves.';
 
   @override
   String get reviewPrice => 'Price';
@@ -2097,6 +2267,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewQuoteChangedDuringHold => 'Quote changed. Check the new values and hold again.';
+
+  @override
+  String get reviewQuoteDetails => 'Details';
+
+  @override
+  String reviewQuoteExpiresCountdown(String mm_ss) {
+    return '$mm_ss until it expires';
+  }
 
   @override
   String reviewQuoteExpiresIn(int seconds) {
@@ -2124,7 +2302,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reviewQuoteMissing => 'No quote yet — refresh to continue';
 
   @override
-  String get reviewQuotePracticeStale => 'Estimate expired. Practice can still approve; values may differ.';
+  String get reviewQuotePracticeStale => 'Estimate expired. Paper can still approve; values may differ.';
+
+  @override
+  String reviewQuoteRate(String rate, String symbol) {
+    return '1 SOL = $rate $symbol';
+  }
 
   @override
   String get reviewQuoteRefresh => 'Refresh quote';
@@ -2134,6 +2317,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewQuoteStale => 'Quote expired — refresh to continue';
+
+  @override
+  String get reviewQuoteStaleAction => 'Refresh the quote, then re-check the values before approving.';
 
   @override
   String reviewQuoteUpdatedAgo(int seconds) {
@@ -2152,6 +2338,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewQuoteUpdatedInline => 'Quote updated';
+
+  @override
+  String get reviewQuoteYouPay => 'You pay';
+
+  @override
+  String get reviewQuoteYouReceiveEst => 'You receive (estimate)';
 
   @override
   String get reviewRealNote => 'Real SOL: network fees are paid even if the order fails.';
@@ -2179,6 +2371,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reviewYouPay => 'You pay';
+
+  @override
+  String riskChipA11y(String label, String limit, String used) {
+    return '$label: $used of $limit SOL used';
+  }
+
+  @override
+  String get riskChipDailyLimit => 'Daily limit';
+
+  @override
+  String get riskChipGuard => 'Guard';
+
+  @override
+  String riskChipUsage(String limit, String used) {
+    return '$used/$limit';
+  }
 
   @override
   String get screenerActionOpenQueue => 'Open queue';
@@ -2450,7 +2658,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsNotifEmail => 'Email';
 
   @override
-  String get settingsNotifPracticeActions => 'Allow Approve from notifications (Practice only)';
+  String get settingsNotifPracticeActions => 'Allow Approve from notifications (Paper only)';
 
   @override
   String get settingsNotifPush => 'Push notifications';
@@ -2612,6 +2820,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepupTotpOptional => 'TOTP is optional and doesn’t replace either signature.';
 
   @override
+  String get strategyApprovalHoldNote => 'In Paper, hold 1.2 s. In Real, hold 2.5 s.';
+
+  @override
   String get strategyApprovalModeAskEveryBuy => 'Ask: every buy';
 
   @override
@@ -2619,6 +2830,171 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get strategyApprovalModeOff => 'Off (auto)';
+
+  @override
+  String get strategyEditParams => 'Edit parameters';
+
+  @override
+  String get strategyEditorEyebrow => 'Strategy editor';
+
+  @override
+  String strategyEditorRevNote(String rev) {
+    return 'Saved as rev $rev · applies to the next pick';
+  }
+
+  @override
+  String get strategyEditorSectionApproval => 'Approval';
+
+  @override
+  String get strategyEditorSectionEntry => 'Entry';
+
+  @override
+  String get strategyEditorSectionExit => 'Exit plan';
+
+  @override
+  String get strategyListColMode => 'Mode';
+
+  @override
+  String get strategyListColStatus => 'Status';
+
+  @override
+  String get strategyListColStrategy => 'Strategy';
+
+  @override
+  String strategyListFilterAll(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return 'All · $countString';
+  }
+
+  @override
+  String strategyListFilterPaper(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return 'Paper · $countString';
+  }
+
+  @override
+  String strategyListFilterReal(int count) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return 'Real · $countString';
+  }
+
+  @override
+  String get strategyListPnl7d => '7-day PnL';
+
+  @override
+  String strategyListSummary(int paper_count, int real_count) {
+    final intl.NumberFormat paper_countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String paper_countString = paper_countNumberFormat.format(paper_count);
+    final intl.NumberFormat real_countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String real_countString = real_countNumberFormat.format(real_count);
+
+    return '$real_countString Real · $paper_countString Paper';
+  }
+
+  @override
+  String get strategyListTitle => 'Every strategy runs in Paper or Real.';
+
+  @override
+  String get strategyModeLabel => 'Strategy mode';
+
+  @override
+  String get strategyModePaper => 'Paper';
+
+  @override
+  String get strategyModePaperDesc => 'Runs with paper SOL. No real SOL, no Phantom.';
+
+  @override
+  String get strategyModeReal => 'Real';
+
+  @override
+  String get strategyModeScopeNote => 'Mode applies per strategy. Open positions keep their original mode.';
+
+  @override
+  String get strategyNew => 'New strategy';
+
+  @override
+  String strategyRealGateDaysDone(int days_done) {
+    final intl.NumberFormat days_doneNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String days_doneString = days_doneNumberFormat.format(days_done);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      days_done,
+      locale: localeName,
+      other: '$days_doneString days',
+      one: '$days_doneString day',
+    );
+    return '$_temp0 in Paper';
+  }
+
+  @override
+  String get strategyRealGateNotSet => 'Rule not set yet';
+
+  @override
+  String strategyRealGateProgressDays(String days_done, String days_required) {
+    return '$days_done/$days_required days';
+  }
+
+  @override
+  String strategyRealGateProgressTrades(String trades_done, String trades_required) {
+    return '$trades_done/$trades_required trades';
+  }
+
+  @override
+  String strategyRealGateTradesDone(int trades_done) {
+    final intl.NumberFormat trades_doneNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String trades_doneString = trades_doneNumberFormat.format(trades_done);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      trades_done,
+      locale: localeName,
+      other: '$trades_doneString trades',
+      one: '$trades_doneString trade',
+    );
+    return '$_temp0 closed';
+  }
+
+  @override
+  String strategyRealLockedA11y(String reason) {
+    return 'Real option disabled: $reason';
+  }
+
+  @override
+  String get strategyRealLockedBadge => 'Needs Boss approval';
+
+  @override
+  String get strategyRealLockedChip => 'Real locked';
+
+  @override
+  String get strategyRealLockedChipShort => 'locked';
+
+  @override
+  String get strategyRealLockedExplain =>
+      'Real is locked. Boss approves each strategy before it can use real SOL. Until then it keeps running in Paper.';
+
+  @override
+  String get strategyRealLockedListNote =>
+      'Real stays locked until Boss approves. The strategy keeps running in Paper meanwhile.';
+
+  @override
+  String get strategyRealLockedReasonGateNotMet => 'Paper requirements not met yet';
+
+  @override
+  String get strategyRealLockedReasonNeedsOwnerApproval => 'Needs Boss approval';
+
+  @override
+  String get strategyRealLockedReasonOther => 'Not available right now';
+
+  @override
+  String get strategyRealLockedReasonPolicy => 'Blocked by wallet rules';
+
+  @override
+  String get strategySave => 'Save strategy';
 
   @override
   String get strategyStatusDraft => 'Draft';
@@ -2647,6 +3023,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get walletAuthorizeRegrantNote =>
       'Needs Phantom + passkey. Once authority is active, exit plans resume automatically.';
+
+  @override
+  String get walletAuthorizeRegrantTitle => 'Grant trading permission again to resume Real';
 
   @override
   String get walletLimitsSettingCapLamports => 'Total cap';

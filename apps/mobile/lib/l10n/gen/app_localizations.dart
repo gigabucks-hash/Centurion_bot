@@ -92,6 +92,24 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en'), Locale('id')];
 
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Approve {symbol} before {mm_ss}'**
+  String alertApproveBefore(String mm_ss, String symbol);
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Review {symbol}: Guard rejected the buy'**
+  String alertGuardRejected(String symbol);
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Check {symbol}: TP{n} hit, {pct}% sold'**
+  String alertTpHit(String n, String pct, String symbol);
+
   /// app.about.title
   ///
   /// In en, this message translates to:
@@ -740,6 +758,18 @@ abstract class AppLocalizations {
   /// **'Can’t check for newer versions while offline. Your draft is kept locally.'**
   String get conflictStateOffline;
 
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Real balance · trading wallet'**
+  String get dashboardBalanceRealLabel;
+
+  /// 0.4.10 G1-blue v2: after the PnL line, lower-case
+  ///
+  /// In en, this message translates to:
+  /// **'today'**
+  String get dashboardBalanceToday;
+
   /// 0.4.9 G1 eyebrow above the dashboard headline (product term, not translated); style AppText.eyebrow / text-eyebrow
   ///
   /// In en, this message translates to:
@@ -818,6 +848,48 @@ abstract class AppLocalizations {
   /// **'Realized PnL'**
   String get dashboardKpiRealizedPnl;
 
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'{count,plural,one{{count} new} other{{count} new}}'**
+  String dashboardNeedsActionCount(int count);
+
+  /// 0.4.10 G1-blue v2: card of verb-first alerts
+  ///
+  /// In en, this message translates to:
+  /// **'Needs action'**
+  String get dashboardNeedsActionTitle;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Real daily limit'**
+  String get dashboardStatDailyLimitReal;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Open positions'**
+  String get dashboardStatOpenPositions;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Paper strategies'**
+  String get dashboardStatPaperStrategies;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Realized PnL · today'**
+  String get dashboardStatRealizedToday;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Win rate · 7 days'**
+  String get dashboardStatWinRate7d;
+
   /// dashboard.strategies.col.approval
   ///
   /// In en, this message translates to:
@@ -875,7 +947,7 @@ abstract class AppLocalizations {
   /// start = formatted paper SOL
   ///
   /// In en, this message translates to:
-  /// **'Practice workspace · start {start} · live updates'**
+  /// **'Paper strategies · start {start} · live updates'**
   String dashboardSubtitlePractice(String start);
 
   /// dashboard.title
@@ -895,6 +967,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account deletion is already scheduled.'**
   String get errorCodeAccountDeletionPending;
+
+  /// wire error.code AGENT_BUDGET_EXCEEDED (contracts 1.1.6 errors v7)
+  ///
+  /// In en, this message translates to:
+  /// **'The agent hit its call limit. Try again later.'**
+  String get errorCodeAgentBudgetExceeded;
+
+  /// wire error.code AGENT_REQUEST_EXPIRED (contracts 1.1.6 errors v7)
+  ///
+  /// In en, this message translates to:
+  /// **'This agent connection request expired. Start again from the agent.'**
+  String get errorCodeAgentRequestExpired;
+
+  /// wire error.code AGENT_TRADE_DISABLED (contracts 1.1.6 errors v7)
+  ///
+  /// In en, this message translates to:
+  /// **'Agent trading is off. Turn it on in the Centurion Trade app.'**
+  String get errorCodeAgentTradeDisabled;
 
   /// wire error.code APPROVAL_ALREADY_DECIDED
   ///
@@ -937,6 +1027,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This Telegram login was already used. Start again.'**
   String get errorCodeAuthTgReplay;
+
+  /// wire error.code BUYS_PAUSED (contracts 1.1.6 errors v7)
+  ///
+  /// In en, this message translates to:
+  /// **'New buys are stopped. Resume buying first.'**
+  String get errorCodeBuysPaused;
 
   /// wire error.code CONFIRMATION_INVALID
   ///
@@ -1010,10 +1106,28 @@ abstract class AppLocalizations {
   /// **'This is your only sign-in method. Link another one before unlinking.'**
   String get errorCodeLastLoginMethod;
 
+  /// wire error.code LOGO_NOT_FOUND (contracts 1.1.6 errors v7)
+  ///
+  /// In en, this message translates to:
+  /// **'No logo for this coin. The symbol initials are shown instead.'**
+  String get errorCodeLogoNotFound;
+
+  /// wire error.code LOGO_REJECTED (contracts 1.1.6 errors v7)
+  ///
+  /// In en, this message translates to:
+  /// **'This coin\'s logo was rejected. The symbol initials are shown instead.'**
+  String get errorCodeLogoRejected;
+
+  /// wire error.code LOOSEN_REQUIRES_APP (contracts 1.1.6 errors v7)
+  ///
+  /// In en, this message translates to:
+  /// **'Open the Centurion Trade app to loosen limits or guards.'**
+  String get errorCodeLoosenRequiresApp;
+
   /// wire error.code MODE_NOT_ALLOWED
   ///
   /// In en, this message translates to:
-  /// **'Only Practice is available. Real SOL isn’t enabled yet.'**
+  /// **'This strategy is not approved for Real mode'**
   String get errorCodeModeNotAllowed;
 
   /// wire error.code NOT_FOUND
@@ -1043,7 +1157,7 @@ abstract class AppLocalizations {
   /// wire error.code PRACTICE_CASH_INSUFFICIENT
   ///
   /// In en, this message translates to:
-  /// **'Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.'**
+  /// **'Paper cash is too low for the next entry. Entries pause until cash recovers or you reset Paper.'**
   String get errorCodePracticeCashInsufficient;
 
   /// wire error.code QUOTE_MISSING_OR_STALE
@@ -1079,8 +1193,14 @@ abstract class AppLocalizations {
   /// wire error.code RESET_COOLDOWN
   ///
   /// In en, this message translates to:
-  /// **'Practice can be reset once a day. Next: {next_allowed_at}'**
+  /// **'Paper can be reset once a day. Next: {next_allowed_at}'**
   String errorCodeResetCooldown(String next_allowed_at);
+
+  /// wire error.code RESUME_REQUIRES_APP (contracts 1.1.6 errors v7)
+  ///
+  /// In en, this message translates to:
+  /// **'Buying was paused in the app. Resume it in the Centurion Trade app.'**
+  String get errorCodeResumeRequiresApp;
 
   /// wire error.code SETTINGS_SCHEMA_INVALID
   ///
@@ -1093,6 +1213,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This sign-in request expired. Try again.'**
   String get errorCodeSiwsNonceInvalid;
+
+  /// wire error.code SIWS_SESSION_REQUIRED (contracts 1.1.6 errors v7)
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with your wallet in the Centurion Trade app.'**
+  String get errorCodeSiwsSessionRequired;
 
   /// wire error.code SIWS_SIGNATURE_INVALID
   ///
@@ -1211,7 +1337,7 @@ abstract class AppLocalizations {
   /// wire ExitReason
   ///
   /// In en, this message translates to:
-  /// **'Practice reset'**
+  /// **'Paper reset'**
   String get exitReasonPracticeReset;
 
   /// wire ExitReason
@@ -1289,13 +1415,13 @@ abstract class AppLocalizations {
   /// queue chip for proposal.expired reason=practice_reset
   ///
   /// In en, this message translates to:
-  /// **'Practice reset'**
+  /// **'Paper reset'**
   String get expireReasonPracticeResetBadge;
 
   /// detail line / N-07 body for reason=practice_reset
   ///
   /// In en, this message translates to:
-  /// **'Practice was reset; pending buys were cleared'**
+  /// **'Paper was reset; pending buys were cleared'**
   String get expireReasonPracticeResetDetail;
 
   /// queue chip for proposal.expired reason=price_moved
@@ -1598,23 +1724,11 @@ abstract class AppLocalizations {
   /// **'Stop buying'**
   String get killSwitchActionEngage;
 
-  /// DEPRECATED 0.4.9: use kill_switch.action.engage (Stop = new buys only). Still read by apps/desktop StopControl; removed in the first i18n release after apps/desktop StopControl.tsx migrates to kill_switch.action.engage + kill_switch.dialog.effect.exits_keep
-  ///
-  /// In en, this message translates to:
-  /// **'Stop all Real trading'**
-  String get killSwitchActionOpen;
-
   /// → real.buys.resumed (immediate); replaces kill_switch.reenable.action
   ///
   /// In en, this message translates to:
   /// **'Resume buying'**
   String get killSwitchActionResume;
-
-  /// DEPRECATED 0.4.9: use kill_switch.dialog.effect.exits_keep. Still read by apps/desktop StopControl; removed in the first i18n release after apps/desktop StopControl.tsx migrates to kill_switch.action.engage + kill_switch.dialog.effect.exits_keep
-  ///
-  /// In en, this message translates to:
-  /// **'New buys are blocked and all Real strategies pause.'**
-  String get killSwitchDialogEffectBuys;
 
   /// 0.4.9 G1 Stop dialog: Stop = new buys only (Boss decision)
   ///
@@ -1736,6 +1850,12 @@ abstract class AppLocalizations {
   /// **'Sell all was just requested. Try again in {retry_after_s,plural,one{{retry_after_s} second} other{{retry_after_s} seconds}}.'**
   String killSwitchSellAllRateLimited(int retry_after_s);
 
+  /// 0.4.10 G1-blue v2: partial-failure dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Retry selling {symbol}'**
+  String killSwitchSellAllRetryTitle(String symbol);
+
   /// lead decision: confirm dialog + 2.5 s hold, NO Phantom step-up
   ///
   /// In en, this message translates to:
@@ -1765,6 +1885,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bot authority stays active. No cooldown: resume any time with one click.'**
   String get killSwitchStatusResumeHint;
+
+  /// 0.4.10 G1-blue v2: verb-first stopped banner title (kill_switch.status.title stays for Desktop)
+  ///
+  /// In en, this message translates to:
+  /// **'Resume Real buying when ready'**
+  String get killSwitchStatusResumeWhenReady;
 
   /// manual Stop = real.buys.paused (exits keep running); auto trip = real.kill_switch.tripped
   ///
@@ -1844,10 +1970,10 @@ abstract class AppLocalizations {
   /// **'{remaining,plural,one{Wrong code. {remaining} attempt left.} other{Wrong code. {remaining} attempts left.}}'**
   String loginOtpWrong(int remaining);
 
-  /// login.practice_default
+  /// 0.4.10: mode is per strategy
   ///
   /// In en, this message translates to:
-  /// **'New accounts always start in PRACTICE mode.'**
+  /// **'New strategies always start in Paper.'**
   String get loginPracticeDefault;
 
   /// login.subtitle
@@ -1949,19 +2075,19 @@ abstract class AppLocalizations {
   /// mode.practice.banner
   ///
   /// In en, this message translates to:
-  /// **'Practice · paper SOL, no real SOL moves'**
+  /// **'Paper · paper SOL, no real SOL moves'**
   String get modePracticeBanner;
 
   /// mode.practice.banner_short
   ///
   /// In en, this message translates to:
-  /// **'Practice · paper SOL'**
+  /// **'Paper · paper SOL'**
   String get modePracticeBannerShort;
 
-  /// do not translate mode labels
+  /// do not translate mode labels. 0.4.10: copy Practice → Paper (per-strategy mode; wire value stays practice); key rename in 0.5.0
   ///
   /// In en, this message translates to:
-  /// **'PRACTICE'**
+  /// **'PAPER'**
   String get modePracticeLabel;
 
   /// mode.real.banner
@@ -2000,10 +2126,10 @@ abstract class AppLocalizations {
   /// **'Switch to Real SOL?'**
   String get modeSwitchToRealTitle;
 
-  /// mode.switch.toast_practice
+  /// 0.4.10: mode is per strategy
   ///
   /// In en, this message translates to:
-  /// **'Back to Practice'**
+  /// **'Strategy back to Paper'**
   String get modeSwitchToastPractice;
 
   /// nav.activity
@@ -2099,7 +2225,7 @@ abstract class AppLocalizations {
   /// N-03; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'Approved: {symbol}'**
+  /// **'View {symbol}: approved'**
   String notifApprovedTitle(String symbol);
 
   /// N-22
@@ -2111,7 +2237,7 @@ abstract class AppLocalizations {
   /// N-22; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'Account deletion cancelled'**
+  /// **'Check account: deletion cancelled'**
   String get notifDeletionCancelledTitle;
 
   /// N-21
@@ -2123,7 +2249,7 @@ abstract class AppLocalizations {
   /// N-21; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'Account deletion scheduled'**
+  /// **'Check account: deletion scheduled'**
   String get notifDeletionScheduledTitle;
 
   /// N-07
@@ -2135,7 +2261,7 @@ abstract class AppLocalizations {
   /// N-07; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} expired'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] Re-check {symbol}: approval expired'**
   String notifExpiredTitle(String mode, String symbol);
 
   /// N-05
@@ -2147,7 +2273,7 @@ abstract class AppLocalizations {
   /// N-05; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {side, select, sell {Sell} other {Buy}} {symbol} failed'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] Check {symbol}: {side, select, sell {sell} other {buy}} failed'**
   String notifFailedTitle(String mode, String side, String symbol);
 
   /// N-04
@@ -2159,7 +2285,7 @@ abstract class AppLocalizations {
   /// N-04; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {symbol}'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] View {symbol}: bought'**
   String notifFilledTitle(String mode, String symbol);
 
   /// N-02
@@ -2171,7 +2297,7 @@ abstract class AppLocalizations {
   /// N-02; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {symbol}'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] Review first buy for {strategy}: {symbol}'**
   String notifFirstBuyTitle(String mode, String strategy, String symbol);
 
   /// N-18
@@ -2183,7 +2309,7 @@ abstract class AppLocalizations {
   /// N-18; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode,select,other{PRACTICE} real{REAL SOL}}] {count,plural,one{{count} pick awaits approval} other{{count} picks await approval}}'**
+  /// **'[{mode,select,other{PAPER} real{REAL}}] Review {count,plural,one{{count} pick} other{{count} picks}} awaiting approval'**
   String notifGroupedTitle(int count, String mode);
 
   /// N-12
@@ -2195,7 +2321,7 @@ abstract class AppLocalizations {
   /// N-12; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} guard is now looser'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] Review {strategy}: guard is now looser'**
   String notifGuardActiveTitle(String mode, String strategy);
 
   /// N-19
@@ -2207,7 +2333,7 @@ abstract class AppLocalizations {
   /// N-19; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change cancelled'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] Check guard: change cancelled'**
   String notifGuardCancelledTitle(String mode);
 
   /// N-11
@@ -2219,7 +2345,7 @@ abstract class AppLocalizations {
   /// N-11; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Guard loosens in 10 min'**
+  /// **'[REAL] Cancel within 10 min to keep the guard'**
   String get notifGuardCooldownTitle;
 
   /// N-10
@@ -2231,7 +2357,7 @@ abstract class AppLocalizations {
   /// N-10; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change pending'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] Confirm the pending guard change'**
   String notifGuardRequestedTitle(String mode);
 
   /// N-13
@@ -2243,7 +2369,7 @@ abstract class AppLocalizations {
   /// N-13; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] {strategy} guard restored'**
+  /// **'[REAL] Check {strategy}: guard restored'**
   String notifGuardRevertedTitle(String strategy);
 
   /// N-15
@@ -2255,31 +2381,31 @@ abstract class AppLocalizations {
   /// N-15; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} paused'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] Review {strategy}: paused by loss stop'**
   String notifLossStopTitle(String mode, String strategy);
 
   /// N-14b
   ///
   /// In en, this message translates to:
-  /// **'Orders use paper SOL'**
+  /// **'This strategy’s orders use paper SOL'**
   String get notifModePracticeBody;
 
   /// N-14b; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'Back to PRACTICE'**
+  /// **'Check strategy mode: back to PAPER'**
   String get notifModePracticeTitle;
 
   /// N-14
   ///
   /// In en, this message translates to:
-  /// **'Next orders use real SOL'**
+  /// **'Next orders of this strategy use real SOL'**
   String get notifModeRealBody;
 
   /// N-14; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'Now in REAL SOL'**
+  /// **'Check strategy mode: now in REAL'**
   String get notifModeRealTitle;
 
   /// N-16
@@ -2291,7 +2417,7 @@ abstract class AppLocalizations {
   /// N-16; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'Lost connection to server'**
+  /// **'Reconnect: lost connection to server'**
   String get notifOfflineTitle;
 
   /// N-01
@@ -2303,7 +2429,7 @@ abstract class AppLocalizations {
   /// N-01; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} awaits approval'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] Review {symbol}: awaiting approval'**
   String notifPickPendingTitle(String mode, String symbol);
 
   /// N-20
@@ -2315,7 +2441,7 @@ abstract class AppLocalizations {
   /// N-20; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[PRACTICE] Practice reset'**
+  /// **'[PAPER] Check balance: Paper reset'**
   String get notifPracticeResetTitle;
 
   /// N-43
@@ -2327,7 +2453,7 @@ abstract class AppLocalizations {
   /// N-43 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] New buys stopped'**
+  /// **'[REAL] Resume buying when ready: new buys stopped'**
   String get notifRealBuysPausedTitle;
 
   /// N-44
@@ -2339,7 +2465,7 @@ abstract class AppLocalizations {
   /// N-44 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] New buys resumed'**
+  /// **'[REAL] Check buys: new buys resumed'**
   String get notifRealBuysResumedTitle;
 
   /// N-39
@@ -2351,7 +2477,7 @@ abstract class AppLocalizations {
   /// N-39 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Deposit received'**
+  /// **'[REAL] View deposit: received'**
   String get notifRealDepositDetectedTitle;
 
   /// N-31
@@ -2363,7 +2489,7 @@ abstract class AppLocalizations {
   /// N-31 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Automatic stop cleared'**
+  /// **'[REAL] Check Real: automatic stop cleared'**
   String get notifRealKillSwitchClearedTitle;
 
   /// N-29
@@ -2375,7 +2501,7 @@ abstract class AppLocalizations {
   /// N-29 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Real trading stopped automatically'**
+  /// **'[REAL] Review Real: trading stopped automatically'**
   String get notifRealKillSwitchTrippedTitle;
 
   /// N-27
@@ -2387,7 +2513,7 @@ abstract class AppLocalizations {
   /// N-27 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Limits updated'**
+  /// **'[REAL] Check limits: updated'**
   String get notifRealLimitChangedTitle;
 
   /// N-28
@@ -2399,7 +2525,7 @@ abstract class AppLocalizations {
   /// N-28 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Limit change pending'**
+  /// **'[REAL] Review limit change: pending'**
   String get notifRealLimitLoosenRequestedTitle;
 
   /// N-25
@@ -2411,7 +2537,7 @@ abstract class AppLocalizations {
   /// N-25 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Wallet rules v{version} active'**
+  /// **'[REAL] Check wallet rules: v{version} active'**
   String notifRealPolicyActivatedTitle(String version);
 
   /// N-26
@@ -2423,7 +2549,7 @@ abstract class AppLocalizations {
   /// N-26 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Wallet rules don’t match'**
+  /// **'[REAL] Compare wallet rules: they don’t match'**
   String get notifRealPolicyMismatchTitle;
 
   /// N-46
@@ -2435,7 +2561,7 @@ abstract class AppLocalizations {
   /// N-46 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] {failed_count,plural,other{Sell all: {failed_count} failed} =0{Sell all done}}'**
+  /// **'[REAL] {failed_count,plural,other{Retry sell all: {failed_count} failed} =0{View sell all: done}}'**
   String notifRealSellAllCompletedTitle(int failed_count);
 
   /// N-46 extra line, only when amount_out_lamports is not null (formatLamports)
@@ -2453,7 +2579,7 @@ abstract class AppLocalizations {
   /// N-45 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Selling all positions'**
+  /// **'[REAL] Track sell all: selling all positions'**
   String get notifRealSellAllRequestedTitle;
 
   /// N-23
@@ -2465,7 +2591,7 @@ abstract class AppLocalizations {
   /// N-23 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Trading authority granted'**
+  /// **'[REAL] Check trading authority: granted'**
   String get notifRealSignerGrantedTitle;
 
   /// N-24
@@ -2477,7 +2603,7 @@ abstract class AppLocalizations {
   /// N-24 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Bot authority revoked'**
+  /// **'[REAL] Grant authority again: bot authority revoked'**
   String get notifRealSignerRevokedTitle;
 
   /// N-41
@@ -2489,7 +2615,7 @@ abstract class AppLocalizations {
   /// N-41 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Withdrawal received'**
+  /// **'[REAL] View withdrawal: received'**
   String get notifRealWithdrawConfirmedTitle;
 
   /// N-42
@@ -2501,7 +2627,7 @@ abstract class AppLocalizations {
   /// N-42 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Withdrawal failed'**
+  /// **'[REAL] Check withdrawal: failed'**
   String get notifRealWithdrawFailedTitle;
 
   /// N-40
@@ -2513,7 +2639,7 @@ abstract class AppLocalizations {
   /// N-40 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Withdrawal sent'**
+  /// **'[REAL] Track withdrawal: sent'**
   String get notifRealWithdrawRequestedTitle;
 
   /// N-32
@@ -2525,7 +2651,7 @@ abstract class AppLocalizations {
   /// N-32 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] New main wallet registered'**
+  /// **'[REAL] Review new main wallet: registered'**
   String get notifRealWithdrawAddressAddedTitle;
 
   /// N-34
@@ -2537,7 +2663,7 @@ abstract class AppLocalizations {
   /// N-34 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Main wallet change cancelled'**
+  /// **'[REAL] Check main wallet: change cancelled'**
   String get notifRealWithdrawAddressCancelledTitle;
 
   /// N-33
@@ -2549,7 +2675,7 @@ abstract class AppLocalizations {
   /// N-33 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[REAL SOL] Main wallet active'**
+  /// **'[REAL] Check main wallet: active'**
   String get notifRealWithdrawAddressUsableTitle;
 
   /// N-06
@@ -2561,7 +2687,7 @@ abstract class AppLocalizations {
   /// N-06; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'Skipped: {symbol}'**
+  /// **'View {symbol}: skipped'**
   String notifSkippedTitle(String symbol);
 
   /// N-09
@@ -2573,7 +2699,7 @@ abstract class AppLocalizations {
   /// N-09; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {symbol}'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] Check {symbol}: stop loss hit'**
   String notifSlHitTitle(String mode, String symbol);
 
   /// N-17
@@ -2585,7 +2711,7 @@ abstract class AppLocalizations {
   /// N-17; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'Notification action expired'**
+  /// **'Open the app: notification action expired'**
   String get notifTokenInvalidTitle;
 
   /// N-08
@@ -2597,7 +2723,7 @@ abstract class AppLocalizations {
   /// N-08; placeholders = push vars (snake_case)
   ///
   /// In en, this message translates to:
-  /// **'[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {symbol}'**
+  /// **'[{mode, select, real {REAL} other {PAPER}}] Check {symbol}: take profit hit'**
   String notifTpHitTitle(String mode, String symbol);
 
   /// order.failed reason_code=GUARD_FAILED
@@ -2615,7 +2741,7 @@ abstract class AppLocalizations {
   /// order.failed reason_code=MODE_NOT_ALLOWED
   ///
   /// In en, this message translates to:
-  /// **'Only Practice orders run; Real SOL isn’t enabled yet'**
+  /// **'This strategy is not approved for Real mode'**
   String get orderFailReasonModeNotAllowed;
 
   /// order.failed reason_code=POOL_STALE
@@ -2732,6 +2858,12 @@ abstract class AppLocalizations {
   /// **'{count,plural,one{{count} open} other{{count} open}}'**
   String positionsOpenCount(int count);
 
+  /// 0.4.10 G1-blue v2: PnL block label; number = pnlSol (only colored element)
+  ///
+  /// In en, this message translates to:
+  /// **'Unrealized PnL'**
+  String get positionsPnlUnrealized;
+
   /// positions.sell.confirm_title
   ///
   /// In en, this message translates to:
@@ -2816,6 +2948,48 @@ abstract class AppLocalizations {
   /// **'Sell — not available'**
   String get positionsSellUnavailable;
 
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Position age'**
+  String get positionsStatsAge;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Entry price'**
+  String get positionsStatsEntryPrice;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Market cap'**
+  String get positionsStatsMcap;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get positionsStatsQty;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Stats'**
+  String get positionsStatsTitle;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Value / cost'**
+  String get positionsStatsValueCost;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Volume 24h'**
+  String get positionsStatsVolume24h;
+
   /// positions.title
   ///
   /// In en, this message translates to:
@@ -2827,6 +3001,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Positions (paper)'**
   String get positionsTitlePaper;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Thin line = previous value. Applies to the rest of the position; sends no transaction.'**
+  String get positionsTpslNote;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get positionsTpslReset;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Save exit plan'**
+  String get positionsTpslSave;
+
+  /// 0.4.10 G1-blue v2: pct integer as text
+  ///
+  /// In en, this message translates to:
+  /// **'sell {pct}%'**
+  String positionsTpslSellPct(String pct);
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Stop loss'**
+  String get positionsTpslStopLoss;
+
+  /// 0.4.10 G1-blue v2: n = ladder rung number
+  ///
+  /// In en, this message translates to:
+  /// **'Take profit {n}'**
+  String positionsTpslTakeProfit(String n);
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Edit TP / SL'**
+  String get positionsTpslTitle;
+
+  /// 0.4.10 G1-blue v2: previous value marker
+  ///
+  /// In en, this message translates to:
+  /// **'was {value}'**
+  String positionsTpslWas(String value);
 
   /// queue.batch.approve
   ///
@@ -3044,6 +3266,54 @@ abstract class AppLocalizations {
   /// **'Why does this need approval?'**
   String get queueWhyTitle;
 
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get receiptDone;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Exit plan armed'**
+  String get receiptExitPlanArmed;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Fees'**
+  String get receiptFees;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get receiptPaid;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Received'**
+  String get receiptReceived;
+
+  /// 0.4.10 G1-blue v2: receipt card after a fill
+  ///
+  /// In en, this message translates to:
+  /// **'Bought {symbol}'**
+  String receiptTitleBuy(String symbol);
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Sold {symbol}'**
+  String receiptTitleSell(String symbol);
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'View transaction'**
+  String get receiptViewTx;
+
   /// wire ApprovalRejectReason not_tradeable (proposal.rejected.reject_reason, audit approval.reject)
   ///
   /// In en, this message translates to:
@@ -3073,6 +3343,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Token account rent (new)'**
   String get reviewAtaRent;
+
+  /// 0.4.10 G1-blue v2: approval quote card title; symbol untrusted
+  ///
+  /// In en, this message translates to:
+  /// **'Approve buying {symbol}'**
+  String reviewBuyTitle(String symbol);
 
   /// collapsible row label (mobile)
   ///
@@ -3113,7 +3389,7 @@ abstract class AppLocalizations {
   /// review.practice_note
   ///
   /// In en, this message translates to:
-  /// **'Practice: simulated fill. No real SOL moves.'**
+  /// **'Paper: simulated fill. No real SOL moves.'**
   String get reviewPracticeNote;
 
   /// value = price_sol
@@ -3152,6 +3428,18 @@ abstract class AppLocalizations {
   /// **'Quote changed. Check the new values and hold again.'**
   String get reviewQuoteChangedDuringHold;
 
+  /// 0.4.10 G1-blue v2: disclosure; holds min received, fees, ATA rent, total max
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get reviewQuoteDetails;
+
+  /// 0.4.10 G1-blue v2: approval card countdown (review.quote.expires_in stays the seconds plural)
+  ///
+  /// In en, this message translates to:
+  /// **'{mm_ss} until it expires'**
+  String reviewQuoteExpiresCountdown(String mm_ss);
+
   /// seconds = quoteState().expiresInS; shown while fresh
   ///
   /// In en, this message translates to:
@@ -3179,8 +3467,14 @@ abstract class AppLocalizations {
   /// Practice is never blocked by a missing/stale quote
   ///
   /// In en, this message translates to:
-  /// **'Estimate expired. Practice can still approve; values may differ.'**
+  /// **'Estimate expired. Paper can still approve; values may differ.'**
   String get reviewQuotePracticeStale;
+
+  /// 0.4.10 G1-blue v2: rate = formatRawQty
+  ///
+  /// In en, this message translates to:
+  /// **'1 SOL = {rate} {symbol}'**
+  String reviewQuoteRate(String rate, String symbol);
 
   /// CTA: POST …/approvals/{id}/quote (1.1.5; max 1 per 3 s, inside the window returns the existing quote → spinner ≤ 3 s, no error)
   ///
@@ -3200,6 +3494,12 @@ abstract class AppLocalizations {
   /// **'Quote expired — refresh to continue'**
   String get reviewQuoteStale;
 
+  /// 0.4.10 G1-blue v2: verb-first stale state
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the quote, then re-check the values before approving.'**
+  String get reviewQuoteStaleAction;
+
   /// seconds = quoteState().ageS (server_now − quote_ts)
   ///
   /// In en, this message translates to:
@@ -3211,6 +3511,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quote updated'**
   String get reviewQuoteUpdatedInline;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'You pay'**
+  String get reviewQuoteYouPay;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'You receive (estimate)'**
+  String get reviewQuoteYouReceiveEst;
 
   /// review.real_note
   ///
@@ -3259,6 +3571,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You pay'**
   String get reviewYouPay;
+
+  /// 0.4.10 G1-blue v2: accessible name of the risk chip
+  ///
+  /// In en, this message translates to:
+  /// **'{label}: {used} of {limit} SOL used'**
+  String riskChipA11y(String label, String limit, String used);
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Daily limit'**
+  String get riskChipDailyLimit;
+
+  /// 0.4.10 G1-blue v2: risk chip label; always with shield icon
+  ///
+  /// In en, this message translates to:
+  /// **'Guard'**
+  String get riskChipGuard;
+
+  /// 0.4.10 G1-blue v2: formatted SOL values
+  ///
+  /// In en, this message translates to:
+  /// **'{used}/{limit}'**
+  String riskChipUsage(String limit, String used);
 
   /// screener.action.open_queue
   ///
@@ -3731,7 +4067,7 @@ abstract class AppLocalizations {
   /// settings.notif.practice_actions
   ///
   /// In en, this message translates to:
-  /// **'Allow Approve from notifications (Practice only)'**
+  /// **'Allow Approve from notifications (Paper only)'**
   String get settingsNotifPracticeActions;
 
   /// settings.notif.push
@@ -4046,6 +4382,12 @@ abstract class AppLocalizations {
   /// **'TOTP is optional and doesn’t replace either signature.'**
   String get stepupTotpOptional;
 
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'In Paper, hold 1.2 s. In Real, hold 2.5 s.'**
+  String get strategyApprovalHoldNote;
+
   /// strategy.approval_mode.ask_every_buy
   ///
   /// In en, this message translates to:
@@ -4063,6 +4405,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Off (auto)'**
   String get strategyApprovalModeOff;
+
+  /// 0.4.10 G1-blue v2: mobile secondary action
+  ///
+  /// In en, this message translates to:
+  /// **'Edit parameters'**
+  String get strategyEditParams;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Strategy editor'**
+  String get strategyEditorEyebrow;
+
+  /// 0.4.10 G1-blue v2: rev = next strategy revision (integer)
+  ///
+  /// In en, this message translates to:
+  /// **'Saved as rev {rev} · applies to the next pick'**
+  String strategyEditorRevNote(String rev);
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Approval'**
+  String get strategyEditorSectionApproval;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Entry'**
+  String get strategyEditorSectionEntry;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Exit plan'**
+  String get strategyEditorSectionExit;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Mode'**
+  String get strategyListColMode;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get strategyListColStatus;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Strategy'**
+  String get strategyListColStrategy;
+
+  /// 0.4.10 G1-blue v2: segmented filter; count = integer as text
+  ///
+  /// In en, this message translates to:
+  /// **'All · {count}'**
+  String strategyListFilterAll(int count);
+
+  /// 0.4.10 G1-blue v2: wire mode practice
+  ///
+  /// In en, this message translates to:
+  /// **'Paper · {count}'**
+  String strategyListFilterPaper(int count);
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Real · {count}'**
+  String strategyListFilterReal(int count);
+
+  /// 0.4.10 G1-blue v2: column header; value in the strategy's mode unit (SOL / paper SOL)
+  ///
+  /// In en, this message translates to:
+  /// **'7-day PnL'**
+  String get strategyListPnl7d;
+
+  /// 0.4.10 G1-blue v2: mobile header subline
+  ///
+  /// In en, this message translates to:
+  /// **'{real_count} Real · {paper_count} Paper'**
+  String strategyListSummary(int paper_count, int real_count);
+
+  /// 0.4.10 G1-blue v2: strategies page headline
+  ///
+  /// In en, this message translates to:
+  /// **'Every strategy runs in Paper or Real.'**
+  String get strategyListTitle;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Strategy mode'**
+  String get strategyModeLabel;
+
+  /// 0.4.10 G1-blue v2: per-strategy mode chip (Practice cyan stripe treatment); wire mode practice; never translated
+  ///
+  /// In en, this message translates to:
+  /// **'Paper'**
+  String get strategyModePaper;
+
+  /// 0.4.10 G1-blue v2: Paper option in the mode selector
+  ///
+  /// In en, this message translates to:
+  /// **'Runs with paper SOL. No real SOL, no Phantom.'**
+  String get strategyModePaperDesc;
+
+  /// 0.4.10 G1-blue v2: per-strategy mode chip (magenta); never translated
+  ///
+  /// In en, this message translates to:
+  /// **'Real'**
+  String get strategyModeReal;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Mode applies per strategy. Open positions keep their original mode.'**
+  String get strategyModeScopeNote;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'New strategy'**
+  String get strategyNew;
+
+  /// 0.4.10 G1-blue v2: when days_required = null (threshold not set)
+  ///
+  /// In en, this message translates to:
+  /// **'{days_done,plural,one{{days_done} day} other{{days_done} days}} in Paper'**
+  String strategyRealGateDaysDone(int days_done);
+
+  /// 0.4.10 G1-blue v2: any *_required = null; never assume a number
+  ///
+  /// In en, this message translates to:
+  /// **'Rule not set yet'**
+  String get strategyRealGateNotSet;
+
+  /// 0.4.10 G1-blue v2: paper_progress (contracts 1.1.6); only when days_required != null. Rule is a placeholder until Boss decides
+  ///
+  /// In en, this message translates to:
+  /// **'{days_done}/{days_required} days'**
+  String strategyRealGateProgressDays(String days_done, String days_required);
+
+  /// 0.4.10 G1-blue v2: paper_progress; only when trades_required != null
+  ///
+  /// In en, this message translates to:
+  /// **'{trades_done}/{trades_required} trades'**
+  String strategyRealGateProgressTrades(String trades_done, String trades_required);
+
+  /// 0.4.10 G1-blue v2: when trades_required = null
+  ///
+  /// In en, this message translates to:
+  /// **'{trades_done,plural,one{{trades_done} trade} other{{trades_done} trades}} closed'**
+  String strategyRealGateTradesDone(int trades_done);
+
+  /// 0.4.10 G1-blue v2: reason = strategy.real_locked_reason.<real_locked_reason> text
+  ///
+  /// In en, this message translates to:
+  /// **'Real option disabled: {reason}'**
+  String strategyRealLockedA11y(String reason);
+
+  /// 0.4.10 G1-blue v2: real_locked_reason = needs_owner_approval
+  ///
+  /// In en, this message translates to:
+  /// **'Needs Boss approval'**
+  String get strategyRealLockedBadge;
+
+  /// 0.4.10 G1-blue v2: shown when real_locked = true (contracts 1.1.6); always with a lock icon
+  ///
+  /// In en, this message translates to:
+  /// **'Real locked'**
+  String get strategyRealLockedChip;
+
+  /// 0.4.10 G1-blue v2: compact list variant next to the Paper chip
+  ///
+  /// In en, this message translates to:
+  /// **'locked'**
+  String get strategyRealLockedChipShort;
+
+  /// 0.4.10 G1-blue v2: generic on purpose; the Paper gate rule is not decided (no numbers in copy)
+  ///
+  /// In en, this message translates to:
+  /// **'Real is locked. Boss approves each strategy before it can use real SOL. Until then it keeps running in Paper.'**
+  String get strategyRealLockedExplain;
+
+  /// 0.4.10 G1-blue v2
+  ///
+  /// In en, this message translates to:
+  /// **'Real stays locked until Boss approves. The strategy keeps running in Paper meanwhile.'**
+  String get strategyRealLockedListNote;
+
+  /// 0.4.10 G1-blue v2: contracts 1.1.6 RealLockedReason
+  ///
+  /// In en, this message translates to:
+  /// **'Paper requirements not met yet'**
+  String get strategyRealLockedReasonGateNotMet;
+
+  /// 0.4.10 G1-blue v2: contracts 1.1.6 RealLockedReason
+  ///
+  /// In en, this message translates to:
+  /// **'Needs Boss approval'**
+  String get strategyRealLockedReasonNeedsOwnerApproval;
+
+  /// 0.4.10 G1-blue v2: contracts 1.1.6 RealLockedReason
+  ///
+  /// In en, this message translates to:
+  /// **'Not available right now'**
+  String get strategyRealLockedReasonOther;
+
+  /// 0.4.10 G1-blue v2: contracts 1.1.6 RealLockedReason
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked by wallet rules'**
+  String get strategyRealLockedReasonPolicy;
+
+  /// 0.4.10 G1-blue v2: primary action in the editor
+  ///
+  /// In en, this message translates to:
+  /// **'Save strategy'**
+  String get strategySave;
 
   /// strategy.status.draft
   ///
@@ -4117,6 +4681,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Needs Phantom + passkey. Once authority is active, exit plans resume automatically.'**
   String get walletAuthorizeRegrantNote;
+
+  /// 0.4.10 G1-blue v2: verb-first policy_mismatch banner title
+  ///
+  /// In en, this message translates to:
+  /// **'Grant trading permission again to resume Real'**
+  String get walletAuthorizeRegrantTitle;
 
   /// real.limit.* setting=cap_lamports (confirmed by Backend, Rev 4.8); from/to via formatLimitValue
   ///

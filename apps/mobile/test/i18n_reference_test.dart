@@ -21,8 +21,11 @@ void main() {
     expect(id.conflictDiscardConfirm(4), 'Buang 4 editan? Tidak bisa diurungkan.');
     expect(en.loginOtpWrong(1), 'Wrong code. 1 attempt left.');
     expect(id.errorCodeRateLimited(30), 'Terlalu banyak permintaan. Coba lagi dalam 30 detik.');
-    expect(en.notifGroupedTitle(5, 'real'), '[REAL SOL] 5 picks await approval');
-    expect(id.notifGroupedTitle(1200, 'practice'), '[PRACTICE] 1.200 pick menunggu approval'); // locale grouping
+    expect(en.notifGroupedTitle(5, 'real'), '[REAL] Review 5 picks awaiting approval');
+    expect(
+      id.notifGroupedTitle(1200, 'practice'),
+      '[PAPER] Tinjau 1.200 pick yang menunggu approval',
+    ); // locale grouping
     expect(id.settingsDeleteGrace(7), 'Masa tenggang: 7 hari');
     for (final s in [
       en.positionsOpenCount(2),
@@ -36,7 +39,7 @@ void main() {
     }
   });
   test('expire_reason practice_reset / account_deleted exported', () {
-    expect(en.expireReasonPracticeResetBadge, 'Practice reset');
+    expect(en.expireReasonPracticeResetBadge, 'Paper reset');
     expect(id.expireReasonAccountDeletedDetail, 'Akun telah dihapus');
   });
   test('T-15 PnL helpers: exact zero neutral, no arrow/sign', () {
@@ -49,12 +52,12 @@ void main() {
     expect(t.pnl(-1e-9), t.loss);
   });
   test('Rev 4.3: wire-named vars {symbol}/{amount_lamports}, TP +, new fail reasons, WF-21 labels', () {
-    expect(en.notifPickPendingTitle('real', 'EXM'), '[REAL SOL] EXM awaits approval');
+    expect(en.notifPickPendingTitle('real', 'EXM'), '[REAL] Review EXM: awaiting approval');
     expect(id.notifPickPendingBody('0,25 SOL', '04:52', 'Yumi'), 'Yumi · 0,25 SOL · sisa 04:52');
     expect(en.notifTpHitBody('40.0%', '50%', '+0.12 SOL'), 'Sold 50% at +40.0% · +0.12 SOL');
     expect(id.notifPracticeResetBody('10 paper SOL'), 'Saldo kembali ke 10 paper SOL. Buy tertunda dihapus.');
     expect(en.orderFailReasonPositionAlreadyClosed, 'This position was already closed');
-    expect(id.orderFailReasonModeNotAllowed, contains('Real SOL belum aktif'));
+    expect(id.orderFailReasonModeNotAllowed, startsWith('Strategi ini belum disetujui untuk mode Real')); // 1.1.6
     expect(en.orderFailReasonValidationFailed, isNotEmpty);
     expect(id.errorCodeInvalidFraction, 'Pilih porsi jual dari 0,01% sampai 100%.');
     expect(id.screenerDetailQuoteNotSol('USDC'), 'USDC · bukan SOL');
@@ -110,8 +113,8 @@ void main() {
     expect(en.appName, 'Centurion Trade');
     expect(id.authSiwsStatement, 'Sign in to Centurion Trade'); // i18n 0.4.8+: ID = EN verbatim (signed statement)
     expect(en.screenerNotTradeableDetail, contains('Centurion Trade only trades SOL pairs'));
-    expect(en.notifRealSellAllCompletedTitle(0), '[REAL SOL] Sell all done');
-    expect(id.notifRealSellAllCompletedTitle(2), '[REAL SOL] Jual semua: 2 gagal');
+    expect(en.notifRealSellAllCompletedTitle(0), '[REAL] View sell all: done');
+    expect(id.notifRealSellAllCompletedTitle(2), '[REAL] Ulangi jual semua: 2 gagal');
     // i18n 0.4.9: args are alphabetical (failed_count, requested_count, sold_count).
     expect(en.notifRealSellAllCompletedBody(0, 3, 3), '3 of 3 sold');
     expect(
@@ -128,7 +131,7 @@ void main() {
       startsWith('Dihentikan otomatis: kerugian naik terlalu cepat'),
     );
     expect(en.notifRealKillSwitchTrippedBody('new_reason_x'), contains('a safety rule triggered'));
-    expect(id.notifRealBuysPausedTitle, '[REAL SOL] Pembelian baru dihentikan');
+    expect(id.notifRealBuysPausedTitle, '[REAL] Lanjutkan pembelian saat siap: pembelian baru dihentikan');
     expect(id.notifRealBuysPausedBody('user', 'MacBook'), 'Exit plan posisi tetap jalan · olehmu di MacBook');
     expect(en.notifRealSellAllRequestedBody(1), 'Selling 1 position at market. Guards still apply.');
     expect(

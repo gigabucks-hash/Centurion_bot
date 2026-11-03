@@ -1,5 +1,41 @@
 {
   "@@locale": "en",
+  "alertApproveBefore": "Approve {symbol} before {mm_ss}",
+  "@alertApproveBefore": {
+    "description": "0.4.10 G1-blue v2",
+    "placeholders": {
+      "mm_ss": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "alertGuardRejected": "Review {symbol}: Guard rejected the buy",
+  "@alertGuardRejected": {
+    "description": "0.4.10 G1-blue v2",
+    "placeholders": {
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "alertTpHit": "Check {symbol}: TP{n} hit, {pct}% sold",
+  "@alertTpHit": {
+    "description": "0.4.10 G1-blue v2",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
   "appAboutTitle": "About Centurion Trade",
   "@appAboutTitle": {
     "description": "app.about.title"
@@ -619,6 +655,14 @@
   "@conflictStateOffline": {
     "description": "conflict.state.offline"
   },
+  "dashboardBalanceRealLabel": "Real balance · trading wallet",
+  "@dashboardBalanceRealLabel": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "dashboardBalanceToday": "today",
+  "@dashboardBalanceToday": {
+    "description": "0.4.10 G1-blue v2: after the PnL line, lower-case"
+  },
   "dashboardEyebrow": "Command deck",
   "@dashboardEyebrow": {
     "description": "0.4.9 G1 eyebrow above the dashboard headline (product term, not translated); style AppText.eyebrow / text-eyebrow"
@@ -677,6 +721,40 @@
   "@dashboardKpiRealizedPnl": {
     "description": "dashboard.kpi.realized_pnl"
   },
+  "dashboardNeedsActionCount": "{count,plural,one{{count} new} other{{count} new}}",
+  "@dashboardNeedsActionCount": {
+    "description": "0.4.10 G1-blue v2",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "dashboardNeedsActionTitle": "Needs action",
+  "@dashboardNeedsActionTitle": {
+    "description": "0.4.10 G1-blue v2: card of verb-first alerts"
+  },
+  "dashboardStatDailyLimitReal": "Real daily limit",
+  "@dashboardStatDailyLimitReal": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "dashboardStatOpenPositions": "Open positions",
+  "@dashboardStatOpenPositions": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "dashboardStatPaperStrategies": "Paper strategies",
+  "@dashboardStatPaperStrategies": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "dashboardStatRealizedToday": "Realized PnL · today",
+  "@dashboardStatRealizedToday": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "dashboardStatWinRate7d": "Win rate · 7 days",
+  "@dashboardStatWinRate7d": {
+    "description": "0.4.10 G1-blue v2"
+  },
   "dashboardStrategiesColApproval": "Approval",
   "@dashboardStrategiesColApproval": {
     "description": "dashboard.strategies.col.approval"
@@ -713,7 +791,7 @@
   "@dashboardStrategiesTitle": {
     "description": "dashboard.strategies.title"
   },
-  "dashboardSubtitlePractice": "Practice workspace · start {start} · live updates",
+  "dashboardSubtitlePractice": "Paper strategies · start {start} · live updates",
   "@dashboardSubtitlePractice": {
     "description": "start = formatted paper SOL",
     "placeholders": {
@@ -733,6 +811,18 @@
   "errorCodeAccountDeletionPending": "Account deletion is already scheduled.",
   "@errorCodeAccountDeletionPending": {
     "description": "wire error.code ACCOUNT_DELETION_PENDING"
+  },
+  "errorCodeAgentBudgetExceeded": "The agent hit its call limit. Try again later.",
+  "@errorCodeAgentBudgetExceeded": {
+    "description": "wire error.code AGENT_BUDGET_EXCEEDED (contracts 1.1.6 errors v7)"
+  },
+  "errorCodeAgentRequestExpired": "This agent connection request expired. Start again from the agent.",
+  "@errorCodeAgentRequestExpired": {
+    "description": "wire error.code AGENT_REQUEST_EXPIRED (contracts 1.1.6 errors v7)"
+  },
+  "errorCodeAgentTradeDisabled": "Agent trading is off. Turn it on in the Centurion Trade app.",
+  "@errorCodeAgentTradeDisabled": {
+    "description": "wire error.code AGENT_TRADE_DISABLED (contracts 1.1.6 errors v7)"
   },
   "errorCodeApprovalAlreadyDecided": "This was already decided on another device.",
   "@errorCodeApprovalAlreadyDecided": {
@@ -766,6 +856,10 @@
   "errorCodeAuthTgReplay": "This Telegram login was already used. Start again.",
   "@errorCodeAuthTgReplay": {
     "description": "wire error.code AUTH_TG_REPLAY"
+  },
+  "errorCodeBuysPaused": "New buys are stopped. Resume buying first.",
+  "@errorCodeBuysPaused": {
+    "description": "wire error.code BUYS_PAUSED (contracts 1.1.6 errors v7)"
   },
   "errorCodeConfirmationInvalid": "This confirmation expired or was already used. Start again.",
   "@errorCodeConfirmationInvalid": {
@@ -815,7 +909,19 @@
   "@errorCodeLastLoginMethod": {
     "description": "wire error.code LAST_LOGIN_METHOD"
   },
-  "errorCodeModeNotAllowed": "Only Practice is available. Real SOL isn’t enabled yet.",
+  "errorCodeLogoNotFound": "No logo for this coin. The symbol initials are shown instead.",
+  "@errorCodeLogoNotFound": {
+    "description": "wire error.code LOGO_NOT_FOUND (contracts 1.1.6 errors v7)"
+  },
+  "errorCodeLogoRejected": "This coin's logo was rejected. The symbol initials are shown instead.",
+  "@errorCodeLogoRejected": {
+    "description": "wire error.code LOGO_REJECTED (contracts 1.1.6 errors v7)"
+  },
+  "errorCodeLoosenRequiresApp": "Open the Centurion Trade app to loosen limits or guards.",
+  "@errorCodeLoosenRequiresApp": {
+    "description": "wire error.code LOOSEN_REQUIRES_APP (contracts 1.1.6 errors v7)"
+  },
+  "errorCodeModeNotAllowed": "This strategy is not approved for Real mode",
   "@errorCodeModeNotAllowed": {
     "description": "wire error.code MODE_NOT_ALLOWED"
   },
@@ -835,7 +941,7 @@
   "@errorCodePositionAlreadyClosed": {
     "description": "wire error.code POSITION_ALREADY_CLOSED"
   },
-  "errorCodePracticeCashInsufficient": "Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.",
+  "errorCodePracticeCashInsufficient": "Paper cash is too low for the next entry. Entries pause until cash recovers or you reset Paper.",
   "@errorCodePracticeCashInsufficient": {
     "description": "wire error.code PRACTICE_CASH_INSUFFICIENT"
   },
@@ -865,7 +971,7 @@
   "@errorCodeReplayUnavailable": {
     "description": "wire error.code REPLAY_UNAVAILABLE"
   },
-  "errorCodeResetCooldown": "Practice can be reset once a day. Next: {next_allowed_at}",
+  "errorCodeResetCooldown": "Paper can be reset once a day. Next: {next_allowed_at}",
   "@errorCodeResetCooldown": {
     "description": "wire error.code RESET_COOLDOWN",
     "placeholders": {
@@ -874,6 +980,10 @@
       }
     }
   },
+  "errorCodeResumeRequiresApp": "Buying was paused in the app. Resume it in the Centurion Trade app.",
+  "@errorCodeResumeRequiresApp": {
+    "description": "wire error.code RESUME_REQUIRES_APP (contracts 1.1.6 errors v7)"
+  },
   "errorCodeSettingsSchemaInvalid": "These strategy settings aren’t valid. Check the highlighted fields.",
   "@errorCodeSettingsSchemaInvalid": {
     "description": "wire error.code SETTINGS_SCHEMA_INVALID"
@@ -881,6 +991,10 @@
   "errorCodeSiwsNonceInvalid": "This sign-in request expired. Try again.",
   "@errorCodeSiwsNonceInvalid": {
     "description": "wire error.code SIWS_NONCE_INVALID"
+  },
+  "errorCodeSiwsSessionRequired": "Sign in with your wallet in the Centurion Trade app.",
+  "@errorCodeSiwsSessionRequired": {
+    "description": "wire error.code SIWS_SESSION_REQUIRED (contracts 1.1.6 errors v7)"
   },
   "errorCodeSiwsSignatureInvalid": "The wallet signature couldn’t be verified.",
   "@errorCodeSiwsSignatureInvalid": {
@@ -958,7 +1072,7 @@
   "@exitReasonPeakTrail": {
     "description": "wire ExitReason"
   },
-  "exitReasonPracticeReset": "Practice reset",
+  "exitReasonPracticeReset": "Paper reset",
   "@exitReasonPracticeReset": {
     "description": "wire ExitReason"
   },
@@ -1010,11 +1124,11 @@
   "@expireReasonKillSwitchDetail": {
     "description": "detail line / N-07 body for reason=kill_switch"
   },
-  "expireReasonPracticeResetBadge": "Practice reset",
+  "expireReasonPracticeResetBadge": "Paper reset",
   "@expireReasonPracticeResetBadge": {
     "description": "queue chip for proposal.expired reason=practice_reset"
   },
-  "expireReasonPracticeResetDetail": "Practice was reset; pending buys were cleared",
+  "expireReasonPracticeResetDetail": "Paper was reset; pending buys were cleared",
   "@expireReasonPracticeResetDetail": {
     "description": "detail line / N-07 body for reason=practice_reset"
   },
@@ -1312,17 +1426,9 @@
   "@killSwitchActionEngage": {
     "description": "manual Stop → real.buys.paused (exit plans keep running); initial focus; one click + one dialog, no 2FA, no hold"
   },
-  "killSwitchActionOpen": "Stop all Real trading",
-  "@killSwitchActionOpen": {
-    "description": "DEPRECATED 0.4.9: use kill_switch.action.engage (Stop = new buys only). Still read by apps/desktop StopControl; removed in the first i18n release after apps/desktop StopControl.tsx migrates to kill_switch.action.engage + kill_switch.dialog.effect.exits_keep"
-  },
   "killSwitchActionResume": "Resume buying",
   "@killSwitchActionResume": {
     "description": "→ real.buys.resumed (immediate); replaces kill_switch.reenable.action"
-  },
-  "killSwitchDialogEffectBuys": "New buys are blocked and all Real strategies pause.",
-  "@killSwitchDialogEffectBuys": {
-    "description": "DEPRECATED 0.4.9: use kill_switch.dialog.effect.exits_keep. Still read by apps/desktop StopControl; removed in the first i18n release after apps/desktop StopControl.tsx migrates to kill_switch.action.engage + kill_switch.dialog.effect.exits_keep"
   },
   "killSwitchDialogEffectExitsKeep": "Exit plans, TP and SL keep running.",
   "@killSwitchDialogEffectExitsKeep": {
@@ -1430,6 +1536,15 @@
       }
     }
   },
+  "killSwitchSellAllRetryTitle": "Retry selling {symbol}",
+  "@killSwitchSellAllRetryTitle": {
+    "description": "0.4.10 G1-blue v2: partial-failure dialog title",
+    "placeholders": {
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
   "killSwitchSellAllTitle": "{count,plural,one{Sell {count} Real position now?} other{Sell {count} Real positions now?}}",
   "@killSwitchSellAllTitle": {
     "description": "lead decision: confirm dialog + 2.5 s hold, NO Phantom step-up",
@@ -1471,6 +1586,10 @@
   "killSwitchStatusResumeHint": "Bot authority stays active. No cooldown: resume any time with one click.",
   "@killSwitchStatusResumeHint": {
     "description": "0.4.9 G1 stopped banner, next to kill_switch.action.resume"
+  },
+  "killSwitchStatusResumeWhenReady": "Resume Real buying when ready",
+  "@killSwitchStatusResumeWhenReady": {
+    "description": "0.4.10 G1-blue v2: verb-first stopped banner title (kill_switch.status.title stays for Desktop)"
   },
   "killSwitchStatusTitle": "New buys stopped",
   "@killSwitchStatusTitle": {
@@ -1545,9 +1664,9 @@
       }
     }
   },
-  "loginPracticeDefault": "New accounts always start in PRACTICE mode.",
+  "loginPracticeDefault": "New strategies always start in Paper.",
   "@loginPracticeDefault": {
-    "description": "login.practice_default"
+    "description": "0.4.10: mode is per strategy"
   },
   "loginSubtitle": "One account, many sign-in methods. You can link more later.",
   "@loginSubtitle": {
@@ -1623,17 +1742,17 @@
   "@mcapUsdIndicative": {
     "description": "tooltip second line ONLY when mcap_source is curve|pool and mcap_usd is set (mcapView in format.mjs, 1.1.5)"
   },
-  "modePracticeBanner": "Practice · paper SOL, no real SOL moves",
+  "modePracticeBanner": "Paper · paper SOL, no real SOL moves",
   "@modePracticeBanner": {
     "description": "mode.practice.banner"
   },
-  "modePracticeBannerShort": "Practice · paper SOL",
+  "modePracticeBannerShort": "Paper · paper SOL",
   "@modePracticeBannerShort": {
     "description": "mode.practice.banner_short"
   },
-  "modePracticeLabel": "PRACTICE",
+  "modePracticeLabel": "PAPER",
   "@modePracticeLabel": {
-    "description": "do not translate mode labels"
+    "description": "do not translate mode labels. 0.4.10: copy Practice → Paper (per-strategy mode; wire value stays practice); key rename in 0.5.0"
   },
   "modeRealBanner": "Real SOL · wallet connected, orders use real SOL",
   "@modeRealBanner": {
@@ -1659,9 +1778,9 @@
   "@modeSwitchToRealTitle": {
     "description": "mode.switch.to_real.title"
   },
-  "modeSwitchToastPractice": "Back to Practice",
+  "modeSwitchToastPractice": "Strategy back to Paper",
   "@modeSwitchToastPractice": {
-    "description": "mode.switch.toast_practice"
+    "description": "0.4.10: mode is per strategy"
   },
   "navActivity": "Activity",
   "@navActivity": {
@@ -1723,7 +1842,7 @@
   "@notifApprovedBody": {
     "description": "N-03"
   },
-  "notifApprovedTitle": "Approved: {symbol}",
+  "notifApprovedTitle": "View {symbol}: approved",
   "@notifApprovedTitle": {
     "description": "N-03; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1736,7 +1855,7 @@
   "@notifDeletionCancelledBody": {
     "description": "N-22"
   },
-  "notifDeletionCancelledTitle": "Account deletion cancelled",
+  "notifDeletionCancelledTitle": "Check account: deletion cancelled",
   "@notifDeletionCancelledTitle": {
     "description": "N-22; placeholders = push vars (snake_case)"
   },
@@ -1749,7 +1868,7 @@
       }
     }
   },
-  "notifDeletionScheduledTitle": "Account deletion scheduled",
+  "notifDeletionScheduledTitle": "Check account: deletion scheduled",
   "@notifDeletionScheduledTitle": {
     "description": "N-21; placeholders = push vars (snake_case)"
   },
@@ -1762,7 +1881,7 @@
       }
     }
   },
-  "notifExpiredTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} expired",
+  "notifExpiredTitle": "[{mode, select, real {REAL} other {PAPER}}] Re-check {symbol}: approval expired",
   "@notifExpiredTitle": {
     "description": "N-07; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1789,7 +1908,7 @@
       }
     }
   },
-  "notifFailedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {side, select, sell {Sell} other {Buy}} {symbol} failed",
+  "notifFailedTitle": "[{mode, select, real {REAL} other {PAPER}}] Check {symbol}: {side, select, sell {sell} other {buy}} failed",
   "@notifFailedTitle": {
     "description": "N-05; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1816,7 +1935,7 @@
       }
     }
   },
-  "notifFilledTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {symbol}",
+  "notifFilledTitle": "[{mode, select, real {REAL} other {PAPER}}] View {symbol}: bought",
   "@notifFilledTitle": {
     "description": "N-04; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1840,7 +1959,7 @@
       }
     }
   },
-  "notifFirstBuyTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {symbol}",
+  "notifFirstBuyTitle": "[{mode, select, real {REAL} other {PAPER}}] Review first buy for {strategy}: {symbol}",
   "@notifFirstBuyTitle": {
     "description": "N-02; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1859,7 +1978,7 @@
   "@notifGroupedBody": {
     "description": "N-18"
   },
-  "notifGroupedTitle": "[{mode,select,other{PRACTICE} real{REAL SOL}}] {count,plural,one{{count} pick awaits approval} other{{count} picks await approval}}",
+  "notifGroupedTitle": "[{mode,select,other{PAPER} real{REAL}}] Review {count,plural,one{{count} pick} other{{count} picks}} awaiting approval",
   "@notifGroupedTitle": {
     "description": "N-18; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1881,7 +2000,7 @@
       }
     }
   },
-  "notifGuardActiveTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} guard is now looser",
+  "notifGuardActiveTitle": "[{mode, select, real {REAL} other {PAPER}}] Review {strategy}: guard is now looser",
   "@notifGuardActiveTitle": {
     "description": "N-12; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1902,7 +2021,7 @@
       }
     }
   },
-  "notifGuardCancelledTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change cancelled",
+  "notifGuardCancelledTitle": "[{mode, select, real {REAL} other {PAPER}}] Check guard: change cancelled",
   "@notifGuardCancelledTitle": {
     "description": "N-19; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1923,7 +2042,7 @@
       }
     }
   },
-  "notifGuardCooldownTitle": "[REAL SOL] Guard loosens in 10 min",
+  "notifGuardCooldownTitle": "[REAL] Cancel within 10 min to keep the guard",
   "@notifGuardCooldownTitle": {
     "description": "N-11; placeholders = push vars (snake_case)"
   },
@@ -1945,7 +2064,7 @@
       }
     }
   },
-  "notifGuardRequestedTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change pending",
+  "notifGuardRequestedTitle": "[{mode, select, real {REAL} other {PAPER}}] Confirm the pending guard change",
   "@notifGuardRequestedTitle": {
     "description": "N-10; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1966,7 +2085,7 @@
       }
     }
   },
-  "notifGuardRevertedTitle": "[REAL SOL] {strategy} guard restored",
+  "notifGuardRevertedTitle": "[REAL] Check {strategy}: guard restored",
   "@notifGuardRevertedTitle": {
     "description": "N-13; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1984,7 +2103,7 @@
       }
     }
   },
-  "notifLossStopTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} paused",
+  "notifLossStopTitle": "[{mode, select, real {REAL} other {PAPER}}] Review {strategy}: paused by loss stop",
   "@notifLossStopTitle": {
     "description": "N-15; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -1996,19 +2115,19 @@
       }
     }
   },
-  "notifModePracticeBody": "Orders use paper SOL",
+  "notifModePracticeBody": "This strategy’s orders use paper SOL",
   "@notifModePracticeBody": {
     "description": "N-14b"
   },
-  "notifModePracticeTitle": "Back to PRACTICE",
+  "notifModePracticeTitle": "Check strategy mode: back to PAPER",
   "@notifModePracticeTitle": {
     "description": "N-14b; placeholders = push vars (snake_case)"
   },
-  "notifModeRealBody": "Next orders use real SOL",
+  "notifModeRealBody": "Next orders of this strategy use real SOL",
   "@notifModeRealBody": {
     "description": "N-14"
   },
-  "notifModeRealTitle": "Now in REAL SOL",
+  "notifModeRealTitle": "Check strategy mode: now in REAL",
   "@notifModeRealTitle": {
     "description": "N-14; placeholders = push vars (snake_case)"
   },
@@ -2016,7 +2135,7 @@
   "@notifOfflineBody": {
     "description": "N-16"
   },
-  "notifOfflineTitle": "Lost connection to server",
+  "notifOfflineTitle": "Reconnect: lost connection to server",
   "@notifOfflineTitle": {
     "description": "N-16; placeholders = push vars (snake_case)"
   },
@@ -2035,7 +2154,7 @@
       }
     }
   },
-  "notifPickPendingTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} awaits approval",
+  "notifPickPendingTitle": "[{mode, select, real {REAL} other {PAPER}}] Review {symbol}: awaiting approval",
   "@notifPickPendingTitle": {
     "description": "N-01; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -2056,7 +2175,7 @@
       }
     }
   },
-  "notifPracticeResetTitle": "[PRACTICE] Practice reset",
+  "notifPracticeResetTitle": "[PAPER] Check balance: Paper reset",
   "@notifPracticeResetTitle": {
     "description": "N-20; placeholders = push vars (snake_case)"
   },
@@ -2072,7 +2191,7 @@
       }
     }
   },
-  "notifRealBuysPausedTitle": "[REAL SOL] New buys stopped",
+  "notifRealBuysPausedTitle": "[REAL] Resume buying when ready: new buys stopped",
   "@notifRealBuysPausedTitle": {
     "description": "N-43 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2088,7 +2207,7 @@
       }
     }
   },
-  "notifRealBuysResumedTitle": "[REAL SOL] New buys resumed",
+  "notifRealBuysResumedTitle": "[REAL] Check buys: new buys resumed",
   "@notifRealBuysResumedTitle": {
     "description": "N-44 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2104,7 +2223,7 @@
       }
     }
   },
-  "notifRealDepositDetectedTitle": "[REAL SOL] Deposit received",
+  "notifRealDepositDetectedTitle": "[REAL] View deposit: received",
   "@notifRealDepositDetectedTitle": {
     "description": "N-39 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2117,7 +2236,7 @@
       }
     }
   },
-  "notifRealKillSwitchClearedTitle": "[REAL SOL] Automatic stop cleared",
+  "notifRealKillSwitchClearedTitle": "[REAL] Check Real: automatic stop cleared",
   "@notifRealKillSwitchClearedTitle": {
     "description": "N-31 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2130,7 +2249,7 @@
       }
     }
   },
-  "notifRealKillSwitchTrippedTitle": "[REAL SOL] Real trading stopped automatically",
+  "notifRealKillSwitchTrippedTitle": "[REAL] Review Real: trading stopped automatically",
   "@notifRealKillSwitchTrippedTitle": {
     "description": "N-29 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2149,7 +2268,7 @@
       }
     }
   },
-  "notifRealLimitChangedTitle": "[REAL SOL] Limits updated",
+  "notifRealLimitChangedTitle": "[REAL] Check limits: updated",
   "@notifRealLimitChangedTitle": {
     "description": "N-27 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2171,7 +2290,7 @@
       }
     }
   },
-  "notifRealLimitLoosenRequestedTitle": "[REAL SOL] Limit change pending",
+  "notifRealLimitLoosenRequestedTitle": "[REAL] Review limit change: pending",
   "@notifRealLimitLoosenRequestedTitle": {
     "description": "N-28 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2179,7 +2298,7 @@
   "@notifRealPolicyActivatedBody": {
     "description": "N-25"
   },
-  "notifRealPolicyActivatedTitle": "[REAL SOL] Wallet rules v{version} active",
+  "notifRealPolicyActivatedTitle": "[REAL] Check wallet rules: v{version} active",
   "@notifRealPolicyActivatedTitle": {
     "description": "N-25 RESERVED Phase 7; placeholders = wire vars (snake_case)",
     "placeholders": {
@@ -2197,7 +2316,7 @@
       }
     }
   },
-  "notifRealPolicyMismatchTitle": "[REAL SOL] Wallet rules don’t match",
+  "notifRealPolicyMismatchTitle": "[REAL] Compare wallet rules: they don’t match",
   "@notifRealPolicyMismatchTitle": {
     "description": "N-26 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2219,7 +2338,7 @@
       }
     }
   },
-  "notifRealSellAllCompletedTitle": "[REAL SOL] {failed_count,plural,other{Sell all: {failed_count} failed} =0{Sell all done}}",
+  "notifRealSellAllCompletedTitle": "[REAL] {failed_count,plural,other{Retry sell all: {failed_count} failed} =0{View sell all: done}}",
   "@notifRealSellAllCompletedTitle": {
     "description": "N-46 RESERVED Phase 7; placeholders = wire vars (snake_case)",
     "placeholders": {
@@ -2248,7 +2367,7 @@
       }
     }
   },
-  "notifRealSellAllRequestedTitle": "[REAL SOL] Selling all positions",
+  "notifRealSellAllRequestedTitle": "[REAL] Track sell all: selling all positions",
   "@notifRealSellAllRequestedTitle": {
     "description": "N-45 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2261,7 +2380,7 @@
       }
     }
   },
-  "notifRealSignerGrantedTitle": "[REAL SOL] Trading authority granted",
+  "notifRealSignerGrantedTitle": "[REAL] Check trading authority: granted",
   "@notifRealSignerGrantedTitle": {
     "description": "N-23 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2274,7 +2393,7 @@
       }
     }
   },
-  "notifRealSignerRevokedTitle": "[REAL SOL] Bot authority revoked",
+  "notifRealSignerRevokedTitle": "[REAL] Grant authority again: bot authority revoked",
   "@notifRealSignerRevokedTitle": {
     "description": "N-24 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2290,7 +2409,7 @@
       }
     }
   },
-  "notifRealWithdrawConfirmedTitle": "[REAL SOL] Withdrawal received",
+  "notifRealWithdrawConfirmedTitle": "[REAL] View withdrawal: received",
   "@notifRealWithdrawConfirmedTitle": {
     "description": "N-41 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2306,7 +2425,7 @@
       }
     }
   },
-  "notifRealWithdrawFailedTitle": "[REAL SOL] Withdrawal failed",
+  "notifRealWithdrawFailedTitle": "[REAL] Check withdrawal: failed",
   "@notifRealWithdrawFailedTitle": {
     "description": "N-42 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2322,7 +2441,7 @@
       }
     }
   },
-  "notifRealWithdrawRequestedTitle": "[REAL SOL] Withdrawal sent",
+  "notifRealWithdrawRequestedTitle": "[REAL] Track withdrawal: sent",
   "@notifRealWithdrawRequestedTitle": {
     "description": "N-40 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2341,7 +2460,7 @@
       }
     }
   },
-  "notifRealWithdrawAddressAddedTitle": "[REAL SOL] New main wallet registered",
+  "notifRealWithdrawAddressAddedTitle": "[REAL] Review new main wallet: registered",
   "@notifRealWithdrawAddressAddedTitle": {
     "description": "N-32 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2354,7 +2473,7 @@
       }
     }
   },
-  "notifRealWithdrawAddressCancelledTitle": "[REAL SOL] Main wallet change cancelled",
+  "notifRealWithdrawAddressCancelledTitle": "[REAL] Check main wallet: change cancelled",
   "@notifRealWithdrawAddressCancelledTitle": {
     "description": "N-34 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2367,7 +2486,7 @@
       }
     }
   },
-  "notifRealWithdrawAddressUsableTitle": "[REAL SOL] Main wallet active",
+  "notifRealWithdrawAddressUsableTitle": "[REAL] Check main wallet: active",
   "@notifRealWithdrawAddressUsableTitle": {
     "description": "N-33 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
@@ -2380,7 +2499,7 @@
       }
     }
   },
-  "notifSkippedTitle": "Skipped: {symbol}",
+  "notifSkippedTitle": "View {symbol}: skipped",
   "@notifSkippedTitle": {
     "description": "N-06; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -2404,7 +2523,7 @@
       }
     }
   },
-  "notifSlHitTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {symbol}",
+  "notifSlHitTitle": "[{mode, select, real {REAL} other {PAPER}}] Check {symbol}: stop loss hit",
   "@notifSlHitTitle": {
     "description": "N-09; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -2420,7 +2539,7 @@
   "@notifTokenInvalidBody": {
     "description": "N-17"
   },
-  "notifTokenInvalidTitle": "Notification action expired",
+  "notifTokenInvalidTitle": "Open the app: notification action expired",
   "@notifTokenInvalidTitle": {
     "description": "N-17; placeholders = push vars (snake_case)"
   },
@@ -2439,7 +2558,7 @@
       }
     }
   },
-  "notifTpHitTitle": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {symbol}",
+  "notifTpHitTitle": "[{mode, select, real {REAL} other {PAPER}}] Check {symbol}: take profit hit",
   "@notifTpHitTitle": {
     "description": "N-08; placeholders = push vars (snake_case)",
     "placeholders": {
@@ -2459,7 +2578,7 @@
   "@orderFailReasonInsufficientPracticeBalance": {
     "description": "order.failed reason_code=INSUFFICIENT_PRACTICE_BALANCE"
   },
-  "orderFailReasonModeNotAllowed": "Only Practice orders run; Real SOL isn’t enabled yet",
+  "orderFailReasonModeNotAllowed": "This strategy is not approved for Real mode",
   "@orderFailReasonModeNotAllowed": {
     "description": "order.failed reason_code=MODE_NOT_ALLOWED"
   },
@@ -2601,6 +2720,10 @@
       }
     }
   },
+  "positionsPnlUnrealized": "Unrealized PnL",
+  "@positionsPnlUnrealized": {
+    "description": "0.4.10 G1-blue v2: PnL block label; number = pnlSol (only colored element)"
+  },
   "positionsSellConfirmTitle": "Confirm sell",
   "@positionsSellConfirmTitle": {
     "description": "positions.sell.confirm_title"
@@ -2677,6 +2800,34 @@
   "@positionsSellUnavailable": {
     "description": "disabled, labelled CTA (not tradeable)"
   },
+  "positionsStatsAge": "Position age",
+  "@positionsStatsAge": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsStatsEntryPrice": "Entry price",
+  "@positionsStatsEntryPrice": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsStatsMcap": "Market cap",
+  "@positionsStatsMcap": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsStatsQty": "Amount",
+  "@positionsStatsQty": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsStatsTitle": "Stats",
+  "@positionsStatsTitle": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsStatsValueCost": "Value / cost",
+  "@positionsStatsValueCost": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsStatsVolume24h": "Volume 24h",
+  "@positionsStatsVolume24h": {
+    "description": "0.4.10 G1-blue v2"
+  },
   "positionsTitle": "Positions",
   "@positionsTitle": {
     "description": "positions.title"
@@ -2684,6 +2835,53 @@
   "positionsTitlePaper": "Positions (paper)",
   "@positionsTitlePaper": {
     "description": "Practice section header"
+  },
+  "positionsTpslNote": "Thin line = previous value. Applies to the rest of the position; sends no transaction.",
+  "@positionsTpslNote": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsTpslReset": "Reset",
+  "@positionsTpslReset": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsTpslSave": "Save exit plan",
+  "@positionsTpslSave": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsTpslSellPct": "sell {pct}%",
+  "@positionsTpslSellPct": {
+    "description": "0.4.10 G1-blue v2: pct integer as text",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsTpslStopLoss": "Stop loss",
+  "@positionsTpslStopLoss": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsTpslTakeProfit": "Take profit {n}",
+  "@positionsTpslTakeProfit": {
+    "description": "0.4.10 G1-blue v2: n = ladder rung number",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsTpslTitle": "Edit TP / SL",
+  "@positionsTpslTitle": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "positionsTpslWas": "was {value}",
+  "@positionsTpslWas": {
+    "description": "0.4.10 G1-blue v2: previous value marker",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
   },
   "queueBatchApprove": "{count,plural,one{Approve {count} pick} other{Approve {count} picks}}",
   "@queueBatchApprove": {
@@ -2877,6 +3075,48 @@
   "@queueWhyTitle": {
     "description": "queue.why.title"
   },
+  "receiptDone": "Done",
+  "@receiptDone": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "receiptExitPlanArmed": "Exit plan armed",
+  "@receiptExitPlanArmed": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "receiptFees": "Fees",
+  "@receiptFees": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "receiptPaid": "Paid",
+  "@receiptPaid": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "receiptReceived": "Received",
+  "@receiptReceived": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "receiptTitleBuy": "Bought {symbol}",
+  "@receiptTitleBuy": {
+    "description": "0.4.10 G1-blue v2: receipt card after a fill",
+    "placeholders": {
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptTitleSell": "Sold {symbol}",
+  "@receiptTitleSell": {
+    "description": "0.4.10 G1-blue v2",
+    "placeholders": {
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "receiptViewTx": "View transaction",
+  "@receiptViewTx": {
+    "description": "0.4.10 G1-blue v2"
+  },
   "rejectReasonNotTradeable": "Not tradeable",
   "@rejectReasonNotTradeable": {
     "description": "wire ApprovalRejectReason not_tradeable (proposal.rejected.reject_reason, audit approval.reject)"
@@ -2896,6 +3136,15 @@
   "reviewAtaRent": "Token account rent (new)",
   "@reviewAtaRent": {
     "description": "value = formatLamports(est_ata_rent_lamports); row hidden when \"0\" (showAtaRent)"
+  },
+  "reviewBuyTitle": "Approve buying {symbol}",
+  "@reviewBuyTitle": {
+    "description": "0.4.10 G1-blue v2: approval quote card title; symbol untrusted",
+    "placeholders": {
+      "symbol": {
+        "type": "String"
+      }
+    }
   },
   "reviewDetailsToggle": "Fees & slippage",
   "@reviewDetailsToggle": {
@@ -2942,7 +3191,7 @@
       }
     }
   },
-  "reviewPracticeNote": "Practice: simulated fill. No real SOL moves.",
+  "reviewPracticeNote": "Paper: simulated fill. No real SOL moves.",
   "@reviewPracticeNote": {
     "description": "review.practice_note"
   },
@@ -2983,6 +3232,19 @@
   "@reviewQuoteChangedDuringHold": {
     "description": "quote_id changed (quoteChanged) while a Real hold is in progress: cancel the hold, reset the bar; next approve sends the new expected_quote_id. Rev is unchanged (1.1.5)"
   },
+  "reviewQuoteDetails": "Details",
+  "@reviewQuoteDetails": {
+    "description": "0.4.10 G1-blue v2: disclosure; holds min received, fees, ATA rent, total max"
+  },
+  "reviewQuoteExpiresCountdown": "{mm_ss} until it expires",
+  "@reviewQuoteExpiresCountdown": {
+    "description": "0.4.10 G1-blue v2: approval card countdown (review.quote.expires_in stays the seconds plural)",
+    "placeholders": {
+      "mm_ss": {
+        "type": "String"
+      }
+    }
+  },
   "reviewQuoteExpiresIn": "{seconds,plural,one{Expires in {seconds} s} other{Expires in {seconds} s}}",
   "@reviewQuoteExpiresIn": {
     "description": "seconds = quoteState().expiresInS; shown while fresh",
@@ -3010,9 +3272,21 @@
   "@reviewQuoteMissing": {
     "description": "Real: all quote fields null; hold/Approve disabled"
   },
-  "reviewQuotePracticeStale": "Estimate expired. Practice can still approve; values may differ.",
+  "reviewQuotePracticeStale": "Estimate expired. Paper can still approve; values may differ.",
   "@reviewQuotePracticeStale": {
     "description": "Practice is never blocked by a missing/stale quote"
+  },
+  "reviewQuoteRate": "1 SOL = {rate} {symbol}",
+  "@reviewQuoteRate": {
+    "description": "0.4.10 G1-blue v2: rate = formatRawQty",
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      }
+    }
   },
   "reviewQuoteRefresh": "Refresh quote",
   "@reviewQuoteRefresh": {
@@ -3025,6 +3299,10 @@
   "reviewQuoteStale": "Quote expired — refresh to continue",
   "@reviewQuoteStale": {
     "description": "Real: hold/Approve replaced by review.quote.refresh until a fresh quote (409 QUOTE_MISSING_OR_STALE otherwise)"
+  },
+  "reviewQuoteStaleAction": "Refresh the quote, then re-check the values before approving.",
+  "@reviewQuoteStaleAction": {
+    "description": "0.4.10 G1-blue v2: verb-first stale state"
   },
   "reviewQuoteUpdatedAgo": "{seconds,plural,one{Quote updated {seconds} s ago} other{Quote updated {seconds} s ago} =0{Quote updated just now}}",
   "@reviewQuoteUpdatedAgo": {
@@ -3039,6 +3317,14 @@
   "reviewQuoteUpdatedInline": "Quote updated",
   "@reviewQuoteUpdatedInline": {
     "description": "proposal.updated with a NEW quote_id (rev unchanged, 1.1.5): subtle inline label ~2 s, polite live region; no toast/push"
+  },
+  "reviewQuoteYouPay": "You pay",
+  "@reviewQuoteYouPay": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "reviewQuoteYouReceiveEst": "You receive (estimate)",
+  "@reviewQuoteYouReceiveEst": {
+    "description": "0.4.10 G1-blue v2"
   },
   "reviewRealNote": "Real SOL: network fees are paid even if the order fails.",
   "@reviewRealNote": {
@@ -3076,6 +3362,41 @@
   "reviewYouPay": "You pay",
   "@reviewYouPay": {
     "description": "value = formatLamports(amount_lamports)"
+  },
+  "riskChipA11y": "{label}: {used} of {limit} SOL used",
+  "@riskChipA11y": {
+    "description": "0.4.10 G1-blue v2: accessible name of the risk chip",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      },
+      "used": {
+        "type": "String"
+      }
+    }
+  },
+  "riskChipDailyLimit": "Daily limit",
+  "@riskChipDailyLimit": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "riskChipGuard": "Guard",
+  "@riskChipGuard": {
+    "description": "0.4.10 G1-blue v2: risk chip label; always with shield icon"
+  },
+  "riskChipUsage": "{used}/{limit}",
+  "@riskChipUsage": {
+    "description": "0.4.10 G1-blue v2: formatted SOL values",
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      },
+      "used": {
+        "type": "String"
+      }
+    }
   },
   "screenerActionOpenQueue": "Open queue",
   "@screenerActionOpenQueue": {
@@ -3451,7 +3772,7 @@
   "@settingsNotifEmail": {
     "description": "settings.notif.email"
   },
-  "settingsNotifPracticeActions": "Allow Approve from notifications (Practice only)",
+  "settingsNotifPracticeActions": "Allow Approve from notifications (Paper only)",
   "@settingsNotifPracticeActions": {
     "description": "settings.notif.practice_actions"
   },
@@ -3668,6 +3989,10 @@
   "@stepupTotpOptional": {
     "description": "stepup.totp_optional"
   },
+  "strategyApprovalHoldNote": "In Paper, hold 1.2 s. In Real, hold 2.5 s.",
+  "@strategyApprovalHoldNote": {
+    "description": "0.4.10 G1-blue v2"
+  },
   "strategyApprovalModeAskEveryBuy": "Ask: every buy",
   "@strategyApprovalModeAskEveryBuy": {
     "description": "strategy.approval_mode.ask_every_buy"
@@ -3679,6 +4004,220 @@
   "strategyApprovalModeOff": "Off (auto)",
   "@strategyApprovalModeOff": {
     "description": "strategy.approval_mode.off"
+  },
+  "strategyEditParams": "Edit parameters",
+  "@strategyEditParams": {
+    "description": "0.4.10 G1-blue v2: mobile secondary action"
+  },
+  "strategyEditorEyebrow": "Strategy editor",
+  "@strategyEditorEyebrow": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyEditorRevNote": "Saved as rev {rev} · applies to the next pick",
+  "@strategyEditorRevNote": {
+    "description": "0.4.10 G1-blue v2: rev = next strategy revision (integer)",
+    "placeholders": {
+      "rev": {
+        "type": "String"
+      }
+    }
+  },
+  "strategyEditorSectionApproval": "Approval",
+  "@strategyEditorSectionApproval": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyEditorSectionEntry": "Entry",
+  "@strategyEditorSectionEntry": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyEditorSectionExit": "Exit plan",
+  "@strategyEditorSectionExit": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyListColMode": "Mode",
+  "@strategyListColMode": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyListColStatus": "Status",
+  "@strategyListColStatus": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyListColStrategy": "Strategy",
+  "@strategyListColStrategy": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyListFilterAll": "All · {count}",
+  "@strategyListFilterAll": {
+    "description": "0.4.10 G1-blue v2: segmented filter; count = integer as text",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "strategyListFilterPaper": "Paper · {count}",
+  "@strategyListFilterPaper": {
+    "description": "0.4.10 G1-blue v2: wire mode practice",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "strategyListFilterReal": "Real · {count}",
+  "@strategyListFilterReal": {
+    "description": "0.4.10 G1-blue v2",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "strategyListPnl7d": "7-day PnL",
+  "@strategyListPnl7d": {
+    "description": "0.4.10 G1-blue v2: column header; value in the strategy's mode unit (SOL / paper SOL)"
+  },
+  "strategyListSummary": "{real_count} Real · {paper_count} Paper",
+  "@strategyListSummary": {
+    "description": "0.4.10 G1-blue v2: mobile header subline",
+    "placeholders": {
+      "paper_count": {
+        "type": "int",
+        "format": "decimalPattern"
+      },
+      "real_count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "strategyListTitle": "Every strategy runs in Paper or Real.",
+  "@strategyListTitle": {
+    "description": "0.4.10 G1-blue v2: strategies page headline"
+  },
+  "strategyModeLabel": "Strategy mode",
+  "@strategyModeLabel": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyModePaper": "Paper",
+  "@strategyModePaper": {
+    "description": "0.4.10 G1-blue v2: per-strategy mode chip (Practice cyan stripe treatment); wire mode practice; never translated"
+  },
+  "strategyModePaperDesc": "Runs with paper SOL. No real SOL, no Phantom.",
+  "@strategyModePaperDesc": {
+    "description": "0.4.10 G1-blue v2: Paper option in the mode selector"
+  },
+  "strategyModeReal": "Real",
+  "@strategyModeReal": {
+    "description": "0.4.10 G1-blue v2: per-strategy mode chip (magenta); never translated"
+  },
+  "strategyModeScopeNote": "Mode applies per strategy. Open positions keep their original mode.",
+  "@strategyModeScopeNote": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyNew": "New strategy",
+  "@strategyNew": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyRealGateDaysDone": "{days_done,plural,one{{days_done} day} other{{days_done} days}} in Paper",
+  "@strategyRealGateDaysDone": {
+    "description": "0.4.10 G1-blue v2: when days_required = null (threshold not set)",
+    "placeholders": {
+      "days_done": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "strategyRealGateNotSet": "Rule not set yet",
+  "@strategyRealGateNotSet": {
+    "description": "0.4.10 G1-blue v2: any *_required = null; never assume a number"
+  },
+  "strategyRealGateProgressDays": "{days_done}/{days_required} days",
+  "@strategyRealGateProgressDays": {
+    "description": "0.4.10 G1-blue v2: paper_progress (contracts 1.1.6); only when days_required != null. Rule is a placeholder until Boss decides",
+    "placeholders": {
+      "days_done": {
+        "type": "String"
+      },
+      "days_required": {
+        "type": "String"
+      }
+    }
+  },
+  "strategyRealGateProgressTrades": "{trades_done}/{trades_required} trades",
+  "@strategyRealGateProgressTrades": {
+    "description": "0.4.10 G1-blue v2: paper_progress; only when trades_required != null",
+    "placeholders": {
+      "trades_done": {
+        "type": "String"
+      },
+      "trades_required": {
+        "type": "String"
+      }
+    }
+  },
+  "strategyRealGateTradesDone": "{trades_done,plural,one{{trades_done} trade} other{{trades_done} trades}} closed",
+  "@strategyRealGateTradesDone": {
+    "description": "0.4.10 G1-blue v2: when trades_required = null",
+    "placeholders": {
+      "trades_done": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "strategyRealLockedA11y": "Real option disabled: {reason}",
+  "@strategyRealLockedA11y": {
+    "description": "0.4.10 G1-blue v2: reason = strategy.real_locked_reason.<real_locked_reason> text",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "strategyRealLockedBadge": "Needs Boss approval",
+  "@strategyRealLockedBadge": {
+    "description": "0.4.10 G1-blue v2: real_locked_reason = needs_owner_approval"
+  },
+  "strategyRealLockedChip": "Real locked",
+  "@strategyRealLockedChip": {
+    "description": "0.4.10 G1-blue v2: shown when real_locked = true (contracts 1.1.6); always with a lock icon"
+  },
+  "strategyRealLockedChipShort": "locked",
+  "@strategyRealLockedChipShort": {
+    "description": "0.4.10 G1-blue v2: compact list variant next to the Paper chip"
+  },
+  "strategyRealLockedExplain": "Real is locked. Boss approves each strategy before it can use real SOL. Until then it keeps running in Paper.",
+  "@strategyRealLockedExplain": {
+    "description": "0.4.10 G1-blue v2: generic on purpose; the Paper gate rule is not decided (no numbers in copy)"
+  },
+  "strategyRealLockedListNote": "Real stays locked until Boss approves. The strategy keeps running in Paper meanwhile.",
+  "@strategyRealLockedListNote": {
+    "description": "0.4.10 G1-blue v2"
+  },
+  "strategyRealLockedReasonGateNotMet": "Paper requirements not met yet",
+  "@strategyRealLockedReasonGateNotMet": {
+    "description": "0.4.10 G1-blue v2: contracts 1.1.6 RealLockedReason"
+  },
+  "strategyRealLockedReasonNeedsOwnerApproval": "Needs Boss approval",
+  "@strategyRealLockedReasonNeedsOwnerApproval": {
+    "description": "0.4.10 G1-blue v2: contracts 1.1.6 RealLockedReason"
+  },
+  "strategyRealLockedReasonOther": "Not available right now",
+  "@strategyRealLockedReasonOther": {
+    "description": "0.4.10 G1-blue v2: contracts 1.1.6 RealLockedReason"
+  },
+  "strategyRealLockedReasonPolicy": "Blocked by wallet rules",
+  "@strategyRealLockedReasonPolicy": {
+    "description": "0.4.10 G1-blue v2: contracts 1.1.6 RealLockedReason"
+  },
+  "strategySave": "Save strategy",
+  "@strategySave": {
+    "description": "0.4.10 G1-blue v2: primary action in the editor"
   },
   "strategyStatusDraft": "Draft",
   "@strategyStatusDraft": {
@@ -3715,6 +4254,10 @@
   "walletAuthorizeRegrantNote": "Needs Phantom + passkey. Once authority is active, exit plans resume automatically.",
   "@walletAuthorizeRegrantNote": {
     "description": "0.4.9 G1 policy_mismatch banner / sticky CTA, under wallet.authorize.regrant"
+  },
+  "walletAuthorizeRegrantTitle": "Grant trading permission again to resume Real",
+  "@walletAuthorizeRegrantTitle": {
+    "description": "0.4.10 G1-blue v2: verb-first policy_mismatch banner title"
   },
   "walletLimitsSettingCapLamports": "Total cap",
   "@walletLimitsSettingCapLamports": {
