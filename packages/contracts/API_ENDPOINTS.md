@@ -474,6 +474,11 @@ there is no mint) on coin, pick and position wires; `logo_url` on proposals/appr
 envelope that carries a mint. Clients pick the size with `logoSizeFor(px, dpr)` and rewrite with `logoUrlFor()`
 (`@centurion/contracts/wire`). Server design, SSRF rules and the transcoder dependency review:
 `services/backend/docs/LOGO_PROXY.md`. Off unless `LOGO_PROXY_ENABLED=true`.
+Variants: every size x format is a lossless re-encode capped at **16 KiB** (`HARD_MAX_BYTES`, target 8 KiB); a variant
+still above the cap is omitted and the request is served from the next smaller size of the same format (then a larger
+one); the logo is `422 LOGO_REJECTED {reason: "output_too_large"}` only when even 48 px WebP cannot fit.
+`logo_url` origin: `LOGO_PUBLIC_BASE_URL` unset = API-relative path (`/v1/img/coin/...`, resolve against the API
+origin); set (e.g. `https://img.example`) = `logo_url` is absolute with that origin.
 
 ### 4.9 Health
 `GET /healthz`, `GET /readyz` -> `{service: "Centurion Trade API", product: "Centurion Trade", mode: "practice", real_enabled: false, modes_enabled: ["practice"], live_executor: "disabled", contracts_version: "1.1.5", server_now}`. `/readyz` adds `db` and `ingest_bytes_today: {day_utc, sources: {<source>: {bytes, frames}}} | null` (ingest bytes/day meter, int64 strings, UTC day; `null` when the meter table is unavailable).

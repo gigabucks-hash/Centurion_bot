@@ -627,6 +627,10 @@ export interface PushPayload {
   exp?: IsoTs;                // min(token expiry, approval expires_at); countdown = exp - server_now
   actions: ("approve" | "skip" | "open")[];  // "approve" only for practice + valid token
   expire_reason?: ProposalExpiredReason;
+  /** 1.1.6: the coin this push is about (absent when it concerns no coin). */
+  mint?: Base58;
+  /** 1.1.6: logo content hash (`v`); ABSENT (never "" / "null") when there is no logo -> identicon. */
+  logo_hash?: string;
   /** display variables: symbol (untrusted text), amount_lamports (integer string), reason_code, ... */
   vars: Record<string, string>;
   server_now: IsoTs;
@@ -642,6 +646,15 @@ export function decodePushData(d: Record<string, string>): PushPayload {
     actions: JSON.parse(d.actions ?? "[]") as PushPayload["actions"],
     vars: JSON.parse(d.vars ?? "{}") as Record<string, string>,
   };
+}
+
+/**
+ * 1.1.6: logo URL from a push (or any `mint` + `logo_hash` pair) where no `logo_url` is delivered.
+ * `origin` = the API origin, or LOGO_PUBLIC_BASE_URL when the deployment sets one. No hash -> null (identicon).
+ */
+export function coinLogoUrl(origin: string, mint: string, size: LogoSize = 96, logoHash?: string | null): LogoUrl | null {
+  if (!logoHash) return null;
+  return `${origin.replace(/\/+$/, "")}/v1/img/coin/${mint}?s=${size}&v=${encodeURIComponent(logoHash)}`;
 }
 
 // ---------------------------------------------------------------------------

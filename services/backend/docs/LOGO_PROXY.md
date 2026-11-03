@@ -41,8 +41,9 @@ each hop re-validated. `Accept-Encoding: identity`, byte caps while streaming (`
 Format sniffed by magic bytes (declared Content-Type ignored): PNG, JPEG, GIF (first frame), WebP. Bomb guard before
 any pixel buffer: `MAX_SIDE` 4096, `MAX_PIXELS` 4096², input `MAX_INPUT` 2 MiB, per-decoder memory cap 96 MiB.
 Output: fresh lossless WebP + PNG at 48/64/96/128/192, square, letterboxed on transparency; only pixels survive (no
-EXIF/XMP/ICC/text, no extra frames, no trailing data). Byte budget target 8 KB, hard cap 16 KB (a size above the cap is
-dropped; the API serves the nearest smaller size). Tests: `crates/logo/tests/transcode.rs` (+ fixtures).
+EXIF/XMP/ICC/text, no extra frames, no trailing data). Byte budget per variant (each size x format): target 8 KiB, **hard cap 16 KiB** (`HARD_MAX_BYTES`;
+posterized 7..3 bits before giving up). A variant above the cap is omitted; the API serves the next smaller size of
+that format, then a larger one. The logo is rejected (`output_too_large`) only when 48 px WebP cannot fit. Tests: `crates/logo/tests/transcode.rs` (+ fixtures).
 
 ## 4. Dependency review (approved for P1, 2026-11-01/03)
 Direct deps, exact pins, default features off:
@@ -71,7 +72,8 @@ No ML/NSFW classifier in the MVP. Manual per-mint blocklist (service role):
 ## 6. Config (env)
 `LOGO_PROXY_ENABLED`, `LOGO_RPC_URL` (or `HELIUS_RPC_URL`), `LOGO_CACHE_DIR` (absolute; required when enabled; boot fails
 closed otherwise), `LOGO_IPFS_GATEWAYS`, `LOGO_ARWEAVE_GATEWAYS` (plain https), `LOGO_TRANSCODER_BIN` (default
-`target/release/centurion-logo`), `LOGO_PUBLIC_BASE_URL`, `LOGO_CACHE_TTL_S`, `LOGO_NEGATIVE_TTL_S`, `LOGO_MAX_BYTES`,
+`target/release/centurion-logo`), `LOGO_PUBLIC_BASE_URL` (unset = `logo_url` is API-relative `/v1/img/coin/...`, resolved against the API origin; set
+= absolute `logo_url` with that origin, e.g. a CDN in front of the API), `LOGO_CACHE_TTL_S`, `LOGO_NEGATIVE_TTL_S`, `LOGO_MAX_BYTES`,
 `LOGO_MAX_JSON_BYTES`, `LOGO_CONNECT_TIMEOUT_MS`, `LOGO_TOTAL_TIMEOUT_MS`, `LOGO_TRANSCODE_TIMEOUT_MS`,
 `LOGO_CONCURRENCY`, `LOGO_SHORT_MAX_AGE_S`, `LOGO_RATE_IP_PER_MIN`, `LOGO_COLD_IP_PER_MIN`, `LOGO_COLD_GLOBAL_PER_MIN`.
 Cost: one `getAccountInfo` per mint per 30 days (cache miss only) on the existing Helius plan.

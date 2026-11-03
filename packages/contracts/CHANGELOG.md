@@ -28,6 +28,10 @@ rewritten in place to the new names. Clients import `@centurion/contracts` / `@c
 - **`MODE_NOT_ALLOWED` redefined** (403, same code/sqlstate): now means "this strategy is not approved for Real"
   (en "This strategy is not approved for Real mode", id "Strategi ini belum disetujui untuk mode Real"); was "only
   practice mode is allowed".
+- **Push coin fields (EVENTS_SCHEMA §6):** coin pushes carry `mint` + `logo_hash` (strings; `logo_hash` omitted when
+  there is no logo, never empty). `PushPayload.mint?`, `PushPayload.logo_hash?`; helper `coinLogoUrl(origin, mint,
+  size, logo_hash)`. Logo variants: 16 KiB hard cap each (oversize variant omitted, next smaller served);
+  `LOGO_PUBLIC_BASE_URL` unset = API-relative `logo_url`.
 - MCP/OAuth (backend `api/src/mcp`, `api/src/oauth`, migrations 0020/0021): see `services/backend/docs/MCP_DESIGN.md`.
 
 ## 1.1.5 (2026-10-29, backend ef74131): quotes without rev bumps, sell quotes, Centurion Trade

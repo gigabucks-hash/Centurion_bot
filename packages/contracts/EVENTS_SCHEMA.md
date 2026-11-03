@@ -273,6 +273,14 @@ opened in-app). Guard changes and team actions: `["open"]` only. Clients fail cl
 missing `mode`, or real-only events in practice. Device registration, rotation and revocation:
 API_ENDPOINTS.md 4.10.
 
+**Coin fields (1.1.6):** every push about a coin (proposal/approval for a mint, pick, position, fill, coin
+alerts) also carries `mint` (base58 string) and `logo_hash` (string, the `v` of the logo URL). `logo_hash` is
+**omitted** (key absent, never `""` and never `"null"`) when there is no logo yet / the proxy is off; then show
+the identicon. Pushes without a coin omit both. Build the image URL on the device with
+`coinLogoUrl(apiOrigin, mint, size, logo_hash)` (`src/wire/events.ts`) =
+`{origin}/v1/img/coin/{mint}?s={size}&v={logo_hash}` (API_ENDPOINTS 4.12); `origin` = the API origin, or
+`LOGO_PUBLIC_BASE_URL` when the deployment sets one. Example additions: `"mint": "Co68...pump", "logo_hash": "k3J9x..."`.
+
 
 ## 7. Reserved for Phase 7 (not emitted)
 
