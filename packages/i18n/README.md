@@ -1,4 +1,4 @@
-# @sentra/i18n · v0.4.9 (G1-blue copy, Centurion Trade, contracts 1.1.5, 3 Nov 2026 WIB)
+# @centurion/i18n · v0.4.9 (G1-blue copy, Centurion Trade, contracts 1.1.5, 3 Nov 2026 WIB)
 
 Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/build_locales.py` (EN = source, ID = locale). Perubahan copy → minta UX, lalu publish ulang ke folder ini.
 
@@ -23,7 +23,7 @@ Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/
 - **Countdown**: `skew = skewFrom(server_now)` dari setiap respons REST / envelope stream / heartbeat `clock`; `formatCountdown(remainingMs(expires_at, skew))`. Jangan pernah menghitung TTL lokal.
 - **Quote (0.4.6)**: field quote `ApprovalWire` boleh null → `formatLamportsOrDash` / `formatBps` / `formatRawQty(min_out_raw, decimals)`; null = "—" + `common.value.unavailable`. Kesegaran = `quoteState(q, skew, {mode})`; Real dengan `blocksApprove` → hold/Approve nonaktif + `review.quote.refresh`. `proposal.updated` senyap (lihat `notifications.meta.json`).
 - **Mcap (0.4.6)**: `formatMcapUsd(mcap_usd)` utama, `formatMcapSol(market_cap_lamports)` sekunder, tooltip `mcap.as_of` + `mcap.usd_indicative`.
-- **Brand (0.4.7)**: nama produk dari `app.name` (Centurion Trade); nama paket `@sentra/*` dan nama key tetap; skema deep link `centurion://` (0.4.8).
+- **Brand (0.4.7)**: nama produk dari `app.name` (Centurion Trade); nama paket `@centurion/*` dan nama key tetap; skema deep link `centurion://` (0.4.8).
 - **Real notif (0.4.7, reserved)**: hanya stream Real, tidak pernah actionable; lamports → `formatLamports`, waktu ISO → `formatDateTime`, `address_short` = `formatAddressShort(address)` (bukan var wire).
 - **Manual sell**: UI persen, wire `fraction_bps` (`pctToFractionBps(50)` → 5000; `formatFractionBps(bps, locale)` untuk teks %).
 - **Error**: `errors.map.json` → `codes[code].key` (fallback `error.code.internal`); field error = placeholder.
@@ -42,7 +42,7 @@ Lihat [`CHANGELOG.md`](CHANGELOG.md) (0.4.0–0.4.9, BREAKING ditandai). 0.4.9: 
 Metadata mesin: `key-migrations.json` `releases[].deprecated[]` (`key`, `use`, `note`, `remove_when`), plus description ARB berawalan `DEPRECATED`.
 
 ### Migrasi key Desktop (0.4.4)
-| Lama (`apps/desktop` local.ts) | Baru (`@sentra/i18n`) | Catatan |
+| Lama (`apps/desktop` local.ts) | Baru (`@centurion/i18n`) | Catatan |
 |---|---|---|
 | `desktop.tab.queue` | `queue.title_short` | sama |
 | `desktop.tab.chart` | `chart.title` | sama |

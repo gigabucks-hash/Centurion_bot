@@ -3,7 +3,7 @@
 Run 2026-10-29 18:23 WIB. Desktop `HttpTransport` (Rust, `src-tauri/src/backend/http.rs`) against
 `services/backend/api` at repo HEAD a04f849 (plus Backend's uncommitted 1.1.4 work in the shared tree; the server
 reports `contracts_version` 1.1.4). Practice only, `TRADING_MODE=paper`, local Postgres (Backend's test
-instance, `PGHOST=/tmp PGPORT=55432`), throwaway database `sentra_desktop_smoke`.
+instance, `PGHOST=/tmp PGPORT=55432`), throwaway database `centurion_desktop_smoke`.
 
 ```
 apps/desktop/scripts/smoke-real.sh           # fresh DB → API on :18080 → cases → stop   (≈ 12 s)
@@ -13,15 +13,15 @@ apps/desktop/scripts/smoke-real.sh --serve   # fresh DB + API only; writes .env.
 - **Nothing is installed.** The script needs psql, node ≥ 22.18, cargo, openssl, curl and
   `services/backend/api/node_modules`, and stops with exit 3 if one is missing. reqwest 0.12 (rustls) was
   already in the local cargo cache; it builds `--offline`.
-- **Dev JWT:** HS256 signed with `SENTRA_DEV_JWT_SECRET` from `apps/desktop/.env.local`. The script generates
+- **Dev JWT:** HS256 signed with `CENTURION_DEV_JWT_SECRET` from `apps/desktop/.env.local`. The script generates
   that file on the first run (umask 077) and refuses to run unless git ignores it. The token is minted with
-  Backend's own `signJwt()`: owner of the seeded workspace, scopes `read` + `trade`, `sentra_client=desktop`,
+  Backend's own `signJwt()`: owner of the seeded workspace, scopes `read` + `trade`, `centurion_client=desktop`,
   15 min. The secret and the token are never printed, logged or committed. The HTTP client's `Debug` output
   redacts the token, and so does its network error text.
 - **Seed:** Backend's fixtures, reused read-only (`supabase/tests/00_local_shim.sql`, all migrations,
   `api/test/seed.sql`), plus `scripts/dev-seed/desktop_seed.sql` (one extra pending pick used for the error
   cases). Wrapper: `scripts/dev-seed/reset-db.sh`. No seed helper from Backend is needed.
-- **App switch:** `SENTRA_BACKEND=http://127.0.0.1:18080` (+ `SENTRA_WORKSPACE_ID`, `SENTRA_BACKEND_TOKEN`).
+- **App switch:** `CENTURION_BACKEND=http://127.0.0.1:18080` (+ `CENTURION_WORKSPACE_ID`, `CENTURION_BACKEND_TOKEN`).
   Unset → the in-process mock (default). Plain `http://` is allowed to loopback only. A set but unusable value
   stops the app instead of silently falling back to the mock.
 
@@ -56,7 +56,7 @@ The only mismatch is still S1 (`next_allowed_at` offset + µs).
 | Second reset → `429 RESET_COOLDOWN`, `Retry-After: 86400`, `error.next_allowed_at`; surfaced to the UI as `[next_allowed_at=…] [retry_after_s=…]` | PASS (2) |
 | Contract scans over 46 raw bodies / SSE frames: timestamps, 409 `current` type + `request_id`, `reject_reason` key, SSE seq strings | 1 mismatch (below) |
 
-Headless GUI: the app (`SENTRA_BACKEND` from `--serve`) connects over HTTP. The activity feed shows
+Headless GUI: the app (`CENTURION_BACKEND` from `--serve`) connects over HTTP. The activity feed shows
 "Terhubung ke backend (http)"; cash 29.75 and equity 29.95 paper SOL come from `/portfolio/overview`; skew is 0.0 s
 (`docs/real-transport-smoke.png`).
 

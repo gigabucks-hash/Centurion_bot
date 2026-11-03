@@ -1,8 +1,8 @@
-# Review Login SIWS (Sign-In With Solana) via Phantom — Sentra mobile (Flutter)
+# Review Login SIWS (Sign-In With Solana) via Phantom — Centurion mobile (Flutter)
 
 - Tanggal review: 29 Okt 2026, ±18:40 WIB (UTC+7)
 - Sifat: **read-only**. Tidak ada paket yang di-install ke project mana pun. Source di-clone untuk dibaca saja ke `/workspace/dev_team/siws_review/`.
-- Konteks: app privat (hanya Boss), backend Supabase + API Sentra, wewenang app terbatas trading, private key **tidak pernah** ada di app.
+- Konteks: app privat (hanya Boss), backend Supabase + API Centurion, wewenang app terbatas trading, private key **tidak pernah** ada di app.
 - Backend yang direview: `services/backend` commit `a639d43` (auth SIWS, kontrak 1.1.4 + "Unreleased: wallet login").
 - Source yang dibaca (commit):
   - `solana-mobile/mobile-wallet-adapter` `e7d34f8` (23 Okt 2026, 05:35 WIB)
@@ -31,7 +31,7 @@ Base58 kita tulis sendiri (±40 baris, seperti `services/backend/api/src/base58.
 
 Paket Flutter pihak ketiga khusus Phantom/wallet (`phantom_connect`, `solana_wallet_adapter`) **ditolak** (§4).
 
-Risiko terbesar: **phishing relay**. Alamat owner itu publik, jadi app/situs penyerang bisa meminta nonce untuk alamat owner lalu membujuk owner menandatangani pesan berdomain Sentra. Verifikasi domain oleh Phantom untuk deeplink native **belum terverifikasi**. Mitigasinya di §6 dan item Backend B-1, B-2 dan B-6 di §7.
+Risiko terbesar: **phishing relay**. Alamat owner itu publik, jadi app/situs penyerang bisa meminta nonce untuk alamat owner lalu membujuk owner menandatangani pesan berdomain Centurion. Verifikasi domain oleh Phantom untuk deeplink native **belum terverifikasi**. Mitigasinya di §6 dan item Backend B-1, B-2 dan B-6 di §7.
 
 ---
 
@@ -115,15 +115,15 @@ Data pub.dev diambil dari `https://pub.dev/api/packages/<nama>` (versi, tanggal 
 
 ### 5.1 Alur
 **Android (utama), MWA 2.0 lewat plugin kita, satu sesi `transact`:**
-1. `authorize(identity: {name: "Sentra", uri: "https://<DOMAIN_SENTRA>", icon})`. Wallet mengembalikan `accounts[0].address` (base64) dan app mengubahnya ke base58.
-2. App memanggil `POST /v1/auth/siws/nonce {address, domain: "<DOMAIN_SENTRA>", uri: "https://<DOMAIN_SENTRA>", chain_id: "solana:mainnet"}` dan menerima `message`.
+1. `authorize(identity: {name: "Centurion", uri: "https://<DOMAIN_CENTURION>", icon})`. Wallet mengembalikan `accounts[0].address` (base64) dan app mengubahnya ke base58.
+2. App memanggil `POST /v1/auth/siws/nonce {address, domain: "<DOMAIN_CENTURION>", uri: "https://<DOMAIN_CENTURION>", chain_id: "solana:mainnet"}` dan menerima `message`.
 3. `sign_messages([utf8(message)], [address])`. Hasilnya signature base64, yang app ubah ke base58.
 4. App memanggil `POST /v1/auth/siws/verify {address, message, signature, client: "mobile"}` dan menerima `Session`.
 5. `auth_token` MWA **dibuang**, tidak disimpan, karena app tidak butuh tanda tangan transaksi.
 
 **iOS (utama) dan fallback Android, deeplink Phantom:**
 1. Buat keypair x25519 baru (`pinenacl`) yang hanya hidup di memori.
-2. Buka `https://phantom.com/ul/v1/connect?app_url=https://<DOMAIN_SENTRA>&dapp_encryption_public_key=…&redirect_link=<redirect>&cluster=mainnet-beta`.
+2. Buka `https://phantom.com/ul/v1/connect?app_url=https://<DOMAIN_CENTURION>&dapp_encryption_public_key=…&redirect_link=<redirect>&cluster=mainnet-beta`.
 3. Saat redirect kembali, hitung shared secret dan dekripsi `data` untuk mendapat `public_key` + `session`.
 4. Panggil `/v1/auth/siws/nonce` dan terima `message`.
 5. Buka `https://phantom.com/ul/v1/signMessage` dengan `payload` terenkripsi `{message: base58(utf8(message)), session, display: "utf8"}`.
@@ -137,10 +137,10 @@ Konsekuensinya ada **dua kali** perpindahan app, connect lalu signMessage. Ini d
 
 ### 5.3 Deep link hijacking
 - **Keluar ke Phantom**: selalu `https://phantom.com/ul/...` (Universal Link/App Link milik Phantom), **bukan** `phantom://`. Skema custom bisa diklaim app lain. Sumber: https://docs.phantom.com/phantom-deeplinks/deeplinks-ios-and-android
-- **Kembali ke Sentra**: docs Phantom menyatakan redirect HTTPS membuka browser (§1.1). Jadi kemungkinan besar kita perlu skema custom yang unik (mis. `com.sentra.app.auth://phantom`). Apakah Universal Link/App Link terverifikasi kita (AASA + `assetlinks.json` dengan `autoVerify`) tetap membuka app **[Belum terverifikasi]**: tes T-3.
+- **Kembali ke Centurion**: docs Phantom menyatakan redirect HTTPS membuka browser (§1.1). Jadi kemungkinan besar kita perlu skema custom yang unik (mis. `com.centuriontrade.app.auth://phantom`). Apakah Universal Link/App Link terverifikasi kita (AASA + `assetlinks.json` dengan `autoVerify`) tetap membuka app **[Belum terverifikasi]**: tes T-3.
   - Kalau tetap memakai skema custom, app lain bisa menangkap redirect. Dampaknya terbatas. Payload `data` terenkripsi ke kunci x25519 sesaat milik kita, jadi penyadap tidak bisa membacanya. Pemalsuan juga tidak berguna, karena server memverifikasi signature Ed25519, nonce single-use dan allowlist. Yang tersisa adalah DoS (redirect "dicuri") dan phishing UI.
   - Mitigasinya: validasi `state` lokal, yaitu menyimpan `dapp_encryption_public_key` yang sedang aktif dan menolak respons yang tidak cocok. Respons diterima hanya dalam jendela login aktif (≤5 menit).
-- **MWA**: wallet memverifikasi app kita lewat `assetlinks.json` di domain `identity.uri`. Nama paket `com.sentra.app` dan SHA-256 sertifikat signing harus cocok. Kalau memakai Play App Signing, pakai fingerprint kunci app signing, bukan upload key. Sumber: https://docs.phantom.com/developer-powertools/domain-and-transaction-warnings dan https://developer.android.com/training/app-links/verify-android-applinks
+- **MWA**: wallet memverifikasi app kita lewat `assetlinks.json` di domain `identity.uri`. Nama paket `com.centuriontrade.app` dan SHA-256 sertifikat signing harus cocok. Kalau memakai Play App Signing, pakai fingerprint kunci app signing, bukan upload key. Sumber: https://docs.phantom.com/developer-powertools/domain-and-transaction-warnings dan https://developer.android.com/training/app-links/verify-android-applinks
 - **iOS Universal Links**: butuh entitlement Associated Domains + `apple-app-site-association` di domain kita. Sumber: https://developer.apple.com/documentation/xcode/supporting-associated-domains
 
 ### 5.4 Penyimpanan di perangkat
@@ -156,13 +156,13 @@ Refresh harus **single-flight**, yaitu satu request refresh sekaligus. Backend m
 
 ## 6. Risiko utama
 
-1. **Phishing relay (tinggi untuk Real SOL, sedang untuk Practice).** Alamat owner itu publik. Penyerang bisa memanggil `/v1/auth/siws/nonce` untuk alamat owner, mendapat pesan sah berdomain Sentra, lalu membujuk Boss menandatanganinya lewat app/deeplink milik penyerang. Phantom memvalidasi domain terhadap origin di web (§1.2) dan identitas app di MWA (§2), tetapi **untuk deeplink native validasinya belum terverifikasi**. Kalau tanda tangan didapat, penyerang mendapat sesi owner (scope `read`, `trade`).
+1. **Phishing relay (tinggi untuk Real SOL, sedang untuk Practice).** Alamat owner itu publik. Penyerang bisa memanggil `/v1/auth/siws/nonce` untuk alamat owner, mendapat pesan sah berdomain Centurion, lalu membujuk Boss menandatanganinya lewat app/deeplink milik penyerang. Phantom memvalidasi domain terhadap origin di web (§1.2) dan identitas app di MWA (§2), tetapi **untuk deeplink native validasinya belum terverifikasi**. Kalau tanda tangan didapat, penyerang mendapat sesi owner (scope `read`, `trade`).
    - Mitigasi: tes T-1/T-2. Ikat nonce ke **kunci perangkat** (B-6). Tambahkan Play Integrity / App Attest di `/verify` sebelum Fase 7. Statement di pesan tetap jelas.
 2. **Replay**: tertutup di backend. Nonce 5 menit, single-use, terikat address + domain, dikonsumsi atomik (`consume_siws_nonce`). Signature salah ikut membakar nonce. Ada tes reuse, salah domain, kedaluwarsa dan tamper di `services/backend/api/test/auth.test.ts`.
 3. **Allowlist fail-open**: `OWNER_WALLETS` kosong berarti **wallet apa pun boleh login** (`ownerOk` di `routes_auth.ts`, `config.ts`). Untuk app privat ini harus fail-closed (B-1).
 4. **DoS penguncian login**: rate limit 5/menit **per address**, dan alamat owner publik. Siapa pun bisa menghabiskan kuota nonce/verify owner tanpa kunci apa pun (B-2).
 5. **Redirect deeplink lewat skema custom** (§5.3): DoS/phishing UI, bukan bypass auth.
-6. **Session Phantom tidak kedaluwarsa**. Kalau sampai bocor, app lain bisa meminta tanda tangan atas nama "Sentra" tanpa reconnect. Karena itu session tidak disimpan.
+6. **Session Phantom tidak kedaluwarsa**. Kalau sampai bocor, app lain bisa meminta tanda tangan atas nama "Centurion" tanpa reconnect. Karena itu session tidak disimpan.
 7. **Ketergantungan pada fitur tak terdokumentasi**: tidak ada, karena `signIn` deeplink tidak dipakai.
 
 ## 7. Review backend (`a639d43`) terhadap spec SIWS, beserta item untuk Backend
@@ -188,7 +188,7 @@ Celah dan permintaan ke Backend (prioritas per keputusan Apex 29 Okt 2026: **B-1
   - Tambahkan juga Play Integrity / App Attest.
 - **B-7 (rendah) Pesan versi baru.** Statement saat ini berbunyi "(practice)". Kalau berubah di Fase 7, regex strict akan menolak pesan lama. Pastikan perubahan statement dikoordinasikan sebagai perubahan kontrak.
 - **B-8 (dokumen) `FLUTTER_INTEGRATION_ANSWERS.md` basi.** Dokumen itu masih menulis jalur `/auth/siws/*` tanpa `/v1`, menyebut "Google, Apple, email OTP", dan alur Telegram. Tolong perbarui ke 4 route `/v1/auth/...`.
-- **B-9 (konfirmasi)** Minta Backend mengonfirmasi bahwa `client` wajib dikirim `"mobile"` dari app. Default-nya `"web"`, jadi kalau tidak dikirim, klaim `sentra_client` salah.
+- **B-9 (konfirmasi)** Minta Backend mengonfirmasi bahwa `client` wajib dikirim `"mobile"` dari app. Default-nya `"web"`, jadi kalau tidak dikirim, klaim `centurion_client` salah.
 - **B-10 (konfirmasi)** Minta Backend mengonfirmasi bahwa access token HS256 memakai `SUPABASE_JWT_SECRET` legacy. Kalau proyek Supabase pindah ke JWT signing key asimetris, PostgREST bisa menolak token ini **[belum diverifikasi untuk proyek kita]**. Rencana migrasinya perlu dicatat.
 
 Kontrak yang dipakai mobile (tidak ada endpoint baru):
@@ -198,7 +198,7 @@ Kontrak yang dipakai mobile (tidak ada endpoint baru):
 - `POST /v1/auth/session/logout {refresh_token}` → `{data:{revoked:true}}`
 
 ## 8. Tes perangkat wajib sebelum implementasi
-- **T-1**: Phantom iOS dan Android lewat deeplink `signMessage` dengan pesan SIWS ber-`domain` = `<DOMAIN_SENTRA>` dan `app_url` = `https://<DOMAIN_SENTRA>`. Apakah muncul dialog SIWS, dialog biasa, atau error `-32000`?
+- **T-1**: Phantom iOS dan Android lewat deeplink `signMessage` dengan pesan SIWS ber-`domain` = `<DOMAIN_CENTURION>` dan `app_url` = `https://<DOMAIN_CENTURION>`. Apakah muncul dialog SIWS, dialog biasa, atau error `-32000`?
 - **T-2**: Phantom Android lewat MWA `sign_messages`. Periksa juga apakah peringatan identitas hilang setelah `assetlinks.json` dipasang.
 - **T-3**: Apakah `redirect_link` HTTPS (Universal Link/App Link terverifikasi) kembali ke app atau terbuka di browser?
 - **T-4**: Perilaku saat Phantom belum terpasang, dan saat user menolak (`errorCode`).
@@ -206,7 +206,7 @@ Kontrak yang dipakai mobile (tidak ada endpoint baru):
 ## 9. Distribusi iOS (TestFlight internal / ad-hoc, akun pribadi Boss)
 - TestFlight **internal** (≤100 user App Store Connect) **tidak** melewati TestFlight App Review. Review hanya untuk tester eksternal. Build berlaku 90 hari. Sumber: https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers/ dan https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/ [Terverifikasi]
 - Universal Links butuh capability **Associated Domains**, yang menurut sumber pihak ketiga hanya ada di Apple Developer Program berbayar ($99/tahun), bukan Personal Team gratis: https://bitrig.com/blog/apple-developer-program-free-vs-paid. Status **[Belum terverifikasi di tabel resmi Apple]**, cek di https://developer.apple.com/help/account/reference/supported-capabilities-ios. TestFlight dan ad-hoc memang sudah mewajibkan program berbayar.
-- Kita butuh **domain yang kita kuasai** (HTTPS) untuk AASA, `assetlinks.json`, `domain`/`uri` SIWS dan `identity.uri` MWA. Domain ini juga harus masuk `AUTH_SIWS_DOMAINS`. Saat ini repo hanya punya placeholder (`api.sentra.example`, `sentra.local`).
+- Kita butuh **domain yang kita kuasai** (HTTPS) untuk AASA, `assetlinks.json`, `domain`/`uri` SIWS dan `identity.uri` MWA. Domain ini juga harus masuk `AUTH_SIWS_DOMAINS`. Saat ini repo hanya punya placeholder (`api.centurion.example`, `centurion.local`).
 - **Deeplink Phantom tidak membutuhkan App Store review maupun registrasi ke Phantom.** Docs deeplink tidak menyebut syarat registrasi, dan Phantom Portal/App ID hanya untuk Phantom Connect SDK (https://docs.phantom.com/resources/faq). Domain baru bisa memicu peringatan "domain is new or has not been reviewed" selama beberapa hari (https://docs.phantom.com/developer-powertools/domain-and-transaction-warnings).
 - Ad-hoc: perangkat harus didaftarkan lewat UDID. Info dari sumber pihak ketiga https://docs.medo.dev/18-app-packaging/01-ios/02-packaging-routes.html **[belum diverifikasi resmi]**.
 
@@ -335,7 +335,7 @@ Transitive Dart untuk desktop/web juga ikut **resolve**: `flutter_secure_storage
 **Vonis: PASS-with-conditions.** Syaratnya:
 - (a) Pin exact `11.2.0` (+ darwin 0.4.3, platform_interface 2.1.1) dengan sha256 di atas.
 - (b) **iOS**: `IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device, synchronizable: false)`. Ini disarankan karena refresh di background, mis. aksi notifikasi saat layar terkunci, butuh akses. Kalau tidak ada akses di background, pakai `unlocked_this_device`. Jangan pakai default `unlocked`.
-- (c) **Android**: `AndroidOptions()` default (RSA-OAEP + AES-GCM). Tetap `allowBackup=false` + `dataExtractionRules`. `storageNamespace: 'sentra_auth'`. `resetOnError: true` diterima.
+- (c) **Android**: `AndroidOptions()` default (RSA-OAEP + AES-GCM). Tetap `allowBackup=false` + `dataExtractionRules`. `storageNamespace: 'centurion_auth'`. `resetOnError: true` diterima.
 - (d) Simpan **hanya** refresh token. Access token, kunci x25519, session Phantom dan `authToken` MWA tetap di memori.
 - (e) Rotasi refresh: simpan token baru di memori dulu. Kalau `write` gagal, ulangi; kalau tetap gagal, minta login ulang.
 - (f) Saat first-run setelah install (flag di `SharedPreferences`/`NSUserDefaults`), panggil `deleteAll()` untuk membuang item keychain sisa install lama.
@@ -352,7 +352,7 @@ Transitive Dart untuk desktop/web juga ikut **resolve**: `flutter_secure_storage
 
 **Identitas dan origin:**
 - Library hanya mengirim `identity {uri, icon, name}`. Verifikasi identitas dilakukan **wallet** lewat Digital Asset Links (`assetlinks.json`) (spec §Dapp identity verification; https://docs.phantom.com/developer-powertools/domain-and-transaction-warnings).
-- `identity.uri` harus `https://<DOMAIN_SENTRA>`, sama dengan domain SIWS di `AUTH_SIWS_DOMAINS`.
+- `identity.uri` harus `https://<DOMAIN_CENTURION>`, sama dengan domain SIWS di `AUTH_SIWS_DOMAINS`.
 
 **Auth token:**
 - Disimpan di properti in-memory `MobileWalletAdapter.authToken` (`MobileWalletAdapter.kt:32`) dan dipakai ulang untuk `reauthorize`. Tidak ada persistensi oleh library.
@@ -379,11 +379,11 @@ Transitive Dart untuk desktop/web juga ikut **resolve**: `flutter_secure_storage
 **Vonis: PASS-with-conditions.** Syaratnya:
 - (a) Pin exact `2.0.8` + `gradle/verification-metadata.xml` (sha256 di atas) + dependency locking.
 - (b) `exclude group: 'androidx.test.ext', module: 'junit-ktx'` (lalu uji bahwa library tetap berjalan).
-- (c) `blockchain = Solana.Mainnet`, `identity.uri = https://<DOMAIN_SENTRA>`.
+- (c) `blockchain = Solana.Mainnet`, `identity.uri = https://<DOMAIN_CENTURION>`.
 - (d) Hanya `transact { authorize; signMessagesDetached }`, tanpa `signIn`/`signAndSendTransactions`.
 - (e) `authToken` dibuang setelah login.
 - (f) R8 membuang `Log.v/d`.
-- (g) `assetlinks.json` di domain Sentra dengan fingerprint sertifikat release.
+- (g) `assetlinks.json` di domain Centurion dengan fingerprint sertifikat release.
 - (h) Plugin MethodChannel kita hanya mengembalikan `address` (base58) dan `signature` (base58) ke Dart. Pesan yang ditandatangani harus persis string dari `/v1/auth/siws/nonce`.
 
 ### 11.6 Yang masih terbuka
@@ -396,7 +396,7 @@ Transitive Dart untuk desktop/web juga ikut **resolve**: `flutter_secure_storage
 Approval: Boss ("Boleh", lewat Apex), hanya `pinenacl` 0.6.0 dan `flutter_secure_storage` 11.2.0. MWA/`clientlib-ktx` **tidak** dipasang (red flag `junit-ktx`, ditunda).
 - `pubspec.yaml`: pin exact `pinenacl: 0.6.0`, `flutter_secure_storage: 11.2.0`, `dependency_overrides` darwin 0.4.3 + platform_interface 2.1.1.
 - **Verifikasi lockfile**: setiap paket yang **baru** masuk `pubspec.lock` (pinenacl, flutter_secure_storage + `_darwin`/`_linux`/`_platform_interface`/`_web`/`_windows`, `ffi_leak_tracker`, `win32`) punya versi dan `sha256` yang **sama persis** dengan `cr/PUB_SHA256.txt`. Dua baris di `PUB_SHA256.txt` berbeda dari lockfile (`meta` 1.18.3 vs 1.19.0, `jni_flutter` 1.0.4+1 vs 1.0.4), tetapi keduanya **sudah ada di lockfile sebelum instalasi** (tidak berubah terhadap HEAD; `meta` dipin oleh Flutter SDK), jadi bukan bagian dari instalasi ini.
-- Wrapper: `lib/core/auth/phantom_box.dart` (hanya `Box`/`PrivateKey`/`EncryptedMessage` + `crypto_scalarmult` untuk cek titik nol; keypair baru per login, hanya di memori; tolak public key ≠ 32 byte dan shared secret nol; semua throw ditangkap dengan `catch (_)`), `lib/core/auth/secure_token_store.dart` (hanya refresh token `srt_…`; iOS `first_unlock_this_device` + `synchronizable:false`; Android `storageNamespace:'sentra_auth'`; rotasi memori-dulu + write-retry; `deleteAll()` saat first run setelah install), `lib/core/auth/base58.dart`.
+- Wrapper: `lib/core/auth/phantom_box.dart` (hanya `Box`/`PrivateKey`/`EncryptedMessage` + `crypto_scalarmult` untuk cek titik nol; keypair baru per login, hanya di memori; tolak public key ≠ 32 byte dan shared secret nol; semua throw ditangkap dengan `catch (_)`), `lib/core/auth/secure_token_store.dart` (hanya refresh token `srt_…`; iOS `first_unlock_this_device` + `synchronizable:false`; Android `storageNamespace:'centurion_auth'`; rotasi memori-dulu + write-retry; `deleteAll()` saat first run setelah install), `lib/core/auth/base58.dart`.
 - Test: `test/auth_wrappers_test.dart` (vektor RFC 7748 §5.2 termasuk iterasi 1/1000, §6.1 DH, round-trip base58, tamper, titik orde rendah, store berbasis fake).
 - `data_extraction_rules.xml` sudah mengecualikan seluruh domain `sharedpref` (termasuk `FlutterSecureStorage*`).
 - Belum: interop fixture dari tweetnacl-js/Phantom asli (butuh perangkat), cek ukuran APK untuk `tink-android`/`path_provider_*` (§11.4 g).
@@ -420,7 +420,7 @@ Keputusan Apex/Boss: MWA ditunda (red flag), Android dulu lewat deeplink Phantom
 
 **UI:** `LoginScreen` (`/login`), satu tombol "Masuk dengan Phantom". Gate login aktif lewat `FeatureFlags.authGateEnabled` (ON di komposisi prod `prodAuthOverrides`, OFF di build mock/test). Tidak ada rute email OTP/Telegram; stub Telegram tetap di balik flag OFF.
 
-**Error → copy:** `SIWS_NONCE_INVALID`, `SIWS_SIGNATURE_INVALID`, `FORBIDDEN_ROLE`, `RATE_LIMITED` (+`Retry-After` → `retry_after_s`), `UNAVAILABLE` (juga timeout/jaringan/TLS/404 tanpa envelope), `VALIDATION_FAILED`, `UNAUTHENTICATED` lewat `api_errors.g.dart` + `errorText` (i18n). Copy khusus Phantom sementara di `lib/features/auth/login_strings.dart` (ARB vendored tidak boleh diubah): `loginButtonPhantom`, `loginPhantomWaiting`, `loginPhantomNotInstalled`, `loginPhantomExpired`, `loginPhantomBadResponse` → **minta UX menambahkan ke @sentra/i18n**.
+**Error → copy:** `SIWS_NONCE_INVALID`, `SIWS_SIGNATURE_INVALID`, `FORBIDDEN_ROLE`, `RATE_LIMITED` (+`Retry-After` → `retry_after_s`), `UNAVAILABLE` (juga timeout/jaringan/TLS/404 tanpa envelope), `VALIDATION_FAILED`, `UNAUTHENTICATED` lewat `api_errors.g.dart` + `errorText` (i18n). Copy khusus Phantom sementara di `lib/features/auth/login_strings.dart` (ARB vendored tidak boleh diubah): `loginButtonPhantom`, `loginPhantomWaiting`, `loginPhantomNotInstalled`, `loginPhantomExpired`, `loginPhantomBadResponse` → **minta UX menambahkan ke @centurion/i18n**.
 
 **Test:** `test/phantom_login_test.dart` (FakePhantom yang benar-benar mengenkripsi dengan Box; redirect palsu/replay/TTL; titik orde rendah; alamat 31 byte; signature 63 byte; decline 4001; Phantom tidak terpasang; pesan domain lain tidak ditandatangani; storage hanya refresh token; restore cold start; reuse → forced logout; bentuk body REST; pemetaan error), `test/login_screen_test.dart` (gate ON → login → tab Home; decline; wallet bukan owner).
 

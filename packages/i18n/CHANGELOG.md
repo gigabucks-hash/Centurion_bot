@@ -1,4 +1,4 @@
-# Changelog · @sentra/i18n
+# Changelog · @centurion/i18n
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
@@ -76,7 +76,7 @@ ICU parse + paritas argumen EN/ID 691/691 (bad 0) · ARB tanpa `#` (26 plural di
 - `wallet.withdraw.fail_reason.{withdraw_simulation_failed,insufficient_balance,destination_not_owned,tx_expired,provider_error,user_rejected,other}`;
   `unknown` tetap fallback (sekarang huruf kecil, dipakai di tengah kalimat).
 - `auth.siws.statement`: ID = EN verbatim "Sign in to Centurion Trade" (statement yang ditandatangani, `statement_version` server naik).
-- Skema deep link sekarang `centurion://` (keputusan lead); catatan "skema `sentra://` tetap" di 0.4.7 **tidak berlaku lagi**. `@sentra/*` tetap.
+- Skema deep link sekarang `centurion://` (keputusan lead); catatan "skema `centurion://` tetap" di 0.4.7 **tidak berlaku lagi**. `@centurion/*` tetap.
 - `format.mjs`: `quoteState(..., {kind: buy|sell|close_preview})`, `REQUIRED_SELL_QUOTE_FIELDS`, `REQUIRED_CLOSE_PREVIEW_FIELDS`,
   `totalMaxCheck(..., {side})`, `withdrawFailReasonKey`, `killSwitchReasonSelect` (null → other). Tes 10/10.
 - ARB: placeholder `*_count` polos sekarang bertipe `int` (`requested_count`).
@@ -91,7 +91,7 @@ ICU parse + paritas argumen EN/ID 691/691 (bad 0) · ARB tanpa `#` (26 plural di
   disubstitusi saat build). Key baru `app.name`, `app.title`, `app.splash.loading`, `app.about.{title,version}`, `auth.siws.statement`
   ("Masuk ke Centurion Trade", copy tampilan; statement SIWS yang ditandatangani ditentukan server).
 - Copy berubah: `screener.not_tradeable.detail`, `login.telegram.consent`. Build gagal bila nama kerja lama muncul di copy EN/ID.
-- **Tidak** diubah: nama paket `@sentra/*`, nama key, skema `sentra://`, logo, tokens.
+- **Tidak** diubah: nama paket `@centurion/*`, nama key, skema `centurion://`, logo, tokens.
 
 ### Ditambahkan (contracts 1.1.5, jawaban Backend 1–8)
 - Quote: `review.quote.{id,auto_refreshing,loading}`, `review.ata_rent` (disembunyikan bila "0"), `review.network_fee_breakdown`
@@ -180,7 +180,7 @@ ICU parse + paritas argumen EN/ID 691/691 (bad 0) · ARB tanpa `#` (26 plural di
 ### Migrasi key Desktop (`apps/desktop/src/i18n/local.ts`)
 Perhatian, ganti nama placeholder: `rejected_score` `{pass}` → `{score_threshold}`; `quote_not_sol` `{quote}` → `{quote_symbol}`; `score_value_info` `{max}` → `{max_score}`; `quote_ttl` `{s}` → `{seconds}`. Ada juga beberapa perubahan copy EN (mis. "Approve — not available").
 
-| Lama (`apps/desktop` local.ts) | Baru (`@sentra/i18n`) | Catatan |
+| Lama (`apps/desktop` local.ts) | Baru (`@centurion/i18n`) | Catatan |
 |---|---|---|
 | `desktop.tab.queue` | `queue.title_short` | sama |
 | `desktop.tab.chart` | `chart.title` | sama |

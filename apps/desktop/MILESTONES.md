@@ -1,4 +1,4 @@
-# Sentra Desktop — 2-week milestone plan
+# Centurion Desktop — 2-week milestone plan
 
 Dependencies: **UX** = design tokens and specs; **BE** = backend API/WS and contracts.
 

@@ -1,4 +1,4 @@
-# Review Login Telegram: SDK resmi/OIDC vs deep link custom (Sentra mobile)
+# Review Login Telegram: SDK resmi/OIDC vs deep link custom (Centurion mobile)
 
 - Tanggal review: 29 Okt 2026, ±16:30 WIB (UTC+7)
 - Peninjau: Mobile (Fase 5)
@@ -66,11 +66,11 @@ Ambil JWKS, verifikasi signature, cek `iss == https://oauth.telegram.org`, `aud 
 
 ### 1.6 Bisakah Supabase Auth langsung mengonsumsinya?
 - **Bisa secara teknis.** Supabase punya *Custom OAuth/OIDC Providers* dengan prefix `custom:`. Untuk OIDC cukup isi issuer, lalu discovery dan JWKS di-resolve otomatis ([Supabase docs](https://supabase.com/docs/guides/auth/custom-oauth-providers)). Ada juga `acceptable_client_ids` dan `email_optional` ([Supabase features](https://supabase.com/features/custom-oidc-providers)). `signInWithIdToken` menerima provider `custom:` ([supabase-js PR #2134](https://github.com/supabase/supabase-js/pull/2134), [token_oidc.go](https://github.com/supabase/auth/blob/master/internal/api/token_oidc.go)).
-- **Tapi tidak saya sarankan untuk Sentra:**
+- **Tapi tidak saya sarankan untuk Centurion:**
   - (a) `id_token` dari SDK tidak membawa nonce, jadi provider harus memakai `SkipNonceCheck` (field ada di [token_oidc.go](https://github.com/supabase/auth/blob/master/internal/api/token_oidc.go)). Apakah opsi ini terekspos di dashboard **belum terverifikasi**.
   - (b) Telegram tidak memberi email, jadi `email_optional` wajib.
   - (c) Identitas Supabase kemungkinan dikunci ke `sub`, padahal bot kita butuh `id` numerik untuk mengikat `telegram_id`. Pemetaan claim ini **belum terverifikasi**.
-  - (d) Backend sudah memutuskan Telegram lewat Edge Function yang mencetak JWT (`/workspace/sentra/packages/contracts/FLUTTER_INTEGRATION_ANSWERS.md`).
+  - (d) Backend sudah memutuskan Telegram lewat Edge Function yang mencetak JWT (`/workspace/centurion/packages/contracts/FLUTTER_INTEGRATION_ANSWERS.md`).
 - **→ Pakai Edge Function `auth-telegram-oidc`.**
 
 ---
@@ -218,7 +218,7 @@ abstract interface class TelegramAuth {
 }
 
 final class MethodChannelTelegramAuth implements TelegramAuth {
-  static const _ch = MethodChannel('sentra/telegram_login');
+  static const _ch = MethodChannel('centurion/telegram_login');
   @override
   Future<String> signIn() async {
     final token = await _ch.invokeMethod<String>('signIn');

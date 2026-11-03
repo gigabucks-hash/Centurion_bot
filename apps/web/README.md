@@ -1,4 +1,4 @@
-# Sentra (working name): trading-bot web dashboard
+# Centurion (working name): trading-bot web dashboard
 
 Web dashboard for our own Solana trading bot (Phase 3 of the Apex Dev Lead blueprint, HOTBOT feature parity). **All UI, code, naming and copy are original.** Nothing is taken from HOTBOT.
 
@@ -25,11 +25,11 @@ Source: `/workspace/ux-solbot/tokens/tokens.css` + `tailwind.config.tokens.js`. 
 - Colours: `bg-bg-{canvas,surface,raised,overlay,inset}`, `text-text-{primary,secondary,tertiary,disabled,onAccent}`, `border-border-{subtle,default,strong,focus}`, `*-brand-primary[Hover|Pressed|Container]`, `*-semantic-{profit,loss,neutralPnl,warning,guard,info}[Container]`, `*-mode-{practice,real}[Container]`, `text-mode-on{Practice,Real}`, plus `*-mode-accent` which follows the nearest `[data-mode]`
 - Type: `text-{display,headline,title,titleSm,bodyLg,body,label,caption,overline,numLg,numMd,numSm}`, `font-sans` (Inter), `font-mono` (JetBrains Mono), `num` utility (mono + tabular)
 - Radius `rounded-{xs..xl}`, shadow `shadow-e0..e4`, motion `duration-{instant,fast,base,slow}` + `ease-standard…`, tap sizes `min-h-tap` (40) / `min-h-tap-touch` (48), `stripes-practice`
-- Themes: dark is the default. Light comes from `[data-theme="light"]`, with a `prefers-color-scheme` fallback. The theme toggle sits in the top bar and is saved in localStorage `sentra_theme` (UI preference only, never the trading mode)
+- Themes: dark is the default. Light comes from `[data-theme="light"]`, with a `prefers-color-scheme` fallback. The theme toggle sits in the top bar and is saved in localStorage `centurion_theme` (UI preference only, never the trading mode)
 
-## Pass 3: contracts 1.1.2, @sentra/i18n 0.4.3, design-tokens 0.2.3
-- **i18n**: `@sentra/i18n` is a workspace dependency (`file:../../packages/i18n`, transpiled by Next). No local copy of the catalog or of `format.mjs` remains. Every number goes through `@sentra/i18n/format` (`lib/format.ts` → `useFmt()` / `getFmt()`, including `f.lamports()` and `f.solVar()`). Our own copy lives in the `app` namespace (`lib/i18n/en.ts`, `id.ts`). `lib/i18n/aliases.ts` maps our keys to UX keys, and a test checks that every alias target exists in en and id.
-- **Wire**: types come from `@sentra/contracts/wire`. `lib/contracts.ts` is the only adapter: lamport strings, `*_price_sol` decimal strings, envelopes, approvals, and `settingsToWire` / `settingsFromWire` / `settingsPatch` (flat snake_case per `strategy_settings.schema.json`, checked by a test).
+## Pass 3: contracts 1.1.2, @centurion/i18n 0.4.3, design-tokens 0.2.3
+- **i18n**: `@centurion/i18n` is a workspace dependency (`file:../../packages/i18n`, transpiled by Next). No local copy of the catalog or of `format.mjs` remains. Every number goes through `@centurion/i18n/format` (`lib/format.ts` → `useFmt()` / `getFmt()`, including `f.lamports()` and `f.solVar()`). Our own copy lives in the `app` namespace (`lib/i18n/en.ts`, `id.ts`). `lib/i18n/aliases.ts` maps our keys to UX keys, and a test checks that every alias target exists in en and id.
+- **Wire**: types come from `@centurion/contracts/wire`. `lib/contracts.ts` is the only adapter: lamport strings, `*_price_sol` decimal strings, envelopes, approvals, and `settingsToWire` / `settingsFromWire` / `settingsPatch` (flat snake_case per `strategy_settings.schema.json`, checked by a test).
 - **Mock BFF** (`app/api/v1/…`, wire format, Idempotency-Key on writes):
   - `workspaces/{ws}/strategies[/{id}]`: GET, POST, and PATCH with `If-Match`, giving 200, 202 `{proposal}`, 409 `STRATEGY_REV_CONFLICT` or 428.
   - `…/{id}/revisions/{rev}`.
@@ -48,8 +48,8 @@ Source: `/workspace/ux-solbot/tokens/tokens.css` + `tailwind.config.tokens.js`. 
   - On a queue card, **Skip works only as a dismiss**: no reason dialog and no swipe. Approve stays disabled, and so does Sell on a position.
   - The mock server answers 422 `UNSUPPORTED_QUOTE_MINT` to an approve or a close, and accepts a reject.
   - Mock seed `ap_105` is the race case: the pick was queued before the quote mint changed.
-  - Copy comes from the `screener.*` keys in @sentra/i18n 0.4.3 (all 36 keys are aliased and tested).
-- **PnL rule** (`lib/pnl.ts` `pnlDisplay` → `@sentra/i18n/format` `pnlSol()` / `pnlPct()`, used by `<Pnl>`):
+  - Copy comes from the `screener.*` keys in @centurion/i18n 0.4.3 (all 36 keys are aliased and tested).
+- **PnL rule** (`lib/pnl.ts` `pnlDisplay` → `@centurion/i18n/format` `pnlSol()` / `pnlPct()`, used by `<Pnl>`):
   - The helper decides the text, sign, arrow and tone; we don't add our own logic.
   - An exact zero gives "0.00" in neutral, with no arrow and no sign.
   - A tiny non-zero value gives "<0.000001" (or "<0.1%"), with its sign, arrow and tone.
@@ -69,14 +69,14 @@ Source: `/workspace/ux-solbot/tokens/tokens.css` + `tailwind.config.tokens.js`. 
   - Countdowns are `formatCountdown(remainingMs(exp, skewFrom(server_now)))` (`lib/clock.ts` `remainingUntil`). `mm_ss` is never passed in.
   - Error copy is looked up as `errors.map.json` `codes[code].key`, falling back to `error.code.internal`.
 - **N-05 order.failed** (`lib/notify.ts`): vars `{side, symbol, reason_code, amount_lamports}`. `reason_code` maps to `order.fail_reason.*`, falling back to `.unknown`.
-- **Real SOL**: `SENTRA_REAL_SOL=disabled` reproduces `403 REAL_SOL_DISABLED`, and the Real workspace then shows a dedicated state.
+- **Real SOL**: `CENTURION_REAL_SOL=disabled` reproduces `403 REAL_SOL_DISABLED`, and the Real workspace then shows a dedicated state.
 - **New pages**:
   - `/positions`: manual sell, simulated.
   - `/settings`: profile with account deletion, sign-in methods with the last-method lock, trading wallet, mode & defaults, Practice reset to 30 SOL, notifications with this browser's push registration, security with sessions and devices, appearance, and language with a number-format example.
 
 ## Mode model
 - `TradingMode = "practice" | "real"`, labelled **◇ PRACTICE** / **● REAL SOL** everywhere
-- The workspace mode is server state (mock httpOnly cookie `sentra_mode`, set by `POST /api/mode`, where Real needs a 2.5 s hold). It is never kept in localStorage
+- The workspace mode is server state (mock httpOnly cookie `centurion_mode`, set by `POST /api/mode`, where Real needs a 2.5 s hold). It is never kept in localStorage
 - Every read is scoped to one mode, so Real numbers never appear on a Practice screen. Opening a coin or strategy from the other workspace shows a "switch workspace" notice
 - A persistent ModeBanner (cyan stripes for Practice, magenta for Real) shows the mode and can't be dismissed
 
@@ -132,5 +132,5 @@ lib/mock/               ← seeded data, mutable store (TTL, holds, cooldown, au
   (TODO for 1.1.4 `time_stop_s`, `stall_exit {window_s, min_move_pct}` in lib/contracts.ts).
 - errors.json v5 `GUARD_WEAKEN_REQUIRES_APPROVAL` is not in errors.map.json yet → app copy (en/id) instead of the generic text.
 - QA-02 lock rows · QA-04 paper SOL headers · QA-05 GIS / Apple-rendered buttons (see public/brand/README.md) ·
-  QA-09/10 nowrap numeric headers, compact mobile KPI tiles · QA-15 `SENTRA_QA_SHOTS=1` hides the dev badge ·
+  QA-09/10 nowrap numeric headers, compact mobile KPI tiles · QA-15 `CENTURION_QA_SHOTS=1` hides the dev badge ·
   practice reset starts a flat epoch in the mock overview (30 paper SOL, no PnL/positions/exit stats).

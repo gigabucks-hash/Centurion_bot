@@ -1,4 +1,4 @@
-# Changelog — @sentra/design-tokens (Centurion Trade)
+# Changelog — @centurion/design-tokens (Centurion Trade)
 
 ## 0.3.2 — 3 Nov 2026 · docs (keputusan lead)
 Tidak ada perubahan nilai, nama token, atau output generator. Build + semua cek dijalankan ulang: contrast FAIL 0, CSS valid, baris ≤ 120.
@@ -39,7 +39,7 @@ Arah visual pilihan Boss = Canva concept G1, dengan satu perubahan: aksen violet
 - **Renamed:** tidak ada. **Removed:** tidak ada (`bg.inset` tetap alias deprecated ke `bg.sunken`; penghapusan ditunda ke ≥ 0.4.0).
 - **Generator (`scripts/build.py`):** output baru `--font-display`, `--text-eyebrow*`, `--density-tableHeader`, `--density-coinLogo`, `--coin-logo-*`, `--color-identicon-*`; Dart `AppFonts.display`, `AppText.eyebrow()`, `AppCoinLogo`, `AppDensity.tableHeader/coinLogo` (constructor `AppDensity(...)` kini butuh 2 field tambahan — hanya relevan kalau ada yang membuat instance sendiri; `flutter analyze` apps/mobile bersih). Slot M3 display*/headline*/titleLarge memakai Sora.
 - **Cek baru di build:** identicon fg vs 12 palet ≥ 4,5:1; ΔE2000 `brand.primary` vs `mode.practice`/`mode.real`/`semantic.profit`/`semantic.loss` ≥ 20. Semua lulus (dark 30,6 / 36,0 / 50,5 / 42,0; light 21,2 / 34,3 / 45,5 / 43,0).
-- Header file hasil generate: "Sentra (working name)" → "Centurion Trade (@sentra/design-tokens)".
+- Header file hasil generate: "Centurion (working name)" → "Centurion Trade (@centurion/design-tokens)".
 
 ### Nilai yang berubah (old → new)
 | token | 0.2.5 | 0.3.0 |

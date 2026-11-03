@@ -1,8 +1,8 @@
 # Centurion Trade Desktop — Architecture (Phase 6)
 
 > Status: prototype, **mock data only**. No real trading, no wallet, no chain network.
-> Path: `/workspace/sentra/apps/desktop` (monorepo). Product name **Centurion Trade**, identifier **`com.centuriontrade.app`**
-> (rebrand 2026-10-29; internal crate/package names stay `sentra`).
+> Path: `/workspace/centurion/apps/desktop` (monorepo). Product name **Centurion Trade**, identifier **`com.centuriontrade.app`**
+> (rebrand 2026-10-29; internal crate/package names stay `centurion`).
 > All code is original. No HOTBOT code was copied; HOTBOT is only a feature-parity reference.
 
 ## 1. Goals and non-goals
@@ -12,15 +12,15 @@
 
 ## 2. Monorepo layout
 ```
-/workspace/sentra
+/workspace/centurion
 ├── apps/desktop          ← this app (Tauri v2 + React)
 ├── apps/web              (placeholder — Web team)
 ├── apps/mobile           (placeholder — Flutter team)
 ├── packages/design-tokens (placeholder — UX team)
-└── packages/contracts    ← @sentra/contracts: event/command types (desktop draft, Backend to own)
+└── packages/contracts    ← @centurion/contracts: event/command types (desktop draft, Backend to own)
 ```
-- **Contracts:** the TS types live in `packages/contracts/src/index.ts`. The desktop imports them as `@sentra/contracts` (tsconfig `paths` + a Vite alias; no workspace install is needed). The Rust mirror stays in `src-tauri/src/model.rs`, because Rust cannot import TS. Once Backend publishes a schema (JSON Schema/OpenAPI), both sides will be generated from it (milestone W2-D6).
-- **Design tokens:** `npm run sync:tokens` copies the first file it finds from this list into `src/design/sentra-tokens.css`:
+- **Contracts:** the TS types live in `packages/contracts/src/index.ts`. The desktop imports them as `@centurion/contracts` (tsconfig `paths` + a Vite alias; no workspace install is needed). The Rust mirror stays in `src-tauri/src/model.rs`, because Rust cannot import TS. Once Backend publishes a schema (JSON Schema/OpenAPI), both sides will be generated from it (milestone W2-D6).
+- **Design tokens:** `npm run sync:tokens` copies the first file it finds from this list into `src/design/centurion-tokens.css`:
   1. `packages/design-tokens/tokens/tauri.css` (**used now**: UX v0.2.5, dark + Compact default)
   2. `packages/design-tokens/tokens/tokens.css`
   3. `/workspace/ux-solbot/tokens/tauri.css` (legacy)
@@ -53,7 +53,7 @@
 - **Anti mis-click:** buttons lock for 600 ms every time the item changes.
 - **PRACTICE:** Skip S and Approve A.
 - **REAL SOL:** Skip S and **"Buka untuk approve ↗"**. That button calls `focus_main_for_signal(id)`: Rust focuses the main window and emits `ui:focus-signal` to `main` only. Main then opens the pick in the normal Real confirmation (dialog + hold 2.5 s).
-  **Enforced in Rust:** `approve_signal` checks the *calling window label* (`state::check_approve_origin`), so an approve from `approval-popup` in Real is rejected even if the UI were bypassed (unit-tested). Real is still mock-only. Run with `SENTRA_MOCK_MODE=real` to preview the Real chrome and gating.
+  **Enforced in Rust:** `approve_signal` checks the *calling window label* (`state::check_approve_origin`), so an approve from `approval-popup` in Real is rejected even if the UI were bypassed (unit-tested). Real is still mock-only. Run with `CENTURION_MOCK_MODE=real` to preview the Real chrome and gating.
 - **Accessibility:** `role="dialog"`, `aria-modal="false"`, `aria-labelledby`. Reduced motion is respected (no transitions) and `forced-colors` is handled.
 
 ## 4. IPC
@@ -83,10 +83,10 @@
   - A 1 s loop runs a random-walk price model with shocks, the exit plan and proposal expiry. A new candidate arrives every few seconds; some are blocked by the mock Guard.
   - Paper book: 30 SOL starting cash, 0.25 SOL per approve, 125 bps simulated fee.
   - It deliberately drops some live envelopes so the resync path is exercised all the time.
-  - Every 75 s it makes a "mobile" edit to a strategy, so 409s happen naturally. `SENTRA_MOCK_FORCE_CONFLICT=1` forces a conflict before every strategy write.
+  - Every 75 s it makes a "mobile" edit to a strategy, so 409s happen naturally. `CENTURION_MOCK_FORCE_CONFLICT=1` forces a conflict before every strategy write.
 
 ## 5.1 Contracts v1.1.2 → v1.1.4 integration
-- **Source of truth:** `packages/contracts` (Backend-owned; read-only for us). The frontend imports wire types from `@sentra/contracts/wire` (tsconfig `paths` + Vite alias). `src/api/contract.ts` re-exports them and adds only desktop UI types.
+- **Source of truth:** `packages/contracts` (Backend-owned; read-only for us). The frontend imports wire types from `@centurion/contracts/wire` (tsconfig `paths` + Vite alias). `src/api/contract.ts` re-exports them and adds only desktop UI types.
 - **1.1.3** (packages/contracts 05541b3): `ApprovalRejectReason` (closed enum `user_declined | not_tradeable | price_moved | other`, `APPROVAL_REJECT_REASONS`) on `ApprovalDecisionRequest.reject_reason` (reject only, server default `user_declined`), `ApprovalDecisionResponse.reject_reason` and `proposal.approved|rejected.reject_reason`; `ApprovalWire` (approval resource and the `current` of an approval 409). Skip sends `not_tradeable` for a not-tradeable pick and `user_declined` otherwise; approve never sends one. The mock validates as the server does (approve + reason, or an unknown value → `422 VALIDATION_FAILED`, which maps through `errors.map.json` to `error.code.validation_failed`). The value is part of the idempotency fingerprint. `ConflictError.current` is now required in TS too, matching Rust; `wire.check.ts` has an `@ts-expect-error` for a 409 without it.
 - **1.1.4** (packages/contracts 1753c21): `MarketCapFields` (`market_cap_lamports` int string | null, `mcap_usd` decimal string | null, display-only, `mcap_as_of`) on coin.detected / screener.scored / pick.created. Rust: `model::MarketCap` (`#[serde(flatten)]`), merged in `state.rs merge_mcap` (newest `mcap_as_of` wins; nulls never erase a known value) onto the `ScreenedCoin` row. `ExitReason::Stall` (+ `time_stop_s` / `stall_exit` in the exit plan, ignored by the desktop). The mock emits mcap = price × 1e9 supply, with ~10 % null.
 - **429 RESET_COOLDOWN:** `ApiFailure` `Display` adds whitelisted detail tags (`[next_allowed_at=…]`, `[retry_after_s=…]`). `errorText()` fills the copy placeholder `{next_allowed_at}` with local date and time, and `errorDetails()` lets Settings disable reset until then.
@@ -103,7 +103,7 @@
   - Requested scopes are `read` and `trade` (Practice). The desktop never asks for `trade:real`.
   - SSE: `/v1/workspaces/{ws}/events/stream?mode=practice&include=marks,clock` (Last-Event-ID = the seq string); mark/clock frames use the Broadcast shapes.
   - The real HTTP + SSE client plugs in here in Phase 2, so the mock transport stays. The mock implements the same trait.
-  - **Real-transport smoke test: DONE** (`backend/http.rs` `HttpTransport` behind the trait; `ActiveTransport` is an enum chosen by `SENTRA_BACKEND`; `scripts/smoke-real.sh`; `docs/REAL_TRANSPORT_SMOKE.md`: 35/35 pass, 1 server mismatch). Earlier feasibility note: `services/backend/api` (4c554f9) now covers what the desktop calls: healthz, workspace, approvals list/detail/decide (`reject_reason`), positions + close, portfolio, exit-stats, events + SSE (marks, clock, `Last-Event-ID`) on a shared per-workspace poller, practice reset (`429 RESET_COOLDOWN` + `Retry-After`), strategies CRUD/pause/resume (rev/If-Match), coins/picks/fills/orders/jobs reads, devices and account deletion. It needs local Postgres with the migrations, `TRADING_MODE=paper`, `DATABASE_URL`, and a HS256 JWT signed with a test `SUPABASE_JWT_SECRET` (`sentra_client` claim → `desktop`), seeded like `test/seed.sql`. Work on the desktop side: an `HttpTransport` (reqwest + an SSE reader) behind the existing `Transport` trait; mapping `Retry-After` / `ETag`; headers and statuses into `ApiFailure`; and an env switch `SENTRA_BACKEND=http://127.0.0.1:8080`. The mock-specific `get_approval` token flow already matches `GET /approvals/{id}` → `decision_token`. Gaps: no mint/coin events are produced without the ingest pipeline (c3de83a publishes marks only via `pg_notify`), so a smoke test would seed picks/approvals in SQL. Estimate: about 1 day for a decide + close + SSE resume smoke test, mostly the transport and JWT/seed fixture.
+  - **Real-transport smoke test: DONE** (`backend/http.rs` `HttpTransport` behind the trait; `ActiveTransport` is an enum chosen by `CENTURION_BACKEND`; `scripts/smoke-real.sh`; `docs/REAL_TRANSPORT_SMOKE.md`: 35/35 pass, 1 server mismatch). Earlier feasibility note: `services/backend/api` (4c554f9) now covers what the desktop calls: healthz, workspace, approvals list/detail/decide (`reject_reason`), positions + close, portfolio, exit-stats, events + SSE (marks, clock, `Last-Event-ID`) on a shared per-workspace poller, practice reset (`429 RESET_COOLDOWN` + `Retry-After`), strategies CRUD/pause/resume (rev/If-Match), coins/picks/fills/orders/jobs reads, devices and account deletion. It needs local Postgres with the migrations, `TRADING_MODE=paper`, `DATABASE_URL`, and a HS256 JWT signed with a test `SUPABASE_JWT_SECRET` (`centurion_client` claim → `desktop`), seeded like `test/seed.sql`. Work on the desktop side: an `HttpTransport` (reqwest + an SSE reader) behind the existing `Transport` trait; mapping `Retry-After` / `ETag`; headers and statuses into `ApiFailure`; and an env switch `CENTURION_BACKEND=http://127.0.0.1:8080`. The mock-specific `get_approval` token flow already matches `GET /approvals/{id}` → `decision_token`. Gaps: no mint/coin events are produced without the ingest pipeline (c3de83a publishes marks only via `pg_notify`), so a smoke test would seed picks/approvals in SQL. Estimate: about 1 day for a decide + close + SSE resume smoke test, mostly the transport and JWT/seed fixture.
 - **Envelopes and resync** (`sync.rs`):
   - Each envelope carries a monotonic `seq` and `server_now`. Events are deduplicated by `id`, and unknown event types are ignored.
   - The watermark only advances from page `next_after_seq`, SSE id or `clock.safe_seq`.
@@ -136,7 +136,7 @@
     - every `EventPayloads` type is decoded.
   - `tsc -b` → `src/api/wire.check.ts`: `satisfies` checks over wire samples, plus an exhaustive switch over event types and an assertion that amounts are strings.
 
-## 5.2 i18n (`@sentra/i18n` 0.4.5)
+## 5.2 i18n (`@centurion/i18n` 0.4.5)
 - **0.4.5** (bd58541): errors.map.json v5 (57 codes, + `GUARD_WEAKEN_REQUIRES_APPROVAL`), `reject_reasons.map.json` (skip chip → wire `reject_reason`; Rust `rejmap.rs` replaces the hand map in `commands::skip_reason`, the feed appends `reject_reason.*` copy), `common.value.unavailable` (tooltip + accessible name of a muted "—" Mcap / Likuiditas cell), `common.state.loading`. UX gaps: no `exit_reason.stall`, no `feed.event.fill` / `feed.event.exit_triggered` (local fallback templates in `local.ts`; package keys win once shipped), no errors.map v6 (`QUOTE_MISSING_OR_STALE` falls back to errors.json messages).
 - **Re-QA D9–D11:** D9 quick-look header: title ellipsizes with a full-text `title`, the NT badge has its own line and its label is a real ellipsizing span (`.chip.nt` is inline-flex, so a bare text node could not ellipsize). D10 executor rows (`fill.simulated`, `exit.triggered`) are structured `I18nMsg`s with `bps` / `price` args formatted by format.mjs `formatFractionBps` and `Intl.NumberFormat(LOCALES[lang])`. D11 Likuiditas: mark → screener measured liquidity check → known signal, shown on not-tradeable rows too.
 - **0.4.4:** every `t("desktop.*")` was replaced via `key-migrations.json`, with the placeholder renames `{pass}`→`{score_threshold}`, `{quote}`→`{quote_symbol}`, `{max}`→`{max_score}` and `{s}`→`{seconds}`. Headers use `positions.title_paper` (no string concatenation), `positions.empty` takes `{mode}`, and the batch message is `queue.batch.excluded_not_tradeable`. `cta_note` is removed. `local.ts` = the "(mock)" suffix only.
@@ -161,7 +161,7 @@
   - D7: one-line detail rows, no `cta_note`, Lewati + `skip_hint`;
   - D8: PnL never truncated (a container query hides Strategi/Entry/Hold below 960 px; compact ⊘ chip) and U+2212;
   - D9: one-line quick-look header, neutral pending.
-- Skip is allowed (UX Rev 4.4) with `queue.skip_reason.not_tradeable` preselected, and it is sent on the wire as `reject_reason: "not_tradeable"` (contracts 1.1.3). Mock trigger: `SENTRA_MOCK_NOT_TRADEABLE=screener|race|off` (browser `?nt=`).
+- Skip is allowed (UX Rev 4.4) with `queue.skip_reason.not_tradeable` preselected, and it is sent on the wire as `reject_reason: "not_tradeable"` (contracts 1.1.3). Mock trigger: `CENTURION_MOCK_NOT_TRADEABLE=screener|race|off` (browser `?nt=`).
 - The mock keeps a bounded watch set (8) of not-tradeable coins that still get marks, and the engine keeps ticks for screener rows, so the read-only chart has data.
 
 ## 6. Frontend stack and licences
@@ -208,7 +208,7 @@
 | `backend/` | `Transport` trait, paths, `ApiFailure` (409/428/…), `mock.rs` in-process mock server |
 | `sync.rs` | live stream + page catch-up, seq cursor, refetch, reconnect |
 | `keys.rs` | settings/exit IDs, v1.0→v1.1 rename tables, exit labels |
-| `model.rs` | serde mirror of `@sentra/contracts` v1.1.4 wire |
+| `model.rs` | serde mirror of `@centurion/contracts` v1.1.4 wire |
 | `view.rs` | desktop view-model sent over IPC (snake_case) |
 | `contract_tests.rs` | tests against the files in `packages/contracts` |
 | `error.rs`, `util.rs` | `AppError` (thiserror), RNG, fake mints, validation |
@@ -241,14 +241,14 @@
 | C12 | Theme dark default, Compact default, ⇧X Sell, popup opt-in OFF | Same as D1–D4 | Aligned |
 | C13 | D1 said "hold **Enter**" while ↵ = pop-out chart | ↵ pops out the chart **only in list context** (focused row, no modal). In the Sell dialog the hold runs on **mouse/touch press, held Space or held ↵** on the hold button (keydown starts, keyup before full = cancel). Pop-out is blocked while any dialog is open (the window keymap is disabled) | **DECIDED** (Apex + UX); implemented |
 | C14 | Space quick-look vs native Space (scroll, activate button/checkbox) | Space = quick-look **only when focus is on a row** (`data-row`, roving `tabindex`; J/K move DOM focus). On buttons, checkboxes and links, Space/↵ stay native; elsewhere Space is not consumed. X stays select | **DECIDED**; implemented |
-| C15 | WF-11 is drawn in Real, but Real is not MVP | **Real SOL on desktop = Phase 7 (out of MVP).** The MVP build is Practice. The Real guards stay in code (popup cannot approve, Rust label check, 2.5 s hold, "Buka untuk approve ↗") as a post-MVP reference, reachable only through the mock flag `SENTRA_MOCK_MODE=real`, with a "Phase 7 preview · mock" badge | **DECIDED** |
+| C15 | WF-11 is drawn in Real, but Real is not MVP | **Real SOL on desktop = Phase 7 (out of MVP).** The MVP build is Practice. The Real guards stay in code (popup cannot approve, Rust label check, 2.5 s hold, "Buka untuk approve ↗") as a post-MVP reference, reachable only through the mock flag `CENTURION_MOCK_MODE=real`, with a "Phase 7 preview · mock" badge | **DECIDED** |
 | C16 | Mock TTL 90 s vs UX default 10 min | OK for the demo. A **"MOCK TTL 90s"** badge shows in the queue header and the popup while the source is the mock. Production uses server `expires_at` (C6, before Real) | **DECIDED**; implemented |
 | C17 | Theme "system" | "Ikuti OS" optional; explicit `data-theme="dark"` default; no media query in `tauri.css` | **DECIDED**; already so |
 | C18 | `tauri.css` v0.2.0 stray `}` | Fixed in design-tokens **v0.2.1** (UX adds brace and lightningcss validation). The desktop workaround is removed | **DECIDED**; done |
 | C19 | D11 no-activation popup untested on Windows/macOS | Popup **disabled on Windows and macOS** until W-NOFOCUS passes. Rust: `windows::POPUP_SUPPORTED = cfg!(target_os = "linux")` gates `open_approval_popup`, `set_settings` (forces off) and the global shortcut (falls back to focusing main). UI: runtime OS check greys out the setting with an explanation, and P shows the reason. **Linux: enabled (opt-in)**. Fallback: OS notifications | **DECIDED**; implemented |
 
 ### 11.2 Older UX Tauri README conflicts
-- Tokens come from `@sentra/design-tokens` v0.2.0 `tauri.css` (dark + Compact default): colours, `--text-*` type ramp, space, radius, `--duration-hold*`, `--density-*`.
+- Tokens come from `@centurion/design-tokens` v0.2.0 `tauri.css` (dark + Compact default): colours, `--text-*` type ramp, space, radius, `--duration-hold*`, `--density-*`.
 - **Conflicts:**
   - Pick TTL: the UX default is 10 min, but the mock uses 90 s so demos show expiry.
   - The UX popup is described as "always-on-top by default"; Apex decided it is **opt-in, OFF**.
@@ -264,7 +264,7 @@
 | D4 | Approval popup | Small always-on-top window, **opt-in, OFF by default** | **DECIDED** |
 | D5 | Global shortcuts | Focus or open only; never approve, skip or sell | **DECIDED** |
 | D6 | Signing / updater | **Out of MVP scope.** MVP = unsigned Linux builds; signing, notarization and updater come Post-MVP | **DECIDED** |
-| D7 | Identity | Product name **Centurion Trade** (from i18n `app.name`: window titles, tray tooltip, notification titles, loopback page), identifier `com.centuriontrade.app`; crate `sentra` / `sentra_lib` and `@sentra/*` unchanged | **DONE** (rebrand, Boss 2026-10-29) |
+| D7 | Identity | Product name **Centurion Trade** (from i18n `app.name`: window titles, tray tooltip, notification titles, loopback page), identifier `com.centuriontrade.app`; crate `centurion` / `centurion_lib` and `@centurion/*` unchanged | **DONE** (rebrand, Boss 2026-10-29) |
 | D8 | Contracts | Backend owns `packages/contracts` (v1.1.2). The desktop imports `src/wire` types directly. The Rust mirror is hand-written and guarded by contract tests until codegen exists | **DONE for v1.1.4** (codegen open) |
 | D10 | Popup in REAL SOL | No Approve; "Buka untuk approve ↗" hands off to main (dialog + hold 2.5 s). Enforced in Rust by window label | **DECIDED** (UX, via Apex) |
 | D11 | Popup focus | Shown without activation; shortcuts only after a click. **Enabled on Linux only**; Windows/macOS are disabled until W-NOFOCUS passes (C19) | **DECIDED** (test gate) |

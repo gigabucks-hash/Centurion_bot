@@ -1,6 +1,6 @@
 # Centurion Trade Mobile: Performance & Security (Phase 5 → MVP)
 
-> Rebrand 29 Okt 2026: app id `com.centuriontrade.app`, skema `centurion://` (custom scheme bisa dibajak app lain: lihat threat model login Phantom). Nama paket internal tetap `sentra_mobile`.
+> Rebrand 29 Okt 2026: app id `com.centuriontrade.app`, skema `centurion://` (custom scheme bisa dibajak app lain: lihat threat model login Phantom). Nama paket internal tetap `centurion_mobile`.
 
 Status: 29 Oct 2026 (WIB). Owner: Mobile. Targets from Apex/Boss: **cold start p95 < 2 s
 (goal 1.5 s) on a mid-range Android, 60 fps, tap response < 100 ms**. Security baseline:
@@ -36,7 +36,7 @@ marked **PENDING** with the exact procedure.
 | Release APK, arm64 only, not obfuscated | **19.9 MB** (compressed APK) | `flutter build apk --release --analyze-size --target-platform android-arm64` |
 | └ `libflutter.so` (engine, arm64) | 11.76 MB | `unzip -lv` |
 | └ `libapp.so` (Dart AOT, arm64) | 6.75 MB | 〃 |
-| └ of which `package:sentra_mobile` | 330 KB | `--analyze-size` tree |
+| └ of which `package:centurion_mobile` | 330 KB | `--analyze-size` tree |
 | └ `package:flutter` / `flutter_localizations` / `go_router` / `intl` / `riverpod` | 3 MB / 181 KB / 93 KB / 89 KB / 66 KB | 〃 |
 | └ bundled fonts (5 TTF) | 1.26 MB raw / 0.61 MB compressed | 〃 |
 | └ `classes.dex` | 537 KB raw / 245 KB compressed | 〃 |

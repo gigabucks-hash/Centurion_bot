@@ -1,16 +1,16 @@
-# apps/mobile: Sentra mobile (Flutter, Android + iOS)
+# apps/mobile: Centurion mobile (Flutter, Android + iOS)
 
-Companion app for Sentra: approval queue (Approve/Skip picks and guard changes),
+Companion app for Centurion: approval queue (Approve/Skip picks and guard changes),
 positions, screener (WF-20/21), activity feed and push notifications. Practice
 (paper SOL) only; Real SOL is behind a server-side flag until Phase 7.
 Data comes from an in-process mock backend until the API is wired.
 
 | | |
 |---|---|
-| Package | `sentra_mobile` |
-| Android applicationId / namespace | `com.sentra.app` |
-| iOS bundle id | `com.sentra.app` (tests: `com.sentra.app.RunnerTests`) |
-| Display name | Sentra |
+| Package | `centurion_mobile` |
+| Android applicationId / namespace | `com.centuriontrade.app` |
+| iOS bundle id | `com.centuriontrade.app` (tests: `com.centuriontrade.app.RunnerTests`) |
+| Display name | Centurion |
 | Toolchain | Flutter 3.47.8 / Dart 3.13.7 (pinned in `.github/workflows/mobile.yml`) |
 
 ## Run
