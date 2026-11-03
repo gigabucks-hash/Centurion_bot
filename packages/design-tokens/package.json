@@ -1,5 +1,5 @@
 {
-  "name": "@sentra/design-tokens",
+  "name": "@centurion/design-tokens",
   "version": "0.3.2",
   "private": true,
   "description": "Centurion Trade design tokens (G1-blue) — source src/tokens.json (W3C DTCG), generated Tailwind v4 / CSS / Tauri / Flutter outputs.",

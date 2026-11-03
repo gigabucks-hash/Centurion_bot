@@ -1,4 +1,4 @@
-// Sentra reference formatters (Web: import as-is; Flutter: mirror with package:intl NumberFormat/DateFormat).
+// Centurion reference formatters (Web: import as-is; Flutter: mirror with package:intl NumberFormat/DateFormat).
 // Rule: the locale used for numbers == the UI language. Never mix (EN UI + id-ID numbers = bug QA-01).
 // Domain values are formatted here and passed to ICU messages as string args ({sol}, {pnl}, {pct}, {price}, {time}).
 export const LOCALES = { en: 'en-US', id: 'id-ID' };
