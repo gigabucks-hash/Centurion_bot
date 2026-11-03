@@ -10,8 +10,8 @@ import { WireError } from "./store";
 import { issueSession, type Session } from "./session";
 
 export const CODE_TTL_MS = 60_000;
-const g = globalThis as unknown as { __sentraHandoff?: Map<string, { address: string; challenge: string; state: string; exp: number }> };
-const codes = (g.__sentraHandoff ??= new Map());
+const g = globalThis as unknown as { __centurionHandoff?: Map<string, { address: string; challenge: string; state: string; exp: number }> };
+const codes = (g.__centurionHandoff ??= new Map());
 
 export const s256 = (verifier: string) => createHash("sha256").update(verifier).digest("base64url");
 

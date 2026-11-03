@@ -55,6 +55,6 @@ export async function POST(req: Request) {
   }
   const c = await cookies();
   setSessionCookies(c, s);
-  if (!c.get(MODE_COOKIE)) c.set(MODE_COOKIE, "practice", { path: "/", httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" && process.env.SENTRA_INSECURE_COOKIES !== "1" });
+  if (!c.get(MODE_COOKIE)) c.set(MODE_COOKIE, "practice", { path: "/", httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" && process.env.CENTURION_INSECURE_COOKIES !== "1" });
   return ok(publicSession(s));
 }
