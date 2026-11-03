@@ -1,5 +1,11 @@
 # Changelog — @sentra/design-tokens (Centurion Trade)
 
+## 0.3.2 — 3 Nov 2026 · docs (keputusan lead)
+Tidak ada perubahan nilai, nama token, atau output generator. Build + semua cek dijalankan ulang: contrast FAIL 0, CSS valid, baris ≤ 120.
+- **Guard vs warning:** di light theme, ΔE2000 guard #A85400 vs warning #8A5A00 = 10,1, **diterima apa adanya berdasarkan keputusan lead**. Aturan di README: guard selalu pakai ikon perisai + label, warning selalu pakai segitiga, dan warna tidak pernah jadi satu-satunya penanda.
+- **Sora:** path `static/Sora-SemiBold.ttf` dihapus karena tidak ada di Google Fonts. `Sora-SemiBold.ttf` di-instance dari `Sora[wght].ttf` pada wght 600. Sumber + sha256: `/workspace/ux-solbot/visual/g1-blue/fonts/SOURCE.md`.
+- **Ukuran logo:** set file proxy `s` = 48/64/96/128/192. Klien meminta ukuran terkecil yang ≥ px × dpr. Masih pending di contracts Backend.
+
 ## 0.3.1 — 3 Nov 2026 · Guard status = amber (keputusan lead)
 Status guard (chip "Guard", ikon perisai, banner guard-reject) pindah dari violet ke **amber/oranye**. Violet lama terlalu dekat dengan aksen biru G1 dan Real magenta di layar kecil. Hanya nilai yang berubah; nama token tetap (`semantic.guard`, `semantic.guardContainer`; CSS `--color-semantic-guard*`; Dart `TradeColors.guard/guardContainer`, `AppColors*.semanticGuard*`).
 

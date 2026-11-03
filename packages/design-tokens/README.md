@@ -17,6 +17,8 @@ Panduan lengkap (font bundling, Tailwind v4 utilities, mapping M3, aturan Tauri,
 
 Breaking v0.2.0 (untuk Flutter): `context.trade` → `context.tradeColors`, `numStyle()` → `AppText.num()`, `AppSpace.s0_5` → `AppSpace.sHalf`. Warna berubah: dark `border.strong` #6B7995, `text.tertiary` #919CB2.
 
+**v0.3.2 (3 Nov 2026) — docs saja, nilai token tidak berubah:** aturan guard vs warning (§ "Guard vs warning"), path sumber Sora diperbaiki (§ Font bundling), set ukuran logo proxy (§ "Ukuran file logo koin"). Detail: `CHANGELOG.md`.
+
 **v0.3.1 (3 Nov 2026) — guard status amber (keputusan lead):** `semantic.guard` dark #E57A12 / light #A85400 (container #361C08 / #FFF1E6), cek ΔE2000 guard vs PnL/mode/aksen/warning di build. Detail: `CHANGELOG.md`.
 
 **v0.3.0 (3 Nov 2026) — G1-blue (arah pilihan Boss: Canva G1, aksen violet → biru).** Perubahan nilai, bukan rename: **tidak ada token yang di-rename atau dihapus** (`bg.inset` tetap alias deprecated; penghapusan ditunda ke ≥ 0.4.0). Detail lengkap + tabel old → new: `CHANGELOG.md`.
@@ -36,6 +38,26 @@ Breaking v0.2.0 (untuk Flutter): `context.trade` → `context.tradeColors`, `num
 
 **v0.2.4 (29 Okt 2026):** token resmi `bg.sunken` (`--color-bg-sunken`, Tailwind `bg-bg-sunken`, Dart `bgSunken`). `bg.inset` / `--color-bg-inset` / `bgInset` jadi alias deprecated yang menunjuk ke `bg.sunken`, dengan nilai sama sehingga tampilan tidak berubah. Detail di bawah.
 
+## Guard vs warning (0.3.1, keputusan lead 0.3.2)
+`semantic.guard` (amber-oranye) dan `semantic.warning` (amber-kuning) satu keluarga warna. Dark: ΔE2000 21,4. Light: **ΔE2000 10,1, diterima apa adanya berdasarkan keputusan lead**. Di light theme tidak ada amber yang AA, ≥ 20 dari `semantic.loss`, sekaligus ≥ 20 dari warning. Build mengecek floor light ≥ 8.
+Aturan wajib di semua platform:
+- **Guard selalu tampil dengan ikon perisai + label** ("Guard" atau alasan guard).
+- **Warning selalu tampil dengan ikon segitiga.**
+- **Warna tidak pernah menjadi satu-satunya penanda** (WCAG 1.4.1). Chip, badge, baris feed, dan banner wajib punya ikon + teks.
+
+## Ukuran file logo koin (proxy, 0.3.2)
+Token `coin.logo.size.*` = ukuran **tampil** (20/24/32/48/64 px). Proxy backend menyajikan file di set **`s` = 48 / 64 / 96 / 128 / 192** (`GET /v1/img/coin/{mint}?s=…&v={logo_hash}`).
+Aturan klien: minta **ukuran terkecil di set yang ≥ px × dpr** (dpr = devicePixelRatio; Desktop maks. 2). Kalau melebihi 192, pakai 192.
+| tampil | @1x | @2x | @3x |
+|---|---|---|---|
+| 20 | 48 | 48 | 64 |
+| 24 | 48 | 48 | 96 |
+| 32 | 48 | 64 | 96 |
+| 48 | 48 | 96 | 192 |
+| 64 | 64 | 128 | 192 |
+**Status:** s=128/192 dan aturan nearest-size **masih pending di contracts Backend** (contracts saat ini: `s=48|64|96`). Sampai landed, pakai 96 untuk kebutuhan > 96.
+Spek: `/workspace/ux-solbot/docs/COIN_LOGO.md` §2.
+
 ## Surface `bg.sunken` (0.2.4)
 Token resmi untuk **inset well, background input, code block, chip/kartu "Tidak bisa ditradingkan"** (di wireframe disebut `surface.sunken`).
 | Tema | Nilai | CSS | Tailwind | Dart |
@@ -51,7 +73,7 @@ MVP: `google_fonts` (unduh runtime). Production: google_fonts 9.x mencocokkan as
 | Family | Weight dipakai | Nama file yang dibundel (harus berakhiran ini) | Dari unduhan Google Fonts |
 |---|---|---|---|
 | Inter | 400 · 500 · 600 | `Inter-Regular.ttf` · `Inter-Medium.ttf` · `Inter-SemiBold.ttf` | `static/Inter_18pt-{Regular,Medium,SemiBold}.ttf`, **wajib rename** ke `Inter-*.ttf` |
-| Sora (0.3.0) | 600 (display/headline/title) | `Sora-SemiBold.ttf` | `static/Sora-SemiBold.ttf`, **tanpa rename** |
+| Sora (0.3.0) | 600 (display/headline/title) | `Sora-SemiBold.ttf` | **Tidak ada** `static/Sora-SemiBold.ttf` di Google Fonts (`github.com/google/fonts` `ofl/sora` hanya punya variable `Sora[wght].ttf`). File ini di-*instance* dari `Sora[wght].ttf` pada **wght 600** (fontTools `varLib.instancer --static --update-name-table`). Ambil file siap pakai + sha256 + `OFL.txt` di `/workspace/ux-solbot/visual/g1-blue/fonts/` (lihat `SOURCE.md`) |
 | JetBrains Mono | 500 · 600 (angka, `AppText.num`) | `JetBrainsMono-Medium.ttf` · `JetBrainsMono-SemiBold.ttf` | `static/JetBrainsMono-{Medium,SemiBold}.ttf`, **tanpa rename** |
 
 Weight lain (mis. JetBrains Mono 700) tidak dibundel: `AppText.num(weight: w700)` gagal saat runtime fetching OFF. Pakai w500/w600.
