@@ -164,10 +164,14 @@ class Position {
     this.tokenProgram,
     this.qtyRaw,
     this.logoUrl,
+    this.logoHash,
   }) : proceedsLamports = proceedsLamports ?? Lamports.zero;
 
   /// Contracts 1.1.6 (not shipped yet; optional): our logo proxy URL, see [CoinLogo].
   final String? logoUrl;
+
+  /// 1.1.6 `logo_hash` (`v` of the proxy URL); null → identicon, no request.
+  final String? logoHash;
 
   /// `ck.N` style key: coin key + index of the position for that coin.
   final String id;
@@ -270,6 +274,7 @@ class Position {
       tokenProgram: tokenProgram,
       qtyRaw: qtyRaw ?? this.qtyRaw,
       logoUrl: logoUrl,
+      logoHash: logoHash,
     );
   }
 }
@@ -292,11 +297,15 @@ class ActivityEvent {
     this.pnlLamports,
     this.mint,
     this.logoUrl,
+    this.logoHash,
   });
 
   /// Coin of the event, when it has one (identicon seed; 1.1.6 `logo_url`).
   final String? mint;
   final String? logoUrl;
+
+  /// 1.1.6 `logo_hash` (`v` of the proxy URL); null → identicon, no request.
+  final String? logoHash;
 
   /// `<ck>:<epoch ms>:<kind>`; append-only, safe to dedupe on.
   final String id;
@@ -358,6 +367,7 @@ class Approval {
     this.symbol,
     this.mint,
     this.logoUrl,
+    this.logoHash,
   });
 
   /// Coin of a buy pick (null for guard/team changes); untrusted, display only.
@@ -366,6 +376,9 @@ class Approval {
 
   /// Contracts 1.1.6 (optional) logo proxy URL.
   final String? logoUrl;
+
+  /// 1.1.6 `logo_hash` (`v` of the proxy URL); null → identicon, no request.
+  final String? logoHash;
 
   final String id;
   final ApprovalKind kind;
@@ -463,6 +476,7 @@ class Approval {
     symbol: symbol,
     mint: mint,
     logoUrl: logoUrl,
+    logoHash: logoHash,
   );
 }
 
@@ -488,12 +502,16 @@ class ScreenerCoin {
     this.quoteMint,
     this.marketCap,
     this.logoUrl,
+    this.logoHash,
   });
   final String symbol;
   final String? mint;
 
   /// Contracts 1.1.6 (optional) logo proxy URL.
   final String? logoUrl;
+
+  /// 1.1.6 `logo_hash` (`v` of the proxy URL); null → identicon, no request.
+  final String? logoHash;
 
   /// 1.1.4 market cap (null = unknown → "—").
   final MarketCap? marketCap;
@@ -707,26 +725,80 @@ class TimeExits {
   };
 }
 
-/// Contracts 1.1.6 coin logo (Backend WIP, not shipped): `logo_url` is OUR image proxy
-/// (`/v1/logos/{mint}/{size}.{ext}`, relative to the API base, or absolute), never a
-/// token-provided URI; null = proxy disabled; a non-null URL may still 404.
+/// Contracts 1.1.6 coin logo (Backend working tree, not landed yet; UX COIN_LOGO.md §2).
+///
+/// Logos load ONLY through our image proxy `GET /v1/img/coin/{mint}?s={48|64|96|128|192}&v={logo_hash}`
+/// (re-encoded WebP; 404 LOGO_NOT_FOUND / 422 LOGO_REJECTED → identicon). Never a token-provided URI
+/// (metadata/IPFS/Arweave/third-party CDN).
+/// - `logo_hash` null (or not a valid hash) → identicon with no request; no URL is ever guessed without `v`.
+/// - `logo_url` is honoured only when it points at our proxy (same origin as the API, path
+///   `/v1/img/coin/{same mint}`); anything else is ignored and the URL is built from `mint` + `logo_hash`.
 abstract final class CoinLogo {
+  static const proxyPath = '/v1/img/coin/';
+
+  /// Proxy file sizes in the contracts (`LOGO_SIZES`, events.ts 1.1.6).
+  static const fileSizes = [48, 64, 96, 128, 192];
+
+  /// The proxy (`transcode.ts` LOGO_SIZES = 48/64/96) answers 400 for s=128/192 today, so requests and
+  /// decodes are capped at 96 until Backend ships the bigger sizes (COIN_LOGO §2 "Pending").
+  static const maxRequestSize = 96;
+  static const decodeCap = 96;
+
+  static final _mint = RegExp(r'^[1-9A-HJ-NP-Za-km-z]{32,44}$');
+  static final _hash = RegExp(r'^[A-Za-z0-9_-]{8,64}$');
+
+  static bool isMint(String? s) => s != null && _mint.hasMatch(s);
+  static bool isHash(String? s) => s != null && _hash.hasMatch(s);
+
   /// Reads `logo_url` when present; anything but a non-empty string → null.
   static String? fromJson(Map<String, Object?> j) {
     final v = j['logo_url'];
     return v is String && v.isNotEmpty && v.length <= 2048 ? v : null;
   }
 
-  /// http(s) only (release builds are https-only via network_security_config), no SVG,
-  /// relative paths resolved against [apiBase]. Anything else → null (identicon).
-  static Uri? resolve(String? raw, {Uri? apiBase}) {
-    if (raw == null || raw.isEmpty) return null;
+  /// Reads `logo_hash`; null when absent or malformed.
+  static String? hashFromJson(Map<String, Object?> j) {
+    final v = j['logo_hash'];
+    return v is String && isHash(v) ? v : null;
+  }
+
+  /// Smallest proxy size ≥ px × dpr (192 when larger), capped at [maxRequestSize].
+  static int requestSize(double px, double dpr) {
+    final want = px * dpr;
+    final s = fileSizes.firstWhere((s) => s >= want, orElse: () => fileSizes.last);
+    return s > maxRequestSize ? maxRequestSize : s;
+  }
+
+  /// `cacheWidth`/`cacheHeight`: display px × dpr, never above [decodeCap].
+  static int decodePx(double px, double dpr) => (px * dpr).ceil().clamp(1, decodeCap);
+
+  /// https, or http only for a loopback dev API; host required; no userinfo.
+  static bool _okBase(Uri u) =>
+      u.host.isNotEmpty &&
+      u.userInfo.isEmpty &&
+      (u.scheme == 'https' || (u.scheme == 'http' && (u.host == 'localhost' || u.host == '127.0.0.1')));
+
+  /// True when [raw] (absolute or API-relative) is our proxy URL for [mint].
+  static bool isProxyUrl(String? raw, {required Uri apiBase, required String mint}) {
+    if (raw == null || raw.isEmpty || !raw.startsWith(RegExp(r'https?://|/'))) return false;
     final u = Uri.tryParse(raw);
-    if (u == null) return null;
-    final abs = u.hasScheme ? u : (apiBase != null && raw.startsWith('/') ? apiBase.resolveUri(u) : null);
-    if (abs == null || (abs.scheme != 'https' && abs.scheme != 'http') || abs.host.isEmpty) return null;
-    if (abs.userInfo.isNotEmpty) return null;
-    if (abs.path.toLowerCase().endsWith('.svg')) return null;
-    return abs;
+    if (u == null) return false;
+    final abs = u.hasScheme ? u : (raw.startsWith('//') ? null : apiBase.resolveUri(u));
+    if (abs == null || !_okBase(abs) || abs.hasFragment) return false;
+    return abs.origin == apiBase.origin && abs.path == '$proxyPath$mint';
+  }
+
+  /// The proxy URL to load, or null (→ identicon without a request).
+  static Uri? proxyUri({required Uri? apiBase, required String? mint, required String? logoHash, required int size}) {
+    if (apiBase == null || !_okBase(apiBase) || !isMint(mint) || !isHash(logoHash)) return null;
+    // A proxy `logo_url` has this exact origin + path, so the URL is always built from mint + logo_hash:
+    // `logo_hash` wins over a stale `v` (new hash = new URL = old cache unused); non-proxy URLs never load.
+    return Uri(
+      scheme: apiBase.scheme,
+      host: apiBase.host,
+      port: apiBase.hasPort ? apiBase.port : null,
+      path: '$proxyPath$mint',
+      queryParameters: {'s': '$size', 'v': logoHash!},
+    );
   }
 }

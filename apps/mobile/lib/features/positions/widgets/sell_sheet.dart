@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/widgets/coin_avatar.dart';
 import '../../../core/feature_flags.dart';
 import '../../../core/format.dart';
 import '../../../core/theme/centurion_theme.dart';
@@ -95,6 +96,8 @@ class _SellSheetState extends ConsumerState<SellSheet> {
         children: [
           Row(
             children: [
+              CoinAvatar(mint: p.mint, symbol: p.symbol, logoHash: p.logoHash, logoUrl: p.logoUrl),
+              const SizedBox(width: AppSpace.s2),
               Flexible(
                 child: Text('Jual \$${p.symbol}', style: tt.titleLarge, overflow: TextOverflow.ellipsis),
               ),

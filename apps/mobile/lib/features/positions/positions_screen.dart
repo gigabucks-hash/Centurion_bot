@@ -154,7 +154,7 @@ class PositionCard extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CoinAvatar(seed: p.mint, logoUrl: p.logoUrl),
+                  CoinAvatar(mint: p.mint, symbol: p.symbol, logoHash: p.logoHash, logoUrl: p.logoUrl),
                   const SizedBox(width: AppSpace.s3),
                   Expanded(
                     child: Column(
@@ -223,7 +223,7 @@ class _ClosedRow extends StatelessWidget {
     final p = position;
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: CoinAvatar(seed: p.mint, logoUrl: p.logoUrl),
+      leading: CoinAvatar(mint: p.mint, symbol: p.symbol, logoHash: p.logoHash, logoUrl: p.logoUrl),
       title: Text('\$${p.symbol}'),
       subtitle: Text(p.exitReason ?? 'Closed', overflow: TextOverflow.ellipsis),
       trailing: PnlText(p.pnlLamports),

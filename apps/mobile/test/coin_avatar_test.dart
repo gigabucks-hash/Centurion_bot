@@ -1,138 +1,342 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:centurion_mobile/app/app.dart';
 import 'package:centurion_mobile/core/approval_guard.dart';
 import 'package:centurion_mobile/core/startup/deferred_init.dart';
-import 'package:centurion_mobile/data/mock/mock_backend.dart';
-import 'package:centurion_mobile/data/providers.dart';
 import 'package:centurion_mobile/core/theme/centurion_theme.dart';
 import 'package:centurion_mobile/core/widgets/coin_avatar.dart';
+import 'package:centurion_mobile/data/api/api_exception.dart';
+import 'package:centurion_mobile/data/mock/mock_backend.dart';
 import 'package:centurion_mobile/data/models/models.dart';
+import 'package:centurion_mobile/data/providers.dart';
 
-const wsol = 'So11111111111111111111111111111111111111112';
+/// UX COIN_LOGO.md §4 test vectors (also produced by ux-solbot/visual/src/vectors.mjs; "verified Python +
+/// Node"). All mints are fictitious.
+const vectors = [
+  (mint: 'tUS1YuHKJDnzQddko3sTDKq1F7v58ZPsvkwRHBTGN844', symbol: r'$TESSA', hash: 0xeeb2707f, idx: 7, ini: 'TE'),
+  (mint: 'dYrhdkDmtC88oyRfDMCPgQbxc2y8p5fhc95zgjSYZo2d', symbol: r'$z3phy', hash: 0x70e7f8fb, idx: 11, ini: 'Z3'),
+  (mint: 'HnYTsD1BUDsPCBFXnbgxn8bYfejYYxJUgLVaHFPunvLy', symbol: '🚀🚀', hash: 0xa810ce07, idx: 7, ini: '\u2022'),
+  (mint: 'CTvec4mint1111111111111111111111111111111111', symbol: r'$_9lives', hash: 0x1580013a, idx: 10, ini: '9L'),
+];
 
-Widget _host(Widget child, {Uri? apiBase}) => ProviderScope(
-  overrides: [apiBaseUrlProvider.overrideWithValue(apiBase)],
-  child: MaterialApp(
-    theme: CenturionTheme.dark(),
-    home: Scaffold(
-      body: Center(child: RepaintBoundary(child: child)),
-    ),
-  ),
-);
+const mint = 'tUS1YuHKJDnzQddko3sTDKq1F7v58ZPsvkwRHBTGN844';
+const hash = 'abcdef0123456789';
+final api = Uri.parse('https://api.example.com');
+
+/// Image provider whose result the test controls (keyed by URL so the ImageCache can hit).
+class _Logo extends ImageProvider<String> {
+  _Logo(this.url, this.result);
+  final String url;
+  final Future<ImageInfo> result;
+  @override
+  Future<String> obtainKey(ImageConfiguration configuration) => SynchronousFuture(url);
+  @override
+  ImageStreamCompleter loadImage(String key, ImageDecoderCallback decode) => OneFrameImageStreamCompleter(result);
+}
+
+class _Factory {
+  final requested = <Uri>[];
+  final decodePx = <int>[];
+  Future<ImageInfo> Function(Uri) answer = (_) => Completer<ImageInfo>().future; // never completes
+  ImageProvider call(Uri uri, int px) {
+    requested.add(uri);
+    decodePx.add(px);
+    return _Logo(uri.toString(), answer(uri));
+  }
+}
+
+Widget _host(Widget child, {Uri? apiBase, _Factory? factory, CoinLogoSession? session, bool reduced = false}) =>
+    ProviderScope(
+      overrides: [
+        apiBaseUrlProvider.overrideWithValue(apiBase),
+        if (factory != null) coinLogoImageFactoryProvider.overrideWithValue(factory.call),
+        if (session != null) coinLogoSessionProvider.overrideWithValue(session),
+      ],
+      child: MaterialApp(
+        theme: CenturionTheme.dark(),
+        home: MediaQuery(
+          data: MediaQueryData(devicePixelRatio: 3, disableAnimations: reduced),
+          child: Scaffold(
+            body: Center(child: RepaintBoundary(child: child)),
+          ),
+        ),
+      ),
+    );
+
+const _avatar = CoinAvatar(mint: mint, symbol: r'$TESSA', logoHash: hash);
+final _identicon = find.byKey(const ValueKey('identicon_7_TE'));
+final _skeleton = find.byKey(const ValueKey('coinLogoSkeleton'));
 
 void main() {
-  group('IdenticonSpec (deterministic, pure Dart)', () {
-    test('fixed vector: same mint → same hash, cells and color on every run', () {
-      final a = IdenticonSpec.of(wsol);
-      // Cross-checked with an independent Python FNV-1a implementation.
-      expect(a.hash, 2971079099);
-      expect(a.fg, AppColorsDark.semanticWarning); // 2971079099 % 5 == 4
-      final b = IdenticonSpec.of(wsol);
-      expect(b.cells, a.cells);
-      for (var r = 0; r < 5; r++) {
-        for (var c = 0; c < 5; c++) {
-          expect(a.cells[r * 5 + c], a.cells[r * 5 + 4 - c], reason: 'mirrored');
-        }
+  setUp(() => imageCache.clear());
+
+  group('identicon (COIN_LOGO §4)', () {
+    test('test vectors: fnv1a32, palette index and initials match vectors.mjs', () {
+      for (final v in vectors) {
+        expect(Identicon.fnv1a32(v.mint), v.hash, reason: v.mint);
+        expect(Identicon.paletteIndex(v.mint), v.idx, reason: v.mint);
+        expect(Identicon.paletteIndex('  ${v.mint}\n'), v.idx, reason: 'mint is trimmed');
+        expect(Identicon.initials(v.symbol), v.ini, reason: v.symbol);
       }
     });
 
-    test('different mints differ; colors come from the token palette', () {
-      final seeds = List.generate(50, (i) => '${wsol.substring(0, 40)}${i.toString().padLeft(3, '0')}');
-      final specs = seeds.map(IdenticonSpec.of).toList();
-      expect(specs.map((s) => s.hash).toSet(), hasLength(50));
-      expect(specs.map((s) => s.cells.join()).toSet().length, greaterThan(40));
-      final palette = {
-        AppColorsDark.brandPrimary,
-        AppColorsDark.semanticInfo,
-        AppColorsDark.semanticGuard,
-        AppColorsDark.modePractice,
-        AppColorsDark.semanticWarning,
-      };
-      expect(specs.every((s) => palette.contains(s.fg)), isTrue);
-      expect(IdenticonSpec.of(wsol, dark: false).bg, AppColorsLight.bgSunken);
+    test('palette and fg are the spec values, in order', () {
+      expect(Identicon.palette, const [
+        0xFF8A2E3B, 0xFF8A4A1F, 0xFF6E5A12, 0xFF4C6A1A, 0xFF1F6B3A, 0xFF146560, //
+        0xFF16607E, 0xFF2A4F94, 0xFF4A3F9C, 0xFF6A3592, 0xFF86306F, 0xFF5A5F6E,
+      ]);
+      expect(Identicon.fg, 0xFFF4F6FB);
+    });
+
+    test('web-safe 16-bit split multiply == the doc 64-bit formula', () {
+      int doc(String s) {
+        var h = 0x811C9DC5;
+        for (final b in utf8.encode(s)) {
+          h ^= b;
+          h = (h * 0x01000193) & 0xFFFFFFFF;
+        }
+        return h;
+      }
+
+      final r = math.Random(7);
+      for (var i = 0; i < 500; i++) {
+        final s = String.fromCharCodes(List.generate(r.nextInt(60), (_) => 0x20 + r.nextInt(0x2000)));
+        expect(Identicon.fnv1a32(s), doc(s), reason: s);
+      }
+      expect(Identicon.fnv1a32(''), 0x811C9DC5);
+    });
+
+    test(r'initials: strip leading $, first 2 ASCII alnum, uppercase, else •', () {
+      expect(Identicon.initials(''), '\u2022');
+      expect(Identicon.initials(r'$$$'), '\u2022');
+      expect(Identicon.initials('猫猫'), '\u2022');
+      expect(Identicon.initials('ab'), 'AB');
+      expect(Identicon.initials(r'$é1x2'), '1X');
+      expect(Identicon.initials(r'a$b'), 'AB');
+      expect(Identicon.initials('w'), 'W');
     });
   });
 
-  group('CoinLogo', () {
-    final api = Uri.parse('https://api.example.com/');
-    test('parse logo_url only when it is a non-empty string', () {
-      expect(CoinLogo.fromJson({'logo_url': '/v1/logos/$wsol/64.webp'}), '/v1/logos/$wsol/64.webp');
-      expect(CoinLogo.fromJson({'logo_url': null}), isNull);
-      expect(CoinLogo.fromJson({'logo_url': 5}), isNull);
-      expect(CoinLogo.fromJson({}), isNull);
+  group('CoinLogo (proxy only)', () {
+    test('request size: smallest of 48/64/96/128/192 ≥ px × dpr, capped at 96 until the proxy update', () {
+      final table = {
+        (20, 1): 48, (20, 2): 48, (20, 3): 64, //
+        (24, 1): 48, (24, 2): 48, (24, 3): 96,
+        (32, 1): 48, (32, 2): 64, (32, 3): 96,
+        (48, 3): 96, (64, 2): 96, (64, 3): 96, // doc: 192 / 128 / 192 once Backend ships them
+      };
+      table.forEach((k, s) => expect(CoinLogo.requestSize(k.$1.toDouble(), k.$2.toDouble()), s, reason: '$k'));
+      expect(CoinLogo.decodePx(32, 3), 96);
+      expect(CoinLogo.decodePx(20, 3), 60);
+      expect(CoinLogo.decodePx(64, 3), 96, reason: 'decode cap 96');
     });
 
-    test('resolve: http(s) only, relative against the API base, no SVG, no userinfo', () {
+    test('proxyUri: built from mint + logo_hash; null without hash, base, valid mint or https', () {
       expect(
-        CoinLogo.resolve('/v1/logos/$wsol/64.webp', apiBase: api).toString(),
-        'https://api.example.com/v1/logos/$wsol/64.webp',
+        CoinLogo.proxyUri(apiBase: api, mint: mint, logoHash: hash, size: 64).toString(),
+        'https://api.example.com/v1/img/coin/$mint?s=64&v=$hash',
       );
-      expect(CoinLogo.resolve('/v1/logos/x/64.webp'), isNull, reason: 'no API base → identicon');
-      expect(CoinLogo.resolve('https://cdn.example.com/a.png').toString(), 'https://cdn.example.com/a.png');
+      expect(CoinLogo.proxyUri(apiBase: null, mint: mint, logoHash: hash, size: 48), isNull);
+      expect(
+        CoinLogo.proxyUri(apiBase: api, mint: mint, logoHash: null, size: 48),
+        isNull,
+        reason: 'no guess w/o v',
+      );
+      expect(CoinLogo.proxyUri(apiBase: api, mint: mint, logoHash: 'x&s=1', size: 48), isNull);
+      expect(CoinLogo.proxyUri(apiBase: api, mint: 'BONK', logoHash: hash, size: 48), isNull);
+      expect(
+        CoinLogo.proxyUri(apiBase: Uri.parse('http://api.example.com'), mint: mint, logoHash: hash, size: 48),
+        isNull,
+      );
+      expect(
+        CoinLogo.proxyUri(apiBase: Uri.parse('http://localhost:8787'), mint: mint, logoHash: hash, size: 48).toString(),
+        'http://localhost:8787/v1/img/coin/$mint?s=48&v=$hash',
+      );
+    });
+
+    test('isProxyUrl: only our origin + /v1/img/coin/{same mint}', () {
+      bool ok(String u) => CoinLogo.isProxyUrl(u, apiBase: api, mint: mint);
+      expect(ok('/v1/img/coin/$mint?s=96&v=$hash'), isTrue);
+      expect(ok('https://api.example.com/v1/img/coin/$mint?s=96'), isTrue);
       for (final bad in [
+        'https://cdn.example.com/v1/img/coin/$mint?s=96',
+        'https://api.example.com.evil.io/v1/img/coin/$mint',
+        '//evil.io/v1/img/coin/$mint',
+        'http://api.example.com/v1/img/coin/$mint',
+        'https://user:pw@api.example.com/v1/img/coin/$mint',
+        'https://api.example.com/v1/img/coin/OTHERmint1111111111111111111111111111111111',
+        'https://api.example.com/v1/logos/$mint/64.webp',
+        'https://api.example.com/v1/img/coin/$mint#x',
         'ipfs://bafy',
+        'ar://abc',
         'data:image/png;base64,AAAA',
-        'file:///etc/passwd',
         'javascript:alert(1)',
-        'https://x.example/logo.SVG',
-        'https://user:pw@x.example/a.png',
-        'logo.png',
+        'v1/img/coin/$mint',
         '',
       ]) {
-        expect(CoinLogo.resolve(bad, apiBase: api), isNull, reason: bad);
+        expect(ok(bad), isFalse, reason: bad);
       }
+      expect(CoinLogo.hashFromJson({'logo_hash': hash}), hash);
+      expect(CoinLogo.hashFromJson({'logo_hash': 'short'}), isNull);
+      expect(CoinLogo.hashFromJson({}), isNull);
     });
   });
 
-  group('CoinAvatar widget', () {
-    testWidgets('no logo → identicon with the stable key', (tester) async {
-      await tester.pumpWidget(_host(const CoinAvatar(seed: wsol)));
-      expect(find.byKey(const ValueKey('identicon_2971079099')), findsOneWidget);
-      expect(find.byType(Image), findsNothing);
-    });
-
-    testWidgets('logo → Image decoded at display size; network error → identicon', (tester) async {
+  group('CoinAvatar states', () {
+    testWidgets('logo_hash null → identicon at once, no request, no skeleton', (tester) async {
+      final f = _Factory();
       await tester.pumpWidget(
         _host(
-          const CoinAvatar(seed: wsol, logoUrl: '/v1/logos/x/64.webp', size: 32),
-          apiBase: Uri.parse('https://api.example.com'),
+          const CoinAvatar(mint: mint, symbol: r'$TESSA'),
+          apiBase: api,
+          factory: f,
         ),
       );
-      final img = tester.widget<Image>(find.byType(Image));
-      final provider = img.image as ResizeImage;
-      final dpr = tester.view.devicePixelRatio;
-      expect(provider.width, (32 * dpr).round());
-      expect(provider.height, (32 * dpr).round());
-      expect((provider.imageProvider as NetworkImage).url, 'https://api.example.com/v1/logos/x/64.webp');
-      // While loading, and after the (test-env) HTTP failure, the identicon shows.
-      expect(find.byKey(const ValueKey('identicon_2971079099')), findsOneWidget);
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('identicon_2971079099')), findsOneWidget);
+      expect(_identicon, findsOneWidget);
+      expect(_skeleton, findsNothing);
+      expect(f.requested, isEmpty);
     });
 
-    testWidgets('golden: identicons are pixel-stable', (tester) async {
+    testWidgets('a foreign logo_url is never requested: URL rebuilt on our proxy', (tester) async {
+      final f = _Factory();
       await tester.pumpWidget(
         _host(
-          const Row(
+          const CoinAvatar(mint: mint, symbol: 'X', logoHash: hash, logoUrl: 'https://evil.io/logo.png'),
+          apiBase: api,
+          factory: f,
+        ),
+      );
+      expect(f.requested.single.toString(), 'https://api.example.com/v1/img/coin/$mint?s=96&v=$hash');
+      expect(f.decodePx.single, 96, reason: '32 px × dpr 3, cap 96');
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('loading: empty slot < 150 ms, static skeleton after, ≥ 300 ms, then fade-in', (tester) async {
+      final img = (await tester.runAsync(() => createTestImage(width: 4, height: 4)))!;
+      final done = Completer<ImageInfo>();
+      final f = _Factory()..answer = (_) => done.future;
+      await tester.pumpWidget(_host(_avatar, apiBase: api, factory: f));
+      expect(_skeleton, findsNothing);
+      expect(_identicon, findsNothing, reason: 'identicon is for failure only');
+      await tester.pump(const Duration(milliseconds: 149));
+      expect(_skeleton, findsNothing);
+      await tester.pump(const Duration(milliseconds: 2));
+      expect(_skeleton, findsOneWidget);
+      final box = tester.widget<DecoratedBox>(_skeleton).decoration as BoxDecoration;
+      expect(box.color, AppColorsDark.skeletonBase);
+      done.complete(ImageInfo(image: img));
+      await tester.pump(const Duration(milliseconds: 50)); // 200 ms in: skeleton shown 50 ms only
+      expect(_skeleton, findsOneWidget, reason: 'min 300 ms on screen');
+      await tester.pump(const Duration(milliseconds: 260));
+      expect(_skeleton, findsNothing);
+      expect(find.byType(RawImage), findsOneWidget);
+      expect(find.byType(TweenAnimationBuilder<double>), findsOneWidget, reason: '150 ms fade');
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('cache hit: shown at once, no skeleton, no fade', (tester) async {
+      final img = (await tester.runAsync(() => createTestImage(width: 4, height: 4)))!;
+      final f = _Factory()..answer = (_) => SynchronousFuture(ImageInfo(image: img.clone()));
+      await tester.pumpWidget(_host(_avatar, apiBase: api, factory: f));
+      await tester.pump();
+      await tester.pumpWidget(_host(const SizedBox(), apiBase: api, factory: f));
+      await tester.pumpWidget(_host(_avatar, apiBase: api, factory: f));
+      expect(find.byType(RawImage), findsOneWidget);
+      expect(_skeleton, findsNothing);
+      expect(find.byType(TweenAnimationBuilder<double>), findsNothing);
+    });
+
+    testWidgets('404 LOGO_NOT_FOUND → identicon; not retried for that mint+v this session', (tester) async {
+      final session = CoinLogoSession();
+      final f = _Factory()..answer = (u) => Future.error(NetworkImageLoadException(statusCode: 404, uri: u));
+      await tester.pumpWidget(_host(_avatar, apiBase: api, factory: f, session: session));
+      await tester.pump();
+      await tester.pump();
+      expect(_identicon, findsOneWidget);
+      expect(session.lastError[CoinLogoSession.key(mint, hash)], ApiErrorCode.fromWire('LOGO_NOT_FOUND'));
+      await tester.pumpWidget(_host(const SizedBox(), apiBase: api, factory: f, session: session));
+      imageCache.clear();
+      await tester.pumpWidget(_host(_avatar, apiBase: api, factory: f, session: session));
+      expect(_identicon, findsOneWidget);
+      expect(f.requested, hasLength(1), reason: 'negative cache per mint+v');
+    });
+
+    testWidgets('422 LOGO_REJECTED → identicon', (tester) async {
+      final session = CoinLogoSession();
+      final f = _Factory()..answer = (u) => Future.error(NetworkImageLoadException(statusCode: 422, uri: u));
+      await tester.pumpWidget(_host(_avatar, apiBase: api, factory: f, session: session));
+      await tester.pump();
+      await tester.pump();
+      expect(_identicon, findsOneWidget);
+      expect(session.lastError.values.single, ApiErrorCode.fromWire('LOGO_REJECTED'));
+    });
+
+    testWidgets('4 s timeout → identicon; network failures retried at most once per mint', (tester) async {
+      final session = CoinLogoSession();
+      final f = _Factory();
+      for (var i = 0; i < 3; i++) {
+        imageCache.clear();
+        await tester.pumpWidget(_host(_avatar, apiBase: api, factory: f, session: session));
+        if (i < 2) {
+          await tester.pump(const Duration(milliseconds: 3999));
+          expect(_skeleton, findsOneWidget);
+          await tester.pump(const Duration(milliseconds: 2));
+        }
+        expect(_identicon, findsOneWidget, reason: 'iteration $i');
+        await tester.pumpWidget(_host(const SizedBox(), apiBase: api, factory: f, session: session));
+      }
+      expect(f.requested, hasLength(2), reason: 'first try + one retry');
+    });
+
+    testWidgets('not tradeable: grayscale + 0.55 opacity + dashed ring; decorative by default', (tester) async {
+      await tester.pumpWidget(_host(const CoinAvatar(mint: mint, symbol: r'$TESSA', notTradeable: true)));
+      expect(find.byType(ColorFiltered), findsOneWidget);
+      expect(tester.widget<Opacity>(find.byType(Opacity)).opacity, 0.55);
+      expect(find.byType(ExcludeSemantics), findsWidgets);
+    });
+
+    testWidgets('golden: vector identicons at 20/24/32 + not tradeable', (tester) async {
+      await tester.runAsync(() => GoogleFonts.pendingFonts());
+      await tester.pumpWidget(
+        _host(
+          Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CoinIdenticon(seed: wsol, size: 48),
-              CoinIdenticon(seed: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', size: 48),
-              CoinIdenticon(seed: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', size: 48),
-              CoinIdenticon(seed: 'BONK', size: 48),
+              for (final s in const [CoinAvatar.sm, CoinAvatar.md, CoinAvatar.lg])
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final v in vectors)
+                      Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: CoinAvatar(mint: v.mint, symbol: v.symbol, size: s),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: CoinAvatar(mint: vectors[1].mint, symbol: vectors[1].symbol, size: s, notTradeable: true),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
       );
-      await expectLater(find.byType(Row), matchesGoldenFile('goldens/coin_identicons.png'));
+      await tester.runAsync(() => GoogleFonts.pendingFonts());
+      await tester.pump();
+      await expectLater(find.byType(Column).first, matchesGoldenFile('goldens/coin_identicons.png'));
     });
   });
 
   group('used in every coin row/card', () {
-    for (final route in ['/coins', '/positions', '/approvals', '/activity']) {
-      testWidgets('$route shows coin avatars', (tester) async {
+    for (final (route, size) in [('/coins', 32.0), ('/positions', 32.0), ('/approvals', 32.0), ('/activity', 20.0)]) {
+      testWidgets('$route shows $size px coin avatars', (tester) async {
         tester.view.physicalSize = const Size(412 * 3, 915 * 3);
         tester.view.devicePixelRatio = 3;
         addTearDown(tester.view.reset);
@@ -148,8 +352,10 @@ void main() {
           ),
         );
         await tester.pump();
-        expect(find.byType(CoinAvatar), findsWidgets);
-        expect(find.byType(CoinIdenticon), findsWidgets);
+        final avatars = tester.widgetList<CoinAvatar>(find.byType(CoinAvatar));
+        expect(avatars, isNotEmpty);
+        expect(avatars.map((a) => a.size).toSet(), {size});
+        expect(find.byType(CoinIdenticon), findsWidgets, reason: 'mock has no logo_hash: identicons');
         b.dispose();
       });
     }

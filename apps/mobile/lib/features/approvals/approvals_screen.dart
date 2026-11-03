@@ -315,7 +315,7 @@ class ApprovalCard extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (a.mint != null || a.symbol != null) ...[
-                    CoinAvatar(seed: a.mint ?? a.symbol!, logoUrl: a.logoUrl),
+                    CoinAvatar(mint: a.mint, symbol: a.symbol ?? '', logoHash: a.logoHash, logoUrl: a.logoUrl),
                     const SizedBox(width: AppSpace.s2),
                   ],
                   Flexible(child: Text(a.title.replaceFirst('Buy ', '\$'), style: text.titleLarge)),

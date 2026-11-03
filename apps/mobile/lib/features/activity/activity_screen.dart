@@ -150,11 +150,17 @@ class ActivityTile extends StatelessWidget {
       leading: e.mint == null && e.symbol == null
           ? Icon(iconFor(e.kind), color: color, size: 20)
           : SizedBox.square(
-              dimension: 36,
+              dimension: 28,
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  CoinAvatar(seed: e.mint ?? e.symbol!, logoUrl: e.logoUrl),
+                  CoinAvatar(
+                    mint: e.mint,
+                    symbol: e.symbol ?? '',
+                    logoHash: e.logoHash,
+                    logoUrl: e.logoUrl,
+                    size: CoinAvatar.sm, // COIN_LOGO §1: activity feed = 20 px
+                  ),
                   Positioned(
                     right: 0,
                     bottom: 0,
@@ -162,7 +168,7 @@ class ActivityTile extends StatelessWidget {
                       decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, shape: BoxShape.circle),
                       child: Padding(
                         padding: const EdgeInsets.all(1),
-                        child: Icon(iconFor(e.kind), color: color, size: 14),
+                        child: Icon(iconFor(e.kind), color: color, size: 12),
                       ),
                     ),
                   ),

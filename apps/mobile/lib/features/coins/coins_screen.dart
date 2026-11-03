@@ -98,7 +98,7 @@ class _CoinCard extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpace.s4),
           child: Row(
             children: [
-              CoinAvatar(seed: c.mint ?? c.symbol, logoUrl: c.logoUrl),
+              CoinAvatar(mint: c.mint, symbol: c.symbol, logoHash: c.logoHash, logoUrl: c.logoUrl),
               const SizedBox(width: AppSpace.s3),
               Expanded(
                 child: Column(
@@ -148,9 +148,12 @@ class NotTradeableCoinCard extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpace.s4),
             child: Row(
               children: [
-                Opacity(
-                  opacity: 0.6,
-                  child: CoinAvatar(seed: c.mint ?? c.symbol, logoUrl: c.logoUrl),
+                CoinAvatar(
+                  mint: c.mint,
+                  symbol: c.symbol,
+                  logoHash: c.logoHash,
+                  logoUrl: c.logoUrl,
+                  notTradeable: true,
                 ),
                 const SizedBox(width: AppSpace.s3),
                 Expanded(
@@ -232,7 +235,13 @@ class CoinDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Row(
           children: [
-            CoinAvatar(seed: c.mint ?? c.symbol, logoUrl: c.logoUrl, size: 28),
+            CoinAvatar(
+              mint: c.mint,
+              symbol: c.symbol,
+              logoHash: c.logoHash,
+              logoUrl: c.logoUrl,
+              notTradeable: c.notTradeable,
+            ),
             const SizedBox(width: AppSpace.s2),
             Flexible(child: Text('\$${c.symbol}')),
           ],
