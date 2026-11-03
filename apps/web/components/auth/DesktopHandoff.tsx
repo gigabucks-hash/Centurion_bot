@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { Laptop, ShieldX, Wallet } from "lucide-react";
 import { ApiError } from "@/lib/errors";
-import { errorUrl, successUrl, type HandoffError } from "@/lib/auth/handoff";
+import { deepLinkUrl, errorUrl, successUrl, type Handoff, type HandoffError } from "@/lib/auth/handoff";
+import { request } from "@/lib/client";
 import { MOCK_OTHER_WALLET, MOCK_OWNER_WALLET } from "@/lib/auth/allowlist";
 import { mockPhantom, siwsNonce, WalletError, type SiwsChallenge } from "@/lib/auth/wallet";
 import { useT } from "@/lib/i18n/client";
@@ -14,7 +15,7 @@ const isNotOwner = (e: unknown) => e instanceof ApiError && e.code === "FORBIDDE
  * Hand-off UI: connect (mock Phantom) → nonce + message preview → sign → return to the desktop app with the one-time
  * signed message (never tokens; this page does not call /verify). See lib/auth/handoff.ts.
  */
-export function DesktopHandoff({ handoff }: { handoff: { state: string; redirect: string } | null }) {
+export function DesktopHandoff({ handoff }: { handoff: Handoff | null }) {
   const t = useT();
   const [wallet, setWallet] = useState(MOCK_OWNER_WALLET);
   const [ch, setCh] = useState<{ address: string; c: SiwsChallenge } | null>(null);
@@ -33,7 +34,8 @@ export function DesktopHandoff({ handoff }: { handoff: { state: string; redirect
     setDone(d);
     window.location.assign(url);
   };
-  const fail = (e: HandoffError) => back(errorUrl(handoff.redirect, handoff.state, e), e);
+  // Loopback: report the error to the app. Deep link: the app's parser accepts only code+state → stay on the page.
+  const fail = (e: HandoffError) => (handoff.kind === "loopback" ? back(errorUrl(handoff.redirect, handoff.state, e), e) : setDone(e));
 
   async function connect() {
     setBusy(true);
@@ -55,9 +57,16 @@ export function DesktopHandoff({ handoff }: { handoff: { state: string; redirect
     setBusy(true);
     try {
       const signature = await mockPhantom(ch.address).signMessage(ch.c.message);
-      back(successUrl(handoff!.redirect, handoff!.state, { address: ch.address, message: ch.c.message, signature }), "sent");
+      if (handoff!.kind === "loopback") {
+        back(successUrl(handoff!.redirect, handoff!.state, { address: ch.address, message: ch.c.message, signature }), "sent");
+        return;
+      }
+      const r = await request<{ code: string; expires_in: number }>("/api/v1/auth/siws/verify", {
+        body: { address: ch.address, message: ch.c.message, signature, client: "desktop", code_challenge: handoff!.codeChallenge, code_challenge_method: "S256", state: handoff!.state },
+      });
+      back(deepLinkUrl(handoff!.state, r.data.code), "sent");
     } catch (e) {
-      fail(e instanceof WalletError ? "user_rejected" : "failed");
+      fail(isNotOwner(e) ? "wallet_not_allowed" : e instanceof WalletError ? "user_rejected" : e instanceof ApiError && e.code === "SIWS_NONCE_INVALID" ? "nonce_expired" : "failed");
     } finally {
       setBusy(false);
     }

@@ -1,17 +1,18 @@
 /**
- * Desktop SIWS hand-off (/auth/desktop). The desktop app opens this page in the system browser with
- * `?state=<random>&redirect_uri=<uri>&client=desktop`; the page connects Phantom, gets a server nonce, has the wallet
- * sign the server-built SIWS message and returns to the app. It NEVER calls /verify and never sees or forwards a
- * session token: the app redeems the one-time, nonce-bound signed message itself (`POST /v1/auth/siws/verify
- * {client: "desktop"}`; nonce 5 min, single use, all fields bound — backend B-3), and stores tokens in the OS keychain.
+ * Desktop SIWS hand-off (/auth/desktop), aligned to apps/desktop (auth.rs loopback + deeplink.rs PKCE parser).
+ * The page connects Phantom, gets a server nonce and has the wallet sign the server-built message. Two return paths:
  *
- * Return URL: `centurion://auth` (i18n 0.4.8 / lead decision) — or, for the current desktop build, its loopback
- * `http://127.0.0.1:<port>/siws/callback` (apps/desktop auth.rs). Nothing else is accepted (no open redirect).
- * Params on return: success `state, address, message, signature`; failure `state, error`.
+ * 1. `centurion://auth` (Boss/lead decision; i18n 0.4.8): the app sends `state` + `code_challenge` (S256). The page
+ *    calls `/v1/auth/siws/verify {…, code_challenge, code_challenge_method, state}` and gets a ONE-TIME CODE
+ *    (60 s, single use, bound to the challenge) — never a session, no cookies. It returns
+ *    `centurion://auth?code=…&state=…` (exactly the two params deeplink.rs accepts). The app redeems
+ *    `POST /v1/auth/desktop/exchange {code, code_verifier}` → Session. A hijacked redirect alone is useless
+ *    without the verifier. Errors are shown on the page (the app's parser accepts no `error` param).
+ * 2. Loopback `http://127.0.0.1:<port>/siws/callback` (current desktop build, auth.rs): returns the one-time,
+ *    nonce-bound signed message `state, address, message, signature` (or `state, error`); the app calls /verify.
  *
- * ASSUMPTION (no Backend hand-off code yet): the "one-time code" is the signed SIWS message itself. A custom scheme can
- * be claimed by another app, so Backend's PKCE-style `state` (REAL_MONEY_OPTIONS 2.5 (4): hash with /nonce, secret
- * with /verify) or a short-lived hand-off code exchange should replace it; see docs/PERF_SECURITY.md §Auth.
+ * ASSUMPTION: the code/exchange step is Desktop's proposal and is NOT in the API contract yet; the web BFF mock
+ * implements it (lib/mock/handoff.ts). Nothing else is accepted as a return target (no open redirect).
  */
 import { z } from "zod";
 
@@ -24,7 +25,13 @@ export const HandoffParams = z.object({
   state: z.string().regex(/^[A-Za-z0-9_-]{16,128}$/),
   redirect_uri: z.string().max(200).optional(),
   client: z.literal("desktop").optional(),
+  code_challenge: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),
+  code_challenge_method: z.literal("S256").optional(),
 });
+
+export type Handoff =
+  | { kind: "deeplink"; state: string; redirect: typeof DESKTOP_AUTH_URI; codeChallenge: string }
+  | { kind: "loopback"; state: string; redirect: string };
 
 /** Allow-listed return target or null. */
 export function safeRedirect(raw: string | undefined | null): string | null {
@@ -34,12 +41,23 @@ export function safeRedirect(raw: string | undefined | null): string | null {
   return null;
 }
 
-export function parseHandoff(sp: Record<string, string | string[] | undefined>): { state: string; redirect: string } | null {
+export function parseHandoff(sp: Record<string, string | string[] | undefined>): Handoff | null {
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? undefined : v);
-  const p = HandoffParams.safeParse({ state: one(sp.state), redirect_uri: one(sp.redirect_uri), client: one(sp.client) });
+  const p = HandoffParams.safeParse({ state: one(sp.state), redirect_uri: one(sp.redirect_uri), client: one(sp.client), code_challenge: one(sp.code_challenge), code_challenge_method: one(sp.code_challenge_method) });
   if (!p.success) return null;
   const redirect = safeRedirect(p.data.redirect_uri);
-  return redirect ? { state: p.data.state, redirect } : null;
+  if (!redirect) return null;
+  if (redirect === DESKTOP_AUTH_URI) {
+    // deep link: PKCE required (S256 only)
+    if (!p.data.code_challenge || p.data.code_challenge_method !== "S256") return null;
+    return { kind: "deeplink", state: p.data.state, redirect: DESKTOP_AUTH_URI, codeChallenge: p.data.code_challenge };
+  }
+  return { kind: "loopback", state: p.data.state, redirect };
+}
+
+/** centurion://auth?code=…&state=… — exactly the params apps/desktop deeplink.rs accepts. */
+export function deepLinkUrl(state: string, code: string): string {
+  return `${DESKTOP_AUTH_URI}?${new URLSearchParams({ code, state }).toString()}`;
 }
 
 const enc = (o: Record<string, string>) => new URLSearchParams(o).toString();
