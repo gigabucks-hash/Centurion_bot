@@ -156,6 +156,25 @@ match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `fro
 | POST | `/v1/auth/session/refresh` | Body `{refresh_token}` -> `200 {data: Session}` with a NEW refresh token (rotation; same `session_id`). A rotated token presented again revokes the whole session family -> `401 UNAUTHENTICATED {reason: "refresh_reused"}`; revoked/expired/unknown -> `401 {reason: refresh_revoked\|refresh_expired\|refresh_invalid}`. Wallet no longer in `OWNER_WALLETS` -> family revoked, `403 FORBIDDEN_ROLE`. 30/min/IP. |
 | POST | `/v1/auth/session/logout` | Body `{refresh_token}` -> `200 {data: {revoked: true}}` always (revokes the family if it exists). |
 
+#### 4.1.1 Desktop deep-link hand-off (`centurion://auth`, 1.1.6, implemented)
+Tokens never appear in a URL. The desktop app creates `state` (16-128 base64url chars) and a PKCE pair
+(`code_verifier` 43-128 chars `[A-Za-z0-9._~-]`, `code_challenge = BASE64URL(SHA256(verifier))`, **S256 only**), and
+opens the web page `/auth/desktop?state=&code_challenge=&code_challenge_method=S256`.
+1. Web page: normal nonce + wallet signature, then `POST /v1/auth/siws/verify {address, message, signature,
+   client: "desktop", code_challenge, code_challenge_method: "S256", state, redirect_uri?}`. The three PKCE/state fields
+   go together. `client` must be `desktop`; `redirect_uri`, when sent, must be exactly `centurion://auth` (the only
+   allowed return target, no open redirect). -> `200 {data: {code, expires_in: 60, expires_at, state, redirect_uri:
+   "centurion://auth"}}`. **No session, no cookies.** The page navigates to `centurion://auth?code=&state=` (exactly
+   these two params).
+2. App: `POST /v1/auth/desktop/exchange {code, code_verifier, client?: "desktop"}` (unknown fields -> 422) ->
+   `200 {data: Session + workspace_id}` (`centurion_client: desktop`). The code is a 43-char base64url string,
+   **single use** (deleted on the first exchange attempt, even with a wrong verifier), **60 s TTL**, bound to the
+   challenge and to the signed-in owner wallet (re-checked against `OWNER_WALLETS` at exchange).
+   Errors: `401 UNAUTHENTICATED {reason: "code_invalid"}` (unknown, used or expired) / `{reason:
+   "code_verifier_mismatch"}`; `422 VALIDATION_FAILED {field}`; `403 FORBIDDEN_ROLE {reason: "wallet_not_allowed"}`;
+   `429 RATE_LIMITED` (30/min per IP).
+Codes are kept in the API process (single-instance deployment); a multi-instance deployment needs a DB-backed store.
+
 **Client and token answers (mobile review B-9/B-10).** `client` on verify is optional, one of `web|mobile|desktop`,
 default `web`; the app must send `"mobile"`. It becomes the `centurion_client` claim, the channel (`via`) recorded on
 approvals, audit rows and the session; it never changes scopes. Access tokens are minted and verified by this API with
@@ -220,7 +239,8 @@ have no implementation; the rows below are kept as the earlier design.
 |---|---|---|---|
 | GET | `/me` | read | user, memberships, `scopes` |
 | GET | `/workspaces/{ws}` | read | `WorkspaceWire`: `{id, name, rev, modes_enabled: ["practice"], practice_epoch, practice_start_lamports, ...TTL settings}` |
-| POST | `/workspaces/{ws}/practice/reset` | trade | Body `{}` + `Idempotency-Key`. SQL `reset_practice(p_workspace uuid)` (one signature; a direct user action, **not** a proposal): archives the current epoch (positions closed with `practice_reset` + `archived_at`; fills/snapshots stay under their old `practice_epoch`), expires pending buys (`practice_reset`), restores **30 SOL** (`"30000000000"`), resets first-buy flags, emits `practice.reset`, audits. `200 {epoch, starting_balance_lamports, archived, next_allowed_at, server_now}`. Once per 24 h: `429 RESET_COOLDOWN` with `error.next_allowed_at` (flat in the error object, + `Retry-After`). Practice only (`MODE_NOT_ALLOWED`). |
+| POST | `/workspaces/{ws}/practice/reset` | trade | Body `{}` + `Idempotency-Key`. SQL `reset_practice(p_workspace uuid)` (one signature; a direct user action, **not** a proposal): archives the current epoch (positions closed with `practice_reset` + `archived_at`; fills/snapshots stay under their old `practice_epoch`), expires pending buys (`practice_reset`), restores **30 SOL** (`"30000000000"`), resets first-buy flags, emits `practice.reset`, audits. `200 {epoch, starting_balance_lamports, archived, next_allowed_at, server_now}`. `next_allowed_at` / `server_now` are IsoTs (RFC 3339 UTC, ms, `Z`, e.g. `"2026-11-04T08:06:04.312Z"`; 1.1.6 fix: the 200
+body returned a raw Postgres timestamp before). Once per 24 h: `429 RESET_COOLDOWN` with `error.next_allowed_at` (flat in the error object, + `Retry-After`). Practice only (`MODE_NOT_ALLOWED`). |
 | GET | `/workspaces/{ws}/practice/resets` | read | reset history; `?epoch=` on positions/fills/equity reads archived epochs |
 
 ### 4.3 Strategies (`/workspaces/{ws}/strategies`)

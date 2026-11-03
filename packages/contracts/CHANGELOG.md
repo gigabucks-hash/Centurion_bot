@@ -31,6 +31,11 @@ rewritten in place to the new names. Clients import `@centurion/contracts` / `@c
 - **`logo_hash` next to `logo_url`** (desktop request): on `ApprovalWire` (required, nullable) and on the event
   envelope (`logo_hash?: string | null`, delivered with `logo_url` on SSE/REST, so it covers coin.detected and every
   coin payload). `logo_url` there now carries `&v={logo_hash}` when known.
+- **Desktop deep-link hand-off (API_ENDPOINTS 4.1.1):** `siws/verify` with `code_challenge` (S256) + `state` returns
+  `{code, expires_in: 60, expires_at, state, redirect_uri}` (no session); `POST /v1/auth/desktop/exchange {code,
+  code_verifier}` -> Session. One-time code, 60 s, single use, `centurion://auth` only.
+- Fix: `POST .../practice/reset` 200 `next_allowed_at` / `server_now` are now IsoTs (UTC, ms, `Z`); they were raw
+  Postgres timestamps (session-zone offset, microseconds). The 429 detail and the `practice.reset` event were already IsoTs.
 - **Push coin fields (EVENTS_SCHEMA §6):** coin pushes carry `mint` + `logo_hash` (strings; `logo_hash` omitted when
   there is no logo, never empty). `PushPayload.mint?`, `PushPayload.logo_hash?`; helper `coinLogoUrl(origin, mint,
   size, logo_hash)`. Logo variants: 16 KiB hard cap each (oversize variant omitted, next smaller served);
