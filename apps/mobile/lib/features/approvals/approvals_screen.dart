@@ -18,6 +18,7 @@ import '../../data/models/models.dart';
 import '../../data/providers.dart';
 import '../../l10n/gen/app_localizations.dart';
 import 'proposal_review_sheet.dart';
+import '../../core/widgets/coin_avatar.dart';
 
 /// Ids with a decision in flight or in the 5 s undo window (hidden from list).
 class _BusyApprovals extends Notifier<Set<String>> {
@@ -313,6 +314,10 @@ class ApprovalCard extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (a.mint != null || a.symbol != null) ...[
+                    CoinAvatar(seed: a.mint ?? a.symbol!, logoUrl: a.logoUrl),
+                    const SizedBox(width: AppSpace.s2),
+                  ],
                   Flexible(child: Text(a.title.replaceFirst('Buy ', '\$'), style: text.titleLarge)),
                   const SizedBox(width: AppSpace.s2),
                   if (expired) TagChip('EXPIRED', color: cs.onSurfaceVariant) else typeChip,

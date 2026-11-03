@@ -8,6 +8,7 @@ import '../../core/widgets/page_footer.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/repositories.dart';
 import '../../data/providers.dart';
+import '../../core/widgets/coin_avatar.dart';
 
 final _actorFilterProvider = StateProvider<Actor?>((_) => null);
 
@@ -146,7 +147,28 @@ class ActivityTile extends StatelessWidget {
     };
     return ListTile(
       dense: dense,
-      leading: Icon(iconFor(e.kind), color: color, size: 20),
+      leading: e.mint == null && e.symbol == null
+          ? Icon(iconFor(e.kind), color: color, size: 20)
+          : SizedBox.square(
+              dimension: 36,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CoinAvatar(seed: e.mint ?? e.symbol!, logoUrl: e.logoUrl),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, shape: BoxShape.circle),
+                      child: Padding(
+                        padding: const EdgeInsets.all(1),
+                        child: Icon(iconFor(e.kind), color: color, size: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
       title: Text.rich(
         TextSpan(
           children: [

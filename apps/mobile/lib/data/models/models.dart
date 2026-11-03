@@ -163,7 +163,11 @@ class Position {
     this.decimals,
     this.tokenProgram,
     this.qtyRaw,
+    this.logoUrl,
   }) : proceedsLamports = proceedsLamports ?? Lamports.zero;
+
+  /// Contracts 1.1.6 (not shipped yet; optional): our logo proxy URL, see [CoinLogo].
+  final String? logoUrl;
 
   /// `ck.N` style key: coin key + index of the position for that coin.
   final String id;
@@ -265,6 +269,7 @@ class Position {
       decimals: decimals,
       tokenProgram: tokenProgram,
       qtyRaw: qtyRaw ?? this.qtyRaw,
+      logoUrl: logoUrl,
     );
   }
 }
@@ -285,7 +290,13 @@ class ActivityEvent {
     this.strategyId,
     this.symbol,
     this.pnlLamports,
+    this.mint,
+    this.logoUrl,
   });
+
+  /// Coin of the event, when it has one (identicon seed; 1.1.6 `logo_url`).
+  final String? mint;
+  final String? logoUrl;
 
   /// `<ck>:<epoch ms>:<kind>`; append-only, safe to dedupe on.
   final String id;
@@ -344,7 +355,17 @@ class Approval {
     this.quote,
     this.rejectReason,
     this.weakening = false,
+    this.symbol,
+    this.mint,
+    this.logoUrl,
   });
+
+  /// Coin of a buy pick (null for guard/team changes); untrusted, display only.
+  final String? symbol;
+  final String? mint;
+
+  /// Contracts 1.1.6 (optional) logo proxy URL.
+  final String? logoUrl;
 
   final String id;
   final ApprovalKind kind;
@@ -439,6 +460,9 @@ class Approval {
     quote: quote ?? this.quote,
     rejectReason: rejectReason ?? this.rejectReason,
     weakening: weakening,
+    symbol: symbol,
+    mint: mint,
+    logoUrl: logoUrl,
   );
 }
 
@@ -463,9 +487,13 @@ class ScreenerCoin {
     this.tokenProgram,
     this.quoteMint,
     this.marketCap,
+    this.logoUrl,
   });
   final String symbol;
   final String? mint;
+
+  /// Contracts 1.1.6 (optional) logo proxy URL.
+  final String? logoUrl;
 
   /// 1.1.4 market cap (null = unknown → "—").
   final MarketCap? marketCap;
@@ -677,4 +705,28 @@ class TimeExits {
     SettingsKeys.timeStopS.current: timeStopS,
     SettingsKeys.stallExit.current: hasStall ? {'window_s': stallWindowS, 'min_move_pct': stallMinMovePct} : null,
   };
+}
+
+/// Contracts 1.1.6 coin logo (Backend WIP, not shipped): `logo_url` is OUR image proxy
+/// (`/v1/logos/{mint}/{size}.{ext}`, relative to the API base, or absolute), never a
+/// token-provided URI; null = proxy disabled; a non-null URL may still 404.
+abstract final class CoinLogo {
+  /// Reads `logo_url` when present; anything but a non-empty string → null.
+  static String? fromJson(Map<String, Object?> j) {
+    final v = j['logo_url'];
+    return v is String && v.isNotEmpty && v.length <= 2048 ? v : null;
+  }
+
+  /// http(s) only (release builds are https-only via network_security_config), no SVG,
+  /// relative paths resolved against [apiBase]. Anything else → null (identicon).
+  static Uri? resolve(String? raw, {Uri? apiBase}) {
+    if (raw == null || raw.isEmpty) return null;
+    final u = Uri.tryParse(raw);
+    if (u == null) return null;
+    final abs = u.hasScheme ? u : (apiBase != null && raw.startsWith('/') ? apiBase.resolveUri(u) : null);
+    if (abs == null || (abs.scheme != 'https' && abs.scheme != 'http') || abs.host.isEmpty) return null;
+    if (abs.userInfo.isNotEmpty) return null;
+    if (abs.path.toLowerCase().endsWith('.svg')) return null;
+    return abs;
+  }
 }

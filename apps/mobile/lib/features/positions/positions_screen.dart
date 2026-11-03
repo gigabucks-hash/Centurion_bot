@@ -12,6 +12,7 @@ import '../../data/providers.dart';
 import 'widgets/equity_card.dart';
 import 'widgets/exit_progress_bar.dart';
 import 'widgets/sell_sheet.dart';
+import '../../core/widgets/coin_avatar.dart';
 
 /// "26 mnt" / "1 j 5 mnt".
 String fmtHold(Duration d) {
@@ -153,6 +154,8 @@ class PositionCard extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  CoinAvatar(seed: p.mint, logoUrl: p.logoUrl),
+                  const SizedBox(width: AppSpace.s3),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,6 +223,7 @@ class _ClosedRow extends StatelessWidget {
     final p = position;
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      leading: CoinAvatar(seed: p.mint, logoUrl: p.logoUrl),
       title: Text('\$${p.symbol}'),
       subtitle: Text(p.exitReason ?? 'Closed', overflow: TextOverflow.ellipsis),
       trailing: PnlText(p.pnlLamports),

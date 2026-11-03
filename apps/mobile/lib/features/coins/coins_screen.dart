@@ -16,6 +16,7 @@ import '../../core/widgets/common.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../core/widgets/coin_avatar.dart';
 
 class CoinsScreen extends ConsumerWidget {
   const CoinsScreen({super.key});
@@ -97,6 +98,8 @@ class _CoinCard extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpace.s4),
           child: Row(
             children: [
+              CoinAvatar(seed: c.mint ?? c.symbol, logoUrl: c.logoUrl),
+              const SizedBox(width: AppSpace.s3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,6 +148,11 @@ class NotTradeableCoinCard extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpace.s4),
             child: Row(
               children: [
+                Opacity(
+                  opacity: 0.6,
+                  child: CoinAvatar(seed: c.mint ?? c.symbol, logoUrl: c.logoUrl),
+                ),
+                const SizedBox(width: AppSpace.s3),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,7 +229,15 @@ class CoinDetailScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text('\$${c.symbol}')),
+      appBar: AppBar(
+        title: Row(
+          children: [
+            CoinAvatar(seed: c.mint ?? c.symbol, logoUrl: c.logoUrl, size: 28),
+            const SizedBox(width: AppSpace.s2),
+            Flexible(child: Text('\$${c.symbol}')),
+          ],
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpace.s4),
         children: [
