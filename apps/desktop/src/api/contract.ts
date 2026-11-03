@@ -1,6 +1,6 @@
 /**
  * Desktop-only UI types (IPC view-model). **Wire types come from the contracts package**
- * (`@sentra/contracts/wire` = packages/contracts/src/wire, v1.1.3) and are re-exported below; this
+ * (`@centurion/contracts/wire` = packages/contracts/src/wire, v1.1.3) and are re-exported below; this
  * file only adds what the desktop composes on top of them.
  *
  * Rust mirror: src-tauri/src/view.rs (snake_case, same as the wire). Same value rules as the wire:
@@ -21,10 +21,10 @@ import type {
   ProposalStatus,
   RawQty,
   Uuid,
-} from "@sentra/contracts/wire";
+} from "@centurion/contracts/wire";
 
-export type * from "@sentra/contracts/wire";
-export { lamportsToSol, LAMPORTS_PER_SOL, CONTRACTS_VERSION, EXIT_REASONS, ERROR_CODES } from "@sentra/contracts/wire";
+export type * from "@centurion/contracts/wire";
+export { lamportsToSol, LAMPORTS_PER_SOL, CONTRACTS_VERSION, EXIT_REASONS, ERROR_CODES } from "@centurion/contracts/wire";
 import type { I18nMsg } from "../i18n";
 export type { I18nMsg };
 
@@ -163,7 +163,7 @@ export interface ActivityView {
   symbol: string | null;
   /** Plain-text fallback (Indonesian). */
   message: string;
-  /** Localisable text: rendered from @sentra/i18n with `args` in the UI locale. */
+  /** Localisable text: rendered from @centurion/i18n with `args` in the UI locale. */
   i18n?: I18nMsg;
 }
 
@@ -282,7 +282,7 @@ export interface ShortcutConfig {
 }
 export type Density = "compact" | "comfortable";
 export type Theme = "dark" | "light" | "system";
-/** UI language = number locale (@sentra/i18n). Default `id`. */
+/** UI language = number locale (@centurion/i18n). Default `id`. */
 export type Locale = "id" | "en";
 export interface Settings {
   theme: Theme;

@@ -1,7 +1,7 @@
-//! Real transport: REST + SSE against the Sentra API (`services/backend/api`, contracts 1.1.3).
+//! Real transport: REST + SSE against the Centurion API (`services/backend/api`, contracts 1.1.3).
 //!
-//! Selected at startup with `SENTRA_BACKEND=<base url>` (default: the in-process mock). Dev-only
-//! credentials come from the environment (`SENTRA_BACKEND_TOKEN`, `SENTRA_WORKSPACE_ID`); the
+//! Selected at startup with `CENTURION_BACKEND=<base url>` (default: the in-process mock). Dev-only
+//! credentials come from the environment (`CENTURION_BACKEND_TOKEN`, `CENTURION_WORKSPACE_ID`); the
 //! production session token will come from the OS keychain (`keychain` feature). The token is
 //! never logged or sent to the webview.
 //!
@@ -46,7 +46,7 @@ fn auth_failure(e: crate::auth::AuthError) -> ApiFailure {
     ApiFailure::Api { http, code: code.into(), message: String::new(), details: Some(json!({"reason": reason})) }
 }
 
-const UA: &str = concat!("sentra-desktop/", env!("CARGO_PKG_VERSION"));
+const UA: &str = concat!("centurion-desktop/", env!("CARGO_PKG_VERSION"));
 const MAX_BODY: usize = 4 * 1024 * 1024;
 const MAX_SSE_LINE: usize = 256 * 1024;
 
@@ -76,17 +76,17 @@ impl std::fmt::Debug for HttpTransport {
 pub fn validate_base(url: &str) -> Result<String, String> {
     let u = url.trim().trim_end_matches('/');
     let rest = u.strip_prefix("https://").map(|r| (true, r)).or_else(|| u.strip_prefix("http://").map(|r| (false, r)));
-    let Some((tls, rest)) = rest else { return Err("SENTRA_BACKEND must start with http:// or https://".into()) };
+    let Some((tls, rest)) = rest else { return Err("CENTURION_BACKEND must start with http:// or https://".into()) };
     let host = rest.split(['/', '?', '#']).next().unwrap_or("");
     let hostname = host.rsplit_once(':').map(|(h, p)| if p.chars().all(|c| c.is_ascii_digit()) { h } else { host }).unwrap_or(host);
     if hostname.is_empty() || u.len() > 200 || rest.contains('@') || rest.contains(char::is_whitespace) {
-        return Err("SENTRA_BACKEND: bad URL".into());
+        return Err("CENTURION_BACKEND: bad URL".into());
     }
     if !tls && !matches!(hostname, "127.0.0.1" | "localhost" | "[::1]") {
-        return Err("SENTRA_BACKEND: plain http is only allowed to loopback".into());
+        return Err("CENTURION_BACKEND: plain http is only allowed to loopback".into());
     }
     if rest.contains('/') {
-        return Err("SENTRA_BACKEND: base URL only (no path); /v1 is added".into());
+        return Err("CENTURION_BACKEND: base URL only (no path); /v1 is added".into());
     }
     Ok(u.to_owned())
 }
@@ -99,10 +99,10 @@ impl HttpTransport {
     pub fn new(base: &str, ws: &str, token: &str) -> Result<Self, String> {
         let base = validate_base(base)?;
         if !is_uuid(ws) {
-            return Err("SENTRA_WORKSPACE_ID must be a UUID".into());
+            return Err("CENTURION_WORKSPACE_ID must be a UUID".into());
         }
         if token.is_empty() || token.len() > 4096 || !token.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c)) {
-            return Err("SENTRA_BACKEND_TOKEN missing or malformed".into());
+            return Err("CENTURION_BACKEND_TOKEN missing or malformed".into());
         }
         let client = reqwest::Client::builder()
             .user_agent(UA)
@@ -137,11 +137,11 @@ impl HttpTransport {
         }
     }
 
-    /// From `SENTRA_BACKEND`, `SENTRA_WORKSPACE_ID`, `SENTRA_BACKEND_TOKEN` (dev only).
+    /// From `CENTURION_BACKEND`, `CENTURION_WORKSPACE_ID`, `CENTURION_BACKEND_TOKEN` (dev only).
     pub fn from_env() -> Result<Self, String> {
-        let base = std::env::var("SENTRA_BACKEND").map_err(|_| "SENTRA_BACKEND not set".to_string())?;
-        let ws = std::env::var("SENTRA_WORKSPACE_ID").map_err(|_| "SENTRA_WORKSPACE_ID not set".to_string())?;
-        let token = std::env::var("SENTRA_BACKEND_TOKEN").map_err(|_| "SENTRA_BACKEND_TOKEN not set".to_string())?;
+        let base = std::env::var("CENTURION_BACKEND").map_err(|_| "CENTURION_BACKEND not set".to_string())?;
+        let ws = std::env::var("CENTURION_WORKSPACE_ID").map_err(|_| "CENTURION_WORKSPACE_ID not set".to_string())?;
+        let token = std::env::var("CENTURION_BACKEND_TOKEN").map_err(|_| "CENTURION_BACKEND_TOKEN not set".to_string())?;
         Self::new(&base, &ws, &token)
     }
 
@@ -578,8 +578,8 @@ mod tests {
     #[test]
     fn base_url_rules_and_redaction() {
         assert_eq!(validate_base("http://127.0.0.1:18080/").unwrap(), "http://127.0.0.1:18080");
-        assert!(validate_base("https://api.sentra.example").is_ok());
-        assert!(validate_base("http://api.sentra.example").is_err(), "plain http only to loopback");
+        assert!(validate_base("https://api.centurion.example").is_ok());
+        assert!(validate_base("http://api.centurion.example").is_err(), "plain http only to loopback");
         assert!(validate_base("http://127.0.0.1.evil.example").is_err());
         assert!(validate_base("http://user@127.0.0.1").is_err());
         assert!(validate_base("file:///etc/passwd").is_err());

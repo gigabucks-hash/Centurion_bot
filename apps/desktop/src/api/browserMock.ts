@@ -27,7 +27,7 @@ let lastResetMs: number | null = null;
 type Cb = (p: unknown) => void;
 /** Browser preview of REAL chrome + gating: add ?mode=real to the URL (still mock). */
 const MOCK_MODE: Mode = new URLSearchParams(location.search).get("mode") === "real" ? "real" : "practice";
-/** WF-20 trigger (same values as SENTRA_MOCK_NOT_TRADEABLE): ?nt=screener (default) | race | off. */
+/** WF-20 trigger (same values as CENTURION_MOCK_NOT_TRADEABLE): ?nt=screener (default) | race | off. */
 const NT = (new URLSearchParams(location.search).get("nt") ?? "screener") as "screener" | "race" | "off";
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const TRADEABLE = { tradeable: true, reason_code: null, quote_mint: null, quote_symbol: null } as const;

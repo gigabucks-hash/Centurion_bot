@@ -25,7 +25,7 @@ impl Default for Tradeability {
     }
 }
 
-/// Localisable activity text: the webview renders `key` from `@sentra/i18n` with `args`
+/// Localisable activity text: the webview renders `key` from `@centurion/i18n` with `args`
 /// (numbers formatted in the UI locale). `ActivityView.message` stays as the plain-text fallback.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct I18nMsg {
@@ -343,7 +343,7 @@ pub struct Settings {
     /// Small always-on-top approval window. Opt-in, OFF by default (Apex decision).
     pub approval_popup: bool,
     pub shortcuts: ShortcutConfig,
-    /// UI language for `@sentra/i18n` (`id` default for Boss; `en` = source catalog).
+    /// UI language for `@centurion/i18n` (`id` default for Boss; `en` = source catalog).
     #[serde(default)]
     pub locale: Locale,
 }

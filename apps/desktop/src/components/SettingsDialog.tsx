@@ -6,7 +6,7 @@ import { useHotkeys } from "../hooks/useHotkeys";
 import { errorCodeOf, errorDetails, errorText, useLang, useT } from "../i18n";
 import { fmtTime } from "./format";
 
-/** Wire strategy status → @sentra/i18n `strategy.status.*` (unknown → raw value never shown: "—"). */
+/** Wire strategy status → @centurion/i18n `strategy.status.*` (unknown → raw value never shown: "—"). */
 const STATUS_KEY: Record<string, string> = { active: "strategy.status.running", running: "strategy.status.running", paused: "strategy.status.paused", draft: "strategy.status.draft" };
 
 /**

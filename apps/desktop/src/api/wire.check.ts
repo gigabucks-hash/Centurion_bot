@@ -1,11 +1,11 @@
 /**
  * TS contract check (compile-time only; never imported by the app, so never bundled).
  * The EVENTS_SCHEMA.md / API_ENDPOINTS.md examples (contracts v1.1.3) must type-check against
- * `@sentra/contracts/wire` with `satisfies`, and the desktop view types must keep using the wire
+ * `@centurion/contracts/wire` with `satisfies`, and the desktop view types must keep using the wire
  * value types. `npm run build` (tsc -b) fails if Backend changes a shape the desktop relies on.
  * Rust counterpart: src-tauri/src/contract_tests.rs (reads the same files at test time).
  */
-import { APPROVAL_REJECT_REASONS, CONTRACTS_VERSION } from "@sentra/contracts/wire";
+import { APPROVAL_REJECT_REASONS, CONTRACTS_VERSION } from "@centurion/contracts/wire";
 import type {
   ApprovalDecisionRequest,
   ApprovalDecisionResponse,
@@ -27,7 +27,7 @@ import type {
   ProposalExpired,
   StrategyLifecycle,
   Venue,
-} from "@sentra/contracts/wire";
+} from "@centurion/contracts/wire";
 import type { PickView, PositionView, Snapshot } from "./contract";
 
 export const envelopeSample = {

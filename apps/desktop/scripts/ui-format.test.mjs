@@ -23,7 +23,7 @@ test("local templates only fill keys the package lacks, with the same placeholde
   for (const key of Object.keys(LOCAL_TEMPLATES.en)) {
     const args = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join();
     assert.equal(args(LOCAL_TEMPLATES.en[key]), args(LOCAL_TEMPLATES.id[key]), key);
-    if (get(cat.en, key) != null) console.log(`NOTE ${key} now ships in @sentra/i18n; the local template is unused`);
+    if (get(cat.en, key) != null) console.log(`NOTE ${key} now ships in @centurion/i18n; the local template is unused`);
   }
   assert.ok(get(cat.en, "dashboard.feed.filter.buys") && get(cat.id, "dashboard.feed.filter.sells"), "side labels");
 });

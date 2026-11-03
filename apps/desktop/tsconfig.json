@@ -15,8 +15,8 @@
     "types": ["vite/client"],
     "resolveJsonModule": true,
     "paths": {
-      "@sentra/contracts/wire": ["../../packages/contracts/src/wire/index.ts"],
-      "@sentra/i18n/*": ["../../packages/i18n/*"]
+      "@centurion/contracts/wire": ["../../packages/contracts/src/wire/index.ts"],
+      "@centurion/i18n/*": ["../../packages/i18n/*"]
     }
   },
   "include": ["src", "../../packages/contracts/src/wire"]

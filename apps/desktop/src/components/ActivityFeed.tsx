@@ -16,7 +16,7 @@ const ACTOR_KEY: Record<Actor, string> = {
 const TONE: Record<Tone, string> = { neutral: "", good: "pos", bad: "neg", guard: "guard", info: "" };
 
 /**
- * Activity feed. Text comes from @sentra/i18n when Rust sends a structured `i18n` message
+ * Activity feed. Text comes from @centurion/i18n when Rust sends a structured `i18n` message
  * (numbers formatted in the UI locale), else Rust's plain-text `message`. `symbol`/`message`
  * may contain untrusted token text → rendered as text nodes only.
  */

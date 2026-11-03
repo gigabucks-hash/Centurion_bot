@@ -5,7 +5,7 @@
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 backend="$(cd "$here/../../../../services/backend" && pwd)"
-: "${PGHOST:=/tmp}" "${PGPORT:=55432}" "${PGUSER:=postgres}" "${SMOKE_DB:=sentra_desktop_smoke}"
+: "${PGHOST:=/tmp}" "${PGPORT:=55432}" "${PGUSER:=postgres}" "${SMOKE_DB:=centurion_desktop_smoke}"
 export PGHOST PGPORT PGUSER
 [[ "$SMOKE_DB" =~ ^[a-z_][a-z0-9_]{0,40}$ ]] || { echo "bad SMOKE_DB" >&2; exit 2; }
 q() { psql -q -X -v ON_ERROR_STOP=1 -o /dev/null "$@"; }

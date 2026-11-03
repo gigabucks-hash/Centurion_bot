@@ -1,5 +1,5 @@
 //! Skip chip → wire `reject_reason` (+ `reason` detail) and `reject_reason` → copy key, from
-//! `@sentra/i18n` 0.4.5 `reject_reasons.map.json` (UX-owned, read-only, embedded at build time).
+//! `@centurion/i18n` 0.4.5 `reject_reasons.map.json` (UX-owned, read-only, embedded at build time).
 //! It replaces the desktop's former hand mapping in `commands::skip_reason`.
 use crate::model::ApprovalRejectReason;
 use serde::Deserialize;

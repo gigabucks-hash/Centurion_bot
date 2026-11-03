@@ -1,4 +1,4 @@
-//! Rust mirror of the Sentra **wire contract v1.1** (`packages/contracts/src/wire`, `EVENTS_SCHEMA.md`,
+//! Rust mirror of the Centurion **wire contract v1.1** (`packages/contracts/src/wire`, `EVENTS_SCHEMA.md`,
 //! `API_ENDPOINTS.md`, `CHANGELOG.md`; contracts 1.1.x, per-event `version` 1). Owner: Backend API Specialist.
 //!
 //! Wire rules enforced by the types below (v1.1 number rule):

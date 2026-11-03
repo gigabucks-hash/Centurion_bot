@@ -1,13 +1,13 @@
 [package]
-name = "sentra"
+name = "centurion"
 version = "0.1.0"
-description = "Sentra desktop trading terminal (prototype, mock backend only)"
+description = "Centurion desktop trading terminal (prototype, mock backend only)"
 edition = "2021"
 rust-version = "1.80"
 license = "UNLICENSED"
 
 [lib]
-name = "sentra_lib"
+name = "centurion_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -30,7 +30,7 @@ log = "0.4"
 # Wire contract v1: decimal strings parsed for internal math/display only (never f64 on the wire).
 rust_decimal = { version = "1", default-features = false, features = ["std"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
-# Real transport (SENTRA_BACKEND): REST + SSE. rustls (no OpenSSL), no redirects, no cookies.
+# Real transport (CENTURION_BACKEND): REST + SSE. rustls (no OpenSSL), no redirects, no cookies.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # Planned (Week 2): OS keychain for the backend session token. Off by default in the prototype.

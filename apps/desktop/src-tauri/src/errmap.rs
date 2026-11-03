@@ -1,4 +1,4 @@
-//! Error-code → copy mapping from `@sentra/i18n` 0.4.6 `errors.map.json` (v6) (UX-owned, read-only,
+//! Error-code → copy mapping from `@centurion/i18n` 0.4.6 `errors.map.json` (v6) (UX-owned, read-only,
 //! embedded at build time). It replaces the desktop's former hand mapping: each of the 58
 //! `errors.json` v4 codes maps to `{key, source: copy|fallback, kind, http, retryable}`, and an
 //! unknown code maps to `unknown` (`error.code.internal`). The UI resolves the key in the

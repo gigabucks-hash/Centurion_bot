@@ -1,7 +1,7 @@
 //! Real-transport smoke test against `services/backend/api` (contracts 1.1.3). `#[ignore]`: run by
 //! `apps/desktop/scripts/smoke-real.sh`, which creates a throwaway database, seeds it, starts the API
 //! with `TRADING_MODE=paper` and a dev JWT secret from `.env.local`, and exports:
-//! `SENTRA_BACKEND`, `SENTRA_WORKSPACE_ID`, `SENTRA_BACKEND_TOKEN`, `SMOKE_DB` (+ PGHOST/PGPORT/PGUSER).
+//! `CENTURION_BACKEND`, `CENTURION_WORKSPACE_ID`, `CENTURION_BACKEND_TOKEN`, `SMOKE_DB` (+ PGHOST/PGPORT/PGUSER).
 //! Every case prints `PASS|FAIL <case>: …`; contract deviations print `MISMATCH <endpoint>: expected … got …`.
 use super::http::{etag_rev, HttpTransport};
 use super::{ApiFailure, Inbound, Transport};
@@ -77,9 +77,9 @@ fn psql(sql: &str) -> bool {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "needs a running Sentra API: apps/desktop/scripts/smoke-real.sh"]
+#[ignore = "needs a running Centurion API: apps/desktop/scripts/smoke-real.sh"]
 async fn smoke_real_transport() {
-    let t = HttpTransport::from_env().expect("SENTRA_BACKEND / SENTRA_WORKSPACE_ID / SENTRA_BACKEND_TOKEN");
+    let t = HttpTransport::from_env().expect("CENTURION_BACKEND / CENTURION_WORKSPACE_ID / CENTURION_BACKEND_TOKEN");
     let ws = t.workspace_id().to_owned();
     let p = |r: &str| super::ws_path(&ws, r);
     let mut r = Report::default();
@@ -235,7 +235,7 @@ async fn smoke_real_transport() {
     r.check("sse catch-up after Last-Event-ID", !s1.is_empty() && s1.iter().all(|s| *s > start) && ordered, format!("{} events after seq {start} (approve/skip/pause), ordered={ordered}", s1.len()));
     // mark via pg_notify (display-only; never persisted)
     let mark = json!({"workspace_id": ws, "mode": "practice", "mark": {"mint": MINT, "price_usd": "0.000041230000", "price_sol": "0.000000213400", "liquidity_usd": 48211.5, "slot": 301223344, "ts": "2026-10-29T08:42:01.020Z", "position_ids": [POSITION]}});
-    let notified = psql(&format!("select pg_notify('sentra_marks', '{}')", mark.to_string().replace('\'', "''")));
+    let notified = psql(&format!("select pg_notify('centurion_marks', '{}')", mark.to_string().replace('\'', "''")));
     let mid = drain(&mut rx, 6_000).await; // clock every 5 s by default
     let got_mark = mid.iter().any(|m| matches!(m, Inbound::Mark(x) if x.mint == MINT));
     let got_clock = mid.iter().any(|m| matches!(m, Inbound::Clock(_)));

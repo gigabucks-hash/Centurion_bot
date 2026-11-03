@@ -11,7 +11,7 @@ export const safeLocale = (() => {
 export const fmtUsd = (n: number) =>
   n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${n.toFixed(0)}`;
 export const fmtPrice = (n: number) => (n < 0.01 ? n.toExponential(3) : n.toFixed(4));
-// PnL display = @sentra/i18n format.mjs pnlSol / pnlPct (T-15: exact zero "0.00" neutral, no arrow) — see src/i18n.
+// PnL display = @centurion/i18n format.mjs pnlSol / pnlPct (T-15: exact zero "0.00" neutral, no arrow) — see src/i18n.
 export const fmtTime = (ms: number) =>
   new Date(ms).toLocaleTimeString(safeLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 export const fmtMmSs = (ms: number) => {

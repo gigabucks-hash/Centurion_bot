@@ -1,4 +1,4 @@
-//! Sentra desktop core (Tauri v2). Prototype: mock backend (wire v1.1) only (PRACTICE by default; SENTRA_MOCK_MODE=real previews Real chrome/gating, still mock).
+//! Centurion desktop core (Tauri v2). Prototype: mock backend (wire v1.1) only (PRACTICE by default; CENTURION_MOCK_MODE=real previews Real chrome/gating, still mock).
 
 mod auth;
 mod backend;
@@ -42,9 +42,9 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(hotkeys::plugin())
         .manage({
-            // Mock backend speaking wire v1.1. Its clock runs ahead (SENTRA_MOCK_SKEW_MS, default
+            // Mock backend speaking wire v1.1. Its clock runs ahead (CENTURION_MOCK_SKEW_MS, default
             // 2500 ms) so countdowns provably use server_now. Week 2: HttpTransport (SSE + REST).
-            let skew = std::env::var("SENTRA_MOCK_SKEW_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(2_500);
+            let skew = std::env::var("CENTURION_MOCK_SKEW_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(2_500);
             let transport = Arc::new(backend::ActiveTransport::from_env(skew));
             state::AppState { engine: Mutex::new(state::Engine::new(transport.workspace_id())), transport }
         })
@@ -52,7 +52,7 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             // Mock-only switch to preview REAL SOL chrome + gating. No wallet / network either way.
-            if std::env::var("SENTRA_MOCK_MODE").as_deref() == Ok("real") {
+            if std::env::var("CENTURION_MOCK_MODE").as_deref() == Ok("real") {
                 handle.state::<state::AppState>().engine.lock().unwrap().mode = model::Mode::Real;
                 if let Some(w) = handle.get_webview_window("main") {
                     let _ = w.set_title(&format!("{} {}", notify::mode_prefix(model::Mode::Real), brand::app_name()));

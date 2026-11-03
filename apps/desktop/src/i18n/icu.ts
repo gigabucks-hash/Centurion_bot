@@ -1,5 +1,5 @@
 /**
- * Minimal ICU MessageFormat renderer for the @sentra/i18n catalog: `{arg}`, `{n, plural, =0 {…}
+ * Minimal ICU MessageFormat renderer for the @centurion/i18n catalog: `{arg}`, `{n, plural, =0 {…}
  * one {…} other {…}}` with `#`, and `{x, select, a {…} other {…}}`. Output is a plain string for a
  * text node (never HTML). Missing args render as an empty string, never `{arg}`.
  */

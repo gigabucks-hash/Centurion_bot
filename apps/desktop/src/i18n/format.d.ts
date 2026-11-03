@@ -1,5 +1,5 @@
-/** Types for `@sentra/i18n/format.mjs` (packages/i18n 0.4.8, UX-owned JS; read-only for Desktop). */
-declare module "@sentra/i18n/format.mjs" {
+/** Types for `@centurion/i18n/format.mjs` (packages/i18n 0.4.8, UX-owned JS; read-only for Desktop). */
+declare module "@centurion/i18n/format.mjs" {
   export type Lang = "en" | "id";
   export interface PnlParts { text: string; tone: "profit" | "loss" | "neutral"; arrow: "▲" | "▼" | ""; sign: "+" | "−" | "" }
   export const LOCALES: Record<Lang, string>;

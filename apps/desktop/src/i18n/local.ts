@@ -1,12 +1,12 @@
 /**
- * App-local copy. Since @sentra/i18n 0.4.4 every former `desktop.*` string is a package key
+ * App-local copy. Since @centurion/i18n 0.4.4 every former `desktop.*` string is a package key
  * (see packages/i18n/key-migrations.json); the only thing left here is the "(mock)" dev suffix,
  * which UX keeps app-local on purpose (it describes this prototype build, not the product).
  */
 export const MOCK_SUFFIX = "(mock)";
 
 /**
- * Templates for activity rows whose keys @sentra/i18n 0.4.8 does not ship yet (UX gap, requested as
+ * Templates for activity rows whose keys @centurion/i18n 0.4.8 does not ship yet (UX gap, requested as
  * `feed.event.fill` / `feed.event.exit_triggered` / `feed.event.proposal_pending`, and the desktop
  * SIWS screens `desktop.auth.*` incl. wallet_not_allowed — 0.4.8 has only the web wallet-connect copy). Used only when the package has no such key, so a
  * later package version replaces them without a code change. All numbers inside are formatted by

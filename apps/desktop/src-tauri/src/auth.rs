@@ -3,7 +3,7 @@
 //! The desktop never sees a private key and never asks a wallet to sign inside its webview:
 //!
 //! 1. [`Loopback::bind`] listens on `127.0.0.1:<random port>` with a fresh 128-bit `state`.
-//! 2. [`open_system_browser`] opens `SENTRA_LOGIN_URL` (the web app's `/auth/desktop` page) with
+//! 2. [`open_system_browser`] opens `CENTURION_LOGIN_URL` (the web app's `/auth/desktop` page) with
 //!    `redirect_uri=http://127.0.0.1:<port>/siws/callback&state=<state>`.
 //! 3. In the browser the user connects Phantom; the page calls `POST /v1/auth/siws/nonce` (its own
 //!    origin = the SIWS domain), the wallet signs the server-built message, and the page redirects to
@@ -189,7 +189,7 @@ impl AuthClient {
     pub fn new(base: &str) -> Result<Self, String> {
         let base = crate::backend::http::validate_base(base)?;
         let http = reqwest::Client::builder()
-            .user_agent(concat!("sentra-desktop/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!("centurion-desktop/", env!("CARGO_PKG_VERSION")))
             .connect_timeout(Duration::from_secs(5))
             .timeout(Duration::from_secs(15))
             .redirect(reqwest::redirect::Policy::none())
@@ -518,11 +518,11 @@ impl Loopback {
     }
 }
 
-/// The login page URL (`SENTRA_LOGIN_URL`, an https web-app page; plain http only to loopback for dev).
+/// The login page URL (`CENTURION_LOGIN_URL`, an https web-app page; plain http only to loopback for dev).
 pub fn login_url(page: &str, redirect_uri: &str, state: &str) -> Result<String, String> {
     let ok = page.starts_with("https://") || page.starts_with("http://127.0.0.1") || page.starts_with("http://localhost");
     if !ok || page.len() > 300 || page.contains(char::is_whitespace) || page.contains('#') {
-        return Err("SENTRA_LOGIN_URL must be an https URL".into());
+        return Err("CENTURION_LOGIN_URL must be an https URL".into());
     }
     let enc = |s: &str| -> String { s.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect() };
     Ok(format!("{page}{}redirect_uri={}&state={}&client=desktop", if page.contains('?') { '&' } else { '?' }, enc(redirect_uri), enc(state)))
@@ -695,8 +695,8 @@ pub(crate) mod tests {
         assert!(store.load().is_none());
 
         let (sm, _) = manager(&base, None);
-        let cb = Callback { address: ADDR.into(), message: message("app.sentra.local", ADDR, now() + 60_000), signature: "5".repeat(88) };
-        assert_eq!(sm.complete(&cb, "app.sentra.local").await, AuthState::WalletNotAllowed { address: Some(ADDR.into()) });
+        let cb = Callback { address: ADDR.into(), message: message("app.centurion.local", ADDR, now() + 60_000), signature: "5".repeat(88) };
+        assert_eq!(sm.complete(&cb, "app.centurion.local").await, AuthState::WalletNotAllowed { address: Some(ADDR.into()) });
     }
 
     #[tokio::test]
@@ -724,9 +724,9 @@ pub(crate) mod tests {
         }))
         .await;
         let (sm, store) = manager(&base, None);
-        let msg = message("app.sentra.local", ADDR, now() + 60_000);
+        let msg = message("app.centurion.local", ADDR, now() + 60_000);
         let cb = Callback { address: ADDR.into(), message: msg.clone(), signature: "5".repeat(88) };
-        assert_eq!(sm.complete(&cb, "app.sentra.local").await, AuthState::SignedIn { address: ADDR.into(), workspace_id: Some("10000000-0000-0000-0000-0000000000a1".into()) });
+        assert_eq!(sm.complete(&cb, "app.centurion.local").await, AuthState::SignedIn { address: ADDR.into(), workspace_id: Some("10000000-0000-0000-0000-0000000000a1".into()) });
         assert_eq!(sm.workspace.get().unwrap(), "10000000-0000-0000-0000-0000000000a1");
         assert_eq!(store.load().unwrap().refresh_token, "srt_1");
         sm.logout().await;
@@ -737,18 +737,18 @@ pub(crate) mod tests {
     }
 
     pub fn message(domain: &str, addr: &str, exp_ms: i64) -> String {
-        format!("{domain} wants you to sign in with your Solana account:\n{addr}\n\nSign in to Sentra (practice). This request does not trigger a transaction or cost any fees.\n\nURI: https://{domain}/auth/desktop\nVersion: 1\nChain ID: solana:mainnet\nNonce: AbCdEfGh12345678AbCd\nIssued At: {}\nExpiration Time: {}", iso(exp_ms - 300_000).0, iso(exp_ms).0)
+        format!("{domain} wants you to sign in with your Solana account:\n{addr}\n\nSign in to Centurion (practice). This request does not trigger a transaction or cost any fees.\n\nURI: https://{domain}/auth/desktop\nVersion: 1\nChain ID: solana:mainnet\nNonce: AbCdEfGh12345678AbCd\nIssued At: {}\nExpiration Time: {}", iso(exp_ms - 300_000).0, iso(exp_ms).0)
     }
 
     #[test]
     fn message_precheck_rejects_wrong_domain_address_and_expired() {
         let n = now();
-        assert_eq!(check_message(&message("app.sentra.local", ADDR, n + 60_000), "app.sentra.local", ADDR, n), Ok(()));
-        assert_eq!(check_message(&message("evil.example", ADDR, n + 60_000), "app.sentra.local", ADDR, n), Err("message_domain"));
+        assert_eq!(check_message(&message("app.centurion.local", ADDR, n + 60_000), "app.centurion.local", ADDR, n), Ok(()));
+        assert_eq!(check_message(&message("evil.example", ADDR, n + 60_000), "app.centurion.local", ADDR, n), Err("message_domain"));
         let other = "7xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";
-        assert_eq!(check_message(&message("app.sentra.local", other, n + 60_000), "app.sentra.local", ADDR, n), Err("message_address"));
-        assert_eq!(check_message(&message("app.sentra.local", ADDR, n - 1), "app.sentra.local", ADDR, n), Err("message_expired"));
-        assert_eq!(check_message("hello", "app.sentra.local", ADDR, n), Err("message_layout"));
+        assert_eq!(check_message(&message("app.centurion.local", other, n + 60_000), "app.centurion.local", ADDR, n), Err("message_address"));
+        assert_eq!(check_message(&message("app.centurion.local", ADDR, n - 1), "app.centurion.local", ADDR, n), Err("message_expired"));
+        assert_eq!(check_message("hello", "app.centurion.local", ADDR, n), Err("message_layout"));
     }
 
     fn req(q: &str) -> String {

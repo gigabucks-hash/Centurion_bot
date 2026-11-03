@@ -377,7 +377,7 @@ pub async fn auth_login<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState
     if matches!(sm.state(), crate::auth::AuthState::WaitingForBrowser) {
         return Ok(()); // one login at a time
     }
-    let page = std::env::var("SENTRA_LOGIN_URL").unwrap_or_else(|_| "https://app.centuriontrade.local/auth/desktop".into());
+    let page = std::env::var("CENTURION_LOGIN_URL").unwrap_or_else(|_| "https://app.centuriontrade.local/auth/desktop".into());
     let lb = crate::auth::Loopback::bind().await.map_err(AppError::Invalid)?;
     let url = crate::auth::login_url(&page, &lb.redirect_uri(), lb.state()).map_err(AppError::Invalid)?;
     crate::auth::open_system_browser(&url).map_err(AppError::Invalid)?;

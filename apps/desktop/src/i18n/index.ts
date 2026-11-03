@@ -1,16 +1,16 @@
 /**
- * Desktop i18n on top of @sentra/i18n 0.4.5 (packages/i18n, UX-owned, read-only): the package's
+ * Desktop i18n on top of @centurion/i18n 0.4.5 (packages/i18n, UX-owned, read-only): the package's
  * en/id ICU catalogs + format.mjs formatters, and contracts 1.1.2 errors.json v4 `messages.en|id`
  * for error text (code → key via the package's errors.map.json; registry messages as fallback). Locale = Settings.locale (default `id`); numbers are always formatted in the UI
  * language (QA-01). Lookup: package[lang] → package.en →
  * fallback key. A raw wire enum is never shown as copy.
  */
-import en from "@sentra/i18n/en.json";
-import id from "@sentra/i18n/id.json";
-import { LOCALES, formatBps, formatFractionBps, formatLamports, formatLamportsOrDash, formatMcapUsd, formatRelativeSeconds, mcapView, pnlPct, pnlSol, quoteState, type Lang, type PnlParts } from "@sentra/i18n/format.mjs";
-import errorsMap from "@sentra/i18n/errors.map.json";
-import rejectMap from "@sentra/i18n/reject_reasons.map.json";
-import { ERROR_CODES } from "@sentra/contracts/wire";
+import en from "@centurion/i18n/en.json";
+import id from "@centurion/i18n/id.json";
+import { LOCALES, formatBps, formatFractionBps, formatLamports, formatLamportsOrDash, formatMcapUsd, formatRelativeSeconds, mcapView, pnlPct, pnlSol, quoteState, type Lang, type PnlParts } from "@centurion/i18n/format.mjs";
+import errorsMap from "@centurion/i18n/errors.map.json";
+import rejectMap from "@centurion/i18n/reject_reasons.map.json";
+import { ERROR_CODES } from "@centurion/contracts/wire";
 import { useCallback } from "react";
 import { useTerm } from "../state/store";
 import { formatIcu, icuArgNames, type IcuArgs } from "./icu";

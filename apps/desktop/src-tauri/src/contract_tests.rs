@@ -12,10 +12,10 @@ fn contracts() -> PathBuf {
 }
 /// Contract files as **committed** (`git show HEAD:packages/contracts/<rel>`), so another team's
 /// uncommitted work in the shared tree (e.g. 1.1.4 WIP) cannot break the desktop's tests. Set
-/// `SENTRA_CONTRACTS_WORKTREE=1` to test against the working tree (early warning), or when git is absent.
+/// `CENTURION_CONTRACTS_WORKTREE=1` to test against the working tree (early warning), or when git is absent.
 fn read(rel: &str) -> String {
     let path = contracts().join(rel);
-    if std::env::var("SENTRA_CONTRACTS_WORKTREE").as_deref() != Ok("1") {
+    if std::env::var("CENTURION_CONTRACTS_WORKTREE").as_deref() != Ok("1") {
         let out = std::process::Command::new("git").arg("-C").arg(contracts()).args(["show", &format!("HEAD:./{rel}")]).output();
         if let Some(o) = out.ok().filter(|o| o.status.success()) {
             return String::from_utf8(o.stdout).expect("utf-8");

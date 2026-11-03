@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { core, type PickView } from "../api";
 import { errorText, formatBps, formatLamportsOrDash, quoteState, useLang, useT } from "../i18n";
-import { showAtaRent } from "@sentra/i18n/format.mjs";
+import { showAtaRent } from "@centurion/i18n/format.mjs";
 import { useTerm } from "../state/store";
 import { useServerNow } from "./SignalQueue";
 

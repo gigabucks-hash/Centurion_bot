@@ -149,7 +149,7 @@ pub fn normalize_with(v: &mut serde_json::Value, keys: &[(&str, &str)], values: 
 }
 
 /// Wire exit-rule id → short Indonesian UI label (activity feed, quick-look, positions). Same text as
-/// @sentra/i18n 0.4.6 `exit_reason.<id>` (id) — checked by `exit_labels_match_i18n_package`.
+/// @centurion/i18n 0.4.6 `exit_reason.<id>` (id) — checked by `exit_labels_match_i18n_package`.
 pub fn exit_label(r: ExitReason) -> &'static str {
     match r {
         ExitReason::SellFloor => "Sell floor",

@@ -1,4 +1,4 @@
-//! Backend client boundary. The desktop talks to the Sentra API only through [`Transport`].
+//! Backend client boundary. The desktop talks to the Centurion API only through [`Transport`].
 //!
 //! Real transport (Week 2, not built yet): `HttpTransport` over
 //! - SSE `GET /v1/workspaces/{ws}/events/stream?mode=practice&include=marks,clock&after_seq=`
@@ -276,7 +276,7 @@ pub mod paths {
 }
 
 /// Transport used by the app: the in-process mock (default) or the real REST/SSE client when
-/// `SENTRA_BACKEND=<base url>` is set (dev: plus `SENTRA_WORKSPACE_ID`, `SENTRA_BACKEND_TOKEN`).
+/// `CENTURION_BACKEND=<base url>` is set (dev: plus `CENTURION_WORKSPACE_ID`, `CENTURION_BACKEND_TOKEN`).
 pub enum ActiveTransport {
     Mock(mock::MockTransport),
     Http(http::HttpTransport),
@@ -292,18 +292,18 @@ macro_rules! delegate {
 }
 
 impl ActiveTransport {
-    /// `SENTRA_BACKEND` unset → mock. Set but invalid → refuse to fall back silently (panic with the reason).
+    /// `CENTURION_BACKEND` unset → mock. Set but invalid → refuse to fall back silently (panic with the reason).
     pub fn from_env(mock_skew_ms: i64) -> Self {
-        match std::env::var("SENTRA_BACKEND") {
+        match std::env::var("CENTURION_BACKEND") {
             // No dev token → wallet login (SIWS via the system browser); tokens live in the OS keychain.
-            Ok(v) if !v.trim().is_empty() && v.trim() != "mock" && std::env::var("SENTRA_BACKEND_TOKEN").is_err() => {
-                let ws = std::env::var("SENTRA_WORKSPACE_ID").ok();
+            Ok(v) if !v.trim().is_empty() && v.trim() != "mock" && std::env::var("CENTURION_BACKEND_TOKEN").is_err() => {
+                let ws = std::env::var("CENTURION_WORKSPACE_ID").ok();
                 match crate::auth::AuthClient::new(&v).and_then(|c| http::HttpTransport::with_session(&v, ws.as_deref(), crate::auth::SessionManager::new(c, crate::auth::default_store()))) {
                     Ok(t) => {
                         log::info!("transport: http {} (SIWS session)", t.base());
                         Self::Http(t)
                     }
-                    Err(e) => panic!("SENTRA_BACKEND set but unusable: {e}"),
+                    Err(e) => panic!("CENTURION_BACKEND set but unusable: {e}"),
                 }
             }
             Ok(v) if !v.trim().is_empty() && v.trim() != "mock" => match http::HttpTransport::from_env() {
@@ -311,7 +311,7 @@ impl ActiveTransport {
                     log::info!("transport: http {}", t.base());
                     Self::Http(t)
                 }
-                Err(e) => panic!("SENTRA_BACKEND set but unusable: {e}"),
+                Err(e) => panic!("CENTURION_BACKEND set but unusable: {e}"),
             },
             _ => Self::Mock(mock::MockTransport::new(mock_skew_ms)),
         }

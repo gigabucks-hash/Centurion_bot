@@ -1,8 +1,8 @@
-//! In-process **mock Sentra server** speaking wire contract v1.1 (+ the optional 1.1.2 fields:
+//! In-process **mock Centurion server** speaking wire contract v1.1 (+ the optional 1.1.2 fields:
 //! decimals/token_program/quote_mint, position rev, practice_epoch, close with `fraction_bps`,
 //! flat error objects, `order.failed`). No network, no wallet, no chain.
 //!
-//! Not-tradeable coins (WF-20) — `SENTRA_MOCK_NOT_TRADEABLE`:
+//! Not-tradeable coins (WF-20) — `CENTURION_MOCK_NOT_TRADEABLE`:
 //! - `screener` (default): ~15 % of new coins are quoted in USDC/USDT → screener row only
 //!   (`tradeable:false`, `skip_reason: UNSUPPORTED_QUOTE_MINT`), never a proposal.
 //! - `race`: additionally ~40 % of proposals and open positions get their pool "migrated" to a
@@ -74,7 +74,7 @@ pub fn parse_decision_body(body: &serde_json::Value) -> Result<ApprovalDecisionR
 
 impl NotTradeableMode {
     pub fn from_env() -> Self {
-        match std::env::var("SENTRA_MOCK_NOT_TRADEABLE").as_deref() {
+        match std::env::var("CENTURION_MOCK_NOT_TRADEABLE").as_deref() {
             Ok("off") | Ok("0") => Self::Off,
             Ok("race") => Self::Race,
             _ => Self::Screener,
@@ -221,7 +221,7 @@ struct Server {
     idem: HashMap<String, (String, serde_json::Value)>,
     /// WF-20: not-tradeable screener coins keep getting marks (chart & metrics stay viewable, read-only). Bounded.
     nt_watch: std::collections::VecDeque<String>,
-    /// Dev knob `SENTRA_MOCK_QUOTE_STRICT=1`: apply the server's Real-mode rule (approve with a missing or
+    /// Dev knob `CENTURION_MOCK_QUOTE_STRICT=1`: apply the server's Real-mode rule (approve with a missing or
     /// expired quote → 409 QUOTE_MISSING_OR_STALE) so the refresh-quote UI can be exercised. Practice
     /// servers never block on the quote, so it is off by default.
     quote_strict: bool,
@@ -235,7 +235,7 @@ struct Server {
     ws_rev: u64,
     epoch: i64,
     last_reset_ms: Option<i64>,
-    /// Fault injection (`SENTRA_MOCK_FORCE_CONFLICT=1`): another device edits the strategy right
+    /// Fault injection (`CENTURION_MOCK_FORCE_CONFLICT=1`): another device edits the strategy right
     /// before each desktop write lands, so the 409 path can be exercised by hand.
     force_conflict: bool,
     next_remote_edit_ms: i64,
@@ -1012,7 +1012,7 @@ impl MockTransport {
             decided: HashMap::new(),
             idem: HashMap::new(),
             nt_watch: Default::default(),
-            quote_strict: std::env::var("SENTRA_MOCK_QUOTE_STRICT").is_ok_and(|v| v == "1"),
+            quote_strict: std::env::var("CENTURION_MOCK_QUOTE_STRICT").is_ok_and(|v| v == "1"),
             entries_paused: false,
             seq_job: 9_000_000_000,
             slot: 301_223_344,
@@ -1023,7 +1023,7 @@ impl MockTransport {
             ws_rev: 1,
             epoch: 1,
             last_reset_ms: None,
-            force_conflict: !cfg!(test) && std::env::var("SENTRA_MOCK_FORCE_CONFLICT").is_ok_and(|v| v == "1"),
+            force_conflict: !cfg!(test) && std::env::var("CENTURION_MOCK_FORCE_CONFLICT").is_ok_and(|v| v == "1"),
             next_remote_edit_ms: now + REMOTE_EDIT_EVERY_MS,
             not_tradeable: if cfg!(test) { NotTradeableMode::Off } else { NotTradeableMode::from_env() },
         };

@@ -1,5 +1,5 @@
-//! Visible brand (Boss decision 2026-10-29: "Centurion Trade"). The name comes from @sentra/i18n
-//! `app.name` (0.4.7) at compile time, so UX owns the string; internal crate/package names stay `sentra`.
+//! Visible brand (Boss decision 2026-10-29: "Centurion Trade"). The name comes from @centurion/i18n
+//! `app.name` (0.4.7) at compile time, so UX owns the string; internal crate/package names stay `centurion`.
 use std::sync::OnceLock;
 
 /// `app.name` in the UI locale's catalog (en and id are identical for the brand).
