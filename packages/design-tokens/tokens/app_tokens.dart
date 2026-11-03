@@ -55,6 +55,8 @@ abstract final class AppColorsDark {
   static const semanticNeutralPnl = Color(0xFFA9B3C7);
   static const modePractice = Color(0xFF3FD0E0);
   static const modePracticeContainer = Color(0xFF0C2C33);
+  static const modePracticeStripe = Color(0xFF164D56);
+  static const modeOnPracticeContainer = Color(0xFF3FD0E0);
   static const modeOnPractice = Color(0xFF04161A);
   static const modeReal = Color(0xFFFF7DC4);
   static const modeRealContainer = Color(0xFF3A1030);
@@ -78,13 +80,13 @@ abstract final class AppColorsLight {
   static const borderSubtle = Color(0xFFE4E7EE);
   static const borderDefault = Color(0xFFCDD3DE);
   static const borderStrong = Color(0xFF7D879B);
-  static const borderFocus = Color(0xFF1F5FD1);
+  static const borderFocus = Color(0xFF2456D6);
   static const textPrimary = Color(0xFF0F1420);
   static const textSecondary = Color(0xFF3D475C);
   static const textTertiary = Color(0xFF5B667D);
   static const textDisabled = Color(0xFF9AA3B5);
   static const textOnAccent = Color(0xFFFFFFFF);
-  static const brandPrimary = Color(0xFF1F5FD1);
+  static const brandPrimary = Color(0xFF2456D6);
   static const brandPrimaryHover = Color(0xFF1A52B8);
   static const brandPrimaryPressed = Color(0xFF15459C);
   static const brandPrimaryContainer = Color(0xFFE1EBFF);
@@ -102,6 +104,8 @@ abstract final class AppColorsLight {
   static const semanticNeutralPnl = Color(0xFF3D475C);
   static const modePractice = Color(0xFF0B7285);
   static const modePracticeContainer = Color(0xFFDDF4F7);
+  static const modePracticeStripe = Color(0xFFCDEBF0);
+  static const modeOnPracticeContainer = Color(0xFF064E5B);
   static const modeOnPractice = Color(0xFFFFFFFF);
   static const modeReal = Color(0xFFB8226F);
   static const modeRealContainer = Color(0xFFFBE3F0);
@@ -279,6 +283,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
     required this.infoContainer,
     required this.practice,
     required this.practiceContainer,
+    required this.practiceStripe,
+    required this.onPracticeContainer,
     required this.onPractice,
     required this.real,
     required this.realContainer,
@@ -297,6 +303,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
   final Color infoContainer;
   final Color practice;
   final Color practiceContainer;
+  final Color practiceStripe;
+  final Color onPracticeContainer;
   final Color onPractice;
   final Color real;
   final Color realContainer;
@@ -315,6 +323,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
     infoContainer: AppColorsDark.semanticInfoContainer,
     practice: AppColorsDark.modePractice,
     practiceContainer: AppColorsDark.modePracticeContainer,
+    practiceStripe: AppColorsDark.modePracticeStripe,
+    onPracticeContainer: AppColorsDark.modeOnPracticeContainer,
     onPractice: AppColorsDark.modeOnPractice,
     real: AppColorsDark.modeReal,
     realContainer: AppColorsDark.modeRealContainer,
@@ -334,6 +344,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
     infoContainer: AppColorsLight.semanticInfoContainer,
     practice: AppColorsLight.modePractice,
     practiceContainer: AppColorsLight.modePracticeContainer,
+    practiceStripe: AppColorsLight.modePracticeStripe,
+    onPracticeContainer: AppColorsLight.modeOnPracticeContainer,
     onPractice: AppColorsLight.modeOnPractice,
     real: AppColorsLight.modeReal,
     realContainer: AppColorsLight.modeRealContainer,
@@ -366,6 +378,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
     Color? infoContainer,
     Color? practice,
     Color? practiceContainer,
+    Color? practiceStripe,
+    Color? onPracticeContainer,
     Color? onPractice,
     Color? real,
     Color? realContainer,
@@ -385,6 +399,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
       infoContainer: infoContainer ?? this.infoContainer,
       practice: practice ?? this.practice,
       practiceContainer: practiceContainer ?? this.practiceContainer,
+      practiceStripe: practiceStripe ?? this.practiceStripe,
+      onPracticeContainer: onPracticeContainer ?? this.onPracticeContainer,
       onPractice: onPractice ?? this.onPractice,
       real: real ?? this.real,
       realContainer: realContainer ?? this.realContainer,
@@ -409,6 +425,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
       infoContainer: Color.lerp(infoContainer, other.infoContainer, t)!,
       practice: Color.lerp(practice, other.practice, t)!,
       practiceContainer: Color.lerp(practiceContainer, other.practiceContainer, t)!,
+      practiceStripe: Color.lerp(practiceStripe, other.practiceStripe, t)!,
+      onPracticeContainer: Color.lerp(onPracticeContainer, other.onPracticeContainer, t)!,
       onPractice: Color.lerp(onPractice, other.onPractice, t)!,
       real: Color.lerp(real, other.real, t)!,
       realContainer: Color.lerp(realContainer, other.realContainer, t)!,

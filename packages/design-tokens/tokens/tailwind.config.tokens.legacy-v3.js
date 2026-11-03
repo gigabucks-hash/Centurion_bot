@@ -51,6 +51,8 @@ module.exports = {
         "mode": {
           "practice": "var(--color-mode-practice)",
           "practiceContainer": "var(--color-mode-practiceContainer)",
+          "practiceStripe": "var(--color-mode-practiceStripe)",
+          "onPracticeContainer": "var(--color-mode-onPracticeContainer)",
           "onPractice": "var(--color-mode-onPractice)",
           "real": "var(--color-mode-real)",
           "realContainer": "var(--color-mode-realContainer)",

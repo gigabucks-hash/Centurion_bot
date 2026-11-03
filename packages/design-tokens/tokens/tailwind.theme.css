@@ -46,6 +46,8 @@
   --color-semantic-neutralPnl: #A9B3C7;
   --color-mode-practice: #3FD0E0;
   --color-mode-practiceContainer: #0C2C33;
+  --color-mode-practiceStripe: #164D56;
+  --color-mode-onPracticeContainer: #3FD0E0;
   --color-mode-onPractice: #04161A;
   --color-mode-real: #FF7DC4;
   --color-mode-realContainer: #3A1030;
@@ -191,13 +193,13 @@
   --color-border-subtle: #E4E7EE;
   --color-border-default: #CDD3DE;
   --color-border-strong: #7D879B;
-  --color-border-focus: #1F5FD1;
+  --color-border-focus: #2456D6;
   --color-text-primary: #0F1420;
   --color-text-secondary: #3D475C;
   --color-text-tertiary: #5B667D;
   --color-text-disabled: #9AA3B5;
   --color-text-onAccent: #FFFFFF;
-  --color-brand-primary: #1F5FD1;
+  --color-brand-primary: #2456D6;
   --color-brand-primaryHover: #1A52B8;
   --color-brand-primaryPressed: #15459C;
   --color-brand-primaryContainer: #E1EBFF;
@@ -215,6 +217,8 @@
   --color-semantic-neutralPnl: #3D475C;
   --color-mode-practice: #0B7285;
   --color-mode-practiceContainer: #DDF4F7;
+  --color-mode-practiceStripe: #CDEBF0;
+  --color-mode-onPracticeContainer: #064E5B;
   --color-mode-onPractice: #FFFFFF;
   --color-mode-real: #B8226F;
   --color-mode-realContainer: #FBE3F0;

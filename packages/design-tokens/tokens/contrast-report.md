@@ -4,7 +4,7 @@ Matriks penuh: setiap token teks × setiap surface (canvas, surface, raised, ove
 Dikecualikan: `text.disabled` (SC 1.4.3 exempt), `border.subtle`/`border.default` (dekoratif — pemisah, bukan batas kontrol; kontrol interaktif wajib pakai `border.strong`).
 
 ## dark
-Checks: 127 · terendah relatif target: `brand.primary` on `bg.overlay` = 4.82 (target 4.5)
+Checks: 129 · terendah relatif target: `brand.primary` on `bg.overlay` = 4.82 (target 4.5)
 
 | Kind | Foreground | Background | Ratio | Target | Result |
 |---|---|---|---|---|---|
@@ -130,6 +130,8 @@ Checks: 127 · terendah relatif target: `brand.primary` on `bg.overlay` = 4.82 (
 | pair | `mode.onPractice` #04161A | `mode.practice` #3FD0E0 | 9.97 | 4.5 | PASS |
 | pair | `mode.onReal` #1E0716 | `mode.real` #FF7DC4 | 8.19 | 4.5 | PASS |
 | pair | `mode.practice` #3FD0E0 | `mode.practiceContainer` #0C2C33 | 7.94 | 4.5 | PASS |
+| pair | `mode.onPracticeContainer` #3FD0E0 | `mode.practiceContainer` #0C2C33 | 7.94 | 4.5 | PASS |
+| pair | `mode.onPracticeContainer` #3FD0E0 | `mode.practiceStripe` #164D56 | 5.07 | 4.5 | PASS |
 | pair | `mode.real` #FF7DC4 | `mode.realContainer` #3A1030 | 6.93 | 4.5 | PASS |
 | pair | `text.primary` #ECEEF4 | `brand.primaryContainer` #0F2246 | 13.53 | 4.5 | PASS |
 | pair | `inverse.onSurface` #12141B | `inverse.surface` #ECEEF4 | 15.86 | 4.5 | PASS |
@@ -137,7 +139,7 @@ Checks: 127 · terendah relatif target: `brand.primary` on `bg.overlay` = 4.82 (
 | pair | `semantic.info` #7AA7FF | `semantic.infoContainer` #0F2140 | 6.71 | 4.5 | PASS |
 
 ## light
-Checks: 127 · terendah relatif target: `semantic.guard` on `bg.sunken` = 4.68 (target 4.5)
+Checks: 129 · terendah relatif target: `semantic.guard` on `bg.sunken` = 4.68 (target 4.5)
 
 | Kind | Foreground | Background | Ratio | Target | Result |
 |---|---|---|---|---|---|
@@ -156,11 +158,11 @@ Checks: 127 · terendah relatif target: `semantic.guard` on `bg.sunken` = 4.68 (
 | text | `text.tertiary` #5B667D | `bg.raised` #FFFFFF | 5.77 | 4.5 | PASS |
 | text | `text.tertiary` #5B667D | `bg.overlay` #FFFFFF | 5.77 | 4.5 | PASS |
 | text | `text.tertiary` #5B667D | `bg.sunken` #EEF0F5 | 5.06 | 4.5 | PASS |
-| text | `brand.primary` #1F5FD1 | `bg.canvas` #F6F7FA | 5.42 | 4.5 | PASS |
-| text | `brand.primary` #1F5FD1 | `bg.surface` #FFFFFF | 5.81 | 4.5 | PASS |
-| text | `brand.primary` #1F5FD1 | `bg.raised` #FFFFFF | 5.81 | 4.5 | PASS |
-| text | `brand.primary` #1F5FD1 | `bg.overlay` #FFFFFF | 5.81 | 4.5 | PASS |
-| text | `brand.primary` #1F5FD1 | `bg.sunken` #EEF0F5 | 5.09 | 4.5 | PASS |
+| text | `brand.primary` #2456D6 | `bg.canvas` #F6F7FA | 5.80 | 4.5 | PASS |
+| text | `brand.primary` #2456D6 | `bg.surface` #FFFFFF | 6.22 | 4.5 | PASS |
+| text | `brand.primary` #2456D6 | `bg.raised` #FFFFFF | 6.22 | 4.5 | PASS |
+| text | `brand.primary` #2456D6 | `bg.overlay` #FFFFFF | 6.22 | 4.5 | PASS |
+| text | `brand.primary` #2456D6 | `bg.sunken` #EEF0F5 | 5.45 | 4.5 | PASS |
 | text | `semantic.profit` #067A4B | `bg.canvas` #F6F7FA | 5.04 | 4.5 | PASS |
 | text | `semantic.profit` #067A4B | `bg.surface` #FFFFFF | 5.39 | 4.5 | PASS |
 | text | `semantic.profit` #067A4B | `bg.raised` #FFFFFF | 5.39 | 4.5 | PASS |
@@ -206,16 +208,16 @@ Checks: 127 · terendah relatif target: `semantic.guard` on `bg.sunken` = 4.68 (
 | non-text | `border.strong` #7D879B | `bg.raised` #FFFFFF | 3.61 | 3.0 | PASS |
 | non-text | `border.strong` #7D879B | `bg.overlay` #FFFFFF | 3.61 | 3.0 | PASS |
 | non-text | `border.strong` #7D879B | `bg.sunken` #EEF0F5 | 3.17 | 3.0 | PASS |
-| non-text | `border.focus` #1F5FD1 | `bg.canvas` #F6F7FA | 5.42 | 3.0 | PASS |
-| non-text | `border.focus` #1F5FD1 | `bg.surface` #FFFFFF | 5.81 | 3.0 | PASS |
-| non-text | `border.focus` #1F5FD1 | `bg.raised` #FFFFFF | 5.81 | 3.0 | PASS |
-| non-text | `border.focus` #1F5FD1 | `bg.overlay` #FFFFFF | 5.81 | 3.0 | PASS |
-| non-text | `border.focus` #1F5FD1 | `bg.sunken` #EEF0F5 | 5.09 | 3.0 | PASS |
-| non-text | `brand.primary` #1F5FD1 | `bg.canvas` #F6F7FA | 5.42 | 3.0 | PASS |
-| non-text | `brand.primary` #1F5FD1 | `bg.surface` #FFFFFF | 5.81 | 3.0 | PASS |
-| non-text | `brand.primary` #1F5FD1 | `bg.raised` #FFFFFF | 5.81 | 3.0 | PASS |
-| non-text | `brand.primary` #1F5FD1 | `bg.overlay` #FFFFFF | 5.81 | 3.0 | PASS |
-| non-text | `brand.primary` #1F5FD1 | `bg.sunken` #EEF0F5 | 5.09 | 3.0 | PASS |
+| non-text | `border.focus` #2456D6 | `bg.canvas` #F6F7FA | 5.80 | 3.0 | PASS |
+| non-text | `border.focus` #2456D6 | `bg.surface` #FFFFFF | 6.22 | 3.0 | PASS |
+| non-text | `border.focus` #2456D6 | `bg.raised` #FFFFFF | 6.22 | 3.0 | PASS |
+| non-text | `border.focus` #2456D6 | `bg.overlay` #FFFFFF | 6.22 | 3.0 | PASS |
+| non-text | `border.focus` #2456D6 | `bg.sunken` #EEF0F5 | 5.45 | 3.0 | PASS |
+| non-text | `brand.primary` #2456D6 | `bg.canvas` #F6F7FA | 5.80 | 3.0 | PASS |
+| non-text | `brand.primary` #2456D6 | `bg.surface` #FFFFFF | 6.22 | 3.0 | PASS |
+| non-text | `brand.primary` #2456D6 | `bg.raised` #FFFFFF | 6.22 | 3.0 | PASS |
+| non-text | `brand.primary` #2456D6 | `bg.overlay` #FFFFFF | 6.22 | 3.0 | PASS |
+| non-text | `brand.primary` #2456D6 | `bg.sunken` #EEF0F5 | 5.45 | 3.0 | PASS |
 | non-text | `semantic.profit` #067A4B | `bg.canvas` #F6F7FA | 5.04 | 3.0 | PASS |
 | non-text | `semantic.profit` #067A4B | `bg.surface` #FFFFFF | 5.39 | 3.0 | PASS |
 | non-text | `semantic.profit` #067A4B | `bg.raised` #FFFFFF | 5.39 | 3.0 | PASS |
@@ -252,7 +254,7 @@ Checks: 127 · terendah relatif target: `semantic.guard` on `bg.sunken` = 4.68 (
 | non-text | `mode.real` #B8226F | `bg.overlay` #FFFFFF | 6.01 | 3.0 | PASS |
 | non-text | `mode.real` #B8226F | `bg.sunken` #EEF0F5 | 5.27 | 3.0 | PASS |
 | pair | `brand.onPrimaryContainer` #0E2A66 | `brand.primaryContainer` #E1EBFF | 11.37 | 4.5 | PASS |
-| pair | `text.onAccent` #FFFFFF | `brand.primary` #1F5FD1 | 5.81 | 4.5 | PASS |
+| pair | `text.onAccent` #FFFFFF | `brand.primary` #2456D6 | 6.22 | 4.5 | PASS |
 | pair | `text.onAccent` #FFFFFF | `semantic.profit` #067A4B | 5.39 | 4.5 | PASS |
 | pair | `text.onAccent` #FFFFFF | `semantic.loss` #C0262D | 5.90 | 4.5 | PASS |
 | pair | `semantic.profit` #067A4B | `semantic.profitContainer` #DDF5EA | 4.71 | 4.5 | PASS |
@@ -263,6 +265,8 @@ Checks: 127 · terendah relatif target: `semantic.guard` on `bg.sunken` = 4.68 (
 | pair | `mode.onPractice` #FFFFFF | `mode.practice` #0B7285 | 5.59 | 4.5 | PASS |
 | pair | `mode.onReal` #FFFFFF | `mode.real` #B8226F | 6.01 | 4.5 | PASS |
 | pair | `mode.practice` #0B7285 | `mode.practiceContainer` #DDF4F7 | 4.88 | 4.5 | PASS |
+| pair | `mode.onPracticeContainer` #064E5B | `mode.practiceContainer` #DDF4F7 | 8.16 | 4.5 | PASS |
+| pair | `mode.onPracticeContainer` #064E5B | `mode.practiceStripe` #CDEBF0 | 7.44 | 4.5 | PASS |
 | pair | `mode.real` #B8226F | `mode.realContainer` #FBE3F0 | 4.96 | 4.5 | PASS |
 | pair | `text.primary` #0F1420 | `brand.primaryContainer` #E1EBFF | 15.36 | 4.5 | PASS |
 | pair | `inverse.onSurface` #ECEEF4 | `inverse.surface` #191C25 | 14.67 | 4.5 | PASS |
@@ -297,17 +301,21 @@ Total FAIL: 0
 | 10 | #86306F | 7.29 | PASS |
 | 11 | #5A5F6E | 5.89 | PASS |
 
-## Accent distinctness (ΔE2000 ≥ 20 vs mode + PnL colors)
+## Accent distinctness (ΔE2000 ≥ 20 vs mode, PnL, guard, warning)
 | theme | pair | ΔE00 | ok |
 |---|---|---|---|
 | dark | `brand.primary` vs `mode.practice` | 30.6 | PASS |
 | dark | `brand.primary` vs `mode.real` | 36.0 | PASS |
 | dark | `brand.primary` vs `semantic.profit` | 50.5 | PASS |
 | dark | `brand.primary` vs `semantic.loss` | 42.0 | PASS |
-| light | `brand.primary` vs `mode.practice` | 21.2 | PASS |
-| light | `brand.primary` vs `mode.real` | 34.3 | PASS |
-| light | `brand.primary` vs `semantic.profit` | 45.5 | PASS |
-| light | `brand.primary` vs `semantic.loss` | 43.0 | PASS |
+| dark | `brand.primary` vs `semantic.guard` | 52.5 | PASS |
+| dark | `brand.primary` vs `semantic.warning` | 59.4 | PASS |
+| light | `brand.primary` vs `mode.practice` | 22.3 | PASS |
+| light | `brand.primary` vs `mode.real` | 32.4 | PASS |
+| light | `brand.primary` vs `semantic.profit` | 46.8 | PASS |
+| light | `brand.primary` vs `semantic.loss` | 42.5 | PASS |
+| light | `brand.primary` vs `semantic.guard` | 51.5 | PASS |
+| light | `brand.primary` vs `semantic.warning` | 54.6 | PASS |
 
 ## Guard distinctness (ΔE2000 ≥ 20 vs PnL, mode, accent; vs warning: dark ≥ 20, light documented floor 8)
 | theme | pair | ΔE00 | min | ok |
@@ -322,5 +330,23 @@ Total FAIL: 0
 | light | `semantic.guard` vs `mode.real` | 38.5 | 20 | PASS |
 | light | `semantic.guard` vs `semantic.profit` | 46.4 | 20 | PASS |
 | light | `semantic.guard` vs `semantic.loss` | 20.5 | 20 | PASS |
-| light | `semantic.guard` vs `brand.primary` | 50.5 | 20 | PASS |
+| light | `semantic.guard` vs `brand.primary` | 51.5 | 20 | PASS |
 | light | `semantic.guard` vs `semantic.warning` | 10.1 | 8 | PASS |
+
+## Mode treatments (strip ≥ 3:1 vs canvas/surface; badge label ≥ 4.5:1 on both stripe bands)
+| theme | check | ratio | min | ok |
+|---|---|---|---|---|
+| dark | `mode.practice` strip on `bg.canvas` | 10.59 | 3.0 | PASS |
+| dark | `mode.practice` strip on `bg.surface` | 9.91 | 3.0 | PASS |
+| dark | `mode.real` strip on `bg.canvas` | 8.41 | 3.0 | PASS |
+| dark | `mode.real` strip on `bg.surface` | 7.87 | 3.0 | PASS |
+| dark | `mode.onPracticeContainer` on `mode.practiceContainer` | 7.94 | 4.5 | PASS |
+| dark | `mode.onPracticeContainer` on `mode.practiceStripe` | 5.07 | 4.5 | PASS |
+| dark | `mode.onReal` on `mode.real` (badge) | 8.19 | 4.5 | PASS |
+| light | `mode.practice` strip on `bg.canvas` | 5.21 | 3.0 | PASS |
+| light | `mode.practice` strip on `bg.surface` | 5.59 | 3.0 | PASS |
+| light | `mode.real` strip on `bg.canvas` | 5.61 | 3.0 | PASS |
+| light | `mode.real` strip on `bg.surface` | 6.01 | 3.0 | PASS |
+| light | `mode.onPracticeContainer` on `mode.practiceContainer` | 8.16 | 4.5 | PASS |
+| light | `mode.onPracticeContainer` on `mode.practiceStripe` | 7.44 | 4.5 | PASS |
+| light | `mode.onReal` on `mode.real` (badge) | 6.01 | 4.5 | PASS |
