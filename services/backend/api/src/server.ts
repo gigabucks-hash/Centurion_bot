@@ -1,9 +1,10 @@
-import { createServer, type Server } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { ApiError } from "./errors.ts";
 import { makeCtx, sendError, type Ctx } from "./http.ts";
 import { buildRouter, type Deps } from "./routes.ts";
 import { bearer, verifyAccess } from "./jwt.ts";
 import { PgRateLimiter, RateLimiter, clientIp, type Limiter } from "./ratelimit.ts";
+import { agentRouteGuard, registerAgent } from "./mcp/index.ts";
 
 const WRITES = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -29,7 +30,7 @@ export function createApiServer(d: Deps): Server {
   const limiter = d.limiter ?? (d.cfg.rateLimitStore === "postgres" ? new PgRateLimiter(d.db) : new RateLimiter());
   const deps: Deps = { ...d, limiter };
   const router = buildRouter(deps);
-  return createServer(async (req, res) => {
+  const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const ctx = makeCtx(req, res);
     try {
       const method = req.method ?? "GET";
@@ -37,6 +38,8 @@ export function createApiServer(d: Deps): Server {
       if (m === undefined) throw new ApiError("NOT_FOUND");
       if (m === "method") throw new ApiError("VALIDATION_FAILED", { reason: `method ${req.method} not allowed` });
       ctx.params = m.params;
+      // MCP agents: default-deny route allowlist (MCP_DESIGN section 3, L2)
+      agentRouteGuard(req, method, m.pattern);
       // /v1/auth/* has its own limits (routes_auth.ts) that never hard-block the owner wallet
       if (WRITES.has(method) && !m.pattern.startsWith("/v1/auth/")) await limitWrite(ctx, deps, limiter, method, m.pattern);
       await m.handler(ctx);
@@ -49,5 +52,8 @@ export function createApiServer(d: Deps): Server {
         sendError(ctx, new ApiError("INTERNAL"));
       }
     }
-  });
+  };
+  // MCP / OAuth agent access (off unless MCP_ENABLED=true) + buys pause / sell-all (mcp/*, oauth/*)
+  registerAgent(router, deps, handle);
+  return createServer(handle);
 }

@@ -202,12 +202,36 @@ Boss can lower these in Settings → Agents; raising them above the defaults is 
 | R4 | 4d | Boss connects his Grok Bot to staging, then prod (practice), and uses it for 1 week; review the audit log together |
 | R5 | 7 | `trade` tools go live for Real **only** after the Phase 7 real-money gates; scope toggle in the app; per-grant Real budget |
 
-## 9. Open questions for Boss
+## 9. Open questions — answered by the lead (Oct 29, 2026)
 
-1. **Default scopes at connect:** `read` only (my recommendation), or `read + control` already ticked?
-2. **Practice sells via the agent before Phase 7:** the brief says `trade` returns `MODE_NOT_ALLOWED` until Phase 7. Should `sell_position`/`sell_all` work on **paper** positions earlier, so we can rehearse? (Recommended: yes, behind the same `trade` toggle.)
-3. **DPoP sender-binding:** require it (stronger against token theft, but Grok Bot must support it) or keep it optional?
-4. **Agent approvals of Real buy cards in Phase 7:** API §4.6 currently requires a WebAuthn/proof-of-confirmation for Real SOL actions, which an agent cannot provide. Should Real buy approvals within existing limits be exempt from the proof when approved by a `trade`-scoped agent (the delegated signer already caps them), or should Real buys stay app-only?
-5. **Budget defaults** (20 writes/min, 30 approvals/hour): OK?
-6. **Notifications:** a push for every agent write, or a digest (for example, every 15 min) with immediate pushes only for pause/resume and sells?
-7. **Grant length:** 30-day absolute re-consent OK, or longer (90 days)?
+| # | Question | Answer | Implemented as |
+|---|---|---|---|
+| 1 | Default scopes at connect | `read + control` ticked; `trade` off | `DEFAULT_SCOPES` in `api/src/mcp/common.ts`; `trade` can only be granted while the in-app toggle is on |
+| 2 | Paper sells before Phase 7 | Yes: `sell_position` / `sell_all` on **paper** only, and only while the `trade` toggle is on | `agent_settings.trade_enabled`; a call with the toggle off returns `AGENT_TRADE_DISABLED`; turning the toggle off strips `trade` from every live grant |
+| 3 | DPoP | Optional: bind when the client sends a proof, never required | `/oauth/token` binds `cnf.jkt` when a `DPoP` header is present; `/mcp` then requires a matching proof (ES256/EdDSA, `htm`/`htu`/`iat` ±60 s/`ath`, `jti` replay table) |
+| 4 | Real buy approvals in Phase 7 | Real buys stay app-only | `approve_real_buy` always returns `MODE_NOT_ALLOWED` |
+| 5 | Budget | 20 writes/min and 30 approvals/hour per grant | `MCP_WRITES_PER_MIN` (max 20), `MCP_APPROVALS_PER_HOUR` (max 30); over budget → HTTP 429 `AGENT_BUDGET_EXCEEDED` + `Retry-After` |
+| 6 | Notifications | Agent actions go to a digest; instant for pause/resume, sells, disconnect and any refused never-tool attempt | Events carry `payload.notify = "digest" | "instant"`; the server only emits events, and push/digest delivery is the clients' job |
+| 7 | Re-consent | Every 90 days | `agent_grants.expires_at` defaults to now() + 90 days, with a CHECK that it is at most 90 days |
+
+### 9.1 Implementation status (PAPER, Nov 1, 2026)
+
+Off by default: `MCP_ENABLED=false` registers no OAuth/consent/MCP routes. Other env: `MCP_ISSUER` (https, or http on localhost), `MCP_TOKEN_SECRET` (≥ 32 chars, must differ from the Supabase and session secrets), `MCP_CONSENT_URL`, `MCP_REGISTER_PER_HOUR` (default 10).
+
+Endpoints:
+- `GET /.well-known/oauth-authorization-server` (RFC 8414), `GET /.well-known/oauth-protected-resource[/mcp]` (RFC 9728)
+- `POST /oauth/register` (RFC 7591 DCR → client `pending`), `GET /oauth/authorize` (code + PKCE S256 only, `resource` must be `/mcp`), `POST /oauth/token` (authorization_code, refresh_token with rotation; reuse or code replay revokes the grant), `POST /oauth/revoke` (RFC 7009)
+- `POST|GET|DELETE /mcp` (Streamable HTTP, JSON responses; `initialize`, `ping`, `tools/list`, `tools/call`)
+- Consent (SIWS app session, owner): `GET /v1/agent/requests/:id`, `POST /v1/agent/requests/:id/decision`, `POST /v1/workspaces/:ws/agent-clients` (pre-registration), `GET /v1/workspaces/:ws/agent-grants`, `PATCH|DELETE /v1/workspaces/:ws/agent-grants/:id`, `POST /v1/workspaces/:ws/agent-grants/disconnect-all`, `GET|PUT /v1/workspaces/:ws/agent-settings`
+- Trading (app and agent): `GET /v1/workspaces/:ws/trading`, `POST .../trading/pause-buys`, `POST .../trading/resume-buys`, `POST .../trading/sell-all` (paper)
+
+New error codes: `LOOSEN_REQUIRES_APP`, `RESUME_REQUIRES_APP`, `BUYS_PAUSED`, `AGENT_BUDGET_EXCEEDED`, `AGENT_TRADE_DISABLED`, `SIWS_SESSION_REQUIRED`, `AGENT_REQUEST_EXPIRED`.
+
+Remaining:
+- The Rust engine does not yet honor `agent_settings.buys_paused`; today only buy approvals are blocked (`BUYS_PAUSED`).
+- Mobile Dart error tables (`api_errors.g.dart`, `error_l10n.g.dart`) still need regenerating.
+- CIMD (client ID metadata documents) is not supported; DCR or pre-registration only.
+- Digest scheduling and push delivery are client-side.
+- The global per-IP write limit on routes also applies to `/mcp`.
+- Code split for loosening: an OAuth-connected agent gets `LOOSEN_REQUIRES_APP` (tool pre-check and SQL trigger keyed on the `agent` claim); other mcp-channel tokens keep the contracts 1.1.5 answer `FORBIDDEN_ROLE` (`agent_cannot_loosen`). Aligning the two is a contracts decision.
+- The L2 route allowlist applies to tokens minted by the MCP dispatcher (`agent` claim); other mcp-channel tokens keep the existing per-route refusals.
