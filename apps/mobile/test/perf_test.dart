@@ -4,14 +4,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/app/app.dart';
-import 'package:sentra_mobile/core/perf/background_json.dart';
-import 'package:sentra_mobile/core/perf/per_key_throttle.dart';
-import 'package:sentra_mobile/core/startup/deferred_init.dart';
-import 'package:sentra_mobile/data/api/marks.dart';
-import 'package:sentra_mobile/data/mock/mock_backend.dart';
-import 'package:sentra_mobile/data/models/models.dart';
-import 'package:sentra_mobile/data/providers.dart';
+import 'package:centurion_mobile/app/app.dart';
+import 'package:centurion_mobile/core/perf/background_json.dart';
+import 'package:centurion_mobile/core/perf/per_key_throttle.dart';
+import 'package:centurion_mobile/core/startup/deferred_init.dart';
+import 'package:centurion_mobile/data/api/marks.dart';
+import 'package:centurion_mobile/data/mock/mock_backend.dart';
+import 'package:centurion_mobile/data/models/models.dart';
+import 'package:centurion_mobile/data/providers.dart';
 
 MarkMessage _mark(String mint, String price) => MarkMessage(
   mint: mint,
@@ -123,7 +123,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [mockBackendProvider.overrideWithValue(b), deferredInitProvider.overrideWithValue(init)],
-          child: const SentraApp(),
+          child: const CenturionApp(),
         ),
       );
       // pumpWidget rendered frame 1; the post-frame callback has only queued the tasks.

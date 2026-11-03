@@ -1,5 +1,5 @@
-name: sentra_mobile
-description: Sentra mobile companion app (Flutter; mock data until the backend is wired).
+name: centurion_mobile
+description: Centurion mobile companion app (Flutter; mock data until the backend is wired).
 publish_to: 'none'
 version: 0.1.0+1
 

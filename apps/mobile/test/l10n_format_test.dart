@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/core/l10n_format.dart';
-import 'package:sentra_mobile/data/money.dart';
+import 'package:centurion_mobile/core/l10n_format.dart';
+import 'package:centurion_mobile/data/money.dart';
 
 /// Mirrors the examples in packages/i18n/format.mjs.
 void main() {

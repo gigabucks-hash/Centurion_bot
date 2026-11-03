@@ -1,4 +1,4 @@
-/// Login copy that @sentra/i18n (0.4.7) does not have yet. The vendored ARB is a
+/// Login copy that @centurion/i18n (0.4.7) does not have yet. The vendored ARB is a
 /// byte-identical copy (tool/ci_check_vendored.sh), so these live here until UX
 /// adds the keys; then switch to `AppLocalizations` and delete this file.
 /// Requested ARB keys (report to UX): loginButtonPhantom, loginPhantomWaiting,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/api/cursor_page.dart';
-import '../theme/sentra_theme.dart';
+import '../theme/centurion_theme.dart';
 
 /// Footer for paged lists: spinner while loading, retry on error, nothing at the end.
 class PageFooter extends StatelessWidget {

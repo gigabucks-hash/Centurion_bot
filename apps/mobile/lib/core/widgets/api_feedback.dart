@@ -5,7 +5,7 @@ import '../../data/api/strategy_patch.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../error_l10n.g.dart';
 import '../l10n_format.dart';
-import '../theme/sentra_theme.dart';
+import '../theme/centurion_theme.dart';
 
 /// Colors per i18n tone: pending = info (a status, never red), warning, error.
 ({Color fg, Color bg, IconData icon}) toneStyle(BuildContext context, ErrorTone tone) {

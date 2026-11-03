@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:sentra_mobile/core/theme/sentra_theme.dart';
+import 'package:centurion_mobile/core/theme/centurion_theme.dart';
 
 const bundled = [
   'Inter-Regular.ttf',
@@ -49,7 +49,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: SentraTheme.dark(),
+        theme: CenturionTheme.dark(),
         home: Builder(
           builder: (context) {
             final tt = Theme.of(context).textTheme;

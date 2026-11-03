@@ -183,7 +183,7 @@ abstract interface class SiwsAuthRepository {
     int statementVersion = SiwsChallenge.currentStatementVersion,
   });
 
-  /// [client] is always `mobile` from this app (becomes the `sentra_client` claim).
+  /// [client] is always `mobile` from this app (becomes the `centurion_client` claim).
   Future<Session> verify({
     required String address,
     required String message,
@@ -494,7 +494,7 @@ class MockSiwsAuth implements SiwsAuthRepository {
 
   /// API_ENDPOINTS 4.1 B-7, statement_version 1.
   static const statementV1 =
-      'Sign in to Sentra (practice). This request does not trigger a transaction or cost any fees.';
+      'Sign in to Centurion (practice). This request does not trigger a transaction or cost any fees.';
 
   /// Last `client` seen by [verify] (tests).
   String? lastClient;

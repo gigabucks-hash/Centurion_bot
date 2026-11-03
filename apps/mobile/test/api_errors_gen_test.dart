@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/data/api/api_exception.dart';
+import 'package:centurion_mobile/data/api/api_exception.dart';
 
 import '../tool/gen_errors.dart' as gen;
 

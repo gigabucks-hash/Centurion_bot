@@ -14,7 +14,7 @@ String fmtSol(Lamports v, {bool unit = false}) {
 }
 
 /// SPEC §1: PnL never by color alone. T-15 (Apex decision): delegates to [pnlSol]
-/// (@sentra/i18n 0.4.2 rule): exact 0 → `0,00` (neutral, no arrow/sign); any
+/// (@centurion/i18n 0.4.2 rule): exact 0 → `0,00` (neutral, no arrow/sign); any
 /// non-zero → `▲ +…` / `▼ −…`, never shown as 0.
 String fmtPnl(Lamports v, {bool unit = false}) {
   final p = pnlSol(v, 'id', unit: false);

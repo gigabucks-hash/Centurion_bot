@@ -10,7 +10,7 @@ import 'api/auth.dart';
 import 'api/auth_http.dart';
 import 'api/events_feed.dart';
 import 'api/marks.dart';
-import 'api/sentra_rpc.dart';
+import 'api/centurion_rpc.dart';
 import 'mock/mock_backend.dart';
 import 'mock/mock_rpc.dart';
 import 'models/models.dart';
@@ -62,7 +62,7 @@ final liveMarkProvider = StreamProvider.autoDispose.family<MarkMessage, ({String
       .cast<MarkMessage>()
       .transform(PerKeyThrottle<MarkMessage, String>(keyOf: (m) => m.mint, interval: markRowInterval));
 });
-final sentraRpcProvider = Provider<SentraRpc>((ref) => MockSentraRpc(ref.watch(mockBackendProvider)));
+final centurionRpcProvider = Provider<CenturionRpc>((ref) => MockCenturionRpc(ref.watch(mockBackendProvider)));
 
 /// Wallet-only SIWS (1.1.4). Mock until the wallet SDK review lands; the mock
 /// allowlist holds the demo owner wallet only.
@@ -74,7 +74,7 @@ final telegramAuthProvider = Provider<TelegramAuthStub>(
 );
 
 /// SIWS `domain` (must be in the API's AUTH_SIWS_DOMAINS). Placeholder until Boss has a domain.
-final authDomainProvider = Provider<String>((_) => 'app.sentra.local');
+final authDomainProvider = Provider<String>((_) => 'app.centurion.local');
 
 /// Mock build: memory. Prod: [SecureSessionStore] (refresh token only in Keychain/Keystore).
 final sessionStoreProvider = Provider<SessionStore>((_) => InMemorySessionStore());

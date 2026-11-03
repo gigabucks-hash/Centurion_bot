@@ -57,7 +57,7 @@ abstract final class Wire {
   };
   static ApprovalMode? approvalModeOf(String? w) => ApprovalMode.values.where((m) => approvalMode(m) == w).firstOrNull;
 
-  /// `decided_via` / JWT claim `sentra_client`: web | mobile | desktop | mcp | push.
+  /// `decided_via` / JWT claim `centurion_client`: web | mobile | desktop | mcp | push.
   /// Never sent as an RPC param (1.1.2: actor/channel come from the JWT).
   static const clientMobile = 'mobile';
   static const clientPush = 'push';

@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/data/api/api_exception.dart';
-import 'package:sentra_mobile/data/api/decide_approval.dart';
-import 'package:sentra_mobile/data/mock/mock_backend.dart';
-import 'package:sentra_mobile/data/models/models.dart';
-import 'package:sentra_mobile/data/repositories/repositories.dart' show ResetPracticeRequest;
-import 'package:sentra_mobile/features/approvals/approvals_screen.dart' show decideRequest;
+import 'package:centurion_mobile/data/api/api_exception.dart';
+import 'package:centurion_mobile/data/api/decide_approval.dart';
+import 'package:centurion_mobile/data/mock/mock_backend.dart';
+import 'package:centurion_mobile/data/models/models.dart';
+import 'package:centurion_mobile/data/repositories/repositories.dart' show ResetPracticeRequest;
+import 'package:centurion_mobile/features/approvals/approvals_screen.dart' show decideRequest;
 
 Matcher _api(String code) => throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', code));
 

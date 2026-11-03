@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/core/app_identity.dart';
-import 'package:sentra_mobile/l10n/gen/app_localizations_en.dart';
-import 'package:sentra_mobile/l10n/gen/app_localizations_id.dart';
+import 'package:centurion_mobile/core/app_identity.dart';
+import 'package:centurion_mobile/l10n/gen/app_localizations_en.dart';
+import 'package:centurion_mobile/l10n/gen/app_localizations_id.dart';
 
 /// Rebrand "Centurion Trade" (Boss, 29 Okt 2026): ARB app.name, platform ids, scheme.
 void main() {
@@ -25,7 +25,10 @@ void main() {
       startsWith('package ${AppIdentity.bundleId}'),
     );
     final pbx = File('ios/Runner.xcodeproj/project.pbxproj').readAsStringSync();
-    expect(pbx, isNot(contains('com.sentra.app')));
+    final ids = RegExp(r'PRODUCT_BUNDLE_IDENTIFIER = ([^;]+);').allMatches(pbx).map((m) => m.group(1)!).toList();
+    expect(ids, isNotEmpty);
+    final ok = ids.every((id) => id == AppIdentity.bundleId || id.startsWith('${AppIdentity.bundleId}.'));
+    expect(ok, isTrue, reason: '$ids');
     expect(pbx, contains('PRODUCT_BUNDLE_IDENTIFIER = ${AppIdentity.bundleId};'));
     final plist = File('ios/Runner/Info.plist').readAsStringSync();
     expect(RegExp('<string>Centurion Trade</string>').allMatches(plist), hasLength(2));

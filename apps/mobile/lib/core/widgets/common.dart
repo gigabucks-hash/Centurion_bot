@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api/server_clock.dart';
 import '../../data/models/models.dart';
 import '../format.dart';
-import '../theme/sentra_theme.dart';
+import '../theme/centurion_theme.dart';
 
 /// PnL: arrow + sign + color + mono tabular number (SPEC §1).
 class PnlText extends StatelessWidget {

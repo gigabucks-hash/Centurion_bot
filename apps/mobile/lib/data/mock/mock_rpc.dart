@@ -1,15 +1,15 @@
 import '../api/api_exception.dart';
-import '../api/sentra_rpc.dart';
+import '../api/centurion_rpc.dart';
 import '../api/wire.dart';
 import '../models/models.dart';
 import '../repositories/repositories.dart';
 import 'mock_backend.dart';
 
-/// In-memory [SentraRpc] over [MockBackend]. Every call goes through the wire
+/// In-memory [CenturionRpc] over [MockBackend]. Every call goes through the wire
 /// shapes (`toRpcParams()` in, JSON-like map out) so DTO mapping is exercised
 /// exactly as with `supabase.rpc`.
-class MockSentraRpc implements SentraRpc {
-  MockSentraRpc(this.backend);
+class MockCenturionRpc implements CenturionRpc {
+  MockCenturionRpc(this.backend);
   final MockBackend backend;
 
   /// Last call (name, params), for tests asserting the wire params.

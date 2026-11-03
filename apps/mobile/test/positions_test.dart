@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/core/startup/deferred_init.dart';
-import 'package:sentra_mobile/app/app.dart';
-import 'package:sentra_mobile/core/approval_guard.dart';
-import 'package:sentra_mobile/core/format.dart';
-import 'package:sentra_mobile/core/feature_flags.dart';
-import 'package:sentra_mobile/core/widgets/common.dart';
-import 'package:sentra_mobile/data/api/api_exception.dart';
-import 'package:sentra_mobile/data/api/settings_keys.dart';
-import 'package:sentra_mobile/data/mock/mock_backend.dart';
-import 'package:sentra_mobile/data/models/models.dart';
-import 'package:sentra_mobile/data/providers.dart';
-import 'package:sentra_mobile/data/repositories/repositories.dart';
-import 'package:sentra_mobile/features/positions/widgets/exit_progress_bar.dart';
+import 'package:centurion_mobile/core/startup/deferred_init.dart';
+import 'package:centurion_mobile/app/app.dart';
+import 'package:centurion_mobile/core/approval_guard.dart';
+import 'package:centurion_mobile/core/format.dart';
+import 'package:centurion_mobile/core/feature_flags.dart';
+import 'package:centurion_mobile/core/widgets/common.dart';
+import 'package:centurion_mobile/data/api/api_exception.dart';
+import 'package:centurion_mobile/data/api/settings_keys.dart';
+import 'package:centurion_mobile/data/mock/mock_backend.dart';
+import 'package:centurion_mobile/data/models/models.dart';
+import 'package:centurion_mobile/data/providers.dart';
+import 'package:centurion_mobile/data/repositories/repositories.dart';
+import 'package:centurion_mobile/features/positions/widgets/exit_progress_bar.dart';
 
 /// [realSol] flips the Phase 7 flag (client + mock server) for tests that exercise Real flows.
 Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderScope(
@@ -24,7 +24,7 @@ Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderS
     featureFlagsProvider.overrideWithValue(FeatureFlags(realSolEnabled: realSol)),
     approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
   ],
-  child: SentraApp(initialLocation: location),
+  child: CenturionApp(initialLocation: location),
 );
 
 Future<void> _phone(WidgetTester tester) async {

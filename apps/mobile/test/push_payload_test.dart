@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:convert';
 
-import 'package:sentra_mobile/core/notifications/notification_catalog.dart';
-import 'package:sentra_mobile/core/notifications/notification_renderer.dart';
-import 'package:sentra_mobile/core/push/push_payload.dart';
+import 'package:centurion_mobile/core/notifications/notification_catalog.dart';
+import 'package:centurion_mobile/core/notifications/notification_renderer.dart';
+import 'package:centurion_mobile/core/push/push_payload.dart';
 
 void main() {
   test('parses a valid N-01 Practice pick payload', () {
@@ -63,7 +63,7 @@ void main() {
       'mode': mode,
       'workspace_id': 'ws1',
       'seq': '18301',
-      'deep_link': 'sentra://approvals/apv1',
+      'deep_link': 'centurion://approvals/apv1',
       'approval_id': 'apv1',
       'version': ?version,
       'token': 'apt_Q2x',
@@ -80,7 +80,7 @@ void main() {
       expect(p.seq, BigInt.from(18301));
       expect(p.version, 3);
       expect(p.workspaceId, 'ws1');
-      expect(p.deepLink, 'sentra://approvals/apv1');
+      expect(p.deepLink, 'centurion://approvals/apv1');
       expect(p.type, 'proposal.created');
       expect(p.expiresAt, DateTime.utc(2026, 10, 29, 8, 52));
       expect(p.serverNow, DateTime.utc(2026, 10, 29, 8, 42, 0, 151));

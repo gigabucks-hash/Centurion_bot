@@ -1,13 +1,13 @@
 import '../api/cursor_page.dart';
 import '../api/decide_approval.dart';
 import '../api/strategy_patch.dart';
-import '../api/sentra_rpc.dart' show ClosePositionRequest, ClosePositionResult, ResetPracticeRequest;
+import '../api/centurion_rpc.dart' show ClosePositionRequest, ClosePositionResult, ResetPracticeRequest;
 import '../models/models.dart';
 
 export '../api/cursor_page.dart';
 export '../api/decide_approval.dart';
 export '../api/strategy_patch.dart';
-export '../api/sentra_rpc.dart' show ClosePositionRequest, ClosePositionResult, ResetPracticeRequest;
+export '../api/centurion_rpc.dart' show ClosePositionRequest, ClosePositionResult, ResetPracticeRequest;
 export '../api/marks.dart' show MarksSource;
 
 /// Data-layer contracts. UI and providers depend ONLY on these, so the mock

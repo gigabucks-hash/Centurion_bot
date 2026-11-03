@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/data/api/api_exception.dart';
-import 'package:sentra_mobile/data/api/auth.dart';
+import 'package:centurion_mobile/data/api/api_exception.dart';
+import 'package:centurion_mobile/data/api/auth.dart';
 
 const owner = '451rpun8ivZ7knpEnMs7HkurvtoUFE8u8ZFvNERWk7hG';
 const stranger = 'HNahkrkFQ2oGJNdHXxfecChYoj6PiHZko7HWPivyvBg';
@@ -22,7 +22,7 @@ void main() {
   AuthController controller({WalletSigner? signer}) => AuthController(
     repo: server,
     signer: signer ?? MockWalletSigner(owner),
-    domain: 'app.sentra.local',
+    domain: 'app.centurion.local',
     clock: () => now,
   );
 
@@ -41,13 +41,13 @@ void main() {
 
   test('allowlist: a stranger wallet gets 403 FORBIDDEN_ROLE wallet_not_allowed', () async {
     await expectLater(
-      () => server.nonce(address: stranger, domain: 'app.sentra.local'),
+      () => server.nonce(address: stranger, domain: 'app.centurion.local'),
       _api('FORBIDDEN_ROLE', 'wallet_not_allowed'),
     );
   });
 
   test('nonce is single-use and expires after 5 min; bad signature → SIWS_SIGNATURE_INVALID', () async {
-    final ch = await server.nonce(address: owner, domain: 'app.sentra.local');
+    final ch = await server.nonce(address: owner, domain: 'app.centurion.local');
     final sig = MockSiwsAuth.fakeSignature(owner, ch.message);
     await expectLater(
       () => server.verify(address: owner, message: ch.message, signatureBase58: 'bad'),
@@ -58,7 +58,7 @@ void main() {
       _api('SIWS_NONCE_INVALID'),
       reason: 'consumed even by a bad signature',
     );
-    final ch2 = await server.nonce(address: owner, domain: 'app.sentra.local');
+    final ch2 = await server.nonce(address: owner, domain: 'app.centurion.local');
     now = now.add(const Duration(minutes: 6));
     await expectLater(
       () => server.verify(

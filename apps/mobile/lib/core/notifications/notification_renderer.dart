@@ -119,7 +119,7 @@ class NotificationRenderer {
     );
   }
 
-  /// Formats raw push vars per @sentra/i18n 0.4.3 `notifications.meta.json`
+  /// Formats raw push vars per @centurion/i18n 0.4.3 `notifications.meta.json`
   /// `var_format`. Var names ARE the ARB placeholder names (no mapping):
   /// `symbol` plain untrusted text (shown as `$SYM`), `amount_lamports` /
   /// `pnl` lamports integer strings → [Lamports] formatter (`pnl` signed per

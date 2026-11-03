@@ -8,7 +8,7 @@ import '../../core/notifications/local_notifier.dart';
 import '../../core/notifications/notification_catalog.dart';
 import '../../core/notifications/notification_renderer.dart';
 import '../../core/push/push_payload.dart';
-import '../../core/theme/sentra_theme.dart';
+import '../../core/theme/centurion_theme.dart';
 import '../../core/widgets/common.dart';
 
 final _previewModeProvider = StateProvider<NotifMode>((_) => NotifMode.practice);

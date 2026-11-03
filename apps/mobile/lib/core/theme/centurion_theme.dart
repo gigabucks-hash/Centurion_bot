@@ -4,11 +4,11 @@ import 'app_tokens.dart';
 
 export 'app_tokens.dart';
 
-/// Thin app-level layer over the vendored design tokens (@sentra/design-tokens 0.2.1, copied
-/// verbatim from /workspace/sentra/packages/design-tokens/tokens/app_tokens.dart).
+/// Thin app-level layer over the vendored design tokens (@centurion/design-tokens 0.2.1, copied
+/// verbatim from /workspace/centurion/packages/design-tokens/tokens/app_tokens.dart).
 /// Token gaps T-01..T-14 are fixed upstream (except font bundling, T-01), so this only adds app-chrome
 /// choices that are not design tokens (nav bar, snackbar, app bar).
-abstract final class SentraTheme {
+abstract final class CenturionTheme {
   static ThemeData dark() => _chrome(AppTheme.dark());
   static ThemeData light() => _chrome(AppTheme.light());
 

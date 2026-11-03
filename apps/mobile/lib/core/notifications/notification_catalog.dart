@@ -234,7 +234,7 @@ enum NotifEvent {
 
 /// N-07 `expire_reason` wire values (contract v1.1 `ProposalExpiredReason`).
 /// Copy key = `N-07.<reason>`; body `{reason}` = `expire_reason.<r>.detail`
-/// (@sentra/i18n 0.4.x). Unknown values fall back to `timeout`.
+/// (@centurion/i18n 0.4.x). Unknown values fall back to `timeout`.
 const expireReasonsWire = [
   'timeout',
   'strategy_deleted',
@@ -281,7 +281,7 @@ typedef Copy = ({String title, String body});
 
 AppLocalizations l10nFor(NotifLocale l) => lookupAppLocalizations(Locale(l.name));
 
-/// Copy for a variant key, from the ARB (@sentra/i18n 0.4.3: placeholder names =
+/// Copy for a variant key, from the ARB (@centurion/i18n 0.4.3: placeholder names =
 /// wire var names, e.g. `{symbol}`, `{amount_lamports}`; gen-l10n orders the
 /// positional params alphabetically). [v] holds already-formatted vars;
 /// a missing var renders as `–`. [mode] is `practice`/`real` (ICU select).

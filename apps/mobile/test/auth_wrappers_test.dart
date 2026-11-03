@@ -4,9 +4,9 @@ import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/core/auth/base58.dart';
-import 'package:sentra_mobile/core/auth/phantom_box.dart';
-import 'package:sentra_mobile/core/auth/secure_token_store.dart';
+import 'package:centurion_mobile/core/auth/base58.dart';
+import 'package:centurion_mobile/core/auth/phantom_box.dart';
+import 'package:centurion_mobile/core/auth/secure_token_store.dart';
 
 Uint8List _hex(String h) =>
     Uint8List.fromList([for (var i = 0; i < h.length; i += 2) int.parse(h.substring(i, i + 2), radix: 16)]);
@@ -165,12 +165,12 @@ void main() {
       // Read back through the public API of the const default instance.
       const s = FlutterSecureStorage(
         iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device, synchronizable: false),
-        aOptions: AndroidOptions(storageNamespace: 'sentra_auth'),
+        aOptions: AndroidOptions(storageNamespace: 'centurion_auth'),
       );
       final src = File('lib/core/auth/secure_token_store.dart').readAsStringSync();
       expect(src, contains('KeychainAccessibility.first_unlock_this_device'));
       expect(src, contains('synchronizable: false'));
-      expect(src, contains("storageNamespace: 'sentra_auth'"));
+      expect(src, contains("storageNamespace: 'centurion_auth'"));
       expect(src, isNot(contains('KeychainAccessibility.unlocked,')));
       expect(s.iOptions.toMap()['accessibility'], 'first_unlock_this_device');
       expect(s.iOptions.toMap()['synchronizable'], 'false');

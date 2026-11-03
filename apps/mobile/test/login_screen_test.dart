@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/app/app.dart';
-import 'package:sentra_mobile/core/approval_guard.dart';
-import 'package:sentra_mobile/core/feature_flags.dart';
-import 'package:sentra_mobile/core/startup/deferred_init.dart';
-import 'package:sentra_mobile/data/api/auth.dart';
-import 'package:sentra_mobile/data/mock/mock_backend.dart';
-import 'package:sentra_mobile/data/providers.dart';
+import 'package:centurion_mobile/app/app.dart';
+import 'package:centurion_mobile/core/approval_guard.dart';
+import 'package:centurion_mobile/core/feature_flags.dart';
+import 'package:centurion_mobile/core/startup/deferred_init.dart';
+import 'package:centurion_mobile/data/api/auth.dart';
+import 'package:centurion_mobile/data/mock/mock_backend.dart';
+import 'package:centurion_mobile/data/providers.dart';
 
 Widget _app(MockBackend b, WalletSigner signer) => ProviderScope(
   overrides: [
@@ -17,7 +17,7 @@ Widget _app(MockBackend b, WalletSigner signer) => ProviderScope(
     approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
     walletSignerProvider.overrideWithValue(signer),
   ],
-  child: const SentraApp(),
+  child: const CenturionApp(),
 );
 
 Future<void> _phone(WidgetTester tester) async {

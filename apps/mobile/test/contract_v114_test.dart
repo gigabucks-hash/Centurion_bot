@@ -2,18 +2,18 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/core/error_l10n.g.dart';
-import 'package:sentra_mobile/core/exit_reason_l10n.dart';
-import 'package:sentra_mobile/core/l10n_format.dart';
-import 'package:sentra_mobile/core/perf/latest_throttle.dart';
-import 'package:sentra_mobile/data/api/api_exception.dart';
-import 'package:sentra_mobile/data/api/settings_keys.dart';
-import 'package:sentra_mobile/data/mock/mock_backend.dart';
-import 'package:sentra_mobile/data/models/models.dart';
-import 'package:sentra_mobile/data/repositories/repositories.dart';
-import 'package:sentra_mobile/features/approvals/approvals_screen.dart' show decideRequest;
-import 'package:sentra_mobile/l10n/gen/app_localizations_en.dart';
-import 'package:sentra_mobile/l10n/gen/app_localizations_id.dart';
+import 'package:centurion_mobile/core/error_l10n.g.dart';
+import 'package:centurion_mobile/core/exit_reason_l10n.dart';
+import 'package:centurion_mobile/core/l10n_format.dart';
+import 'package:centurion_mobile/core/perf/latest_throttle.dart';
+import 'package:centurion_mobile/data/api/api_exception.dart';
+import 'package:centurion_mobile/data/api/settings_keys.dart';
+import 'package:centurion_mobile/data/mock/mock_backend.dart';
+import 'package:centurion_mobile/data/models/models.dart';
+import 'package:centurion_mobile/data/repositories/repositories.dart';
+import 'package:centurion_mobile/features/approvals/approvals_screen.dart' show decideRequest;
+import 'package:centurion_mobile/l10n/gen/app_localizations_en.dart';
+import 'package:centurion_mobile/l10n/gen/app_localizations_id.dart';
 
 Matcher _api(String code) => throwsA(isA<ApiException>().having((e) => e.rawCode, 'code', code));
 

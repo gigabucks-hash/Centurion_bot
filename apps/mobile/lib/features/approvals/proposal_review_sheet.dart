@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format.dart';
 import '../../core/l10n_format.dart';
 import '../../core/perf/latest_throttle.dart';
-import '../../core/theme/sentra_theme.dart';
+import '../../core/theme/centurion_theme.dart';
 import '../../core/widgets/common.dart';
 import '../../data/api/server_clock.dart';
 import '../../data/models/models.dart';

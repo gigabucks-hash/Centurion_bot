@@ -22,7 +22,7 @@ String formatSol(Lamports v, String loc, {bool pnl = false, bool paper = false})
   return '${v.isNegative ? _minus : ''}$s$_nbsp${paper ? 'paper SOL' : 'SOL'}';
 }
 
-/// PnL display parts, 1:1 port of `pnlSol()` / `pnlPct()` in @sentra/i18n 0.4.2 `format.mjs`.
+/// PnL display parts, 1:1 port of `pnlSol()` / `pnlPct()` in @centurion/i18n 0.4.2 `format.mjs`.
 /// [text] carries the sign but not the arrow; [arrow]/[sign] come from the design-tokens
 /// 0.2.2 helpers `TradeColors.pnlArrow` / `pnlSign`; [signum] picks the color via
 /// `TradeColors.pnl` (neutral only for exact 0).

@@ -348,8 +348,8 @@ class ExitStat {
   };
 }
 
-/// All v1.1 RPCs/reads the app calls. Mock: `MockSentraRpc`; prod: Supabase client (D5–6).
-abstract interface class SentraRpc {
+/// All v1.1 RPCs/reads the app calls. Mock: `MockCenturionRpc`; prod: Supabase client (D5–6).
+abstract interface class CenturionRpc {
   Future<DecideApprovalResult> decideApproval(DecideApprovalRequest r);
   Future<StrategyWriteResult> setStrategyStatus(SetStrategyStatusRequest r);
   Future<StrategyWriteResult> updateStrategy(UpdateStrategyRequest r);

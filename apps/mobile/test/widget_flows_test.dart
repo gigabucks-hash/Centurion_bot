@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/core/startup/deferred_init.dart';
-import 'package:sentra_mobile/app/app.dart';
-import 'package:sentra_mobile/core/approval_guard.dart';
-import 'package:sentra_mobile/core/feature_flags.dart';
-import 'package:sentra_mobile/core/theme/sentra_theme.dart';
-import 'package:sentra_mobile/core/widgets/common.dart';
-import 'package:sentra_mobile/data/mock/mock_backend.dart';
-import 'package:sentra_mobile/data/models/models.dart';
-import 'package:sentra_mobile/data/providers.dart';
-import 'package:sentra_mobile/l10n/gen/app_localizations.dart';
+import 'package:centurion_mobile/core/startup/deferred_init.dart';
+import 'package:centurion_mobile/app/app.dart';
+import 'package:centurion_mobile/core/approval_guard.dart';
+import 'package:centurion_mobile/core/feature_flags.dart';
+import 'package:centurion_mobile/core/theme/centurion_theme.dart';
+import 'package:centurion_mobile/core/widgets/common.dart';
+import 'package:centurion_mobile/data/mock/mock_backend.dart';
+import 'package:centurion_mobile/data/models/models.dart';
+import 'package:centurion_mobile/data/providers.dart';
+import 'package:centurion_mobile/l10n/gen/app_localizations.dart';
 
 /// [realSol] flips the Phase 7 flag (client + mock server) for tests that exercise Real flows.
 Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderScope(
@@ -21,7 +21,7 @@ Widget _app(MockBackend b, String location, {bool realSol = false}) => ProviderS
     featureFlagsProvider.overrideWithValue(FeatureFlags(realSolEnabled: realSol)),
     approvalGuardProvider.overrideWithValue(const AlwaysAllowGuard()),
   ],
-  child: SentraApp(initialLocation: location),
+  child: CenturionApp(initialLocation: location),
 );
 
 Future<void> _phone(WidgetTester tester) async {

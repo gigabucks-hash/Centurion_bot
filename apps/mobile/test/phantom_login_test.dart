@@ -4,19 +4,19 @@ import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/core/auth/base58.dart';
-import 'package:sentra_mobile/core/auth/deep_link_channel.dart';
-import 'package:sentra_mobile/core/auth/phantom_box.dart';
-import 'package:sentra_mobile/core/auth/phantom_deeplink.dart';
-import 'package:sentra_mobile/core/auth/secure_token_store.dart';
-import 'package:sentra_mobile/core/error_l10n.g.dart';
-import 'package:sentra_mobile/data/api/api_exception.dart';
-import 'package:sentra_mobile/data/api/auth.dart';
-import 'package:sentra_mobile/data/api/auth_http.dart';
-import 'package:sentra_mobile/l10n/gen/app_localizations.dart';
+import 'package:centurion_mobile/core/auth/base58.dart';
+import 'package:centurion_mobile/core/auth/deep_link_channel.dart';
+import 'package:centurion_mobile/core/auth/phantom_box.dart';
+import 'package:centurion_mobile/core/auth/phantom_deeplink.dart';
+import 'package:centurion_mobile/core/auth/secure_token_store.dart';
+import 'package:centurion_mobile/core/error_l10n.g.dart';
+import 'package:centurion_mobile/data/api/api_exception.dart';
+import 'package:centurion_mobile/data/api/auth.dart';
+import 'package:centurion_mobile/data/api/auth_http.dart';
+import 'package:centurion_mobile/l10n/gen/app_localizations.dart';
 
 const owner = '451rpun8ivZ7knpEnMs7HkurvtoUFE8u8ZFvNERWk7hG';
-const domain = 'app.sentra.local';
+const domain = 'app.centurion.local';
 
 /// Plays Phantom: answers /connect and /signMessage via the redirect, Box-encrypted.
 class FakePhantom implements DeepLinkPlatform {

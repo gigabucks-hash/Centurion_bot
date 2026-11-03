@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # CI gate: lib/data/api/api_errors.g.dart must equal fresh generator output from
 # the monorepo's packages/contracts/errors.json (Backend owns it; no vendored copy
-# since the move into sentra/apps/mobile). Override with $ERRORS_JSON.
+# since the move into centurion/apps/mobile). Override with $ERRORS_JSON.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 SRC="${ERRORS_JSON:-../../packages/contracts/errors.json}"
 if [[ ! -f "$SRC" ]]; then
-  echo "::error::$SRC not found (run from sentra/apps/mobile inside the monorepo)" >&2
+  echo "::error::$SRC not found (run from centurion/apps/mobile inside the monorepo)" >&2
   exit 1
 fi
 

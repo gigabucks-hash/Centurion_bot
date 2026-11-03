@@ -85,11 +85,11 @@ class HttpSiwsAuthRepository implements SiwsAuthRepository {
   final JsonTransport transport;
   final DateTime Function() _clock;
 
-  /// Last `X-Sentra-Login-Delay-Ms` (owner soft delay instead of 429), for UI copy.
+  /// Last `X-Centurion-Login-Delay-Ms` (owner soft delay instead of 429), for UI copy.
   int? lastLoginDelayMs;
 
   Map<String, Object?> _data(JsonResponse r) {
-    final h = r.headers['x-sentra-login-delay-ms'];
+    final h = r.headers['x-centurion-login-delay-ms'];
     lastLoginDelayMs = h == null ? null : int.tryParse(h);
     if (r.status >= 200 && r.status < 300) {
       final d = r.body['data'];

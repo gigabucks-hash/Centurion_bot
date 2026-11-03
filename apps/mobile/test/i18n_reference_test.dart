@@ -1,10 +1,11 @@
-// Vendored verbatim from @sentra/i18n 0.4.7 test/flutter/l10n_plural_test.dart (sentra_mobile → sentra_mobile).
-// Reference test (verified in scratch project with flutter 3.47.8). Replace sentra_mobile with the app package name.
+// Vendored verbatim from @centurion/i18n 0.4.7 test/flutter/l10n_plural_test.dart
+// (package imports point at centurion_mobile).
+// Reference test (verified in scratch project with flutter 3.47.8). Replace centurion_mobile with the app package name.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/l10n/gen/app_localizations_en.dart';
-import 'package:sentra_mobile/l10n/gen/app_localizations_id.dart';
-import 'package:sentra_mobile/core/theme/app_tokens.dart';
+import 'package:centurion_mobile/l10n/gen/app_localizations_en.dart';
+import 'package:centurion_mobile/l10n/gen/app_localizations_id.dart';
+import 'package:centurion_mobile/core/theme/app_tokens.dart';
 
 void main() {
   final en = AppLocalizationsEn();

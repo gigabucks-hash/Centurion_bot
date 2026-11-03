@@ -13,17 +13,17 @@ import '../core/startup/deferred_init.dart';
 import '../l10n/gen/app_localizations.dart';
 
 import 'router.dart';
-import '../core/theme/sentra_theme.dart';
+import '../core/theme/centurion_theme.dart';
 
-class SentraApp extends ConsumerStatefulWidget {
-  const SentraApp({super.key, this.initialLocation = '/'});
+class CenturionApp extends ConsumerStatefulWidget {
+  const CenturionApp({super.key, this.initialLocation = '/'});
   final String initialLocation;
 
   @override
-  ConsumerState<SentraApp> createState() => _SentraAppState();
+  ConsumerState<CenturionApp> createState() => _CenturionAppState();
 }
 
-class _SentraAppState extends ConsumerState<SentraApp> {
+class _CenturionAppState extends ConsumerState<CenturionApp> {
   late final GoRouter _router = _build();
   final _authTick = ValueNotifier<int>(0);
   StreamSubscription<AuthState>? _authSub;
@@ -61,8 +61,8 @@ class _SentraAppState extends ConsumerState<SentraApp> {
       debugShowCheckedModeBanner: false,
       // Dark is the default per SPEC; light kept for OS-level switch later.
       themeMode: ThemeMode.dark,
-      theme: SentraTheme.light(),
-      darkTheme: SentraTheme.dark(),
+      theme: CenturionTheme.light(),
+      darkTheme: CenturionTheme.dark(),
       routerConfig: _router,
       // UX ARB (lib/l10n). One language for copy AND numbers (format.mjs rule).
       locale: Locale(ref.watch(notificationLocaleProvider).name),

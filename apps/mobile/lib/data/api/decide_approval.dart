@@ -2,7 +2,7 @@
 /// `supabase.rpc('decide_approval', {p_approval_id, p_token, p_decision,
 /// p_expected_rev, p_idempotency_key?, p_reject_reason?, p_hold_ms?})` →
 /// `{proposal_id, status, rev, reject_reason, replayed, server_now}`. Actor/channel come from the JWT (`auth.uid()` +
-/// `sentra_client` claim): no `p_client`/`p_actor`/`p_via`. `p_expected_rev`
+/// `centurion_client` claim): no `p_client`/`p_actor`/`p_via`. `p_expected_rev`
 /// is REQUIRED on every channel, push included (push `version` = approval rev).
 library;
 

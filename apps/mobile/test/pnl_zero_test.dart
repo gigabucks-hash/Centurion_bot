@@ -3,14 +3,14 @@
 // Any non-zero value (even 1 lamport) → ▲/▼ + sign + profit/loss color.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/core/format.dart';
-import 'package:sentra_mobile/core/l10n_format.dart';
-import 'package:sentra_mobile/core/notifications/notification_catalog.dart';
-import 'package:sentra_mobile/core/notifications/notification_renderer.dart';
-import 'package:sentra_mobile/core/push/push_payload.dart';
-import 'package:sentra_mobile/core/theme/sentra_theme.dart';
-import 'package:sentra_mobile/core/widgets/common.dart';
-import 'package:sentra_mobile/data/money.dart';
+import 'package:centurion_mobile/core/format.dart';
+import 'package:centurion_mobile/core/l10n_format.dart';
+import 'package:centurion_mobile/core/notifications/notification_catalog.dart';
+import 'package:centurion_mobile/core/notifications/notification_renderer.dart';
+import 'package:centurion_mobile/core/push/push_payload.dart';
+import 'package:centurion_mobile/core/theme/centurion_theme.dart';
+import 'package:centurion_mobile/core/widgets/common.dart';
+import 'package:centurion_mobile/data/money.dart';
 
 const nb = '\u00A0';
 bool _hasArrowOrSign(String s) => RegExp('[▲▼+−-]').hasMatch(s);
@@ -39,7 +39,7 @@ void main() {
     });
   });
 
-  // Same vectors as @sentra/i18n 0.4.2 format.test.mjs (pnlPct there takes a ratio; ours a percent).
+  // Same vectors as @centurion/i18n 0.4.2 format.test.mjs (pnlPct there takes a ratio; ours a percent).
   group('pnlSol / pnlPct parity with format.mjs 0.4.2', () {
     test('T-15 exact zero PnL: 0.00, neutral, no arrow, no sign', () {
       final r = pnlSol(Lamports.zero, 'en');
@@ -93,7 +93,7 @@ void main() {
     Future<(String, Color?)> render(WidgetTester t, Widget w) async {
       await t.pumpWidget(
         MaterialApp(
-          theme: SentraTheme.dark(),
+          theme: CenturionTheme.dark(),
           home: Scaffold(body: w),
         ),
       );

@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sentra_mobile/core/notifications/notification_catalog.dart';
-import 'package:sentra_mobile/core/notifications/notification_renderer.dart';
-import 'package:sentra_mobile/core/push/push_payload.dart';
+import 'package:centurion_mobile/core/notifications/notification_catalog.dart';
+import 'package:centurion_mobile/core/notifications/notification_renderer.dart';
+import 'package:centurion_mobile/core/push/push_payload.dart';
 
 final now = DateTime.utc(2026, 10, 29, 3, 0, 0);
 final exp = now.add(const Duration(minutes: 1, seconds: 42));

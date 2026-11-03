@@ -15,13 +15,13 @@ abstract interface class SecureKeyValue {
 /// iOS Keychain `first_unlock_this_device`, `synchronizable: false` (refresh from a
 /// notification action while locked still works; never migrates to a new device);
 /// Android default `AndroidOptions` (RSA-OAEP Keystore-wrapped AES-GCM), namespace
-/// `sentra_auth`, app keeps `allowBackup=false` + `dataExtractionRules`.
+/// `centurion_auth`, app keeps `allowBackup=false` + `dataExtractionRules`.
 class FlutterSecureKeyValue implements SecureKeyValue {
   FlutterSecureKeyValue([FlutterSecureStorage? storage]) : _s = storage ?? _default;
 
   static const _default = FlutterSecureStorage(
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device, synchronizable: false),
-    aOptions: AndroidOptions(storageNamespace: 'sentra_auth'),
+    aOptions: AndroidOptions(storageNamespace: 'centurion_auth'),
   );
   final FlutterSecureStorage _s;
 
