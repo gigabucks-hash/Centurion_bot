@@ -1,12 +1,12 @@
-# @sentra/contracts (DRAFT)
+# @centurion/contracts (DRAFT)
 
-Tipe bersama API/WS untuk apps Centurion Trade (codename repo: `sentra`).
+Tipe bersama API/WS untuk apps Centurion Trade (codename repo: `centurion`).
 
 **Status:** draft. Isinya saat ini adalah *view-model* dari Desktop (`apps/desktop`), dipakai sampai Backend API Specialist menerbitkan spec resmi (OpenAPI REST + JSON Schema event WS). Setelah spec resmi ada:
 - Backend jadi owner package ini; tipe di-generate dari OpenAPI/JSON Schema (TS untuk web/desktop, Dart untuk mobile, Rust via `typify`/`schemars`).
 - Desktop memetakan DTO wire → view-model di Rust (`apps/desktop/src-tauri/src/model.rs`), jadi perubahan wire tidak memecah UI.
 
-Konsumen sekarang: `apps/desktop` (alias `@sentra/contracts` → `src/index.ts`, lihat `apps/desktop/vite.config.ts` dan `tsconfig.json`).
+Konsumen sekarang: `apps/desktop` (alias `@centurion/contracts` → `src/index.ts`, lihat `apps/desktop/vite.config.ts` dan `tsconfig.json`).
 
 Kenapa Rust belum share dari sini: Rust tidak bisa impor TS. Mirror Rust ada di `apps/desktop/src-tauri/src/model.rs` (serde camelCase) dan harus diubah bersamaan; nanti diganti codegen dari JSON Schema.
 
@@ -19,7 +19,7 @@ Kenapa Rust belum share dari sini: Rust tidak bisa impor TS. Mirror Rust ada di 
 | `WEB_INTEGRATION_ANSWERS.md`, `FLUTTER_INTEGRATION_ANSWERS.md` | answers to the client teams |
 | `CHANGELOG.md` | version history and the v1.0 -> v1.1 rename table |
 | `errors.json` | shared error codes (source). `npm run gen` generates `src/wire/errors.ts` and the Rust `error_codes.rs`. The **Dart** enum is owned by the Flutter team: `tool/gen_errors.dart` in the mobile app, run in their CI from this `errors.json` |
-| `src/wire/*` | TS wire types (`import { wire } from "@sentra/contracts"`) |
+| `src/wire/*` | TS wire types (`import { wire } from "@centurion/contracts"`) |
 
 The view-model in `src/index.ts` is owned by Desktop and is not edited by Backend. Map `wire.*` DTOs onto it
 (v1.1: its score-threshold field maps to wire `score_threshold`; see CHANGELOG).

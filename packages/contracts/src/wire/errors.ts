@@ -1,11 +1,13 @@
 // GENERATED from errors.json by scripts/gen-errors.mjs. Do not edit.
-export const ERROR_CODES_VERSION = 6 as const;
+export const ERROR_CODES_VERSION = 7 as const;
 export type ErrorCode =
   | "UNAUTHENTICATED"
   | "FORBIDDEN_SCOPE"
   | "FORBIDDEN_ROLE"
   | "APPROVAL_REQUIRES_APP"
   | "NOT_FOUND"
+  | "LOGO_NOT_FOUND"
+  | "LOGO_REJECTED"
   | "VALIDATION_FAILED"
   | "SETTINGS_SCHEMA_INVALID"
   | "VERSION_CONFLICT"
@@ -56,6 +58,13 @@ export type ErrorCode =
   | "PRACTICE_CASH_INSUFFICIENT"
   | "JOB_DEAD_LETTERED"
   | "SOURCE_DEGRADED"
+  | "LOOSEN_REQUIRES_APP"
+  | "RESUME_REQUIRES_APP"
+  | "BUYS_PAUSED"
+  | "AGENT_BUDGET_EXCEEDED"
+  | "AGENT_TRADE_DISABLED"
+  | "SIWS_SESSION_REQUIRED"
+  | "AGENT_REQUEST_EXPIRED"
   | "RATE_LIMITED"
   | "UNAVAILABLE"
   | "INTERNAL";
@@ -69,6 +78,8 @@ export const ERROR_CODES: Record<ErrorCode, ErrorCodeInfo> = {
   FORBIDDEN_ROLE: { kind: "error", http: 403, sqlstate: "P0403", retryable: false, messages: { en: "Workspace role does not allow this action", id: "Peran di workspace tidak mengizinkan tindakan ini" } },
   APPROVAL_REQUIRES_APP: { kind: "error", http: 403, sqlstate: "P0403", retryable: false, messages: { en: "This decision must be made in a first-party app, not via MCP", id: "Keputusan ini harus dibuat di aplikasi resmi, bukan lewat MCP" } },
   NOT_FOUND: { kind: "error", http: 404, sqlstate: "P0404", retryable: false, messages: { en: "Resource not found or not visible", id: "Data tidak ditemukan atau tidak dapat diakses" } },
+  LOGO_NOT_FOUND: { kind: "error", http: 404, sqlstate: "P0404", retryable: false, messages: { en: "No logo is available for this coin", id: "Logo untuk koin ini tidak tersedia" } },
+  LOGO_REJECTED: { kind: "error", http: 422, sqlstate: "P0422", retryable: false, messages: { en: "The coin's logo was rejected (size, format, SVG, decoding or moderation)", id: "Logo koin ditolak (ukuran, format, SVG, gagal dibaca, atau moderasi)" } },
   VALIDATION_FAILED: { kind: "error", http: 422, sqlstate: "P0422", retryable: false, messages: { en: "Request or settings failed validation", id: "Permintaan atau pengaturan gagal divalidasi" } },
   SETTINGS_SCHEMA_INVALID: { kind: "error", http: 422, sqlstate: "P0422", retryable: false, messages: { en: "Strategy settings do not match the JSON Schema", id: "Pengaturan strategi tidak sesuai skema" } },
   VERSION_CONFLICT: { kind: "error", http: 409, sqlstate: "P0409", retryable: false, messages: { en: "Stale rev; refetch and retry", id: "Data sudah berubah; muat ulang lalu coba lagi" } },
@@ -119,6 +130,13 @@ export const ERROR_CODES: Record<ErrorCode, ErrorCodeInfo> = {
   PRACTICE_CASH_INSUFFICIENT: { kind: "notice", http: 422, sqlstate: "P0422", retryable: false, messages: { en: "Practice cash is too low for the next entry; entries pause until cash recovers or you reset practice", id: "Saldo practice tidak cukup untuk entry berikutnya; entry dijeda sampai saldo pulih atau practice direset" } },
   JOB_DEAD_LETTERED: { kind: "notice", http: 500, sqlstate: "P0500", retryable: false, messages: { en: "A background job failed after all retries; support has been notified", id: "Tugas latar belakang gagal setelah semua percobaan; tim support sudah diberi tahu" } },
   SOURCE_DEGRADED: { kind: "notice", http: 503, sqlstate: "P0503", retryable: true, messages: { en: "A market data source is degraded; new picks may be delayed", id: "Sumber data pasar sedang terganggu; pick baru mungkin tertunda" } },
+  LOOSEN_REQUIRES_APP: { kind: "error", http: 403, sqlstate: "P0403", retryable: false, messages: { en: "Loosening limits or guards can only be requested in the Centurion Trade app", id: "Melonggarkan batas atau guard hanya bisa diminta di aplikasi Centurion Trade" } },
+  RESUME_REQUIRES_APP: { kind: "error", http: 403, sqlstate: "P0403", retryable: false, messages: { en: "Buying was paused in the app; resume it in the Centurion Trade app", id: "Pembelian dijeda dari aplikasi; lanjutkan lewat aplikasi Centurion Trade" } },
+  BUYS_PAUSED: { kind: "error", http: 409, sqlstate: "P0409", retryable: false, messages: { en: "Buys are paused", id: "Pembelian sedang dijeda" } },
+  AGENT_BUDGET_EXCEEDED: { kind: "error", http: 429, sqlstate: "P0429", retryable: true, messages: { en: "Agent call budget exceeded; try again later", id: "Batas panggilan agen terlampaui; coba lagi nanti" } },
+  AGENT_TRADE_DISABLED: { kind: "error", http: 403, sqlstate: "P0403", retryable: false, messages: { en: "Agent trading is off; turn it on in the Centurion Trade app", id: "Trading oleh agen nonaktif; aktifkan di aplikasi Centurion Trade" } },
+  SIWS_SESSION_REQUIRED: { kind: "error", http: 403, sqlstate: "P0403", retryable: false, messages: { en: "Sign in with your wallet in the Centurion Trade app", id: "Masuk dengan wallet di aplikasi Centurion Trade" } },
+  AGENT_REQUEST_EXPIRED: { kind: "error", http: 410, sqlstate: "P0410", retryable: false, messages: { en: "This agent connection request has expired; start again from the agent", id: "Permintaan koneksi agen ini kedaluwarsa; mulai lagi dari agen" } },
   RATE_LIMITED: { kind: "error", http: 429, sqlstate: "P0429", retryable: true, messages: { en: "Rate limit exceeded", id: "Batas permintaan terlampaui" } },
   UNAVAILABLE: { kind: "error", http: 503, sqlstate: "P0503", retryable: true, messages: { en: "Dependency temporarily unavailable", id: "Layanan pendukung sedang tidak tersedia" } },
   INTERNAL: { kind: "error", http: 500, sqlstate: "P0500", retryable: true, messages: { en: "Unexpected server error", id: "Terjadi kesalahan server" } },

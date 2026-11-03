@@ -1,5 +1,5 @@
 /**
- * @sentra/contracts — DRAFT desktop view-model.
+ * @centurion/contracts — DRAFT desktop view-model.
  *
  * PLACEHOLDER until the Backend API Specialist publishes the real OpenAPI/WS spec.
  * Rust mirror: apps/desktop/src-tauri/src/model.rs (#[serde(rename_all = "camelCase")]).
@@ -160,5 +160,5 @@ export interface CoreApi {
 
 // ---------------------------------------------------------------------------
 // Official wire contract v1 (Backend API Specialist). Namespaced so it does not
-// collide with the desktop view-model above. Prefer `@sentra/contracts/wire`.
+// collide with the desktop view-model above. Prefer `@centurion/contracts/wire`.
 export * as wire from "./wire/index";

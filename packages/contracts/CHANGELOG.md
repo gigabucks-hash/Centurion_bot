@@ -1,9 +1,30 @@
 # Contracts changelog
 
+## 1.1.6 (2026-11-03): Centurion rename, coin logos, MCP error codes
+
+**Repo-wide rename (no `sentra` left in code):** package `@centurion/contracts` (was the old codename package), env
+`CENTURION_*` (e.g. `CENTURION_SESSION_SECRET`), JWT claim `centurion_client`, JWT iss `centurion-api`, DB GUCs
+`centurion.*`, SSE NOTIFY channel `centurion_marks`, headers `X-Centurion-*`, deep links `centurion://...`, wallet
+placeholder e-mails `@wallet.centurion.invalid`. SIWS legacy statement v1 text is now `Sign in to Centurion
+(practice). ...` (v2 `Sign in to Centurion Trade` unchanged; v1 transition window unchanged). Older entries below were
+rewritten in place to the new names. Clients import `@centurion/contracts` / `@centurion/contracts/wire`.
+
+- **Coin logos (additive):** `logo_hash: string | null` + `logo_url: LogoUrl | null` on coin, pick and position wires;
+  `logo_url` on approvals/proposals and on every event envelope that carries a mint. TS helpers `LOGO_SIZES`
+  (48/64/96/128/192), `LogoSize`, `LogoFormat`, `logoSizeFor(px, dpr)`, `logoUrlFor(url, size, fmt)`. New route
+  `GET /v1/img/coin/{mint}` (API_ENDPOINTS 4.12). Schema: migration `0019_coin_logos.sql` (`coin_logos`,
+  `coin_logo_blocklist`).
+- **New error codes** (errors.json `version` 7, 67 codes): `LOGO_NOT_FOUND` (404), `LOGO_REJECTED` (422); MCP/agent:
+  `LOOSEN_REQUIRES_APP` (403; now a real code, see MCP_DESIGN), `RESUME_REQUIRES_APP` (403), `BUYS_PAUSED` (409),
+  `AGENT_BUDGET_EXCEEDED` (429, retryable), `AGENT_TRADE_DISABLED` (403), `SIWS_SESSION_REQUIRED` (403),
+  `AGENT_REQUEST_EXPIRED` (410). Generated `src/wire/errors.ts` + Rust `error_codes.rs`; Dart tables not yet
+  regenerated (mobile).
+- MCP/OAuth (backend `api/src/mcp`, `api/src/oauth`, migrations 0020/0021): see `services/backend/docs/MCP_DESIGN.md`.
+
 ## 1.1.5 (2026-10-29, backend ef74131): quotes without rev bumps, sell quotes, Centurion Trade
 
 Product name is now **Centurion Trade** in user-facing strings, docs, `/healthz` (`service`, `product`) and the SIWS
-statement. Repo, crate, package, DB, JWT claim (`sentra_client`) and header (`X-Sentra-*`) names keep `sentra`.
+statement. Repo, crate, package, DB, JWT claim (`centurion_client`) and header (`X-Centurion-*`) names keep `centurion`.
 
 - **`quote_id`** (int64 string) on `ApprovalWire` / `ProposalWire` / `proposal.updated`: `"0"` = never quoted, + 1 per
   refresh. **A quote refresh no longer bumps `rev`** (1.1.4 did), so decision tokens and push actions stay valid.
@@ -26,7 +47,7 @@ statement. Repo, crate, package, DB, JWT claim (`sentra_client`) and header (`X-
   `update_strategy` RPC is internal. Real: same flow + 2,500 ms hold (step-up in Phase 7). **An agent (MCP) cannot
   propose a loosening at all:** `403 FORBIDDEN_ROLE {reason: "agent_cannot_loosen"}`, no proposal row (SQL trigger
   on `approvals`). "MCP may propose" is removed everywhere; `LOOSEN_REQUIRES_APP` was never an error code.
-- SIWS statement v2 = `Sign in to Centurion Trade` (UX key `auth.siws.statement`, default). v1 (Sentra) stays
+- SIWS statement v2 = `Sign in to Centurion Trade` (UX key `auth.siws.statement`, default). v1 (Centurion) stays
   accepted until `AUTH_SIWS_LEGACY_STATEMENT_UNTIL` (default `2026-11-05T12:00:00Z`) unless
   `AUTH_SIWS_LEGACY_STATEMENT=false`; afterwards nonce `422`, verify on an old v1 nonce `401 SIWS_NONCE_INVALID
   {reason: "statement_retired"}`.
@@ -44,11 +65,11 @@ statement. Repo, crate, package, DB, JWT claim (`sentra_client`) and header (`X-
 ## Unreleased: wallet login (backend, additive; no wire-type change)
 
 - SIWS fails closed: no boot (exit 78) with SIWS enabled and an empty/invalid `OWNER_WALLETS`; empty list at runtime = no login.
-- Login limits never hard-block the owner wallet (soft delay, `X-Sentra-Login-Delay-Ms`); strangers 403 then 429 per IP.
+- Login limits never hard-block the owner wallet (soft delay, `X-Centurion-Login-Delay-Ms`); strangers 403 then 429 per IP.
 - SIWS hardening (mobile review): every message field stored with the nonce and compared exactly (B-3; mismatch burns
   the nonce); refresh grace 10 s returns the same successor pair (B-4); access tokens carry `sid`, checked per request,
   so logout ends them (B-5, `session_revoked`); `statement_version` on nonce request/response (B-7); access tokens
-  signed with our own `SENTRA_SESSION_SECRET` (B-10); FLUTTER/WEB integration answers updated (B-8).
+  signed with our own `CENTURION_SESSION_SECRET` (B-10); FLUTTER/WEB integration answers updated (B-8).
 - SIWS verify returns `workspace_id`; the first login creates the owner's workspace (idempotent); users are created
   via the Supabase admin API in production.
 - Rate limits on every write route (per IP, per user, per route), optional Postgres-backed counters (API_ENDPOINTS 2.3).
@@ -162,7 +183,7 @@ Migrations 0001/0002 were edited in place (never applied outside local test DBs)
   `If-Match: "<rev>"` or `expected_rev` (`p_expected_rev`). Required for every channel, including push.
 - **Actor and channel come from the JWT**: removed `p_actor`, `p_via`, `p_client`, `p_user` from every
   client RPC (`decide_approval`, `update_strategy`, `reset_practice`, `register_device`, `revoke_device`).
-  `via` = claim `sentra_client` (`web|mobile|desktop|mcp`) or `push` for push-minted tokens. `p_device` stays.
+  `via` = claim `centurion_client` (`web|mobile|desktop|mcp`) or `push` for push-minted tokens. `p_device` stays.
 - `reset_practice(p_workspace uuid)` is the only signature (REST `POST /v1/workspaces/{ws}/practice/reset`).
   The old "reset as a team_action proposal" text is deleted everywhere.
 - **Errors are always objects**: `{error: {code, message, ...details, server_now}, server_now}`; conflict
@@ -252,7 +273,7 @@ Breaking pre-release corrections. No producer had shipped v1.0 payloads, so per-
 - **One wire convention: snake_case** for every key (envelope, payloads, REST, settings, SQL) and enum value.
 - **Number rule**: SOL amounts = lamport integer strings, raw token amounts = integer strings, prices = decimal strings;
   percentages, ratios, bps, USD notionals, scores, measured values = JSON numbers (were decimal strings).
-- Settings keys, exit-preset ids, enum values and identifiers renamed to Sentra's own vocabulary (table below).
+- Settings keys, exit-preset ids, enum values and identifiers renamed to Centurion's own vocabulary (table below).
 - `LAST_IDENTITY` -> `LAST_LOGIN_METHOD` (now HTTP 422).
 - Paths: `/coins/{mint}/trail` -> `/coins/{mint}/timeline`, `/stats/exits` -> `/stats/exit-reasons`,
   `/workspaces/{ws}/reset-practice` -> `POST /workspaces/{ws}/practice/reset` (direct, no proposal).

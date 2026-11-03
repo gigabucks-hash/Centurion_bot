@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "sqlstate_rule": "P0 + HTTP status (P0401..P0429, P0500/P0503). SQL raises MESSAGE = code, DETAIL = JSON.",
   "codes": [
     {
@@ -55,6 +55,28 @@
       "messages": {
         "en": "Resource not found or not visible",
         "id": "Data tidak ditemukan atau tidak dapat diakses"
+      }
+    },
+    {
+      "code": "LOGO_NOT_FOUND",
+      "kind": "error",
+      "http": 404,
+      "sqlstate": "P0404",
+      "retryable": false,
+      "messages": {
+        "en": "No logo is available for this coin",
+        "id": "Logo untuk koin ini tidak tersedia"
+      }
+    },
+    {
+      "code": "LOGO_REJECTED",
+      "kind": "error",
+      "http": 422,
+      "sqlstate": "P0422",
+      "retryable": false,
+      "messages": {
+        "en": "The coin's logo was rejected (size, format, SVG, decoding or moderation)",
+        "id": "Logo koin ditolak (ukuran, format, SVG, gagal dibaca, atau moderasi)"
       }
     },
     {
@@ -605,6 +627,83 @@
       "messages": {
         "en": "A market data source is degraded; new picks may be delayed",
         "id": "Sumber data pasar sedang terganggu; pick baru mungkin tertunda"
+      }
+    },
+    {
+      "code": "LOOSEN_REQUIRES_APP",
+      "kind": "error",
+      "http": 403,
+      "sqlstate": "P0403",
+      "retryable": false,
+      "messages": {
+        "en": "Loosening limits or guards can only be requested in the Centurion Trade app",
+        "id": "Melonggarkan batas atau guard hanya bisa diminta di aplikasi Centurion Trade"
+      }
+    },
+    {
+      "code": "RESUME_REQUIRES_APP",
+      "kind": "error",
+      "http": 403,
+      "sqlstate": "P0403",
+      "retryable": false,
+      "messages": {
+        "en": "Buying was paused in the app; resume it in the Centurion Trade app",
+        "id": "Pembelian dijeda dari aplikasi; lanjutkan lewat aplikasi Centurion Trade"
+      }
+    },
+    {
+      "code": "BUYS_PAUSED",
+      "kind": "error",
+      "http": 409,
+      "sqlstate": "P0409",
+      "retryable": false,
+      "messages": {
+        "en": "Buys are paused",
+        "id": "Pembelian sedang dijeda"
+      }
+    },
+    {
+      "code": "AGENT_BUDGET_EXCEEDED",
+      "kind": "error",
+      "http": 429,
+      "sqlstate": "P0429",
+      "retryable": true,
+      "messages": {
+        "en": "Agent call budget exceeded; try again later",
+        "id": "Batas panggilan agen terlampaui; coba lagi nanti"
+      }
+    },
+    {
+      "code": "AGENT_TRADE_DISABLED",
+      "kind": "error",
+      "http": 403,
+      "sqlstate": "P0403",
+      "retryable": false,
+      "messages": {
+        "en": "Agent trading is off; turn it on in the Centurion Trade app",
+        "id": "Trading oleh agen nonaktif; aktifkan di aplikasi Centurion Trade"
+      }
+    },
+    {
+      "code": "SIWS_SESSION_REQUIRED",
+      "kind": "error",
+      "http": 403,
+      "sqlstate": "P0403",
+      "retryable": false,
+      "messages": {
+        "en": "Sign in with your wallet in the Centurion Trade app",
+        "id": "Masuk dengan wallet di aplikasi Centurion Trade"
+      }
+    },
+    {
+      "code": "AGENT_REQUEST_EXPIRED",
+      "kind": "error",
+      "http": 410,
+      "sqlstate": "P0410",
+      "retryable": false,
+      "messages": {
+        "en": "This agent connection request has expired; start again from the agent",
+        "id": "Permintaan koneksi agen ini kedaluwarsa; mulai lagi dari agen"
       }
     },
     {

@@ -1,4 +1,4 @@
-// Sentra stream contract v1.1.4 (snake_case everywhere). Mirrors services/backend/crates/common/src/event.rs,
+// Centurion stream contract v1.1.4 (snake_case everywhere). Mirrors services/backend/crates/common/src/event.rs,
 // the SQL wire functions (position_wire, order_wire, fill_wire) and EVENTS_SCHEMA.md.
 // Number rule: SOL amounts = lamport integer strings, raw token amounts = integer strings, prices = decimal
 // strings, int64 ids (seq, job_id) = integer strings; percentages, ratios, bps, USD notionals, scores,
@@ -77,6 +77,10 @@ export interface EventEnvelope<T extends string = string, P = JsonValue> {
   /** Pick key (1 coin x 1 strategy). */
   ck: string | null;
   mint: Base58 | null;
+  /** 1.1.6: our logo proxy URL for `mint` (see LogoUrl). Present on SSE/REST delivery (like server_now);
+   *  null when the event has no mint or the proxy is disabled. Covers coin.detected, pick.created, position.*,
+   *  proposal.* and every other feed item that carries a mint. */
+  logo_url?: LogoUrl | null;
   ts: IsoTs;
   actor: Actor;
   mode: Mode;
@@ -160,6 +164,29 @@ export interface MarketCapFields {
   mcap_source: McapSource;
 }
 export type McapSource = "curve" | "pool" | "unavailable";
+
+/**
+ * 1.1.6 coin logo: OUR image proxy URL, never a token-provided URI.
+ * `GET /v1/img/coin/{mint}?s={LogoSize}[&fmt=webp|png]&v={logo_hash}` (API_ENDPOINTS 4.12): re-encoded WebP
+ * (default) or PNG fallback (`fmt=png` or an Accept without image/webp); never SVG. 200 = image;
+ * 404 LOGO_NOT_FOUND / 422 LOGO_REJECTED = show the deterministic identicon (COIN_LOGO 4), no retry per mint+v.
+ * `logo_url` carries `s=96`; clients swap `s` for the smallest LOGO_SIZES entry >= px * dpr (max 192).
+ * `logo_hash` null = identicon without a request. Only use `logo_url` when its origin is our API.
+ */
+export type LogoUrl = string;
+export const LOGO_SIZES = [48, 64, 96, 128, 192] as const;
+export type LogoSize = (typeof LOGO_SIZES)[number];
+export type LogoFormat = "webp" | "png";
+/** Smallest size >= displayPx * dpr (192 when larger). */
+export function logoSizeFor(displayPx: number, dpr = 1): LogoSize {
+  const want = displayPx * dpr;
+  return LOGO_SIZES.find((s) => s >= want) ?? 192;
+}
+/** Same logo, another size/format: rewrites `s` (and `fmt`) on a logo_url, keeping `v`. */
+export function logoUrlFor(logoUrl: LogoUrl, size: LogoSize, format: LogoFormat = "webp"): LogoUrl {
+  const u = logoUrl.replace(/([?&])s=\d+/, `$1s=${size}`).replace(/&fmt=(webp|png)/, "");
+  return format === "png" ? `${u}&fmt=png` : u;
+}
 export interface CoinDetected extends MarketCapFields {
   mint: Base58; venue: Venue; launchpad: string | null; creator: Base58 | null;
   /** From the mint account (never assumed). null only while the mint account is unreadable; such coins are not filled. */
@@ -177,12 +204,18 @@ export interface CoinWire extends MarketCapFields {
   mint: Base58; decimals: number | null; token_program: TokenProgram | null; quote_mint: Base58 | null;
   launchpad: string | null; venue: Venue | null; creator: Base58 | null;
   first_seen_at: IsoTs | null; migrated_at: IsoTs | null; untrusted: Record<string, unknown>;
+  /** 1.1.6: `v` of the logo URL (content hash); null = no logo yet/unavailable -> identicon. */
+  logo_hash: string | null;
+  logo_url: LogoUrl | null;
 }
 /** REST pick resource (GET .../picks, .../picks/{id}); market cap as of the pick. */
 export interface PickWire extends MarketCapFields {
   id: Uuid; ck: string; workspace_id: Uuid; strategy_id: Uuid; mint: Base58; mode: "practice";
   stage: string; score: number | null; score_threshold: number | null; checks: ScreenerCheck[];
   guard: unknown | null; guard_verdict: GuardVerdict | null; created_at: IsoTs; updated_at: IsoTs;
+  /** 1.1.6 */
+  logo_hash: string | null;
+  logo_url: LogoUrl | null;
 }
 
 /** POST .../guard-impact/estimate (ships first). */
@@ -269,6 +302,9 @@ export interface FillWire {
 }
 /** Position resource (= SQL public.position_wire()). Writes use If-Match: "<rev>". */
 export interface PositionWire {
+  /** 1.1.6 */
+  logo_hash: string | null;
+  logo_url: LogoUrl | null;
   id: Uuid; position_key: string; workspace_id: Uuid; strategy_id: Uuid | null; mint: Base58; mode: Mode;
   status: "open" | "closed"; rev: number; practice_epoch: number;
   qty_raw: RawQty; decimals: number | null; token_program: TokenProgram | null;
@@ -467,6 +503,8 @@ export interface ApprovalDecisionResponse {
 /** = ApprovalWire (the proposal/approval resource). Quote fields (1.1.4) are always present, null when unset. */
 export type ProposalWire = ApprovalWire;
 export interface ApprovalWire extends Required<ProposalQuoteFields> {
+  /** 1.1.6: logo of `mint` (null when mint is null or the proxy is disabled). */
+  logo_url: LogoUrl | null;
   /** 1.1.5 */
   decimals: number | null; token_program: TokenProgram | null; position_id: Uuid | null;
   id: Uuid; proposal_id: Uuid; workspace_id: Uuid; strategy_id: Uuid | null; kind: ProposalKind; mode: Mode;
@@ -553,7 +591,7 @@ export interface PushPayload {
   mode: Mode;
   workspace_id: Uuid;
   seq: Int64String;
-  deep_link: string;          // sentra://approvals/<id> etc.
+  deep_link: string;          // centurion://approvals/<id> etc.
   approval_id?: Uuid;
   /** Approval rev; send it back as expected_rev. Present whenever approval_id is. */
   version?: number;

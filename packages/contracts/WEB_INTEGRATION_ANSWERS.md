@@ -1,7 +1,7 @@
 # Backend answers for Web (dashboard)
 
 Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS types in `src/wire`
-(`import { wire } from "@sentra/contracts"`). SQL: `services/backend/supabase/migrations/0001_init.sql`, `0002_contracts_v1_1.sql`.
+(`import { wire } from "@centurion/contracts"`). SQL: `services/backend/supabase/migrations/0001_init.sql`, `0002_contracts_v1_1.sql`.
 **Contract v1.1** (2026-10-29): see the v1.1 section at the end and `CHANGELOG.md`.
 
 ## Round 1 (original 7 questions)
@@ -108,14 +108,14 @@ Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS type
     at once (`401 UNAUTHENTICATED {reason: "session_revoked"}`).
 - Only allow-listed owner wallets (`OWNER_WALLETS`, required; the API does not boot without it) can sign in;
   others get `403 FORBIDDEN_ROLE {reason: "wallet_not_allowed"}`. The owner wallet is never answered `429` at login,
-  only delayed (`X-Sentra-Login-Delay-Ms`).
+  only delayed (`X-Centurion-Login-Delay-Ms`).
 - Nonce: 5 min, single-use, every message field (domain, address, uri, chain, issued at, expiry, statement version)
   is stored with it and compared exactly at verify; a tampered message burns the nonce.
 - **`client`:** send `"web"` from the web app (also the default). It is optional and defaults to `"web"`; it becomes the
-  `sentra_client` claim, which the backend records as the channel (`via`) on approvals and audit rows and on the
+  `centurion_client` claim, which the backend records as the channel (`via`) on approvals and audit rows and on the
   session. It grants nothing: scopes are always `read` + `trade` (never `trade:real`).
-- Access token: HS256 signed by the Sentra API with its own key (`SENTRA_SESSION_SECRET`, iss `sentra-api`,
-  15 min, claims `sub, sid, app_scopes, sentra_client, wallet, amr: ["siws"]`). Send it only to the Sentra API,
+- Access token: HS256 signed by the Centurion API with its own key (`CENTURION_SESSION_SECRET`, iss `centurion-api`,
+  15 min, claims `sub, sid, app_scopes, centurion_client, wallet, amr: ["siws"]`). Send it only to the Centurion API,
   not to Supabase directly. The login wallet is never a trading wallet.
 - Web: `domain` must equal the page host (it is checked against `Origin`), `uri` an https URL on it.
 
@@ -139,7 +139,7 @@ Normative detail: `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, `errors.json`, TS type
    are `scanned filtered signaled entered exited`.
 6. Numbers: prices are `*_price_sol` decimal strings (no `entryPriceUsd` number); pct/ratio/bps/score are numbers.
    Guard impact responses are `StaticEstimate` / `ImpactReport` (not `RiskImpact`).
-7. `lib/contracts.ts` is imported but missing: import from `@sentra/contracts` (`wire`).
+7. `lib/contracts.ts` is imported but missing: import from `@centurion/contracts` (`wire`).
 8. New flows: practice reset (`POST .../practice/reset`, 429 `RESET_COOLDOWN` with `next_allowed_at`,
    `practice.reset` event -> drop cached positions/equity), account deletion (`/me/deletion`), devices
    (`PUT /devices/{device_id}` with `platform: "web"`, `provider: "webpush"`). Telegram and email OTP are dropped (404).

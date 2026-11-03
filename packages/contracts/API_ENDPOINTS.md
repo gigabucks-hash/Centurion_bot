@@ -1,6 +1,6 @@
 # Centurion Trade REST API (contract v1.1.5)
 
-Product name: **Centurion Trade** (user facing). Repo, crate, package and DB names keep the codename `sentra`.
+Product name: **Centurion Trade** (user facing). Repo, crate, package and DB names use `centurion` (repo-wide rename 2026-11-03, contracts 1.1.6).
 
 v1.1.5 (2026-10-29): `quote_id` (quote refresh no longer bumps `rev`), `expected_quote_id` on decisions, quote refresh
 and close-preview endpoints, sell quotes, ATA rent in `total_max_lamports`, `mcap_source`, `decimals` /
@@ -31,10 +31,10 @@ RPC (Supabase) errors: `PostgrestException.code` = SQLSTATE (`P0` + HTTP status,
 
 ## 1. Auth, scopes, workspace + mode separation
 
-- First-party apps: Supabase Auth JWT (`Authorization: Bearer`). Claims: `sub`, `app_scopes`, `sentra_client`
+- First-party apps: Supabase Auth JWT (`Authorization: Bearer`). Claims: `sub`, `app_scopes`, `centurion_client`
   (`web|mobile|desktop|mcp`, set by our access-token hook / MCP token minting).
 - **Actor and channel always come from the token** (Q13): every RPC uses `auth.uid()` as the actor and
-  `sentra_client` (or the push token's `issued_via = push`) as `via`. No RPC accepts `p_actor`, `p_via`,
+  `centurion_client` (or the push token's `issued_via = push`) as `via`. No RPC accepts `p_actor`, `p_via`,
   `p_client` or `p_user`. `p_device` (free-form device label) stays as optional metadata.
 - MCP / third-party agents: OAuth 2.1 Authorization Code + PKCE (S256 only), public clients; pre-registered, CIMD or DCR
   clients stay `pending` until the owner activates them on a SIWS-gated consent screen. Agent scopes `read` / `control` /
@@ -55,7 +55,7 @@ RPC (Supabase) errors: `PostgrestException.code` = SQLSTATE (`P0` + HTTP status,
   - Separate numbers: practice and real never share snapshots, funnels, stats or events.
 - Roles: `owner` `admin` `trader` `viewer`; `viewer` is read-only whatever the token scopes.
 - MCP (agent) **cannot propose** a guard loosening at all, and cannot decide a weakening or team action
-  (`403 APPROVAL_REQUIRES_APP`). An agent-source (`sentra_client = mcp`) write that weakens -> `403 FORBIDDEN_ROLE
+  (`403 APPROVAL_REQUIRES_APP`). An agent-source (`centurion_client = mcp`) write that weakens -> `403 FORBIDDEN_ROLE
   {reason: "agent_cannot_loosen"}`; no proposal row is created (enforced on the `approvals` row in SQL, so the REST
   PATCH and the `propose_guard_change` RPC both refuse it). Tightening patches stay allowed.
 
@@ -151,18 +151,18 @@ match: `mode`, `strategy_id`, `window=1h|24h|7d|30d|all` (default `24h`) or `fro
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/v1/auth/siws/nonce` | Body `{address, domain, uri?, chain_id?: "solana:mainnet"}` -> `200 {data: {nonce, message, issued_at, expires_at}}`. `domain` must be in `AUTH_SIWS_DOMAINS` and equal the `Origin` host when one is sent; `uri` https on that domain (default `https://{domain}`). 32-char alnum nonce, **5 min, single-use, bound to domain + address** (`siws_nonces`). Address not in `OWNER_WALLETS` -> `403 FORBIDDEN_ROLE {reason: "wallet_not_allowed"}`. **Fails closed:** the API refuses to start (exit 78) when `AUTH_SIWS_DOMAINS` is set and `OWNER_WALLETS` is missing, empty or has an entry that is not a 32-byte base58 address; an empty list at runtime denies every login. Login limits (nonce and verify, B-2): a malformed or non-allow-listed address is rejected before any DB or signature work and counted per IP (`AUTH_STRANGER_IP_PER_MIN`, 10) -> `429 RATE_LIMITED {retry_after_s, limit, window_s}` + `Retry-After`. An allow-listed owner wallet is **never** answered 429: per (address, IP) (`AUTH_OWNER_IP_PER_MIN`, 30), per address (`AUTH_OWNER_PER_MIN`, 60) and a global cap (`AUTH_GLOBAL_PER_MIN`, 600) are counted in Postgres (shared across instances) and any overage only delays the answer by 250 ms per hit over, at most `AUTH_OWNER_MAX_DELAY_MS` (3000), reported in `X-Sentra-Login-Delay-Ms`. `/v1/auth/*` is exempt from the generic write limits (2.3). `AUTH_SIWS_DOMAINS` empty -> `503 UNAVAILABLE`. |
+| POST | `/v1/auth/siws/nonce` | Body `{address, domain, uri?, chain_id?: "solana:mainnet"}` -> `200 {data: {nonce, message, issued_at, expires_at}}`. `domain` must be in `AUTH_SIWS_DOMAINS` and equal the `Origin` host when one is sent; `uri` https on that domain (default `https://{domain}`). 32-char alnum nonce, **5 min, single-use, bound to domain + address** (`siws_nonces`). Address not in `OWNER_WALLETS` -> `403 FORBIDDEN_ROLE {reason: "wallet_not_allowed"}`. **Fails closed:** the API refuses to start (exit 78) when `AUTH_SIWS_DOMAINS` is set and `OWNER_WALLETS` is missing, empty or has an entry that is not a 32-byte base58 address; an empty list at runtime denies every login. Login limits (nonce and verify, B-2): a malformed or non-allow-listed address is rejected before any DB or signature work and counted per IP (`AUTH_STRANGER_IP_PER_MIN`, 10) -> `429 RATE_LIMITED {retry_after_s, limit, window_s}` + `Retry-After`. An allow-listed owner wallet is **never** answered 429: per (address, IP) (`AUTH_OWNER_IP_PER_MIN`, 30), per address (`AUTH_OWNER_PER_MIN`, 60) and a global cap (`AUTH_GLOBAL_PER_MIN`, 600) are counted in Postgres (shared across instances) and any overage only delays the answer by 250 ms per hit over, at most `AUTH_OWNER_MAX_DELAY_MS` (3000), reported in `X-Centurion-Login-Delay-Ms`. `/v1/auth/*` is exempt from the generic write limits (2.3). `AUTH_SIWS_DOMAINS` empty -> `503 UNAVAILABLE`. |
 | POST | `/v1/auth/siws/verify` | Body `{address, message (exactly as returned), signature (base58, 64-byte ed25519), client?: web\|mobile\|desktop}`. Strict parse (any extra/changed line -> `401 SIWS_NONCE_INVALID {reason: "message"}`), expiry check, allowlist check, `consume_siws_nonce` (atomic; every message field must equal the nonce row: address, domain, uri, chain, issued_at, expiration, statement_version; any mismatch or a bad signature burns the nonce), ed25519 verify over the exact UTF-8 bytes with the address as public key (`401 SIWS_SIGNATURE_INVALID`), find/create the user + `auth_identities(provider='siws')`, ensure the owner workspace. -> `200 {data: Session & {workspace_id}}`. Limits as for nonce (owner never 429). Verification only: the server never holds keys or signs anything. |
 | POST | `/v1/auth/session/refresh` | Body `{refresh_token}` -> `200 {data: Session}` with a NEW refresh token (rotation; same `session_id`). A rotated token presented again revokes the whole session family -> `401 UNAUTHENTICATED {reason: "refresh_reused"}`; revoked/expired/unknown -> `401 {reason: refresh_revoked\|refresh_expired\|refresh_invalid}`. Wallet no longer in `OWNER_WALLETS` -> family revoked, `403 FORBIDDEN_ROLE`. 30/min/IP. |
 | POST | `/v1/auth/session/logout` | Body `{refresh_token}` -> `200 {data: {revoked: true}}` always (revokes the family if it exists). |
 
 **Client and token answers (mobile review B-9/B-10).** `client` on verify is optional, one of `web|mobile|desktop`,
-default `web`; the app must send `"mobile"`. It becomes the `sentra_client` claim, the channel (`via`) recorded on
+default `web`; the app must send `"mobile"`. It becomes the `centurion_client` claim, the channel (`via`) recorded on
 approvals, audit rows and the session; it never changes scopes. Access tokens are minted and verified by this API with
-its **own** HS256 key `SENTRA_SESSION_SECRET` (iss `sentra-api`; required when SIWS is on, must differ from
+its **own** HS256 key `CENTURION_SESSION_SECRET` (iss `centurion-api`; required when SIWS is on, must differ from
 `SUPABASE_JWT_SECRET`), not the Supabase project secret, so Supabase moving to asymmetric signing keys does not affect
 them. RLS still applies because the API sets the verified claims in each transaction itself (PostgREST is not in the
-path). Tokens without iss `sentra-api` are verified with `SUPABASE_JWT_SECRET` (legacy path, used by tests/tools);
+path). Tokens without iss `centurion-api` are verified with `SUPABASE_JWT_SECRET` (legacy path, used by tests/tools);
 when the project switches to asymmetric keys that path moves to the project JWKS
 (`{SUPABASE_URL}/auth/v1/.well-known/jwks.json`, ES256/RS256 only, `kid` cache 10 min, refetch on unknown `kid` at
 most once per minute, fail closed). Every access token carries `sid` (= `session_id`); each request checks it is live,
@@ -180,7 +180,7 @@ A retired version -> nonce `422 VALIDATION_FAILED {field: "statement_version", a
 
 | statement_version | statement | status |
 |---|---|---|
-| 1 | `Sign in to Sentra (practice). This request does not trigger a transaction or cost any fees.` | legacy (transition only) |
+| 1 | `Sign in to Centurion (practice). This request does not trigger a transaction or cost any fees.` | legacy (transition only) |
 | 2 | `Sign in to Centurion Trade` | current (default) |
 
 Changing the text adds a new version (contract change, CHANGELOG); old ones are only removed in a major version.
@@ -190,10 +190,10 @@ session_id, user_id, address}`; verify also returns `workspace_id`: the first lo
 the owner's "Practice" workspace (`ensure_owner_workspace`, idempotent, owner membership), later logins return
 the same one. New users are created through the **Supabase admin API** (`AUTH_USER_CREATE=supabase_admin`, default;
 needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` from env; wallet users get a non-routable confirmed alias email
-`w-<sha256(address)[0..32]>@wallet.sentra.invalid`, never mailed). `AUTH_USER_CREATE=direct` (insert into
+`w-<sha256(address)[0..32]>@wallet.centurion.invalid`, never mailed). `AUTH_USER_CREATE=direct` (insert into
 `auth.users`) is for local tests only and refused with `NODE_ENV=production`. Access token: HS256 with the API's JWT secret, `exp` = `AUTH_ACCESS_TTL_S` (default
-900 s, 60-3600), claims `{iss: "sentra-api", sub, aud, role: "authenticated", app_scopes: ["read","trade"],
-sentra_client, session_id, amr: ["siws"], wallet}`; never `trade:real`. Refresh token: opaque, `AUTH_REFRESH_TTL_S`
+900 s, 60-3600), claims `{iss: "centurion-api", sub, aud, role: "authenticated", app_scopes: ["read","trade"],
+centurion_client, session_id, amr: ["siws"], wallet}`; never `trade:real`. Refresh token: opaque, `AUTH_REFRESH_TTL_S`
 (default 30 d), stored as sha256 only (`auth_refresh_tokens`). Email OTP and Telegram are **dropped from the MVP**:
 their routes answer `404` while `AUTH_EMAIL_OTP_ENABLED` / `AUTH_TELEGRAM_OIDC_ENABLED` are false (default) and
 have no implementation; the rows below are kept as the earlier design.
@@ -229,7 +229,7 @@ have no implementation; the rows below are kept as the earlier design.
 | GET | `/?mode=&status=` | read | with `rev`, headline stats |
 | POST | `/` | trade | `{mode, name, settings}`; settings validated by `config/strategy_settings.schema.json` + DB CHECK |
 | GET | `/{id}` / `/{id}/revisions` | read | |
-| PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge at the top level; `null` removes a key; nested objects such as `guard_checks` are replaced whole). Non-weakening -> applied (`200`, `rev+1`). **Weakening** (any guard field less strict, per SQL `guard_weakened_fields()`) -> **`202 {data: {proposal: ApprovalWire, guard_change: GuardChangeWire}}`** + `Location: /approvals/{id}`; **nothing is applied**; the whole patch (mixed strengthen + weaken too) becomes one `guard_change` proposal (24 h expiry, `base_rev` = current rev). A weakening patch cannot carry `name`/`status` (422). **MCP (`sentra_client = mcp`) cannot propose:** a weakening patch -> `403 FORBIDDEN_ROLE {reason: "agent_cannot_loosen"}`, nothing created; non-weakening patches are allowed with the agent `control` scope. **Clients (1.1.5):** use this REST PATCH (202 + proposal) for every guard change; `409 GUARD_WEAKEN_REQUIRES_APPROVAL` from the `update_strategy` RPC is an internal guard, not a client flow. Real uses the same flow plus a 2,500 ms hold (step-up in Phase 7, 4.6). Stale -> 409 (2.1) |
+| PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge at the top level; `null` removes a key; nested objects such as `guard_checks` are replaced whole). Non-weakening -> applied (`200`, `rev+1`). **Weakening** (any guard field less strict, per SQL `guard_weakened_fields()`) -> **`202 {data: {proposal: ApprovalWire, guard_change: GuardChangeWire}}`** + `Location: /approvals/{id}`; **nothing is applied**; the whole patch (mixed strengthen + weaken too) becomes one `guard_change` proposal (24 h expiry, `base_rev` = current rev). A weakening patch cannot carry `name`/`status` (422). **MCP (`centurion_client = mcp`) cannot propose:** a weakening patch -> `403 FORBIDDEN_ROLE {reason: "agent_cannot_loosen"}`, nothing created; non-weakening patches are allowed with the agent `control` scope. **Clients (1.1.5):** use this REST PATCH (202 + proposal) for every guard change; `409 GUARD_WEAKEN_REQUIRES_APPROVAL` from the `update_strategy` RPC is an internal guard, not a client flow. Real uses the same flow plus a 2,500 ms hold (step-up in Phase 7, 4.6). Stale -> 409 (2.1) |
 | GET | `/{id}/revisions`, `/{id}/revisions/{rev}` | read | history and merge base |
 | POST | `/{id}/pause`, `/{id}/resume` | trade | `If-Match` / `expected_rev` (status changes bump `rev`) |
 | POST | `/{id}/archive`, DELETE `/{id}` | trade | `retire_strategy()`; response `{expired_proposals: n}` |
@@ -463,6 +463,17 @@ no secrets, Real SOL never actionable from a push).
 | POST | `/me/deletion` | app | Requires re-auth <= 5 min (`REAUTH_REQUIRED`) and 2FA when enrolled. Body `{}`. The grace period is a **server-side setting** (`ACCOUNT_DELETION_GRACE_DAYS`, default 7, allowed **7–30**, decided by Apex as lead; out of range -> `422 VALIDATION_FAILED` `{range: "7-30"}`; clients cannot choose it) and is returned as `scheduled_for` / `grace_days`. Preconditions: no open Real positions, trading wallet withdrawn (`ACCOUNT_DELETION_BLOCKED`). SQL `request_account_deletion()`: state `pending_deletion`, `account.deletion_scheduled` event, confirmation email, audit. Already pending -> `409 ACCOUNT_DELETION_PENDING` |
 | DELETE | `/me/deletion` | app | cancel at any time until `scheduled_for` (`cancel_account_deletion()`), event `account.deletion_cancelled` |
 | — | worker | — | `finalize_due_account_deletions()` after `scheduled_for`: deletes identities, OTPs, passkeys, challenges, approval tokens, device tokens, memberships, display name; archives the user's strategies, closes owned workspaces, expires proposals (`account_deleted`); **audit_log rows are retained, anonymized by actor** (ip / user_agent / device nulled; actor id no longer resolves to a person); emits `account.deleted`; then the API deletes the `auth.users` row (hard delete of the login; trading history stays under the tombstoned id) |
+
+### 4.12 Coin logos (1.1.6, `GET /v1/img/coin/{mint}`)
+| Method | Path | Scope | Notes |
+|---|---|---|---|
+| GET | `/v1/img/coin/{mint}?s={48\|64\|96\|128\|192}[&fmt=webp\|png]&v={logo_hash}` | none (public image) | Our proxy, never a token-provided URI. Re-encoded **WebP** (default) or **PNG** (`fmt=png`, or an `Accept` without `image/webp`); never SVG; metadata (EXIF etc.) stripped. `200` image with `ETag`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'`; `Cache-Control: public, max-age=31536000, immutable` only when `v` equals the current `logo_hash`, else a short max-age (`LOGO_SHORT_MAX_AGE_S`, 300 s). `If-None-Match` -> `304`. `404 LOGO_NOT_FOUND` (no logo / proxy disabled) and `422 LOGO_REJECTED {reason}` (size, format, bomb, blocked, svg, ...) -> client shows the deterministic identicon (UX COIN_LOGO §4) and does not retry that mint+v. Bad `s`/`fmt` -> `400 VALIDATION_FAILED {field, allowed}`. Per-IP and cold-fetch rate limits (`LOGO_RATE_IP_PER_MIN`, `LOGO_COLD_*`). |
+
+Wires: `logo_hash` (string\|null, content hash = `v`) + `logo_url` (our URL with `s=96`, null when the proxy is off or
+there is no mint) on coin, pick and position wires; `logo_url` on proposals/approvals and on every SSE/REST event
+envelope that carries a mint. Clients pick the size with `logoSizeFor(px, dpr)` and rewrite with `logoUrlFor()`
+(`@centurion/contracts/wire`). Server design, SSRF rules and the transcoder dependency review:
+`services/backend/docs/LOGO_PROXY.md`. Off unless `LOGO_PROXY_ENABLED=true`.
 
 ### 4.9 Health
 `GET /healthz`, `GET /readyz` -> `{service: "Centurion Trade API", product: "Centurion Trade", mode: "practice", real_enabled: false, modes_enabled: ["practice"], live_executor: "disabled", contracts_version: "1.1.5", server_now}`. `/readyz` adds `db` and `ingest_bytes_today: {day_utc, sources: {<source>: {bytes, frames}}} | null` (ingest bytes/day meter, int64 strings, UTC day; `null` when the meter table is unavailable).

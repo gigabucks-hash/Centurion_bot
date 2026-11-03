@@ -1,6 +1,6 @@
 # Centurion Trade stream event schema (contract v1.1.5)
 
-Product name **Centurion Trade**; code/DB names keep the codename `sentra` (e.g. JWT claim `sentra_client`).
+Product name **Centurion Trade**; code/DB names use `centurion` (e.g. JWT claim `centurion_client`).
 
 Status: **v1.1.2, frozen for client work** (Web, Flutter, Desktop, MCP). See `CHANGELOG.md` for the v1.0 -> v1.1
 renames. From v1.1 on: additive changes only; a breaking change to a type's payload bumps that event's `version`.
@@ -256,7 +256,7 @@ integer strings; `actions` and `vars` are JSON-encoded strings; timestamps are R
 the device receives:
 ```json
 { "v": "1", "event": "N-01", "type": "proposal.created", "mode": "practice",
-  "workspace_id": "1000...000a", "seq": "18301", "deep_link": "sentra://approvals/3000...000a",
+  "workspace_id": "1000...000a", "seq": "18301", "deep_link": "centurion://approvals/3000...000a",
   "approval_id": "3000...000a", "version": "1", "token": "apt_Q2x...", "exp": "2026-10-29T08:52:00.000Z",
   "actions": "[\"approve\",\"skip\",\"open\"]",
   "vars": "{\"symbol\":\"EXM\",\"strategy\":\"Yumi · AMM\",\"amount_lamports\":\"250000000\"}",

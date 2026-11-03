@@ -21,16 +21,16 @@ All 16 mismatches you reported are resolved below (Apex/Boss decisions folded in
     at once (`401 UNAUTHENTICATED {reason: "session_revoked"}`).
 - Only allow-listed owner wallets (`OWNER_WALLETS`, required; the API does not boot without it) can sign in;
   others get `403 FORBIDDEN_ROLE {reason: "wallet_not_allowed"}`. The owner wallet is never answered `429` at login,
-  only delayed (`X-Sentra-Login-Delay-Ms`).
+  only delayed (`X-Centurion-Login-Delay-Ms`).
 - Nonce: 5 min, single-use, every message field (domain, address, uri, chain, issued at, expiry, statement version)
   is stored with it and compared exactly at verify; a tampered message burns the nonce.
 - **`client`:** send `"mobile"` from the app. It is optional and defaults to `"web"`; it becomes the
-  `sentra_client` claim, which the backend records as the channel (`via`) on approvals and audit rows and on the
+  `centurion_client` claim, which the backend records as the channel (`via`) on approvals and audit rows and on the
   session. It grants nothing: scopes are always `read` + `trade` (never `trade:real`).
-- Access token: HS256 signed by the Sentra API with its own key (`SENTRA_SESSION_SECRET`, iss `sentra-api`,
-  15 min, claims `sub, sid, app_scopes, sentra_client, wallet, amr: ["siws"]`). Send it only to the Sentra API,
+- Access token: HS256 signed by the Centurion API with its own key (`CENTURION_SESSION_SECRET`, iss `centurion-api`,
+  15 min, claims `sub, sid, app_scopes, centurion_client, wallet, amr: ["siws"]`). Send it only to the Centurion API,
   not to Supabase directly. The login wallet is never a trading wallet.
-- Your JWT then carries `sentra_client: "mobile"`. **Every RPC takes the actor from the JWT (`auth.uid()`) and the
+- Your JWT then carries `centurion_client: "mobile"`. **Every RPC takes the actor from the JWT (`auth.uid()`) and the
   channel from that claim.** You never send `p_actor`, `p_via`, `p_client` or `p_user`.
 
 ## 2. Exactly which params you send
@@ -121,7 +121,7 @@ Errors: `INVALID_FRACTION`, `POSITION_ALREADY_CLOSED`, `VERSION_CONFLICT` (with 
 are JSON-encoded strings.
 ```json
 { "v": "1", "event": "N-01", "type": "proposal.created", "mode": "practice",
-  "workspace_id": "1000…000a", "seq": "18301", "deep_link": "sentra://approvals/3000…000a",
+  "workspace_id": "1000…000a", "seq": "18301", "deep_link": "centurion://approvals/3000…000a",
   "approval_id": "3000…000a", "version": "1", "token": "apt_Q2x…", "exp": "2026-10-29T08:52:00.000Z",
   "actions": "[\"approve\",\"skip\",\"open\"]",
   "vars": "{\"symbol\":\"EXM\",\"strategy\":\"Yumi · AMM\",\"amount_lamports\":\"250000000\"}",
