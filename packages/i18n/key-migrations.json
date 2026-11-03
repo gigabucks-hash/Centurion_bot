@@ -574,7 +574,7 @@
         },
         {
           "key": "error.code.mode_not_allowed",
-          "note": "per strategy: not approved for Real (contracts 1.1.6)"
+          "note": "per strategy: not approved for Real mode (contracts 1.1.6 wording, Backend)"
         },
         {
           "key": "order.fail_reason.mode_not_allowed",

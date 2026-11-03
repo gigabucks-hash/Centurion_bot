@@ -45,7 +45,7 @@ void main() {
     expect(en.notifTpHitBody('40.0%', '50%', '+0.12 SOL'), 'Sold 50% at +40.0% · +0.12 SOL');
     expect(id.notifPracticeResetBody('10 paper SOL'), 'Saldo kembali ke 10 paper SOL. Buy tertunda dihapus.');
     expect(en.orderFailReasonPositionAlreadyClosed, 'This position was already closed');
-    expect(id.orderFailReasonModeNotAllowed, contains('belum disetujui untuk Real'));
+    expect(id.orderFailReasonModeNotAllowed, 'Strategi ini belum disetujui untuk mode Real');
     expect(en.orderFailReasonValidationFailed, isNotEmpty);
     expect(id.errorCodeInvalidFraction, 'Pilih porsi jual dari 0,01% sampai 100%.');
     expect(id.screenerDetailQuoteNotSol('USDC'), 'USDC · bukan SOL');
@@ -153,7 +153,11 @@ void main() {
     expect(en.modePracticeLabel, 'PAPER'); // key name unchanged until 0.5.0
     expect(id.notifPracticeResetTitle, '[PAPER] Cek saldo: Paper di-reset');
     expect(en.notifPickPendingTitle('practice', 'EXM'), '[PAPER] Review EXM: awaiting approval');
-    expect(en.errorCodeModeNotAllowed, startsWith('This strategy isn’t approved for Real'));
+    expect(en.errorCodeModeNotAllowed, 'This strategy is not approved for Real mode'); // contracts 1.1.6 wording
+    expect(id.errorCodeModeNotAllowed, 'Strategi ini belum disetujui untuk mode Real');
+    expect(id.strategyRealLockedReasonGateNotMet, isNotEmpty);
+    expect(id.strategyRealLockedReasonPolicy, isNotEmpty);
+    expect(en.strategyRealLockedReasonOther, isNotEmpty);
     expect(en.strategyModePaper, 'Paper');
     expect(id.strategyRealLockedChip, 'Real terkunci');
     expect(id.strategyRealLockedReasonNeedsOwnerApproval, 'Butuh persetujuan Boss');

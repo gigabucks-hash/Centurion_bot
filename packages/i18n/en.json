@@ -275,7 +275,7 @@
       "logo_not_found": "No logo for this coin. The symbol initials are shown instead.",
       "logo_rejected": "This coin's logo was rejected. The symbol initials are shown instead.",
       "loosen_requires_app": "Open the Centurion Trade app to loosen limits or guards.",
-      "mode_not_allowed": "This strategy isn’t approved for Real yet. It keeps running in Paper.",
+      "mode_not_allowed": "This strategy is not approved for Real mode",
       "not_found": "Not found, or you don’t have access.",
       "otp_invalid": "Wrong or expired code.",
       "otp_locked": "Too many attempts. Try again in 15 minutes.",
@@ -750,7 +750,7 @@
     "fail_reason": {
       "guard_failed": "A guard check failed right before the order",
       "insufficient_practice_balance": "Not enough paper SOL",
-      "mode_not_allowed": "This strategy isn’t approved for Real; only Paper orders run",
+      "mode_not_allowed": "This strategy is not approved for Real mode",
       "pool_stale": "Pool data was out of date; the order was not sent",
       "position_already_closed": "This position was already closed",
       "slippage_exceeded": "Price moved more than your slippage limit",

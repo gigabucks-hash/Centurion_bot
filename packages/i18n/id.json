@@ -275,7 +275,7 @@
       "logo_not_found": "Logo koin ini tidak ada. Inisial simbol ditampilkan sebagai gantinya.",
       "logo_rejected": "Logo koin ini ditolak. Inisial simbol ditampilkan sebagai gantinya.",
       "loosen_requires_app": "Buka aplikasi Centurion Trade untuk melonggarkan limit atau guard.",
-      "mode_not_allowed": "Strategi ini belum disetujui untuk Real. Strategi tetap jalan di Paper.",
+      "mode_not_allowed": "Strategi ini belum disetujui untuk mode Real",
       "not_found": "Data tidak ditemukan atau tidak dapat diakses.",
       "otp_invalid": "Kode salah atau kedaluwarsa.",
       "otp_locked": "Terlalu banyak percobaan. Coba lagi dalam 15 menit.",
@@ -750,7 +750,7 @@
     "fail_reason": {
       "guard_failed": "Cek guard gagal tepat sebelum order",
       "insufficient_practice_balance": "Saldo paper SOL tidak cukup",
-      "mode_not_allowed": "Strategi ini belum disetujui untuk Real; hanya order Paper yang jalan",
+      "mode_not_allowed": "Strategi ini belum disetujui untuk mode Real",
       "pool_stale": "Data pool sudah usang; order tidak dikirim",
       "position_already_closed": "Posisi ini sudah ditutup",
       "slippage_exceeded": "Harga bergerak melebihi batas slippage",

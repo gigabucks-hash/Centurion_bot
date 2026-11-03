@@ -921,7 +921,7 @@
   "@errorCodeLoosenRequiresApp": {
     "description": "wire error.code LOOSEN_REQUIRES_APP (contracts 1.1.6 errors v7)"
   },
-  "errorCodeModeNotAllowed": "This strategy isn’t approved for Real yet. It keeps running in Paper.",
+  "errorCodeModeNotAllowed": "This strategy is not approved for Real mode",
   "@errorCodeModeNotAllowed": {
     "description": "wire error.code MODE_NOT_ALLOWED"
   },
@@ -2586,7 +2586,7 @@
   "@orderFailReasonInsufficientPracticeBalance": {
     "description": "order.failed reason_code=INSUFFICIENT_PRACTICE_BALANCE"
   },
-  "orderFailReasonModeNotAllowed": "This strategy isn’t approved for Real; only Paper orders run",
+  "orderFailReasonModeNotAllowed": "This strategy is not approved for Real mode",
   "@orderFailReasonModeNotAllowed": {
     "description": "order.failed reason_code=MODE_NOT_ALLOWED"
   },

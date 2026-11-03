@@ -11,8 +11,11 @@ sekarang punya copy sendiri: 67/67 · copy 56 · fallback 11). `notifications.ma
   'Practice' atau prefix lama masih ada di copy.
 - **Nama key TIDAK berubah di 0.4.10.** `mode.practice.*`, `*.practice_reset`, `notif.mode_practice.*`, dll. tetap; nilai wire `practice` tetap
   (contracts 1.1.6). **Rename key `practice` → `paper` menunggu 0.5.0** (akan tercatat di `key-migrations.json` sebagai `renamed` old→new).
-- `MODE_NOT_ALLOWED` = per strategi: "This strategy isn’t approved for Real…" / "Strategi ini belum disetujui untuk Real…" (`error.code.*` dan
-  `order.fail_reason.*`).
+- `MODE_NOT_ALLOWED` = per strategi, wording contracts 1.1.6 (Backend `0a2d1b2`): **"This strategy is not approved for Real mode"** /
+  **"Strategi ini belum disetujui untuk mode Real"** (`error.code.mode_not_allowed` dan `order.fail_reason.mode_not_allowed`).
+- `StrategyRealGateFields` (contracts 1.1.6): wire `mode` tetap `practice|real`, label UI `practice` = "Paper"; `real_locked_reason` 4/4 punya copy;
+  `paper_progress.*_required = null` → `strategy.real_gate.not_set` ("Rule not set yet" / "Aturan belum ditetapkan") + `.days_done`/`.trades_done`
+  tanpa pembagi. Jangan pernah mengasumsikan 7 hari.
 - Tidak ada copy yang memakai nama kerja lama (cek brand tetap jalan).
 
 ### Copy berubah
