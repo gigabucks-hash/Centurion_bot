@@ -966,7 +966,7 @@ mod tests {
             "token never in Debug"
         );
         assert_eq!(
-            redact("Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIwMDAwMDAwMC0wMDAwIn0.c2lnbmF0dXJl x"),
+            redact("Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bb.cc x"),
             "Bearer <redacted> x"
         );
     }
