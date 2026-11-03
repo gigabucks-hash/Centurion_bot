@@ -1,7 +1,30 @@
 # Strategy Spec v1 mapping (Centurion Trade P1 engine, paper only)
 
-Status: **design / mapping only, rev 2** (2026-11-03 ~14:50 WIB, Backend). Nothing here is built yet; the engine is
-built after the repo-wide rename. Source: `/workspace/sentra-inbox/STRATEGY_SPEC_V1_CONSOLIDATED.txt`.
+Status: **rev 3 DRAFT, awaiting Bubu/Zola final PASS** (2026-11-03 ~15:10 WIB, Backend). Not locked. Design /
+mapping only; nothing here is built yet. Source: `/workspace/sentra-inbox/STRATEGY_SPEC_V1_CONSOLIDATED.txt`.
+
+## Rev 3 changelog (2026-11-03)
+
+Precedence: **Bubu B-1..B-8 + locker whitelist (14:52) and Zola Z-1..Z-5 (14:51) > Yumi answers + Apex R2-1 (14:50) >
+rev 2.** Zola Z-1 overrides R2-16; the Bubu whitelist supersedes R2-2 "whitelist empty".
+
+- **Locker whitelist** (Bubu-verified mainnet programs, §2.6 G2): Streamflow, Raydium Burn&Earn, Jupiter Lock, Meteora
+  DAMM v1 (lock_escrow PDA), Meteora DAMM v2 (position lock fields). Excluded: UNCX, PinkLock, Team Finance, Fluxbeam.
+  Locked LP counts only when non-cancellable, non-transferable and with no early withdraw (B-2); cancellable = unlocked.
+  DAMM v2 permanent position locks count (Z-3).
+- **RPC budget (R2-1):** Helius treated as free tier. `ENGINE_RPC_DAILY_CREDIT_CAP` default **25000/day** (configurable)
+  + running monthly meter; deep checks cheapest-first, only after Scout + cheap Guard pass; cache TTLs fixed
+  (authorities / Token-2022 forever, holders / clusters 10 min); cap hit -> reject `credit_cap`, every cap hit logged;
+  daily credit usage in the daily report (§2.8, §7).
+- Scout A anti-top now from the window LOW with a near-high condition (Z-1); warming = SKIP `warming`, never pass, for
+  anti-top and own-log vol24h (Z-2).
+- Momentum: A sample minimum 10 swaps / 6 buyers (B stays 15/8) (Z-4); higher-low points by dip-recovery fraction (Z-5).
+- Guard: young-pool single-funder check restored (B-1); funder depth 2 + CEX exclusion (B-3, R2-8); launch layers
+  scan the migration slot +3 for graduated pools, WARN band 10-15 % (B-4, R2-4, R2-5); wash thresholds (B-5, R2-7);
+  serial launcher = peak MC < $20K in 30 d (B-6, R2-9); B lock end >= 7 d after entry (B-7, R2-3); WARN points 10 each,
+  cap 20, plus a mutable-metadata WARN (B-8, R2-12).
+- Exit: insider exit cumulative within 60 min, transfers to non-pool wallets count (R2-10).
+- §8: R2 questions marked answered with source; R2-6, 11, 13, 14, 15, 17-20 stay as **assumed**. New questions §9.
 
 ## Rev 2 changelog (2026-11-03)
 
@@ -84,14 +107,14 @@ Components: Scout, Guard, Momentum, Risk, Entry, Exec, Exit, Reporter (§5).
 |---|---|---|---|---|---|---|
 | Market cap (circulating) | $250K-$3M | $90K-$1.5M | `mcap_usd_min/max` / number / USD; `mcap_basis: "circulating"` **NEW** | Scout | (total - burned supply: RPC mint + burn-address balances) x pool price x PYTH | C |
 | Liquidity | >= $75K | >= $40K | `liquidity_usd_min` / USD (= 2 x SOL reserve x SOL/USD; non-SOL quote -> skip) | Scout | RPC/HWS pool vaults + PYTH | C |
-| Volume 24h | >= $300K | >= $100K | `volume_24h_usd_min` / USD | Scout | OWN (24 h warm-up; reason `warming`), BQ if a key is set | - |
+| Volume 24h | >= $300K | >= $100K | `volume_24h_usd_min` / USD | Scout | OWN (24 h warm-up: **SKIP `warming`, never pass**, Z-2), BQ if a key is set | - |
 | 1h vol / MC | **0.1-2.0** | >= 0.8 | `volume_to_mcap_1h_min/max` / ratio (A 0.1/2.0; B 0.8/null) | Scout | OWN / BQ | - |
 | Top 10 (entity-clustered) | <= 25 % | <= 25 % | `top_holders_share_pct_max` / % | Scout + Guard | RPC `getTokenLargestAccounts`, after clustering (G5) | C (+$2) |
-| LP safe | >= 95 % | **>= 95 %** | `lp_safe_pct_min: 95` **NEW** (burned + whitelisted locked) | Scout + Guard | RPC LP mint + burn addresses + locker escrows | $5 |
+| LP safe | >= 95 % | **>= 95 %** | `lp_safe_pct_min: 95` **NEW** (burned + whitelisted, non-cancellable locked; G2) | Scout + Guard | RPC LP mint + burn addresses + locker escrows / DAMM v2 position locks | $5 |
 | Graduation age | **6 h-7 d** | >= 0 | `since_migration_seconds_min` (21600 / 0), `since_migration_seconds_max` **NEW** (604800 / null) | Scout | PP migration time, else pool-creation block time (RPC) | C |
 | Holders (checked LAST) | >= 1500 | >= 500 | `holder_count_min` / integer | Scout (last step) | DAS `getTokenAccounts`, cached 10 min, credits metered | $6 |
 | Crash skip | 1 h change <= -25 % | 25 % | `crash_skip_1h_pct` **NEW** | Scout | OWN price marks | - |
-| Anti-top | skip if +60 % over 1 h or +150 % over 6 h | (not set) | `anti_top: {pct_1h: 60, pct_6h: 150}` **NEW** / null for B | Scout | OWN price marks (6 h history; warm-up) | - |
+| Anti-top (Z-1) | skip if ((max - min) / min > 60 % over 1 h **or** > 150 % over 6 h) **and** current price within 20 % of the window max; `min` = window LOW | (not set) | `anti_top: {basis: "window_low", range_pct_1h: 60, range_pct_6h: 150, near_high_pct: 20}` **NEW** / null for B | Scout | OWN price marks (6 h history); < 6 h history -> **SKIP `warming`**, never pass (Z-2) | - |
 | Arm only on pools >= 6 h old | yes (G-1) | n/a | (same as grad age) | Scout | startup scan of graduated pools via backfill | $7 |
 | Dust / poisoning | ignore + log only: held-but-never-bought tokens, symbol/name imitating SOL/USDC/USDT or a holding, inbound < $1 | same | `ignore_dust: {min_inbound_usd: 1, lookalike_symbols: ["SOL","USDC","USDT"], held_never_bought: true}` **NEW** | Scout pre-filter | metadata + our ledger | - |
 
@@ -108,9 +131,9 @@ Components: Scout, Guard, Momentum, Risk, Entry, Exec, Exit, Reporter (§5).
 
 | Item | Value (A and B) | JSON key (`momentum.*`) | Source | Cost |
 |---|---|---|---|---|
-| Sample minimum | >= 15 swaps and >= 8 unique buyers in the window, else `None` (pending); still pending at window end -> skip `momentum_pending` | `min_swaps: 15`, `min_unique_buyers: 8` | OWN | - (PP/HWS subscription for armed pools, $1 if HWS) |
+| Sample minimum (Z-4) | **A: >= 10 swaps and >= 6 unique buyers; B: >= 15 / 8** in the window, else `None` (pending); still pending at window end -> skip `momentum_pending`. Delay unchanged (A 120 s) | A `min_swaps: 10`, `min_unique_buyers: 6`; B 15 / 8 | OWN | - (PP/HWS subscription for armed pools, $1 if HWS) |
 | Swap hygiene | drop swaps < 0.01 SOL; cap any single wallet at 30 % of buy volume | `min_swap_lamports: "10000000"`, `wallet_buy_cap_pct: 30` | OWN | - |
-| Higher low (must be > 0, else skip) | 30 pts | `points.higher_low: 30` | OWN marks | - |
+| Higher low (Z-5; must be > 0, else skip) | 30 pts at >= 50 % recovery of the dip distance (local high -> dip low), 0 under 10 %, linear between; the window low must stay above the dip low, else `new_low_veto` | `points.higher_low: 30`, `higher_low: {full_at_recovery_pct: 50, zero_below_recovery_pct: 10}` | OWN marks | - |
 | Buy/sell ratio by SOL volume, 1.0 -> 2.0 scaled | up to 30 | `points.buy_sell_ratio: 30`, `ratio_range: [1.0, 2.0]` | OWN | - |
 | Unique buyers/min vs the 1 h average rate | up to 20 | `points.unique_buyers: 20` | OWN (1 h history) | - |
 | 1 h vol/MC: full at 0.3-1.0, decays above 1.5, 0 above 2.5 | up to 20 | `points.vol_mcap: 20`, `vol_mcap_full: [0.3, 1.0]`, `vol_mcap_decay_from: 1.5`, `vol_mcap_zero_at: 2.5` | OWN | - |
@@ -138,7 +161,7 @@ Components: Scout, Guard, Momentum, Risk, Entry, Exec, Exit, Reporter (§5).
 | Max hold | 1440 min | none | `time_stop_s: 86400 / null` | clock | - |
 | Price drain guard (stays) | >= 30 % in 5 min AND sell vol > buy vol | off | `sell_pressure_exit: {fall_pct: 30, window_minutes: 5}` / null | OWN | - |
 | **Liquidity exit** | sell all if liquidity drops >= 20 % within 15 min | same | `liquidity_exit: {drop_pct: 20, window_s: 900}` **NEW** | HWS vault subscription | - |
-| **Insider exit** | sell all if the dev or a clustered insider sells >= 1 % of supply | same | `insider_exit: {sell_supply_pct: 1}` **NEW** | HWS `accountSubscribe` on the dev/insider token accounts of held mints (from G5/G6) | $1 (subscriptions) |
+| **Insider exit** (R2-10) | sell all if the dev or clustered insiders sell **cumulatively >= 1 % of supply within 60 min**; transfers to non-pool wallets count as sells | same | `insider_exit: {sell_supply_pct: 1, window_s: 3600, count_transfers_to_non_pool: true}` **NEW** | HWS `accountSubscribe` on the dev/insider token accounts of held mints (from G5/G6) | $1 (subscriptions) |
 | Trailing | off | off | `peak_trail_pct: 0` | - | - |
 
 ### 2.6 Guard (REQUIRED, never renormalised; `None`/pending at fill -> reject `guard_unavailable`). Keys under `guard_checks.*`
@@ -146,14 +169,15 @@ Components: Scout, Guard, Momentum, Risk, Entry, Exec, Exit, Reporter (§5).
 | # | Check | A | B | JSON key | Source | Cost |
 |---|---|---|---|---|---|---|
 | base | Mint and freeze authority null | null | null | `allow_mint_authority: false`, `allow_freeze_authority: false` | RPC getAccountInfo | C |
-| G2 | LP burned + whitelisted-locked >= 95 %; lock end > max hold + 7 d | 95 | 95 | `lp_safe_pct_fail: 95`, `lp_lockers: [<program ids: Meteora, Raydium lockers, Streamflow>]`, `lock_min_end_after_max_hold_s: 604800` | RPC LP mint, burn addresses, locker escrow accounts | $5 |
-| G3 | Launch layers (Block0 s0, s0+1..s0+3, first 60 s): **HARD VETO** if those buyers still hold >= 15 % combined, or >= 5 wallets in s0..s0+2 share one funder | 15 % / 5 wallets | same | `launch_layers: {slots_after_s0: 3, window_s: 60, holder_veto_pct: 15, shared_funder_veto_wallets: 5, shared_funder_slots: 2}` | RPC getSignaturesForAddress (early slots) + getTransaction + funder tracing | **$2, $3** |
+| G2 | LP burned + whitelisted-locked >= 95 % (locker list and lock rule below, B-2/Z-3); A: lock end > max hold + 7 d; **B: lock end >= entry + 7 d** (B-7, R2-3) | 95 | 95 | `lp_safe_pct_fail: 95`, `lp_lockers: [...]` (below), A `lock_min_end_after_max_hold_s: 604800`, B `lock_min_end_after_entry_s: 604800` | RPC LP mint, burn addresses, locker escrow accounts, DAMM v2 position lock fields | $5 |
+| G3 | Launch layers: Block0 s0 = **token create slot** (R2-4), s0+1..s0+3, first 60 s; graduated pools **also** scan the pool/migration create slot +3 (B-4). **HARD VETO (A and B)** if those buyers still hold >= 15 % combined, or >= 5 wallets in s0..s0+2 share one funder (R2-5); **10-15 % combined = WARN** | 15 % / 5 wallets; WARN 10 % | same | `launch_layers: {slots_after_s0: 3, migration_slots_after: 3, window_s: 60, holder_veto_pct: 15, holder_warn_pct: 10, shared_funder_veto_wallets: 5, shared_funder_slots: 2}` | RPC getSignaturesForAddress (early slots) + getTransaction + funder tracing | **$2, $3** |
 | G3 | Remaining bundler/sniper share | fail > 8 % | fail > 15 % | `bundled_share_pct_fail` / `sniper_share_pct_fail` (8 / 15), `bundler_sniper_abs_fail_pct: 20` (always) | same | $2 |
-| G4 | Serial launcher: > 3 prior launches that died < $20K MC | 3 | 3 | `serial_launcher: {max_dead_prior: 3, dead_below_mcap_usd: 20000}` | RPC creator history + prior mints' pools | **$4** |
-| G5 | Entity clustering (owner + funder) BEFORE the top 10 / single-holder caps; insider cluster fail > 20 %, warn > 15 %; distribution network >= 50 wallets or >= 5 % of supply = WARN | | same | `clustering: {insider_fail_pct: 20, insider_warn_pct: 15, network_warn_wallets: 50, network_warn_supply_pct: 5, funder_hops: 1}` | RPC funder tracing of top holders | **$3** |
+| G4 | Serial launcher: > 3 prior launches that died = **peak MC < $20K within a 30-day look-back** (B-6, R2-9) | 3 | 3 | `serial_launcher: {max_dead_prior: 3, dead_below_mcap_usd: 20000, mcap_basis: "peak", lookback_s: 2592000}` | RPC creator history + prior mints' pools | **$4** |
+| G5 | Entity clustering (owner + funder) BEFORE the top 10 / single-holder caps; insider cluster fail > 20 %, warn > 15 %; distribution network >= 50 wallets or >= 5 % of supply = WARN; **funder depth 2**; CEX hot wallets excluded as funders (Helius identity labels) (B-3, R2-8) | | same | `clustering: {insider_fail_pct: 20, insider_warn_pct: 15, network_warn_wallets: 50, network_warn_supply_pct: 5, funder_hops: 2}`, `cex_exclusion: {enabled: true, source: "helius_identity", extra_wallets: []}` | RPC funder tracing of top holders + Helius identity labels | **$3** (x2 for hop 2, §7) |
+| G5b | **Young-pool single funder** (B-1): pool age < 600 s and one funder behind >= 80 % of holder supply -> FAIL; migration + program accounts excluded | | same | `young_pool_s: 600`, `young_pool_single_funder_pct_fail: 80` | from G5 funder data | (in $3) |
 | G8 | Single entity cap | <= 5 % | <= 10 % | `single_holder_pct_fail` (entity-level) | after G5 | - |
 | G6/G8 | Dev share incl. locked/vesting (Streamflow escrows); dev set = deployer/mint-authority setter + wallets it funded or sent tokens to within 72 h pre-launch; non-pump pools: the pool creator counts as dev unless LP safe >= 95 %; reject if a dev lock unlocks within the max hold | dev <= 2 % | dev <= 5 % | `creator_share_pct_fail` 2 / 5, `dev_window_s: 259200`, `dev_includes_locked: true`, `dev_unlock_within_max_hold: "reject"` | RPC deployer history (72 h) + Streamflow escrow scan | **$3, $5** |
-| G7 | Wash trading: vol24h vs unique traders, repeated wallet pairs -> fail | | | `wash: {min_unique_trader_per_usd_vol, max_repeated_pair_share_pct}` (values R2-7) | OWN 24 h swap log (warm-up), BQ if a key is set | **$8** |
+| G7 | Wash trading (B-5, R2-7): FAIL if same-wallet buy+sell within 60 s > 30 % of volume, **or** top-5 wallet pairs > 40 % of volume; WARN at half (15 % / 20 %); warming (< 24 h of OWN data) = skip check, WARN only, no reject | | same | `wash: {roundtrip_window_s: 60, same_wallet_roundtrip_vol_fail_pct: 30, top5_pairs_vol_fail_pct: 40, warn_at_fraction: 0.5, warming_s: 86400, warming: "warn"}` | OWN swap log (start logging watched pools now, local/paper only), BQ if a key is set | **$8** |
 | G9 | Token-2022 transfer fee | 0 bps | <= 100 bps | `transfer_fee_bps_fail` 0 / 100 (fail when >) | RPC TLV | C |
 | G9 | Token-2022 extensions rejected: TransferHook, PermanentDelegate, DefaultAccountState=Frozen, NonTransferable, Pausable, MintCloseAuthority, ConfidentialTransfer | | same | `reject_extensions: [...]` | RPC getAccountInfo TLV | C |
 | G10 | Honeypot: model sim at full position size (`sim-approx` / "model approximation") + Jupiter quote round trip (price impact <= 10 %); neither available -> UNVERIFIED -> reject | | same | `honeypot: {size: "full_position", sell_tax_bps_fail: 500, roundtrip_excess_loss_bps_fail: 800, jupiter_max_price_impact_pct: 10, unverified: "reject"}` | SIM + JUP | **$9** (rate limit) |
@@ -164,6 +188,25 @@ Components: Scout, Guard, Momentum, Risk, Entry, Exec, Exit, Reporter (§5).
 | G13 | Flag copycat CAs (same name/symbol/vanity suffix as a known coin) | | same | `copycat_flag: true` | our coin cache | - |
 | G-10 | Excluded from holder/funder math: migration, program and AMM-authority accounts | | | `exclude_accounts: [...]` | config | - |
 
+**G2 locker whitelist** (Bubu, mainnet executable, BPFLoaderUpgradeable; supersedes R2-2 "whitelist empty"):
+
+| Locker | Program ID | How the lock is read |
+|---|---|---|
+| Streamflow | `strmRqUCoQUgGUan5YhzUZa6KqdzwX5L6FpUxfmKg5m` | stream/escrow account; must be non-cancellable by sender and recipient, non-transferable |
+| Raydium Burn&Earn | `LockrWmn6K5twhz3y9w1dQERbmgSaRkfnTeTKbpofwE` | locked position account (permanent) |
+| Jupiter Lock | `LocpQgucEQHbqNABEYvBvwoxCPsSbG91A1QaQhQQqjn` | escrow account; cancel/update modes must be "none" |
+| Meteora DAMM v1 | `Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB` | `lock_escrow` PDA per pool + owner |
+| Meteora DAMM v2 | `cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG` | position lock fields (permanent / vested liquidity) read on the pool's positions, **not** owner inference (Z-3) |
+
+- Reference only, **not** a locker: Raydium CPMM `CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C`. PumpSwap migration
+  pools burn LP (counts as burned).
+- **Excluded (unverified):** UNCX, PinkLock, Team Finance, Fluxbeam. LP held there counts as **unlocked**.
+- **Lock rule (B-2):** locked LP counts only if the escrow/position is owned by a whitelisted program **and** is
+  non-cancellable, non-transferable and has no early withdraw. Cancellable (by anyone) = unlocked. Unknown or
+  unparseable lock state = unlocked (strict).
+- Config: `lp_lockers: [{name, program_id, kind: "streamflow"|"raydium_burn_earn"|"jupiter_lock"|"meteora_damm_v1_escrow"|"meteora_damm_v2_position"}]`,
+  `lp_lock_rule: {non_cancellable: true, non_transferable: true, no_early_withdraw: true, unknown: "unlocked"}`.
+
 **Safety score** (after vetoes, start 100; Yumi G-18):
 
 | Deduction | Points | Key (`safety.deduct.*`) |
@@ -173,7 +216,8 @@ Components: Scout, Guard, Momentum, Risk, Entry, Exec, Exit, Reporter (§5).
 | LP safe from the minimum to 100 % (less safe = more deduction) | up to -15 | `lp: 15` |
 | pool age < 24 h | -10 | `young_pool: {below_s: 86400, points: 10}` |
 | a single entity at 5-10 % | -15 | `single_holder: {from_pct: 5, to_pct: 10, points: 15}` |
-| G5/G12 WARN results | R2-12 | `warns: ...` |
+| each G3/G5/G7/G12/G13 WARN result (B-8, R2-12) | -10 each, cap -20 | `warns: {points_each: 10, cap: 20}` |
+| metadata mutable **and** update authority = dev (B-8) | -10 (counts as a WARN) | `warns.mutable_metadata_dev_authority: true` |
 
 ### 2.7 Paper model (Exec)
 
@@ -188,7 +232,8 @@ Components: Scout, Guard, Momentum, Risk, Entry, Exec, Exit, Reporter (§5).
 
 Every decision is logged: stage, pass/reject, reason codes, per-module scores and reasons, the weights used,
 `config_rev`, latency, `sim-approx` / `warming` labels, and RPC credits spent on the candidate. Every fill is logged
-with PnL (network fee separate).
+with PnL (network fee separate). Every RPC credit-cap hit is logged (`engine_alerts`, reason `credit_cap`), and the
+daily report (Nero) carries daily credit usage: used / cap, month-to-date, cap hits, top check types by credits.
 - Storage: Postgres (migration number after the rename, >= 0022), or JSONL files when PG is down.
 - Daily CSVs: `/shared/centurion/YYYY-MM-DD_{decisions,fills,pnl}.csv`. The dir does not exist yet and is created on
   first export.
@@ -206,6 +251,8 @@ with PnL (network fee separate).
 - Smart Money (P2): SW read-only (the file exists, 106 KB). StalkChain is used only for verified-free calls, flagged
   before any paid one. CabalHunter is NOT used.
 - Geyser stays wired but disabled.
+- Start now (local/paper only, rev 3): swap logging and price tracking on watched pools (feeds G7 wash, anti-top,
+  vol24h). Backfill pool history from RPC only if free and within the daily credit cap (Z-2).
 
 **Jupiter quote API:** free with **no key**: `GET https://api.jup.ag/swap/v2/order?inputMint=&outputMint=&amount=`.
 Omit `taker`, so the quote comes back with `transaction: null`: no wallet and nothing to sign. Verified live at
@@ -226,8 +273,8 @@ Hot path (screener eval target < 50 ms, p50/p95/max measured):
 6. Entry
 7. PaperExecutor
 
-All §7 checks run asynchronously into caches, **only after the cheap filters pass**, ordered cheapest first and
-holders LAST. A candidate whose Guard enrichment is not complete at fill time is rejected `guard_unavailable`. A coin
+All §7 checks run asynchronously into caches, **only after Scout + the cheap Guard checks pass** (R2-1), ordered
+cheapest first and holders LAST. A candidate whose Guard enrichment is not complete at fill time is rejected `guard_unavailable`. A coin
 that stays unevaluated for more than 5 min raises a watchdog alert.
 
 ## 5. Engine architecture (design; built after the rename)
@@ -310,32 +357,66 @@ Rev 1 assumptions: all confirmed as defaults (Yumi). The network fee is tracked 
 
 ## 7. Cost flags (RPC beyond cheap reads)
 
-Basis: the current Helius plan tier is not recorded on the box (R2-1). The numbers below are **calls per deep
+Basis (R2-1, Apex): the Helius plan is unknown, so it is **treated as the free tier**. The numbers below are **calls per deep
 candidate**; DAS and `getProgramAccounts` usually bill more credits per call than standard reads. Funnel assumption
 for A: roughly 50-150 mints/day reach the deep checks (they passed the cheap Scout filters). Immutable history (launch
 layers, deployer history) is cached forever per mint/creator, so each mint pays for it once. The engine meters credits
-per candidate and per UTC day, with a **daily hard cap** (`ENGINE_RPC_DAILY_CREDIT_CAP`). When the cap is reached,
-deep checks stop and those candidates are rejected `guard_unavailable` (never a plan upgrade).
+per candidate and per UTC day, with a **daily hard cap** `ENGINE_RPC_DAILY_CREDIT_CAP` (**default 25000/day**,
+configurable) plus a running **monthly meter** (month-to-date, shown in /readyz and the daily report). When the cap is
+reached, deep checks stop and those candidates are rejected **`credit_cap`** (accepted by Yumi); every hit is logged.
+Never a plan upgrade.
+
+Cache TTLs (rev 3): mint/freeze authorities and Token-2022 extensions **forever** per mint; holders and
+clusters **10 min**; launch layers and deployer history forever per mint/creator; wallet -> funder 7 d; lockers 30 min
+(lock end re-read for held mints); pool audit 10 min; Jupiter quote 15 s. Order: cheap reads -> Token-2022/authorities
+-> lockers -> launch layers -> funder tracing -> serial launcher -> pool audit -> holders (last).
 
 | Flag | Check | Calls per candidate (est.) | Mitigation |
 |---|---|---|---|
 | $1 | HWS subscriptions: AMM logs / vault / insider token-account `accountSubscribe` for armed + held pools | 0 calls; ~2-25 subscriptions per armed/held mint (WS messages may bill) | armed/held only; drop on expiry/exit; cap total subscriptions (e.g. 200) |
 | $2 | **Launch layers** (G3, G13 DESSA): `getSignaturesForAddress` walked back to s0 on the bonding curve / mint, then `getTransaction` for s0..s0+3 + first 60 s | 2-20 sig pages + 50-300 tx = **~60-320** | once per mint, cached forever; after cheap filters; cap 400 calls (cap hit -> UNVERIFIED -> reject) |
-| $3 | **Funder tracing** (G3 shared funder, G5 clustering, G6 dev set 72 h, G13 fresh-wallet transfers): per wallet `getSignaturesForAddress` (bounded by time) + `getTransaction` of the first inbound SOL/token transfer | 2-4 per wallet x ~40-70 wallets (early buyers + top 20 + dev) = **~100-280** | 1 hop only; cap 60 wallets; wallet->funder cache 7 d (shared across mints) |
+| $3 | **Funder tracing** (G3 shared funder, G5 clustering, G5b young-pool funder, G6 dev set 72 h, G13 fresh-wallet transfers): per wallet `getSignaturesForAddress` (bounded by time) + `getTransaction` of the first inbound SOL/token transfer | hop 1: 2-4 per wallet x ~40-70 wallets = ~100-280; **hop 2 (B-3): + up to the same again = ~200-560** | cap 60 wallets at hop 1 and 60 distinct funders at hop 2; CEX-labelled funders stop the walk; wallet->funder cache 7 d (shared across mints) |
 | $4 | **Serial launcher** (G4): creator signatures + create txs of prior mints + their current pool/curve state (`getMultipleAccounts`) | 1-10 pages + 10-100 tx + 1-3 batch = **~20-110** | per creator, cached 24 h; stop counting once > 3 dead are found |
-| $5 | **LP lockers + Streamflow escrows** (G2, G6): `getProgramAccounts` with a mint memcmp on each whitelisted locker program (Streamflow, Meteora, Raydium lockers) + LP holders | 3-5 gPA + 1-3 reads = **~5-8 (heavy gPA)** | once per mint, cached 30 min; lock end re-read only for held mints |
+| $5 | **LP lockers + Streamflow escrows** (G2, G6): `getProgramAccounts` with a mint/pool memcmp on each of the 5 whitelisted programs (incl. DAMM v2 positions, Z-3) + LP holders | 5 gPA + 1-3 reads = **~6-8 (heavy gPA)** | once per mint, cached 30 min; lock end re-read only for held mints |
 | $6 | **Holders** (Scout, last step): DAS `getTokenAccounts` 1000/page, stop as soon as the minimum is reached | A: 2 pages (>= 1500); B: 1 page (>= 500) = **1-2 (DAS)** | last step; cache 10 min; credits metered (Apex G-3) |
 | $7 | **Pool enumeration**: startup scan of graduated pools >= 6 h (G-1) and the G12 audit of every pool of a mint: `getProgramAccounts` (memcmp mint) per AMM program (PumpSwap, Raydium AMM v4/CPMM, Meteora DLMM/DAMM) + vault reads | startup: backfill pages of PumpSwap create txs (~5-50 pages + tx) once; G12: **~5-6 gPA + 2-10 reads** per mint | startup scan bounded to 7 d, rate-budgeted (existing backfill limiter); G12 once per mint, cache 10 min |
 | $8 | **Wash pattern** (G7): needs trade-level 24 h history (traders, pairs). Pulling it per candidate over RPC = 24 h of pool signatures + every tx (5k-50k for a $300K-vol pool) | **5k-50k: NOT FEASIBLE** on RPC | use OWN 24 h swap log (free stream, warm-up); BQ if a key ever exists; never pull per candidate over RPC (R2-7) |
 | $9 | **Jupiter round trip** (G10): 2 keyless quotes (SOL->token at size, token->SOL) | 2 HTTP calls, no Helius credits | 0.5 req/s keyless = max ~15 candidates/min; queue; cache 15 s; JUP down + sim available -> R2-14 |
 | $10 | **G12 all-pool audit LP holders**: `getTokenLargestAccounts` on each pool's LP mint | 1 per pool (~1-4) | with $7, cached 10 min |
 
-Rough total for a deep candidate: **~200-750 calls**. 50-150 deep candidates/day gives ~10k-110k calls/day,
-~0.3-3.4 M/month, before any caching across shared funders. This may exceed a Free-tier Helius plan. **If the
-metered rate projects past the current plan, the engine caps the daily budget and reports to Apex; no upgrade (STOP
-rule).**
+Rough total for a deep candidate: **~300-1000 calls** with funder depth 2 (rev 2: ~200-750). 50-150 deep
+candidates/day would need ~15k-150k calls/day before cross-mint caching, so the **25000/day cap will bind**: it covers
+roughly 25-80 deep candidates/day (more as the funder/creator caches warm). Candidates past the cap are rejected
+`credit_cap`, logged, and counted in the daily report. 25000 x 31 = 775k/month (monthly meter). Credits per call vary by
+method (DAS / gPA bill more), so the meter counts credits, not calls. **No upgrade (STOP rule); projections past the
+cap go to Apex.**
 
-## 8. New ambiguities (rev 2)
+## 8. Rev 2 questions: status (rev 3)
+
+| Q | Status | Answer (source) |
+|---|---|---|
+| R2-1 | answered | free tier assumed; cap 25000/day configurable + monthly meter; cheapest-first after Scout + cheap Guard (Apex 14:50) |
+| R2-2 | answered | whitelist = 5 Bubu programs; strict lock rule (Bubu 14:52, supersedes Yumi "empty") |
+| R2-3 | answered | B lock end >= 7 d after entry (Yumi 14:50; Bubu B-7 `lock_min_end_after_entry_s: 604800`) |
+| R2-4 | answered | Block0 = token create slot; graduated pools also migration create slot +3 (Yumi; Bubu B-4) |
+| R2-5 | answered | combined hold cap or shared funder = hard reject A and B; 10-15 % = WARN (Yumi; Bubu B-4) |
+| R2-6 | **assumed** | direct balances of the launch-layer buyers only (rev 2 assumption) |
+| R2-7 | answered | 60 s round trip > 30 % or top-5 pairs > 40 % = FAIL, WARN at half, warming = WARN (Yumi; Bubu B-5) |
+| R2-8 | answered | CEX hot wallets excluded via Helius identity labels; funder depth 2 (Yumi; Bubu B-3) |
+| R2-9 | answered | peak MC < $20K, 30-day look-back (Yumi; Bubu B-6) |
+| R2-10 | answered | cumulative within 60 min, >= 1 % supply; transfers to non-pool wallets count (Yumi) |
+| R2-11 | **assumed** | holders deduction scaled min -> 2 x min |
+| R2-12 | answered | -10 per WARN, cap -20 (Yumi; Bubu B-8) |
+| R2-13 | **assumed** | liquidity exit on SOL reserve |
+| R2-14 | **assumed** | model sim alone suffices when Jupiter is down (labelled `sim-approx`); Jupiter platform fee subtracted before the 8 % check |
+| R2-15 | **assumed** | retail-held LP = holders outside insider clusters; insider LP = LP held by dev set / clusters |
+| R2-16 | answered, **overridden** | Yumi said vs price 1 h / 6 h ago; **Zola Z-1 (later) applies: from the window low + near-high condition** |
+| R2-17 | **assumed** | B grad age >= 0, no max |
+| R2-18 | **assumed** | copycat = same name+symbol in our cache or vanity-suffix match; flag only |
+| R2-19 | **assumed** | unique-buyer points linear 1x -> 0, 2x -> 20 |
+| R2-20 | **assumed** | fill delay seeded by order id |
+
+### 8.1 Rev 2 question text (kept for reference)
 
 - **R2-1 Helius plan tier.** The credit allowance and RPS are not recorded on the box, so the daily cap value is
   unknown. Need the plan / monthly credits from Apex.
@@ -374,3 +455,18 @@ rule).**
   2x -> 20.
 - **R2-20 Fill replay randomness.** The uniform 400-1200 ms delay is seeded by order id (assumed) for reproducible
   replays.
+
+## 9. New questions (rev 3)
+
+- **R3-1 Credit cap vs funnel.** With funder depth 2, a deep candidate costs ~300-1000 calls, so 25000/day covers only
+  ~25-80 deep candidates/day. Accept `credit_cap` rejects, or cap hop 2 (for example, hop 2 only for the top 10 holders)?
+- **R3-2 Raydium Burn&Earn transferability.** The locked liquidity is permanent, but the fee-key NFT can be transferred.
+  Does that fail "non-transferable" (B-2)? Assumed: it counts as locked, because only fee rights move.
+- **R3-3 A lock horizon.** A keeps "lock end > max hold + 7 d" (= entry + 8 d). Should A use B-7's "entry + 7 d"?
+- **R3-4 Mutable-metadata WARN (B-8).** Is "update authority = dev" the deployer only, or the whole 72 h dev set?
+  Assumed: the whole dev set.
+- **R3-5 Higher-low recovery (Z-5).** What is the recovery measured on: the price at decision or the window low?
+  Assumed: (price at decision - dip low) / (local high - dip low).
+- **R3-6 Z-4 "delay stays 120 s".** Read as A only (B keeps 60 s). Confirm.
+- **R3-7 Young-pool single funder (B-1).** Is 80 % measured on holder supply excluding pool/program accounts (assumed),
+  or on the top-20 holders?
