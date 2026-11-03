@@ -328,7 +328,10 @@ const practiceActive = active.filter((x) => x.mode === "practice");
 const realActive = active.filter((x) => x.mode === "real");
 const built = [
   ...Array.from({ length: 14 }, (_, i) => buildTrail(i, practiceActive[i % practiceActive.length])),
-  ...Array.from({ length: 5 }, (_, i) => buildTrail(14 + i, realActive[i % realActive.length])),
+  // Real seeds only exist when the dev-only Real demo is enabled; otherwise every seed runs in Paper.
+  ...(realActive.length
+    ? Array.from({ length: 5 }, (_, i) => buildTrail(14 + i, realActive[i % realActive.length]))
+    : []),
 ];
 // One rejected coin per mode is quoted in a non-SOL mint → screener state UNSUPPORTED_QUOTE_MINT ("Not tradeable").
 for (const mode of ["practice", "real"] as const) {

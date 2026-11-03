@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -p 3100",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "screenshots": "node scripts/screenshots.mjs",
     "test": "CENTURION_MOCK_REAL_DEMO=1 node --import tsx --test 'lib/__tests__/*.test.ts'",
     "audit": "npm audit --audit-level=moderate",
