@@ -18,7 +18,7 @@ begin
 end $$;
 create or replace function pg_temp.as_user(u text, client text default 'web') returns void language sql as $$
   select set_config('request.jwt.claim.sub', coalesce(u, ''), false),
-         set_config('request.jwt.claims', case when u is null then '' else json_build_object('sub', u, 'sentra_client', client)::text end, false);
+         set_config('request.jwt.claims', case when u is null then '' else json_build_object('sub', u, 'centurion_client', client)::text end, false);
 $$;
 
 -- fixtures: user E, ws E, one open practice position

@@ -1,4 +1,4 @@
-// Sentra's own pre-sign layer (REAL_MONEY_OPTIONS §4.3, bake-off subset). Runs BEFORE any provider sign call.
+// Centurion's own pre-sign layer (REAL_MONEY_OPTIONS §4.3, bake-off subset). Runs BEFORE any provider sign call.
 // Fail closed: any decode error, unknown program, unknown instruction or unresolved account is a rejection.
 import { decodeTransaction, type DecodedInstruction, type DecodedMessage } from "./solana/message.ts";
 import {

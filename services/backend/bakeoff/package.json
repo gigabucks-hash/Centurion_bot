@@ -1,5 +1,5 @@
 {
-  "name": "@sentra/bakeoff",
+  "name": "@centurion/bakeoff",
   "version": "0.0.0",
   "private": true,
   "description": "Devnet-only bake-off harness (Turnkey vs Crossmint). Not part of the production build.",

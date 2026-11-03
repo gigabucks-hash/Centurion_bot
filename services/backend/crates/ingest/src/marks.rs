@@ -1,5 +1,5 @@
 //! Mark prices for open-position UIs, published to the API's SSE `include=marks` stream through
-//! Postgres `NOTIFY` (channel `SSE_MARKS_CHANNEL`, default `sentra_marks`). Marks are display-only:
+//! Postgres `NOTIFY` (channel `SSE_MARKS_CHANNEL`, default `centurion_marks`). Marks are display-only:
 //! never persisted, never part of the event log, never used for fills.
 //!
 //! Payload (must match services/backend/api/src/sse.ts):
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn channel_and_uuid_checks() {
-        assert!(valid_channel("sentra_marks"));
+        assert!(valid_channel("centurion_marks"));
         assert!(!valid_channel("x; drop"));
         assert!(!valid_channel("1abc"));
         assert!(is_uuid(WS));
@@ -316,11 +316,11 @@ mod tests {
         assert_eq!(p.sent.lock().await.len(), 1);
     }
 
-    /// Real NOTIFY round trip; runs when SENTRA_PG_TEST_URL points at a Postgres (CI and local).
+    /// Real NOTIFY round trip; runs when CENTURION_PG_TEST_URL points at a Postgres (CI and local).
     #[tokio::test]
     async fn pg_notify_round_trip() {
-        let Ok(url) = std::env::var("SENTRA_PG_TEST_URL") else {
-            eprintln!("SENTRA_PG_TEST_URL not set; skipping");
+        let Ok(url) = std::env::var("CENTURION_PG_TEST_URL") else {
+            eprintln!("CENTURION_PG_TEST_URL not set; skipping");
             return;
         };
         let (listener, mut conn) = tokio_postgres::connect(&url, tokio_postgres::NoTls)
@@ -338,10 +338,10 @@ mod tests {
             }
         });
         listener
-            .batch_execute("listen sentra_marks_test")
+            .batch_execute("listen centurion_marks_test")
             .await
             .expect("test");
-        let publisher = PgMarkPublisher::connect(&url, "sentra_marks_test")
+        let publisher = PgMarkPublisher::connect(&url, "centurion_marks_test")
             .await
             .expect("test");
         let mut b = MarkBuilder::new(WS, Some(150.0), 0).expect("test");

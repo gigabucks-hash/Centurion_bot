@@ -78,7 +78,7 @@ export function registerAuth(r: Router, d: Deps): void {
     const over = Math.max(0, a.n - cfg.authOwnerIpPerMin, b.n - cfg.authOwnerPerMin, g.n - cfg.authGlobalPerMin);
     if (over > 0) {
       const ms = Math.min(cfg.authOwnerMaxDelayMs, 250 * over);
-      ctx.res.setHeader("X-Sentra-Login-Delay-Ms", String(ms));
+      ctx.res.setHeader("X-Centurion-Login-Delay-Ms", String(ms));
       await sleep(ms);
     }
     return address;
@@ -86,7 +86,7 @@ export function registerAuth(r: Router, d: Deps): void {
 
   /** Successor of a refresh token: HMAC under our key, so a grace replay can return it without storing it. */
   const successor = (token: string) =>
-    "srt_" + createHmac("sha256", cfg.sessionSecret).update("sentra-refresh-successor-v1\0" + token, "utf8").digest("base64url");
+    "srt_" + createHmac("sha256", cfg.sessionSecret).update("centurion-refresh-successor-v1\0" + token, "utf8").digest("base64url");
 
   const session = async (userId: string, client: string, family: string | null, address: string, iatS?: number) => {
     const iat = iatS ?? Math.floor(Date.now() / 1000);
@@ -103,7 +103,7 @@ export function registerAuth(r: Router, d: Deps): void {
     // deterministic for a given (session, iat): a grace replay re-issues byte-identical tokens
     const access = signJwt({
       iss: SESSION_ISSUER, sub: userId, aud: cfg.jwtAudience || "authenticated", role: "authenticated",
-      iat, exp, app_scopes: ["read", "trade"], sentra_client: client, sid: fam, session_id: fam,
+      iat, exp, app_scopes: ["read", "trade"], centurion_client: client, sid: fam, session_id: fam,
       amr: ["siws"], wallet: address,
     }, cfg.sessionSecret);
     return { access, refresh, exp, fam };

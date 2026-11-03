@@ -18,7 +18,7 @@ import { registerAuth } from "./routes_auth.ts";
 import { autoRefresh, registerQuotes } from "./routes_quote.ts";
 
 export const CONTRACTS_VERSION = "1.1.5";
-/** Product name (user facing). Crate/package/DB names keep the codename "sentra". */
+/** Product name (user facing). Crate/package/DB names keep the codename "centurion". */
 export const PRODUCT_NAME = "Centurion Trade";
 /** 1.1.3: closed enum, only with decision=reject (default user_declined, applied in SQL). */
 export const APPROVAL_REJECT_REASONS = ["user_declined", "not_tradeable", "price_moved", "other"] as const;
@@ -225,7 +225,7 @@ export function buildRouter(d: Deps): Router {
     send(ctx, 200, { data: { ...approvalWire(cur), decision_token: token, decision_token_expires_at: tokenExp } }, etag(cur.rev));
   });
 
-  /** SQL decide_approval(): actor = auth.uid(), via = JWT `sentra_client` (or push token); never the body. */
+  /** SQL decide_approval(): actor = auth.uid(), via = JWT `centurion_client` (or push token); never the body. */
   r.add("POST", "/v1/workspaces/:ws/approvals/:id/decision", async (ctx) => {
     const p = authenticate(ctx, d.cfg);
     requireScope(p, "trade");

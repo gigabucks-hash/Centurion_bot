@@ -24,7 +24,7 @@ export const APPROVAL = "30000000-0000-0000-0000-0000000000a1";
 export const APPROVAL2 = "30000000-0000-0000-0000-0000000000a2";
 
 const root = fileURLToPath(new URL("../..", import.meta.url)); // services/backend/
-const DB = process.env.SENTRA_API_TEST_DB ?? "sentra_api_test";
+const DB = process.env.CENTURION_API_TEST_DB ?? "centurion_api_test";
 const PGHOST = process.env.PGHOST ?? "/tmp";
 const PGPORT = process.env.PGPORT ?? "55432";
 const PGUSER = process.env.PGUSER ?? "postgres";
@@ -60,7 +60,7 @@ export async function startHarness(env: Record<string, string> = {}): Promise<Ha
     TRADING_MODE: "paper",
     DATABASE_URL: url,
     SUPABASE_JWT_SECRET: SECRET,
-    SENTRA_SESSION_SECRET: SESSION_SECRET,
+    CENTURION_SESSION_SECRET: SESSION_SECRET,
     SSE_POLL_MS: "40",
     SSE_CLOCK_MS: "100",
     SSE_HEARTBEAT_MS: "1000",
@@ -98,7 +98,7 @@ export function token(sub: string, opts: { scopes?: string[]; client?: string; e
       role: "authenticated",
       exp: opts.exp ?? Math.floor(Date.now() / 1000) + 600,
       app_scopes: opts.scopes ?? ["read", "trade"],
-      ...(opts.client ? { sentra_client: opts.client } : {}),
+      ...(opts.client ? { centurion_client: opts.client } : {}),
       ...(opts.extra ?? {}),
     },
     opts.secret ?? SECRET,

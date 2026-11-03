@@ -11,7 +11,7 @@ export interface ErrorDef {
 }
 
 const REGISTRY_PATH =
-  process.env.SENTRA_ERRORS_JSON ?? new URL("../../../../packages/contracts/errors.json", import.meta.url).pathname;
+  process.env.CENTURION_ERRORS_JSON ?? new URL("../../../../packages/contracts/errors.json", import.meta.url).pathname;
 
 const registry: Map<string, ErrorDef> = new Map(
   (JSON.parse(readFileSync(REGISTRY_PATH, "utf8")) as { codes: ErrorDef[] }).codes.map((d) => [d.code, d]),

@@ -1,4 +1,4 @@
-# Sentra bake-off harness (devnet only)
+# Centurion bake-off harness (devnet only)
 
 Turnkey vs Crossmint for a **delegated, swap-only signer on a separate capped trading wallet**.
 See `../docs/BAKEOFF_REVIEW.md` (pre-install review, verdicts, env var names, devnet program IDs).
@@ -15,7 +15,7 @@ npm test                      # mocks only, no network
 npm run bench:mock            # >=50 runs per provider, p50/p95, injected outage
 npm run redaction-check       # must PASS before every commit
 # live (Crossmint staging + Solana devnet), secrets loaded at runtime only:
-set -a; . /home/box/.secrets/sentra_bakeoff.env; set +a; SOLANA_CLUSTER=devnet BAKEOFF_LIVE=1 npm run live:crossmint
+set -a; . /home/box/.secrets/centurion_bakeoff.env; set +a; SOLANA_CLUSTER=devnet BAKEOFF_LIVE=1 npm run live:crossmint
 ```
 
 Layers: `src/presign.ts` (our decode + allowlist + caps + transfer denial + simulation) always runs before

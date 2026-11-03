@@ -16,7 +16,7 @@ begin
 end $$;
 create or replace function pg_temp.as_user(client text) returns void language sql as $$
   select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000009f1', false),
-         set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-0000000009f1', 'sentra_client', client)::text, false);
+         set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-0000-0000-0000000009f1', 'centurion_client', client)::text, false);
 $$;
 create or replace function pg_temp.tok(a uuid, via text default 'desktop') returns text language sql as $$
   select token from public.issue_approval_token(a, '00000000-0000-0000-0000-0000000009f1', via::public.decided_via)

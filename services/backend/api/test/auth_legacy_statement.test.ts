@@ -1,4 +1,4 @@
-// B-7 transition: AUTH_SIWS_LEGACY_STATEMENT=false retires statement v1 ("Sentra") at once; v2 ("Centurion Trade") only.
+// B-7 transition: AUTH_SIWS_LEGACY_STATEMENT=false retires statement v1 ("Centurion") at once; v2 ("Centurion Trade") only.
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign } from "node:crypto";
@@ -6,7 +6,7 @@ import { call, startHarness, type Harness } from "./helpers.ts";
 import { b58encode } from "../src/base58.ts";
 import { SIWS_STATEMENTS } from "../src/siws.ts";
 
-const DOMAIN = "app.sentra.test";
+const DOMAIN = "app.centurion.test";
 const { publicKey, privateKey } = generateKeyPairSync("ed25519");
 const ADDRESS = b58encode(publicKey.export({ format: "der", type: "spki" }).subarray(-32));
 const sig = (m: string) => b58encode(sign(null, Buffer.from(m, "utf8"), privateKey));

@@ -141,9 +141,9 @@ begin
                                     'hint', 'submit the change as a guard_change proposal')::text;
     end if;
   end if;
-  perform set_config('sentra.actor', coalesce(v_actor::text, ''), true);
-  perform set_config('sentra.via', public.request_via(), true);
-  perform set_config('sentra.device', coalesce(p_device, ''), true);
+  perform set_config('centurion.actor', coalesce(v_actor::text, ''), true);
+  perform set_config('centurion.via', public.request_via(), true);
+  perform set_config('centurion.device', coalesce(p_device, ''), true);
   update public.strategies
      set settings = v_settings, name = coalesce(p_name, name), status = coalesce(p_status, status)
    where id = p_strategy

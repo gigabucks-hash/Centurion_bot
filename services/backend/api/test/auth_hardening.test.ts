@@ -7,7 +7,7 @@ import { SECRET, SESSION_SECRET, call, startHarness, type Harness } from "./help
 import { b58encode } from "../src/base58.ts";
 import { signJwt } from "../src/jwt.ts";
 
-const DOMAIN = "app.sentra.test";
+const DOMAIN = "app.centurion.test";
 interface Wallet { address: string; key: KeyObject }
 function wallet(): Wallet {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
@@ -61,7 +61,7 @@ describe("SIWS hardening", () => {
     // legacy v1 is still accepted during the transition window (default until 2026-11-05T12:00:00Z)
     const legacy = await nonce({ statement_version: 1 });
     assert.equal(legacy.status, 200);
-    assert.ok(String(legacy.body.data.message).includes("Sign in to Sentra (practice)."));
+    assert.ok(String(legacy.body.data.message).includes("Sign in to Centurion (practice)."));
     assert.equal((await verify(legacy.body.data.message)).status, 200);
   });
 
@@ -101,7 +101,7 @@ describe("SIWS hardening", () => {
   test("B-10: wallet-login tokens use our own key, never the Supabase secret", async () => {
     const s = await login();
     const claims = JSON.parse(Buffer.from(s.access_token.split(".")[1], "base64url").toString());
-    assert.equal(claims.iss, "sentra-api");
+    assert.equal(claims.iss, "centurion-api");
     const forgedWithSupabase = signJwt(claims, SECRET);
     assert.equal((await call(h.base, "GET", "/v1/me", { token: forgedWithSupabase })).status, 401);
     const { iss: _i, ...noIss } = claims;

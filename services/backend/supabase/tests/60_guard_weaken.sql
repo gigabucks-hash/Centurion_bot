@@ -15,7 +15,7 @@ begin
   raise exception 'EXPECTED % DID NOT HAPPEN: %', code, label;
 end $$;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000009e1', false),
-       set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000009e1","sentra_client":"desktop"}', false);
+       set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000009e1","centurion_client":"desktop"}', false);
 
 insert into auth.users (id) values ('00000000-0000-0000-0000-0000000009e1');
 insert into public.workspaces (id, name, owner_id) values

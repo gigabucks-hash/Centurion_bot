@@ -31,7 +31,7 @@ export interface SignerProvider {
   createWallet(owner: string): Promise<WalletRef>;
   attachPolicy(wallet: WalletRef, spec: ProviderPolicySpec): Promise<PolicyRef>;
   createDelegatedSigner(wallet: WalletRef, policy: PolicyRef): Promise<SignerRef>;
-  /** Provider-side only; Sentra's pre-sign runs before this in executeTrade(). */
+  /** Provider-side only; Centurion's pre-sign runs before this in executeTrade(). */
   signAndSend(signer: SignerRef, unsignedTx: Uint8Array): Promise<SendResult>;
   revoke(signer: SignerRef): Promise<void>;
   exportCheck(wallet: WalletRef): Promise<ExportCheck>;

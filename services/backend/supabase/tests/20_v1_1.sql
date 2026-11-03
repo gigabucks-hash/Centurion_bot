@@ -24,10 +24,10 @@ begin
   raise exception 'EXPECTED FAILURE DID NOT HAPPEN: %', label;
 end $$;
 
--- act as a signed-in user (JWT sub + sentra_client claim), or as the service (no JWT)
+-- act as a signed-in user (JWT sub + centurion_client claim), or as the service (no JWT)
 create or replace function pg_temp.as_user(u text, client text default 'web') returns void language sql as $$
   select set_config('request.jwt.claim.sub', coalesce(u, ''), false),
-         set_config('request.jwt.claims', case when u is null then '' else json_build_object('sub', u, 'sentra_client', client)::text end, false);
+         set_config('request.jwt.claims', case when u is null then '' else json_build_object('sub', u, 'centurion_client', client)::text end, false);
 $$;
 
 -- ---------------- 1. rev + 409 conflict contract ----------------
@@ -142,7 +142,7 @@ insert into public.workspaces (id, name, owner_id) values ('10000000-0000-0000-0
 insert into public.auth_identities (user_id, provider, subject, email, verified_at) values
   ('00000000-0000-0000-0000-0000000000d1', 'apple', 'apple-d1', 'd1@example.com', now());
 insert into public.audit_log (actor_user, actor_kind, actor_via, action, target_type, target, ip, user_agent)
-  values ('00000000-0000-0000-0000-0000000000d1', 'user', 'mobile', 'strategy.update', 'strategy', 'x', '10.1.2.3', 'Sentra/1.0 iOS');
+  values ('00000000-0000-0000-0000-0000000000d1', 'user', 'mobile', 'strategy.update', 'strategy', 'x', '10.1.2.3', 'Centurion/1.0 iOS');
 select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', null)$$, 'REAUTH_REQUIRED', 'deletion re-auth');
 select pg_temp.expect_code($$select public.request_account_deletion('00000000-0000-0000-0000-0000000000d1', now(), 0)$$, 'VALIDATION_FAILED', 'grace 0');
 do $$ declare d jsonb; begin

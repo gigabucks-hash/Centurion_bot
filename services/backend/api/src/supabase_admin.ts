@@ -6,7 +6,7 @@ import { ApiError } from "./errors.ts";
 /** Wallet users have no email; GoTrue admin create wants one, so we use a non-routable, confirmed alias
  *  derived from the address (`.invalid` TLD, RFC 2606): never mailed, never shown. */
 export function walletAlias(address: string): string {
-  return `w-${createHash("sha256").update(address).digest("hex").slice(0, 32)}@wallet.sentra.invalid`;
+  return `w-${createHash("sha256").update(address).digest("hex").slice(0, 32)}@wallet.centurion.invalid`;
 }
 
 export async function adminCreateWalletUser(url: string, key: string, address: string, timeoutMs = 5000): Promise<string> {

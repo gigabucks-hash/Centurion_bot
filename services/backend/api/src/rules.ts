@@ -125,7 +125,7 @@ export async function withCurrent<T>(fn: () => Promise<T>, load: () => Promise<u
 
 /** Optional free-form device label (metadata only, like p_device). */
 export function deviceLabel(ctx: Ctx, body: Record<string, unknown>): string | null {
-  const v = body.device ?? ctx.req.headers["x-sentra-device"];
+  const v = body.device ?? ctx.req.headers["x-centurion-device"];
   if (v === undefined || v === null || v === "") return null;
   if (typeof v !== "string" || v.length > 64 || /[\u0000-\u001f]/.test(v)) throw new ApiError("VALIDATION_FAILED", { field: "device", max: 64 });
   return v;

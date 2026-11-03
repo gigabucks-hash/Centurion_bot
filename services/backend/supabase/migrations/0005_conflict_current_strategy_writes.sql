@@ -143,9 +143,9 @@ begin
   if p_settings is null or jsonb_typeof(p_settings) <> 'object' then
     raise exception 'VALIDATION_FAILED' using errcode = 'P0422', detail = '{"field":"settings"}';
   end if;
-  perform set_config('sentra.actor', uid::text, true);
-  perform set_config('sentra.via', public.request_via(), true);
-  perform set_config('sentra.device', coalesce(p_device, ''), true);
+  perform set_config('centurion.actor', uid::text, true);
+  perform set_config('centurion.via', public.request_via(), true);
+  perform set_config('centurion.device', coalesce(p_device, ''), true);
   insert into public.strategies (workspace_id, name, status, settings, created_by)
   values (p_workspace, p_name, p_status, p_settings, uid)
   returning * into s;
@@ -187,8 +187,8 @@ begin
     raise exception 'STRATEGY_REV_CONFLICT' using errcode = 'P0409',
       detail = public.strategy_conflict_detail(s, p_expected_rev)::text;
   end if;
-  perform set_config('sentra.actor', uid::text, true);
-  perform set_config('sentra.via', public.request_via(), true);
+  perform set_config('centurion.actor', uid::text, true);
+  perform set_config('centurion.via', public.request_via(), true);
   n := public.retire_strategy(p_strategy, p_action, uid);
   select * into s from public.strategies where id = p_strategy;
   return jsonb_build_object('id', s.id, 'status', s.status, 'rev', s.rev, 'expired_proposals', n,

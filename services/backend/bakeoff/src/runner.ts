@@ -24,7 +24,7 @@ export async function runLatency(p: SignerProvider, runs: number, outage?: { fro
   const sign: number[] = [], e2e: number[] = [];
   let ok = 0, failed = 0, rejected = 0, failedClosed = 0, recoveredAfter: number | null = null;
   for (let i = 0; i < runs; i++) {
-    const tx = buildTx(OWNER, [ix.cuPrice(1000n), ix.memo(OWNER, `sentra-bakeoff ${i}`)]);
+    const tx = buildTx(OWNER, [ix.cuPrice(1000n), ix.memo(OWNER, `centurion-bakeoff ${i}`)]);
     const r = await executeTrade(p, s, tx, policy, new MockSimulator());
     if (r.status === "confirmed") {
       ok++;

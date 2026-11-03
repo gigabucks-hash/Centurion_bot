@@ -5,7 +5,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "n
 import { join } from "node:path";
 import { b58encode } from "./solana/base58.ts";
 
-export const DEFAULT_STATE_DIR = "/home/box/.secrets/sentra_bakeoff_state";
+export const DEFAULT_STATE_DIR = "/home/box/.secrets/centurion_bakeoff_state";
 export type DevKeypair = { label: string; address: string; privateKey: KeyObject };
 
 export function pubkeyOf(pk: KeyObject): string {

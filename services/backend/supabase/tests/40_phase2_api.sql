@@ -16,7 +16,7 @@ begin
 end $$;
 create or replace function pg_temp.as_user(u text, client text default 'web') returns void language sql as $$
   select set_config('request.jwt.claim.sub', coalesce(u, ''), false),
-         set_config('request.jwt.claims', case when u is null then '' else json_build_object('sub', u, 'sentra_client', client)::text end, false);
+         set_config('request.jwt.claims', case when u is null then '' else json_build_object('sub', u, 'centurion_client', client)::text end, false);
 $$;
 
 insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000f1'), ('00000000-0000-0000-0000-0000000000f2');

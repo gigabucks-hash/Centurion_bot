@@ -1,4 +1,4 @@
-# Centurion Trade backend (codename `sentra`) (Phase 1, paper trading only)
+# Centurion Trade backend (codename `centurion`) (Phase 1, paper trading only)
 
 Rust worker plus Supabase schema for Centurion Trade. **Paper only:** no private keys, and only `PaperExecutor`
 ships. `LiveExecutor` is a stub behind the `live-execution` feature (off), and the service refuses to

@@ -5,7 +5,7 @@ import { generateKeyPairSync, sign, type KeyObject } from "node:crypto";
 import { call, startHarness, type Harness } from "./helpers.ts";
 import { b58encode } from "../src/base58.ts";
 
-const DOMAIN = "app.sentra.test";
+const DOMAIN = "app.centurion.test";
 interface Wallet { address: string; key: KeyObject }
 function wallet(): Wallet {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519");
@@ -48,7 +48,7 @@ describe("B-2 login limits", () => {
       const t0 = Date.now();
       const r = await nonce(OWNER.address, `198.51.100.${i}`);
       st.push(r.status);
-      const d = Number(r.headers.get("x-sentra-login-delay-ms") ?? 0);
+      const d = Number(r.headers.get("x-centurion-login-delay-ms") ?? 0);
       if (d > 0) {
         delayed += 1;
         assert.ok(d <= 600);

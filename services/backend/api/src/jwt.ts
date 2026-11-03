@@ -9,7 +9,7 @@ export interface Claims {
   aud?: string | string[];
   role?: string;
   app_scopes?: string[];
-  sentra_client?: string;
+  centurion_client?: string;
   [k: string]: unknown;
 }
 
@@ -17,7 +17,7 @@ export interface Principal {
   claims: Claims;
   userId: string;
   scopes: Set<string>;
-  /** Channel, from the `sentra_client` claim only (never from the request body). Unknown -> web. */
+  /** Channel, from the `centurion_client` claim only (never from the request body). Unknown -> web. */
   via: Client;
 }
 
@@ -53,11 +53,11 @@ export function verifyJwt(token: string, secret: string, audience: string, nowS 
   return claims;
 }
 
-export const SESSION_ISSUER = "sentra-api";
+export const SESSION_ISSUER = "centurion-api";
 
 /**
- * Access-token verification for API requests. Tokens minted by our wallet login (iss "sentra-api") are verified
- * with our own SENTRA_SESSION_SECRET only; anything else with the Supabase JWT secret. The unverified `iss` only
+ * Access-token verification for API requests. Tokens minted by our wallet login (iss "centurion-api") are verified
+ * with our own CENTURION_SESSION_SECRET only; anything else with the Supabase JWT secret. The unverified `iss` only
  * picks the key, so a token claiming one issuer can never be accepted under the other's key.
  * `sid` (session family) must be a uuid when present; its liveness is checked per request (db.ts).
  */
@@ -81,7 +81,7 @@ export function principal(claims: Claims): Principal {
   const raw = Array.isArray(claims.app_scopes) ? claims.app_scopes.filter((s) => typeof s === "string") : [];
   const scopes = new Set(raw);
   if (scopes.has("trade")) scopes.add("read");
-  const c = claims.sentra_client;
+  const c = claims.centurion_client;
   const via: Client = c === "mobile" || c === "desktop" || c === "mcp" ? c : "web";
   return { claims, userId: claims.sub, scopes, via };
 }

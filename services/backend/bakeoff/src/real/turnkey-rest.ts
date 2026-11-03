@@ -45,7 +45,7 @@ export class TurnkeyRest implements SignerProvider {
 
   async createWallet(owner: string): Promise<WalletRef> {
     const r = await this.submit<{ activity: { result: { createWalletResult: { walletId: string; addresses: string[] } } } }>("create_wallet", "ACTIVITY_TYPE_CREATE_WALLET", {
-      walletName: `sentra-bakeoff-${Date.now()}`,
+      walletName: `centurion-bakeoff-${Date.now()}`,
       accounts: [{ curve: "CURVE_ED25519", pathFormat: "PATH_FORMAT_BIP32", path: "m/44'/501'/0'/0'", addressFormat: "ADDRESS_FORMAT_SOLANA" }],
     });
     const res = r.activity.result.createWalletResult;

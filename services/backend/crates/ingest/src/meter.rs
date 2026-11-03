@@ -212,7 +212,7 @@ mod tests {
 
     #[tokio::test]
     async fn pg_sink_accumulates() {
-        let Ok(url) = std::env::var("SENTRA_PG_TEST_URL") else {
+        let Ok(url) = std::env::var("CENTURION_PG_TEST_URL") else {
             return;
         };
         let (c, conn) = tokio_postgres::connect(&url, tokio_postgres::NoTls)

@@ -1,4 +1,4 @@
-# Centurion Trade (repo codename Sentra): Real-money trading options (design only, rev4: Boss decisions recorded)
+# Centurion Trade (repo codename Centurion): Real-money trading options (design only, rev4: Boss decisions recorded)
 
 rev4 (2026-10-29, 18:49–18:57 WIB): records **Boss's own decisions** (Apex chat t52u–t58u, verified by the parent
 agent; quoted in §D.5), the **lead design decisions** that follow from them (§D.6, marked as lead decisions, not Boss
@@ -11,7 +11,7 @@ wallet, withdrawals user-signed to Boss's main wallet only; shortlist now **Turn
 model revised for single-owner wallet login (§2.5); multi-tenant and legal items marked deprioritized (§8, §D.4).
 The §16 changes are drafted as a proposal in `TECH_DESIGN_S16_PROPOSAL.md`; `TECH_DESIGN.md` itself is untouched.
 
-rev2 (2026-10-29): folds in Apex's provider research (Page "Sentra — Real Money: Login & Wallet Options"):
+rev2 (2026-10-29): folds in Apex's provider research (Page "Centurion — Real Money: Login & Wallet Options"):
 shortlist Turnkey + Privy, **Crossmint as backup** (added to §1, §2, §6, §9); market evidence from a comparable
 Solana trading bot and Axiom (§1.2); every vendor latency figure marked *vendor-claimed*; withdraw-delay check (§4.6);
 explicit "§16 is a candidate to revise if Boss picks C" list (§7.9).
@@ -28,7 +28,7 @@ This section supersedes the earlier "options" framing wherever they disagree. Se
 why C won.
 
 ### D.1 What Boss decided (as relayed)
-1. **Private, single owner.** Sentra is Boss's own app. One owner (Boss); no other users, no sign-up, no teams.
+1. **Private, single owner.** Centurion is Boss's own app. One owner (Boss); no other users, no sign-up, no teams.
 2. **Login is wallet only:** SIWS with Phantom. Email OTP, Google/Apple and Telegram are **dropped from the MVP**;
    their code stays in the repo behind off-by-default flags (`AUTH_TELEGRAM_OIDC_ENABLED=false` already exists; email
    OTP and OAuth get the same treatment). Nothing is deleted.
@@ -85,7 +85,7 @@ withdrawal of Boss's funds without Boss's explicit re-confirmation.
    trading-wallet funds can only be recovered by withdrawing them to that main wallet (§2.5, §6).
 
 Also (t60u, t62u): the product is named **"Centurion Trade"** ("Nama aplikasi Centurion Trade"); the repo stays
-**local only** ("Lokal": no git remote, no push). Crate, package, DB and path names keep the codename `sentra` for now.
+**local only** ("Lokal": no git remote, no push). Crate, package, DB and path names keep the codename `centurion` for now.
 
 ### D.6 Lead design decisions (Apex Dev Lead; not Boss quotes)
 1. **`sell_all` is authorized by the session**, not by a fresh Phantom signature: the client shows a confirmation and
@@ -271,13 +271,13 @@ Boss's sessions and Boss's devices". Email/Telegram/OAuth rows above are out of 
 |---|---|---|
 | S | **Wallet-login phishing:** a look-alike site gets Boss to sign *its* SIWS message, or Boss signs ours on a fake origin | SIWS message binds `domain` and `uri`; Phantom rejects a recognised SIWS message whose `domain`/`uri` does not match the requesting page (error -32000, no prompt) [W3]; the MVP signs the **server-built** SIWS text with `signMessage` / MWA `sign_messages` (Phantom still recognises and checks it as SIWS; the wallet's own `signIn` rebuilds the text and would fail our strict parse) [W4]; server rejects any domain/URI mismatch; nonce 5 min, single use (TECH_DESIGN §9) [W5] |
 | S/T | **Deep-link redirect hijack** (rev4, Boss D.5.1: Android first via the Phantom deep link, MWA deferred) | The custom-scheme redirect back to Centurion Trade can be claimed by another app, so it is treated as hijackable: (1) nonce bound to the requesting **device and session** (device key, Phase 7 design), (2) **short TTL** (5 min, single use), (3) **domain + URI + chain** in the signed message and stored with the nonce, (4) **PKCE-style `state`**: the app keeps a random secret per login attempt, sends only its hash with `/nonce` and the secret with `/verify`, so a stolen redirect alone cannot be redeemed; the deeplink payload is also encrypted to the app's ephemeral x25519 key and responses not matching the active key are dropped |
-| S | **Phishing relay** (rev4, mobile review B-6): the owner address is public, so an attacker can request a genuine Sentra nonce for it and relay the message to Boss through its own app/deeplink | (1) **Nonce bound to the requesting session/device**: Phase 7 design (PERF_SECURITY.md §Phase 7): `/nonce` takes a `device_pubkey` (P-256, Keystore/Secure Enclave), `/verify` requires `device_sig` over the nonce, and once the owner's first device is registered only registered devices can redeem a nonce; plus Play Integrity / App Attest verdicts on `/verify` (designed, not wired). (2) **Short TTL**: 5 min, single use, a tampered message burns the nonce. (3) **domain + URI + chain in the message**, all stored with the nonce row and compared exactly at verify (with issued-at, expiry and statement version; B-3). (4) Allowlist fails closed (no boot without `OWNER_WALLETS`). Must-have before Real SOL |
-| S/T | **Malicious sign-in message:** a "login" prompt that is really a transaction or an approval, or arbitrary bytes | The app only ever asks Boss's main wallet for (a) a SIWS message and (b) a withdraw transaction it displays in full; never `signMessage` on arbitrary/base64 bytes; never `signAllTransactions`; UI teaches "Sentra never asks you to sign anything at login except the sign-in text" |
+| S | **Phishing relay** (rev4, mobile review B-6): the owner address is public, so an attacker can request a genuine Centurion nonce for it and relay the message to Boss through its own app/deeplink | (1) **Nonce bound to the requesting session/device**: Phase 7 design (PERF_SECURITY.md §Phase 7): `/nonce` takes a `device_pubkey` (P-256, Keystore/Secure Enclave), `/verify` requires `device_sig` over the nonce, and once the owner's first device is registered only registered devices can redeem a nonce; plus Play Integrity / App Attest verdicts on `/verify` (designed, not wired). (2) **Short TTL**: 5 min, single use, a tampered message burns the nonce. (3) **domain + URI + chain in the message**, all stored with the nonce row and compared exactly at verify (with issued-at, expiry and statement version; B-3). (4) Allowlist fails closed (no boot without `OWNER_WALLETS`). Must-have before Real SOL |
+| S/T | **Malicious sign-in message:** a "login" prompt that is really a transaction or an approval, or arbitrary bytes | The app only ever asks Boss's main wallet for (a) a SIWS message and (b) a withdraw transaction it displays in full; never `signMessage` on arbitrary/base64 bytes; never `signAllTransactions`; UI teaches "Centurion never asks you to sign anything at login except the sign-in text" |
 | S/E | **Someone else's wallet logs in** | **Owner-wallet allowlist**: `OWNER_WALLETS` (public addresses, config, not secrets) checked in SIWS verify; sign-up disabled; any other address -> 403 and an alert; changing the allowlist = signed by an existing owner wallet + 48 h delay + audit |
 | S | **Session theft** (stolen JWT/refresh token from a device, XSS, malware) | Short access token (≤15 min), rotating refresh bound to `device_id`, refresh reuse = revoke all sessions; httpOnly cookies on web; **step-up for every money action**: a fresh, action-bound owner-wallet signature over `payload_hash` (plus passkey/TOTP where enrolled) for granting the signer, loosening policy, resuming after a kill-switch trip, manual sells and withdrawals. A stolen session can view and can *tighten* or trip the kill switch, nothing more |
 | T | Stolen session tries to change where funds go | There is no "where": the only withdraw destination is the main wallet, set at owner bootstrap; changing it = owner-allowlist change rules above |
 | R | Boss disputes an action | Every money action carries the owner wallet's own signature (non-repudiable) plus the audit row |
-| D | **Single point of failure: Boss's main wallet** is login + owner of the trading wallet + withdraw destination. Seed lost -> locked out; seed stolen -> attacker is Boss | **Accepted risk (Boss D.5.5, "Tanpa backup"): no backup owner wallet.** Trading-wallet funds can only be recovered by withdrawing them to the main wallet, so a lost main-wallet seed strands what is in the trading wallet (bounded by the 2 SOL default cap). Changing the main wallet keeps the 48 h delay; kill switch can be tripped from any logged-in session; trading wallet stays small (cap), so a stolen seed's extra reach through Sentra is bounded by the cap. If the main wallet seed is stolen, the main wallet's funds are already at risk outside Sentra: Sentra must not make that worse (no new destinations, no loosening without delay) |
+| D | **Single point of failure: Boss's main wallet** is login + owner of the trading wallet + withdraw destination. Seed lost -> locked out; seed stolen -> attacker is Boss | **Accepted risk (Boss D.5.5, "Tanpa backup"): no backup owner wallet.** Trading-wallet funds can only be recovered by withdrawing them to the main wallet, so a lost main-wallet seed strands what is in the trading wallet (bounded by the 2 SOL default cap). Changing the main wallet keeps the 48 h delay; kill switch can be tripped from any logged-in session; trading wallet stays small (cap), so a stolen seed's extra reach through Centurion is bounded by the cap. If the main wallet seed is stolen, the main wallet's funds are already at risk outside Centurion: Centurion must not make that worse (no new destinations, no loosening without delay) |
 | D | Single point of failure: one provider, one RPC/sender, one operator | Manual (A) exits via Phantom; dual send paths; kill switch defaults to "exits only" on provider errors |
 | E | Phantom extension/app compromise or malicious update | No backup owner wallet (accepted risk, D.5.5); small trading cap (2 SOL default); review prompts show the exact destination (main wallet) |
 
@@ -337,7 +337,7 @@ Notes:
 
 ### 4.1 Layers (defence in depth; any layer can deny, none can allow alone)
 1. **Strategy layer** (existing): screener + guard + exit plan decide *what* to trade (practice-proven).
-2. **Sentra pre-sign checks** (new, in the real executor process, before any signing request): §4.3.
+2. **Centurion pre-sign checks** (new, in the real executor process, before any signing request): §4.3.
 3. **Provider policy** (C only): enforced in the provider's enclave before signing, default DENY [P5][T4][D2].
 4. **On-chain constraints** encoded in the tx: min-out / max-in, compute-unit price cap, recent blockhash.
 5. **Kill switches** (§5) checked at the start and again right before the sign call.
@@ -356,7 +356,7 @@ Notes:
 - Signer validity time-bound (re-grant every N days by the user with passkey), where supported [P5].
 - Key export and owner changes: never by our signer; user-only, provider MFA.
 
-### 4.3 Sentra pre-sign checks (every real tx, in order; fail closed)
+### 4.3 Centurion pre-sign checks (every real tx, in order; fail closed)
 1. Kill switches off at global / workspace / strategy (§5); `real_trading` on; feature compiled in.
 2. Intent binding: tx was built from a `real_order` row created by the engine from a screener pick
    (`pick_id`, `decision_hash`) or an exit plan step on an open real position. Buys require `mint` = pick mint.
@@ -594,7 +594,7 @@ picks C, these exact changes go into §16 in a separate, reviewed commit (not in
 
 ## 8. Regulatory and custody notes (DEPRIORITIZED for the private single-owner MVP; not legal advice)
 
-> Deprioritized per Boss's direction (relayed by Apex Dev Lead, 2026-10-29): Sentra is a private tool for Boss's own
+> Deprioritized per Boss's direction (relayed by Apex Dev Lead, 2026-10-29): Centurion is a private tool for Boss's own
 > funds with no other users. The notes stay for the day that changes; no legal work is planned for the MVP.
 
 - **US (FinCEN FIN-2019-G001):** unhosted-wallet software where the user controls the value is generally not money
@@ -602,7 +602,7 @@ picks C, these exact changes go into §16 in a separate, reviewed commit (not in
 - **EU (MiCA):** custody on behalf of clients is a regulated CASP service; non-custodial wallet software is outside
   it [L2][L3].
 - **Indonesia:** crypto supervision moved from Bappebti to OJK on 10 Jan 2025 (PP 49/2024; POJK 27/2024) [L4][L5].
-  Relevant only if Sentra is ever offered to others.
+  Relevant only if Centurion is ever offered to others.
 - Still worth doing even for one user: read the chosen provider's terms (permitted automated trading, KYC, sanctions)
   before signup.
 
@@ -680,7 +680,7 @@ Where we still challenge C (and what we add because of it):
 - [C2] Crossmint signers (server, Cloud KMS, device, recovery): https://docs.crossmint.com/wallets/concepts/signers
 - [C3] Crossmint signer scopes (transfer-only scopes, recipients, spending limit, `expiresAt`): https://docs.crossmint.com/wallets/guides/signers/scopes
 - [C4] Crossmint register delegated (operational) signer API: https://docs.crossmint.com/api-reference/wallets/register-delegated-key
-- [A1] Apex Dev Lead, research Page "Sentra — Real Money: Login & Wallet Options" (2026-10-29), and the sources it
+- [A1] Apex Dev Lead, research Page "Centurion — Real Money: Login & Wallet Options" (2026-10-29), and the sources it
   links (vendor pricing/SDK pages, Axiom, a comparable Solana trading bot's published terms). Claims marked "per
   Apex" or "reported" were not re-verified by Backend: https://cursor.com/canvas/store-5126697f-8ba1-4316-99b4-f1165b73c1fb/b6afde9c-17d6-4723-a46d-bfd107b8ca57
 - [W1] Turnkey, external wallet authentication: https://docs.turnkey.com/solutions/embedded-wallets/integration-guide/react/using-external-wallets/authentication

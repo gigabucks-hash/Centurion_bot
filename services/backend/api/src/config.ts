@@ -7,7 +7,7 @@ export interface Config {
   /** Supabase JWT secret (HS256). */
   jwtSecret: string;
   /**
-   * Our own HS256 key for access tokens minted by wallet login (iss "sentra-api"). Independent of the Supabase
+   * Our own HS256 key for access tokens minted by wallet login (iss "centurion-api"). Independent of the Supabase
    * project's JWT secret / signing keys. Required (>= 32 chars, != SUPABASE_JWT_SECRET) when SIWS is enabled.
    */
   sessionSecret: string;
@@ -45,7 +45,7 @@ export interface Config {
   rateLimitWriteUserPerMin: number;
   rateLimitWriteRoutePerMin: number;
   rateLimitStore: "memory" | "postgres";
-  /** SIWS statement v1 ("Sentra") accepted until this epoch ms (AUTH_SIWS_LEGACY_STATEMENT_UNTIL, default
+  /** SIWS statement v1 ("Centurion") accepted until this epoch ms (AUTH_SIWS_LEGACY_STATEMENT_UNTIL, default
    *  2026-11-05T12:00:00Z = 7 days after the rename); AUTH_SIWS_LEGACY_STATEMENT=false ends it now. */
   siwsLegacyStatementUntil: number;
   /** Login limits (B-2). Strangers: hard 429 per IP. Owner wallets: never 429, soft delay up to authOwnerMaxDelayMs. */
@@ -98,10 +98,10 @@ function siwsConfig(env: NodeJS.ProcessEnv): { siwsDomains: string[]; ownerWalle
 }
 
 function sessionSecret(env: NodeJS.ProcessEnv, jwtSecret: string): string {
-  const s = env.SENTRA_SESSION_SECRET ?? "";
+  const s = env.CENTURION_SESSION_SECRET ?? "";
   if ((env.AUTH_SIWS_DOMAINS ?? "").trim() === "" && s === "") return "";
-  if (s.length < 32) throw new ConfigError("refusing to start: SENTRA_SESSION_SECRET (>= 32 chars) is required when AUTH_SIWS_DOMAINS is set");
-  if (s === jwtSecret) throw new ConfigError("SENTRA_SESSION_SECRET must differ from SUPABASE_JWT_SECRET");
+  if (s.length < 32) throw new ConfigError("refusing to start: CENTURION_SESSION_SECRET (>= 32 chars) is required when AUTH_SIWS_DOMAINS is set");
+  if (s === jwtSecret) throw new ConfigError("CENTURION_SESSION_SECRET must differ from SUPABASE_JWT_SECRET");
   return s;
 }
 
@@ -144,7 +144,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (!databaseUrl) throw new ConfigError("DATABASE_URL is required");
   const jwtSecret = env.SUPABASE_JWT_SECRET ?? "";
   if (jwtSecret.length < 32) throw new ConfigError("SUPABASE_JWT_SECRET is required (>= 32 chars)");
-  const marksChannel = env.SSE_MARKS_CHANNEL ?? "sentra_marks";
+  const marksChannel = env.SSE_MARKS_CHANNEL ?? "centurion_marks";
   if (!/^[a-z_][a-z0-9_]{0,62}$/.test(marksChannel)) throw new ConfigError("SSE_MARKS_CHANNEL must be a plain identifier");
   return {
     host: env.API_HOST ?? "0.0.0.0",

@@ -1,4 +1,4 @@
-# Sentra bake-off: pre-install SDK security review (Turnkey vs Crossmint)
+# Centurion bake-off: pre-install SDK security review (Turnkey vs Crossmint)
 
 Status: **review done before any install**, 2026-10-29 (Asia/Jakarta). Scope: a **devnet-only** bake-off of a
 delegated, swap-only signer on a separate capped trading wallet (REAL_MONEY_OPTIONS.md §D, option C, wallet-only
@@ -77,7 +77,7 @@ Root-quorum actions can't be granted by policy [T4].
 | Instruction-level visibility | **Yes**: `solana.tx.instructions[]` (program, accounts, `instruction_data_hex`). `parsed_instruction_data` once an IDL is uploaded (pump.fun and Raydium CPMM/CLMM are Anchor programs, so their IDLs can be uploaded). | Discriminator checks are possible in policy. |
 | Per-tx SOL cap | **Partial**: `solana.tx.transfers[].amount` covers **top-level System transfers only**. Swap input amounts sit in instruction data. They can be capped via IDL args (`max_sol_cost`, `amount_in`) or hex slicing. | Our pre-sign layer + simulation must remain the real cap. |
 | Deny transfers to non-owner | **Yes, top-level only**: `transfers.all(t, t.to in [...])`, `spl_transfers.all(...)` | CPI transfers aren't visible, so this is covered by our parser + simulation. **ALT-resolved accounts show as `ADDRESS_TABLE_LOOKUP`**, so the policy must require `address_table_lookups.count() == 0` (or deny the placeholder). |
-| Daily / windowed cap | **No native counter** | It's time windows (`CronSpan`), not cumulative spend. The daily cap stays in Sentra. |
+| Daily / windowed cap | **No native counter** | It's time windows (`CronSpan`), not cumulative spend. The daily cap stays in Centurion. |
 | Signer expiry | API-key expiration (`expiration_seconds`) | Good for the re-grant cadence (§4.2). |
 
 Default effect is deny: an activity needs an ALLOW policy, and an ALLOW policy that errors doesn't allow it.
@@ -160,7 +160,7 @@ host is `staging.crossmint.com`, the key prefix is `sk_staging_`, and the RPC cl
    process. This is a **finding against Crossmint for Phase 7**: production must support scoped keys, or the signer's
    API key is a full-project credential.
 2. **The staging server key may have been exposed on screen during setup.** It **must be rotated after the
-   bake-off** (tracked as an open item). Keys live only in `/home/box/.secrets/sentra_bakeoff.env` (mode 600), loaded
+   bake-off** (tracked as an open item). Keys live only in `/home/box/.secrets/centurion_bakeoff.env` (mode 600), loaded
    at runtime, and are never committed or logged. The harness's redaction check fails the run if any loaded secret value
    or an `sk_staging_`/`ck_staging_`-shaped token appears in output or committed files.
 
@@ -192,7 +192,7 @@ Allowed instructions (from the IDLs / source): pump `buy`, `buy_v2`, `buy_v3`, `
 ## 4. Open risks
 1. **Provider floors are top-level only (Turnkey) or transfer-only (Crossmint).** CPI movements inside an allowlisted
    program are caught only by our parser and simulation. Simulation must assert balance deltas (REAL_MONEY_OPTIONS §4.3 step 9).
-2. **Crossmint has no program allowlist.** A compromised Sentra server with the Crossmint key could sign any
+2. **Crossmint has no program allowlist.** A compromised Centurion server with the Crossmint key could sign any
    non-transfer instruction. That's the key difference from Turnkey, and the bake-off measures it.
 3. **Crossmint keys are full-access** in staging (§2.8). The key may have been exposed, so rotate it after the bake-off.
 4. **Turnkey keys aren't cluster-scoped.** Use a dedicated bake-off org, and never reuse it for Phase 7.
@@ -218,8 +218,8 @@ Allowed instructions (from the IDLs / source): pump `buy`, `buy_v2`, `buy_v3`, `
 | `TURNKEY_ORGANIZATION_ID` | Turnkey | dedicated bake-off org |
 | `TURNKEY_API_PUBLIC_KEY` / `TURNKEY_API_PRIVATE_KEY` | Turnkey (admin, setup only) | |
 | `BAKEOFF_LIVE` | harness | must be `1` for any provider network call; tests never set it |
-| `BAKEOFF_SECRETS_FILE` | harness | default `/home/box/.secrets/sentra_bakeoff.env` |
-| `BAKEOFF_STATE_DIR` | harness | default `/home/box/.secrets/sentra_bakeoff_state` (devnet test keypairs, mode 600, outside the repo) |
+| `BAKEOFF_SECRETS_FILE` | harness | default `/home/box/.secrets/centurion_bakeoff.env` |
+| `BAKEOFF_STATE_DIR` | harness | default `/home/box/.secrets/centurion_bakeoff_state` (devnet test keypairs, mode 600, outside the repo) |
 
 ## 7. Install record (after the review)
 - Installed into `services/backend/bakeoff/` only: **`@turnkey/api-key-stamper@0.6.18`**, exact pin in `package.json`.
@@ -233,7 +233,7 @@ Allowed instructions (from the IDLs / source): pump `buy`, `buy_v2`, `buy_v3`, `
 ## 8. Live results: Crossmint staging + Solana devnet (2026-10-29, 18:50–19:05 WIB)
 
 Run via `npm run live:crossmint` with devnet test keypairs only (owner/recovery stand-in, delegate, foreign recipient,
-stored mode 600 in `/home/box/.secrets/sentra_bakeoff_state`). No real funds. Smart wallets `B2HHttwq…KJT3Jv`
+stored mode 600 in `/home/box/.secrets/centurion_bakeoff_state`). No real funds. Smart wallets `B2HHttwq…KJT3Jv`
 (latency, negatives, revoke) and `A7k8M65W…9Qcoxy` (escalation probe). Raw JSON is in `bakeoff/results/` (gitignored and
 redaction-checked).
 
@@ -241,7 +241,7 @@ redaction-checked).
 (`34U6iAJm…`), our delegated key signs on chain, and smart-wallet program `XmSwiXQsxSZYKVYbSAkkvQVvdrKo1nwwfvZBPQrLzbU`
 (`ExecuteTransaction`) **CPIs** our instructions. Consequences:
 (a) Fees are sponsored (10,040 lamports per tx observed on devnet).
-(b) Our instructions are CPIs on chain, so a top-level-only parser on the final tx would see only the wrapper. Sentra's
+(b) Our instructions are CPIs on chain, so a top-level-only parser on the final tx would see only the wrapper. Centurion's
 pre-sign must parse the **inner** tx we submit, which it does.
 (c) The wallet PDA holds 0 lamports, so our simulator substitutes a funded fee payer (`BAKEOFF_SIM_FEE_PAYER`) and
 simulates our instructions.
@@ -249,9 +249,9 @@ simulates our instructions.
 | Test | Result |
 |---|---|
 | Latency, 60/60 memo txs through the full pipeline (pre-sign + RPC simulate + Crossmint create, approve and wait) | **60 ok, 0 failed.** Sign (create + approval round trip): **p50 524 ms, p95 999 ms**. End-to-end to Crossmint `success`: **p50 2,598 ms, p95 4,302 ms** (includes 250 ms poll granularity). |
-| Transfer out to a foreign address | Pipeline: **rejected by Sentra pre-sign** (`TRANSFER_TO_NON_OWNER`). Provider only: 422 at Crossmint's simulation, but the logs show the smart-wallet program **forwarded the transfer to the System program**, which failed with `0x1` (insufficient lamports; the wallet holds 0 SOL). So **the recipient scope did not stop it before execution**, and the outcome with funds is **untested**. |
-| Over-cap | Pipeline: **rejected by Sentra** (`OVER_CAP` on a pump.fun `buy` with `max_sol_cost` 0.025 SOL > 0.01 cap). Provider only: no per-tx cap exists (the scope is cumulative and transfer-only). The 422 came from the placeholder pump accounts (`Custom 3012`), not from a cap. |
-| Non-allowlisted program (Memo v1) | Pipeline: **rejected by Sentra** (`PROGRAM_NOT_ALLOWED`). Provider only: **Crossmint signed and landed it** (confirmed on devnet). This confirms on chain that Crossmint has **no program allowlist**. |
+| Transfer out to a foreign address | Pipeline: **rejected by Centurion pre-sign** (`TRANSFER_TO_NON_OWNER`). Provider only: 422 at Crossmint's simulation, but the logs show the smart-wallet program **forwarded the transfer to the System program**, which failed with `0x1` (insufficient lamports; the wallet holds 0 SOL). So **the recipient scope did not stop it before execution**, and the outcome with funds is **untested**. |
+| Over-cap | Pipeline: **rejected by Centurion** (`OVER_CAP` on a pump.fun `buy` with `max_sol_cost` 0.025 SOL > 0.01 cap). Provider only: no per-tx cap exists (the scope is cumulative and transfer-only). The 422 came from the placeholder pump accounts (`Custom 3012`), not from a cap. |
+| Non-allowlisted program (Memo v1) | Pipeline: **rejected by Centurion** (`PROGRAM_NOT_ALLOWED`). Provider only: **Crossmint signed and landed it** (confirmed on devnet). This confirms on chain that Crossmint has **no program allowlist**. |
 | Delegated-signer escalation (delegate registers a new unscoped signer and approves it itself) | **Rejected by Crossmint**: "Signature is not pending for signer (delegate) … pending: (recovery)". Only the recovery method can approve signer changes. One dangling `awaiting-approval` signer-add tx remains, inert without the owner's signature. |
 | Outage (provider unreachable, induced with a 1 ms timeout × 5) | **5/5 failed closed** (no signature, nothing sent), and the next call recovered (confirmed, 2.65 s). Approvals are separate calls, so a create that times out can never land unsigned. |
 | Revoke (DELETE signer + owner approval) | **2.85 s** to revoke. The next sign attempt was rejected with HTTP 400 "Delegated signer … not found". |
@@ -271,7 +271,7 @@ with an injected 5-call outage that failed closed, from Turnkey's *vendor-claime
 On this evidence Crossmint fails the bake-off criterion "can the provider policy alone reject a non-allowlisted program"
 (REAL_MONEY_OPTIONS §D.3): it **landed a non-allowlisted program call** and has no per-tx cap. Its floor is
 "only the delegate key can sign, and only the owner can change signers", which is good. But swap-only rests 100% on
-Sentra's pre-sign layer. Add the full-access-only staging keys (§2.8) and the SDK telemetry (§2.3), and **Turnkey
+Centurion's pre-sign layer. Add the full-access-only staging keys (§2.8) and the SDK telemetry (§2.3), and **Turnkey
 stays primary**, pending its live run under the same tests. Crossmint stays the fallback only if Turnkey fails.
 
 ## 6. Sources (accessed 2026-10-29)

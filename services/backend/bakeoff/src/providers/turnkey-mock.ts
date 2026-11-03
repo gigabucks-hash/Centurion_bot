@@ -18,11 +18,11 @@ export function renderTurnkeyPolicy(spec: ProviderPolicySpec, delegatedUserId: s
     `solana.tx.spl_transfers.all(t, t.to in ${list(spec.allowedRecipients)})`,
   ].join(" && ");
   return {
-    policyName: `sentra-bakeoff-swap-only-${walletAddress.slice(0, 6)}`,
+    policyName: `centurion-bakeoff-swap-only-${walletAddress.slice(0, 6)}`,
     effect: "EFFECT_ALLOW",
     consensus: `approvers.any(user, user.id == '${delegatedUserId}')`,
     condition,
-    notes: "Sentra bake-off: delegated swap-only signer, devnet. Daily cap is enforced by Sentra (no native counter).",
+    notes: "Centurion bake-off: delegated swap-only signer, devnet. Daily cap is enforced by Centurion (no native counter).",
   };
 }
 

@@ -7,12 +7,12 @@ const S = "k".repeat(40);
 const sub = "00000000-0000-0000-0000-0000000000a1";
 const exp = Math.floor(Date.now() / 1000) + 60;
 
-test("verifies HS256 and derives via from sentra_client only", () => {
-  const c = verifyJwt(signJwt({ sub, exp, aud: "authenticated", sentra_client: "desktop", app_scopes: ["trade"] }, S), S, "authenticated");
+test("verifies HS256 and derives via from centurion_client only", () => {
+  const c = verifyJwt(signJwt({ sub, exp, aud: "authenticated", centurion_client: "desktop", app_scopes: ["trade"] }, S), S, "authenticated");
   const p = principal(c);
   assert.equal(p.via, "desktop");
   assert.ok(p.scopes.has("read") && p.scopes.has("trade"), "trade implies read");
-  assert.equal(principal({ ...c, sentra_client: "push" }).via, "web", "unknown client -> web");
+  assert.equal(principal({ ...c, centurion_client: "push" }).via, "web", "unknown client -> web");
   assert.equal(principal({ ...c, app_scopes: undefined }).scopes.size, 0, "no scopes claim -> nothing");
 });
 

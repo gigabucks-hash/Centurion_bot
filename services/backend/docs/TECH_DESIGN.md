@@ -1,4 +1,4 @@
-# Sentra backend: technical design (Phase 1 in detail, then Phases 2 and 4)
+# Centurion backend: technical design (Phase 1 in detail, then Phases 2 and 4)
 
 Owner: Backend API Specialist. Status: v1.1, 2026-10-29. Contracts: `packages/contracts/*`.
 **Hard rules:** paper trading only. No private keys anywhere. Only `PaperExecutor` ships; `LiveExecutor`

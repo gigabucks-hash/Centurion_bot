@@ -1,5 +1,5 @@
 // LIVE Crossmint bake-off: Crossmint STAGING + Solana DEVNET only. Devnet test keypairs only, no real funds.
-// Run:  set -a; . /home/box/.secrets/sentra_bakeoff.env; set +a; SOLANA_CLUSTER=devnet BAKEOFF_LIVE=1 node src/live-crossmint.ts [--phase=...] [--runs=60]
+// Run:  set -a; . /home/box/.secrets/centurion_bakeoff.env; set +a; SOLANA_CLUSTER=devnet BAKEOFF_LIVE=1 node src/live-crossmint.ts [--phase=...] [--runs=60]
 // Every line printed goes through redact(); results/*.json is gitignored and redaction-checked.
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -93,7 +93,7 @@ async function main() {
 
   if (phase === "probe" || phase === "all") {
     const bh = await rpc.latestBlockhash();
-    const tx = buildTx(W, [ix.memo(W, "sentra-bakeoff probe")], bh);
+    const tx = buildTx(W, [ix.memo(W, "centurion-bakeoff probe")], bh);
     const pv = await presign(tx, policy, sim);
     log("presign probe", { ok: pv.ok, violations: pv.violations, sim: pv.simulatedSpendLamports });
     const r = await cm.signAndSend(signer, tx);
@@ -106,7 +106,7 @@ async function main() {
     let ok = 0;
     for (let i = 0; i < runs; i++) {
       const bh = await rpc.latestBlockhash();
-      const tx = buildTx(W, [ix.memo(W, `sentra-bakeoff ${i} ${Date.now()}`)], bh);
+      const tx = buildTx(W, [ix.memo(W, `centurion-bakeoff ${i} ${Date.now()}`)], bh);
       const r = await executeTrade(cm, signer, tx, policy, sim);
       if (r.status === "confirmed") {
         ok++;

@@ -156,9 +156,9 @@ begin
       detail = public.strategy_conflict_detail(s, a.base_rev)::text;
   end if;
   v_base := s.rev;
-  perform set_config('sentra.actor', coalesce(p_actor::text, ''), true);
-  perform set_config('sentra.via', p_via, true);
-  perform set_config('sentra.device', coalesce(a.payload ->> 'device', ''), true);
+  perform set_config('centurion.actor', coalesce(p_actor::text, ''), true);
+  perform set_config('centurion.via', p_via, true);
+  perform set_config('centurion.device', coalesce(a.payload ->> 'device', ''), true);
   update public.strategies
      set settings = (settings || p) - array(select k from jsonb_each(p) e(k, v) where v = 'null'::jsonb)
    where id = s.id

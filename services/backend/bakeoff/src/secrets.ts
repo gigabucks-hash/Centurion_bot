@@ -2,7 +2,7 @@
 // Values are never printed; only variable NAMES may appear in output.
 import { readFileSync, statSync } from "node:fs";
 
-export const DEFAULT_SECRETS_FILE = "/home/box/.secrets/sentra_bakeoff.env";
+export const DEFAULT_SECRETS_FILE = "/home/box/.secrets/centurion_bakeoff.env";
 export const SECRET_NAME = /^(CROSSMINT_.*KEY|TURNKEY_API_PRIVATE_KEY|TURNKEY_.*SECRET|.*_PRIVATE_KEY)$/;
 /** Key-shaped tokens: a Crossmint staging/production prefix followed by key characters. */
 export const KEY_SHAPE = /\b(?:sk|ck)_(?:staging|production)_[A-Za-z0-9_-]{8,}/;

@@ -214,7 +214,7 @@ describe("approvals", () => {
     assert.equal(ok.headers.get("etag"), '"2"');
     const row = await h.db.query("select decided_by, decided_via::text as via from public.approvals where id = $1", [APPROVAL]);
     assert.equal(row.rows[0].decided_by, OWNER, "actor = JWT sub, not the body");
-    assert.equal(row.rows[0].via, "desktop", "via = sentra_client claim, not the body");
+    assert.equal(row.rows[0].via, "desktop", "via = centurion_client claim, not the body");
     const replay = await call(h.base, "POST", `${base}/decision`, { token: owner(), headers: { "if-match": '"1"', "idempotency-key": "decide-key-0001" }, body });
     assert.equal(replay.status, 200);
     assert.equal(replay.body.data.replayed, true);
@@ -311,8 +311,8 @@ describe("events: REST page and SSE", () => {
       onOpen: async () => {
         await new Promise((r) => setTimeout(r, 100));
         const mark = { mint: "Co68LzYNQArj5fmRmh4o2TVeEVx6FfaLiyRgDAjtpump", price_usd: "0.000041230000", price_sol: "0.000000213400", liquidity_usd: 42000, slot: 462847812, ts: new Date().toISOString(), position_ids: [POS], secret: "dropped" };
-        await h.db.query("select pg_notify('sentra_marks', $1)", [JSON.stringify({ workspace_id: OTHER_WS, mode: "practice", mark: { ...mark, mint: "So11111111111111111111111111111111111111112" } })]);
-        await h.db.query("select pg_notify('sentra_marks', $1)", [JSON.stringify({ workspace_id: WS, mode: "practice", mark })]);
+        await h.db.query("select pg_notify('centurion_marks', $1)", [JSON.stringify({ workspace_id: OTHER_WS, mode: "practice", mark: { ...mark, mint: "So11111111111111111111111111111111111111112" } })]);
+        await h.db.query("select pg_notify('centurion_marks', $1)", [JSON.stringify({ workspace_id: WS, mode: "practice", mark })]);
       },
     });
     const marks = frames.filter((f) => f.event === "mark");

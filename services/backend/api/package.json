@@ -1,9 +1,9 @@
 {
-  "name": "@sentra/backend-api",
+  "name": "@centurion/backend-api",
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Sentra REST/SSE API (contracts 1.1.2). Practice mode only: refuses to start unless TRADING_MODE=paper.",
+  "description": "Centurion REST/SSE API (contracts 1.1.2). Practice mode only: refuses to start unless TRADING_MODE=paper.",
   "engines": { "node": ">=22.18" },
   "scripts": {
     "start": "node src/main.ts",

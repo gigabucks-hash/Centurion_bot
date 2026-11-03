@@ -142,7 +142,7 @@ impl Config {
                 marks_min_interval_ms.to_string(),
             ));
         }
-        let marks_channel = get("SSE_MARKS_CHANNEL").unwrap_or_else(|| "sentra_marks".into());
+        let marks_channel = get("SSE_MARKS_CHANNEL").unwrap_or_else(|| "centurion_marks".into());
         if !crate::marks::valid_channel(&marks_channel) {
             return Err(ConfigError::Invalid("SSE_MARKS_CHANNEL", marks_channel));
         }

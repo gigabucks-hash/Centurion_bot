@@ -11,7 +11,7 @@ export const SIWS_CHAIN = "solana:mainnet";
  */
 export const SIWS_STATEMENTS: Readonly<Record<number, string>> = {
   /** legacy (product codename); accepted only during the transition window (config siwsLegacyStatementUntil). */
-  1: "Sign in to Sentra (practice). This request does not trigger a transaction or cost any fees.",
+  1: "Sign in to Centurion (practice). This request does not trigger a transaction or cost any fees.",
   /** current: product name Centurion Trade (UX key auth.siws.statement). */
   2: "Sign in to Centurion Trade",
 };

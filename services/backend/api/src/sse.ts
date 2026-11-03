@@ -117,7 +117,7 @@ export async function streamEvents(ctx: Ctx, d: Deps, p: Principal, ws: string, 
     "X-Accel-Buffering": "no",
   });
   res.socket?.setNoDelay(true);
-  res.write(`retry: 3000\n: sentra events after_seq=${cursor}\n\n`);
+  res.write(`retry: 3000\n: centurion events after_seq=${cursor}\n\n`);
 
   let closed = false;
   const timers: NodeJS.Timeout[] = [];

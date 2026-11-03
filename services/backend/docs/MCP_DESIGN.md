@@ -2,7 +2,7 @@
 
 - **Status:** design only, no code. Phase 4 delivers paper (practice) first; Real-money tools stay dark until Phase 7.
 - **Boss's ask:** "selipkan jg opsi koneksi ke AI agent via MCP supaya grok bot gua bisa kendalikan pengoperasioan aplikasinya". In English: also give an option to connect an AI agent over MCP, so Boss's Grok Bot can operate the app.
-- **Naming:** the product is **Centurion Trade** in anything a user sees (consent screen, UI, notifications, tool descriptions). Internal names stay `sentra`: the `sentra_client` claim, crates, tables and paths.
+- **Naming:** the product is **Centurion Trade** in anything a user sees (consent screen, UI, notifications, tool descriptions). Internal names stay `centurion`: the `centurion_client` claim, crates, tables and paths.
 - **Builds on:**
   - `packages/contracts/API_ENDPOINTS.md` (v1.1.3): §1 scopes, §2 idempotency/If-Match, §2.3 rate limits, §4.x endpoints.
   - `TECH_DESIGN.md` §8.
@@ -46,7 +46,7 @@
 
 | Item | Value |
 |---|---|
-| Access token | JWT, ES256, **10 min**. Claims: `iss`, `sub` (Boss user id), `aud` = `https://<api-host>/mcp` (exact), `sentra_client = "mcp"`, `app_scopes` (below), `ws` (the workspace the grant is bound to), `grant_id`, `client_id`, `jti`, `exp`, `iat` |
+| Access token | JWT, ES256, **10 min**. Claims: `iss`, `sub` (Boss user id), `aud` = `https://<api-host>/mcp` (exact), `centurion_client = "mcp"`, `app_scopes` (below), `ws` (the workspace the grant is bound to), `grant_id`, `client_id`, `jti`, `exp`, `iat` |
 | `app_scopes` minted | `read` → `["read"]`. `control` → `["read","agent:control"]`. `trade` → `["read","agent:control","agent:trade"]`. **`trade:real` is never minted** (that code path does not exist before Phase 7, as today) |
 | Refresh token | Opaque, 256-bit, stored as a hash. **Rotates on every use**. Family idle TTL 7 days, absolute TTL 30 days, then re-consent. **Reuse of a rotated token revokes the whole family and the grant** (same logic as SIWS `refresh_reused`), notifies Boss, and writes `agent.grant.revoked {reason:"refresh_reuse"}` |
 | Audience | The MCP endpoint rejects tokens whose `aud` is not exactly the MCP resource. **REST rejects MCP-audience tokens outright** (`401 TOKEN_AUDIENCE`), so a stolen agent token cannot be replayed against `/v1/*`, and a first-party app token cannot be used on `/mcp`. No token passthrough to any upstream |
@@ -74,12 +74,12 @@
 | Layer | Mechanism | Failure |
 |---|---|---|
 | L1 Tool registry | `tools/list` is built from a static, code-reviewed manifest (§4). A CI test asserts that the manifest equals the frozen list, and that no tool maps to a route on the deny list | Tool absent |
-| L2 Route allowlist | REST middleware: when `sentra_client = "mcp"`, **default deny**. Only the `(method, route)` pairs in `AGENT_ROUTE_ALLOWLIST` (§4, column "REST") pass, and only with the matching `agent:*` scope. Every other route returns `403 FORBIDDEN_SCOPE {required:"app"}`, including future routes nobody remembered to mark | 403 |
+| L2 Route allowlist | REST middleware: when `centurion_client = "mcp"`, **default deny**. Only the `(method, route)` pairs in `AGENT_ROUTE_ALLOWLIST` (§4, column "REST") pass, and only with the matching `agent:*` scope. Every other route returns `403 FORBIDDEN_SCOPE {required:"app"}`, including future routes nobody remembered to mark | 403 |
 | L3 App-only routes | Existing `requireApp()` (rules.ts) stays on every denied route (withdraw, wallets, signer, kill-switch clear, confirmations, devices, account, team). It is defence in depth if L2 is misconfigured | `403 FORBIDDEN_SCOPE {required:"app"}` |
 | L4 SQL/RPC | The `via` comes from the JWT, never a parameter (Q13). (a) `decide_approval` already returns `APPROVAL_REQUIRES_APP` for `guard_change`/`team_action` via mcp. (b) **New:** the strategy-patch RPC computes `guard_weakened_fields()`; if any field is non-empty and `via = mcp` it raises `LOOSEN_REQUIRES_APP` **before** inserting an approval or guard_change row. (c) Real-limit raise, wallet and signer RPCs raise `FORBIDDEN_SCOPE` for `via = mcp` | `403 LOOSEN_REQUIRES_APP` |
 | L5 Cryptographic | Anything needing a fresh Phantom signature or WebAuthn proof is bound to the owner's keys and to `payload_hash`. The agent has neither | Proof fails |
 
-**Contract change (applied with this doc):** API_ENDPOINTS §1 and §4.3 now say *"MCP cannot propose a guard weakening: a weakening PATCH with `sentra_client = mcp` returns `403 LOOSEN_REQUIRES_APP` and creates no proposal."* Tightening (any patch where `guard_weakened_fields()` is empty) is allowed under `control`.
+**Contract change (applied with this doc):** API_ENDPOINTS §1 and §4.3 now say *"MCP cannot propose a guard weakening: a weakening PATCH with `centurion_client = mcp` returns `403 LOOSEN_REQUIRES_APP` and creates no proposal."* Tightening (any patch where `guard_weakened_fields()` is empty) is allowed under `control`.
 
 ## 4. Tool list
 

@@ -8,7 +8,7 @@ import { b58encode } from "../src/base58.ts";
 
 let h: Harness;
 let ipN = 0;
-const DOMAIN = "app.sentra.test";
+const DOMAIN = "app.centurion.test";
 
 interface Wallet { address: string; key: KeyObject }
 function wallet(): Wallet {
@@ -60,7 +60,7 @@ describe("SIWS login", () => {
     const me = await call(h.base, "GET", "/v1/me", { token: s.access_token });
     assert.equal(me.status, 200, JSON.stringify(me.body));
     const claims = JSON.parse(Buffer.from(s.access_token.split(".")[1], "base64url").toString());
-    assert.deepEqual([claims.sub, claims.sentra_client, claims.app_scopes, claims.exp - claims.iat], [s.user_id, "desktop", ["read", "trade"], 600]);
+    assert.deepEqual([claims.sub, claims.centurion_client, claims.app_scopes, claims.exp - claims.iat], [s.user_id, "desktop", ["read", "trade"], 600]);
     assert.ok(!JSON.stringify(claims).includes("real"), "never trade:real");
     // same wallet again -> same user (identity upsert)
     const again = await login(OWNER_W, "web");

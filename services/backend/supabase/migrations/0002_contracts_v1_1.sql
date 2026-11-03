@@ -1,4 +1,4 @@
--- Sentra contracts v1.1 (2026-10-29)
+-- Centurion contracts v1.1 (2026-10-29)
 --   * rev on every mutable resource + 409 conflict detail + confirmation restart
 --   * strategy revision history (3-way merge base for the UX conflict flow)
 --   * last-login-method lock, login wallet != trading wallet
@@ -74,9 +74,9 @@ begin
   if tg_op = 'INSERT' or new.rev <> old.rev then
     insert into public.strategy_revisions (strategy_id, rev, name, status, settings, changed_by, changed_via, device)
     values (new.id, new.rev, new.name, new.status, new.settings,
-            nullif(current_setting('sentra.actor', true), '')::uuid,
-            nullif(current_setting('sentra.via', true), ''),
-            nullif(current_setting('sentra.device', true), ''))
+            nullif(current_setting('centurion.actor', true), '')::uuid,
+            nullif(current_setting('centurion.via', true), ''),
+            nullif(current_setting('centurion.device', true), ''))
     on conflict do nothing;
   end if;
   return null;
@@ -170,9 +170,9 @@ begin
   if p_patch is not null then
     v_settings := (v_settings || p_patch) - array(select k from jsonb_each(p_patch) e(k, v) where v = 'null'::jsonb);
   end if;
-  perform set_config('sentra.actor', coalesce(v_actor::text, ''), true);
-  perform set_config('sentra.via', public.request_via(), true);
-  perform set_config('sentra.device', coalesce(p_device, ''), true);
+  perform set_config('centurion.actor', coalesce(v_actor::text, ''), true);
+  perform set_config('centurion.via', public.request_via(), true);
+  perform set_config('centurion.device', coalesce(p_device, ''), true);
   update public.strategies
      set settings = v_settings, name = coalesce(p_name, name), status = coalesce(p_status, status)
    where id = p_strategy
@@ -208,7 +208,7 @@ revoke update on public.strategies from authenticated;
 create or replace function public.auth_identities_last_method_lock()
 returns trigger language plpgsql as $$
 begin
-  if coalesce(current_setting('sentra.account_deletion', true), '') <> 'on'
+  if coalesce(current_setting('centurion.account_deletion', true), '') <> 'on'
      and not exists (select 1 from public.auth_identities where user_id = old.user_id and id <> old.id) then
     raise exception using errcode = 'P0422', message = 'LAST_LOGIN_METHOD',
       detail = jsonb_build_object('identity_id', old.id, 'provider', old.provider)::text;
@@ -431,7 +431,7 @@ drop trigger audit_log_append_only on public.audit_log;
 create or replace function public.audit_log_guard()
 returns trigger language plpgsql as $$
 begin
-  if tg_op = 'UPDATE' and coalesce(current_setting('sentra.audit_anonymize', true), '') = 'on'
+  if tg_op = 'UPDATE' and coalesce(current_setting('centurion.audit_anonymize', true), '') = 'on'
      and new.ip is null and new.user_agent is null and new.device is null
      and (to_jsonb(new) - 'ip' - 'user_agent' - 'device') = (to_jsonb(old) - 'ip' - 'user_agent' - 'device') then
     return new;
@@ -534,8 +534,8 @@ begin
   if not found or u.deletion_state <> 'pending_deletion' or u.deletion_scheduled_for > t then
     raise exception using errcode = 'P0422', message = 'VALIDATION_FAILED', detail = '{"hint":"not due"}';
   end if;
-  perform set_config('sentra.account_deletion', 'on', true);
-  perform set_config('sentra.audit_anonymize', 'on', true);
+  perform set_config('centurion.account_deletion', 'on', true);
+  perform set_config('centurion.audit_anonymize', 'on', true);
 
   perform public.emit_user_event(p_user, 'account.deleted', '{}');
   for r in select id from public.workspaces where owner_id = p_user and deleted_at is null loop

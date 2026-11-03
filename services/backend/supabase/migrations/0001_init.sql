@@ -1034,11 +1034,11 @@ begin
   return query select tok, exp;
 end $$;
 
--- Channel of the calling session, from the JWT claim `sentra_client` (set by our access-token hook / MCP
+-- Channel of the calling session, from the JWT claim `centurion_client` (set by our access-token hook / MCP
 -- token minting). Never a client-supplied parameter. Unknown or missing -> 'web'.
 create or replace function public.request_client()
 returns public.decided_via language sql stable as $$
-  select case coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sentra_client', '')
+  select case coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'centurion_client', '')
            when 'mobile' then 'mobile'::public.decided_via
            when 'desktop' then 'desktop'::public.decided_via
            when 'mcp' then 'mcp'::public.decided_via

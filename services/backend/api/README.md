@@ -1,4 +1,4 @@
-# Sentra API (Phase 2, REST + SSE)
+# Centurion API (Phase 2, REST + SSE)
 
 Node 22.18+/24 TypeScript (run directly with Node's type stripping, no build step; `tsc` is typecheck only).
 Implements `packages/contracts/API_ENDPOINTS.md` / `EVENTS_SCHEMA.md` (contracts **1.1.2**). Practice mode only.
@@ -7,7 +7,7 @@ Implements `packages/contracts/API_ENDPOINTS.md` / `EVENTS_SCHEMA.md` (contracts
 - No private keys, no signing, no transactions. Secrets only from env (`DATABASE_URL`, `SUPABASE_JWT_SECRET`), never logged.
 - Every user request is one transaction as role `authenticated` with the verified JWT claims in
   `request.jwt.claims` (like PostgREST): RLS, `auth.uid()` (actor) and `request_client()` (via, from the
-  `sentra_client` claim) are the caller's. Bodies can never set actor/via.
+  `centurion_client` claim) are the caller's. Bodies can never set actor/via.
 
 | Endpoint | Notes |
 |---|---|
@@ -40,7 +40,7 @@ status from `errors.json`; SQL raises (`P0<http>`, message = code, detail = JSON
 `Idempotency-Key` + same body -> stored response with `replayed:true` and `Idempotent-Replayed: true`, different
 body -> `422 IDEMPOTENCY_KEY_REUSED`. `mode=real` -> `403 REAL_SOL_DISABLED`.
 
-Marks for `include=marks` arrive by `pg_notify('<SSE_MARKS_CHANNEL default sentra_marks>',
+Marks for `include=marks` arrive by `pg_notify('<SSE_MARKS_CHANNEL default centurion_marks>',
 '{"workspace_id","mode","mark":{MarkMessage}}')`; only `MarkMessage` fields are forwarded.
 
 SSE streams share one service-role poller per (workspace, mode) (`feed.ts`): a new stream registers, catches up
@@ -49,9 +49,9 @@ every `SSE_MEMBER_CHECK_MS` and the stream closes when it is revoked or the toke
 
 Env: `TRADING_MODE=paper` (required), `DATABASE_URL`, `SUPABASE_JWT_SECRET`, `SUPABASE_JWT_AUD` (default
 `authenticated`), `API_HOST`, `API_PORT` (8080), `SSE_POLL_MS` (500), `SSE_CLOCK_MS` (5000), `SSE_HEARTBEAT_MS` (15000),
-`SSE_MEMBER_CHECK_MS` (30000), `SSE_MARKS_CHANNEL` (`sentra_marks`), `ACCOUNT_DELETION_GRACE_DAYS` (7, allowed 7-30).
+`SSE_MEMBER_CHECK_MS` (30000), `SSE_MARKS_CHANNEL` (`centurion_marks`), `ACCOUNT_DELETION_GRACE_DAYS` (7, allowed 7-30).
 
-Tests (local Postgres superuser; creates/drops database `sentra_api_test`):
+Tests (local Postgres superuser; creates/drops database `centurion_api_test`):
 ```
 npm ci
 PGHOST=/tmp PGPORT=55432 PGUSER=postgres npm test
