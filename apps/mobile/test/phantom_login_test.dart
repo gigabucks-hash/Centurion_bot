@@ -143,7 +143,8 @@ void main() {
       expect(server.lastClient, 'mobile');
       expect(phantom.opened.map((u) => u.path), ['/ul/v1/connect', '/ul/v1/signMessage']);
       expect(phantom.signedText, contains('$domain wants you to sign in with your Solana account:\n$owner\n'));
-      expect(phantom.signedText, contains(MockSiwsAuth.statementV1));
+      expect(phantom.signedText, contains('\n\n${MockSiwsAuth.statementV2}\n\n'));
+      expect(phantom.signedText, isNot(contains('practice')));
       final redirect = Uri.parse(phantom.opened.first.queryParameters['redirect_link']!);
       expect('${redirect.scheme}://${redirect.host}', 'centurion://auth');
       expect(redirect.queryParameters['state'], hasLength(greaterThanOrEqualTo(16)));
@@ -225,6 +226,51 @@ void main() {
       );
     });
 
+    test(
+      'any statement wording (new, unknown, non-ASCII) is signed byte for byte; no prefix/statement check',
+      () async {
+        String? served;
+        final reworded = _RewritingRepo(server, (m) {
+          final out = m.replaceFirst(MockSiwsAuth.statementV2, 'Masuk ke Centurion Trade — v3 ✓ (tanpa biaya)');
+          return served = out;
+        });
+        final c = controller(repo: reworded);
+        await c.signIn();
+        expect(c.state, isA<SignedIn>());
+        expect(phantom.signedText, served, reason: 'exact server message, unchanged');
+        expect(utf8.encode(phantom.signedText!), utf8.encode(served!));
+        final legacy = _RewritingRepo(
+          server,
+          (m) => m.replaceFirst(MockSiwsAuth.statementV2, MockSiwsAuth.statementV1),
+        );
+        await controller(repo: legacy).signIn();
+        expect(phantom.signedText, contains(MockSiwsAuth.statementV1), reason: 'old wording is not rejected either');
+      },
+    );
+
+    test('statement v1 retired at 2026-11-05 19:00 WIB (mock mirrors backend); default nonce keeps working', () async {
+      now = DateTime.utc(2026, 11, 5, 11, 58); // 18:58 WIB, nonce still valid for 5 min
+      final v1 = await server.nonce(address: owner, domain: domain, statementVersion: 1);
+      expect(v1.statementVersion, 1);
+      now = DateTime.utc(2026, 11, 5, 12); // 19:00 WIB
+      await expectLater(
+        server.verify(
+          address: owner,
+          message: v1.message,
+          signatureBase58: MockSiwsAuth.fakeSignature(owner, v1.message),
+        ),
+        throwsA(isA<ApiException>().having((e) => e.details['reason'], 'reason', 'statement_retired')),
+      );
+      await expectLater(
+        server.nonce(address: owner, domain: domain, statementVersion: 1),
+        throwsA(isA<ApiException>().having((e) => e.details['field'], 'field', 'statement_version')),
+      );
+      final c = controller();
+      await c.signIn();
+      expect(c.state, isA<SignedIn>());
+      expect(phantom.signedText, contains(MockSiwsAuth.statementV2));
+    });
+
     test('server message for another domain or wallet is never signed', () async {
       final evil = _RewritingRepo(server, (m) => m.replaceFirst(domain, 'evil.example'));
       await expectLater(
@@ -297,7 +343,7 @@ void main() {
               'message': 'm',
               'issued_at': '2026-11-01T06:00:00Z',
               'expires_at': '2026-11-01T06:05:00Z',
-              'statement_version': 1,
+              'statement_version': 2,
             },
           }),
           '/v1/auth/session/logout' => const JsonResponse(200, {
@@ -307,7 +353,7 @@ void main() {
         };
       final r = HttpSiwsAuthRepository(t, clock: () => now);
       final ch = await r.nonce(address: owner, domain: domain);
-      expect(ch.statementVersion, 1);
+      expect(ch.statementVersion, 2);
       final s = await r.verify(address: owner, message: 'm', signatureBase58: 'sig');
       expect(s.workspaceId, 'ws_1');
       await r.refresh('srt_x');
@@ -322,8 +368,7 @@ void main() {
         'address': owner,
         'domain': domain,
         'chain_id': 'solana:mainnet',
-        'statement_version': 1,
-      });
+      }, reason: 'statement_version omitted → server default (current v2)');
       expect(t.requests[1].$2, {'address': owner, 'message': 'm', 'signature': 'sig', 'client': 'mobile'});
       expect(t.requests[2].$2, {'refresh_token': 'srt_x'});
     });
@@ -380,7 +425,7 @@ class _RewritingRepo implements SiwsAuthRepository {
     required String domain,
     String? uri,
     String? chainId,
-    int statementVersion = SiwsChallenge.currentStatementVersion,
+    int? statementVersion,
   }) async {
     final c = await inner.nonce(address: address, domain: domain, uri: uri, chainId: chainId);
     return SiwsChallenge(nonce: c.nonce, message: rewrite(c.message), issuedAt: c.issuedAt, expiresAt: c.expiresAt);

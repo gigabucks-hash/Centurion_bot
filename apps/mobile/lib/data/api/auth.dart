@@ -105,8 +105,11 @@ class SiwsChallenge {
     this.statementVersion = SiwsChallenge.currentStatementVersion,
   });
 
-  /// B-7 (CHANGELOG "Unreleased: wallet login"): statement text is versioned.
-  static const currentStatementVersion = 1;
+  /// B-7: statement text is versioned. Contracts 1.1.5+: current = 2 (`Sign in to Centurion Trade`); v1 is legacy and
+  /// retired at `AUTH_SIWS_LEGACY_STATEMENT_UNTIL` (2026-11-05T12:00:00Z = 19:00 WIB). The app never asks for a
+  /// version (nonce omits `statement_version`, so the server default applies) and never inspects the statement text:
+  /// it signs the server's `message` byte for byte.
+  static const currentStatementVersion = 2;
   final String nonce;
 
   /// Statement version the server bound to this nonce (verify accepts only it).
@@ -180,7 +183,7 @@ abstract interface class SiwsAuthRepository {
     required String domain,
     String? uri,
     String? chainId,
-    int statementVersion = SiwsChallenge.currentStatementVersion,
+    int? statementVersion,
   });
 
   /// [client] is always `mobile` from this app (becomes the `centurion_client` claim).
@@ -446,7 +449,7 @@ class MockSiwsAuth implements SiwsAuthRepository {
   static const refreshTtl = Duration(days: 30);
   static const nonceTtl = Duration(minutes: 5);
 
-  final _nonces = <String, ({String address, String domain, DateTime exp})>{};
+  final _nonces = <String, ({String address, String domain, DateTime exp, int sv})>{};
   // refresh token → family (session id); rotated tokens stay known to detect reuse.
   final _refresh = <String, ({String family, bool used, DateTime exp})>{};
   final _revokedFamilies = <String>{};
@@ -470,17 +473,30 @@ class MockSiwsAuth implements SiwsAuthRepository {
     required String domain,
     String? uri,
     String? chainId,
-    int statementVersion = SiwsChallenge.currentStatementVersion,
+    int? statementVersion,
   }) async {
     _allow(address);
     final now = _clock();
+    final sv = statementVersion ?? SiwsChallenge.currentStatementVersion;
+    if (!_statementOk(sv, now)) {
+      throw ApiException.fromCode(
+        'VALIDATION_FAILED',
+        details: {
+          'field': 'statement_version',
+          'allowed': [
+            for (final v in statements.keys)
+              if (_statementOk(v, now)) v,
+          ],
+        },
+      );
+    }
     final n = _rand(32);
-    _nonces[n] = (address: address, domain: domain, exp: now.add(nonceTtl));
+    _nonces[n] = (address: address, domain: domain, exp: now.add(nonceTtl), sv: sv);
     final message = [
       '$domain wants you to sign in with your Solana account:',
       address,
       '',
-      statementV1,
+      statements[sv]!,
       '',
       'URI: ${uri ?? 'https://$domain'}',
       'Version: 1',
@@ -489,12 +505,19 @@ class MockSiwsAuth implements SiwsAuthRepository {
       'Issued At: ${now.toIso8601String()}',
       'Expiration Time: ${now.add(nonceTtl).toIso8601String()}',
     ].join('\n');
-    return SiwsChallenge(nonce: n, message: message, issuedAt: now, expiresAt: now.add(nonceTtl));
+    return SiwsChallenge(nonce: n, message: message, issuedAt: now, expiresAt: now.add(nonceTtl), statementVersion: sv);
   }
 
-  /// API_ENDPOINTS 4.1 B-7, statement_version 1.
+  /// API_ENDPOINTS 4.1 B-7 (contracts 1.1.6): v1 legacy (transition only), v2 current.
   static const statementV1 =
       'Sign in to Centurion (practice). This request does not trigger a transaction or cost any fees.';
+  static const statementV2 = 'Sign in to Centurion Trade';
+  static const statements = {1: statementV1, 2: statementV2};
+
+  /// `AUTH_SIWS_LEGACY_STATEMENT_UNTIL` default (19:00 WIB, 5 Nov 2026).
+  static final legacyStatementUntil = DateTime.utc(2026, 11, 5, 12);
+  static bool _statementOk(int v, DateTime now) =>
+      statements.containsKey(v) && (v != 1 || now.toUtc().isBefore(legacyStatementUntil));
 
   /// Last `client` seen by [verify] (tests).
   String? lastClient;
@@ -528,6 +551,9 @@ class MockSiwsAuth implements SiwsAuthRepository {
     final rec = m == null ? null : _nonces.remove(m.group(1)); // consumed even if the signature is bad
     if (rec == null || rec.address != address || _clock().isAfter(rec.exp)) {
       throw ApiException.fromCode('SIWS_NONCE_INVALID', details: {'reason': rec == null ? 'nonce' : 'expired'});
+    }
+    if (!_statementOk(rec.sv, _clock())) {
+      throw ApiException.fromCode('SIWS_NONCE_INVALID', details: {'reason': 'statement_retired'});
     }
     _allow(address);
     if (signatureBase58 != fakeSignature(address, message)) throw ApiException.fromCode('SIWS_SIGNATURE_INVALID');

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:centurion_mobile/l10n/gen/app_localizations_en.dart';
 import 'package:centurion_mobile/l10n/gen/app_localizations_id.dart';
 import 'package:centurion_mobile/core/theme/app_tokens.dart';
+import 'package:centurion_mobile/data/api/auth.dart' show MockSiwsAuth;
 
 void main() {
   final en = AppLocalizationsEn();
@@ -112,6 +113,7 @@ void main() {
   test('Rev 4.7: brand, Real notif plurals (=0 empty branch), selects, sell preview', () {
     expect(en.appName, 'Centurion Trade');
     expect(id.authSiwsStatement, 'Sign in to Centurion Trade'); // i18n 0.4.8+: ID = EN verbatim (signed statement)
+    expect(MockSiwsAuth.statementV2, en.authSiwsStatement, reason: 'mock server v2 = backend SIWS_STATEMENTS[2]');
     expect(en.screenerNotTradeableDetail, contains('Centurion Trade only trades SOL pairs'));
     expect(en.notifRealSellAllCompletedTitle(0), '[REAL] View sell all: done');
     expect(id.notifRealSellAllCompletedTitle(2), '[REAL] Ulangi jual semua: 2 gagal');

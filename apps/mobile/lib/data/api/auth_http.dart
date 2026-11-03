@@ -122,7 +122,7 @@ class HttpSiwsAuthRepository implements SiwsAuthRepository {
     required String domain,
     String? uri,
     String? chainId,
-    int statementVersion = SiwsChallenge.currentStatementVersion,
+    int? statementVersion,
   }) async {
     final d = _data(
       await transport.postJson(AuthPaths.siwsNonce, {
@@ -130,7 +130,8 @@ class HttpSiwsAuthRepository implements SiwsAuthRepository {
         'domain': domain,
         'uri': ?uri,
         'chain_id': chainId ?? 'solana:mainnet',
-        'statement_version': statementVersion,
+        // Omitted by default: the server's current statement applies (v1 is retired 2026-11-05 19:00 WIB).
+        'statement_version': ?statementVersion,
       }),
     );
     return SiwsChallenge.fromJson(d);
