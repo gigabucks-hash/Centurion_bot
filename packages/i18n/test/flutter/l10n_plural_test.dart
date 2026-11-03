@@ -59,7 +59,7 @@ void main() {
     expect(en.queueBatchExcludedNotTradeable(1), '1 pick left out: not tradeable');
     expect(id.positionsSellQuoteTtl('8'), 'Quote berlaku 8 dtk.');
     expect(en.screenerDetailSkipHint, contains('Skipping'));
-    expect(AppColorsDark.bgSunken, const Color(0xFF080A0F));
+    expect(AppColorsDark.bgSunken, const Color(0xFF07080C)); // design-tokens 0.3.0 G1-blue
     // ignore: deprecated_member_use_from_same_package
     expect(AppColorsLight.bgInset, AppColorsLight.bgSunken);
   });
@@ -75,7 +75,7 @@ void main() {
     expect(en.rejectReasonNotTradeable, 'Not tradeable');
     expect(id.rejectReasonUserDeclined, 'Dilewati olehmu');
     expect(id.errorCodeGuardWeakenRequiresApproval, startsWith('Perubahan menunggu approval')); // 0.4.6: pending tone, not an error
-    expect(AppColorsDark.skeletonBase, const Color(0xFF262F43));
+    expect(AppColorsDark.skeletonBase, const Color(0xFF272D3C)); // design-tokens 0.3.0 G1-blue
     expect(AppColorsLight.skeletonHighlight, const Color(0xFFF1F3F7));
   });
   test('Rev 4.6: quote freshness plurals (=0 branch, no #), stall, guard pending, mcap', () {
@@ -113,7 +113,13 @@ void main() {
   test('Rev 4.8: Backend final Phase 7 payloads', () {
     expect(id.notifRealKillSwitchTrippedBody('provider_error'), 'Dihentikan otomatis: masalah provider/signer · hanya exit yang berjalan.');
     expect(en.notifRealKillSwitchTrippedBody('policy_mismatch'), startsWith('Stopped automatically: wallet rules'));
-    expect(id.notifRealKillSwitchClearedBody('revoked'), contains('Berikan izin trading lagi'));
+    expect(id.notifRealKillSwitchClearedBody('revoked'), 'Izin trading masih dicabut · berikan izin lagi untuk lanjut');
+    expect(en.notifRealKillSwitchClearedBody('active'), isNot(contains('paused')));
+    expect(en.notifRealSignerRevokedBody('kill_switch'), startsWith('Revoked.')); // not a reason value any more → other
+    expect(id.killSwitchActionEngage, 'Hentikan pembelian');
+    expect(en.killSwitchActionEngage, 'Stop buying');
+    expect(en.walletOwnerTitle, 'Main wallet');
+    expect(id.killSwitchStatusExits, 'Exit plan tetap jalan');
     expect(id.walletAuthorizeRegrant, 'Berikan izin trading lagi');
     expect(id.killSwitchSellAllRateLimited(42), 'Jual semua baru saja diminta. Coba lagi dalam 42 detik.');
     expect(en.killSwitchSellAllInProgress(2), 'Selling 2 positions…');
@@ -121,5 +127,26 @@ void main() {
     expect(id.walletWithdrawFailReasonTxExpired, 'tidak terkirim tepat waktu');
     expect(id.notifRealDepositDetectedBody('0,5 SOL', '1,2 SOL'), '+0,5 SOL · saldo 1,2 SOL');
     expect(en.notifRealSellAllCompletedTotal('0.90 SOL'), 'Total out: 0.90 SOL');
+  });
+  test('0.4.9: G1-blue copy keys', () {
+    expect(id.settingsAppearanceDensityComfortable, 'Nyaman');
+    expect(id.settingsAppearanceDensityCompact, 'Ringkas');
+    expect(id.positionsDensityLabel, 'Kepadatan tabel');
+    expect(id.killSwitchDialogEffectExitsKeep, 'Exit plan, TP & SL tetap jalan.');
+    expect(en.killSwitchStatusResumeHint, startsWith('Bot authority stays active'));
+    expect(id.reviewQuoteAgeValid('12', '18'), 'Umur quote 12 dtk · berlaku 18 dtk');
+    expect(en.reviewQuoteAgeValid('12', '18'), 'Quote 12 s old · valid 18 s');
+    expect(id.queueRealWithinLimits, 'Dalam batas: cukup tahan, tanpa Phantom.');
+    expect(id.positionsExitHeldBadge, 'Exit ditahan');
+    expect(en.positionsExitHeldDetail, contains('until you grant trading authority again'));
+    expect(id.positionsSellManual, 'Jual manual');
+    expect(id.positionsSellManualNote, 'Jual manual tetap bisa, ditandatangani di Phantom.');
+    expect(id.walletAuthorizeRegrantNote, 'Butuh Phantom + passkey. Setelah izin aktif, exit plan lanjut otomatis.');
+    expect(en.dashboardEyebrow, 'Command deck');
+    expect(TradeColors.dark.guard, const Color(0xFFE57A12)); // design-tokens 0.3.1 guard amber
+    expect(TradeColors.light.guard, const Color(0xFFA85400));
+    expect(id.dashboardHeadline, 'Semua posisimu, sekilas.');
+    expect(id.killSwitchActionOpen, 'Stop semua trading Real'); // deprecated, kept for apps/desktop
+    expect(en.killSwitchDialogEffectBuys, startsWith('New buys are blocked')); // deprecated, kept for apps/desktop
   });
 }

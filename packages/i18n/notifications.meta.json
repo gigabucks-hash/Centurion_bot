@@ -111,10 +111,11 @@
         "strategy"
       ],
       "signer_revoked_reason": [
-        "kill_switch",
+        "user",
         "expiry",
-        "user"
-      ]
+        "other"
+      ],
+      "signer_revoked_reason_note": "contracts 1.1.5 still lists kill_switch; it renders as other. policy_mismatch is reported via kill_switch.cleared signer_state=revoked"
     },
     "flattening": "flat wire fields actor_type, user_id, device_id, device_label (confirmed by Backend, Rev 4.8)",
     "defaults": {

@@ -619,6 +619,10 @@
   "@conflictStateOffline": {
     "description": "conflict.state.offline"
   },
+  "dashboardEyebrow": "Command deck",
+  "@dashboardEyebrow": {
+    "description": "0.4.9 G1 eyebrow above the dashboard headline (product term, not translated); style AppText.eyebrow / text-eyebrow"
+  },
   "dashboardFeedFilterAll": "All",
   "@dashboardFeedFilterAll": {
     "description": "dashboard.feed.filter.all"
@@ -642,6 +646,10 @@
   "dashboardFeedTitle": "Activity feed",
   "@dashboardFeedTitle": {
     "description": "dashboard.feed.title"
+  },
+  "dashboardHeadline": "All your positions at a glance.",
+  "@dashboardHeadline": {
+    "description": "0.4.9 G1 dashboard headline (Sora display)"
   },
   "dashboardKpiAwaiting": "Awaiting approval",
   "@dashboardKpiAwaiting": {
@@ -1300,17 +1308,25 @@
   "@guardWeakenTypeName": {
     "description": "guard.weaken.type_name"
   },
-  "killSwitchActionEngage": "Stop now",
+  "killSwitchActionEngage": "Stop buying",
   "@killSwitchActionEngage": {
-    "description": "initial focus; one click + one dialog, no 2FA, no hold"
+    "description": "manual Stop → real.buys.paused (exit plans keep running); initial focus; one click + one dialog, no 2FA, no hold"
   },
   "killSwitchActionOpen": "Stop all Real trading",
   "@killSwitchActionOpen": {
-    "description": "kill_switch.action.open"
+    "description": "DEPRECATED 0.4.9: use kill_switch.action.engage (Stop = new buys only). Still used by apps/desktop StopControl title; remove ≥ 0.5.0"
+  },
+  "killSwitchActionResume": "Resume buying",
+  "@killSwitchActionResume": {
+    "description": "→ real.buys.resumed (immediate); replaces kill_switch.reenable.action"
   },
   "killSwitchDialogEffectBuys": "New buys are blocked and all Real strategies pause.",
   "@killSwitchDialogEffectBuys": {
-    "description": "kill_switch.dialog.effect.buys"
+    "description": "DEPRECATED 0.4.9: use kill_switch.dialog.effect.exits_keep + kill_switch.status.exits. Still used by apps/desktop StopControl; remove ≥ 0.5.0"
+  },
+  "killSwitchDialogEffectExitsKeep": "Exit plans, TP and SL keep running.",
+  "@killSwitchDialogEffectExitsKeep": {
+    "description": "0.4.9 G1 Stop dialog: Stop = new buys only (Boss decision)"
   },
   "killSwitchDialogEffectInflight": "Orders already sent can’t be recalled.",
   "@killSwitchDialogEffectInflight": {
@@ -1324,25 +1340,17 @@
   "@killSwitchDialogEffectUnsigned": {
     "description": "kill_switch.dialog.effect.unsigned"
   },
-  "killSwitchDialogTitle": "Stop all Real trading?",
+  "killSwitchDialogTitle": "Stop new Real buys?",
   "@killSwitchDialogTitle": {
-    "description": "kill_switch.dialog.title"
+    "description": "exit plans keep running"
   },
   "killSwitchOffline": "Can’t reach the server. Stop isn’t confirmed yet. Retrying…",
   "@killSwitchOffline": {
     "description": "kill_switch.offline"
   },
-  "killSwitchOptionExitsFreeze": "Freeze exit plans too: positions have NO automatic stop loss",
-  "@killSwitchOptionExitsFreeze": {
-    "description": "kill_switch.option.exits_freeze"
-  },
   "killSwitchOptionExitsRun": "Exit plan keeps running (recommended)",
   "@killSwitchOptionExitsRun": {
     "description": "kill_switch.option.exits_run"
-  },
-  "killSwitchOptionRevoke": "Revoke the bot’s authority at the provider (hard stop)",
-  "@killSwitchOptionRevoke": {
-    "description": "kill_switch.option.revoke"
   },
   "killSwitchOptionSellAll": "{count,plural,one{Also sell {count} position now} other{Also sell {count} positions now}}",
   "@killSwitchOptionSellAll": {
@@ -1369,18 +1377,6 @@
   "killSwitchReasonProviderError": "a provider or signer problem · only exits run",
   "@killSwitchReasonProviderError": {
     "description": "kill_switch_reason=provider_error (Backend final Phase 7, auto trips only; lower-case: used mid-sentence)"
-  },
-  "killSwitchReenableAction": "Re-enable Real trading",
-  "@killSwitchReenableAction": {
-    "description": "resume after Stop (real.buys.resumed, immediate) or clear an auto trip (real.kill_switch.cleared); no delay copy"
-  },
-  "killSwitchReenableResumeNote": "Strategies stay paused. Resume them one by one.",
-  "@killSwitchReenableResumeNote": {
-    "description": "kill_switch.reenable.resume_note"
-  },
-  "killSwitchRevokePending": "Trading stopped. Revoking authority is pending; we’ll retry.",
-  "@killSwitchRevokePending": {
-    "description": "kill_switch.revoke_pending"
   },
   "killSwitchScopeGlobal": "All Real trading",
   "@killSwitchScopeGlobal": {
@@ -1468,14 +1464,13 @@
       }
     }
   },
-  "killSwitchStatusExits": "{state, select, running {Exit plan running} other {Exit plan frozen}}",
+  "killSwitchStatusExits": "Exit plans keep running",
   "@killSwitchStatusExits": {
-    "description": "kill_switch.status.exits",
-    "placeholders": {
-      "state": {
-        "type": "String"
-      }
-    }
+    "description": "Rev 5.2: exits are never frozen (no state var)"
+  },
+  "killSwitchStatusResumeHint": "Bot authority stays active. No cooldown: resume any time with one click.",
+  "@killSwitchStatusResumeHint": {
+    "description": "0.4.9 G1 stopped banner, next to kill_switch.action.resume"
   },
   "killSwitchStatusTitle": "New buys stopped",
   "@killSwitchStatusTitle": {
@@ -2113,7 +2108,7 @@
   "@notifRealDepositDetectedTitle": {
     "description": "N-39 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
-  "notifRealKillSwitchClearedBody": "{signer_state, select, revoked {Bot authority is still revoked. Grant trading authority again to resume.} other {Real trading can run again. Strategies stay paused until you resume them.}}",
+  "notifRealKillSwitchClearedBody": "{signer_state, select, revoked {Trading authority is still revoked · grant it again to continue} other {New Real buys run again now}}",
   "@notifRealKillSwitchClearedBody": {
     "description": "N-31",
     "placeholders": {
@@ -2270,7 +2265,7 @@
   "@notifRealSignerGrantedTitle": {
     "description": "N-23 RESERVED Phase 7; placeholders = wire vars (snake_case)"
   },
-  "notifRealSignerRevokedBody": "{reason, select, kill_switch {Revoked by the kill switch.} expiry {The authority expired.} user {You revoked it.} other {Revoked.}} Real trading can’t sign until you authorize it again.",
+  "notifRealSignerRevokedBody": "{reason, select, user {You revoked it.} expiry {The authority expired.} other {Revoked.}} Real trading can’t sign until you authorize it again.",
   "@notifRealSignerRevokedBody": {
     "description": "N-24",
     "placeholders": {
@@ -2547,6 +2542,10 @@
       }
     }
   },
+  "positionsDensityLabel": "Table density",
+  "@positionsDensityLabel": {
+    "description": "0.4.9 G1: accessible name of the Comfortable/Compact segmented control in a table card header (role=radiogroup); options = settings.appearance.density.*"
+  },
   "positionsEmpty": "{mode, select, real {No open positions} other {No paper positions}}",
   "@positionsEmpty": {
     "description": "positions.empty",
@@ -2568,6 +2567,14 @@
         "type": "String"
       }
     }
+  },
+  "positionsExitHeldBadge": "Exits on hold",
+  "@positionsExitHeldBadge": {
+    "description": "0.4.9 G1: chip on each position affected by an auto-trip policy_mismatch (exit plan, TP and SL held until re-grant); never color-only"
+  },
+  "positionsExitHeldDetail": "Exit plans, TP and SL are on hold until you grant trading authority again.",
+  "@positionsExitHeldDetail": {
+    "description": "0.4.9 G1 policy_mismatch banner body"
   },
   "positionsNextAction": "Next: {rung} at {gain} (sell {pct})",
   "@positionsNextAction": {
@@ -2623,6 +2630,14 @@
   "positionsSellHoldReleased": "Released early — nothing was sold",
   "@positionsSellHoldReleased": {
     "description": "positions.sell.hold.released"
+  },
+  "positionsSellManual": "Sell manually",
+  "@positionsSellManual": {
+    "description": "0.4.9 G1: per-row action while exits are on hold; signed in Phantom (not the bot signer). Label of the action, not exit_reason.manual"
+  },
+  "positionsSellManualNote": "Manual selling still works, signed in Phantom.",
+  "@positionsSellManualNote": {
+    "description": "0.4.9 G1 policy_mismatch banner"
   },
   "positionsSellNeverFromNotification": "Selling is never available from a notification or popup.",
   "@positionsSellNeverFromNotification": {
@@ -2780,6 +2795,10 @@
         "type": "String"
       }
     }
+  },
+  "queueRealWithinLimits": "Within limits: just hold, no Phantom.",
+  "@queueRealWithinLimits": {
+    "description": "0.4.9 G1 Real approval card/queue hint when the pick is inside the wallet limits (hold only, no Phantom step)"
   },
   "queueSkipReasonAlreadyPumped": "Already pumped",
   "@queueSkipReasonAlreadyPumped": {
@@ -2943,6 +2962,18 @@
   "reviewPriorityFee": "Priority fee",
   "@reviewPriorityFee": {
     "description": "value = formatLamportsOrDash(priority_fee_lamports); breakdown only: already inside est_network_fee_lamports, never add it again (1.1.5)"
+  },
+  "reviewQuoteAgeValid": "Quote {age_seconds} s old · valid {valid_seconds} s",
+  "@reviewQuoteAgeValid": {
+    "description": "0.4.9 G1 quote row next to review.quote.refresh; age_seconds = now − quote_ts, valid_seconds = quoteState().expiresInS (skew-corrected, integers as text)",
+    "placeholders": {
+      "age_seconds": {
+        "type": "String"
+      },
+      "valid_seconds": {
+        "type": "String"
+      }
+    }
   },
   "reviewQuoteAutoRefreshing": "Refreshing automatically…",
   "@reviewQuoteAutoRefreshing": {
@@ -3257,11 +3288,11 @@
   },
   "settingsAppearanceDensityComfortable": "Comfortable",
   "@settingsAppearanceDensityComfortable": {
-    "description": "settings.appearance.density.comfortable"
+    "description": "0.4.9 G1: also the table header toggle"
   },
   "settingsAppearanceDensityCompact": "Compact",
   "@settingsAppearanceDensityCompact": {
-    "description": "settings.appearance.density.compact"
+    "description": "0.4.9 G1: also the table header toggle (Desktop/Web only; mobile has no compact mode)"
   },
   "settingsAppearanceDensityLabel": "Density",
   "@settingsAppearanceDensityLabel": {
@@ -3681,6 +3712,10 @@
   "@walletAuthorizeRegrant": {
     "description": "CTA when signer_state=revoked (e.g. after policy_mismatch the signer stays revoked until re-granted)"
   },
+  "walletAuthorizeRegrantNote": "Needs Phantom + passkey. Once authority is active, exit plans resume automatically.",
+  "@walletAuthorizeRegrantNote": {
+    "description": "0.4.9 G1 policy_mismatch banner / sticky CTA, under wallet.authorize.regrant"
+  },
   "walletLimitsSettingCapLamports": "Total cap",
   "@walletLimitsSettingCapLamports": {
     "description": "real.limit.* setting=cap_lamports (confirmed by Backend, Rev 4.8); from/to via formatLimitValue"
@@ -3700,14 +3735,6 @@
   "walletLimitsSettingPerTradeLamports": "Max per trade",
   "@walletLimitsSettingPerTradeLamports": {
     "description": "real.limit.* setting=per_trade_lamports (confirmed by Backend, Rev 4.8); from/to via formatLimitValue"
-  },
-  "walletOwnerAddBackup": "Add backup wallet…",
-  "@walletOwnerAddBackup": {
-    "description": "wallet.owner.add_backup"
-  },
-  "walletOwnerBackup": "Backup owner wallet · not a withdraw destination",
-  "@walletOwnerBackup": {
-    "description": "wallet.owner.backup"
   },
   "walletOwnerCancel": "Cancel",
   "@walletOwnerCancel": {
@@ -3737,9 +3764,9 @@
       }
     }
   },
-  "walletOwnerTitle": "Owner wallets",
+  "walletOwnerTitle": "Main wallet",
   "@walletOwnerTitle": {
-    "description": "wallet.owner.title"
+    "description": "Rev 5.2: one owner wallet, no backup"
   },
   "walletOwnerTypeLast4": "Type the last 4 characters of the new address",
   "@walletOwnerTypeLast4": {

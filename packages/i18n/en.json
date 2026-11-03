@@ -188,6 +188,7 @@
     }
   },
   "dashboard": {
+    "eyebrow": "Command deck",
     "feed": {
       "filter": {
         "all": "All",
@@ -198,6 +199,7 @@
       },
       "title": "Activity feed"
     },
+    "headline": "All your positions at a glance.",
     "kpi": {
       "awaiting": "Awaiting approval",
       "cash": "Cash",
@@ -393,23 +395,23 @@
   },
   "kill_switch": {
     "action": {
-      "engage": "Stop now",
-      "open": "Stop all Real trading"
+      "engage": "Stop buying",
+      "open": "Stop all Real trading",
+      "resume": "Resume buying"
     },
     "dialog": {
       "effect": {
         "buys": "New buys are blocked and all Real strategies pause.",
+        "exits_keep": "Exit plans, TP and SL keep running.",
         "inflight": "Orders already sent can’t be recalled.",
         "proposals": "Pending Real proposals expire.",
         "unsigned": "Unsigned orders are cancelled."
       },
-      "title": "Stop all Real trading?"
+      "title": "Stop new Real buys?"
     },
     "offline": "Can’t reach the server. Stop isn’t confirmed yet. Retrying…",
     "option": {
-      "exits_freeze": "Freeze exit plans too: positions have NO automatic stop loss",
       "exits_run": "Exit plan keeps running (recommended)",
-      "revoke": "Revoke the bot’s authority at the provider (hard stop)",
       "sell_all": "{count, plural, one {Also sell # position now} other {Also sell # positions now}}"
     },
     "reason": {
@@ -418,11 +420,6 @@
       "policy_mismatch": "wallet rules don’t match",
       "provider_error": "a provider or signer problem · only exits run"
     },
-    "reenable": {
-      "action": "Re-enable Real trading",
-      "resume_note": "Strategies stay paused. Resume them one by one."
-    },
-    "revoke_pending": "Trading stopped. Revoking authority is pending; we’ll retry.",
     "scope": {
       "global": "All Real trading",
       "strategy": "One strategy",
@@ -439,7 +436,8 @@
     "status": {
       "authority": "{state, select, revoked {Bot authority revoked} other {Bot authority still active}}",
       "by": "Stopped {actor_type, select, user {by you on {device_label}} rule {automatically} other {by the system}} at {at}",
-      "exits": "{state, select, running {Exit plan running} other {Exit plan frozen}}",
+      "exits": "Exit plans keep running",
+      "resume_hint": "Bot authority stays active. No cooldown: resume any time with one click.",
       "title": "New buys stopped"
     }
   },
@@ -622,7 +620,7 @@
       },
       "kill_switch": {
         "cleared": {
-          "body": "{signer_state, select, revoked {Bot authority is still revoked. Grant trading authority again to resume.} other {Real trading can run again. Strategies stay paused until you resume them.}}",
+          "body": "{signer_state, select, revoked {Trading authority is still revoked · grant it again to continue} other {New Real buys run again now}}",
           "title": "[REAL SOL] Automatic stop cleared"
         },
         "tripped": {
@@ -667,7 +665,7 @@
           "title": "[REAL SOL] Trading authority granted"
         },
         "revoked": {
-          "body": "{reason, select, kill_switch {Revoked by the kill switch.} expiry {The authority expired.} user {You revoked it.} other {Revoked.}} Real trading can’t sign until you authorize it again.",
+          "body": "{reason, select, user {You revoked it.} expiry {The authority expired.} other {Revoked.}} Real trading can’t sign until you authorize it again.",
           "title": "[REAL SOL] Bot authority revoked"
         }
       },
@@ -742,10 +740,17 @@
     }
   },
   "positions": {
+    "density": {
+      "label": "Table density"
+    },
     "empty": "{mode, select, real {No open positions} other {No paper positions}}",
     "equity": {
       "hwm": "High-water mark",
       "title": "Equity · {range}"
+    },
+    "exit_held": {
+      "badge": "Exits on hold",
+      "detail": "Exit plans, TP and SL are on hold until you grant trading authority again."
     },
     "next_action": "Next: {rung} at {gain} (sell {pct})",
     "open_count": "{count, plural, one {# open} other {# open}}",
@@ -757,6 +762,8 @@
         "real": "Hold 2.5 s to sell {pct}",
         "released": "Released early — nothing was sold"
       },
+      "manual": "Sell manually",
+      "manual_note": "Manual selling still works, signed in Phantom.",
       "never_from_notification": "Selling is never available from a notification or popup.",
       "not_tradeable_detail": "This position no longer has a SOL pair, so selling is blocked until one exists.",
       "plan_cancelled": "Exit plan cancelled (100%)",
@@ -797,7 +804,8 @@
       "batch_confirm": {
         "title": "{count, plural, one {Approve # buy with REAL SOL?} other {Approve # buys with REAL SOL?}}"
       },
-      "hold": "Hold to approve {amount_lamports}"
+      "hold": "Hold to approve {amount_lamports}",
+      "within_limits": "Within limits: just hold, no Phantom."
     },
     "skip_reason": {
       "already_pumped": "Already pumped",
@@ -844,6 +852,7 @@
     "price_moved": "Price moved {pct} since this pick. Review again before approving.",
     "priority_fee": "Priority fee",
     "quote": {
+      "age_valid": "Quote {age_seconds} s old · valid {valid_seconds} s",
       "auto_refreshing": "Refreshing automatically…",
       "changed_during_hold": "Quote changed. Check the new values and hold again.",
       "expires_in": "{seconds, plural, one {Expires in # s} other {Expires in # s}}",
@@ -1079,7 +1088,8 @@
   },
   "wallet": {
     "authorize": {
-      "regrant": "Grant trading authority again"
+      "regrant": "Grant trading authority again",
+      "regrant_note": "Needs Phantom + passkey. Once authority is active, exit plans resume automatically."
     },
     "limits": {
       "setting": {
@@ -1091,14 +1101,12 @@
       }
     },
     "owner": {
-      "add_backup": "Add backup wallet…",
-      "backup": "Backup owner wallet · not a withdraw destination",
       "cancel": "Cancel",
       "change_main": "Change…",
       "delay_note": "Changes take at least 48 h and can be cancelled.",
       "main": "Main wallet · sign-in and the only withdraw destination",
       "pending": "Active {usable_at} · {hh_mm_ss} left",
-      "title": "Owner wallets",
+      "title": "Main wallet",
       "type_last4": "Type the last 4 characters of the new address"
     },
     "withdraw": {

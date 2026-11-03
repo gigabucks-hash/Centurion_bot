@@ -2,6 +2,50 @@
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
+## 0.4.9 · 3 Nov 2026 (G1-blue) · contracts HEAD (errors.json v6, events 1.1.5), design-tokens 0.3.1
+691 key (+13 −7 dibanding 0.4.8 yang dipublish: 12 key G1 + `kill_switch.action.resume`). Build: `CONTRACTS_ERRORS`/`CONTRACTS_EVENTS_TS` = versi **commit HEAD** contracts (working tree contracts
+punya perubahan Backend yang belum di-commit, tidak dipakai). `errors.map.json`, `notifications.map.json`, `reject_reasons.map.json`, `format.mjs` sama dengan 0.4.8.
+
+### Ditambahkan: copy G1-blue (HANDOFF_G1_BLUE §6)
+| Key | EN | ID |
+|---|---|---|
+| `positions.density.label` | Table density | Kepadatan tabel |
+| `kill_switch.dialog.effect.exits_keep` | Exit plans, TP and SL keep running. | Exit plan, TP & SL tetap jalan. |
+| `kill_switch.status.resume_hint` | Bot authority stays active. No cooldown: resume any time with one click. | Izin bot tetap aktif. Tanpa cooldown: lanjutkan kapan saja dengan 1 klik. |
+| `review.quote.age_valid` | Quote {age_seconds} s old · valid {valid_seconds} s | Umur quote {age_seconds} dtk · berlaku {valid_seconds} dtk |
+| `queue.real.within_limits` | Within limits: just hold, no Phantom. | Dalam batas: cukup tahan, tanpa Phantom. |
+| `positions.exit_held.badge` | Exits on hold | Exit ditahan |
+| `positions.exit_held.detail` | Exit plans, TP and SL are on hold until you grant trading authority again. | Exit plan, TP & SL ditahan sampai kamu memberi izin trading lagi. |
+| `positions.sell.manual` | Sell manually | Jual manual |
+| `positions.sell.manual_note` | Manual selling still works, signed in Phantom. | Jual manual tetap bisa, ditandatangani di Phantom. |
+| `wallet.authorize.regrant_note` | Needs Phantom + passkey. Once authority is active, exit plans resume automatically. | Butuh Phantom + passkey. Setelah izin aktif, exit plan lanjut otomatis. |
+| `dashboard.eyebrow` | Command deck | Command deck |
+| `dashboard.headline` | All your positions at a glance. | Semua posisimu, sekilas. |
+
+### Dipakai ulang (tidak dibuat key baru)
+Toggle Nyaman/Ringkas → `settings.appearance.density.{comfortable,compact}` · Hentikan pembelian → `kill_switch.action.engage` · Hentikan pembelian? →
+`kill_switch.dialog.title` · Lanjutkan pembelian → `kill_switch.action.resume` · banner → `kill_switch.status.title` / `.exits` · baris quote → `review.network_fee`,
+`review.ata_rent`, `review.total_max`, `review.quote.refresh` · CTA izin ulang → `wallet.authorize.regrant`.
+
+### Copy berubah
+- `settings.appearance.density.comfortable` / `.compact` ID: "Comfortable"/"Compact" → **"Nyaman"/"Ringkas"** (sebelumnya belum diterjemahkan).
+- **Perubahan Rev 5.2 yang terlewat di publish 0.4.8** (5d778c8 dibuat dari source yang lebih lama; `key-migrations.json` 0.4.8 sudah mencatatnya, sekarang dipindah ke 0.4.9):
+  `kill_switch.action.engage` "Stop buying"/"Hentikan pembelian"; `kill_switch.dialog.title` hanya buy baru; `kill_switch.status.exits` jadi teks polos
+  (**placeholder `{state}` dihapus**; Flutter: `killSwitchStatusExits` jadi getter, tidak ada pemanggil di apps/mobile); `notif.real.kill_switch.cleared.body`;
+  `notif.real.signer.revoked.body` (cabang `kill_switch` dihapus → `other`); `wallet.owner.title` "Main wallet"/"Wallet utama"; `kill_switch.action.resume` (baru).
+
+### Dihapus (**BREAKING ringan**, tidak ada pemakai di kode apps/*; rg 3 Nov 2026)
+`kill_switch.option.exits_freeze`, `kill_switch.option.revoke`, `kill_switch.reenable.action`, `kill_switch.reenable.resume_note`, `kill_switch.revoke_pending`,
+`wallet.owner.add_backup`, `wallet.owner.backup` (Rev 5.1; keputusan Boss: Stop = buy saja, tanpa wallet cadangan). Hanya ada di salinan ARB `apps/mobile/lib/l10n`.
+
+### Deprecated (tetap ada, hapus ≥ 0.5.0)
+`kill_switch.action.open` → pakai `kill_switch.action.engage`; `kill_switch.dialog.effect.buys` → pakai `kill_switch.dialog.effect.exits_keep`.
+Keduanya masih dibaca `apps/desktop/src/components/StopControl.tsx`, jadi tidak dihapus di rilis ini.
+
+### Validasi
+ICU parse + paritas argumen EN/ID 691/691 (bad 0) · ARB tanpa `#` (26 plural ditulis ulang ke `{var}`) · `flutter gen-l10n` + `dart analyze` 0 issue ·
+`test/flutter/l10n_plural_test.dart` 10/10 (grup baru "0.4.9: G1-blue copy keys"; ekspektasi warna diperbarui ke design-tokens 0.3.0/0.3.1) · `node --test format.test.mjs` 10/10.
+
 ## 0.4.8 · 29 Okt 2026 (UX Rev 4.8) · diverifikasi ke contracts 1.1.5 (working tree Backend, belum di-commit)
 685 key (+13). Tidak ada key dihapus/di-rename. **Placeholder berubah (reserved Phase 7, belum ada konsumen):**
 `notif.real.sell_all.requested.body` `{count}` → `{requested_count}`; `notif.real.sell_all.completed.total` `{amount_lamports}` → `{amount_out_lamports}`.

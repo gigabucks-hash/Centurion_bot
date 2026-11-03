@@ -188,6 +188,7 @@
     }
   },
   "dashboard": {
+    "eyebrow": "Command deck",
     "feed": {
       "filter": {
         "all": "Semua",
@@ -198,6 +199,7 @@
       },
       "title": "Feed aktivitas"
     },
+    "headline": "Semua posisimu, sekilas.",
     "kpi": {
       "awaiting": "Menunggu approval",
       "cash": "Kas",
@@ -393,23 +395,23 @@
   },
   "kill_switch": {
     "action": {
-      "engage": "Stop sekarang",
-      "open": "Stop semua trading Real"
+      "engage": "Hentikan pembelian",
+      "open": "Stop semua trading Real",
+      "resume": "Lanjutkan pembelian"
     },
     "dialog": {
       "effect": {
         "buys": "Buy baru diblokir dan semua strategi Real dijeda.",
+        "exits_keep": "Exit plan, TP & SL tetap jalan.",
         "inflight": "Order yang sudah terkirim tidak bisa ditarik.",
         "proposals": "Proposal Real tertunda kedaluwarsa.",
         "unsigned": "Order belum diteken dibatalkan."
       },
-      "title": "Stop semua trading Real?"
+      "title": "Hentikan pembelian Real baru?"
     },
     "offline": "Server tidak terjangkau. Stop belum terkonfirmasi. Mencoba lagi…",
     "option": {
-      "exits_freeze": "Bekukan exit plan juga: posisi TANPA stop loss otomatis",
       "exits_run": "Exit plan tetap jalan (disarankan)",
-      "revoke": "Cabut izin bot di provider (hard stop)",
       "sell_all": "{count, plural, other {Jual juga # posisi sekarang}}"
     },
     "reason": {
@@ -418,11 +420,6 @@
       "policy_mismatch": "aturan wallet tidak cocok",
       "provider_error": "masalah provider/signer · hanya exit yang berjalan"
     },
-    "reenable": {
-      "action": "Aktifkan lagi trading Real",
-      "resume_note": "Strategi tetap dijeda. Lanjutkan satu per satu."
-    },
-    "revoke_pending": "Trading dihentikan. Pencabutan izin tertunda; akan dicoba lagi.",
     "scope": {
       "global": "Semua trading Real",
       "strategy": "Satu strategi",
@@ -439,7 +436,8 @@
     "status": {
       "authority": "{state, select, revoked {Izin bot dicabut} other {Izin bot masih aktif}}",
       "by": "Dihentikan {actor_type, select, user {olehmu di {device_label}} rule {otomatis} other {oleh sistem}} pada {at}",
-      "exits": "{state, select, running {Exit plan berjalan} other {Exit plan dibekukan}}",
+      "exits": "Exit plan tetap jalan",
+      "resume_hint": "Izin bot tetap aktif. Tanpa cooldown: lanjutkan kapan saja dengan 1 klik.",
       "title": "Pembelian baru dihentikan"
     }
   },
@@ -622,7 +620,7 @@
       },
       "kill_switch": {
         "cleared": {
-          "body": "{signer_state, select, revoked {Izin bot masih dicabut. Berikan izin trading lagi untuk lanjut.} other {Trading Real bisa jalan lagi. Strategi tetap dijeda sampai kamu melanjutkannya.}}",
+          "body": "{signer_state, select, revoked {Izin trading masih dicabut · berikan izin lagi untuk lanjut} other {Pembelian Real baru jalan lagi sekarang}}",
           "title": "[REAL SOL] Henti otomatis dicabut"
         },
         "tripped": {
@@ -667,7 +665,7 @@
           "title": "[REAL SOL] Izin trading diberikan"
         },
         "revoked": {
-          "body": "{reason, select, kill_switch {Dicabut oleh kill switch.} expiry {Izinnya sudah habis.} user {Kamu mencabutnya.} other {Dicabut.}} Trading Real tidak bisa menandatangani sampai kamu otorisasi lagi.",
+          "body": "{reason, select, user {Kamu mencabutnya.} expiry {Izinnya sudah habis.} other {Dicabut.}} Trading Real tidak bisa menandatangani sampai kamu otorisasi lagi.",
           "title": "[REAL SOL] Izin bot dicabut"
         }
       },
@@ -742,10 +740,17 @@
     }
   },
   "positions": {
+    "density": {
+      "label": "Kepadatan tabel"
+    },
     "empty": "{mode, select, real {Tidak ada posisi terbuka} other {Tidak ada posisi (paper)}}",
     "equity": {
       "hwm": "High-water mark",
       "title": "Ekuitas · {range}"
+    },
+    "exit_held": {
+      "badge": "Exit ditahan",
+      "detail": "Exit plan, TP & SL ditahan sampai kamu memberi izin trading lagi."
     },
     "next_action": "Berikutnya: {rung} di {gain} (jual {pct})",
     "open_count": "{count, plural, other {# terbuka}}",
@@ -757,6 +762,8 @@
         "real": "Tahan 2,5 dtk untuk jual {pct}",
         "released": "Dilepas terlalu cepat — tidak ada yang dijual"
       },
+      "manual": "Jual manual",
+      "manual_note": "Jual manual tetap bisa, ditandatangani di Phantom.",
       "never_from_notification": "Jual tidak pernah tersedia dari notifikasi atau popup.",
       "not_tradeable_detail": "Posisi ini tidak punya pair SOL lagi; jual diblokir sampai pair SOL tersedia.",
       "plan_cancelled": "Exit plan dibatalkan (100%)",
@@ -797,7 +804,8 @@
       "batch_confirm": {
         "title": "{count, plural, other {Setujui # buy dengan REAL SOL?}}"
       },
-      "hold": "Tahan untuk setujui {amount_lamports}"
+      "hold": "Tahan untuk setujui {amount_lamports}",
+      "within_limits": "Dalam batas: cukup tahan, tanpa Phantom."
     },
     "skip_reason": {
       "already_pumped": "Sudah pump",
@@ -844,6 +852,7 @@
     "price_moved": "Harga bergerak {pct} sejak pick ini. Tinjau ulang sebelum approve.",
     "priority_fee": "Priority fee",
     "quote": {
+      "age_valid": "Umur quote {age_seconds} dtk · berlaku {valid_seconds} dtk",
       "auto_refreshing": "Memperbarui otomatis…",
       "changed_during_hold": "Quote berubah. Cek nilai baru lalu tahan lagi.",
       "expires_in": "{seconds, plural, other {Berakhir dalam # dtk}}",
@@ -927,8 +936,8 @@
   "settings": {
     "appearance": {
       "density": {
-        "comfortable": "Comfortable",
-        "compact": "Compact",
+        "comfortable": "Nyaman",
+        "compact": "Ringkas",
         "label": "Kepadatan"
       },
       "theme": {
@@ -1079,7 +1088,8 @@
   },
   "wallet": {
     "authorize": {
-      "regrant": "Berikan izin trading lagi"
+      "regrant": "Berikan izin trading lagi",
+      "regrant_note": "Butuh Phantom + passkey. Setelah izin aktif, exit plan lanjut otomatis."
     },
     "limits": {
       "setting": {
@@ -1091,14 +1101,12 @@
       }
     },
     "owner": {
-      "add_backup": "Tambah wallet cadangan…",
-      "backup": "Wallet pemilik cadangan · bukan tujuan penarikan",
       "cancel": "Batalkan",
       "change_main": "Ganti…",
       "delay_note": "Perubahan butuh minimal 48 jam dan bisa dibatalkan.",
       "main": "Wallet utama · login dan satu-satunya tujuan penarikan",
       "pending": "Aktif {usable_at} · sisa {hh_mm_ss}",
-      "title": "Wallet pemilik",
+      "title": "Wallet utama",
       "type_last4": "Ketik 4 karakter terakhir alamat baru"
     },
     "withdraw": {

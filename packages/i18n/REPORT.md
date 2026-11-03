@@ -1,8 +1,8 @@
 # Locale build report
 
-Keys: 672 · placeholder/whitespace issues: 0
+Keys: 691 · placeholder/whitespace issues: 0
 ID/EN length ratio (strings ≥ 12 chars): median 1.00, max 1.77 (screener.not_tradeable.badge)
-Over 1.30× (layout must allow ~30% growth; these need extra room or shorter ID copy): 33
+Over 1.30× (layout must allow ~30% growth; these need extra room or shorter ID copy): 35
 
 - `screener.not_tradeable.badge` 1.77×
 - `reject_reason.not_tradeable` 1.77×
@@ -12,9 +12,11 @@ Over 1.30× (layout must allow ~30% growth; these need extra room or shorter ID 
 - `guard.weaken.hold.practice` 1.60×
 - `kill_switch.status.title` 1.56×
 - `settings.login.reauth` 1.54×
+- `kill_switch.dialog.title` 1.53×
 - `table.mobile.collapse` 1.50×
 - `review.network_fee` 1.50×
 - `login.otp.resend_in` 1.50×
+- `kill_switch.action.resume` 1.46×
 - `notif.mode_real.body` 1.42×
 - `mode.practice.banner` 1.41×
 - `queue.pick.expires_in` 1.39×

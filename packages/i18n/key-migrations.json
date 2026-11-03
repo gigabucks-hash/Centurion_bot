@@ -260,9 +260,78 @@
       }
     },
     {
-      "version": "0.4.8",
+      "version": "0.4.9",
+      "note": "includes the Rev 5.2 source changes that missed the 0.4.8 publish (5d778c8 was built from an earlier source)",
       "renamed": [],
-      "removed": [],
+      "removed": [
+        {
+          "key": "kill_switch.option.exits_freeze",
+          "note": "Rev 5.1 only; not read by apps/* code (rg 3 Nov 2026; only the copied ARB in apps/mobile/lib/l10n)"
+        },
+        {
+          "key": "kill_switch.option.revoke",
+          "note": "Rev 5.1 only; not read by apps/* code (rg 3 Nov 2026; only the copied ARB in apps/mobile/lib/l10n)"
+        },
+        {
+          "key": "kill_switch.reenable.action",
+          "note": "Rev 5.1 only; not read by apps/* code (rg 3 Nov 2026; only the copied ARB in apps/mobile/lib/l10n)"
+        },
+        {
+          "key": "kill_switch.reenable.resume_note",
+          "note": "Rev 5.1 only; not read by apps/* code (rg 3 Nov 2026; only the copied ARB in apps/mobile/lib/l10n)"
+        },
+        {
+          "key": "kill_switch.revoke_pending",
+          "note": "Rev 5.1 only; not read by apps/* code (rg 3 Nov 2026; only the copied ARB in apps/mobile/lib/l10n)"
+        },
+        {
+          "key": "wallet.owner.add_backup",
+          "note": "Rev 5.1 only; not read by apps/* code (rg 3 Nov 2026; only the copied ARB in apps/mobile/lib/l10n)"
+        },
+        {
+          "key": "wallet.owner.backup",
+          "note": "Rev 5.1 only; not read by apps/* code (rg 3 Nov 2026; only the copied ARB in apps/mobile/lib/l10n)"
+        }
+      ],
+      "deprecated": [
+        {
+          "key": "kill_switch.action.open",
+          "use": "kill_switch.action.engage",
+          "note": "apps/desktop StopControl.tsx still reads it; remove ≥ 0.5.0"
+        },
+        {
+          "key": "kill_switch.dialog.effect.buys",
+          "use": "kill_switch.dialog.effect.exits_keep",
+          "note": "apps/desktop StopControl.tsx still reads it; remove ≥ 0.5.0"
+        }
+      ],
+      "added": [
+        "kill_switch.action.resume",
+        "positions.density.label",
+        "kill_switch.dialog.effect.exits_keep",
+        "kill_switch.status.resume_hint",
+        "review.quote.age_valid",
+        "queue.real.within_limits",
+        "positions.exit_held.badge",
+        "positions.exit_held.detail",
+        "positions.sell.manual",
+        "positions.sell.manual_note",
+        "wallet.authorize.regrant_note",
+        "dashboard.eyebrow",
+        "dashboard.headline"
+      ],
+      "placeholder_removed": [
+        {
+          "key": "kill_switch.status.exits",
+          "var": "state",
+          "note": "frozen branch removed; plain text"
+        },
+        {
+          "key": "notif.real.signer.revoked.body",
+          "select_value": "kill_switch",
+          "note": "reason select is user|expiry|other"
+        }
+      ],
       "placeholder_renamed": [
         {
           "key": "notif.real.sell_all.requested.body",
@@ -294,7 +363,7 @@
         },
         {
           "key": "notif.real.kill_switch.cleared.body",
-          "note": "signer_state select"
+          "note": "signer_state select; no 'strategies stay paused'"
         },
         {
           "key": "notif.real.buys.resumed.body",
@@ -305,8 +374,28 @@
           "note": "requested_count; failed stay open + exit plans keep running"
         },
         {
-          "key": "kill_switch.reenable.action",
-          "note": "description only"
+          "key": "kill_switch.action.engage",
+          "note": "'Stop buying' / 'Hentikan pembelian'"
+        },
+        {
+          "key": "kill_switch.dialog.title",
+          "note": "new buys only"
+        },
+        {
+          "key": "wallet.owner.title",
+          "note": "'Main wallet' / 'Wallet utama'"
+        },
+        {
+          "key": "notif.real.signer.revoked.body",
+          "note": "no kill_switch branch"
+        },
+        {
+          "key": "settings.appearance.density.compact",
+          "note": "ID 'Compact' → 'Ringkas' (G1)"
+        },
+        {
+          "key": "settings.appearance.density.comfortable",
+          "note": "ID 'Comfortable' → 'Nyaman' (G1)"
         }
       ],
       "description_changed": []
