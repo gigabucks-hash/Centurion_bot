@@ -148,4 +148,20 @@ void main() {
       expect(NotificationRenderer.copyKeyFor(m('nope')), 'N-07.timeout');
     });
   });
+
+  test('optional mint + logo_hash (contracts follow-up): parsed only when well-formed, not vars', () {
+    const mint = 'tUS1YuHKJDnzQddko3sTDKq1F7v58ZPsvkwRHBTGN844';
+    final base = {'v': '1', 'event': 'N-08', 'mode': 'practice', 'position_id': 'ck1.0'};
+    final p = PushMessage.tryParse({...base, 'mint': mint, 'logo_hash': 'abcdef0123456789'})!;
+    expect(p.mint, mint);
+    expect(p.logoHash, 'abcdef0123456789');
+    expect(p.vars.containsKey('mint'), isFalse);
+    final none = PushMessage.tryParse(base)!;
+    expect(none.mint, isNull);
+    expect(none.logoHash, isNull);
+    final bad = PushMessage.tryParse({...base, 'mint': 'not a mint', 'logo_hash': 'abcdef0123456789'})!;
+    expect(bad.mint, isNull);
+    expect(bad.logoHash, isNull, reason: 'no hash without a valid mint');
+    expect(PushMessage.tryParse({...base, 'mint': mint, 'logo_hash': 'x&s=1'})!.logoHash, isNull);
+  });
 }

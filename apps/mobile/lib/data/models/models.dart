@@ -725,24 +725,24 @@ class TimeExits {
   };
 }
 
-/// Contracts 1.1.6 coin logo (Backend working tree, not landed yet; UX COIN_LOGO.md §2).
+/// Contracts 1.1.6 coin logo (pinned 4e0d7f3; API_ENDPOINTS 4.12; docs/COIN_LOGO_CLIENT.md).
 ///
 /// Logos load ONLY through our image proxy `GET /v1/img/coin/{mint}?s={48|64|96|128|192}&v={logo_hash}`
-/// (re-encoded WebP; 404 LOGO_NOT_FOUND / 422 LOGO_REJECTED → identicon). Never a token-provided URI
-/// (metadata/IPFS/Arweave/third-party CDN).
-/// - `logo_hash` null (or not a valid hash) → identicon with no request; no URL is ever guessed without `v`.
-/// - `logo_url` is honoured only when it points at our proxy (same origin as the API, path
-///   `/v1/img/coin/{same mint}`); anything else is ignored and the URL is built from `mint` + `logo_hash`.
+/// (WebP, never SVG; each variant hard-capped at 16 KiB by the proxy; 404 LOGO_NOT_FOUND / 422 LOGO_REJECTED →
+/// identicon). Never a token-provided URI (metadata/IPFS/Arweave/third-party CDN).
+/// - `logo_hash` null (or malformed) → identicon with no request; no URL is ever guessed without `v`.
+/// - The logo host is the API origin by default. `logo_url` is honoured only when it is a proxy URL
+///   (`/v1/img/coin/{same mint}`) on the API origin or on an origin in the optional allowlist (Backend's
+///   `LOGO_PUBLIC_BASE_URL`); anything else is ignored and the URL is built on the API origin.
 abstract final class CoinLogo {
   static const proxyPath = '/v1/img/coin/';
 
-  /// Proxy file sizes in the contracts (`LOGO_SIZES`, events.ts 1.1.6).
+  /// Proxy sizes the backend accepts (transcode.ts LOGO_SIZES @ d4dcc51; other `s` → 422 VALIDATION_FAILED).
   static const fileSizes = [48, 64, 96, 128, 192];
+  static const maxRequestSize = 192;
 
-  /// The proxy (`transcode.ts` LOGO_SIZES = 48/64/96) answers 400 for s=128/192 today, so requests and
-  /// decodes are capped at 96 until Backend ships the bigger sizes (COIN_LOGO §2 "Pending").
-  static const maxRequestSize = 96;
-  static const decodeCap = 96;
+  /// Session fallback when a size above this is refused (an older proxy without 128/192).
+  static const safeSize = 96;
 
   static final _mint = RegExp(r'^[1-9A-HJ-NP-Za-km-z]{32,44}$');
   static final _hash = RegExp(r'^[A-Za-z0-9_-]{8,64}$');
@@ -762,15 +762,13 @@ abstract final class CoinLogo {
     return v is String && isHash(v) ? v : null;
   }
 
-  /// Smallest proxy size ≥ px × dpr (192 when larger), capped at [maxRequestSize].
-  static int requestSize(double px, double dpr) {
-    final want = px * dpr;
+  /// s = smallest proxy size ≥ ceil(px × dpr), capped at [maxRequestSize] (or [cap]).
+  /// Also the decode size: `cacheWidth` = `cacheHeight` = s.
+  static int requestSize(double px, double dpr, {int cap = maxRequestSize}) {
+    final want = (px * dpr).ceil();
     final s = fileSizes.firstWhere((s) => s >= want, orElse: () => fileSizes.last);
-    return s > maxRequestSize ? maxRequestSize : s;
+    return s > cap ? cap : s;
   }
-
-  /// `cacheWidth`/`cacheHeight`: display px × dpr, never above [decodeCap].
-  static int decodePx(double px, double dpr) => (px * dpr).ceil().clamp(1, decodeCap);
 
   /// https, or http only for a loopback dev API; host required; no userinfo.
   static bool _okBase(Uri u) =>
@@ -778,25 +776,47 @@ abstract final class CoinLogo {
       u.userInfo.isEmpty &&
       (u.scheme == 'https' || (u.scheme == 'http' && (u.host == 'localhost' || u.host == '127.0.0.1')));
 
-  /// True when [raw] (absolute or API-relative) is our proxy URL for [mint].
-  static bool isProxyUrl(String? raw, {required Uri apiBase, required String mint}) {
-    if (raw == null || raw.isEmpty || !raw.startsWith(RegExp(r'https?://|/'))) return false;
+  static Uri? _abs(String? raw, Uri apiBase) {
+    if (raw == null || raw.isEmpty || !raw.startsWith(RegExp(r'https?://|/'))) return null;
+    if (raw.startsWith('//')) return null;
     final u = Uri.tryParse(raw);
-    if (u == null) return false;
-    final abs = u.hasScheme ? u : (raw.startsWith('//') ? null : apiBase.resolveUri(u));
-    if (abs == null || !_okBase(abs) || abs.hasFragment) return false;
-    return abs.origin == apiBase.origin && abs.path == '$proxyPath$mint';
+    if (u == null) return null;
+    final abs = u.hasScheme ? u : apiBase.resolveUri(u);
+    return _okBase(abs) && !abs.hasFragment ? abs : null;
   }
 
-  /// The proxy URL to load, or null (→ identicon without a request).
-  static Uri? proxyUri({required Uri? apiBase, required String? mint, required String? logoHash, required int size}) {
+  /// True when [raw] (absolute or API-relative) is our proxy URL for [mint] on the API origin or an allowed one.
+  static bool isProxyUrl(
+    String? raw, {
+    required Uri apiBase,
+    required String mint,
+    Set<String> allowedOrigins = const {},
+  }) {
+    final abs = _abs(raw, apiBase);
+    if (abs == null) return false;
+    final originOk = abs.origin == apiBase.origin || allowedOrigins.contains(abs.origin);
+    return originOk && abs.path == '$proxyPath$mint';
+  }
+
+  /// The proxy URL to load, or null (→ identicon without a request). Origin = the `logo_url` origin when it is an
+  /// allowed proxy URL, else the API origin; query is always rebuilt (`s`, and `v` = logo_hash, which wins over a
+  /// stale `v` in logo_url: a new hash is a new URL, so the old cache is not reused).
+  static Uri? proxyUri({
+    required Uri? apiBase,
+    required String? mint,
+    required String? logoHash,
+    required int size,
+    String? logoUrl,
+    Set<String> allowedOrigins = const {},
+  }) {
     if (apiBase == null || !_okBase(apiBase) || !isMint(mint) || !isHash(logoHash)) return null;
-    // A proxy `logo_url` has this exact origin + path, so the URL is always built from mint + logo_hash:
-    // `logo_hash` wins over a stale `v` (new hash = new URL = old cache unused); non-proxy URLs never load.
+    final origin = isProxyUrl(logoUrl, apiBase: apiBase, mint: mint!, allowedOrigins: allowedOrigins)
+        ? _abs(logoUrl, apiBase)!
+        : apiBase;
     return Uri(
-      scheme: apiBase.scheme,
-      host: apiBase.host,
-      port: apiBase.hasPort ? apiBase.port : null,
+      scheme: origin.scheme,
+      host: origin.host,
+      port: origin.hasPort ? origin.port : null,
       path: '$proxyPath$mint',
       queryParameters: {'s': '$size', 'v': logoHash!},
     );

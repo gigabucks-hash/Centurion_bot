@@ -125,17 +125,50 @@ void main() {
   });
 
   group('CoinLogo (proxy only)', () {
-    test('request size: smallest of 48/64/96/128/192 ≥ px × dpr, capped at 96 until the proxy update', () {
+    test('request size s: smallest of 48/64/96/128/192 ≥ ceil(px × dpr), max 192; decode = s', () {
       final table = {
-        (20, 1): 48, (20, 2): 48, (20, 3): 64, //
-        (24, 1): 48, (24, 2): 48, (24, 3): 96,
-        (32, 1): 48, (32, 2): 64, (32, 3): 96,
-        (48, 3): 96, (64, 2): 96, (64, 3): 96, // doc: 192 / 128 / 192 once Backend ships them
+        (20.0, 1.0): 48, (20.0, 2.0): 48, (20.0, 3.0): 64, //
+        (24.0, 1.0): 48, (24.0, 2.0): 48, (24.0, 2.75): 96, (24.0, 3.0): 96,
+        (32.0, 1.0): 48, (32.0, 2.0): 64, (32.0, 3.0): 96,
+        (40.0, 3.0): 128, (48.0, 3.0): 192, (64.0, 2.0): 128, (64.0, 3.0): 192, (96.0, 3.0): 192,
+        (16.0, 3.0): 48, (21.4, 3.0): 96, // ceil(64.2) = 65 → 96
       };
-      table.forEach((k, s) => expect(CoinLogo.requestSize(k.$1.toDouble(), k.$2.toDouble()), s, reason: '$k'));
-      expect(CoinLogo.decodePx(32, 3), 96);
-      expect(CoinLogo.decodePx(20, 3), 60);
-      expect(CoinLogo.decodePx(64, 3), 96, reason: 'decode cap 96');
+      table.forEach((k, s) => expect(CoinLogo.requestSize(k.$1, k.$2), s, reason: '$k'));
+      expect(CoinLogo.requestSize(64, 3, cap: CoinLogo.safeSize), 96, reason: 'session cap after a refused 192');
+      expect(CoinLogo.fileSizes, [48, 64, 96, 128, 192], reason: 'backend transcode.ts LOGO_SIZES @ d4dcc51');
+    });
+
+    test('logo_url origin allowlist: API origin by default; an allowed LOGO_PUBLIC_BASE_URL origin is used', () {
+      const cdn = 'https://img.example.net';
+      final u = '$cdn/v1/img/coin/$mint?s=96&v=old';
+      expect(CoinLogo.isProxyUrl(u, apiBase: api, mint: mint), isFalse);
+      expect(
+        CoinLogo.proxyUri(apiBase: api, mint: mint, logoHash: hash, size: 48, logoUrl: u).toString(),
+        'https://api.example.com/v1/img/coin/$mint?s=48&v=$hash',
+        reason: 'not allowlisted → API origin',
+      );
+      expect(
+        CoinLogo.proxyUri(
+          apiBase: api,
+          mint: mint,
+          logoHash: hash,
+          size: 48,
+          logoUrl: u,
+          allowedOrigins: {cdn},
+        ).toString(),
+        '$cdn/v1/img/coin/$mint?s=48&v=$hash',
+        reason: 'allowlisted proxy origin; v = logo_hash, s rebuilt',
+      );
+      expect(
+        CoinLogo.isProxyUrl(
+          'http://img.example.net/v1/img/coin/$mint',
+          apiBase: api,
+          mint: mint,
+          allowedOrigins: {cdn},
+        ),
+        isFalse,
+      );
+      expect(CoinLogo.isProxyUrl('$cdn/logo.svg', apiBase: api, mint: mint, allowedOrigins: {cdn}), isFalse);
     });
 
     test('proxyUri: built from mint + logo_hash; null without hash, base, valid mint or https', () {
@@ -214,7 +247,7 @@ void main() {
         ),
       );
       expect(f.requested.single.toString(), 'https://api.example.com/v1/img/coin/$mint?s=96&v=$hash');
-      expect(f.decodePx.single, 96, reason: '32 px × dpr 3, cap 96');
+      expect(f.decodePx.single, 96, reason: '32 px × dpr 3 → s = 96 = cacheWidth/cacheHeight');
       await tester.pump(const Duration(seconds: 5));
     });
 
@@ -293,6 +326,77 @@ void main() {
         await tester.pumpWidget(_host(const SizedBox(), apiBase: api, factory: f, session: session));
       }
       expect(f.requested, hasLength(2), reason: 'first try + one retry');
+    });
+
+    testWidgets('192 refused with 422 VALIDATION_FAILED → retry at 96 (not identicon), session capped at 96', (
+      tester,
+    ) async {
+      final img = (await tester.runAsync(() => createTestImage(width: 4, height: 4)))!;
+      final session = CoinLogoSession();
+      final f = _Factory()
+        ..answer = (u) => u.queryParameters['s'] == '192'
+            ? Future.error(NetworkImageLoadException(statusCode: 422, uri: u))
+            : Future.value(ImageInfo(image: img.clone()));
+      const big = CoinAvatar(mint: mint, symbol: r'$TESSA', logoHash: hash, size: 64); // 64 × 3 → 192
+      await tester.pumpWidget(_host(big, apiBase: api, factory: f, session: session));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(f.requested.map((u) => u.queryParameters['s']), ['192', '96']);
+      expect(f.decodePx.last, 96);
+      expect(find.byType(RawImage), findsOneWidget);
+      expect(_identicon, findsNothing);
+      expect(session.sizeCap, 96);
+      expect(session.lastError, isEmpty, reason: 'a refused size is not a negative logo');
+      // The next large avatar this session asks for 96 directly.
+      await tester.pumpWidget(_host(const SizedBox(), apiBase: api, factory: f, session: session));
+      imageCache.clear();
+      await tester.pumpWidget(
+        _host(
+          const CoinAvatar(mint: 'dYrhdkDmtC88oyRfDMCPgQbxc2y8p5fhc95zgjSYZo2d', symbol: 'Z', logoHash: hash, size: 64),
+          apiBase: api,
+          factory: f,
+          session: session,
+        ),
+      );
+      expect(f.requested.last.queryParameters['s'], '96');
+      await tester.pump(const Duration(milliseconds: 500));
+    });
+
+    testWidgets('422 at 192 AND at 96 = LOGO_REJECTED → identicon; size cap restored', (tester) async {
+      final session = CoinLogoSession();
+      final f = _Factory()..answer = (u) => Future.error(NetworkImageLoadException(statusCode: 422, uri: u));
+      await tester.pumpWidget(
+        _host(
+          const CoinAvatar(mint: mint, symbol: r'$TESSA', logoHash: hash, size: 64),
+          apiBase: api,
+          factory: f,
+          session: session,
+        ),
+      );
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(f.requested.map((u) => u.queryParameters['s']), ['192', '96']);
+      expect(_identicon, findsOneWidget);
+      expect(session.sizeCap, 192);
+      expect(session.lastError.values.single, ApiErrorCode.fromWire('LOGO_REJECTED'));
+    });
+
+    testWidgets('404 at 192 → identicon at once (no size retry)', (tester) async {
+      final f = _Factory()..answer = (u) => Future.error(NetworkImageLoadException(statusCode: 404, uri: u));
+      await tester.pumpWidget(
+        _host(
+          const CoinAvatar(mint: mint, symbol: r'$TESSA', logoHash: hash, size: 64),
+          apiBase: api,
+          factory: f,
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(f.requested, hasLength(1));
+      expect(_identicon, findsOneWidget);
     });
 
     testWidgets('not tradeable: grayscale + 0.55 opacity + dashed ring; decorative by default', (tester) async {

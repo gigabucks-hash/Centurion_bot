@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/coin_avatar.dart';
 import '../../core/format.dart';
 import '../../data/api/server_clock.dart';
 import '../../core/notifications/local_notifier.dart';
@@ -192,7 +193,21 @@ class NotificationTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpace.sHalf),
-            Text(rendered.title, style: tt.titleSmall),
+            if (rendered.message.mint case final mint?)
+              Row(
+                children: [
+                  CoinAvatar(
+                    mint: mint,
+                    symbol: rendered.message.vars['symbol'] ?? '',
+                    logoHash: rendered.message.logoHash,
+                    size: CoinAvatar.sm, // COIN_LOGO §1: in-app notification = 20 px
+                  ),
+                  const SizedBox(width: AppSpace.s2),
+                  Expanded(child: Text(rendered.title, style: tt.titleSmall)),
+                ],
+              )
+            else
+              Text(rendered.title, style: tt.titleSmall),
             Text(rendered.body, style: tt.bodyMedium),
             if (rendered.actions.isNotEmpty) ...[
               const SizedBox(height: AppSpace.s1),

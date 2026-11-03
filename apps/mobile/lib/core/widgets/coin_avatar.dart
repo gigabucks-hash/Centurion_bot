@@ -13,8 +13,12 @@ import '../theme/app_tokens.dart';
 /// API base for the logo proxy (`{base}/v1/img/coin/{mint}`). Null in the mock build → identicons only.
 final apiBaseUrlProvider = Provider<Uri?>((_) => null);
 
+/// Extra origins (scheme://host[:port]) whose proxy `logo_url`s are trusted, e.g. Backend's
+/// `LOGO_PUBLIC_BASE_URL`. Default: none = the API origin only.
+final logoOriginsProvider = Provider<Set<String>>((_) => const {});
+
 /// How a proxy URL becomes pixels. Tests swap in memory images or failures; production decodes the
-/// network image at [decodePx] (≤ 96, [CoinLogo.decodeCap]) so a logo never sits in memory at full size.
+/// network image at [decodePx] = the requested proxy size s (≤ 192) so a logo never sits in memory larger.
 typedef CoinLogoImageFactory = ImageProvider Function(Uri uri, int decodePx);
 
 final coinLogoImageFactoryProvider = Provider<CoinLogoImageFactory>(
@@ -33,6 +37,16 @@ class CoinLogoSession {
   final lastError = <String, ApiErrorCode>{};
 
   static String key(String mint, String v) => '$mint|$v';
+
+  /// Largest `s` requested this session. Drops to [CoinLogo.safeSize] when a > 96 request is refused with a
+  /// non-404 4xx and the 96 retry then works (an older proxy without 128/192); never to the identicon for that.
+  int sizeCap = CoinLogo.maxRequestSize;
+  bool _capConfirmed = false;
+  void tentativeCap() => sizeCap = CoinLogo.safeSize;
+  void confirmCap() => _capConfirmed = true;
+  void revertCap() {
+    if (!_capConfirmed) sizeCap = CoinLogo.maxRequestSize;
+  }
 
   bool canLoad(String mint, String v) => !_negative.contains(key(mint, v)) && (_transient[mint] ?? 0) < 2;
 
@@ -111,6 +125,8 @@ class _CoinAvatarState extends ConsumerState<CoinAvatar> {
   VoidCallback? _pending;
   Timer? _delay, _timeout, _min;
   bool _inSync = false;
+  bool _probing = false;
+  int _size = 0;
 
   @override
   void didChangeDependencies() {
@@ -126,40 +142,32 @@ class _CoinAvatarState extends ConsumerState<CoinAvatar> {
 
   void _sync() {
     final base = ref.read(apiBaseUrlProvider);
-    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
     final mint = widget.mint;
     if (kDebugMode && base != null && mint != null && widget.logoUrl != null) {
-      if (!CoinLogo.isProxyUrl(widget.logoUrl, apiBase: base, mint: mint)) {
+      if (!CoinLogo.isProxyUrl(
+        widget.logoUrl,
+        apiBase: base,
+        mint: mint,
+        allowedOrigins: ref.read(logoOriginsProvider),
+      )) {
         debugPrint('CoinAvatar: ignoring non-proxy logo_url for $mint');
       }
     }
-    final uri = CoinLogo.proxyUri(
-      apiBase: base,
-      mint: mint,
-      logoHash: widget.logoHash,
-      size: CoinLogo.requestSize(widget.size, dpr),
-    );
+    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
+    final size = CoinLogo.requestSize(widget.size, dpr, cap: ref.read(coinLogoSessionProvider).sizeCap);
+    final uri = _uriFor(size);
     if (uri == _uri && _phase != _Phase.none) return;
     _stop();
-    _uri = uri;
+    _probing = false;
     _info?.dispose();
     _info = null;
     if (uri == null || !ref.read(coinLogoSessionProvider).canLoad(mint!, widget.logoHash!)) {
+      _uri = uri;
       _phase = _Phase.failed;
       return;
     }
-    final provider = ref.read(coinLogoImageFactoryProvider)(uri, CoinLogo.decodePx(widget.size, dpr));
-    final stream = provider.resolve(createLocalImageConfiguration(context));
     _phase = _Phase.blank;
-    final listener = ImageStreamListener(
-      _loaded,
-      onError: (e, _) => _failed(e is NetworkImageLoadException ? e.statusCode : -1),
-    );
-    _stream = stream;
-    _listener = listener;
-    _inSync = true; // a cache hit (or a cached failure) is delivered inside addListener
-    stream.addListener(listener);
-    _inSync = false;
+    _load(uri, size);
     if (_phase == _Phase.blank) {
       _delay = Timer(AppMotion.skeletonDelayBase, () {
         if (!mounted || _phase != _Phase.blank) return;
@@ -171,6 +179,36 @@ class _CoinAvatarState extends ConsumerState<CoinAvatar> {
           if (next != null && mounted) setState(next);
         });
       });
+    }
+  }
+
+  Uri? _uriFor(int size) => CoinLogo.proxyUri(
+    apiBase: ref.read(apiBaseUrlProvider),
+    mint: widget.mint,
+    logoHash: widget.logoHash,
+    logoUrl: widget.logoUrl,
+    allowedOrigins: ref.read(logoOriginsProvider),
+    size: size,
+  );
+
+  /// Resolves [uri] decoded at [size] px (cacheWidth = cacheHeight = s). Re-arms the 4 s timeout.
+  void _load(Uri uri, int size) {
+    _detach();
+    _timeout?.cancel();
+    _uri = uri;
+    _size = size;
+    final provider = ref.read(coinLogoImageFactoryProvider)(uri, size);
+    final stream = provider.resolve(createLocalImageConfiguration(context));
+    final listener = ImageStreamListener(
+      _loaded,
+      onError: (e, _) => _failed(e is NetworkImageLoadException ? e.statusCode : -1),
+    );
+    _stream = stream;
+    _listener = listener;
+    _inSync = true; // a cache hit (or a cached failure) is delivered inside addListener
+    stream.addListener(listener);
+    _inSync = false;
+    if (_phase == _Phase.blank || _phase == _Phase.skeleton) {
       _timeout = Timer(CoinAvatar.timeout, () => _failed(null));
     }
   }
@@ -195,7 +233,11 @@ class _CoinAvatarState extends ConsumerState<CoinAvatar> {
     }
     _info?.dispose();
     _info = info;
-    final cacheHit = _inSync; // no skeleton, no fade
+    if (_probing) {
+      _probing = false;
+      ref.read(coinLogoSessionProvider).confirmCap();
+    }
+    final cacheHit = _inSync && _delay == null; // no skeleton, no fade
     _settle(() {
       _phase = _Phase.loaded;
       _fade = !cacheHit;
@@ -204,8 +246,27 @@ class _CoinAvatarState extends ConsumerState<CoinAvatar> {
 
   void _failed(int? status) {
     if (_phase == _Phase.failed || _phase == _Phase.loaded) return;
+    final session = ref.read(coinLogoSessionProvider);
+    final refusedSize = status != null && status >= 400 && status < 500 && status != 404;
+    if (!_probing && refusedSize && _size > CoinLogo.safeSize) {
+      // 128/192 refused (VALIDATION_FAILED from a proxy without those sizes, or LOGO_REJECTED: the status alone
+      // can't tell): retry this logo at 96 and cap the session there if that works.
+      final uri = _uriFor(CoinLogo.safeSize);
+      if (uri != null) {
+        _probing = true;
+        session.tentativeCap();
+        final wasSync = _inSync;
+        _load(uri, CoinLogo.safeSize);
+        if (!wasSync && mounted) setState(() {});
+        return;
+      }
+    }
+    if (_probing) {
+      _probing = false;
+      session.revertCap(); // 96 failed too: it is the logo, not the size
+    }
     final mint = widget.mint, v = widget.logoHash;
-    if (mint != null && v != null) ref.read(coinLogoSessionProvider).fail(mint, v, status: status);
+    if (mint != null && v != null) session.fail(mint, v, status: status);
     _detach();
     _settle(() => _phase = _Phase.failed);
   }

@@ -21,7 +21,7 @@ library;
 
 import 'dart:convert';
 
-import '../../data/models/models.dart' show unsupportedQuoteMint;
+import '../../data/models/models.dart' show CoinLogo, unsupportedQuoteMint;
 import '../notifications/notification_catalog.dart';
 
 class PushMessage {
@@ -41,7 +41,14 @@ class PushMessage {
     this.seq,
     this.version,
     this.deepLink,
+    this.mint,
+    this.logoHash,
   });
+
+  /// Coin of the event (contracts follow-up after 1.1.6: optional `mint` + `logo_hash` in push data). Parsed only
+  /// when well-formed; absent today, so notification rows show no coin avatar until Backend sends them.
+  final String? mint;
+  final String? logoHash;
 
   final NotifEvent event;
 
@@ -84,7 +91,7 @@ class PushMessage {
 
   static const _reserved = {
     'v', 'event', 'type', 'mode', 'workspace_id', 'seq', 'version', 'deep_link', 'approval_id', 'position_id', //
-    'token', 'exp', 'expire_reason', 'actions', 'vars', 'server_now',
+    'token', 'exp', 'expire_reason', 'actions', 'vars', 'server_now', 'mint', 'logo_hash',
   };
 
   static DateTime? _time(Object? v) {
@@ -160,6 +167,8 @@ class PushMessage {
       version: version is num ? version.toInt() : int.tryParse('${version ?? ''}'.trim()),
       deepLink: str('deep_link'),
       vars: vars,
+      mint: CoinLogo.isMint(str('mint')) ? str('mint') : null,
+      logoHash: CoinLogo.isMint(str('mint')) && CoinLogo.isHash(str('logo_hash')) ? str('logo_hash') : null,
     );
   }
 
