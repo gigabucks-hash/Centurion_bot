@@ -17,8 +17,12 @@ const Ctx = createContext<RealtimeValue | null>(null);
 const MarksCtx = createContext<ReadonlyMap<string, MarkMessage>>(new Map());
 const MAX = 200;
 
-/** One shared realtime connection per workspace mode for the whole shell. */
-export function RealtimeProvider({ mode, children }: { mode: TradingMode; children: ReactNode }) {
+/**
+ * One shared realtime connection per mode that has strategies (SSE is `?mode=` scoped on the wire; per-strategy mode
+ * since contracts 1.1.6), merged into one feed for the whole shell. Status = the worst of the connections.
+ */
+export function RealtimeProvider({ modes, children }: { modes: TradingMode[]; children: ReactNode }) {
+  const modesKey = modes.join(",");
   const [status, setStatus] = useState<ConnectionState>("connecting");
   const [events, setEvents] = useState<TradeEvent[]>([]);
   const [paused, setPaused] = useState(false);
@@ -31,19 +35,27 @@ export function RealtimeProvider({ mode, children }: { mode: TradingMode; childr
   useEffect(() => {
     // Perf: marks can arrive many times per second per mint → keep the latest per mint, one render per frame.
     const batch = createRafBatcher<string, MarkMessage>((b) => setMarks((prev) => new Map([...prev, ...b])));
-    const off = subscribeActivity(
-      mode,
-      (e) => {
-        if (!pausedRef.current) setEvents((prev) => [e, ...prev].slice(0, MAX));
-      },
-      setStatus,
-      (m) => batch.push(m.mint, m),
+    const list = modesKey.split(",") as TradingMode[];
+    const states = new Map<TradingMode, ConnectionState>();
+    const rank: Record<ConnectionState, number> = { connected: 0, connecting: 1, disconnected: 2 };
+    const offs = list.map((m) =>
+      subscribeActivity(
+        m,
+        (e) => {
+          if (!pausedRef.current) setEvents((prev) => [{ ...e, mode: e.mode ?? m }, ...prev].slice(0, MAX));
+        },
+        (s) => {
+          states.set(m, s);
+          setStatus([...states.values()].reduce<ConnectionState>((a, b) => (rank[b] > rank[a] ? b : a), "connected"));
+        },
+        (mk) => batch.push(mk.mint, mk),
+      ),
     );
     return () => {
       batch.cancel();
-      off();
+      offs.forEach((off) => off());
     };
-  }, [mode]);
+  }, [modesKey]);
 
   const value = useMemo(() => ({ status, events, paused, setPaused }), [status, events, paused]);
   return (

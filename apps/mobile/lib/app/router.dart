@@ -12,6 +12,7 @@ import '../features/settings/notifications_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/shell/home_shell.dart';
 import '../features/strategies/strategies_screen.dart';
+import '../features/strategies/strategy_detail_screen.dart';
 
 /// [isSignedIn] + [authChanges]: wallet-login gate (prod). Null = no gate (mock build,
 /// widget tests); `/login` is always routable.
@@ -53,7 +54,13 @@ GoRouter buildRouter({String initialLocation = '/', bool Function()? isSignedIn,
             ],
           ),
           StatefulShellBranch(
-            routes: [GoRoute(path: '/strategies', builder: (_, _) => const StrategiesScreen())],
+            routes: [
+              GoRoute(
+                path: '/strategies',
+                builder: (_, _) => const StrategiesScreen(),
+                routes: [GoRoute(path: ':id', builder: (_, s) => StrategyDetailScreen(s.pathParameters['id']!))],
+              ),
+            ],
           ),
           StatefulShellBranch(
             routes: [

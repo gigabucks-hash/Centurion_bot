@@ -44,10 +44,12 @@ test("Mcap / liquidity '—' tooltip key exists (common.value.unavailable)", () 
   assert.equal(typeof get(cat.id, "common.state.loading"), "string");
 });
 
-test("errors.map.json v6 covers 58 codes incl. guard weaken (pending tone) + quote stale (refresh CTA)", () => {
+test("errors.map.json v7 (i18n 0.4.10) covers 67 codes incl. guard weaken, quote stale, MODE_NOT_ALLOWED per strategy", () => {
   const e = pkg("errors.map.json");
-  assert.equal(e.errors_json_version, 6);
-  assert.equal(Object.keys(e.codes).length, 58);
+  assert.equal(e.errors_json_version, 7);
+  assert.equal(Object.keys(e.codes).length, 67);
+  assert.equal(e.codes.MODE_NOT_ALLOWED.key, "error.code.mode_not_allowed");
+  assert.match(get(cat.en, "error.code.mode_not_allowed"), /approved for Real/);
   for (const c of ["GUARD_WEAKEN_REQUIRES_APPROVAL", "QUOTE_MISSING_OR_STALE"]) {
     const k = e.codes[c].key;
     for (const l of ["en", "id"]) assert.equal(typeof get(cat[l], k), "string", `${l} ${k}`);
@@ -79,7 +81,7 @@ test("i18n 0.4.7 brand: app.name = Centurion Trade (tray tooltip + notification 
   for (const l of ["en", "id"]) assert.equal(get(cat[l], "app.name"), "Centurion Trade");
 });
 
-test("i18n 0.4.9: desktop uses no deprecated/removed key, and every literal t() key resolves", async () => {
+test("i18n 0.4.10/0.4.11: desktop uses no deprecated/removed key, and every literal t() key resolves", async () => {
   const { readdirSync, statSync } = await import("node:fs");
   const { join } = await import("node:path");
   const mig = pkg("key-migrations.json");
@@ -101,4 +103,43 @@ test("i18n 0.4.9: desktop uses no deprecated/removed key, and every literal t() 
   assert.deepEqual(bad, [], "deprecated/removed keys still used");
   assert.deepEqual(missing, [], "keys missing from @centurion/i18n and LOCAL_TEMPLATES");
   assert.equal(get(cat.id, "kill_switch.dialog.effect.exits_keep"), "Exit plan, TP & SL tetap jalan.");
+});
+
+test("contracts pin: packages/contracts is @centurion/contracts 1.1.6 at ca52707 (no unreviewed drift)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { execFileSync } = await import("node:child_process");
+  const pin = JSON.parse(readFileSync(new URL("../contracts.pin.json", import.meta.url), "utf8"));
+  const pkgJson = JSON.parse(readFileSync(new URL("../../../packages/contracts/package.json", import.meta.url), "utf8"));
+  assert.equal(pkgJson.name, pin.package);
+  assert.equal(pkgJson.version, pin.version);
+  const root = new URL("../../..", import.meta.url).pathname;
+  let git = null;
+  try {
+    // Committed tree and working tree both equal the pinned commit (exit 1 = drift).
+    // The pin is an ancestor of HEAD, and the tree equals the last reviewed commit (exit 1 = unreviewed drift).
+    execFileSync("git", ["-C", root, "merge-base", "--is-ancestor", pin.commit, "HEAD"], { stdio: "ignore" });
+    const last = pin.reviewed_additive?.at(-1)?.commit ?? pin.commit;
+    // Committed trees only: uncommitted Backend WIP in packages/contracts is not part of the pin.
+    execFileSync("git", ["-C", root, "diff", "--quiet", last, "HEAD", "--", "packages/contracts"], { stdio: "ignore" });
+    git = "same";
+  } catch (e) {
+    git = e.status === 1 ? "drift" : "no-git";
+  }
+  assert.notEqual(git, "drift", `packages/contracts changed since ${pin.commit}; re-check the desktop and bump contracts.pin.json`);
+});
+
+test("i18n pin: I18N_PACKAGE_VERSION equals packages/i18n (0.4.11: 0.4.10 + the two deprecated keys removed)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../src/i18n/index.ts", import.meta.url), "utf8");
+  assert.equal(/I18N_PACKAGE_VERSION = "([^"]+)"/.exec(src)?.[1], pkg("package.json").version);
+  assert.equal(pkg("package.json").version, "0.4.11");
+});
+
+test("next_allowed_at: RFC 3339 UTC with ms + Z, parsed strictly (no local-time guesses)", async () => {
+  const { parseIsoTs } = await import("../src/i18n/isots.ts");
+  assert.equal(parseIsoTs("2026-11-04T08:06:04.312Z"), Date.UTC(2026, 10, 4, 8, 6, 4, 312));
+  for (const bad of ["2026-11-04T08:06:04Z", "2026-11-04T15:06:04.312+07:00", "2026-11-04T08:06:04.312", "2026-11-04 08:06:04.312Z",
+    "2026-11-04T08:06:04.3121Z", "2026-02-30T08:06:04.312Z", "2026-11-04T24:00:00.000Z", "1730707564312", "", null, undefined, 5]) {
+    assert.equal(parseIsoTs(bad), null, String(bad));
+  }
 });

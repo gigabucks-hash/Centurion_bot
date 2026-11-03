@@ -6,9 +6,9 @@
 export const MOCK_SUFFIX = "(mock)";
 
 /**
- * Templates for activity rows whose keys @centurion/i18n 0.4.9 does not ship yet (UX gap, requested as
+ * Templates for activity rows whose keys @centurion/i18n 0.4.11 does not ship yet (UX gap, requested as
  * `feed.event.fill` / `feed.event.exit_triggered` / `feed.event.proposal_pending`, and the desktop
- * SIWS screens `desktop.auth.*` incl. wallet_not_allowed — 0.4.9 has only the web wallet-connect copy). Used only when the package has no such key, so a
+ * SIWS screens `desktop.auth.*` incl. wallet_not_allowed — 0.4.11 has only the web wallet-connect copy). Used only when the package has no such key, so a
  * later package version replaces them without a code change. All numbers inside are formatted by
  * format.mjs in the UI locale (D10).
  */
@@ -22,6 +22,7 @@ export const LOCAL_TEMPLATES: Record<"en" | "id", Record<string, string>> = {
     "desktop.auth.waiting": "Waiting for the browser… Finish signing in there, then come back.",
     "desktop.auth.failed": "Sign-in did not complete ({code}). Try again.",
     "desktop.auth.session_ended": "Your session ended ({reason}). Sign in again.",
+    "desktop.auth.sign_in_again": "That sign-in link has expired or was already used. Sign in again.",
     "desktop.auth.not_allowed.title": "This wallet is not allowed",
     "desktop.auth.not_allowed.body": "{app} is private. Only the owner wallet can sign in. {address}",
     "desktop.auth.try_other": "Use another wallet",
@@ -40,6 +41,7 @@ export const LOCAL_TEMPLATES: Record<"en" | "id", Record<string, string>> = {
     "desktop.auth.waiting": "Menunggu browser… Selesaikan login di sana, lalu kembali ke sini.",
     "desktop.auth.failed": "Login belum selesai ({code}). Coba lagi.",
     "desktop.auth.session_ended": "Sesi berakhir ({reason}). Masuk lagi.",
+    "desktop.auth.sign_in_again": "Link login ini sudah kedaluwarsa atau sudah dipakai. Masuk lagi.",
     "desktop.auth.not_allowed.title": "Wallet ini tidak diizinkan",
     "desktop.auth.not_allowed.body": "{app} bersifat privat. Hanya wallet pemilik yang bisa masuk. {address}",
     "desktop.auth.try_other": "Pakai wallet lain",

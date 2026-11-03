@@ -45,12 +45,12 @@ pub fn dispatch<R: Runtime>(app: &AppHandle<R>, outs: Vec<Out>) {
     for o in outs {
         let res = match &o {
             Out::SignalNew(s) => {
-                let (mode, popup) = {
+                let (mode, popup, loc, now) = {
                     let st = app.state::<AppState>();
                     let e = st.engine.lock().unwrap();
-                    (e.mode, e.settings.approval_popup)
+                    (e.mode, e.settings.approval_popup, e.settings.locale, e.server_now_ms())
                 };
-                crate::notify::new_signal(app, s, mode);
+                crate::notify::new_signal(app, s, mode, loc, now);
                 if popup {
                     // Show (not focus) the opt-in always-on-top approval window.
                     let _ = crate::windows::open_approval_popup(app, false);

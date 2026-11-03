@@ -1,0 +1,37 @@
+/* GENERATED SUBSET of @centurion/design-tokens 0.3.4 tokens/tauri.css by scripts/sync-tokens.mjs — do not edit.
+   Only: 23 approved tokens (0.3.4 chrome/scrim/shadows/onWarning + coin logo). No G1-blue palette. */
+:root, [data-theme="dark"] {
+  --color-bg-chrome: #0D0F15;
+  --color-semantic-onWarning: #1A1203;
+  --color-scrim-sheet: #00000099;
+  --coin-logo-ring: rgba(255, 255, 255, 0.12);
+  --shadow-card: none;
+  --shadow-dialog: 0 16px 40px 0px rgba(0,0,0,0.5);
+}
+[data-theme="light"] {
+  --color-bg-chrome: #FFFFFF;
+  --color-semantic-onWarning: #FFFFFF;
+  --color-scrim-sheet: #0F142061;
+  --coin-logo-ring: rgba(15, 20, 32, 0.1);
+  --shadow-card: 0 1px 2px 0px rgba(15,20,32,0.06);
+  --shadow-dialog: 0 12px 32px 0px rgba(15,20,32,0.14);
+}
+:root {
+  --coin-logo-size-sm: 20px;
+  --coin-logo-size-md: 24px;
+  --coin-logo-size-lg: 32px;
+  --coin-logo-not-tradeable-opacity: 0.55;
+  --color-identicon-fg: #F4F6FB;
+  --color-identicon-0: #8A2E3B;
+  --color-identicon-1: #8A4A1F;
+  --color-identicon-2: #6E5A12;
+  --color-identicon-3: #4C6A1A;
+  --color-identicon-4: #1F6B3A;
+  --color-identicon-5: #146560;
+  --color-identicon-6: #16607E;
+  --color-identicon-7: #2A4F94;
+  --color-identicon-8: #4A3F9C;
+  --color-identicon-9: #6A3592;
+  --color-identicon-10: #86306F;
+  --color-identicon-11: #5A5F6E;
+}

@@ -150,8 +150,15 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   return (await request<T>(url, { body })).data;
 }
 
-export function switchMode(mode: TradingMode, holdMs: number) {
-  return post<{ mode: TradingMode }>("/api/mode", { mode, holdMs });
+/**
+ * Per-strategy Paper/Real switch (replaces the global workspace toggle). MOCK-ONLY route: contracts 1.1.6 has no
+ * switch endpoint yet. If-Match rev + Idempotency-Key; 403 MODE_NOT_ALLOWED while the strategy is not approved for Real.
+ */
+export async function setStrategyModeClient(strategyId: string, mode: TradingMode, rev: number, holdMs = 0): Promise<{ mode: TradingMode; rev: number }> {
+  const { data } = await request<{ mode: TradingMode; rev: number }>(`/api/mock/strategies/${encodeURIComponent(strategyId)}/mode`, {
+    method: "POST", body: { mode, ...(holdMs ? { hold_ms: Math.round(holdMs) } : {}) }, headers: { "If-Match": `"${rev}"` },
+  });
+  return { mode: data.mode, rev: data.rev };
 }
 
 export interface StrategyWire {

@@ -9,7 +9,6 @@ import { cn } from "@/components/ui";
 import { NAV } from "./nav";
 import { RealtimeProvider, useRealtime } from "./RealtimeProvider";
 import { ModeBanner } from "./ModeBanner";
-import { ModeSwitch } from "./ModeSwitch";
 import { ThemeToggle } from "./ThemeToggle";
 import { LocaleToggle } from "./LocaleToggle";
 import { useT } from "@/lib/i18n/client";
@@ -132,16 +131,15 @@ export function ShellSkeleton() {
   );
 }
 
-export function AppShell({ children, sessionKeeper = true, mode, pendingApprovals, walletConnected, cashSol, lossStopPct, runningStrategies }: {
+export function AppShell({ children, sessionKeeper = true, modes, realCount, paperCount, pendingApprovals }: {
   children: ReactNode;
   /** Silent refresh of the httpOnly session (off when CENTURION_AUTH_GATE=0 for local perf/screenshot runs). */
   sessionKeeper?: boolean;
-  mode: TradingMode;
+  /** Modes that have strategies (Paper always; Real only when a strategy runs in Real). No global mode any more. */
+  modes: TradingMode[];
+  realCount: number;
+  paperCount: number;
   pendingApprovals: number;
-  walletConnected: boolean;
-  cashSol: number;
-  lossStopPct: number;
-  runningStrategies: number;
 }) {
   const t = useT();
   const [more, setMore] = useState(false);
@@ -151,29 +149,30 @@ export function AppShell({ children, sessionKeeper = true, mode, pendingApproval
 
   useEffect(() => {
     const refresh = () =>
-      fetchApprovals(mode)
-        .then((list) => setPending(list.filter((a) => a.status === "pending").length))
+      Promise.all(modes.map((m) => fetchApprovals(m).catch(() => [])))
+        .then((lists) => setPending(lists.flat().filter((a) => a.status === "pending").length))
         .catch(() => {});
     refresh();
     window.addEventListener(APPROVALS_CHANGED, refresh);
     return () => window.removeEventListener(APPROVALS_CHANGED, refresh);
-  }, [mode]);
+  }, [modes]);
 
-  // Window title carries the mode prefix (SPEC §4).
+  // Window title prefix (SPEC §4; i18n 0.4.10 [PAPER]/[REAL]): [REAL] as soon as any strategy runs in Real.
+  const real = realCount > 0;
   useEffect(() => {
-    const prefix = mode === "real" ? "[REAL SOL] " : "[PRACTICE] ";
-    if (!document.title.startsWith(prefix)) document.title = prefix + document.title.replace(/^\[(PRACTICE|REAL SOL)\] /, "");
-  }, [mode, pathname]);
+    const prefix = real ? "[REAL] " : "[PAPER] ";
+    if (!document.title.startsWith(prefix)) document.title = prefix + document.title.replace(/^\[(PRACTICE|REAL SOL|PAPER|REAL)\] /, "");
+  }, [real, pathname]);
 
   return (
-    <RealtimeProvider mode={mode}>
-      <div data-mode={mode} className="flex min-h-screen flex-col">
+    <RealtimeProvider modes={modes}>
+      {/* Mode accent tokens: Paper unless a strategy runs in Real (per-item chips carry each item's own mode). */}
+      <div data-mode={real ? "real" : "practice"} className="flex min-h-screen flex-col">
         <div className="sticky top-0 z-40">
-          <ModeBanner mode={mode} walletConnected={walletConnected} />
+          <ModeBanner realCount={realCount} paperCount={paperCount} />
           <header className="flex h-14 items-center gap-3 border-b border-border-subtle bg-bg-surface px-4">
             <Brand />
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
-              <ModeSwitch mode={mode} summary={{ cashSol, lossStopPct, runningStrategies, walletConnected }} />
               <SearchBox />
               <ConnectionDot />
               <span className="hidden sm:inline-flex"><LocaleToggle /></span>

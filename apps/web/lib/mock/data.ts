@@ -1,6 +1,11 @@
 /**
- * Mock dataset (seeded, deterministic). Two separate workspaces — Practice and
- * Real SOL — whose numbers are never mixed. All coins and mints are fictional.
+ * Mock dataset (seeded, deterministic). ONE app, each strategy runs in Paper (wire `practice`) or Real; balances stay
+ * per mode and are never mixed. All coins and mints are fictional.
+ *
+ * Contracts 1.1.6: Real is gated off, so by default every strategy runs in Paper with `real_locked: true`
+ * (`needs_owner_approval`). `CENTURION_MOCK_REAL_DEMO=1` (dev/tests only) runs the two "Real" seeds in Real with
+ * `real_locked: false` so the per-strategy Real safety rules (no swipe, 2.5 s holds, guard cooldown + 24 h
+ * auto-revert) can be exercised. It never touches a wallet or the chain.
  */
 import { MOCK_SOL_USD, screenerStateOf } from "@/lib/contracts";
 const SPL_TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as const;
@@ -42,6 +47,10 @@ type Seed = { name: string; mode: TradingMode; status: Strategy["status"]; setti
 
 const s = (patch: (x: StrategySettings) => StrategySettings) => patch(blankSettings());
 
+export const MOCK_REAL_DEMO = process.env.CENTURION_MOCK_REAL_DEMO === "1";
+/** Mode of the two "Real" seeds: Paper unless the dev-only Real demo is on. */
+const R: TradingMode = MOCK_REAL_DEMO ? "real" : "practice";
+
 const strategySeeds: Seed[] = [
   { name: "Fresh Bonding Scout", mode: "practice", status: "running", settings: s((x) => ({ ...x, approvalMode: "off" })) },
   { name: "Graduated Momentum", mode: "practice", status: "running", settings: s((x) => applyExitPreset({ ...x, approvalMode: "ask_first_buy", screener: { ...x.screener, streams: ["amm"], maxAgeMinutes: 1440 } }, "trail_stop_only")) },
@@ -49,8 +58,8 @@ const strategySeeds: Seed[] = [
   { name: "Breakout Hunter", mode: "practice", status: "running", settings: s((x) => ({ ...x, approvalMode: "ask_first_buy", entry: { ...x.entry, breakout: { enabled: true, minutes: 12, rangePct: 15, buyers: 8 } } })) },
   { name: "Night Owl", mode: "practice", status: "archived", settings: s((x) => applyExitPreset({ ...x, approvalMode: "off" }, "trail_stop_only")) },
   { name: "New pairs (draft)", mode: "practice", status: "draft", settings: s((x) => x) },
-  { name: "Conservative Real", mode: "real", status: "running", settings: s((x) => applyGuardPreset({ ...x, mode: "real", approvalMode: "ask_every_buy", sizing: { budgetSol: 2, tradeSol: 0.2, maxOpen: 3, lossStopPct: 30 } }, "strict")) },
-  { name: "Graduated scalp", mode: "real", status: "running", settings: s((x) => applyExitPreset({ ...x, mode: "real", approvalMode: "ask_first_buy", sizing: { budgetSol: 1.5, tradeSol: 0.15, maxOpen: 3, lossStopPct: 30 }, screener: { ...x.screener, streams: ["amm"] } }, "three_step_ladder")) },
+  { name: "Conservative", mode: R, status: "running", settings: s((x) => applyGuardPreset({ ...x, mode: R, approvalMode: "ask_every_buy", sizing: { budgetSol: 2, tradeSol: 0.2, maxOpen: 3, lossStopPct: 30 } }, "strict")) },
+  { name: "Graduated scalp", mode: R, status: "running", settings: s((x) => applyExitPreset({ ...x, mode: R, approvalMode: "ask_first_buy", sizing: { budgetSol: 1.5, tradeSol: 0.15, maxOpen: 3, lossStopPct: 30 }, screener: { ...x.screener, streams: ["amm"] } }, "three_step_ladder")) },
 ];
 
 const rejectionReasons = [
@@ -63,6 +72,26 @@ const rejectionReasons = [
   "Wash-trading pattern",
   "LP not burned",
 ];
+
+/** Days since the strategy's first paper buy (deterministic per seed index). */
+const firstBuyDaysAgo = (i: number) => [9, 6, 4, 3, 12, 0, 8, 5][i] ?? 1;
+/** Owner thresholds (`centurion.real_gate.min_paper_*`): unset (null) unless the mock env sets them. */
+const gateMin = (v: string | undefined) => (v && /^\d{1,4}$/.test(v) ? Number(v) : null);
+
+/** contracts 1.1.6 StrategyRealGateFields for a mock strategy. */
+export function realGateFor(mode: TradingMode, tradesDone: number, firstBuyAt: number | null): Pick<Strategy, "realLocked" | "realLockedReason" | "paperProgress"> {
+  const unlocked = mode === "real"; // only the dev-only Real demo runs a strategy in Real
+  return {
+    realLocked: !unlocked,
+    realLockedReason: unlocked ? null : "needs_owner_approval",
+    paperProgress: {
+      days_done: firstBuyAt == null || tradesDone === 0 ? 0 : Math.max(0, Math.floor((MOCK_NOW - firstBuyAt) / (24 * HOUR))),
+      days_required: gateMin(process.env.CENTURION_REAL_GATE_MIN_PAPER_DAYS),
+      trades_done: tradesDone,
+      trades_required: gateMin(process.env.CENTURION_REAL_GATE_MIN_PAPER_TRADES),
+    },
+  };
+}
 
 export const seedStrategies: Strategy[] = strategySeeds.map((seed, i) => {
   const draft = seed.status === "draft";
@@ -93,6 +122,7 @@ export const seedStrategies: Strategy[] = strategySeeds.map((seed, i) => {
     id: `str_${(i + 1).toString().padStart(3, "0")}`,
     name: seed.name,
     mode: seed.mode,
+    ...realGateFor(seed.mode, seed.status === "draft" ? 0 : exited, MOCK_NOW - firstBuyDaysAgo(i) * 24 * HOUR),
     status: seed.status,
     rev: draft ? 0 : intBetween(rng, 2, 15),
     settings: { ...seed.settings, name: seed.name, mode: seed.mode },
@@ -446,7 +476,7 @@ const alertsByMode: Record<TradingMode, Alert[]> = {
     { id: "al_3", severity: "warning", title: "Trailing stops exiting very early", detail: "11 of the last 20 trailing-stop exits closed under 15 s after entry.", createdAt: MOCK_NOW - 2 * HOUR, href: "/stats" },
   ],
   real: [
-    { id: "al_r1", severity: "critical", title: "Loss stop at 82% of limit", detail: "Conservative Real is down 24.6% from its peak (stop at 30%). New buys halt at the limit.", createdAt: MOCK_NOW - 12 * MIN, href: "/strategies", strategyId: "str_007" },
+    { id: "al_r1", severity: "critical", title: "Loss stop at 82% of limit", detail: "Conservative is down 24.6% from its peak (stop at 30%). New buys halt at the limit.", createdAt: MOCK_NOW - 12 * MIN, href: "/strategies", strategyId: "str_007" },
     { id: "al_r2", severity: "info", title: "Mock build: no wallet connected", detail: "Real SOL screens show simulated numbers only. No transaction can be sent from this build.", createdAt: MOCK_NOW - 60 * MIN },
   ],
 };
@@ -471,7 +501,7 @@ export function buildOverview(mode: TradingMode, strategies: Strategy[]): Omit<W
   const inPositions = round(list.reduce((a, x) => a + x.openPositions * x.settings.sizing.tradeSol, 0), 3);
   return {
     id: `ws_${mode}`,
-    name: mode === "practice" ? "Practice workspace" : "Real SOL workspace",
+    name: mode === "practice" ? "Paper portfolio" : "Real portfolio",
     mode,
     walletConnected: false,
     startingCashSol: start,

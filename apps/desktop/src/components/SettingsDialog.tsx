@@ -3,11 +3,60 @@ import { useEffect, useState } from "react";
 import { core, type PatchOutcome, type Settings } from "../api";
 import { useTerm } from "../state/store";
 import { useHotkeys } from "../hooks/useHotkeys";
-import { errorCodeOf, errorDetails, errorText, useLang, useT } from "../i18n";
+import { errorCodeOf, errorDetails, errorText, parseIsoTs, useLang, useT } from "../i18n";
 import { fmtTime } from "./format";
+import { HoldButton } from "./HoldButton";
+import { gateView, HOLD_MS, type Line } from "./strategyGate";
+import type { StrategyView } from "../api";
 
 /** Wire strategy status → @centurion/i18n `strategy.status.*` (unknown → raw value never shown: "—"). */
 const STATUS_KEY: Record<string, string> = { active: "strategy.status.running", running: "strategy.status.running", paused: "strategy.status.paused", draft: "strategy.status.draft" };
+
+/**
+ * Per-strategy mode (contracts 1.1.6). Wire `practice` = "Paper". Real is gated: while `real_locked` the Real
+ * option is disabled and shows its reason + Paper progress; it can never be chosen. If a future server unlocks a
+ * strategy, Real still needs the 2.5 s hold, and this build answers `MODE_NOT_ALLOWED` (no Real path, never
+ * `trade:real`). MODE_NOT_ALLOWED is shown as a neutral notice (errors.map.json copy), never as a crash.
+ */
+function StrategyMode({ s }: { s: StrategyView }) {
+  const t = useT();
+  const lang = useLang();
+  const [notice, setNotice] = useState<{ text: string; tone: "notice" | "error" } | null>(null);
+  const g = gateView(s);
+  const tl = (l: Line | null) => (l ? t(l.key, l.args) : "");
+  const toReal = async () => {
+    setNotice(null);
+    try {
+      await core.setStrategyMode(s.id, "real", HOLD_MS.real);
+    } catch (e) {
+      setNotice({ text: errorText(e, lang), tone: errorCodeOf(e) === "MODE_NOT_ALLOWED" ? "notice" : "error" });
+    }
+  };
+  const realLabel = g.a11y ? t(g.a11y.key, { reason: t(String(g.a11y.args?.reason ?? "")) }) : undefined;
+  return (
+    <div className="strategy-mode" data-locked={g.locked || undefined} data-testid={`strategy-mode-${s.id}`}>
+      <span className="muted">{t("strategy.mode.label")}</span>
+      <span className="seg" role="radiogroup" aria-label={t("strategy.mode.label")}>
+        <button className="sm" role="radio" aria-checked={s.mode === "practice"} tabIndex={-1}>{t("strategy.mode.paper")}</button>
+        {g.realSelectable ? (
+          <HoldButton ms={HOLD_MS.real} className="sm danger" onConfirm={toReal}>{t("mode.switch.to_real.hold")}</HoldButton>
+        ) : (
+          <button className="sm" role="radio" aria-checked={s.mode === "real"} disabled aria-disabled="true" aria-label={realLabel} title={realLabel}>
+            <span aria-hidden="true">🔒 </span>{t("strategy.mode.real")}
+          </button>
+        )}
+      </span>
+      {g.locked && (
+        <>
+          <span className="chip lock" data-reason={s.real_locked_reason ?? "other"}>{tl(g.chip)} · {tl(g.reason)}</span>
+          <div className="dim gate-progress">{g.progress.map(tl).join(" · ")}</div>
+          <div className="dim" style={{ fontSize: "var(--d-small)" }}>{tl(g.note)}</div>
+        </>
+      )}
+      {notice && <div className={notice.tone === "notice" ? "notice pending" : "neg"} role="status" data-code={notice.tone}>{notice.text}</div>}
+    </div>
+  );
+}
 
 /**
  * Strategy pause/resume (practice). Each write sends `If-Match: "<rev>"` = the rev shown here;
@@ -51,7 +100,8 @@ function StrategiesSection() {
   };
   return (
     <div className="settings-section">
-      <div className="muted">Strategi (practice) · pause/resume pakai If-Match rev</div>
+      <div className="muted">{t("strategy.list.title")} · {t("strategy.mode.paper")}</div>
+      <div className="dim" style={{ fontSize: "var(--d-small)" }}>{t("strategy.mode.scope_note")} {t("strategy.approval.hold_note")}</div>
       {strategies.map((s) => (
         <div className="toggle-row" key={s.id}>
           {/* name is server text, rendered as plain text */}
@@ -63,6 +113,7 @@ function StrategiesSection() {
               {s.status === "paused" ? "Resume" : "Pause"}
             </button>
           </span>
+          <StrategyMode s={s} />
           {outcome?.id === s.id && (outcome.o.status === "pending_approval" ? (
             <div className="notice pending" role="status" data-outcome="pending_approval">
               <b>{t("guard.weaken.pending.title")}</b>
@@ -117,8 +168,8 @@ function PracticeResetSection() {
       const cd = errorCodeOf(e) === "RESET_COOLDOWN";
       if (cd) {
         const d = errorDetails(e);
-        const at = d.next_allowed_at ? Date.parse(d.next_allowed_at) : NaN;
-        setCooldownUntil(Number.isFinite(at) ? at : Date.now() + Number(d.retry_after_s ?? 0) * 1000);
+        const at = parseIsoTs(d.next_allowed_at); // ISO 8601 UTC IsoTs; shown in local time by errorText
+        setCooldownUntil(at ?? Date.now() + Number(d.retry_after_s ?? 0) * 1000);
       }
       setIsErr(!cd);
       setMsg(errorText(e, lang));

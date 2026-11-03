@@ -12,6 +12,18 @@ enum TradeMode { practice, real }
 
 enum StrategyStatus { running, paused, stopped }
 
+/// Contracts 1.1.6 `real_locked_reason`. `null` on the wire while locked → [other] (HANDOFF v2.6).
+enum RealLockedReason { needsOwnerApproval, gateNotMet, policy, other }
+
+/// Contracts 1.1.6 `paper_progress`. `*Required == null` = rule not decided yet: show the count + "rule not set",
+/// never a ratio or bar for that axis, and never assume a number.
+class PaperProgress {
+  const PaperProgress({required this.daysDone, required this.tradesDone, this.daysRequired, this.tradesRequired});
+  final int daysDone, tradesDone;
+  final int? daysRequired, tradesRequired;
+  bool get rulesSet => daysRequired != null || tradesRequired != null;
+}
+
 /// SPEC §2 `approvalMode`. Real SOL never allows [off] in MVP.
 enum ApprovalMode { off, askFirstBuy, askEveryBuy }
 
@@ -30,11 +42,22 @@ class Strategy {
     this.winRatePct = 0,
     this.maxDrawdownPct = 0,
     this.avgHold = Duration.zero,
+    this.realLocked = true,
+    this.realLockedReason = RealLockedReason.needsOwnerApproval,
+    this.paperProgress,
   });
 
   final String id;
   final String name;
+
+  /// Per strategy (contracts 1.1.6). Wire stays `practice|real`; UI says Paper / Real. There is NO mode-switch
+  /// endpoint in 1.1.6 (mode is set on create; PATCH takes settings only), so the app shows it read-only.
   final TradeMode mode;
+
+  /// 1.1.6 `real_locked` (always true for now) + reason; Real cannot be chosen while locked.
+  final bool realLocked;
+  final RealLockedReason? realLockedReason;
+  final PaperProgress? paperProgress;
   final StrategyStatus status;
 
   /// Optimistic version of the settings document. Every mutation must send
@@ -80,6 +103,9 @@ class Strategy {
       winRatePct: winRatePct,
       maxDrawdownPct: maxDrawdownPct,
       avgHold: avgHold,
+      realLocked: realLocked,
+      realLockedReason: realLockedReason,
+      paperProgress: paperProgress,
     );
   }
 }

@@ -74,6 +74,9 @@ pub enum AuthState {
     WalletNotAllowed { address: Option<String> },
     /// The login could not complete (bad callback, expired message, network…); `code` is a wire or local code.
     Failed { code: String },
+    /// Deep-link hand-off (API 4.1.1): the one-time code was refused (`code_invalid`: unknown/used/expired, or
+    /// `code_verifier_mismatch`). The code is burned server-side; never retried. The user signs in again.
+    SignInAgain { reason: String },
 }
 
 /// Base58 Solana address (32-44 chars of the bitcoin alphabet; the server checks the 32 bytes).
@@ -81,9 +84,34 @@ pub fn is_address(a: &str) -> bool {
     (32..=44).contains(&a.len()) && a.bytes().all(|b| b.is_ascii_alphanumeric() && !b"0OIl".contains(&b))
 }
 
+/// SIWS statement line versions (contracts 1.1.6, API_ENDPOINTS 4.1 "SIWS statement versions (B-7)"); the
+/// server stores the version with the nonce and verify accepts only that one.
+pub const SIWS_STATEMENTS: [(u8, &str); 2] = [
+    // v1, legacy (transition only): accepted until AUTH_SIWS_LEGACY_STATEMENT_UNTIL.
+    (1, "Sign in to Centurion (practice). This request does not trigger a transaction or cost any fees."),
+    // v2, current (default; UX key auth.siws.statement).
+    (2, "Sign in to Centurion Trade"),
+];
+pub const SIWS_STATEMENT_CURRENT: u8 = 2;
+/// Default end of the v1 transition: `2026-11-05T12:00:00Z` = Thu 5 Nov 2026 19:00 WIB. The server's
+/// `AUTH_SIWS_LEGACY_STATEMENT_UNTIL` is authoritative (it may end earlier, `AUTH_SIWS_LEGACY_STATEMENT=false`);
+/// the desktop only refuses v1 itself after this instant, so it works before and after the cutoff.
+pub const SIWS_LEGACY_UNTIL_MS: i64 = 1_793_880_000_000;
+
+/// Statement version of a statement line, if it is one we accept at `now_ms`.
+pub fn statement_version(line: &str, now_ms: i64) -> Option<u8> {
+    let (v, _) = SIWS_STATEMENTS.iter().find(|(_, s)| *s == line)?;
+    (*v == SIWS_STATEMENT_CURRENT || now_ms < SIWS_LEGACY_UNTIL_MS).then_some(*v)
+}
+
+fn iso_ok(v: &str) -> bool {
+    (20..=30).contains(&v.len()) && v.bytes().all(|b| b.is_ascii_digit() || b"TZ:.-".contains(&b)) && IsoTs(v.to_owned()).ms().is_some()
+}
+
 /// Pre-check of the SIWS message the browser had signed (the server's strict parse is authoritative):
-/// exact line layout, our login `domain`, the callback `address`, version 1, `solana:mainnet`, and an
-/// `Expiration Time` still in the future (`now_ms`).
+/// exactly the 11-line layout of the backend's `buildMessage()`, our login `domain`, the callback
+/// `address`, a known statement version (v1 legacy only before [`SIWS_LEGACY_UNTIL_MS`]), `Version: 1`,
+/// `solana:mainnet`, a 16–64 alnum nonce, ISO timestamps, and an `Expiration Time` still in the future.
 pub fn check_message(message: &str, domain: &str, address: &str, now_ms: i64) -> Result<(), &'static str> {
     if message.len() > 4096 {
         return Err("message_too_long");
@@ -98,6 +126,11 @@ pub fn check_message(message: &str, domain: &str, address: &str, now_ms: i64) ->
     if l[1] != address || !is_address(address) {
         return Err("message_address");
     }
+    match SIWS_STATEMENTS.iter().find(|(_, st)| *st == l[3]) {
+        None => return Err("message_statement"),
+        Some(_) if statement_version(l[3], now_ms).is_none() => return Err("statement_retired"),
+        Some(_) => {}
+    }
     let field = |i: usize, k: &str| l[i].strip_prefix(k).filter(|v| !v.is_empty());
     let (Some(uri), Some("1"), Some("solana:mainnet"), Some(nonce), Some(_), Some(exp)) =
         (field(5, "URI: "), field(6, "Version: "), field(7, "Chain ID: "), field(8, "Nonce: "), field(9, "Issued At: "), field(10, "Expiration Time: "))
@@ -105,6 +138,9 @@ pub fn check_message(message: &str, domain: &str, address: &str, now_ms: i64) ->
         return Err("message_fields");
     };
     if !uri.starts_with(&format!("https://{domain}")) || !(16..=64).contains(&nonce.len()) || !nonce.bytes().all(|b| b.is_ascii_alphanumeric()) {
+        return Err("message_fields");
+    }
+    if !iso_ok(l[9].trim_start_matches("Issued At: ")) || !iso_ok(exp) {
         return Err("message_fields");
     }
     match IsoTs(exp.to_owned()).ms() {
@@ -228,7 +264,26 @@ impl AuthClient {
     /// Only used by the smoke test (the browser page requests the nonce in production).
     #[cfg(test)]
     pub async fn nonce(&self, address: &str, domain: &str) -> Result<Value, ApiFailure> {
-        self.post("/siws/nonce", json!({"address": address, "domain": domain, "chain_id": "solana:mainnet"})).await
+        self.nonce_v(address, domain, SIWS_STATEMENT_CURRENT).await
+    }
+    #[cfg(test)]
+    #[allow(dead_code)]
+    pub async fn nonce_v(&self, address: &str, domain: &str, statement_version: u8) -> Result<Value, ApiFailure> {
+        self.post("/siws/nonce", json!({"address": address, "domain": domain, "chain_id": "solana:mainnet", "statement_version": statement_version})).await
+    }
+    /// The web page's half of the deep-link hand-off (API 4.1.1 step 1); only the smoke test plays the page.
+    #[cfg(test)]
+    #[allow(dead_code)] // used by backend::smoke_real (ignored test)
+    pub async fn verify_handoff(&self, address: &str, message: &str, signature: &str, code_challenge: &str, state: &str) -> Result<HandoffCode, ApiFailure> {
+        let v = self
+            .post("/siws/verify", json!({"address": address, "message": message, "signature": signature, "client": "desktop",
+                "code_challenge": code_challenge, "code_challenge_method": "S256", "state": state, "redirect_uri": crate::deeplink::REDIRECT_URI}))
+            .await?;
+        serde_json::from_value(v["data"].clone()).map_err(|e| ApiFailure::Network(format!("bad hand-off body: {e}")))
+    }
+    /// API 4.1.1 step 2: `POST /v1/auth/desktop/exchange {code, code_verifier, client: "desktop"}` → Session + workspace_id.
+    pub async fn exchange(&self, code: &str, code_verifier: &str) -> Result<Session, ApiFailure> {
+        Self::session(self.post("/desktop/exchange", json!({"code": code, "code_verifier": code_verifier, "client": "desktop"})).await?)
     }
     pub async fn verify(&self, address: &str, message: &str, signature: &str) -> Result<Session, ApiFailure> {
         Self::session(self.post("/siws/verify", json!({"address": address, "message": message, "signature": signature, "client": "desktop"})).await?)
@@ -357,23 +412,47 @@ impl SessionManager {
             return st;
         }
         let st = match self.client.verify(&cb.address, &cb.message, &cb.signature).await {
-            Ok(s) => {
-                let mut cur = self.cur.lock().await;
-                if let Err(e) = self.store.save(&s) {
-                    log::warn!("keychain save failed: {e}");
-                }
-                if let Some(ws) = &s.workspace_id {
-                    if self.workspace.get().is_some_and(|w| w != ws) {
-                        log::warn!("signed in to a different workspace; restart to switch");
-                    }
-                    let _ = self.workspace.set(ws.clone());
-                }
-                let st = AuthState::SignedIn { address: s.address.clone(), workspace_id: s.workspace_id.clone() };
-                *cur = Some(s);
-                st
-            }
+            Ok(s) => self.adopt(s).await,
             Err(e) if e.code() == "FORBIDDEN_ROLE" => AuthState::WalletNotAllowed { address: Some(cb.address.clone()) },
             Err(e) => AuthState::Failed { code: e.code().to_owned() },
+        };
+        self.set_state(st.clone());
+        st
+    }
+
+    /// Store a fresh session (keychain only) and remember its workspace.
+    async fn adopt(&self, s: Session) -> AuthState {
+        let mut cur = self.cur.lock().await;
+        if let Err(e) = self.store.save(&s) {
+            log::warn!("keychain save failed: {e}");
+        }
+        if let Some(ws) = &s.workspace_id {
+            if self.workspace.get().is_some_and(|w| w != ws) {
+                log::warn!("signed in to a different workspace; restart to switch");
+            }
+            let _ = self.workspace.set(ws.clone());
+        }
+        let st = AuthState::SignedIn { address: s.address.clone(), workspace_id: s.workspace_id.clone() };
+        *cur = Some(s);
+        st
+    }
+
+    /// Deep-link hand-off (API 4.1.1 step 2): exchange the one-time code + PKCE verifier for the session.
+    /// Called once per accepted callback; the same code is never retried (the server burns it on the first
+    /// attempt, even with a wrong verifier).
+    pub async fn complete_exchange(&self, code: &crate::deeplink::AcceptedCode) -> AuthState {
+        let st = if code.expired() {
+            AuthState::SignInAgain { reason: "code_expired".into() } // 60 s TTL checked locally too; no request
+        } else {
+            match self.client.exchange(&code.code, &code.verifier).await {
+                Ok(s) => self.adopt(s).await,
+                Err(e) if e.code() == "FORBIDDEN_ROLE" => AuthState::WalletNotAllowed { address: None },
+                Err(e) if e.code() == "UNAUTHENTICATED" || matches!(&e, ApiFailure::Api { http: 401, .. }) => {
+                    let r = reason(&e).unwrap_or_default();
+                    AuthState::SignInAgain { reason: if r == "code_verifier_mismatch" { r } else { "code_invalid".into() } }
+                }
+                Err(e) => AuthState::Failed { code: e.code().to_owned() },
+            }
         };
         self.set_state(st.clone());
         st
@@ -392,6 +471,19 @@ impl SessionManager {
 // ---------------------------------------------------------------------------------------------
 // loopback callback + system browser
 // ---------------------------------------------------------------------------------------------
+
+/// `POST /siws/verify` answer for `client: "desktop"` + PKCE (API 4.1.1): no session, no cookies. The web page
+/// receives it in production; only the smoke test plays the page here.
+#[cfg(test)]
+#[allow(dead_code)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct HandoffCode {
+    pub code: String,
+    pub expires_in: u32,
+    pub expires_at: IsoTs,
+    pub state: String,
+    pub redirect_uri: String,
+}
 
 /// What the browser page hands back.
 #[derive(Debug, Clone, PartialEq)]
@@ -526,6 +618,19 @@ pub fn login_url(page: &str, redirect_uri: &str, state: &str) -> Result<String, 
     }
     let enc = |s: &str| -> String { s.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect() };
     Ok(format!("{page}{}redirect_uri={}&state={}&client=desktop", if page.contains('?') { '&' } else { '?' }, enc(redirect_uri), enc(state)))
+}
+
+/// Deep-link hand-off login page URL (API 4.1.1): `/auth/desktop?state=&code_challenge=&code_challenge_method=S256`.
+pub fn handoff_url(page: &str, state: &str, code_challenge: &str) -> Result<String, String> {
+    let ok = page.starts_with("https://") || page.starts_with("http://127.0.0.1") || page.starts_with("http://localhost");
+    if !ok || page.len() > 300 || page.contains(char::is_whitespace) || page.contains('#') {
+        return Err("CENTURION_LOGIN_URL must be an https URL".into());
+    }
+    let b64 = |s: &str| s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
+    if !b64(state) || !b64(code_challenge) || code_challenge.len() != 43 {
+        return Err("bad state/challenge".into());
+    }
+    Ok(format!("{page}{}state={state}&code_challenge={code_challenge}&code_challenge_method=S256", if page.contains('?') { '&' } else { '?' }))
 }
 
 /// SIWS `domain` = the host[:port] of the login page (what the page's origin will be).
@@ -736,8 +841,94 @@ pub(crate) mod tests {
         assert_eq!(seen[1], ("/v1/auth/session/logout".into(), json!({"refresh_token": "srt_1"})));
     }
 
+    /// Same layout as the backend's `buildMessage()` (services/backend/api/src/siws.ts), current statement v2.
     pub fn message(domain: &str, addr: &str, exp_ms: i64) -> String {
-        format!("{domain} wants you to sign in with your Solana account:\n{addr}\n\nSign in to Centurion (practice). This request does not trigger a transaction or cost any fees.\n\nURI: https://{domain}/auth/desktop\nVersion: 1\nChain ID: solana:mainnet\nNonce: AbCdEfGh12345678AbCd\nIssued At: {}\nExpiration Time: {}", iso(exp_ms - 300_000).0, iso(exp_ms).0)
+        message_v(domain, addr, exp_ms, SIWS_STATEMENTS[1].1)
+    }
+    pub fn message_v(domain: &str, addr: &str, exp_ms: i64, statement: &str) -> String {
+        format!("{domain} wants you to sign in with your Solana account:\n{addr}\n\n{statement}\n\nURI: https://{domain}/auth/desktop\nVersion: 1\nChain ID: solana:mainnet\nNonce: AbCdEfGh12345678AbCd\nIssued At: {}\nExpiration Time: {}", iso(exp_ms - 300_000).0, iso(exp_ms).0)
+    }
+
+    #[test]
+    fn siws_statements_match_contract_1_1_6_and_the_nov_5_cutoff() {
+        // contracts 1.1.6 API_ENDPOINTS 4.1 table, verbatim; v2 = i18n auth.siws.statement.
+        assert_eq!(SIWS_STATEMENTS[0], (1, "Sign in to Centurion (practice). This request does not trigger a transaction or cost any fees."));
+        assert_eq!(SIWS_STATEMENTS[1], (2, "Sign in to Centurion Trade"));
+        let en: Value = serde_json::from_str(include_str!("../../../../packages/i18n/en.json")).unwrap();
+        assert_eq!(en["auth"]["siws"]["statement"], SIWS_STATEMENTS[1].1);
+        let api = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../packages/contracts/API_ENDPOINTS.md")).unwrap();
+        for (v, st) in SIWS_STATEMENTS {
+            assert!(api.contains(&format!("| {v} | `{st}` |")), "statement v{v} not in API_ENDPOINTS");
+        }
+        assert!(api.contains("`2026-11-05T12:00:00Z`"), "default cutoff");
+        assert_eq!(IsoTs("2026-11-05T12:00:00.000Z".into()).ms(), Some(SIWS_LEGACY_UNTIL_MS), "= Thu 5 Nov 19:00 WIB");
+        let cut = SIWS_LEGACY_UNTIL_MS;
+        let (v1, v2) = (SIWS_STATEMENTS[0].1, SIWS_STATEMENTS[1].1);
+        assert_eq!(statement_version(v1, cut - 1), Some(1));
+        assert_eq!(statement_version(v1, cut), None);
+        assert_eq!(statement_version(v2, cut - 1), Some(2));
+        assert_eq!(statement_version(v2, cut + 86_400_000), Some(2));
+        // full pre-check, before and after the cutoff (expiry relative to "now")
+        let d = "app.centurion.local";
+        assert_eq!(check_message(&message_v(d, ADDR, cut - 1_000 + 60_000, v1), d, ADDR, cut - 1_000), Ok(()));
+        assert_eq!(check_message(&message_v(d, ADDR, cut + 60_000, v1), d, ADDR, cut), Err("statement_retired"));
+        assert_eq!(check_message(&message_v(d, ADDR, cut + 60_000, v2), d, ADDR, cut), Ok(()));
+        assert_eq!(check_message(&message_v(d, ADDR, cut + 60_000, "Sign in to Sentra (practice)."), d, ADDR, cut), Err("message_statement"));
+        assert_eq!(check_message(&message_v(d, ADDR, cut + 60_000, &format!("{v2} ")), d, ADDR, cut), Err("message_statement"));
+        let bad_ts = message(d, ADDR, now() + 60_000).replace("Issued At: 20", "Issued At: yesterday 20");
+        assert_eq!(check_message(&bad_ts, d, ADDR, now()), Err("message_fields"));
+    }
+
+    #[test]
+    fn handoff_url_carries_exactly_state_and_s256_challenge() {
+        let ch = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+        assert_eq!(handoff_url("https://app.centuriontrade.local/auth/desktop", "st_1-x", ch).unwrap(),
+            format!("https://app.centuriontrade.local/auth/desktop?state=st_1-x&code_challenge={ch}&code_challenge_method=S256"));
+        assert!(handoff_url("https://a/x", "bad state", ch).is_err());
+        assert!(handoff_url("https://a/x", "s", "short").is_err());
+        assert!(handoff_url("http://evil.example/x", "s", ch).is_err());
+    }
+
+    #[tokio::test]
+    async fn deep_link_exchange_stores_session_and_refused_codes_mean_sign_in_again() {
+        let seen = Arc::new(std::sync::Mutex::new(Vec::<(String, Value)>::new()));
+        let s2 = seen.clone();
+        let base = stub(Arc::new(move |_, path, _, body| {
+            s2.lock().unwrap().push((path.to_owned(), body.clone()));
+            match body["code"].as_str().unwrap_or("") {
+                c if c.starts_with("ok") => {
+                    let mut v = session_json(1);
+                    v["data"]["workspace_id"] = json!("10000000-0000-0000-0000-0000000000a1");
+                    (200, v)
+                }
+                c if c.starts_with("mismatch") => err(401, "UNAUTHENTICATED", "code_verifier_mismatch"),
+                c if c.starts_with("used") => err(401, "UNAUTHENTICATED", "code_invalid"),
+                c if c.starts_with("weird") => err(401, "UNAUTHENTICATED", "something_else"),
+                c if c.starts_with("stranger") => err(403, "FORBIDDEN_ROLE", "wallet_not_allowed"),
+                _ => (503, json!({"error": {"code": "UNAVAILABLE", "message": "x"}})),
+            }
+        }))
+        .await;
+        let code = |c: &str| crate::deeplink::AcceptedCode { code: c.into(), verifier: "v".repeat(43), received: std::time::Instant::now() };
+        let (sm, store) = manager(&base, None);
+        assert_eq!(sm.complete_exchange(&code("mismatch")).await, AuthState::SignInAgain { reason: "code_verifier_mismatch".into() });
+        assert_eq!(sm.complete_exchange(&code("used")).await, AuthState::SignInAgain { reason: "code_invalid".into() });
+        assert_eq!(sm.complete_exchange(&code("weird")).await, AuthState::SignInAgain { reason: "code_invalid".into() });
+        assert_eq!(sm.complete_exchange(&code("stranger")).await, AuthState::WalletNotAllowed { address: None });
+        assert!(matches!(sm.complete_exchange(&code("down")).await, AuthState::Failed { .. }));
+        assert!(store.load().is_none(), "nothing stored on any refusal");
+        let n = seen.lock().unwrap().len();
+        let stale = crate::deeplink::AcceptedCode { received: std::time::Instant::now() - crate::deeplink::CODE_TTL - std::time::Duration::from_secs(1), ..code("ok-late") };
+        assert_eq!(sm.complete_exchange(&stale).await, AuthState::SignInAgain { reason: "code_expired".into() });
+        assert_eq!(seen.lock().unwrap().len(), n, "expired locally → no request");
+        let st = sm.complete_exchange(&code("ok-1")).await;
+        assert_eq!(st, AuthState::SignedIn { address: ADDR.into(), workspace_id: Some("10000000-0000-0000-0000-0000000000a1".into()) });
+        assert_eq!(store.load().unwrap().refresh_token, "srt_1");
+        let seen = seen.lock().unwrap();
+        let (path, body) = seen.last().unwrap();
+        assert_eq!(path, "/v1/auth/desktop/exchange");
+        assert_eq!(body, &json!({"code": "ok-1", "code_verifier": "v".repeat(43), "client": "desktop"}));
+        assert_eq!(seen.iter().filter(|(_, b)| b["code"] == "mismatch").count(), 1, "a refused code is sent once, never retried");
     }
 
     #[test]

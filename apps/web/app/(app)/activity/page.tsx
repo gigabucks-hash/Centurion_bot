@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getApi } from "@/lib/api";
-import { getMode } from "@/lib/mode";
+import { acrossModes, listAllStrategies, modesOf } from "@/lib/mode";
 import { PageHeader } from "@/components/ui";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { getT } from "@/lib/i18n/server";
@@ -9,13 +9,15 @@ import { getT } from "@/lib/i18n/server";
 export const metadata: Metadata = { title: "Activity" };
 
 async function Feed() {
-  const [mode, t] = await Promise.all([getMode(), getT()]);
   const api = getApi();
-  const [events, strategies] = await Promise.all([api.listRecentEvents(mode, 101), api.listStrategies(mode)]);
+  const [strategies, t] = await Promise.all([listAllStrategies(api), getT()]);
+  // Per-strategy mode: one feed across modes, every row badged with its envelope mode.
+  const modes = modesOf(strategies);
+  const events = (await acrossModes(modes, async (m) => (await api.listRecentEvents(m, 101)).map((e) => ({ ...e, mode: e.mode ?? m })))).sort((a, b) => b.ts - a.ts);
   return (
     <>
       <PageHeader title={t("activity.title")} subtitle={t("activity.subtitle")} />
-      <ActivityFeed key={mode} mode={mode} initial={events.slice(0, 100)} hasMore={events.length > 100} strategyNames={Object.fromEntries(strategies.map((s) => [s.id, s.name]))} />
+      <ActivityFeed key={modes.join(",")} modes={modes} initial={events.slice(0, 100)} hasMore={events.length > 100} strategyNames={Object.fromEntries(strategies.map((s) => [s.id, s.name]))} />
     </>
   );
 }

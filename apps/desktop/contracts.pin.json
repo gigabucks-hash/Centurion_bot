@@ -1,0 +1,15 @@
+{
+  "package": "@centurion/contracts",
+  "version": "1.1.6",
+  "commit": "ca52707",
+  "commits": {
+    "logos": "f1b7910",
+    "real_gate": "0a2d1b2",
+    "docs": "4e0d7f3",
+    "push_logo": "9dad9b0",
+    "logo_hash_approval_envelope": "c99b114",
+    "desktop_handoff": "ca52707"
+  },
+  "reviewed_additive": [],
+  "note": "Pinned to ca52707 (contracts 1.1.6 incl. logo_hash on approvals/envelope and the desktop deep-link hand-off, API 4.1.1). The desktop builds against ../../packages/contracts in-tree; any later contracts commit fails scripts/ui-format.test.mjs until reviewed (append to reviewed_additive or move the pin). Uncommitted working-tree changes are not part of the pin."
+}

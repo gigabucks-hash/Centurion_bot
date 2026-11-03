@@ -8,6 +8,7 @@ import '../../data/api/server_clock.dart';
 import '../../data/models/models.dart';
 import '../format.dart';
 import '../theme/centurion_theme.dart';
+import '../../l10n/gen/app_localizations.dart';
 
 /// PnL: arrow + sign + color + mono tabular number (SPEC §1).
 class PnlText extends StatelessWidget {
@@ -39,18 +40,26 @@ extension LamportsColor on BuildContext {
   Color lamportsColor(Lamports v) => pnlColor(v.sign);
 }
 
-/// Non-dismissable mode banner on every screen (SPEC §1 "Mode banner").
+/// Non-dismissable mode banner on every screen (SPEC §1 "Mode banner"), and per strategy context (contracts
+/// 1.1.6: mode is per strategy). Copy: i18n `mode.*.banner` (UI says Paper; wire stays `practice`).
 class ModeBanner extends StatelessWidget {
-  const ModeBanner(this.mode, {super.key});
+  const ModeBanner(this.mode, {super.key, this.short = false});
   final TradeMode mode;
+
+  /// `mode.*.banner_short` (strategy detail header).
+  final bool short;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tradeColors;
+    final l = AppLocalizations.of(context);
     final real = mode == TradeMode.real;
     final fg = real ? t.onReal : t.practice;
+    final copy = real
+        ? (short ? l.modeRealBannerShort : l.modeRealBanner)
+        : (short ? l.modePracticeBannerShort : l.modePracticeBanner);
     return Semantics(
-      label: real ? 'Mode Real SOL' : 'Mode Practice',
+      label: copy,
       container: true,
       child: CustomPaint(
         painter: real ? null : _StripePainter(t.practice.withValues(alpha: 0.10)),
@@ -62,7 +71,7 @@ class ModeBanner extends StatelessWidget {
             border: real ? null : Border(bottom: BorderSide(color: t.practice.withValues(alpha: 0.5))),
           ),
           child: Text(
-            real ? '● REAL SOL · memakai SOL nyata' : '◇ PRACTICE · paper SOL, bukan uang nyata',
+            '${real ? '●' : '◇'} $copy',
             style: Theme.of(context).textTheme.labelLarge!.copyWith(color: fg, fontWeight: FontWeight.w700),
           ),
         ),
@@ -122,9 +131,10 @@ class ModeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tradeColors;
+    final l = AppLocalizations.of(context);
     return mode == TradeMode.real
-        ? TagChip('● REAL', color: t.real, container: t.realContainer)
-        : TagChip('◇ PRACTICE', color: t.practice, container: t.practiceContainer);
+        ? TagChip('● ${l.modeRealLabel}', color: t.real, container: t.realContainer)
+        : TagChip('◇ ${l.modePracticeLabel}', color: t.practice, container: t.practiceContainer);
   }
 }
 

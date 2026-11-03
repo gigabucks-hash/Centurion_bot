@@ -4,9 +4,9 @@
  */
 import type { Approval, ApprovalDecision, OpenPosition, PublishResult, RiskLevel, Strategy, StrategySettings, TradingMode } from "@/lib/types";
 import { diffSettings, validate, weakensGuard } from "@/lib/strategy-schema";
-import { APPROVAL_REJECT_REASONS, approvalToWire, settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
+import { APPROVAL_REJECT_REASONS, approvalToWire, realGateToWire, settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
 import type { ApprovalDecisionRequest, ErrorCode } from "@centurion/contracts/wire";
-import { coinSummaries, seedStrategies, trails } from "./data";
+import { coinSummaries, realGateFor, seedStrategies, trails } from "./data";
 
 /** Error carrying a contract error code (errors.json); the BFF turns it into the wire error body. */
 export class WireError extends Error {
@@ -86,9 +86,12 @@ function seedApprovals(now: number, strategies: Strategy[]): Omit<Approval, "rev
   const bh = byName("Breakout Hunter");
   const gm = byName("Graduated Momentum");
   const fb = byName("Fresh Bonding Scout");
-  const cr = byName("Conservative Real");
+  const cr = byName("Conservative");
   const gs = byName("Graduated scalp");
-  const c1 = coin("practice", 0), c2 = coin("practice", 1), c3 = coin("real", 0), c4 = coin("real", 1);
+  // The two "Real" seeds run in Paper unless CENTURION_MOCK_REAL_DEMO=1 (lib/mock/data.ts): their items follow the strategy mode.
+  const own = (x: Strategy) => coinSummaries.filter((c) => c.strategyId === x.id);
+  const others = coinSummaries.filter((c) => c.mode === "practice" && c.strategyId !== cr.id && c.strategyId !== gs.id);
+  const c1 = others[0], c2 = others[1], c3 = own(cr)[0] ?? coin(cr.mode, 0), c4 = own(gs)[0] ?? coin(gs.mode, 1);
   const gsAfter: StrategySettings = { ...structuredClone(gs.settings), guard: { ...gs.settings.guard, maxBundlersPct: 30, checks: { ...gs.settings.guard.checks, sniper_share: false } }, exit: { ...gs.settings.exit, trailingPct: 30 } };
   const gsBefore: StrategySettings = { ...structuredClone(gs.settings), exit: { ...gs.settings.exit, trailingPct: 20 } };
   const fbAfter: StrategySettings = { ...structuredClone(fb.settings), guard: { ...fb.settings.guard, maxDevPercent: 10, preset: "custom" } };
@@ -137,25 +140,25 @@ function seedApprovals(now: number, strategies: Strategy[]): Omit<Approval, "rev
       risk: "medium", requestedBy: "entry", createdAt: now - 4 * HOUR, expiresAt: now - 4 * HOUR + PICK_TTL_MS, decidedAt: now - 4 * HOUR + 30_000,
       pick: { pickKind: "buy", score: { value: 71, passMark: 70 }, guard: { passed: 8, total: 8 }, entry: "market", exitPlan: "Trailing only", budgetSol: 3 },
     },
-    // ---- Real SOL workspace ----
+    // ---- "Real" seed strategies (Real only in the dev demo) ----
     {
-      id: "ap_201", kind: "buy_pick", status: "pending", mode: "real", strategyId: cr.id, strategyName: cr.name, mint: c3.mint, symbol: c3.symbol, title: c3.symbol,
-      detail: "Real SOL buy (mock — no wallet in this build).", amountSol: 0.2, risk: "high", requestedBy: "entry", createdAt: now - 4 * MIN, expiresAt: now + 6 * MIN,
+      id: "ap_201", kind: "buy_pick", status: "pending", mode: cr.mode, strategyId: cr.id, strategyName: cr.name, mint: c3.mint, symbol: c3.symbol, title: c3.symbol,
+      detail: cr.mode === "real" ? "Real buy (mock — no wallet in this build)." : "Paper buy (simulated fill).", amountSol: 0.2, risk: "high", requestedBy: "entry", createdAt: now - 4 * MIN, expiresAt: now + 6 * MIN,
       pick: { pickKind: "first_buy", score: { value: 101, passMark: 85 }, guard: { passed: 8, total: 8 }, entry: "dip −6%", exitPlan: "Ladder 3-rung · trail 20%", budgetSol: cr.settings.sizing.budgetSol },
     },
     {
-      id: "ap_202", kind: "buy_pick", status: "pending", mode: "real", strategyId: gs.id, strategyName: gs.name, mint: c4.mint, symbol: c4.symbol, title: c4.symbol,
-      detail: "Real SOL buy (mock).", amountSol: 0.15, risk: "high", requestedBy: "entry", createdAt: now - 2 * MIN, expiresAt: now + 8 * MIN,
+      id: "ap_202", kind: "buy_pick", status: "pending", mode: gs.mode, strategyId: gs.id, strategyName: gs.name, mint: c4.mint, symbol: c4.symbol, title: c4.symbol,
+      detail: gs.mode === "real" ? "Real buy (mock)." : "Paper buy (simulated fill).", amountSol: 0.15, risk: "high", requestedBy: "entry", createdAt: now - 2 * MIN, expiresAt: now + 8 * MIN,
       pick: { pickKind: "buy", score: { value: 88, passMark: 70 }, guard: { passed: 8, total: 8 }, entry: "market", exitPlan: "Ladder 3-rung", budgetSol: gs.settings.sizing.budgetSol },
     },
     {
-      id: "ap_203", kind: "guard_change", status: "pending", mode: "real", strategyId: gs.id, strategyName: gs.name, title: "Guard change",
+      id: "ap_203", kind: "guard_change", status: "pending", mode: gs.mode, strategyId: gs.id, strategyName: gs.name, title: "Guard change",
       detail: "Loosens bundler limit and turns off the wash-trading check.", risk: "high", requestedBy: "user", createdAt: now - 30 * MIN, expiresAt: now - 30 * MIN + GUARD_TTL_MS,
       diff: diffSettings(gsBefore, gsAfter), revFrom: 14, revTo: 15,
       riskImpact: { coinsPassedPerDayBefore: 118, coinsPassedPerDayAfter: 163, rugsBefore: 5, rugsAfter: 12, maxDrawdownBeforePct: 12, maxDrawdownAfterPct: 19 },
     },
     {
-      id: "ap_204", kind: "team_action", teamAction: "rearm_loss_stop", status: "pending", mode: "real", strategyId: cr.id, strategyName: cr.name, title: "Re-arm loss stop",
+      id: "ap_204", kind: "team_action", teamAction: "rearm_loss_stop", status: "pending", mode: cr.mode, strategyId: cr.id, strategyName: cr.name, title: "Re-arm loss stop",
       detail: "Resume buying after the workspace loss stop; resets the peak.", risk: "critical", requestedBy: "user", createdAt: now - 10 * MIN, expiresAt: now - 10 * MIN + TEAM_TTL_MS,
     },
   ];
@@ -214,7 +217,8 @@ export function publishStrategy(id: string | null, settings: StrategySettings): 
   if (!existing) {
     const newId = `str_${String(++st.seq).padStart(3, "0")}`;
     st.strategies.push({
-      id: newId, name: settings.name, mode: "practice", status: "running", rev: 1, settings: { ...settings, mode: "practice" },
+      // New strategies always start in Paper with Real locked (contracts 1.1.6).
+      id: newId, name: settings.name, mode: "practice", ...realGateFor("practice", 0, null), status: "running", rev: 1, settings: { ...settings, mode: "practice" },
       openPositions: 0, realizedPnlSol: 0, unrealizedPnlSol: 0, trades: 0, wins: 0, maxDrawdownPct: 0, avgHoldSeconds: 0, pnlSpark: [],
       funnel: { scanned: 0, filtered: 0, signaled: 0, entered: 0, exited: 0, rejections: [] }, createdAt: now, updatedAt: now,
     });
@@ -262,7 +266,31 @@ export function getRevision(id: string, rev: number): StrategySettings | null {
 }
 
 export function strategyToWire(s: Strategy) {
-  return { id: s.id, rev: s.rev, name: s.name, status: s.status, mode: s.mode, settings: settingsToWire(s.settings), updated_at: new Date(s.updatedAt).toISOString() };
+  return { id: s.id, rev: s.rev, name: s.name, status: s.status, ...realGateToWire(s), settings: settingsToWire(s.settings), updated_at: new Date(s.updatedAt).toISOString() };
+}
+
+/**
+ * Per-strategy mode switch (mock BFF only; contracts 1.1.6 defines the mode + Real gate fields but NO switch route,
+ * see app/api/strategy-mode). Rules mirrored from the contract and UX v2:
+ * - to Real: `403 MODE_NOT_ALLOWED` ("strategy not approved for Real") while `real_locked`; else a 2.5 s hold
+ *   (`HOLD_TOO_SHORT`) and the current rev (`STRATEGY_REV_CONFLICT`); bumps rev.
+ * - to Paper: always allowed (safe direction), rev checked, bumps rev.
+ * Open positions keep their original mode (only new entries use the new mode).
+ */
+export function setStrategyMode(id: string, mode: TradingMode, expectedRev: number | null, holdMs = 0, now = Date.now()): Strategy {
+  const s = state().strategies.find((x) => x.id === id);
+  if (!s) throw wireErr("NOT_FOUND");
+  if (s.status === "archived") throw wireErr("STRATEGY_RETIRED");
+  if (expectedRev == null) throw wireErr("PRECONDITION_REQUIRED");
+  if (expectedRev !== s.rev) throw wireErr("STRATEGY_REV_CONFLICT", undefined, conflictBody(s, expectedRev));
+  if (s.mode === mode) return { ...s };
+  if (mode === "real") {
+    if (s.realLocked) throw wireErr("MODE_NOT_ALLOWED", { strategy_id: s.id, real_locked_reason: s.realLockedReason ?? "other" });
+    if (holdMs < HOLD_MS.real) throw wireErr("HOLD_TOO_SHORT", { hold_ms: HOLD_MS.real });
+  }
+  Object.assign(s, { mode, settings: { ...s.settings, mode }, rev: s.rev + 1, updatedAt: now });
+  revs(s.id)[s.rev] = structuredClone(s.settings);
+  return { ...s };
 }
 
 function conflictBody(s: Strategy, baseRev: number) {

@@ -17,6 +17,17 @@
   --font-mono: var(--font-jetbrains), "JetBrains Mono", "SF Mono", "Roboto Mono", ui-monospace, monospace;
 }
 
+/*
+ * design-tokens 0.3.4 (0e35c34 + 5594cee) adds bg.chrome, scrim.sheet, shadow.card, shadow.dialog and
+ * semantic.onWarning. They arrive through the @import above as --color-bg-chrome, --color-scrim-sheet, --shadow-card,
+ * --shadow-dialog, --color-semantic-onWarning (utilities bg-bg-chrome, bg-scrim-sheet, shadow-card, shadow-dialog,
+ * text-semantic-onWarning). Not applied yet: none of them has the same value as what the current (approved) look uses
+ * (sidebar = bg.surface, sheet scrim = bg.sunken/80, dialog = shadow.e4, no text on solid warning), so switching would
+ * restyle the app. They are adopted with the G1-blue v2 restyle once Boss approves it.
+ * Coin logo / identicon tokens used by components/CoinAvatar.tsx: --color-identicon-0..11, --color-identicon-fg,
+ * --coin-logo-ring, --coin-logo-not-tradeable-opacity, --color-skeleton-base.
+ */
+
 [data-theme="dark"] { color-scheme: dark; }
 [data-theme="light"] { color-scheme: light; }
 

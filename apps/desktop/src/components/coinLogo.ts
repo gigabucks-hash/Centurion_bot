@@ -2,12 +2,16 @@
  * Coin-logo URL + per-session cache (COIN_LOGO §2). Pure module (unit-tested under node).
  * - Only the backend image proxy (`logo_origin`, from Rust) is ever requested; the URL is built here from
  *   {origin, mint, size, logo_hash}: never a URL taken from token metadata.
- * - Size: smallest proxy size ≥ px × dpr (dpr ≤ 2 on desktop), capped at 96 until Backend ships 128/192.
+ * - Size (UX rule): smallest contracts LOGO_SIZES entry ≥ px × dpr with dpr clamped to 1–2, i.e. at most @2x of the
+ *   display size (32 px → ≤ 64). The proxy serves 48/64/96/128/192 and falls back to the next smaller variant.
  * - Negative cache per mint+v (404/422/decode/timeout: no retry this session); network error: 1 retry.
  * - LRU of 200 entries.
  */
+import type { LogoSize } from "@centurion/contracts/wire";
+
 export const MOCK_ORIGIN = "https://logo.mock.invalid";
-export const PROXY_SIZES = [48, 64, 96] as const; // contracts 1.1.6 lists 128/192 too; proxy rejects them today
+/** = contracts 1.1.6 `LOGO_SIZES` (checked by wire.check.ts and scripts/coin-avatar.test.mjs). */
+export const PROXY_SIZES = [48, 64, 96, 128, 192] as const satisfies readonly LogoSize[];
 export type AvatarPx = 20 | 24 | 32;
 
 const HASH = /^[A-Za-z0-9_-]{8,128}$/;

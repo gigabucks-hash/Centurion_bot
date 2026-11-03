@@ -48,9 +48,14 @@ const history = new Map<string, TickView[]>();
 const signals: PickView[] = [];
 const positions = new Map<string, PositionView>();
 const activity: ActivityView[] = [];
+// 1.1.6 Real gate: always locked (like the backend); one strategy per reason / progress case (same as mock.rs).
 let strategies: StrategyView[] = [
-  { id: "20000000-0000-0000-0000-00000000000a", name: "Mock · Curve", rev: 1, status: "active", time_stop_s: 600, stall_exit: { window_s: 90, min_move_pct: "1" } },
-  { id: "20000000-0000-0000-0000-00000000000b", name: "Mock · AMM", rev: 1, status: "active", time_stop_s: null, stall_exit: null },
+  { id: "20000000-0000-0000-0000-00000000000a", name: "Mock · Curve", rev: 1, status: "active", time_stop_s: 600, stall_exit: { window_s: 90, min_move_pct: "1" },
+    mode: "practice", real_locked: true, real_locked_reason: "needs_owner_approval", paper_progress: { days_done: 1, days_required: null, trades_done: 4, trades_required: null } },
+  { id: "20000000-0000-0000-0000-00000000000b", name: "Mock · AMM", rev: 1, status: "active", time_stop_s: null, stall_exit: null,
+    mode: "practice", real_locked: true, real_locked_reason: "gate_not_met", paper_progress: { days_done: 3, days_required: 7, trades_done: 12, trades_required: 30 } },
+  { id: "20000000-0000-0000-0000-00000000000c", name: "Mock · Pullback", rev: 1, status: "active", time_stop_s: null, stall_exit: null,
+    mode: "practice", real_locked: true, real_locked_reason: "policy", paper_progress: { days_done: 14, days_required: 7, trades_done: 41, trades_required: 30 } },
 ];
 let settings: Settings = {
   theme: "dark",
@@ -378,6 +383,14 @@ export const browserMockAdapter: CoreApi = {
     strategies = strategies.map((x) => (x.id === id ? next : x));
     emit(EVT.strategies, strategies);
     return next;
+  },
+  async setStrategyMode(id, mode, holdMs) {
+    const s = strategies.find((x) => x.id === id);
+    if (!s) throw new Error("NOT_FOUND: strategy");
+    if (mode === s.mode) return s;
+    if (mode === "real" && s.real_locked) throw new Error("MODE_NOT_ALLOWED: real_locked");
+    if (mode === "real" && holdMs < 2500) throw new Error("HOLD_TOO_SHORT: real_hold_2500ms");
+    throw new Error(mode === "real" ? "MODE_NOT_ALLOWED: no_real_path" : "UNAVAILABLE: no_mode_endpoint");
   },
   async resetPractice() {
     // 429 RESET_COOLDOWN + Retry-After (once per 24 h), same "[k=v]" shape the Rust transport surfaces.

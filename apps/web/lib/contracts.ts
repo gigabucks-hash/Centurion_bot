@@ -7,11 +7,14 @@
 import { lamportsToSol, type Actor, type AnyEvent, type EventEnvelope, type EventPage, type ExitReason, type Lamports, type Mode } from "@centurion/contracts/wire";
 import { APPROVAL_REJECT_REASONS, type ApprovalRejectReason, type ApprovalWire, type DecidedVia } from "@centurion/contracts/wire";
 import type { DecimalString, ErrorCode, ExitStatsRow, MarketCapFields, PositionWire, ProposalStatus, ProposalUpdated, TokenProgram } from "@centurion/contracts/wire";
+import { REAL_LOCKED_REASONS, type PaperProgress, type RealLockedReason, type StrategyRealGateFields } from "@centurion/contracts/wire";
 import { pctToFractionBps } from "@centurion/i18n/format";
-import { logoHintFromWire, wireLogoUrl } from "./media";
+/** Contracts pin for apps/web (Apex, 3 Nov): @centurion/contracts 1.1.6 at commit 4e0d7f3 (+ additive c99b114 logo_hash). */
+export const CONTRACTS_PIN = { version: "1.1.6", commit: "4e0d7f3" } as const;
+import { logoHashFromWire, logoHashOf, wireLogo } from "./media";
 import { safeSymbol } from "./untrusted";
 import { cmpSeq, maxSeq, minSeq, seqGt, seqLt, type Seq } from "./seq";
-import type { Approval, SkipReason, CoinMeta, CoinSummary, EventKind, ExitReasonStat, GuardCheck, OpenPosition, ScreenerState, StrategySettings, TradeEvent } from "./types";
+import type { Approval, SkipReason, CoinMeta, CoinSummary, EventKind, ExitReasonStat, GuardCheck, OpenPosition, ScreenerState, Strategy, StrategySettings, TradeEvent } from "./types";
 
 /** SOL (UI number) → lamports integer string. Rounds to the lamport; never emits an exponent. */
 export function solToLamports(sol: number): Lamports {
@@ -73,6 +76,8 @@ export function tradeEventToEnvelope(e: TradeEvent, ctx: { workspaceId: string; 
     ts: new Date(e.ts).toISOString(),
     actor: e.actor as Actor,
     mode: ctx.mode,
+    // 1.1.6: every envelope that carries a mint also carries our logo proxy URL.
+    ...(e.mint ? wireLogo(e.mint) : {}),
     payload: {
       summary: e.message,
       reason: e.reason,
@@ -103,7 +108,9 @@ export function envelopeToTradeEvent(env: AnyEvent | EventEnvelope<string, FeedP
     kind,
     actor: env.actor,
     strategyId: env.strategy_id ?? undefined,
+    mode: env.mode,
     mint: env.mint ?? undefined,
+    logoHash: logoHashOf(env as { logo_hash?: unknown; logo_url?: unknown }, env.mint),
     // Untrusted token metadata is display-only text, never markup.
     symbol: typeof env.untrusted?.symbol === "string" ? safeSymbol(env.untrusted.symbol) || undefined : undefined,
     message: p.summary ?? env.type,
@@ -268,8 +275,8 @@ export function approvalToWire(a: Approval, extra: { workspaceId?: string; decid
     decimals: q?.decimals ?? null,
     token_program: null,
     position_id: null,
-    // 1.1.6 (Backend working tree): our logo proxy URL; spread so it type-checks with and without the field.
-    ...wireLogoUrl(a.mint),
+    // 1.1.6 (c99b114): logo_hash + logo_url (with &v=) on approvals.
+    ...wireLogo(a.mint),
     created_at: iso(a.createdAt)!,
     expires_at: iso(a.expiresAt)!,
     decided_at: iso(a.decidedAt),
@@ -282,7 +289,8 @@ export function approvalFromWire(w: ApprovalItemWire): Approval {
   return {
     id: w.id,
     rev: w.rev,
-    logoUrl: logoHintFromWire((w as { logo_url?: unknown }).logo_url),
+    // logo_hash (c99b114); older 1.1.6 servers (4e0d7f3) only sent logo_url → recover `v` from it.
+    logoHash: logoHashOf(w as { logo_hash?: unknown; logo_url?: unknown }, w.mint),
     decisionToken: w.decision_token,
     kind: w.kind,
     status: p.execution ?? w.status,
@@ -558,7 +566,7 @@ export function coinToWire(c: CoinMeta, s: CoinSummary): CoinWire {
     strategy_id: s.strategyId, strategy_name: s.strategyName, mode: s.mode, status: s.status, last_event_at: new Date(s.lastEventAt).toISOString(),
     pnl_lamports: s.pnlSol != null ? solToLamports(s.pnlSol) : null,
     ...mcapToWire(s.mcap),
-    ...wireLogoUrl(c.mint),
+    ...wireLogo(c.mint),
   } as CoinWireWithMcap;
 }
 
@@ -583,7 +591,7 @@ export function coinSummaryFromWire(w: CoinWire): CoinSummary {
     lastEventAt: Date.parse(w.last_event_at), status: w.status, pnlSol: lamportsToSolNumber(w.pnl_lamports),
     screenerState: screenerStateOf(w),
     mcap: mcapFromWire(w as Partial<MarketCapFields>),
-    logoUrl: logoHintFromWire((w as { logo_url?: unknown }).logo_url),
+    logoHash: logoHashFromWire((w as { logo_hash?: unknown }).logo_hash),
   };
 }
 
@@ -607,7 +615,7 @@ export function positionToWire(p: OpenPosition, workspaceId: string): PositionWi
   const qty = p.entryPriceUsd > 0 ? (p.solIn * MOCK_SOL_USD * remaining) / p.entryPriceUsd : 0;
   return {
     id: p.key, position_key: p.key, workspace_id: workspaceId, strategy_id: p.strategyId, mint: p.mint, mode: p.mode,
-    ...wireLogoUrl(p.mint),
+    ...wireLogo(p.mint),
     status: "open", rev: p.rev, practice_epoch: p.practiceEpoch,
     qty_raw: BigInt(Math.round(qty * 10 ** Math.min(dec, 9))).toString() + "0".repeat(Math.max(0, dec - 9)),
     decimals: p.decimals, token_program: p.tokenProgram,
@@ -624,7 +632,7 @@ export function positionToWire(p: OpenPosition, workspaceId: string): PositionWi
 export function positionFromWire(w: PositionWireView): OpenPosition {
   return {
     key: w.position_key, strategyId: w.strategy_id ?? "", strategyName: w.strategy_name, mode: w.mode, mint: w.mint,
-    logoUrl: logoHintFromWire((w as { logo_url?: unknown }).logo_url),
+    logoHash: logoHashFromWire(w.logo_hash),
     symbol: safeSymbol(w.untrusted.symbol ?? ""),
     solIn: lamportsToSolNumber(w.sol_in_lamports) ?? 0,
     entryPriceUsd: Number(w.avg_entry_price_sol ?? "0") * MOCK_SOL_USD, nowPriceUsd: Number(w.mark_price_sol) * MOCK_SOL_USD,
@@ -649,3 +657,24 @@ export function exitStatFromWire(w: ExitStatsRow): ExitReasonStat {
     avgPnlSol: w.count ? total / w.count : 0, avgPnlPct: w.avg_pnl_pct ?? 0, totalPnlSol: total, avgHoldSeconds: w.avg_hold_s,
   };
 }
+
+/**
+ * contracts 1.1.6 per-strategy Real gate (StrategyRealGateFields) on every strategy read. Lenient decode: a server
+ * without the fields (pre-1.1.6) or a bad value reads as LOCKED (fail closed: Real is never offered by accident).
+ * `real_locked_reason` null while locked → "other" (UX HANDOFF v2.6).
+ */
+export function realGateFromWire(w: Partial<StrategyRealGateFields> | null | undefined): Pick<Strategy, "realLocked" | "realLockedReason" | "paperProgress"> {
+  const locked = w?.real_locked !== false;
+  const reason = REAL_LOCKED_REASONS.includes(w?.real_locked_reason as RealLockedReason) ? (w!.real_locked_reason as RealLockedReason) : null;
+  const n = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : 0);
+  const req = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null);
+  const p = (w?.paper_progress ?? {}) as Partial<PaperProgress>;
+  return {
+    realLocked: locked,
+    realLockedReason: locked ? (reason ?? "other") : null,
+    paperProgress: { days_done: n(p.days_done), days_required: req(p.days_required), trades_done: n(p.trades_done), trades_required: req(p.trades_required) },
+  };
+}
+export const realGateToWire = (s: Pick<Strategy, "mode" | "realLocked" | "realLockedReason" | "paperProgress">): StrategyRealGateFields => ({
+  mode: s.mode, real_locked: s.realLocked, real_locked_reason: s.realLocked ? s.realLockedReason ?? "other" : null, paper_progress: { ...s.paperProgress },
+});

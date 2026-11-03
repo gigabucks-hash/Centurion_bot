@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fnv1a32, identiconIndex, identiconInitials } from "../src/components/identicon.ts";
-import { logoSrc, proxySize, recordLogo, logoStatus, cacheKey, MOCK_ORIGIN, _cacheSizeForTests } from "../src/components/coinLogo.ts";
+import { logoSrc, proxySize, PROXY_SIZES, recordLogo, logoStatus, cacheKey, MOCK_ORIGIN, _cacheSizeForTests } from "../src/components/coinLogo.ts";
 
 test("identicon matches the COIN_LOGO §4 test vectors", () => {
   const vectors = [
@@ -20,9 +20,14 @@ test("identicon matches the COIN_LOGO §4 test vectors", () => {
   assert.equal(identiconInitials("$$a"), "A");
 });
 
-test("proxy URL: only our origin, smallest size ≥ px×dpr (dpr ≤ 2, ≤ 96 until 128/192 ship), v = logo_hash", () => {
+test("proxy URL: only our origin, smallest LOGO_SIZES entry ≥ px×dpr (dpr ≤ 2 → at most @2x), v = logo_hash", async () => {
   const M = "tUS1YuHKJDnzQddko3sTDKq1F7v58ZPsvkwRHBTGN844";
   assert.deepEqual([proxySize(20, 1), proxySize(24, 2), proxySize(32, 2), proxySize(32, 3)], [48, 48, 64, 64]);
+  const { readFileSync } = await import("node:fs");
+  const ev = readFileSync(new URL("../../../packages/contracts/src/wire/events.ts", import.meta.url), "utf8");
+  assert.equal(/LOGO_SIZES = \[([^\]]+)\]/.exec(ev)?.[1].replace(/\s/g, ""), PROXY_SIZES.join(","), "PROXY_SIZES = contracts LOGO_SIZES");
+  // UX rule: at most @2x of the display size (32 px → ≤ 64), from the contracts LOGO_SIZES set.
+  for (const px of [20, 24, 32]) for (const dpr of [1, 1.5, 2, 3, 4]) assert.ok(proxySize(px, dpr) <= Math.max(48, px * 2), `${px}@${dpr}`);
   assert.equal(logoSrc("http://127.0.0.1:8787", M, "abcDEF12", 32, 2), `http://127.0.0.1:8787/v1/img/coin/${M}?s=64&v=abcDEF12`);
   assert.equal(logoSrc(MOCK_ORIGIN, M, "mocklogo3", 24), "/mock-logo/mocklogo3.webp");
   assert.equal(logoSrc("http://127.0.0.1:8787", M, null, 24), null, "logo_hash null → identicon, no request");

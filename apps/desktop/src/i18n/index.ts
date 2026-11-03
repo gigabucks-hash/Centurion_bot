@@ -15,6 +15,8 @@ import { useCallback } from "react";
 import { useTerm } from "../state/store";
 import { formatIcu, icuArgNames, type IcuArgs } from "./icu";
 import { LOCAL_TEMPLATES, MOCK_SUFFIX } from "./local";
+import { parseIsoTs } from "./isots";
+export { parseIsoTs };
 
 export type { Lang, PnlParts };
 export { formatBps, formatFractionBps, formatLamports, formatLamportsOrDash, formatMcapUsd, formatRelativeSeconds, LOCALES, mcapView, MOCK_SUFFIX, quoteState };
@@ -29,7 +31,7 @@ const flatten = (o: Tree, p = "", out: Record<string, string> = {}) => {
 };
 const CAT: Record<Lang, Record<string, string>> = { en: flatten(en as Tree), id: flatten(id as Tree) };
 
-export const I18N_PACKAGE_VERSION = "0.4.9";
+export const I18N_PACKAGE_VERSION = "0.4.11";
 
 function lookup(lang: Lang, key: string): string | undefined {
   // Package copy wins; LOCAL_TEMPLATES only fill keys UX has not shipped yet (reported as UX gaps).
@@ -92,13 +94,15 @@ export function errorDetails(e: unknown): Record<string, string> {
   for (const m of (e instanceof Error ? e.message : String(e)).matchAll(/\[([a-z_]+)=([A-Za-z0-9:.+\-]+)\]/g)) out[m[1]] = m[2];
   return out;
 }
-/** Copy placeholders from the detail tags; `*_at` timestamps → local date + time. */
+/** An IsoTs shown in the user's local time zone (UI locale). Invalid → the raw text. */
+export const localTime = (v: string, lang: Lang): string => {
+  const ms = parseIsoTs(v);
+  return ms == null ? v : new Date(ms).toLocaleString(LOCALES[lang], { dateStyle: "medium", timeStyle: "short" });
+};
+/** Copy placeholders from the detail tags; `*_at` / `*_until` IsoTs → local date + time. */
 function errorArgs(e: unknown, lang: Lang): IcuArgs {
   const out: IcuArgs = {};
-  for (const [k, v] of Object.entries(errorDetails(e))) {
-    const d = k.endsWith("_at") || k.endsWith("_until") ? new Date(v) : null;
-    out[k] = d && !Number.isNaN(d.getTime()) ? d.toLocaleString(LOCALES[lang], { dateStyle: "medium", timeStyle: "short" }) : v;
-  }
+  for (const [k, v] of Object.entries(errorDetails(e))) out[k] = k.endsWith("_at") || k.endsWith("_until") ? localTime(v, lang) : v;
   return out;
 }
 

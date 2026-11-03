@@ -7,7 +7,7 @@ import { issueHandoffCode } from "@/lib/mock/handoff";
 import { isAllowedWallet } from "@/lib/auth/allowlist";
 import { VerifyBody } from "@/lib/auth/schemas";
 import { publicSession, setSessionCookies } from "@/lib/auth/cookies";
-import { MODE_COOKIE } from "@/lib/mode";
+import { LEGACY_MODE_COOKIE } from "@/lib/mode";
 import { forward, upstreamAuth } from "@/lib/auth/upstream";
 
 /**
@@ -55,6 +55,7 @@ export async function POST(req: Request) {
   }
   const c = await cookies();
   setSessionCookies(c, s);
-  if (!c.get(MODE_COOKIE)) c.set(MODE_COOKIE, "practice", { path: "/", httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" && process.env.CENTURION_INSECURE_COOKIES !== "1" });
+  // Per-strategy mode (contracts 1.1.6): no global mode cookie any more; drop the retired one.
+  if (c.get(LEGACY_MODE_COOKIE)) c.delete(LEGACY_MODE_COOKIE);
   return ok(publicSession(s));
 }

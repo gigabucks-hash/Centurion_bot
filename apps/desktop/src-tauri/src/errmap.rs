@@ -1,4 +1,4 @@
-//! Error-code → copy mapping from `@centurion/i18n` 0.4.6 `errors.map.json` (v6) (UX-owned, read-only,
+//! Error-code → copy mapping from `@centurion/i18n` 0.4.10 `errors.map.json` (v7) (UX-owned, read-only,
 //! embedded at build time). It replaces the desktop's former hand mapping: each of the 58
 //! `errors.json` v4 codes maps to `{key, source: copy|fallback, kind, http, retryable}`, and an
 //! unknown code maps to `unknown` (`error.code.internal`). The UI resolves the key in the
@@ -86,9 +86,11 @@ mod tests {
     #[test]
     fn errors_map_covers_and_resolves() {
         let m = map();
-        // i18n 0.4.6: errors.json v6 (58 codes, + QUOTE_MISSING_OR_STALE); GUARD_WEAKEN is a pending state.
-        assert_eq!(m.errors_json_version, 6);
-        assert_eq!(m.codes.len(), 58);
+        // i18n 0.4.10: errors.json v7 (67 codes: + LOGO_* and the MCP/agent codes); GUARD_WEAKEN is a pending state.
+        assert_eq!(m.errors_json_version, 7);
+        assert_eq!(m.codes.len(), 67);
+        assert_eq!(i18n_key("MODE_NOT_ALLOWED"), "error.code.mode_not_allowed");
+        assert_eq!(entry("MODE_NOT_ALLOWED").unwrap().http, 403);
         assert_eq!(i18n_key("QUOTE_MISSING_OR_STALE"), "error.code.quote_missing_or_stale");
         assert_eq!(entry("QUOTE_MISSING_OR_STALE").unwrap().cta_key.as_deref(), Some("review.quote.refresh"));
         assert_eq!(entry("GUARD_WEAKEN_REQUIRES_APPROVAL").unwrap().tone.as_deref(), Some("pending"));

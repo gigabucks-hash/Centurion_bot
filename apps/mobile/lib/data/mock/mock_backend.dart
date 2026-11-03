@@ -1373,6 +1373,7 @@ class MockBackend
         winRatePct: 58,
         maxDrawdownPct: 6.1,
         avgHold: const Duration(minutes: 4),
+        paperProgress: const PaperProgress(daysDone: 4, tradesDone: 23), // 1.1.6: rules not set (required = null)
       ),
       Strategy(
         id: 'stg_newpairs',
@@ -1388,6 +1389,7 @@ class MockBackend
         winRatePct: 41,
         maxDrawdownPct: 12.4,
         avgHold: const Duration(minutes: 1),
+        paperProgress: const PaperProgress(daysDone: 1, tradesDone: 5),
       ),
       Strategy(
         id: 'stg_grad',

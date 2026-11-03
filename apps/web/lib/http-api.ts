@@ -8,9 +8,9 @@
  * (open item). The default build uses the in-process mock (lib/mock) and never calls this.
  */
 import { randomUUID } from "node:crypto";
-import type { AnyEvent, EventPage, ExitStatsRow } from "@centurion/contracts/wire";
+import type { AnyEvent, EventPage, ExitStatsRow, StrategyRealGateFields } from "@centurion/contracts/wire";
 import type { DashboardApi } from "./api";
-import { approvalFromWire, coinSummaryFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings } from "./contracts";
+import { approvalFromWire, coinSummaryFromWire, realGateFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings } from "./contracts";
 import { ApiError, toApiError } from "./errors";
 import { blankSettings } from "./strategy-schema";
 import type { Strategy, TradeEvent, TradingMode } from "./types";
@@ -61,13 +61,13 @@ async function page<T>(path: string, o: { cursor?: string | null; limit?: number
   return { items: (raw.items ?? []) as T[], nextCursor: (raw.next_cursor as string | null | undefined) ?? null };
 }
 
-interface StrategyWire { id: string; rev: number; name: string; status: Strategy["status"]; mode: TradingMode; settings: WireSettings; updated_at?: string; created_at?: string; stats?: Record<string, number> }
+interface StrategyWire extends Partial<StrategyRealGateFields> { id: string; rev: number; name: string; status: Strategy["status"]; mode: TradingMode; settings: WireSettings; updated_at?: string; created_at?: string; stats?: Record<string, number> }
 
 function strategyFromWire(w: StrategyWire): Strategy {
   const fb = { ...blankSettings(), mode: w.mode };
   const ts = (s?: string) => (s ? Date.parse(s) : 0);
   return {
-    id: w.id, name: w.name, mode: w.mode, status: w.status, rev: w.rev, settings: { ...settingsFromWire(w.settings, fb), mode: w.mode },
+    id: w.id, name: w.name, mode: w.mode, ...realGateFromWire(w), status: w.status, rev: w.rev, settings: { ...settingsFromWire(w.settings, fb), mode: w.mode },
     openPositions: w.stats?.open_positions ?? 0, realizedPnlSol: 0, unrealizedPnlSol: 0, trades: w.stats?.trades ?? 0, wins: w.stats?.wins ?? 0,
     maxDrawdownPct: w.stats?.max_drawdown_pct ?? 0, avgHoldSeconds: w.stats?.avg_hold_seconds ?? 0, pnlSpark: [],
     funnel: { scanned: 0, filtered: 0, signaled: 0, entered: 0, exited: 0, rejections: [] }, createdAt: ts(w.created_at), updatedAt: ts(w.updated_at),

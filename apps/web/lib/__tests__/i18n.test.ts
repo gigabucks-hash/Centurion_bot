@@ -7,7 +7,7 @@ test("UX catalog wins through aliases, app namespace fills gaps, id falls back t
   const id = createT("id");
   assert.equal(en("approvals.approve"), "Approve");
   assert.equal(id("approvals.approve"), "Setujui");
-  assert.equal(id("approvals.skippedToast", { symbol: "QUILL" }), "Dilewati: QUILL");
+  assert.equal(id("approvals.skippedToast", { symbol: "QUILL" }), "Lihat QUILL: dilewati"); // i18n 0.4.10 verb-first copy
   assert.equal(en("overview.expiringSoon", { n: 2 }), "2 expire in under 2 min");
   assert.equal(en("stats.closed"), "Closed trades");
   assert.equal(id("stats.closed"), "Closed trades");
@@ -24,7 +24,7 @@ test("every app key is defined in English and every string parses as ICU", () =>
   }
 });
 
-test("every alias points at a key in @centurion/i18n 0.4.3 (en + id)", async () => {
+test("every alias points at a key in @centurion/i18n 0.4.10+ (en + id)", async () => {
   const { ALIASES } = await import("../i18n/aliases.ts");
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
@@ -39,7 +39,8 @@ test("every alias points at a key in @centurion/i18n 0.4.3 (en + id)", async () 
 test("N-05 order.failed uses 0.4.1 vars {side, symbol, reason_code, amount_lamports} via format.mjs", async () => {
   const { orderFailedText } = await import("../notify.ts");
   const en = orderFailedText(createT("en"), { side: "sell", symbol: "QUILL", reason_code: "SLIPPAGE_EXCEEDED", amount_lamports: "250000000", mode: "practice" });
-  assert.match(en.title, /PRACTICE.*Sell QUILL failed/);
+  assert.match(en.title, /^\[PAPER\] .*QUILL.*sell failed/i); // i18n 0.4.10: [PAPER]/[REAL] push prefix, verb-first
+  assert.doesNotMatch(en.title, /PRACTICE/);
   assert.match(en.body, /slippage/i);
   assert.match(en.body, /0\.25\u00A0paper SOL/);
   assert.doesNotMatch(en.body, /\{|SLIPPAGE_EXCEEDED/);

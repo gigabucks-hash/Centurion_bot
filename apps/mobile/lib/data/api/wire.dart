@@ -59,6 +59,26 @@ abstract final class Wire {
 
   /// `decided_via` / JWT claim `centurion_client`: web | mobile | desktop | mcp | push.
   /// Never sent as an RPC param (1.1.2: actor/channel come from the JWT).
+  /// 1.1.6 strategy read: `real_locked_reason`. Unknown or null while locked → other.
+  static RealLockedReason? realLockedReasonOf(Object? w, {required bool locked}) => !locked
+      ? null
+      : switch (w) {
+          'needs_owner_approval' => RealLockedReason.needsOwnerApproval,
+          'gate_not_met' => RealLockedReason.gateNotMet,
+          'policy' => RealLockedReason.policy,
+          _ => RealLockedReason.other,
+        };
+
+  /// 1.1.6 `paper_progress {days_done, days_required|null, trades_done, trades_required|null}`.
+  static PaperProgress? paperProgressOf(Object? w) => w is Map
+      ? PaperProgress(
+          daysDone: intOf(w['days_done']) ?? 0,
+          daysRequired: intOf(w['days_required']),
+          tradesDone: intOf(w['trades_done']) ?? 0,
+          tradesRequired: intOf(w['trades_required']),
+        )
+      : null;
+
   static const clientMobile = 'mobile';
   static const clientPush = 'push';
 

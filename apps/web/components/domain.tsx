@@ -2,7 +2,7 @@
 import type { AlertSeverity, EventKind } from "@/lib/types";
 import type { Tone } from "@/components/ui";
 
-export { ApprovalModeBadge, ApprovalModeText, ApprovalStatusBadge, EventKindBadge, ModeBadge, StatusBadge } from "./domain-badges";
+export { ApprovalModeBadge, ApprovalModeText, ApprovalStatusBadge, EventKindBadge, ModeBadge, RealLockedChip, StatusBadge, StrategyModeChips } from "./domain-badges";
 
 export const severityTone: Record<AlertSeverity, Tone> = { info: "info", warning: "warning", critical: "loss" };
 

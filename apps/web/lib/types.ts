@@ -23,6 +23,8 @@ import type {
   RiskLevel as WireRiskLevel,
   TokenProgram,
   ErrorCode,
+  PaperProgress,
+  RealLockedReason,
 } from "@centurion/contracts/wire";
 
 /** Unix epoch milliseconds. */
@@ -32,9 +34,13 @@ export type Sol = number;
 /** Base58 SPL token mint address. */
 export type Mint = string;
 
-/** Workspace mode. Practice = paper SOL; Real = real SOL (separate workspace, numbers never mixed). */
+/**
+ * Strategy mode (Boss 3 Nov: ONE app, each strategy runs in Paper or Real). Wire stays `practice | real`; the UI says
+ * "Paper" for practice (contracts 1.1.6). Balances/portfolios stay per mode on the wire (`?mode=`), never mixed.
+ */
 export type TradingMode = WireMode;
-export const MODE_LABEL: Record<TradingMode, string> = { practice: "PRACTICE", real: "REAL SOL" };
+export const MODE_LABEL: Record<TradingMode, string> = { practice: "Paper", real: "Real" };
+export type { PaperProgress, RealLockedReason };
 export type ConnectionState = "connected" | "connecting" | "disconnected";
 
 // ---------------------------------------------------------------------------
@@ -184,7 +190,14 @@ export interface StrategyFunnel {
 export interface Strategy {
   id: string;
   name: string;
+  /** Per-strategy mode (wire practice|real). */
   mode: TradingMode;
+  /** contracts 1.1.6 StrategyRealGateFields: true while the strategy may not run in Real (always true in this phase). */
+  realLocked: boolean;
+  /** null only when realLocked is false (UX v2.6: null while locked → show "other"). */
+  realLockedReason: RealLockedReason | null;
+  /** `*_required` null = threshold not set by the owner (show "not set", never assume a number). */
+  paperProgress: PaperProgress;
   status: StrategyStatus;
   /** Active settings revision (optimistic versioning). */
   rev: number;
@@ -233,8 +246,8 @@ export interface CoinMeta {
   mint: Mint;
   /** Token metadata is UNTRUSTED. Render as plain text only. */
   untrusted: { symbol: string; name: string };
-  /** logo_url hint (contracts 1.1.6, pending); see CoinSummary.logoUrl. */
-  logoUrl?: string | null;
+  /** contracts 1.1.6 `logo_hash` (= `v` of the logo URL): null/absent = identicon, no request (lib/media.ts). */
+  logoHash?: string | null;
   launchpad: string;
   venue: Venue;
   createdAt: Timestamp;
@@ -300,7 +313,11 @@ export interface TradeEvent {
   kind: EventKind;
   actor: ActorKind;
   strategyId?: string;
+  /** Envelope mode (wire practice|real; UI "Paper"/"Real"): the feed mixes strategies of both modes. */
+  mode?: TradingMode;
   mint?: Mint;
+  /** 1.1.6: from the envelope `logo_url` (null/absent = identicon). */
+  logoHash?: string | null;
   symbol?: string;
   /** Short headline, e.g. "Bought 0.24 SOL". */
   message: string;
@@ -353,8 +370,8 @@ export interface CoinTrail {
 /** Positions screen row (GET /positions?state=open view model). */
 export interface OpenPosition {
   key: string;
-  /** 1.1.6 logo_url hint (lib/media.ts). */
-  logoUrl?: string | null;
+  /** contracts 1.1.6 `logo_hash` (approvals: recovered from `logo_url`); null/absent = identicon (lib/media.ts). */
+  logoHash?: string | null;
   strategyId: string;
   strategyName: string;
   mode: TradingMode;
@@ -393,8 +410,8 @@ export interface CoinSummary {
   screenerState?: ScreenerState;
   /** contracts 1.1.4 MarketCapFields (one backend computation). usd is indicative (reference SOL price). */
   mcap?: MarketCap;
-  /** logo_url hint (contracts 1.1.6, pending): null = no logo; the value is never used as an image src (lib/media.ts). */
-  logoUrl?: string | null;
+  /** contracts 1.1.6 `logo_hash`: null/absent = identicon, no request (lib/media.ts). */
+  logoHash?: string | null;
 }
 
 export interface MarketCap {
@@ -498,8 +515,8 @@ export interface ApprovalQuote {
 
 export interface Approval {
   id: string;
-  /** 1.1.6 logo_url hint (lib/media.ts). */
-  logoUrl?: string | null;
+  /** contracts 1.1.6 `logo_hash` (approvals: recovered from `logo_url`); null/absent = identicon (lib/media.ts). */
+  logoHash?: string | null;
   quote?: ApprovalQuote;
   /** Set when the coin cannot be traded (no SOL quote pair): shown as "Not tradeable", never approvable. */
   screenerState?: ScreenerState;

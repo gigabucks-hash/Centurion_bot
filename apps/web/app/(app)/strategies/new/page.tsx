@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getApi } from "@/lib/api";
-import { getMode } from "@/lib/mode";
 import { STRATEGY_PRESETS, blankSettings } from "@/lib/strategy-schema";
 import { PageHeader, cn } from "@/components/ui";
 import { StrategyBuilder } from "@/components/builder/StrategyBuilder";
@@ -11,10 +10,11 @@ import { getT } from "@/lib/i18n/server";
 export const metadata: Metadata = { title: "New strategy" };
 
 async function Builder({ searchParams }: { searchParams: PageProps<"/strategies/new">["searchParams"] }) {
-  const [sp, mode, t] = await Promise.all([searchParams, getMode(), getT()]);
+  const [sp, t] = await Promise.all([searchParams, getT()]);
   const preset = typeof sp.preset === "string" ? sp.preset : "balanced";
   const from = typeof sp.from === "string" ? await getApi().getStrategy(sp.from) : null;
-  const source = from && from.mode === mode ? from : null;
+  // Duplicating works across modes: the copy always starts in Paper (contracts 1.1.6: POST /strategies mode, default practice).
+  const source = from;
   const initial = source
     ? { ...structuredClone(source.settings), name: `${source.name} ${t("builder.copySuffix")}`.slice(0, 60), mode: "practice" as const }
     : (STRATEGY_PRESETS.find((p) => p.id === preset)?.build() ?? blankSettings());
@@ -32,7 +32,7 @@ async function Builder({ searchParams }: { searchParams: PageProps<"/strategies/
           ))}
         </div>
       )}
-      {mode === "real" && <p className="mb-4 rounded-md border border-border-default bg-bg-sunken px-3 py-2 text-caption text-text-secondary">{t("builder.realNote")}</p>}
+      <p className="mb-4 rounded-md border border-border-default bg-bg-sunken px-3 py-2 text-caption text-text-secondary">{t("builder.realNote")} {t.ux("strategy.mode.scope_note")}</p>
       <StrategyBuilder key={`${preset}-${source?.id ?? ""}`} initial={initial} base={null} strategyId={null} rev={null} mode="practice" draftKey={`centurion_draft_new_${source?.id ?? preset}`} />
     </>
   );

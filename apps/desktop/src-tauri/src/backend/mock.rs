@@ -146,7 +146,26 @@ impl Strat {
         Strat { id: id.into(), name: name.into(), rev: 1, status: "active".into(), settings: default_settings(full), history: vec![] }
     }
     fn summary(&self) -> StrategySummary {
-        StrategySummary { id: self.id.clone(), name: self.name.clone(), rev: self.rev, status: Some(self.status.clone()), mode: Some(Mode::Practice), settings: self.settings.clone() }
+        let (reason, progress) = mock_real_gate(&self.id);
+        StrategySummary {
+            id: self.id.clone(), name: self.name.clone(), rev: self.rev, status: Some(self.status.clone()), mode: Some(Mode::Practice), settings: self.settings.clone(),
+            // 1.1.6: Real is gated off in this phase: always locked (like the backend's real_gate.ts).
+            real_locked: Some(true), real_locked_reason: Some(reason), paper_progress: Some(progress),
+        }
+    }
+}
+/// Mock Real-gate states (contracts 1.1.6), one per mock strategy, so the UI shows each case:
+/// - `…0a`: the backend default today: `needs_owner_approval`, owner rules not set (`*_required` null);
+/// - `…0b`: `gate_not_met`, Paper progress below the (example) rules;
+/// - `…0c`: `policy` (wallet rules), Paper progress above the rules (still locked).
+///
+/// The numbers are mock placeholders, not approved thresholds.
+pub(crate) fn mock_real_gate(id: &str) -> (crate::model::RealLockedReason, crate::model::PaperProgress) {
+    use crate::model::{PaperProgress as P, RealLockedReason as R};
+    match id.chars().last() {
+        Some('b') => (R::GateNotMet, P { days_done: 3, days_required: Some(7), trades_done: 12, trades_required: Some(30) }),
+        Some('c') => (R::Policy, P { days_done: 14, days_required: Some(7), trades_done: 41, trades_required: Some(30) }),
+        _ => (R::NeedsOwnerApproval, P { days_done: 1, days_required: None, trades_done: 4, trades_required: None }),
     }
 }
 struct Coin {
@@ -285,6 +304,7 @@ impl Server {
             server_now: None,
             // 1.1.6 shape (mock): logo proxy URL on every envelope that carries a mint.
             logo_url: mint.and_then(crate::logo::mock_logo_url),
+            logo_hash: mint.and_then(crate::logo::mock_logo_hash), // 1.1.6 (c99b114): hash next to the url
         };
         self.log.push_back(env.clone());
         while self.log.len() > LOG_CAP {
@@ -1254,7 +1274,7 @@ impl Transport for MockTransport {
             // arrives with position.updated / position.closed / order.filled.position_rev.
             position: PositionWire { id: position_id.into(), position_key: key, rev: base, qty_raw: RawQty(qty_raw), status: status.into(), practice_epoch: Some(epoch),
                 decimals: Some(dec_), token_program: None, cost_basis_lamports: None, avg_entry_price_sol: None, exit_reason: (status == "closed").then_some(ExitReason::Manual),
-                logo_url: crate::logo::mock_logo_url(&mint), logo_hash: None },
+                logo_url: crate::logo::mock_logo_url(&mint), logo_hash: crate::logo::mock_logo_hash(&mint) },
             order: serde_json::from_value(order).expect("OrderWire"),
             order_id,
             fill: fill.and_then(|f| serde_json::from_value::<FillWire>(f).ok()),

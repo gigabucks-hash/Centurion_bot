@@ -26,6 +26,8 @@ import type {
 export type * from "@centurion/contracts/wire";
 export { lamportsToSol, LAMPORTS_PER_SOL, CONTRACTS_VERSION, EXIT_REASONS, ERROR_CODES } from "@centurion/contracts/wire";
 import type { I18nMsg } from "../i18n";
+import type { RealLockedReason, PaperProgress } from "../components/strategyGate";
+export type { RealLockedReason, PaperProgress };
 export type { I18nMsg };
 
 /** int64 seq / cursor / job id strings (1.1.2): compare as BigInt, never as float. */
@@ -221,6 +223,11 @@ export interface StrategyView {
   /** 1.1.4 exit timers (settings): exit_reason `max_hold` / `stall`. */
   time_stop_s?: number | null;
   stall_exit?: { window_s: number; min_move_pct: DecimalString | number } | null;
+  /** 1.1.6 per-strategy mode (wire `practice` = UI "Paper") + Real gate (always locked in this phase). */
+  mode: Mode;
+  real_locked: boolean;
+  real_locked_reason: RealLockedReason | null;
+  paper_progress: PaperProgress;
 }
 
 /** PATCH /strategies/{id}: loosening a guard is a 202 proposal, waiting for approval — never success. */
@@ -235,6 +242,8 @@ export type AuthView = { mode: "mock" | "http" | "siws" } & (
   | { state: "waiting_for_browser" }
   | { state: "wallet_not_allowed"; address: string | null }
   | { state: "failed"; code: string }
+  /** Deep-link hand-off: the one-time code was refused (code_invalid / code_verifier_mismatch / code_expired). */
+  | { state: "sign_in_again"; reason: string }
 );
 
 /** 409 on a write (STRATEGY_REV_CONFLICT / VERSION_CONFLICT / CONFIRMATION_RESTART_REQUIRED). */
@@ -347,6 +356,8 @@ export interface CoreApi {
   requestSell(positionKey: string, pct: number): Promise<SellQuote>;
   confirmSell(nonce: string): Promise<void>;
   setStrategyPaused(id: string, paused: boolean, baseRev: number): Promise<StrategyView>;
+  /** Per-strategy mode. Real is never reached from this build: locked → `MODE_NOT_ALLOWED` (a notice). */
+  setStrategyMode(id: string, mode: Mode, holdMs: number): Promise<StrategyView>;
   resetPractice(): Promise<void>;
   coinTimeline(mint: string): Promise<TimelineItem[]>;
   exitReasonStats(): Promise<ExitReasonStatView[]>;

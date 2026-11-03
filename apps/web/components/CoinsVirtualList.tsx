@@ -6,7 +6,8 @@ import { fetchCoinsPage } from "@/lib/client";
 import { ApiError, errorText } from "@/lib/errors";
 import type { CoinSummary } from "@/lib/types";
 import { shortMint } from "@/lib/format";
-import { useFmt, useT } from "@/lib/i18n/client";
+import { useFmt, useFmtFor, useT } from "@/lib/i18n/client";
+import { ModeBadge } from "@/components/domain";
 import { Badge, Button, Pnl, cn, type Tone } from "@/components/ui";
 import { NotTradeableChip } from "@/components/NotTradeable";
 import { VirtualList } from "@/components/ui/VirtualList";
@@ -23,15 +24,15 @@ const statusTone: Record<CoinSummary["status"], Tone> = { open: "profit", closed
  */
 const Row = memo(function Row({ c }: { c: CoinSummary }) {
   const t = useT();
-  const f = useFmt();
+  const f = useFmtFor()(c.mode);
   const nt = c.screenerState === "UNSUPPORTED_QUOTE_MINT";
   return (
     <div role="row" className="grid min-h-12 grid-cols-[minmax(5rem,1fr)_auto_auto] items-center gap-3 border-b border-border-subtle px-1 py-2 sm:grid-cols-[8rem_8rem_minmax(0,1fr)_8rem_7rem_6rem_5rem]">
-      <span role="cell"><Link href={`/coins/${c.mint}`} className={cn("inline-flex min-h-11 items-center gap-2 font-semibold hover:underline", nt ? "text-text-tertiary" : "text-brand-primary")}><CoinAvatar mint={c.mint} logoUrl={c.logoUrl} />${safeText(c.symbol, 16)}</Link></span>
+      <span role="cell"><Link href={`/coins/${c.mint}`} className={cn("inline-flex min-h-11 items-center gap-2 font-semibold hover:underline", nt ? "text-text-tertiary" : "text-brand-primary")}><CoinAvatar mint={c.mint} logoHash={c.logoHash} symbol={c.symbol} notTradeable={nt} />${safeText(c.symbol, 16)}</Link></span>
       <span role="cell" className="num hidden text-caption text-text-secondary sm:block">{shortMint(c.mint)}</span>
-      <span role="cell" className="hidden truncate text-text-secondary sm:block">{c.strategyName}</span>
+      <span role="cell" className="hidden min-w-0 items-center gap-2 text-text-secondary sm:flex"><span className="truncate">{c.strategyName}</span> <ModeBadge mode={c.mode} /></span>
       <span role="cell" className="whitespace-nowrap">{nt ? <NotTradeableChip label={t("screener.notTradeable")} /> : <Badge tone={statusTone[c.status]}>{c.status === "rejected" ? t("screener.statusRejected") : t(`coins.status.${c.status}`)}</Badge>}</span>
-      <span role="cell" className="num whitespace-nowrap text-right">{c.pnlSol != null && !nt ? <Pnl sol={c.pnlSol} /> : <span className="text-text-tertiary">—</span>}</span>
+      <span role="cell" className="num whitespace-nowrap text-right">{c.pnlSol != null && !nt ? <Pnl sol={c.pnlSol} mode={c.mode} /> : <span className="text-text-tertiary">—</span>}</span>
       <span role="cell" className="hidden text-right sm:block"><Mcap m={c.mcap} t={t} locale={t.locale} time={f.time} compact /></span>
       <span role="cell" className="num hidden whitespace-nowrap text-right text-text-tertiary sm:block">{f.time(c.lastEventAt)}</span>
     </div>

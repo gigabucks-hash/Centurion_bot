@@ -12,6 +12,7 @@ export const tauriAdapter: CoreApi = {
   requestSell: (positionKey, pct) => invoke<SellQuote>("request_sell", { position_key: positionKey, pct }),
   confirmSell: (nonce) => invoke<void>("confirm_sell", { nonce }),
   setStrategyPaused: (id, paused, baseRev) => invoke<StrategyView>("set_strategy_paused", { id, paused, base_rev: baseRev }),
+  setStrategyMode: (id, mode, holdMs) => invoke<StrategyView>("set_strategy_mode", { id, mode, hold_ms: Math.max(0, Math.round(holdMs)) }),
   resetPractice: () => invoke<void>("reset_practice"),
   coinTimeline: (mint) => invoke<TimelineItem[]>("get_coin_timeline", { mint }),
   exitReasonStats: () => invoke<ExitReasonStatView[]>("get_exit_reason_stats"),

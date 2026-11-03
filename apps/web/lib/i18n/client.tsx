@@ -32,3 +32,9 @@ export function useLocale(): Locale {
 export function useFmt(): Fmt {
   return useContext(Ctx).f;
 }
+
+/** Formatter for one item's own mode (per-strategy mode: a merged list mixes Paper and Real amounts). */
+export function useFmtFor(): (mode: TradingMode) => Fmt {
+  const { locale } = useContext(Ctx);
+  return useMemo(() => (mode: TradingMode) => createFmt(locale, mode), [locale]);
+}

@@ -203,7 +203,7 @@ fn ts_vocabularies_match_rust_enums() {
     for t in types {
         let env = EventEnvelope {
             id: "x".into(), seq: 1, kind: t.into(), version: 1, workspace_id: "w".into(), strategy_id: None, ck: None, mint: None,
-            ts: IsoTs::from_ms(0), actor: Actor::System, mode: Mode::Practice, payload: serde_json::json!({}), untrusted: Untrusted::default(), server_now: None, logo_url: None,
+            ts: IsoTs::from_ms(0), actor: Actor::System, mode: Mode::Practice, payload: serde_json::json!({}), untrusted: Untrusted::default(), server_now: None, logo_url: None, logo_hash: None,
         };
         assert_eq!(KnownEvent::decode(&env).is_some(), !IGNORED.contains(&t), "desktop decoder coverage for {t}");
     }
@@ -302,7 +302,7 @@ fn errors_map_and_order_fail_reasons_match_contracts_and_catalog() {
 fn contracts_1_1_3_reject_reason_and_approval_wire() {
     let ts = read("src/wire/events.ts");
     assert!(ts.contains(&format!("CONTRACTS_VERSION = \"{}\"", crate::model::CONTRACTS_VERSION)), "mirror == committed contracts");
-    assert_eq!(crate::model::CONTRACTS_VERSION, "1.1.5");
+    assert_eq!(crate::model::CONTRACTS_VERSION, "1.1.5"); // TS constant not bumped by Backend in 1.1.6 (gap)
     let i = ts.find("export type ApprovalRejectReason").unwrap();
     let line = &ts[i..i + ts[i..].find(';').unwrap()];
     let theirs: Vec<String> = line.split('"').skip(1).step_by(2).map(str::to_owned).collect();

@@ -36,7 +36,7 @@ void main() {
     final b = MockBackend();
     await tester.pumpWidget(_app(b, '/'));
     await tester.pump();
-    expect(find.textContaining('PRACTICE · paper SOL'), findsOneWidget);
+    expect(find.textContaining('Paper · paper SOL, tidak ada SOL nyata'), findsOneWidget);
     expect(find.text('Team overview'), findsOneWidget);
     expect(find.byKey(const Key('totalPnl')), findsOneWidget);
     expect(tester.widget<Text>(find.byKey(const Key('pendingKpi'))).data, '4');
@@ -81,7 +81,7 @@ void main() {
     final b = MockBackend();
     await tester.pumpWidget(_app(b, '/approvals/apv_seed4/review', realSol: true));
     await tester.pump();
-    expect(find.textContaining('REAL SOL · memakai SOL nyata'), findsOneWidget);
+    expect(find.textContaining('Real SOL · wallet terhubung'), findsOneWidget);
     expect(find.text('Risk level: TINGGI'), findsOneWidget);
     await tester.enterText(find.byKey(const Key('typedConfirm')), 'Graduated Momentum');
     await tester.pump();
@@ -387,5 +387,61 @@ void main() {
     await tester.pump(const Duration(milliseconds: 800));
     expect(find.textContaining('Reset berikutnya bisa pukul'), findsOneWidget);
     b.dispose();
+  });
+
+  group('per-strategy Paper / Real (contracts 1.1.6, read-only)', () {
+    testWidgets('list: mode badges, filter counts, Real locked chip + reason a11y, progress without rules', (
+      tester,
+    ) async {
+      await _phone(tester);
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(_app(MockBackend(), '/strategies'));
+      await tester.pump();
+      expect(find.text('All · 3'), findsNothing, reason: 'ID locale');
+      expect(find.text('Semua · 3'), findsOneWidget);
+      expect(find.text('Paper · 2'), findsOneWidget);
+      expect(find.text('Real · 1'), findsOneWidget);
+      expect(find.text('◇ PAPER'), findsNWidgets(2));
+      expect(find.text('● REAL SOL'), findsOneWidget);
+      expect(find.text('Real terkunci'), findsNWidgets(2));
+      expect(find.bySemanticsLabel('Opsi Real nonaktif: Butuh persetujuan Boss'), findsNWidgets(2));
+      expect(find.text('4 hari di Paper · 23 trade selesai'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('strategy_filter_real')));
+      await tester.pump();
+      expect(find.text('◇ PAPER'), findsNothing);
+      expect(find.text('Graduated Momentum'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('detail: strategy mode banner, Real segment disabled, "rule not set", no Real confirmation', (
+      tester,
+    ) async {
+      await _phone(tester);
+      final b = MockBackend();
+      await tester.pumpWidget(_app(b, '/strategies'));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('strategy_open_stg_pullback')));
+      await tester.pumpAndSettle();
+      final banner = find.byKey(const Key('strategy_mode_banner'));
+      expect(find.descendant(of: banner, matching: find.text('◇ Paper · paper SOL')), findsOneWidget);
+      expect(find.text('Aturan belum ditetapkan'), findsOneWidget);
+      expect(find.text('4 hari di Paper'), findsOneWidget);
+      expect(find.text('23 trade selesai'), findsOneWidget);
+      expect(
+        find.textContaining(RegExp(r'\d+/\d+ (hari|trade)')),
+        findsNothing,
+        reason: 'no ratio when required is null',
+      );
+      final sel = tester.widget<SegmentedButton<TradeMode>>(find.byKey(const Key('strategy_mode_selector')));
+      expect(sel.onSelectionChanged, isNull);
+      expect(sel.selected, {TradeMode.practice});
+      expect(sel.segments.firstWhere((x) => x.value == TradeMode.real).enabled, isFalse);
+      await tester.tap(find.text('Real').last, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('typedConfirm')), findsNothing);
+      expect(find.byType(HoldToConfirmButton), findsNothing);
+      final s = (await b.watchStrategies().first).firstWhere((x) => x.id == 'stg_pullback');
+      expect(s.mode, TradeMode.practice);
+    });
   });
 }

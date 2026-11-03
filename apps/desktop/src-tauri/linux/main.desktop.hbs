@@ -3,15 +3,13 @@ Categories={{categories}}
 {{#if comment}}
 Comment={{comment}}
 {{/if}}
-Exec={{exec}}
+Exec={{exec}} %u
 StartupWMClass={{exec}}
 Icon={{icon}}
 Name={{name}}
 Terminal=false
 Type=Application
-{{#if mime_type}}
-MimeType={{mime_type}}
-{{/if}}
+MimeType=x-scheme-handler/centurion;{{#if mime_type}}{{mime_type}}{{/if}}
 Actions=Stop;
 
 [Desktop Action Stop]

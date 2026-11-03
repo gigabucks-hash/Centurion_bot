@@ -1,24 +1,24 @@
 "use client";
-import type { TradingMode } from "@/lib/types";
 import { cn } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 
-/** Persistent, non-dismissable mode banner on every screen (SPEC §1). */
-export function ModeBanner({ mode, walletConnected }: { mode: TradingMode; walletConnected: boolean }) {
+/**
+ * Persistent, non-dismissable mode strip (SPEC §1). Per-strategy mode (contracts 1.1.6): while every strategy runs in
+ * Paper it is the same Paper strip as before; once any strategy runs in Real it switches to the Real treatment with
+ * the "{real_count} Real · {paper_count} Paper" summary so Real is never out of sight.
+ */
+export function ModeBanner({ realCount, paperCount }: { realCount: number; paperCount: number }) {
   const t = useT();
+  const real = realCount > 0;
   return (
     <div
       role="status"
       className={cn(
         "flex h-8 items-center px-4 text-label font-semibold",
-        mode === "practice" ? "stripes-practice bg-mode-practiceContainer text-mode-practice" : "bg-mode-real text-mode-onReal",
+        real ? "bg-mode-real text-mode-onReal" : "stripes-practice bg-mode-practiceContainer text-mode-practice",
       )}
     >
-      {mode === "practice" ? (
-        <span>{t("mode.bannerPractice")}</span>
-      ) : (
-        <span>{t(walletConnected ? "mode.bannerRealConnected" : "mode.bannerRealMock")}</span>
-      )}
+      {real ? <span>● {t.ux("strategy.list.summary", { real_count: realCount, paper_count: paperCount })}</span> : <span>{t("mode.bannerPractice")}</span>}
     </div>
   );
 }

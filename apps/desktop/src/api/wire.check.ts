@@ -89,6 +89,8 @@ export const closeSample = {
     decimals: 9, token_program: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", cost_basis_lamports: "125000000", sol_in_lamports: "250000000",
     sol_out_lamports: "130000000", fees_lamports: "1700000", avg_entry_price_sol: "0.000000255", peak_price_sol: null, exit_price_sol: null,
     exit_reason: null, opened_at: "2026-10-29T08:40:00.000Z", closed_at: null,
+    // 1.1.6 (f1b7910): our proxy URL + its `v`; null = identicon.
+    logo_hash: "mocklogo1", logo_url: "https://logo.mock.invalid/v1/img/coin/7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr?s=96&v=mocklogo1",
   },
   order: orderSample, order_id: orderSample.id, fill: null, job_id: "9000000001", status: "filled", replayed: false, server_now: "2026-10-29T08:42:00.600Z",
 } satisfies ClosePositionResponse;
@@ -164,7 +166,15 @@ export const approvalWireSample = {
   // 1.1.5 (ef74131): quote identity, ATA rent, sell quote outs, mint decimals/program, position for sells.
   quote_id: "1", est_ata_rent_lamports: null, expected_out_lamports: null, min_out_lamports: null,
   decimals: null, token_program: null, position_id: null,
+  // 1.1.6: logo_url (f1b7910) + logo_hash (c99b114, required, nullable). mint null → both null.
+  logo_hash: null, logo_url: null,
 } satisfies ApprovalWire;
 // @ts-expect-error ConflictError.current is required (1.1.3, matches Rust `required_non_null`)
 export const conflictWithoutCurrent: ConflictError = { error: { code: "VERSION_CONFLICT", message: "m", request_id: "r", server_now: "x", current_rev: 2, base_rev: 1 }, server_now: "x" };
 
+
+// coinLogo.ts PROXY_SIZES mirrors contracts LOGO_SIZES exactly (1.1.6: proxy serves 128/192 too).
+import { LOGO_SIZES } from "@centurion/contracts/wire";
+import { PROXY_SIZES } from "../components/coinLogo";
+export const proxySizesMatch: typeof LOGO_SIZES = PROXY_SIZES;
+export const logoSizesMatch: typeof PROXY_SIZES = LOGO_SIZES;

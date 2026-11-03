@@ -21,5 +21,6 @@ export default defineConfig({
     fs: { allow: ["..", "../../packages"] },
   },
   envPrefix: ["VITE_", "TAURI_ENV_"],
-  build: { target: "es2022", outDir: "dist", sourcemap: false, chunkSizeWarningLimit: 600 },
+  // Fonts are always emitted as files (CSP font-src 'self', no data: fonts); other small assets keep the default.
+  build: { target: "es2022", outDir: "dist", sourcemap: false, chunkSizeWarningLimit: 600, assetsInlineLimit: (file) => (/\.(woff2?|ttf|otf)$/.test(file) ? false : undefined) },
 });

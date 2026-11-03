@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "screenshots": "node scripts/screenshots.mjs",
-    "test": "node --import tsx --test 'lib/__tests__/*.test.ts'",
+    "test": "CENTURION_MOCK_REAL_DEMO=1 node --import tsx --test 'lib/__tests__/*.test.ts'",
     "audit": "npm audit --audit-level=moderate",
     "audit:osv": "osv-scanner scan --lockfile package-lock.json",
     "ci": "npm run lint && npm run typecheck && npm test && npm run build && npm run audit"

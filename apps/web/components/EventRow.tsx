@@ -1,10 +1,10 @@
 "use client";
 import { memo } from "react";
 import { NotTradeableChip } from "@/components/NotTradeable";
-import { useFmt } from "@/lib/i18n/client";
+import { useFmtFor } from "@/lib/i18n/client";
 import Link from "next/link";
 import type { TradeEvent } from "@/lib/types";
-import { eventKindMeta } from "@/components/domain";
+import { eventKindMeta, ModeBadge } from "@/components/domain";
 import { useT } from "@/lib/i18n/client";
 import { Pnl, cn } from "@/components/ui";
 
@@ -14,27 +14,30 @@ import { CoinAvatar } from "@/components/CoinAvatar";
 /** Timeline-style feed row: time · dot · ACTOR / KIND $SYM / reason. Memoized: live ticks re-render only new rows. */
 export const EventRow = memo(function EventRow({ e, strategyName, fresh, as: Tag = "li" }: { e: TradeEvent; strategyName?: string; fresh?: boolean; as?: "li" | "div" }) {
   const t = useT();
-  const f = useFmt();
+  const mode = e.mode ?? "practice";
+  const f = useFmtFor()(mode);
   const m = eventKindMeta[e.kind];
   return (
     <Tag role={Tag === "div" ? "listitem" : undefined} className={cn("grid grid-cols-[3rem_0.75rem_1fr] gap-x-2 py-2.5", fresh && "rounded-md bg-brand-primaryContainer/40")}>
       <span className="num pt-0.5 text-numSm text-text-tertiary">{f.time(e.ts)}</span>
       <span className={cn("mt-1.5 h-2.5 w-2.5 rounded-full", m.dot)} aria-hidden />
       <span className="min-w-0">
-        <span className="block text-overline uppercase tracking-wide text-text-tertiary">
-          {t(`actor.${e.actor}`)} · {t(`kind.${e.kind}`)}
+        <span className="flex flex-wrap items-center gap-x-2 text-overline uppercase tracking-wide text-text-tertiary">
+          <span>{t(`actor.${e.actor}`)} · {t(`kind.${e.kind}`)}</span>
+          {/* Per-strategy mode: every feed row says which mode its strategy runs in. */}
+          <ModeBadge mode={mode} className="px-1.5 py-0 text-[10px] leading-4" />
         </span>
         <span className="block text-body font-semibold">
           {e.mint ? (
             <Link href={`/coins/${e.mint}`} className="tap gap-2 hover:underline">
-              <CoinAvatar mint={e.mint} size="xs" />
+              <CoinAvatar mint={e.mint} logoHash={e.logoHash} symbol={e.symbol} size="xs" />
               <EventTitle e={e} />
             </Link>
           ) : (
             <EventTitle e={e} />
           )}
           {e.reasonCode === "UNSUPPORTED_QUOTE_MINT" && <NotTradeableChip className="ml-2 align-middle font-normal" label={t("screener.notTradeable")} />}
-          {e.pnlSol != null && <Pnl sol={e.pnlSol} className="ml-2 text-caption font-normal" />}
+          {e.pnlSol != null && <Pnl sol={e.pnlSol} mode={mode} className="ml-2 text-caption font-normal" />}
         </span>
         {(e.reason || strategyName) && (
           <span className="block truncate text-caption text-text-secondary">

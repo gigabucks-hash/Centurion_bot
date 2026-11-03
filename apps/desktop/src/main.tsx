@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./design/centurion-tokens.css";
+import "./design/centurion-tokens-subset.css";
 import "./design/app.css";
 import { TerminalView } from "./views/TerminalView";
 import { ChartView } from "./views/ChartView";

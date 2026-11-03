@@ -1,6 +1,7 @@
 "use client";
 import { cn } from "./cn";
 import { useFmt, useT } from "@/lib/i18n/client";
+import type { TradingMode } from "@/lib/types";
 import { pnlDisplay, PNL_TEXT_CLASS } from "@/lib/pnl";
 
 /**
@@ -9,10 +10,11 @@ import { pnlDisplay, PNL_TEXT_CLASS } from "@/lib/pnl";
  * "<0.000001" (never "0"). Colour comes from the helper's tone, so text, arrow and colour cannot disagree.
  * Never colour-only (sr text too). `lamports` = exact wire string; `sol` = number or decimal string; `pct` = 8.4 for 8.4 %.
  */
-export function Pnl({ sol, pct, lamports, className, unit = false }: { sol?: number | string; pct?: number; lamports?: string; className?: string; unit?: boolean; digits?: number }) {
+/** `mode`: the item's own Paper/Real mode (per-strategy mode; defaults to the provider's, Paper). */
+export function Pnl({ sol, pct, lamports, className, unit = false, mode }: { sol?: number | string; pct?: number; lamports?: string; className?: string; unit?: boolean; digits?: number; mode?: TradingMode }) {
   const t = useT();
   const f = useFmt();
-  const paper = f.mode === "practice";
+  const paper = (mode ?? f.mode) === "practice";
   const d = pnlDisplay(lamports != null ? { lamports } : sol != null ? { sol } : { pct: pct ?? 0 }, f.locale, { paper, unit: lamports != null || sol != null ? unit : undefined });
   return (
     <span className={cn("num whitespace-nowrap", PNL_TEXT_CLASS[d.tone], className)} data-pnl-tone={d.tone}>

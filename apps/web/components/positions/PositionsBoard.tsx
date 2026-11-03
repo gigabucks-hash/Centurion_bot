@@ -1,5 +1,5 @@
 "use client";
-import { ApiError, codeText, errorText } from "@/lib/errors";
+import { ApiError, errorText } from "@/lib/errors";
 import { NotTradeableCta } from "@/components/NotTradeable";
 import { isOrderFailReason, orderFailedText } from "@/lib/notify";
 import { solToLamports } from "@/lib/contracts";
@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { Keyboard } from "lucide-react";
 import type { OpenPosition, TradingMode } from "@/lib/types";
 import { closePositionClient } from "@/lib/client";
-import { useFmt, useT } from "@/lib/i18n/client";
+import { useFmtFor, useT } from "@/lib/i18n/client";
 import { Badge, Button, Card, EmptyState, Pnl, cn } from "@/components/ui";
 import { HoldButton, Segmented, useNow, useToast } from "@/components/ui/client";
 import { ModeBadge } from "@/components/domain";
@@ -27,11 +27,13 @@ const PCTS = ["25", "50", "100"] as const;
  * horizontal scroll (MOBILE_TABLES pattern B, users compare numbers across rows).
  * Keyboard: J/K move · Space details · ↵ chart · ⇧X sell focused · Esc close.
  */
-export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mode: TradingMode }) {
+export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
   const t = useT();
-  const f = useFmt();
-  // QA-04: Practice amounts always say "paper SOL" (column headers included).
-  const unit = t(mode === "practice" ? "overview.paperSol" : "overview.realSol");
+  const fmtFor = useFmtFor();
+  // QA-04: Paper amounts always say "paper SOL" (column headers included). Per-strategy mode: rows carry their own mode;
+  // a mixed list uses the plain unit in headers and every row shows its Paper/Real chip.
+  const mixed = initial.some((r) => r.mode === "real");
+  const unit = t(mixed ? "overview.realSol" : "overview.paperSol");
   const toast = useToast();
   const router = useRouter();
   const now = useNow(1000);
@@ -44,6 +46,9 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
   const [pct, setPct] = useState<(typeof PCTS)[number]>("100");
   const [busy, setBusy] = useState(false);
   const focused = view.find((r) => r.key === focusId) ?? null;
+  /** Real safety rules follow the focused position's own strategy mode. */
+  const mode: TradingMode = focused?.mode ?? "practice";
+  const f = fmtFor(mode);
   const sellRef = useRef<HTMLDivElement>(null);
 
   const stateRef = useRef({ rows, focused });
@@ -71,7 +76,17 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
 
-  const totals = useMemo(() => ({ cost: view.reduce((s, r) => s + r.solIn * (1 - r.soldPct / 100), 0), unreal: view.reduce((s, r) => s + r.pnlSol * (1 - r.soldPct / 100), 0) }), [view]);
+  // Balances never mix modes: one total per mode.
+  const totals = useMemo(
+    () =>
+      (["practice", "real"] as const)
+        .map((m) => {
+          const vs = view.filter((r) => r.mode === m);
+          return { mode: m, n: vs.length, cost: vs.reduce((s, r) => s + r.solIn * (1 - r.soldPct / 100), 0), unreal: vs.reduce((s, r) => s + r.pnlSol * (1 - r.soldPct / 100), 0) };
+        })
+        .filter((x) => x.n > 0),
+    [view],
+  );
   const openSell = useCallback((k: string) => {
     setFocusId(k);
     setSellOpen(true);
@@ -107,9 +122,12 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
 
   return (
     <>
-      <p className="mb-3 text-body text-text-secondary">
-        {t("positions.summary", { open: t.ux("positions.open_count", { count: rows.length }), cost: f.sol(totals.cost) })} · <Pnl sol={totals.unreal} unit />
-      </p>
+      {totals.map((x) => (
+        <p key={x.mode} className="mb-3 flex flex-wrap items-center gap-2 text-body text-text-secondary">
+          {mixed && <ModeBadge mode={x.mode} />}
+          <span>{t("positions.summary", { open: t.ux("positions.open_count", { count: x.n }), cost: fmtFor(x.mode).sol(x.cost) })} · <Pnl sol={x.unreal} unit mode={x.mode} /></span>
+        </p>
+      ))}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <Card>
           <p className="mb-1 text-caption text-text-tertiary sm:hidden">{t("table.scrollHint")} →</p>
@@ -147,10 +165,10 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
         </Card>
 
         {focused && (
-          <Card title={<span className="inline-flex items-center gap-2"><CoinAvatar mint={focused.mint} logoUrl={focused.logoUrl} size="md" />{focused.symbol} · {focused.strategyName}</span>} action={<ModeBadge mode={mode} />}>
+          <Card title={<span className="inline-flex items-center gap-2"><CoinAvatar mint={focused.mint} logoHash={focused.logoHash} symbol={focused.symbol} size="md" />{focused.symbol} · {focused.strategyName}</span>} action={<ModeBadge mode={mode} />}>
             <dl className="grid grid-cols-2 gap-2 text-caption">
               <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colSize", { unit })}</dt><dd className="num whitespace-nowrap">{f.sol(focused.solIn * remaining(focused))}</dd></div>
-              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colPnlSol", { unit })}</dt><dd><Pnl sol={focused.pnlSol * remaining(focused)} unit /></dd></div>
+              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colPnlSol", { unit })}</dt><dd><Pnl sol={focused.pnlSol * remaining(focused)} unit mode={mode} /></dd></div>
               <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.lossGuard")}</dt><dd className="num">{f.pct(-focused.stopLossPct, 0)}</dd></div>
               <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.trail")}</dt><dd className="num">{f.pct(-focused.trailingPct, 0)}</dd></div>
             </dl>
@@ -169,7 +187,8 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
                   </HoldButton>
                   <Button variant="primary" size="lg" onClick={() => setSellOpen(false)}>{t("common.cancelEsc")}</Button>
                 </div>
-                {mode === "real" && <p className="mt-2 text-caption text-text-secondary" data-close-disabled>{codeText(t, "MODE_NOT_ALLOWED")}</p>}
+                {/* Contract: manual close is Paper-only for now (backend answers 403 MODE_NOT_ALLOWED on Real). */}
+                {mode === "real" && <p className="mt-2 text-caption text-text-secondary" data-close-disabled>{t.ux("positions.sell.unavailable")} {t("strategyMode.realSellNote")}</p>}
                 <p className="mt-2 text-caption text-text-tertiary">{t.ux("positions.sell.never_from_notification")}</p>
               </div>
             ) : (
@@ -190,7 +209,7 @@ export function PositionsBoard({ initial, mode }: { initial: OpenPosition[]; mod
 /** One positions row. Memoized: focus/sell-panel changes elsewhere don't re-render every row. */
 const PositionRow = memo(function PositionRow({ r, focused, holdS, onFocus, onSell }: { r: OpenPosition; focused: boolean; holdS: number; onFocus: (k: string) => void; onSell: (k: string) => void }) {
   const t = useT();
-  const f = useFmt();
+  const f = useFmtFor()(r.mode);
   const remaining = 1 - r.soldPct / 100;
   return (
     <tr
@@ -199,13 +218,13 @@ const PositionRow = memo(function PositionRow({ r, focused, holdS, onFocus, onSe
       className={cn("h-[52px] cursor-pointer border-b border-border-subtle last:border-0 hover:bg-bg-raised", focused && "bg-brand-primaryContainer/40")}
     >
       <th scope="row" className="sticky left-0 z-10 bg-bg-surface px-4 text-left font-semibold shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:shadow-none">
-        <Link href={`/coins/${r.mint}`} className="inline-flex min-h-11 items-center gap-2 hover:underline"><CoinAvatar mint={r.mint} logoUrl={r.logoUrl} />{r.symbol}</Link>
+        <Link href={`/coins/${r.mint}`} className="inline-flex min-h-11 items-center gap-2 hover:underline"><CoinAvatar mint={r.mint} logoHash={r.logoHash} symbol={r.symbol} />{r.symbol}</Link>
       </th>
-      <td className="whitespace-nowrap px-4 text-text-secondary">{r.strategyName}</td>
+      <td className="whitespace-nowrap px-4 text-text-secondary"><span className="inline-flex items-center gap-2">{r.strategyName} <ModeBadge mode={r.mode} /></span></td>
       <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.sol(r.solIn * remaining, { unit: false })}</td>
       <td className="num whitespace-nowrap px-4 text-right text-numSm text-text-secondary">{f.usd(r.entryPriceUsd)} → {f.usd(r.nowPriceUsd)}</td>
-      <td className="whitespace-nowrap px-4 text-right"><Pnl sol={r.pnlSol * remaining} /></td>
-      <td className="whitespace-nowrap px-4 text-right"><Pnl pct={r.pnlPct} /></td>
+      <td className="whitespace-nowrap px-4 text-right"><Pnl sol={r.pnlSol * remaining} mode={r.mode} /></td>
+      <td className="whitespace-nowrap px-4 text-right"><Pnl pct={r.pnlPct} mode={r.mode} /></td>
       <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.duration(holdS)}</td>
       <td className="px-4 text-right">
         <Button size="sm" variant="secondary" className="min-h-11 whitespace-nowrap" disabled={!!r.screenerState} onClick={(e) => { e.stopPropagation(); onSell(r.key); }}>

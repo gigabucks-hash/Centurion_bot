@@ -2,22 +2,36 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AlertTriangle, Info, Plus } from "lucide-react";
 import { getApi } from "@/lib/api";
-import { getMode } from "@/lib/mode";
+import { acrossModes, listAllStrategies, modesOf, portfolioMode } from "@/lib/mode";
 import type { Strategy } from "@/lib/types";
 
 import { Badge, Card, PageHeader, Pnl, Sparkline, StatTile, Table } from "@/components/ui";
-import { ApprovalModeBadge, ModeBadge, severityTone, StatusBadge } from "@/components/domain";
+import { ApprovalModeBadge, severityTone, StatusBadge, StrategyModeChips } from "@/components/domain";
+import { PortfolioModeTabs } from "@/components/PortfolioModeTabs";
 import { EquityChart } from "@/components/charts/EquityChart";
 import { OverviewFeed } from "@/components/OverviewFeed";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { CoinAvatar } from "@/components/CoinAvatar";
 
-async function Overview() {
-  const [mode, t] = await Promise.all([getMode(), getT()]);
-  const f = await getFmt(mode);
+/**
+ * Overview. Per-strategy mode (contracts 1.1.6): the strategies table lists every strategy with its own Paper/Real chip;
+ * the activity feed merges both modes (each row badged). Money (cash, PnL, equity) stays per mode on the wire, so the
+ * portfolio tiles show one mode (`?mode=`; Paper unless a Real strategy exists and Real is picked).
+ */
+async function Overview({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const api = getApi();
-  const [o, strategies, events, coins] = await Promise.all([api.getOverview(mode), api.listStrategies(mode), api.listRecentEvents(mode, 30), api.listCoins(mode)]);
+  const [t, all, sp] = await Promise.all([getT(), listAllStrategies(api), searchParams]);
+  const modes = modesOf(all);
+  const mode = portfolioMode(sp.mode, modes);
+  const f = await getFmt(mode);
+  const [o, events, coins] = await Promise.all([
+    api.getOverview(mode),
+    acrossModes(modes, async (m) => (await api.listRecentEvents(m, 30)).map((e) => ({ ...e, mode: e.mode ?? m }))),
+    api.listCoins(mode),
+  ]);
+  events.sort((a, b) => b.ts - a.ts);
+  const strategies = all;
   const names: Record<string, string> = Object.fromEntries(strategies.map((s) => [s.id, s.name]));
   const latestClosed = coins.find((c) => c.status === "closed");
   const trail = latestClosed ? await api.getCoinTrail(latestClosed.mint) : null;
@@ -28,12 +42,12 @@ async function Overview() {
       <PageHeader
         title={t("overview.title")}
         subtitle={t("overview.subtitle", { workspace: t(mode === "practice" ? "mode.practiceShort" : "mode.realShort"), start: f.sol(o.startingCashSol) })}
-        actions={<ModeBadge mode={mode} />}
+        actions={<PortfolioModeTabs mode={mode} modes={modes} href={(m) => (m === "practice" ? "/" : "/?mode=real")} t={t} />}
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label={t("overview.cash")} value={f.sol(o.cashSol)} hint={t("overview.inPositions", { amount_lamports: f.amount(o.inPositionsSol) })} />
-        <StatTile label={t("overview.realized")} value={<Pnl sol={o.realizedPnlSol} unit />} hint={t("overview.vsStart", { pct: f.pct(realizedPct) })} />
+        <StatTile label={t("overview.realized")} value={<Pnl mode={mode} sol={o.realizedPnlSol} unit />} hint={t("overview.vsStart", { pct: f.pct(realizedPct) })} />
         <StatTile label={t("overview.openPositions")} value={`${o.openPositions} / ${o.openPositionsCap}`} hint={t("overview.openHint", { amount_lamports: f.amount(o.inPositionsSol), unreal: f.sol(o.unrealizedPnlSol, { sign: true }) })} />
         <Link href="/approvals" className="rounded-lg focus-visible:outline-2">
           <StatTile
@@ -59,14 +73,15 @@ async function Overview() {
             <Table<Strategy>
               rows={strategies.filter((s) => s.status !== "archived")}
               rowKey={(s) => s.id}
-              minWidth={720}
+              minWidth={820}
               mobile="cards"
               labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
               columns={[
                 { key: "name", header: t("overview.colName"), cell: (s) => <Link href={`/strategies/${s.id}/edit`} className="tap font-medium text-text-primary hover:underline">{s.name}</Link> },
+                { key: "mode", header: t.ux("strategy.mode.label"), mobile: "status", nowrap: true, cell: (s) => <StrategyModeChips mode={s.mode} realLocked={s.realLocked} realLockedReason={s.realLockedReason} short /> },
                 { key: "status", header: t("overview.colStatus"), mobile: "status", nowrap: true, cell: (s) => <StatusBadge status={s.status} /> },
                 { key: "ap", header: t("overview.colApproval"), mobile: "status", nowrap: true, cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
-                { key: "pnl", header: t("overview.colPnl"), numeric: true, mobile: "primary", cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} />) },
+                { key: "pnl", header: t("overview.colPnl"), numeric: true, mobile: "primary", cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} mode={s.mode} />) },
                 { key: "wr", header: t("overview.colWin"), numeric: true, cell: (s) => (s.trades ? f.pct((s.wins / s.trades) * 100, 0, false) : "—") },
                 { key: "dd", header: t("overview.colDd"), numeric: true, cell: (s) => (s.trades ? f.pct(-s.maxDrawdownPct) : "—") },
                 { key: "hold", header: t("overview.colHold"), numeric: true, cell: (s) => (s.trades ? f.duration(s.avgHoldSeconds) : "—") },
@@ -78,8 +93,8 @@ async function Overview() {
 
           {trail && (
             <Card
-              title={<span className="inline-flex items-center gap-2"><CoinAvatar mint={trail.coin.mint} logoUrl={trail.coin.logoUrl} size="md" />{t("overview.coinTrail", { symbol: trail.coin.untrusted.symbol, strategy: trail.strategyName })}</span>}
-              action={trail.positions[0] && <Link href={`/coins/${trail.coin.mint}`} className="tap text-caption"><Pnl sol={trail.positions[0].pnlSol} unit /> · {t("common.details")}</Link>}
+              title={<span className="inline-flex items-center gap-2"><CoinAvatar mint={trail.coin.mint} logoHash={trail.coin.logoHash} symbol={trail.coin.untrusted.symbol} size="md" />{t("overview.coinTrail", { symbol: trail.coin.untrusted.symbol, strategy: trail.strategyName })}</span>}
+              action={trail.positions[0] && <Link href={`/coins/${trail.coin.mint}`} className="tap text-caption"><Pnl mode={trail.mode} sol={trail.positions[0].pnlSol} unit /> · {t("common.details")}</Link>}
             >
               <CoinTrailSteps trail={trail} />
               <p className="mt-3 rounded-md bg-bg-sunken p-3 text-caption text-text-secondary">
@@ -124,10 +139,10 @@ async function Overview() {
   );
 }
 
-export default function OverviewPage() {
+export default function OverviewPage({ searchParams }: PageProps<"/">) {
   return (
     <Suspense fallback={<div className="h-96 animate-pulse rounded-lg bg-bg-surface" />}>
-      <Overview />
+      <Overview searchParams={searchParams} />
     </Suspense>
   );
 }

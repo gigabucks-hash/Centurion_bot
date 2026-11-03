@@ -257,6 +257,23 @@ pub async fn set_strategy_paused<R: Runtime>(app: AppHandle<R>, state: State<'_,
     }
 }
 
+/// Per-strategy mode (contracts 1.1.6). Paper = wire `practice`. Real is never reached from this build
+/// (see `strategy_mode`): a locked strategy → `MODE_NOT_ALLOWED` without any request. `hold_ms` = how long the
+/// user held the control (Real needs 2.5 s).
+#[tauri::command(rename_all = "snake_case")]
+pub async fn set_strategy_mode(state: State<'_, AppState>, id: String, mode: String, hold_ms: u32) -> AppResult<StrategyView> {
+    let to = match mode.as_str() {
+        "practice" => crate::model::Mode::Practice,
+        "real" => crate::model::Mode::Real,
+        _ => return Err(AppError::Invalid("mode".into())),
+    };
+    let view = state.engine.lock().unwrap().strategies_vec().into_iter().find(|s| s.id == id);
+    match crate::strategy_mode::decide(view.as_ref(), to, hold_ms) {
+        Ok(crate::strategy_mode::Decision::NoChange) => view.ok_or(AppError::Invalid("strategy".into())),
+        Err((code, detail)) => Err(AppError::Api(format!("{code}: {detail}"))),
+    }
+}
+
 /// `POST /workspaces/{ws}/practice/reset` with `If-Match` workspace rev. The UI asks for an
 /// explicit confirmation first; the result arrives as `practice.reset` on the stream.
 #[tauri::command(rename_all = "snake_case")]
@@ -378,6 +395,19 @@ pub async fn auth_login<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState
         return Ok(()); // one login at a time
     }
     let page = std::env::var("CENTURION_LOGIN_URL").unwrap_or_else(|_| "https://app.centuriontrade.local/auth/desktop".into());
+    if crate::deeplink::handoff_enabled() {
+        // API 4.1.1 deep-link hand-off: state + PKCE (S256) made here; the browser returns only a one-time code.
+        let pending = app.state::<crate::deeplink::PendingLogins>();
+        let (st, challenge) = pending.start().map_err(AppError::Invalid)?;
+        let url = crate::auth::handoff_url(&page, &st, &challenge).map_err(AppError::Invalid)?;
+        if let Err(e) = crate::auth::open_system_browser(&url) {
+            pending.cancel();
+            return Err(AppError::Invalid(e));
+        }
+        sm.set_state(crate::auth::AuthState::WaitingForBrowser);
+        let _ = app.emit(AUTH_STATE, sm.state());
+        return Ok(());
+    }
     let lb = crate::auth::Loopback::bind().await.map_err(AppError::Invalid)?;
     let url = crate::auth::login_url(&page, &lb.redirect_uri(), lb.state()).map_err(AppError::Invalid)?;
     crate::auth::open_system_browser(&url).map_err(AppError::Invalid)?;
@@ -396,6 +426,25 @@ pub async fn auth_login<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState
         let _ = app.emit(AUTH_STATE, st);
     });
     Ok(())
+}
+
+/// A `centurion://auth?code=&state=` URL from the OS (second-launch argv). Strict local checks (scheme, host,
+/// path, exactly code+state, state match, 43-char code, single use, TTL), then ONE exchange; a refused code is
+/// never retried (state `sign_in_again`). Anything else is logged and dropped (no state change).
+pub fn handle_deep_link<R: Runtime>(app: &AppHandle<R>, url: &str) {
+    use tauri::{Emitter, Manager};
+    let st = app.state::<AppState>();
+    let Some(sm) = st.transport.session().cloned() else { return log::warn!("deep link ignored: not a SIWS build") };
+    let accepted = app.state::<crate::deeplink::PendingLogins>().accept(url);
+    let code = match accepted {
+        Ok(c) => c,
+        Err(why) => return log::warn!("deep link refused: {why}"), // never log the URL (it carries the code)
+    };
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let st = sm.complete_exchange(&code).await;
+        let _ = app.emit(AUTH_STATE, st);
+    });
 }
 
 /// Revoke the refresh token on the server (best effort) and clear the keychain entry.

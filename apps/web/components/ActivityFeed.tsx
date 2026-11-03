@@ -32,7 +32,8 @@ function groupByDay(events: TradeEvent[]) {
   return out;
 }
 
-export function ActivityFeed({ initial, strategyNames, mode, hasMore: initialHasMore }: { initial: TradeEvent[]; strategyNames: Record<string, string>; mode: "practice" | "real"; hasMore: boolean }) {
+/** Per-strategy mode (contracts 1.1.6): the feed merges every mode that has strategies; rows carry their own mode chip. */
+export function ActivityFeed({ initial, strategyNames, modes, hasMore: initialHasMore }: { initial: TradeEvent[]; strategyNames: Record<string, string>; modes: ("practice" | "real")[]; hasMore: boolean }) {
   const t = useT();
   const f = useFmt();
   const [older, setOlder] = useState<TradeEvent[]>([]);
@@ -54,14 +55,20 @@ export function ActivityFeed({ initial, strategyNames, mode, hasMore: initialHas
 
   async function loadMore() {
     const base = [...initial, ...older];
-    const cursor = minSeq(base.map((e) => e.seq));
     setLoading(true);
     setLoadErr(null);
     try {
-      const { raw } = await request<unknown>(`/events?mode=${mode}&limit=${PAGE}${cursor != null ? `&before_seq=${encodeURIComponent(cursor)}` : ""}`);
-      const page = raw as unknown as EventPage;
-      setOlder((o) => [...o, ...(page.items as AnyEvent[]).map(envelopeToTradeEvent).filter((e): e is TradeEvent => e != null)]);
-      setHasMore(page.has_more);
+      // `?mode=` stays per request (wire contract); one keyset page per mode, merged.
+      const pages = await Promise.all(
+        modes.map(async (m) => {
+          const cursor = minSeq(base.filter((e) => (e.mode ?? "practice") === m).map((e) => e.seq));
+          const { raw } = await request<unknown>(`/events?mode=${m}&limit=${PAGE}${cursor != null ? `&before_seq=${encodeURIComponent(cursor)}` : ""}`);
+          const page = raw as unknown as EventPage;
+          return { has: page.has_more, items: (page.items as AnyEvent[]).map(envelopeToTradeEvent).filter((e): e is TradeEvent => e != null).map((e) => ({ ...e, mode: e.mode ?? m })) };
+        }),
+      );
+      setOlder((o) => [...o, ...pages.flatMap((p) => p.items)]);
+      setHasMore(pages.some((p) => p.has));
     } catch (e) {
       setLoadErr(errorText(t, e));
     } finally {

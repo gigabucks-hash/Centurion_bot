@@ -20,6 +20,9 @@ use std::str::FromStr;
 
 pub const EVENT_SCHEMA_VERSION: u32 = 1;
 /// Contracts release this mirror was verified against (contract test checks major.minor).
+/// Mirrors `CONTRACTS_VERSION` in the committed `packages/contracts/src/wire/events.ts`. Pinned package is
+/// 1.1.6 (4e0d7f3, `contracts.pin.json`), but Backend left the TS constant at "1.1.5" (reported gap);
+/// the backend `/healthz` says "1.1.6". The health check accepts any 1.1.x.
 pub const CONTRACTS_VERSION: &str = "1.1.5";
 /// JSON number on the wire (pcts, ratios, bps, USD notionals, scores). Display/threshold only.
 pub type Num = f64;
@@ -454,10 +457,14 @@ pub struct EventEnvelope {
     pub untrusted: Untrusted,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub server_now: Option<IsoTs>,
-    /// 1.1.6 (Backend working tree, not committed yet): our image-proxy URL for `mint`. Validated in
-    /// `logo::hash_from_url` before use; never loaded as given.
+    /// 1.1.6 (f1b7910): our image-proxy URL for `mint`. Validated in `logo::hash_from_url` before use;
+    /// never loaded as given.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logo_url: Option<String>,
+    /// 1.1.6 (c99b114): the logo hash next to `logo_url`. Accepted when present (must equal `v` of a valid
+    /// `logo_url`); otherwise the hash is read from `v` (older servers).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logo_hash: Option<String>,
 }
 
 // ---------------------------------------------------------------- payloads
@@ -1090,9 +1097,13 @@ pub struct ApprovalDecisionResponse {
 #[allow(dead_code)] // typed body for the Phase-2 HttpTransport; asserted by the contract test
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ApprovalWire {
-    /// 1.1.6 (pending): proxy URL of the mint logo (validated before use).
+    /// 1.1.6 (f1b7910): proxy URL of the mint logo (validated before use).
     #[serde(default)]
     pub logo_url: Option<String>,
+    /// 1.1.6 (c99b114): logo hash of `mint` (required, nullable). Used when it agrees with `v` of `logo_url`;
+    /// `v` stays the fallback for servers that do not send it yet.
+    #[serde(default)]
+    pub logo_hash: Option<String>,
     /// 1.1.5: mint decimals / token program (null on guard_change) and the position a sell refers to.
     #[serde(default)]
     pub decimals: Option<u8>,
@@ -1177,6 +1188,36 @@ pub struct StrategySummary {
     #[serde(default)]
     pub mode: Option<Mode>,
     pub settings: serde_json::Value,
+    /// 1.1.6 (0a2d1b2) per-strategy Real gate (`StrategyRealGateFields`). Absent (older server) → treated as
+    /// locked (fail safe), never as unlocked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub real_locked: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub real_locked_reason: Option<RealLockedReason>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paper_progress: Option<PaperProgress>,
+}
+
+/// contracts 1.1.6 `RealLockedReason` (closed set; an unknown value from a newer server → `Other`).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RealLockedReason {
+    NeedsOwnerApproval,
+    GateNotMet,
+    Policy,
+    #[serde(other)]
+    Other,
+}
+#[cfg_attr(not(test), allow(dead_code))]
+pub const REAL_LOCKED_REASONS: [RealLockedReason; 4] = [RealLockedReason::NeedsOwnerApproval, RealLockedReason::GateNotMet, RealLockedReason::Policy, RealLockedReason::Other];
+
+/// contracts 1.1.6 `PaperProgress`: `*_required` null = the owner has not set that rule yet ("not set").
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct PaperProgress {
+    pub days_done: u32,
+    pub days_required: Option<u32>,
+    pub trades_done: u32,
+    pub trades_required: Option<u32>,
 }
 
 /// `GET /workspaces/{ws}` (subset).
@@ -1267,10 +1308,10 @@ pub fn pct_to_bps(pct: u8) -> Option<u16> {
 /// Position as returned by a close (new `rev`).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PositionWire {
-    /// 1.1.6 (pending): proxy URL of the mint logo (validated before use).
+    /// 1.1.6 (f1b7910): proxy URL of the mint logo (validated before use).
     #[serde(default)]
     pub logo_url: Option<String>,
-    /// 1.1.6 (pending): `v` of the logo URL; null → identicon.
+    /// 1.1.6 (f1b7910): `v` of the logo URL; null → identicon.
     #[serde(default)]
     pub logo_hash: Option<String>,
     pub id: String,

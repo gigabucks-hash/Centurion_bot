@@ -12,7 +12,7 @@ import { applyProposalUpdated } from "@/lib/contracts";
 import type { ProposalUpdated } from "@centurion/contracts/wire";
 import { ApiError, errorPresentation, errorText, toastKind } from "@/lib/errors";
 import { fmtCountdown } from "@/lib/format";
-import { useT, useFmt } from "@/lib/i18n/client";
+import { useT, useFmtFor } from "@/lib/i18n/client";
 import { settingLabel } from "@/lib/strategy-schema";
 import { Badge, Button, Card, EmptyState, RiskBadge, cn } from "@/components/ui";
 import { Countdown, Dialog, HoldButton, Segmented, useNow, useToast } from "@/components/ui/client";
@@ -41,10 +41,11 @@ const SKIP_REASONS: SkipReason[] = ["thin_liquidity", "already_pumped", "dev_sus
  * - Team actions on Real: mock passkey + hold 2.5 s.
  * Keyboard (QA-12): J/K move · A approve · S skip · X select · ⇧A approve selected · Space details · ↵ chart · Esc clear.
  */
-export function ApprovalQueue({ initial, mode, initialFocus = null }: { initial: Approval[]; mode: TradingMode; initialFocus?: string | null }) {
+export function ApprovalQueue({ initial, modes, initialFocus = null }: { initial: Approval[]; modes: TradingMode[]; initialFocus?: string | null }) {
   const toast = useToast();
   const t = useT();
-  const f = useFmt();
+  const fmtFor = useFmtFor();
+  const f = fmtFor("real"); // batch total is only shown for Real picks
   const now = useNow(1000);
   const [items, setItems] = useState(initial);
   const [tab, setTab] = useState<Tab>("pending");
@@ -59,7 +60,8 @@ export function ApprovalQueue({ initial, mode, initialFocus = null }: { initial:
   /** Review step (WF-22) for a single buy pick: id only, so the sheet always renders the latest item/rev. */
   const [reviewId, setReviewId] = useState<string | null>(null);
   const router = useRouter();
-  const real = mode === "real";
+  // Per-strategy mode (contracts 1.1.6): one merged queue, every item carries its own mode; Real rules apply per item.
+  const modesKey = modes.join(",");
 
   /** Rejects are sent after the 5 s Undo window (the contract has no undo). */
   const [skipping, setSkipping] = useState<Map<string, SkipReason | undefined>>(new Map());
@@ -69,11 +71,12 @@ export function ApprovalQueue({ initial, mode, initialFocus = null }: { initial:
 
   const refresh = useCallback(async () => {
     try {
-      setItems(await fetchApprovals(mode));
+      const lists = await Promise.all((modesKey.split(",") as TradingMode[]).map((m) => fetchApprovals(m)));
+      setItems(lists.flat().sort((a, b) => b.createdAt - a.createdAt));
     } catch {
       /* keep last state */
     }
-  }, [mode]);
+  }, [modesKey]);
   useEffect(() => {
     const id = setInterval(refresh, 4000);
     return () => clearInterval(id);
@@ -113,7 +116,10 @@ export function ApprovalQueue({ initial, mode, initialFocus = null }: { initial:
   const cooldowns = view.filter((a) => a.kind === "guard_change" && a.status === "approved" && a.cooldownEndsAt);
   const ntPending = list.filter((a) => a.kind === "buy_pick" && a.status === "pending" && isNotTradeable(a)).length;
   const selPicks = list.filter((a) => selected.has(a.id) && a.kind === "buy_pick" && a.status === "pending" && !isNotTradeable(a));
-  const selTotal = selPicks.reduce((s, a) => s + (a.amountSol ?? 0), 0);
+  /** Selection contains Real picks → Real treatment for the batch bar (total = Real picks only). */
+  const real = selPicks.some((a) => a.mode === "real");
+  const selTotal = selPicks.filter((a) => a.mode === "real").reduce((s, a) => s + (a.amountSol ?? 0), 0);
+  const anyReal = items.some((a) => a.mode === "real" && a.status === "pending");
 
   const decide = useCallback(
     async (a: Approval, d: DecideOptions): Promise<Approval | null> => {
@@ -217,13 +223,17 @@ export function ApprovalQueue({ initial, mode, initialFocus = null }: { initial:
 
   const batchApprove = useCallback(() => {
     if (selPicks.length === 0) return;
-    if (real) return setRealPick(selPicks);
-    Promise.all(selPicks.map((a) => decideApprovalClient(a, { decision: "approve" }).catch(() => null))).then(() => {
-      toast({ kind: "success", text: t("approvals.approvedMany", { n: selPicks.length }) });
-      setSelected(new Set());
+    // Real picks are never batch-approved silently: they go through the Real dialog (total + 2.5 s hold).
+    const realOnes = selPicks.filter((a) => a.mode === "real");
+    const paperOnes = selPicks.filter((a) => a.mode !== "real");
+    if (realOnes.length) setRealPick(realOnes);
+    if (paperOnes.length === 0) return;
+    Promise.all(paperOnes.map((a) => decideApprovalClient(a, { decision: "approve" }).catch(() => null))).then(() => {
+      toast({ kind: "success", text: t("approvals.approvedMany", { n: paperOnes.length }) });
+      setSelected((cur) => new Set([...cur].filter((id) => realOnes.some((r) => r.id === id))));
       refresh();
     });
-  }, [selPicks, real, toast, refresh, t]);
+  }, [selPicks, toast, refresh, t]);
 
   // Keyboard shortcuts
   const dialogOpen = !!(skipFor || realPick || guardFor || teamFor || quickLook || reviewId);
@@ -327,7 +337,7 @@ export function ApprovalQueue({ initial, mode, initialFocus = null }: { initial:
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
         <div className="flex min-w-0 flex-col gap-2">
           {tab === "pending" && list.some((a) => a.kind === "buy_pick") && (
-            <p className="text-caption text-text-tertiary lg:hidden">{t(real ? "approvals.swipeDisabledReal" : "approvals.swipeHint")}</p>
+            <p className="text-caption text-text-tertiary lg:hidden">{t(anyReal ? "approvals.swipeDisabledReal" : "approvals.swipeHint")}</p>
           )}
           {list.length === 0 && <EmptyState title={tab === "pending" ? t("approvals.emptyPending") : t("approvals.empty")} detail={tab === "pending" ? t("approvals.emptyPendingDetail") : undefined} />}
           {list.map((a) => (
@@ -449,7 +459,7 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
   a: Approval; focused: boolean; selected: boolean; onFocus: () => void; onToggle: () => void; onApprove: () => void; onSkip: () => void; busy: boolean;
 }) {
   const t = useT();
-  const f = useFmt();
+  const f = useFmtFor()(a.mode);
   const blockedCoin = isNotTradeable(a);
   const pending = a.status === "pending";
   const actionable = pending && !blockedCoin;
@@ -478,10 +488,10 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
       )}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          {isPick && a.mint && <CoinAvatar mint={a.mint} logoUrl={a.logoUrl} />}
+          {isPick && a.mint && <CoinAvatar mint={a.mint} logoHash={a.logoHash} symbol={a.symbol} />}
           <span className="text-titleSm">{isPick ? `$${a.symbol}` : a.title}</span>
           <Badge tone={a.kind === "guard_change" ? "warning" : a.kind === "team_action" ? "loss" : "brand"}>{isPick && a.pick ? t(PICK_KEY[a.pick.pickKind]) : t(KIND_KEY[a.kind])}</Badge>
-          {a.mode === "real" && <ModeBadge mode="real" />}
+          <ModeBadge mode={a.mode} />
           {blockedCoin && <NotTradeableChip label={t("screener.notTradeable")} />}
           {!pending && <ApprovalStatusBadge status={a.status} />}
         </div>
@@ -521,10 +531,10 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
 
 function DetailPane({ a, onApprove, onSkip }: { a: Approval; onApprove: () => void; onSkip: () => void }) {
   const t = useT();
-  const f = useFmt();
+  const f = useFmtFor()(a.mode);
   const p = a.pick;
   return (
-    <Card title={a.kind === "buy_pick" ? <span className="inline-flex items-center gap-2">{a.mint && <CoinAvatar mint={a.mint} logoUrl={a.logoUrl} size="md" />}{`$${a.symbol} · ${t(p ? PICK_KEY[p.pickKind] : "approvals.kindPick")}`}</span> : a.title} subtitle={t("approvals.requested", { strategy: a.strategyName ?? "", time: f.time(a.createdAt) })} action={<ModeBadge mode={a.mode} />}>
+    <Card title={a.kind === "buy_pick" ? <span className="inline-flex items-center gap-2">{a.mint && <CoinAvatar mint={a.mint} logoHash={a.logoHash} symbol={a.symbol} size="md" />}{`$${a.symbol} · ${t(p ? PICK_KEY[p.pickKind] : "approvals.kindPick")}`}</span> : a.title} subtitle={t("approvals.requested", { strategy: a.strategyName ?? "", time: f.time(a.createdAt) })} action={<ModeBadge mode={a.mode} />}>
       {p?.pickKind === "first_buy" && <p className="mb-2 rounded-md bg-semantic-warningContainer px-3 py-2 text-caption text-text-primary">{t("approvals.firstBuyNote")}</p>}
       <p className="text-body text-text-secondary">{a.detail}</p>
       {p && (
@@ -607,7 +617,7 @@ function SkipDialog({ a, onClose, onSkip }: { a: Approval | null; onClose: () =>
 
 function RealPickDialog({ picks, onClose, onConfirm, busy }: { picks: Approval[]; onClose: () => void; onConfirm: (holdMs: number) => void; busy: boolean }) {
   const t = useT();
-  const f = useFmt();
+  const f = useFmtFor()("real");
   const cancelRef = useRef<HTMLButtonElement>(null);
   const total = picks.reduce((s, a) => s + (a.amountSol ?? 0), 0);
   return (

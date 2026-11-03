@@ -5,8 +5,8 @@ import { shortMint } from "../components/format";
 
 /**
  * Wallet-only login (SIWS) through the **system browser**. This view never touches a wallet or a key:
- * "Connect" asks Rust to open the browser; Rust receives the signed message on a loopback callback,
- * verifies it with the API and keeps the tokens in the OS keychain. Mock / dev-token builds pass through.
+ * "Connect" asks Rust to open the browser; Rust gets either a one-time code on `centurion://auth` (PKCE
+ * hand-off, API 4.1.1) or the signed message on a loopback callback, and keeps the tokens in the OS keychain. Mock / dev-token builds pass through.
  */
 export function AuthGate({ children }: { children: ReactNode }) {
   const t = useT();
@@ -42,6 +42,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     const note =
       a.state === "waiting_for_browser" ? t("desktop.auth.waiting")
       : a.state === "failed" ? (a.code === "user_rejected" ? t("login.wallet.rejected") : errorEntry(a.code) ? errorMessage(a.code, lang) : t("desktop.auth.failed", { code: a.code }))
+      : a.state === "sign_in_again" ? t("desktop.auth.sign_in_again")
       : a.state === "signed_out" && a.reason && a.reason !== "signed_out" ? (a.reason === "user_rejected" ? t("login.wallet.rejected") : t("desktop.auth.session_ended", { reason: a.reason }))
       : null;
     body = (

@@ -224,7 +224,7 @@ impl Engine {
     /// Replace/merge strategies from `GET /strategies` or a 409 `current` body (higher rev wins).
     pub fn set_strategies(&mut self, list: &[StrategySummary]) -> Out {
         for s in list {
-            let v = StrategyView { id: s.id.clone(), name: crate::model::plain_text(&s.name, 40), rev: s.rev, status: s.status.clone().unwrap_or_else(|| "active".into()), exits: crate::model::ExitTimers::from_settings(&s.settings) };
+            let v = StrategyView::from_summary(s);
             match self.strategies.get(&s.id) {
                 Some(old) if old.rev > s.rev => {}
                 _ => {
@@ -380,8 +380,9 @@ impl Engine {
             self.sync.duplicates += 1;
             return vec![];
         }
-        if let (Some(m), Some(u)) = (env.mint.as_deref(), env.logo_url.as_deref()) {
-            self.note_logo(m, None, Some(u));
+        if let Some(m) = env.mint.as_deref().filter(|_| env.logo_url.is_some() || env.logo_hash.is_some()) {
+            // logo_hash when Backend sends it (must agree with `v`), else `v` of logo_url.
+            self.note_logo(m, env.logo_hash.as_deref(), env.logo_url.as_deref());
         }
         // v1.0 → v1.1 renames (keys.rs) so a lagging producer still decodes; no-op on v1.1 input.
         let mut norm = env.clone();
@@ -817,7 +818,9 @@ impl Engine {
                 }
                 let kind = keys::code_kind(&code);
                 i18n = Some(I18nMsg::new(&crate::errmap::order_fail_key(&code)).text("code", code.clone()));
-                act(if kind == keys::CodeKind::Error { Tone::Bad } else { Tone::Neutral }, format!("Order {} gagal: {code}", if f.side == FillSide::Buy { "buy" } else { "sell" }))
+                // 1.1.6: MODE_NOT_ALLOWED = "strategy not approved for Real; it keeps running in Paper" → a notice.
+                let notice = kind != keys::CodeKind::Error || code == "MODE_NOT_ALLOWED";
+                act(if notice { Tone::Neutral } else { Tone::Bad }, format!("Order {} gagal: {code}", if f.side == FillSide::Buy { "buy" } else { "sell" }))
             }
             KnownEvent::OrderSubmitted(o) | KnownEvent::OrderFilled(o) => {
                 // 1.1.2: the close order moved the position rev → next close If-Match uses it.
@@ -1021,6 +1024,7 @@ mod tests {
             untrusted: Untrusted { symbol: Some("EXM".into()), ..Default::default() },
             server_now: Some(IsoTs::from_ms(now_ms() as i64 + 2_000)),
             logo_url: None,
+            logo_hash: None,
         }
     }
 
@@ -1051,6 +1055,23 @@ mod tests {
         // position REST resource: hash must agree with its url
         e.note_logo(MINT, Some("cafebabe03"), Some(&format!("http://127.0.0.1:8787/v1/img/coin/{MINT}?s=96&v=other0004")));
         assert_eq!(e.logo_of(MINT).as_deref(), Some("deadbeef02"), "mismatching hash/url pair rejected");
+        // Backend in progress: envelope logo_hash. Used when it agrees with `v`; alone it is accepted (no url to check).
+        let mut both = mk(4, "p4", Some(format!("http://127.0.0.1:8787/v1/img/coin/{MINT}?s=96&v=beefcafe05")));
+        both.logo_hash = Some("beefcafe05".into());
+        e.apply_event(&both);
+        assert_eq!(e.logo_of(MINT).as_deref(), Some("beefcafe05"));
+        let mut liar = mk(5, "p5", Some(format!("http://127.0.0.1:8787/v1/img/coin/{MINT}?s=96&v=beefcafe05")));
+        liar.logo_hash = Some("f00df00d06".into());
+        e.apply_event(&liar);
+        assert_eq!(e.logo_of(MINT).as_deref(), Some("beefcafe05"), "hash that disagrees with v is ignored");
+        let mut only = mk(6, "p6", None);
+        only.logo_hash = Some("abcdef0707".into());
+        e.apply_event(&only);
+        assert_eq!(e.logo_of(MINT).as_deref(), Some("abcdef0707"));
+        let mut bad = mk(7, "p7", None);
+        bad.logo_hash = Some("../../etc".into());
+        e.apply_event(&bad);
+        assert_eq!(e.logo_of(MINT).as_deref(), Some("abcdef0707"), "invalid hash ignored");
         let mut off = Engine::new(WS); // no origin configured → never any logo
         off.apply_event(&mk(3, "p3", Some(format!("http://127.0.0.1:8787/v1/img/coin/{MINT}?s=96&v=deadbeef02"))));
         assert_eq!(off.signals[0].logo_hash, None);
@@ -1124,7 +1145,7 @@ mod tests {
     #[test]
     fn strategy_events_track_rev_and_legacy_names_are_normalised() {
         let mut e = Engine::new(WS);
-        e.set_strategies(&[StrategySummary { id: "s1".into(), name: "Yumi · AMM".into(), rev: 7, status: Some("active".into()), mode: Some(Mode::Practice), settings: json!({}) }]);
+        e.set_strategies(&[StrategySummary { id: "s1".into(), name: "Yumi · AMM".into(), rev: 7, status: Some("active".into()), mode: Some(Mode::Practice), settings: json!({}), real_locked: None, real_locked_reason: None, paper_progress: None }]);
         e.apply_event(&env(30, "strategy.paused", json!({"rev": 8, "base_rev": 7, "status": "paused", "changed_fields": ["status"]})));
         assert_eq!(e.strategy_rev("s1"), Some(8));
         assert_eq!(e.strategies_vec()[0].status, "paused");
@@ -1204,6 +1225,18 @@ mod tests {
         e.apply_event(&env(46, "proposal.updated", json!({"proposal_id": "p1", "kind": "buy_pick", "rev": 5, "swap_fee_bps": 125})));
         assert_eq!(e.activity.len(), n);
         assert!(e.signals.iter().any(|s| s.id == "p1" && s.version == 5));
+    }
+
+    #[test]
+    fn mode_not_allowed_order_failure_is_a_notice_with_the_1_1_6_copy() {
+        let mut e = Engine::new(WS);
+        e.apply_event(&env(40, "order.failed", json!({"order_id": "o9", "proposal_id": null, "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", "side": "buy",
+            "amount_lamports": "250000000", "reason_code": "MODE_NOT_ALLOWED", "detail": {}, "mode": "practice", "server_now": "2026-11-03T10:00:00.000Z"})));
+        let a = e.activity.front().unwrap().clone();
+        assert_eq!(a.tone, Tone::Neutral, "not a red error: the strategy keeps running in Paper");
+        assert_eq!(a.i18n.as_ref().unwrap().key, "order.fail_reason.mode_not_allowed");
+        let en: serde_json::Value = serde_json::from_str(include_str!("../../../../packages/i18n/en.json")).unwrap();
+        assert!(en["order"]["fail_reason"]["mode_not_allowed"].as_str().unwrap().contains("approved for Real"));
     }
 
     #[test]

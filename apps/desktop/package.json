@@ -13,7 +13,8 @@
     "csp:logo": "node scripts/csp-logo-origin.mjs",
     "tauri:dev:backend": "node scripts/csp-logo-origin.mjs && tauri dev --config src-tauri/tauri.logo-csp.json",
     "tauri:build:backend": "node scripts/csp-logo-origin.mjs && tauri build --config src-tauri/tauri.logo-csp.json",
-    "test:ui": "node --test scripts/ui-format.test.mjs scripts/hold-reset.test.mjs scripts/coin-avatar.test.mjs"
+    "test:ui": "node --test scripts/ui-format.test.mjs scripts/hold-reset.test.mjs scripts/coin-avatar.test.mjs scripts/strategy-gate.test.mjs",
+    "typecheck:pinned": "scripts/tsc-pinned.sh"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.0",

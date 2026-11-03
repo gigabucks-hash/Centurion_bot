@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getApi } from "@/lib/api";
-import { getMode } from "@/lib/mode";
+import { acrossModes, listAllStrategies, modesOf } from "@/lib/mode";
+import { ModeBadge } from "@/components/domain";
 import type { CoinSummary } from "@/lib/types";
 import { shortMint } from "@/lib/format";
 import { getT, getFmt } from "@/lib/i18n/server";
@@ -19,16 +20,21 @@ export const metadata: Metadata = { title: "Coins" };
 const statusTone: Record<CoinSummary["status"], Tone> = { open: "profit", closed: "info", watching: "brand", rejected: "neutral" };
 
 async function List({ searchParams }: { searchParams: PageProps<"/coins">["searchParams"] }) {
-  const [sp, mode, t] = await Promise.all([searchParams, getMode(), getT()]);
-  const f = await getFmt(mode);
+  const api = getApi();
+  const [sp, all, t] = await Promise.all([searchParams, listAllStrategies(api), getT()]);
+  // Per-strategy mode: the screener lists coins of every strategy; each row shows its strategy's mode.
+  const modes = modesOf(all);
+  const mode = modes.length > 1 ? null : "practice";
+  const f = await getFmt("practice");
   const q = (typeof sp.q === "string" ? sp.q : "").trim().toLowerCase();
   const status = typeof sp.status === "string" ? sp.status : "all";
   const only = status === "not_tradeable";
   // 1.1.4 cursor paging: unfiltered → first keyset page + client load-more; filters run locally → whole list
   // (proposed to Backend: server-side ?q=&status= so filtered views can page too).
   const filtered = !!q || status !== "all";
-  const first = filtered ? null : await getApi().listCoinsPage(mode, { limit: 100 });
-  const coins = (first ? first.items : await getApi().listCoins(mode))
+  // Keyset paging is per mode on the wire: page only when a single mode is listed; otherwise merge full lists.
+  const first = filtered || !mode ? null : await api.listCoinsPage(mode, { limit: 100 });
+  const coins = (first ? first.items : await acrossModes(modes, (m) => api.listCoins(m)))
     .filter((c) => !q || c.symbol.toLowerCase().includes(q) || c.mint.toLowerCase().startsWith(q) || c.strategyName.toLowerCase().includes(q))
     .filter((c) => (only ? c.screenerState === "UNSUPPORTED_QUOTE_MINT" : status === "passed" ? c.status !== "rejected" : status === "rejected" ? c.status === "rejected" : true));
   const nt = (c: CoinSummary) => c.screenerState === "UNSUPPORTED_QUOTE_MINT";
@@ -46,18 +52,18 @@ async function List({ searchParams }: { searchParams: PageProps<"/coins">["searc
         ))}
         <Link href="/coins?status=not_tradeable" aria-current={only ? "page" : undefined} className={chip(only)}>{t("notTradeable.filter")}</Link>
       </nav>
-      {coins.length > VIRTUAL_COINS || first?.nextCursor ? <CoinsVirtualList coins={coins} nextCursor={first?.nextCursor ?? null} mode={mode} /> : <Table<CoinSummary>
+      {coins.length > VIRTUAL_COINS || first?.nextCursor ? <CoinsVirtualList coins={coins} nextCursor={first?.nextCursor ?? null} mode={mode ?? "practice"} /> : <Table<CoinSummary>
         rows={coins}
         rowKey={(c) => `${c.mint}-${c.strategyId}`}
         empty={<EmptyState title={q ? t("coins.empty") : t("screener.empty")} detail={q ? t("coins.emptyDetail") : undefined} />}
         mobile="cards"
         labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
         columns={[
-          { key: "sym", header: t("screener.colCoin"), cell: (c) => <Link href={`/coins/${c.mint}`} className={cn("tap gap-2 font-semibold hover:underline", nt(c) ? "text-text-tertiary" : "text-brand-primary")}><CoinAvatar mint={c.mint} logoUrl={c.logoUrl} />${c.symbol}</Link> },
+          { key: "sym", header: t("screener.colCoin"), cell: (c) => <Link href={`/coins/${c.mint}`} className={cn("tap gap-2 font-semibold hover:underline", nt(c) ? "text-text-tertiary" : "text-brand-primary")}><CoinAvatar mint={c.mint} logoHash={c.logoHash} symbol={c.symbol} notTradeable={nt(c)} />${c.symbol}</Link> },
           { key: "mint", header: t("coins.colMint"), cell: (c) => <span className="num text-caption text-text-secondary">{shortMint(c.mint)}</span> },
-          { key: "strat", header: t("coins.colStrategy"), cell: (c) => c.strategyName },
+          { key: "strat", header: t("coins.colStrategy"), cell: (c) => <span className="inline-flex items-center gap-2">{c.strategyName} <ModeBadge mode={c.mode} /></span> },
           { key: "status", header: t("screener.colStatus"), mobile: "status", nowrap: true, cell: (c) => (nt(c) ? <NotTradeableChip label={t("screener.notTradeable")} /> : <Badge tone={statusTone[c.status]}>{c.status === "rejected" ? t("screener.statusRejected") : t(`coins.status.${c.status}`)}</Badge>) },
-          { key: "pnl", header: t("coins.colPnl"), numeric: true, mobile: "primary", cell: (c) => (c.pnlSol != null && !nt(c) ? <Pnl sol={c.pnlSol} /> : <span className="text-text-tertiary">—</span>) },
+          { key: "pnl", header: t("coins.colPnl"), numeric: true, mobile: "primary", cell: (c) => (c.pnlSol != null && !nt(c) ? <Pnl sol={c.pnlSol} mode={c.mode} /> : <span className="text-text-tertiary">—</span>) },
           { key: "mcap", header: t.ux("screener.col.mcap"), numeric: true, cell: (c) => <Mcap m={c.mcap} t={t} locale={t.locale} time={f.time} compact /> },
           { key: "t", header: t("coins.colLast"), numeric: true, cell: (c) => f.time(c.lastEventAt) },
         ]}

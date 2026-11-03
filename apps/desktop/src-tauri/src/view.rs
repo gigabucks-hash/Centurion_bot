@@ -276,6 +276,29 @@ pub struct StrategyView {
     /// 1.1.4 exit timers from settings (`time_stop_s`, `stall_exit`).
     #[serde(flatten)]
     pub exits: crate::model::ExitTimers,
+    /// Wire mode (`practice` = UI "Paper").
+    pub mode: crate::model::Mode,
+    /// 1.1.6 Real gate. `true` unless the server explicitly said `false` (missing → locked).
+    pub real_locked: bool,
+    /// `needs_owner_approval` | `gate_not_met` | `policy` | `other`; `other` when locked without a reason.
+    pub real_locked_reason: Option<crate::model::RealLockedReason>,
+    pub paper_progress: crate::model::PaperProgress,
+}
+impl StrategyView {
+    pub fn from_summary(s: &crate::model::StrategySummary) -> Self {
+        let real_locked = s.real_locked != Some(false);
+        Self {
+            id: s.id.clone(),
+            name: crate::model::plain_text(&s.name, 40),
+            rev: s.rev,
+            status: s.status.clone().unwrap_or_else(|| "active".into()),
+            exits: crate::model::ExitTimers::from_settings(&s.settings),
+            mode: s.mode.unwrap_or(crate::model::Mode::Practice),
+            real_locked,
+            real_locked_reason: if real_locked { Some(s.real_locked_reason.unwrap_or(crate::model::RealLockedReason::Other)) } else { None },
+            paper_progress: s.paper_progress.unwrap_or_default(),
+        }
+    }
 }
 
 /// Result of a stale write (409) shown as a conflict toast; the UI refreshes from `current`.

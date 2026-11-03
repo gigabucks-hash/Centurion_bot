@@ -1,4 +1,4 @@
-//! Coin logos (COIN_LOGO Rev 6.0 / contracts 1.1.6, not yet committed by Backend).
+//! Coin logos (COIN_LOGO Rev 6.0 / contracts 1.1.6: f1b7910 logo fields, c99b114 logo_hash on approvals + envelope).
 //!
 //! Only our backend's image proxy is ever loaded: `GET {backend}/v1/img/coin/{mint}?s=…&v={logo_hash}`.
 //! Rust accepts a wire `logo_url` only if its origin is exactly the configured backend and its path is the
@@ -59,6 +59,11 @@ pub fn csp_allows_img(csp: &serde_json::Value, origin: &str) -> bool {
     tokens.iter().any(|t| t == origin)
 }
 
+/// The mock's `logo_hash` for `mint` (= `v` of [`mock_logo_url`]).
+pub fn mock_logo_hash(mint: &str) -> Option<String> {
+    mock_logo_url(mint).and_then(|u| u.rsplit_once("&v=").map(|(_, v)| v.to_owned()))
+}
+
 /// Mock data: ~70 % of mints get one of the bundled logos, ~10 % a hash with no file (→ 404 → identicon),
 /// the rest none (→ identicon without a request). Deterministic per mint.
 pub fn mock_logo_url(mint: &str) -> Option<String> {
@@ -104,6 +109,7 @@ mod tests {
         let conf: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
         let csp = &conf["app"]["security"]["csp"];
         assert_eq!(csp["img-src"], "'self' data:", "static CSP: no remote image origin");
+        assert_eq!(csp["font-src"], "'self'", "fonts are bundled (Inter-Bold.ttf); no remote or data: fonts");
         assert!(!csp_allows_img(csp, O));
         let with = serde_json::json!({"img-src": format!("'self' data: {O}")});
         assert!(csp_allows_img(&with, O));
@@ -118,6 +124,7 @@ mod tests {
             let mint = crate::util::fake_mint(&mut rng);
             if let Some(u) = mock_logo_url(&mint) {
                 assert!(hash_from_url(&u, MOCK_ORIGIN, &mint).is_some(), "{u}");
+                assert_eq!(hash_from_url(&u, MOCK_ORIGIN, &mint), mock_logo_hash(&mint), "hash == v");
                 with += 1;
             }
         }

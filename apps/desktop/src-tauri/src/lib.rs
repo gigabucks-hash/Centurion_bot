@@ -19,6 +19,7 @@ mod notify;
 mod rejmap;
 mod state;
 mod stop;
+mod strategy_mode;
 mod sync;
 mod tray;
 mod util;
@@ -36,6 +37,10 @@ pub fn run() {
             // A second launch focuses the running app; `--stop` (app-shortcut quick action) asks for a Stop.
             if stop::wants_stop(&argv) {
                 stop::request(app, stop::StopSource::Shortcut);
+            } else if let Some(url) = deeplink::url_in_argv(&argv) {
+                // centurion://auth?code=&state= from the browser (OS URL handler launched us again).
+                commands::handle_deep_link(app, url);
+                windows::focus_main(app);
             } else {
                 windows::focus_main(app);
             }
@@ -52,6 +57,7 @@ pub fn run() {
             state::AppState { engine: Mutex::new(engine), transport }
         })
         .manage(hotkeys::Bindings(Mutex::new(Vec::new())))
+        .manage(deeplink::PendingLogins::default())
         .setup(|app| {
             let handle = app.handle().clone();
             // Coin logos (COIN_LOGO §2): only load from the proxy origin if the compiled CSP img-src
@@ -114,6 +120,7 @@ pub fn run() {
             commands::focus_main_for_signal,
             commands::hide_approval_popup,
             commands::set_strategy_paused,
+            commands::set_strategy_mode,
             commands::reset_practice,
             commands::get_coin_timeline,
             commands::get_exit_reason_stats,

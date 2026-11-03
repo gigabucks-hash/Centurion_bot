@@ -9,6 +9,9 @@ import '../../data/api/api_exception.dart';
 import '../../data/api/settings_keys.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';
+import '../../l10n/gen/app_localizations.dart';
+import 'package:go_router/go_router.dart';
+import 'strategy_mode.dart';
 
 /// Optimistic pause/resume state: strategyId -> desired running flag.
 class StrategyToggleController extends Notifier<Map<String, bool>> {
@@ -104,6 +107,9 @@ class StrategySummaryCard extends StatelessWidget {
   }
 }
 
+/// List filter (i18n `strategy.list.filter.*`).
+final strategyModeFilterProvider = StateProvider.autoDispose<TradeMode?>((_) => null);
+
 class StrategiesScreen extends ConsumerWidget {
   const StrategiesScreen({super.key});
 
@@ -125,77 +131,124 @@ class StrategiesScreen extends ConsumerWidget {
     final pendingToggles = ref.watch(strategyToggleProvider);
     final text = Theme.of(context).textTheme;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final l = AppLocalizations.of(context);
+    final filter = ref.watch(strategyModeFilterProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Strategi')),
       body: AsyncBody(
         value: strategies,
-        data: (list) => ListView.separated(
-          padding: const EdgeInsets.all(AppSpace.s4),
-          itemCount: list.length,
-          separatorBuilder: (_, _) => const SizedBox(height: AppSpace.s3),
-          itemBuilder: (_, i) {
-            final s = list[i];
-            final optimistic = pendingToggles[s.id];
-            final running = optimistic ?? s.isRunning;
-            final busy = optimistic != null;
-            return Card(
-              margin: EdgeInsets.zero,
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(AppSpace.s4, AppSpace.s4, AppSpace.s4, AppSpace.s2),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(s.name, style: text.titleMedium, overflow: TextOverflow.ellipsis),
-                            ),
-                            ModeChip(s.mode),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpace.s1),
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text('Realized ', style: text.bodySmall!.copyWith(color: muted)),
-                            PnlText(s.realizedPnlLamports, size: 13),
-                            Text('  ·  rev ${s.rev}', style: text.bodySmall!.copyWith(color: muted)),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpace.s1),
-                        Text(
-                          '${fmtSol(s.ticketLamports, unit: true)}/coin · max ${s.maxOpen} · '
-                          'exit ${ExitPresets.label(s.exitPlan)} · ${approvalModeLabel(s.approvalMode)}',
-                          style: text.bodySmall!.copyWith(color: muted),
-                        ),
-                      ],
-                    ),
+        data: (all) {
+          final list = filter == null ? all : all.where((s) => s.mode == filter).toList();
+          int count(TradeMode m) => all.where((s) => s.mode == m).length;
+          Widget chip(TradeMode? m, String label) => Padding(
+            padding: const EdgeInsets.only(right: AppSpace.s2),
+            child: ChoiceChip(
+              key: Key('strategy_filter_${m?.name ?? 'all'}'),
+              label: Text(label),
+              selected: filter == m,
+              onSelected: (_) => ref.read(strategyModeFilterProvider.notifier).state = m,
+            ),
+          );
+          return ListView.separated(
+            padding: const EdgeInsets.all(AppSpace.s4),
+            itemCount: list.length + 1,
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpace.s3),
+            itemBuilder: (_, i) {
+              if (i == 0) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      chip(null, l.strategyListFilterAll(all.length)),
+                      chip(TradeMode.practice, l.strategyListFilterPaper(count(TradeMode.practice))),
+                      chip(TradeMode.real, l.strategyListFilterReal(count(TradeMode.real))),
+                    ],
                   ),
-                  const Divider(height: 1),
-                  // SPEC: toggle row is fully tappable, 48dp, with a status label.
-                  MergeSemantics(
-                    child: ListTile(
-                      minTileHeight: AppDensity.tapMin,
-                      enabled: !busy,
-                      onTap: busy ? null : () => _onToggle(context, ref, s, !running),
-                      leading: StatusChip(running),
-                      title: Text(running ? 'Strategi berjalan' : 'Strategi dijeda', style: text.bodyMedium),
-                      trailing: Switch(
-                        key: Key('toggle_${s.id}'),
-                        value: running,
-                        onChanged: busy ? null : (v) => _onToggle(context, ref, s, v),
+                );
+              }
+              final s = list[i - 1];
+              final optimistic = pendingToggles[s.id];
+              final running = optimistic ?? s.isRunning;
+              final busy = optimistic != null;
+              return Card(
+                margin: EdgeInsets.zero,
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpace.s4, AppSpace.s4, AppSpace.s4, AppSpace.s2),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InkWell(
+                            key: Key('strategy_open_${s.id}'),
+                            onTap: () => context.go('/strategies/${s.id}'),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(s.name, style: text.titleMedium, overflow: TextOverflow.ellipsis),
+                                ),
+                                ModeChip(s.mode),
+                                const Icon(Icons.chevron_right),
+                              ],
+                            ),
+                          ),
+                          if (s.mode == TradeMode.practice && s.realLocked) ...[
+                            const SizedBox(height: AppSpace.s1),
+                            Wrap(
+                              spacing: AppSpace.s2,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                RealLockedChip(s.realLockedReason),
+                                if (s.paperProgress case final p?)
+                                  Text(
+                                    paperProgressLines(l, p).take(2).join(' · '),
+                                    style: text.bodySmall!.copyWith(color: muted),
+                                  ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: AppSpace.s1),
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text('Realized ', style: text.bodySmall!.copyWith(color: muted)),
+                              PnlText(s.realizedPnlLamports, size: 13),
+                              Text('  ·  rev ${s.rev}', style: text.bodySmall!.copyWith(color: muted)),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpace.s1),
+                          Text(
+                            '${fmtSol(s.ticketLamports, unit: true)}/coin · max ${s.maxOpen} · '
+                            'exit ${ExitPresets.label(s.exitPlan)} · ${approvalModeLabel(s.approvalMode)}',
+                            style: text.bodySmall!.copyWith(color: muted),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+                    const Divider(height: 1),
+                    // SPEC: toggle row is fully tappable, 48dp, with a status label.
+                    MergeSemantics(
+                      child: ListTile(
+                        minTileHeight: AppDensity.tapMin,
+                        enabled: !busy,
+                        onTap: busy ? null : () => _onToggle(context, ref, s, !running),
+                        leading: StatusChip(running),
+                        title: Text(running ? 'Strategi berjalan' : 'Strategi dijeda', style: text.bodyMedium),
+                        trailing: Switch(
+                          key: Key('toggle_${s.id}'),
+                          value: running,
+                          onChanged: busy ? null : (v) => _onToggle(context, ref, s, v),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }

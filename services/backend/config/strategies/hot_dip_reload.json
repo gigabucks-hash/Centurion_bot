@@ -1,0 +1,318 @@
+{
+  "schema_version": "1.2.0",
+  "strategy_key": "hot_dip_reload",
+  "config_rev": 1,
+  "spec_ref": "STRATEGY_SPEC_V1_CONSOLIDATED 2026-11-03 FINAL (mapping rev 3.1 LOCKED)",
+  "enabled": false,
+  "name": "Hot Dip Reload (B)",
+  "venues": [
+    "amm"
+  ],
+  "mode": "paper",
+  "scout": {
+    "mcap_usd_min": 90000,
+    "mcap_usd_max": 1500000,
+    "mcap_basis": "circulating",
+    "liquidity_usd_min": 40000,
+    "volume_24h_usd_min": 100000,
+    "volume_to_mcap_1h_min": 0.8,
+    "volume_to_mcap_1h_max": null,
+    "top_holders_share_pct_max": 25,
+    "lp_safe_pct_min": 95,
+    "since_migration_seconds_min": 0,
+    "since_migration_seconds_max": null,
+    "holder_count_min": 500,
+    "crash_skip_1h_pct": 25,
+    "anti_top": null,
+    "ignore_dust": {
+      "min_inbound_usd": 1,
+      "lookalike_symbols": [
+        "SOL",
+        "USDC",
+        "USDT"
+      ],
+      "held_never_bought": true
+    }
+  },
+  "entry": {
+    "mode": "dip_from_high",
+    "dip_pct": 10,
+    "delay_s": 60,
+    "recheck_all_filters": true,
+    "rebuy_same_mint": false,
+    "arm_ttl_s": 7200,
+    "rearm_after_expiry": true
+  },
+  "momentum": {
+    "min_swaps": 15,
+    "min_unique_buyers": 8,
+    "min_swap_lamports": "10000000",
+    "wallet_buy_cap_pct": 30,
+    "points": {
+      "higher_low": 30,
+      "buy_sell_ratio": 30,
+      "unique_buyers": 20,
+      "vol_mcap": 20
+    },
+    "higher_low": {
+      "full_at_recovery_pct": 50,
+      "zero_below_recovery_pct": 10
+    },
+    "ratio_range": [
+      1.0,
+      2.0
+    ],
+    "vol_mcap_full": [
+      0.3,
+      1.0
+    ],
+    "vol_mcap_decay_from": 1.5,
+    "vol_mcap_zero_at": 2.5,
+    "new_low_veto": true
+  },
+  "risk": {
+    "ticket_lamports": "400000000",
+    "max_concurrent_positions": 5,
+    "bankroll_lamports": "4000000000",
+    "budget_basis": "open_cost",
+    "max_pool_impact_pct": 1,
+    "pool_share_basis": "sol_reserve",
+    "pool_share_mode": "shrink",
+    "min_ticket_lamports": "100000000",
+    "daily_loss_halt_pct": null
+  },
+  "exit": {
+    "stop_loss_pct": 20,
+    "profit_targets": [
+      {
+        "at_gain_pct": 18,
+        "sell_portion_pct": 35
+      },
+      {
+        "at_gain_pct": 35,
+        "sell_portion_pct": 35
+      },
+      {
+        "at_gain_pct": 50,
+        "sell_portion_pct": 30
+      }
+    ],
+    "breakeven_exit": {
+      "after_s": 10800,
+      "rule": "sell_all_at_or_below_entry"
+    },
+    "idle_exit_seconds": 600,
+    "time_stop_s": null,
+    "sell_pressure_exit": null,
+    "liquidity_exit": {
+      "drop_pct": 20,
+      "window_s": 900
+    },
+    "insider_exit": {
+      "sell_supply_pct": 1,
+      "window_s": 3600,
+      "count_transfers_to_non_pool": true
+    },
+    "peak_trail_pct": 0
+  },
+  "guard_checks": {
+    "allow_mint_authority": false,
+    "allow_freeze_authority": false,
+    "lp_safe_pct_fail": 95,
+    "lp_lockers": [
+      {
+        "name": "Streamflow",
+        "program_id": "strmRqUCoQUgGUan5YhzUZa6KqdzwX5L6FpUxfmKg5m",
+        "kind": "streamflow"
+      },
+      {
+        "name": "Raydium Burn&Earn",
+        "program_id": "LockrWmn6K5twhz3y9w1dQERbmgSaRkfnTeTKbpofwE",
+        "kind": "raydium_burn_earn"
+      },
+      {
+        "name": "Jupiter Lock",
+        "program_id": "LocpQgucEQHbqNABEYvBvwoxCPsSbG91A1QaQhQQqjn",
+        "kind": "jupiter_lock"
+      },
+      {
+        "name": "Meteora DAMM v1",
+        "program_id": "Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB",
+        "kind": "meteora_damm_v1_escrow"
+      },
+      {
+        "name": "Meteora DAMM v2",
+        "program_id": "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG",
+        "kind": "meteora_damm_v2_position"
+      }
+    ],
+    "lp_lock_rule": {
+      "non_cancellable": true,
+      "non_transferable": true,
+      "no_early_withdraw": true,
+      "unknown": "unlocked"
+    },
+    "launch_layers": {
+      "slots_after_s0": 3,
+      "migration_slots_after": 3,
+      "window_s": 60,
+      "holder_veto_pct": 15,
+      "holder_warn_pct": 10,
+      "shared_funder_veto_wallets": 5,
+      "shared_funder_slots": 2
+    },
+    "bundled_share_pct_fail": 15,
+    "sniper_share_pct_fail": 15,
+    "bundler_sniper_abs_fail_pct": 20,
+    "serial_launcher": {
+      "max_dead_prior": 3,
+      "dead_below_mcap_usd": 20000,
+      "mcap_basis": "peak",
+      "lookback_s": 2592000
+    },
+    "clustering": {
+      "insider_fail_pct": 20,
+      "insider_warn_pct": 15,
+      "network_warn_wallets": 50,
+      "network_warn_supply_pct": 5,
+      "funder_hops_top10_dev": 2,
+      "funder_hops_other": 1
+    },
+    "cex_exclusion": {
+      "enabled": true,
+      "source": "helius_identity",
+      "extra_wallets": []
+    },
+    "young_pool_s": 600,
+    "young_pool_single_funder_pct_fail": 80,
+    "single_holder_pct_fail": 10,
+    "creator_share_pct_fail": 5,
+    "dev_window_s": 259200,
+    "dev_includes_locked": true,
+    "dev_unlock_within_max_hold": "reject",
+    "wash": {
+      "roundtrip_window_s": 60,
+      "same_wallet_roundtrip_vol_fail_pct": 30,
+      "top5_pairs_vol_fail_pct": 40,
+      "warn_at_fraction": 0.5,
+      "warming_s": 86400,
+      "warming": "warn"
+    },
+    "transfer_fee_bps_fail": 100,
+    "reject_extensions": [
+      "TransferHook",
+      "PermanentDelegate",
+      "DefaultAccountState=Frozen",
+      "NonTransferable",
+      "Pausable",
+      "MintCloseAuthority",
+      "ConfidentialTransfer"
+    ],
+    "honeypot": {
+      "size": "full_position",
+      "sell_tax_bps_fail": 500,
+      "roundtrip_excess_loss_bps_fail": 800,
+      "jupiter_max_price_impact_pct": 10,
+      "unverified": "reject"
+    },
+    "pool_audit": {
+      "unlocked_warn_pct": 30,
+      "insider_lp_fail_pct": 10,
+      "dlmm_one_sided": "fail"
+    },
+    "dessa": {
+      "dev_block0_pct": 15,
+      "liq_usd_below": 35000
+    },
+    "fresh_wallet_transfer_flag_pct": 2,
+    "copycat_flag": true,
+    "budget": {
+      "on_call_cap": "unverified_reject",
+      "on_credit_cap": "unverified_reject"
+    },
+    "exclude_accounts": [],
+    "lock_min_end_after_entry_s": 604800
+  },
+  "safety": {
+    "deduct": {
+      "top10": {
+        "from_pct": 15,
+        "max_points": 25
+      },
+      "holders": 15,
+      "lp": 15,
+      "young_pool": {
+        "below_s": 86400,
+        "points": 10
+      },
+      "single_holder": {
+        "from_pct": 5,
+        "to_pct": 10,
+        "points": 15
+      },
+      "warns": {
+        "points_each": 10,
+        "cap": 20,
+        "mutable_metadata_dev_authority": true
+      }
+    }
+  },
+  "scoring": {
+    "version": 2,
+    "phase": "p1",
+    "weights_by_phase": {
+      "full": {
+        "safety": 35,
+        "narrative": 15,
+        "smart_money": 20,
+        "momentum": 30
+      },
+      "p1": {
+        "safety": 50,
+        "momentum": 50
+      },
+      "p2": {
+        "safety": 40,
+        "smart_money": 20,
+        "momentum": 40
+      }
+    },
+    "min_score": 65,
+    "floors": {
+      "safety": 70,
+      "momentum": 55
+    },
+    "required": [
+      "scout",
+      "guard",
+      "momentum",
+      "risk"
+    ],
+    "vetoes": [
+      "scout",
+      "guard",
+      "risk"
+    ],
+    "missing": "renormalize_optional_only"
+  },
+  "paper": {
+    "fill": {
+      "delay_ms": [
+        400,
+        1200
+      ],
+      "replay_path": true,
+      "fallback_adverse_bps": 50,
+      "high_vol_extra_bps": 100,
+      "high_vol_1m_pct": 10,
+      "seed": "order_id"
+    },
+    "swap_fee_bps": 125,
+    "priority_fee_lamports": 100000
+  },
+  "tags": {
+    "post_peak_dip_gt20": {
+      "below_window_peak_pct": 20
+    }
+  }
+}
