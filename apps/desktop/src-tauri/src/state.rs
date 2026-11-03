@@ -122,6 +122,10 @@ pub struct Engine {
     pub refetch_portfolio: bool,
     /// Set by `strategy.*` with a newer rev than we hold: refetch the strategy list.
     pub refetch_strategies: bool,
+    /// Image-proxy origin (= backend base; `logo::MOCK_ORIGIN` for the mock). None → no logos.
+    pub logo_origin: Option<String>,
+    /// mint → validated logo_hash (latest seen). Absent → identicon.
+    logos: HashMap<String, String>,
 }
 
 /// Raw → UI token amount. `None` when decimals are unknown: no "6" assumption (1.1.2 sends them).
@@ -176,7 +180,32 @@ impl Engine {
             rng: Rng::seeded(),
             refetch_portfolio: false,
             refetch_strategies: false,
+            logo_origin: None,
+            logos: HashMap::new(),
         }
+    }
+
+    /// Record a wire logo (`logo_hash` and/or `logo_url`) for `mint` after validation.
+    pub fn note_logo(&mut self, mint: &str, logo_hash: Option<&str>, logo_url: Option<&str>) {
+        let Some(origin) = self.logo_origin.as_deref() else { return };
+        let from_url = logo_url.and_then(|u| crate::logo::hash_from_url(u, origin, mint));
+        // A url that fails validation is ignored entirely (never "trust the hash, drop the url").
+        let hash = match (logo_hash, logo_url) {
+            (Some(h), Some(_)) => from_url.filter(|v| v == h),
+            (Some(h), None) => crate::logo::valid_hash(h).then(|| h.to_owned()),
+            (None, Some(_)) => from_url,
+            (None, None) => None,
+        };
+        if let Some(h) = hash {
+            if self.logos.len() > 4096 && !self.logos.contains_key(mint) {
+                self.logos.clear(); // bounded; views keep their copy
+            }
+            self.logos.insert(mint.to_owned(), h);
+        }
+    }
+
+    pub fn logo_of(&self, mint: &str) -> Option<String> {
+        self.logos.get(mint).cloned()
     }
 
     /// Server-clock "now" (local clock + measured skew).
@@ -277,6 +306,7 @@ impl Engine {
 
     pub fn snapshot(&self) -> Snapshot {
         Snapshot {
+            logo_origin: self.logo_origin.clone(),
             mode: self.mode,
             connected: self.connected,
             source: "mock",
@@ -350,6 +380,9 @@ impl Engine {
             self.sync.duplicates += 1;
             return vec![];
         }
+        if let (Some(m), Some(u)) = (env.mint.as_deref(), env.logo_url.as_deref()) {
+            self.note_logo(m, None, Some(u));
+        }
         // v1.0 → v1.1 renames (keys.rs) so a lagging producer still decodes; no-op on v1.1 input.
         let mut norm = env.clone();
         keys::normalize(&mut norm.payload);
@@ -415,6 +448,7 @@ impl Engine {
                 }
                 let coin = self.coins.get(&s.mint).cloned().unwrap_or_default();
                 let row = ScreenedCoin {
+                    logo_hash: self.logo_of(&s.mint),
                     mcap: coin.mcap.clone(),
                     ck: ck.clone(),
                     mint: s.mint.clone(),
@@ -507,6 +541,7 @@ impl Engine {
                     _ => sym.clone(),
                 };
                 let view = PickView {
+                    logo_hash: self.logo_of(&mint),
                     id: p.proposal_id.clone(),
                     version: p.version,
                     ck: ck.clone(),
@@ -613,6 +648,7 @@ impl Engine {
                 let price = p.fill.exec_price_sol;
                 let decimals = p.decimals.or_else(|| self.coins.get(&p.mint).and_then(|c| c.decimals));
                 let view = PositionView {
+                    logo_hash: self.logo_of(&p.mint),
                     key: p.position_key.clone(),
                     position_id: p.position_id.clone(),
                     ck: env.ck.clone(),
@@ -984,6 +1020,7 @@ mod tests {
             payload,
             untrusted: Untrusted { symbol: Some("EXM".into()), ..Default::default() },
             server_now: Some(IsoTs::from_ms(now_ms() as i64 + 2_000)),
+            logo_url: None,
         }
     }
 
@@ -992,6 +1029,31 @@ mod tests {
         e.apply_event(&env(seq, "proposal.created", json!({"proposal_id": "p1", "kind": "buy_pick", "rev": 1, "expires_at": exp,
             "first_buy": true, "approval_mode": "ask_every_buy", "amount_lamports": "250000000", "risk_level": "low", "summary": "x",
             "base_rev": null, "weakening": false, "diff": null, "estimate": null})));
+    }
+
+    #[test]
+    fn logo_hash_reaches_views_only_from_our_proxy_url() {
+        const MINT: &str = "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr";
+        let exp = IsoTs::from_ms(now_ms() as i64 + 60_000);
+        let mk = |seq: i64, id: &str, url: Option<String>| {
+            let mut v = env(seq, "proposal.created", json!({"proposal_id": id, "kind": "buy_pick", "rev": 1, "expires_at": exp,
+                "first_buy": true, "approval_mode": "ask_every_buy", "amount_lamports": "250000000", "risk_level": "low", "summary": "x",
+                "base_rev": null, "weakening": false, "diff": null, "estimate": null}));
+            v.logo_url = url;
+            v
+        };
+        let mut e = Engine::new(WS);
+        e.logo_origin = Some("http://127.0.0.1:8787".into());
+        e.apply_event(&mk(1, "p1", Some(format!("https://evil.example/v1/img/coin/{MINT}?s=96&v=deadbeef01"))));
+        assert_eq!(e.signals[0].logo_hash, None, "foreign origin ignored → identicon");
+        e.apply_event(&mk(2, "p2", Some(format!("http://127.0.0.1:8787/v1/img/coin/{MINT}?s=96&v=deadbeef02"))));
+        assert_eq!(e.signals.iter().find(|s| s.id == "p2").unwrap().logo_hash.as_deref(), Some("deadbeef02"));
+        // position REST resource: hash must agree with its url
+        e.note_logo(MINT, Some("cafebabe03"), Some(&format!("http://127.0.0.1:8787/v1/img/coin/{MINT}?s=96&v=other0004")));
+        assert_eq!(e.logo_of(MINT).as_deref(), Some("deadbeef02"), "mismatching hash/url pair rejected");
+        let mut off = Engine::new(WS); // no origin configured → never any logo
+        off.apply_event(&mk(3, "p3", Some(format!("http://127.0.0.1:8787/v1/img/coin/{MINT}?s=96&v=deadbeef02"))));
+        assert_eq!(off.signals[0].logo_hash, None);
     }
 
     #[test]

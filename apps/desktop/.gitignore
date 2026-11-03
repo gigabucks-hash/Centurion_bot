@@ -6,3 +6,4 @@ src-tauri/gen/
 tsconfig.tsbuildinfo
 .env.local
 .env.*.local
+src-tauri/tauri.logo-csp.json

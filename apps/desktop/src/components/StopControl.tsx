@@ -40,7 +40,7 @@ export function StopControl() {
   };
   return (
     <>
-      <button className="sm danger stop-btn" data-action="stop" onClick={() => setAsk("ui")} title={real ? t("kill_switch.action.open") : t("desktop.stop.title_practice")}>
+      <button className="sm danger stop-btn" data-action="stop" onClick={() => setAsk("ui")} title={real ? t("kill_switch.dialog.title") : t("desktop.stop.title_practice")}>
         ■ {t("kill_switch.action.engage")}
       </button>
       {msg && <span className={msg.ok ? "dim" : "neg"} role="status">{msg.text}</span>}
@@ -56,7 +56,7 @@ function StopDialog({ real, running, busy, onCancel, onConfirm }: { real: boolea
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="stop-title">
       <div className="modal">
         <h3 id="stop-title">{real ? t("kill_switch.dialog.title") : t("desktop.stop.title_practice")}</h3>
-        <p>{real ? t("kill_switch.dialog.effect.buys") : t("desktop.stop.effect_practice")}</p>
+        <p>{real ? t("kill_switch.dialog.effect.exits_keep") : t("desktop.stop.effect_practice")}</p>
         <p className="dim num">{running} running</p>
         <div className="actions">
           <button autoFocus onClick={onCancel}>{t("common.action.cancel")}<kbd>Esc</kbd></button>

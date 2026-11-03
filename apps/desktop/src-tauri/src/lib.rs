@@ -13,6 +13,7 @@ mod events;
 mod hotkeys;
 mod keychain;
 mod keys;
+mod logo;
 mod model;
 mod notify;
 mod rejmap;
@@ -46,11 +47,26 @@ pub fn run() {
             // 2500 ms) so countdowns provably use server_now. Week 2: HttpTransport (SSE + REST).
             let skew = std::env::var("CENTURION_MOCK_SKEW_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(2_500);
             let transport = Arc::new(backend::ActiveTransport::from_env(skew));
-            state::AppState { engine: Mutex::new(state::Engine::new(transport.workspace_id())), transport }
+            let mut engine = state::Engine::new(transport.workspace_id());
+            engine.logo_origin = Some(transport.logo_origin());
+            state::AppState { engine: Mutex::new(engine), transport }
         })
         .manage(hotkeys::Bindings(Mutex::new(Vec::new())))
         .setup(|app| {
             let handle = app.handle().clone();
+            // Coin logos (COIN_LOGO §2): only load from the proxy origin if the compiled CSP img-src
+            // allows exactly it; otherwise identicons only (never a request the CSP would block).
+            {
+                let csp = serde_json::to_value(&app.config().app.security.csp).unwrap_or_default();
+                let st = handle.state::<state::AppState>();
+                let mut e = st.engine.lock().unwrap();
+                if let Some(origin) = e.logo_origin.clone() {
+                    if origin != logo::MOCK_ORIGIN && !logo::csp_allows_img(&csp, &origin) {
+                        log::warn!("coin logos off: CSP img-src does not list {origin} (build with npm run tauri:build:backend)");
+                        e.logo_origin = None;
+                    }
+                }
+            }
             // Mock-only switch to preview REAL SOL chrome + gating. No wallet / network either way.
             if std::env::var("CENTURION_MOCK_MODE").as_deref() == Ok("real") {
                 handle.state::<state::AppState>().engine.lock().unwrap().mode = model::Mode::Real;

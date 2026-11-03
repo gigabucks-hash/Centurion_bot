@@ -10,7 +10,10 @@
     "typecheck": "tsc -b --noEmit",
     "tauri": "tauri",
     "sync:tokens": "node scripts/sync-tokens.mjs",
-    "test:ui": "node --test scripts/ui-format.test.mjs scripts/hold-reset.test.mjs"
+    "csp:logo": "node scripts/csp-logo-origin.mjs",
+    "tauri:dev:backend": "node scripts/csp-logo-origin.mjs && tauri dev --config src-tauri/tauri.logo-csp.json",
+    "tauri:build:backend": "node scripts/csp-logo-origin.mjs && tauri build --config src-tauri/tauri.logo-csp.json",
+    "test:ui": "node --test scripts/ui-format.test.mjs scripts/hold-reset.test.mjs scripts/coin-avatar.test.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.0",

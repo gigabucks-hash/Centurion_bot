@@ -140,7 +140,8 @@ mod tests {
             (format!("centurion://evil?code={code}&state=s1"), "host_path"),
             (format!("centurion://auth/x?code={code}&state=s1"), "host_path"),
             (format!("centurion://auth@evil?code={code}&state=s1"), "host_path"),
-            (format!("centurion://auth?code={code}&state=s1"), "scheme"),
+            (format!("centurionx://auth?code={code}&state=s1"), "scheme"), // wrong scheme (was sentra:// before the rename)
+            (format!("https://auth?code={code}&state=s1"), "scheme"),
             (format!("centurion://auth?code={code}&state=s1#frag"), "fragment"),
             (format!("centurion://auth?code={code}&state=s1&access_token=x"), "unexpected_param"),
             (format!("centurion://auth?code={code}&code={code}&state=s1"), "duplicate"),

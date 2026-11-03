@@ -1,4 +1,5 @@
 import type { PlanState, PositionView } from "../api";
+import { CoinAvatar } from "./CoinAvatar";
 import { pnlLamports, pnlPercent, pnlText, solText, TONE_CLASS, useLang, useT, type Lang } from "../i18n";
 import { useTerm } from "../state/store";
 import { fmtPriceDec } from "./format";
@@ -93,7 +94,7 @@ export function PositionsTable({ positions, cursorMint, onCursor, onFocusRow, on
               data-row="position" data-mint={p.mint} data-key={p.key} data-tradeable={String(!nt)}
               onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) onCursor(p.mint); }}
               onFocus={(e) => e.target === e.currentTarget && onFocusRow?.(p.mint)}>
-              <td><b>${p.symbol}</b> {nt && <NtChip compact title={t("positions.sell.not_tradeable_detail")} />}</td>
+              <td><span className="coin-sym"><CoinAvatar mint={p.mint} symbol={p.symbol} logoHash={p.logo_hash} size={24} notTradeable={nt} /><b>${p.symbol}</b></span> {nt && <NtChip compact title={t("positions.sell.not_tradeable_detail")} />}</td>
               <td className="muted col-strategy">{p.strategy.replace(/^Mock · /, "")}</td>
               <td className="num">{solText(p.cost_lamports, lang, paper)}</td>
               <td className="num col-entry">{fmtPriceDec(p.entry_price_sol)} → {fmtPriceDec(p.last_price_sol)}</td>

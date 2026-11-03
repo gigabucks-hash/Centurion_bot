@@ -98,3 +98,29 @@ Practice reset is limited to once per 24 h. A second reset gets `429 RESET_COOLD
 `CENTURION_BACKEND=<url>` without `CENTURION_BACKEND_TOKEN` → wallet login through the **system browser** (`CENTURION_LOGIN_URL`,
 default `https://app.centuriontrade.local/auth/desktop`). Tokens live only in the OS keychain (`com.centuriontrade.app` / `siws-session`).
 Manual round-trip test (needs the Web `/auth/desktop` page + Phantom; not headless): see ARCHITECTURE §12 D15.
+
+## Coin logos (CoinAvatar, COIN_LOGO Rev 6.0)
+
+`src/components/CoinAvatar.tsx` shows a coin logo at 32 px (queue card, Quick-look header) or 24 px (screener and positions rows).
+
+- **Source:** the image comes only from the backend logo proxy `GET /v1/img/coin/{mint}?s=48|64|96&v={logo_hash}`.
+  - Rust (`src-tauri/src/logo.rs`) accepts a wire `logo_url` only when it has the exact backend origin, the path `/v1/img/coin/{same mint}`, and only `s`/`v`/`fmt` params.
+  - Only the validated hash reaches the webview, which rebuilds the URL from `snapshot.logo_origin`.
+  - The client asks for at most s=96 until the proxy serves 128/192.
+- **Fallback:** a deterministic identicon from the mint (`identicon.ts`: FNV-1a 32 → 12-colour palette, 1–2 initials from the symbol), used when there is no hash, on any image error, or when logos are off.
+  - Session cache: LRU of 200; a failure is final per mint+hash; a timeout (4 s) gets one retry.
+  - The skeleton appears after 150 ms and stays at least 300 ms.
+- **Not tradeable:** grayscale, opacity 0.55, dashed ring.
+- **CSP:** the committed `img-src` stays `'self' data:`.
+  - For a backend build, run `npm run tauri:build:backend` (or `tauri:dev:backend`). It runs `scripts/csp-logo-origin.mjs`, which validates `CENTURION_BACKEND` and writes the gitignored `src-tauri/tauri.logo-csp.json`, adding exactly that one origin.
+  - If the compiled CSP does not list the backend origin, Rust turns logos off (identicons only).
+- **Mock:** origin `https://logo.mock.invalid`, served from the bundled `public/mock-logo/*.webp`.
+  - About 70% of mints get a logo, 10% a missing one (→ identicon), and 20% none.
+
+![CoinAvatar in the screener (mock)](docs/coin-avatar-screener.png)
+
+## Stop control: i18n 0.4.9 keys
+
+- `kill_switch.action.open` → `kill_switch.dialog.title` for the Real button title (`kill_switch.action.engage` is the action label).
+- `kill_switch.dialog.effect.buys` → `kill_switch.dialog.effect.exits_keep`.
+- `scripts/ui-format.test.mjs` fails if any literal `t("…")` key in `src/` is deprecated or removed in `key-migrations.json`, or is missing from the catalog.

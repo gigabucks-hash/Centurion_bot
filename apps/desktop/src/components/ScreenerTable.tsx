@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { CoinAvatar } from "./CoinAvatar";
 import type { ScreenedCoin } from "../api";
 import { formatRelativeSeconds, LOCALES, mcapView, useLang, useT, type Lang, type T } from "../i18n";
 import { serverNow } from "../state/store";
@@ -62,7 +63,7 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
                   onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) onSelect(c.mint); }}
                   onKeyDown={(e) => { if (e.key === "Enter" && e.target === e.currentTarget) onSelect(c.mint); }}>
                   {/* symbol is untrusted token metadata → text node only */}
-                  <td><b>${c.symbol}</b></td>
+                  <td><span className="coin-sym"><CoinAvatar mint={c.mint} symbol={c.symbol} logoHash={c.logo_hash} size={24} notTradeable={nt} /><b>${c.symbol}</b></span></td>
                   <td className="muted">{c.venue === "curve" ? "Curve" : c.venue === "amm" ? "AMM" : "—"}</td>
                   {/* Mcap (1.1.4): mcap_usd is display-only/indicative; the title carries the SOL value and as-of time.
                       A missing value is a muted "—" with common.value.unavailable as tooltip + accessible name. */}

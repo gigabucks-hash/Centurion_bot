@@ -27,6 +27,8 @@ interface TermState {
   sync: SyncStatus | null;
   /** server_now − local_now (ms), measured in Rust from every `server_now`. */
   skewMs: number;
+  /** Coin-logo proxy origin from Rust (null → identicons only). */
+  logoOrigin: string | null;
   signals: PickView[];
   positions: PositionView[];
   activity: ActivityView[];
@@ -65,6 +67,7 @@ export const useTerm = create<TermState>((set) => ({
   account: EMPTY_ACCOUNT,
   sync: null,
   skewMs: 0,
+  logoOrigin: null,
   signals: [],
   positions: [],
   activity: [],
@@ -86,6 +89,7 @@ export const useTerm = create<TermState>((set) => ({
       account: s.account,
       sync: s.sync,
       skewMs: s.sync.skew_ms,
+      logoOrigin: s.logo_origin ?? null,
       signals: s.signals,
       positions: s.positions,
       activity: s.activity.slice(0, MAX_FEED),

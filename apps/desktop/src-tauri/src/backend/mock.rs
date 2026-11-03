@@ -283,6 +283,8 @@ impl Server {
             payload,
             untrusted,
             server_now: None,
+            // 1.1.6 shape (mock): logo proxy URL on every envelope that carries a mint.
+            logo_url: mint.and_then(crate::logo::mock_logo_url),
         };
         self.log.push_back(env.clone());
         while self.log.len() > LOG_CAP {
@@ -1251,7 +1253,8 @@ impl Transport for MockTransport {
             // API_ENDPOINTS 4.4: `position` = the position at request time (rev `base`); the new rev
             // arrives with position.updated / position.closed / order.filled.position_rev.
             position: PositionWire { id: position_id.into(), position_key: key, rev: base, qty_raw: RawQty(qty_raw), status: status.into(), practice_epoch: Some(epoch),
-                decimals: Some(dec_), token_program: None, cost_basis_lamports: None, avg_entry_price_sol: None, exit_reason: (status == "closed").then_some(ExitReason::Manual) },
+                decimals: Some(dec_), token_program: None, cost_basis_lamports: None, avg_entry_price_sol: None, exit_reason: (status == "closed").then_some(ExitReason::Manual),
+                logo_url: crate::logo::mock_logo_url(&mint), logo_hash: None },
             order: serde_json::from_value(order).expect("OrderWire"),
             order_id,
             fill: fill.and_then(|f| serde_json::from_value::<FillWire>(f).ok()),

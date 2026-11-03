@@ -454,6 +454,10 @@ pub struct EventEnvelope {
     pub untrusted: Untrusted,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub server_now: Option<IsoTs>,
+    /// 1.1.6 (Backend working tree, not committed yet): our image-proxy URL for `mint`. Validated in
+    /// `logo::hash_from_url` before use; never loaded as given.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logo_url: Option<String>,
 }
 
 // ---------------------------------------------------------------- payloads
@@ -1086,6 +1090,9 @@ pub struct ApprovalDecisionResponse {
 #[allow(dead_code)] // typed body for the Phase-2 HttpTransport; asserted by the contract test
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ApprovalWire {
+    /// 1.1.6 (pending): proxy URL of the mint logo (validated before use).
+    #[serde(default)]
+    pub logo_url: Option<String>,
     /// 1.1.5: mint decimals / token program (null on guard_change) and the position a sell refers to.
     #[serde(default)]
     pub decimals: Option<u8>,
@@ -1260,6 +1267,12 @@ pub fn pct_to_bps(pct: u8) -> Option<u16> {
 /// Position as returned by a close (new `rev`).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PositionWire {
+    /// 1.1.6 (pending): proxy URL of the mint logo (validated before use).
+    #[serde(default)]
+    pub logo_url: Option<String>,
+    /// 1.1.6 (pending): `v` of the logo URL; null → identicon.
+    #[serde(default)]
+    pub logo_hash: Option<String>,
     pub id: String,
     pub position_key: String,
     pub rev: u64,

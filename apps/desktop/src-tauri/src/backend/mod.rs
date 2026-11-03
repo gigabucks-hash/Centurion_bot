@@ -316,6 +316,13 @@ impl ActiveTransport {
             _ => Self::Mock(mock::MockTransport::new(mock_skew_ms)),
         }
     }
+    /// Origin of the coin-logo image proxy (COIN_LOGO §2): the backend base, or the mock's bundled files.
+    pub fn logo_origin(&self) -> String {
+        match self {
+            Self::Mock(_) => crate::logo::MOCK_ORIGIN.to_owned(),
+            Self::Http(t) => t.base().to_owned(),
+        }
+    }
     pub fn label(&self) -> &'static str {
         match self {
             Self::Mock(_) => "mock",

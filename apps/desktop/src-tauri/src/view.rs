@@ -64,6 +64,8 @@ impl I18nMsg {
 /// not-tradeable ones (transparency), newest first, bounded.
 #[derive(Debug, Clone, Serialize)]
 pub struct ScreenedCoin {
+    /// 1.1.6 (pending): validated logo hash of `mint` (`v` of our image proxy); None → identicon.
+    pub logo_hash: Option<String>,
     pub ck: String,
     pub mint: String,
     pub symbol: String,
@@ -91,6 +93,8 @@ pub struct ScreenedCoin {
 /// Pending/decided buy proposal joined with its pick (`proposal.created` + `pick.created` + marks).
 #[derive(Debug, Clone, Serialize)]
 pub struct PickView {
+    /// 1.1.6 (pending): validated logo hash of `mint` (`v` of our image proxy); None → identicon.
+    pub logo_hash: Option<String>,
     /// `proposal_id` (wire).
     pub id: String,
     /// Approval rev (wire `rev`, 1.1.2).
@@ -131,6 +135,8 @@ pub struct PickView {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PositionView {
+    /// 1.1.6 (pending): validated logo hash of `mint` (`v` of our image proxy); None → identicon.
+    pub logo_hash: Option<String>,
     pub key: String,
     /// 1.1.2 server position id (`order.*` events reference it).
     pub position_id: Option<String>,
@@ -364,6 +370,8 @@ impl Default for Settings {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Snapshot {
+    /// Image-proxy origin the webview may load logos from (CSP img-src); None → identicons only.
+    pub logo_origin: Option<String>,
     pub mode: Mode,
     pub connected: bool,
     pub source: &'static str,

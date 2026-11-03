@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CoinAvatar } from "./CoinAvatar";
 import { core, type PickView, type PositionView, type TimelineItem } from "../api";
 import { useServerNow } from "./SignalQueue";
 import { pnlLamports, pnlPercent, pnlText, solText, TONE_CLASS, useLang, useT } from "../i18n";
@@ -88,6 +89,7 @@ export function QuickLook({ target, onClose }: { target: QuickLookTarget; onClos
     <aside className="quicklook" role="dialog" aria-modal="false" aria-labelledby="ql-title">
       {/* D9: title ellipsizes with a full-text tooltip; the badge gets its own line so neither is clipped. */}
       <header>
+        <CoinAvatar mint={target.item.mint} symbol={target.item.symbol} logoHash={target.item.logo_hash} size={32} notTradeable={nt} />
         <b id="ql-title" className="ql-title" title={title}>{title}</b>
         <span className="dim ql-hint"><kbd>Space</kbd>/<kbd>Esc</kbd></span>
       </header>

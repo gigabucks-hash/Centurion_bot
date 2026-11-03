@@ -49,6 +49,8 @@ export interface Tradeability {
 
 /** WF-20 screener row: every scored coin (passed, rejected, not tradeable), newest first. */
 export interface ScreenedCoin extends Tradeability {
+  /** 1.1.6 (pending in contracts): validated hash of our proxy logo; null → identicon (no request). */
+  logo_hash?: string | null;
   ck: string;
   mint: string;
   /** Untrusted metadata, plain text. */
@@ -75,6 +77,8 @@ export interface ScreenedCoin extends Tradeability {
 
 /** Buy proposal joined with its pick + latest mark (proposal.created + pick.created + mark). */
 export interface PickView extends Tradeability {
+  /** 1.1.6 (pending in contracts): validated hash of our proxy logo; null → identicon (no request). */
+  logo_hash?: string | null;
   /** proposal_id */
   id: Uuid;
   /** Approval rev (1.1.2; was `version`). */
@@ -122,6 +126,8 @@ export interface PickView extends Tradeability {
 }
 
 export interface PositionView extends Tradeability {
+  /** 1.1.6 (pending in contracts): validated hash of our proxy logo; null → identicon (no request). */
+  logo_hash?: string | null;
   key: string;
   /** Server position id (1.1.2 close path `/positions/{id}/close`). */
   position_id: Uuid | null;
@@ -293,6 +299,8 @@ export interface Settings {
 }
 
 export interface Snapshot {
+  /** Coin-logo image proxy origin (backend base / mock); CSP img-src allows only this. */
+  logo_origin?: string | null;
   mode: Mode;
   connected: boolean;
   source: "mock" | "backend";

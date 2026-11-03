@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CoinAvatar } from "./CoinAvatar";
 import type { PickView } from "../api";
 import { MOCK_SUFFIX, quoteState, skipChip, useLang, useT, solText } from "../i18n";
 import { serverNow, useTerm } from "../state/store";
@@ -79,6 +80,7 @@ export function SignalQueue(p: Props) {
                 />
               )}
               {/* symbol/name are untrusted token metadata: rendered as plain text only */}
+              <CoinAvatar mint={s.mint} symbol={s.symbol} logoHash={s.logo_hash} size={32} notTradeable={nt} />
               <strong>{s.symbol}</strong>
               <span className="mono dim">{shortMint(s.mint)}</span>
               {nt ? <NtChip /> : <span className="chip">{s.first_buy ? t("queue.pick.kind.first_buy") : t("queue.pick.kind.buy")}</span>}

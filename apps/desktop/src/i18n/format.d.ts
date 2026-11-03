@@ -1,4 +1,4 @@
-/** Types for `@centurion/i18n/format.mjs` (packages/i18n 0.4.8, UX-owned JS; read-only for Desktop). */
+/** Types for `@centurion/i18n/format.mjs` (packages/i18n 0.4.9, UX-owned JS; read-only for Desktop). */
 declare module "@centurion/i18n/format.mjs" {
   export type Lang = "en" | "id";
   export interface PnlParts { text: string; tone: "profit" | "loss" | "neutral"; arrow: "▲" | "▼" | ""; sign: "+" | "−" | "" }

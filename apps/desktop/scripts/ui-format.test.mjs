@@ -78,3 +78,27 @@ test("1.1.4 quote formatters (i18n 0.4.7): bps → %, fee/total dash on null, qu
 test("i18n 0.4.7 brand: app.name = Centurion Trade (tray tooltip + notification titles)", () => {
   for (const l of ["en", "id"]) assert.equal(get(cat[l], "app.name"), "Centurion Trade");
 });
+
+test("i18n 0.4.9: desktop uses no deprecated/removed key, and every literal t() key resolves", async () => {
+  const { readdirSync, statSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const mig = pkg("key-migrations.json");
+  const banned = new Map();
+  for (const r of mig.releases ?? []) for (const kind of ["deprecated", "removed"]) for (const e of r[kind] ?? []) banned.set(e.key ?? e.from ?? e, `${r.version} ${kind}${e.use ? ` → ${e.use}` : ""}`);
+  for (const r of mig.releases ?? []) for (const e of r.renamed ?? []) if (e.from) banned.set(e.from, `${r.version} renamed → ${e.to}`);
+  const root = new URL("../src", import.meta.url).pathname;
+  const files = [];
+  const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); statSync(p).isDirectory() ? walk(p) : /\.tsx?$/.test(f) && files.push(p); } };
+  walk(root);
+  const bad = [], missing = [];
+  for (const f of files) {
+    const src = readFileSync(f, "utf8");
+    for (const [, k] of src.matchAll(/\bt\(\s*"([a-z0-9_]+(?:\.[a-z0-9_]+)+)"/g)) {
+      if (banned.has(k)) bad.push(`${f.slice(root.length)}: ${k} (${banned.get(k)})`);
+      if (typeof get(cat.en, k) !== "string" && !(k in LOCAL_TEMPLATES.en)) missing.push(`${f.slice(root.length)}: ${k}`);
+    }
+  }
+  assert.deepEqual(bad, [], "deprecated/removed keys still used");
+  assert.deepEqual(missing, [], "keys missing from @centurion/i18n and LOCAL_TEMPLATES");
+  assert.equal(get(cat.id, "kill_switch.dialog.effect.exits_keep"), "Exit plan, TP & SL tetap jalan.");
+});

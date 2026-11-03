@@ -97,6 +97,14 @@ function log(actor: Actor, kind: string, tone: Tone, mint: string | null, symbol
   emit(EVT.activity, ev);
 }
 
+/** 1.1.6 shape (mock): ~70 % bundled logos, ~10 % a hash with no file (→ identicon), rest none. */
+function mockLogoHash(mint: string): string | null {
+  let h = 0x811c9dc5;
+  for (const b of new TextEncoder().encode(mint)) h = Math.imul(h ^ b, 0x01000193) >>> 0;
+  const r = h % 10;
+  return r <= 6 ? `mocklogo${h % 5}` : r === 7 ? "mocklogo-missing" : null;
+}
+
 function spawnSignal() {
   const mint = fakeMint();
   const symbol = SYMS[Math.floor(Math.random() * SYMS.length)];
@@ -108,6 +116,7 @@ function spawnSignal() {
   const score = 60 + Math.floor(Math.random() * 40);
   const nonSol = NT !== "off" && Math.random() < 0.25;
   const row: ScreenedCoin = {
+    logo_hash: mockLogoHash(mint),
     ck: mint.slice(0, 8), mint, symbol, name: `${symbol} (mock)`, venue: Math.random() < 0.5 ? "curve" : "amm", strategy: st.name,
     score, score_threshold: 70, max_score: 100, passed: score >= 70, guard_verdict: nonSol || score < 70 ? null : "PASS",
     status: nonSol ? "not_tradeable" : score >= 70 ? "pick" : "rejected_score", liquidity_usd: 5000 + Math.random() * 40000,
@@ -123,6 +132,7 @@ function spawnSignal() {
   // not tradeable → screener row only: never queued, never pushed (WF-20)
   if (nonSol || score < 70) return log("screener", "screener.scored", "neutral", mint, symbol, nonSol ? "Tidak bisa ditradingkan (UNSUPPORTED_QUOTE_MINT)" : `Fit ${score}/70`);
   const s: PickView = {
+    logo_hash: mockLogoHash(mint),
     id: `30000000-0000-4000-8000-${String(seq).padStart(12, "0")}`,
     rev: 1,
     ...TRADEABLE,
@@ -258,6 +268,7 @@ export const browserMockAdapter: CoreApi = {
   async snapshot(): Promise<Snapshot> {
     start();
     return {
+      logo_origin: "https://logo.mock.invalid",
       mode: MOCK_MODE,
       connected: true,
       source: "mock",
@@ -288,7 +299,7 @@ export const browserMockAdapter: CoreApi = {
     const key = `${s.ck}.0`;
     const qtyRaw = BigInt(Math.floor((0.25 / p) * 1e6));
     positions.set(key, {
-      key, ck: s.ck, mint: s.mint, strategy_id: s.strategy_id, strategy: s.strategy, symbol: s.symbol,
+      key, ck: s.ck, mint: s.mint, logo_hash: s.logo_hash ?? null, strategy_id: s.strategy_id, strategy: s.strategy, symbol: s.symbol,
       qty_raw: qtyRaw.toString(), cost_lamports: lam(BUY), value_lamports: lam(BUY), pnl_lamports: "0", realized_lamports: "0",
       pnl_pct: 0, entry_price_sol: dec(p), last_price_sol: dec(p), peak_price_sol: dec(p), ratio: 1, peak_ratio: 1,
       opened_at_ms: Date.now(), plan_state: null, rev: 1, position_id: `50000000-0000-4000-8000-${String(seq).padStart(12, "0")}`, decimals: 6, ...TRADEABLE,
