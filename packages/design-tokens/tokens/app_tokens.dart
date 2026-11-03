@@ -48,8 +48,8 @@ abstract final class AppColorsDark {
   static const semanticLossContainer = Color(0xFF3A1518);
   static const semanticWarning = Color(0xFFF5C04E);
   static const semanticWarningContainer = Color(0xFF33270C);
-  static const semanticGuard = Color(0xFFB39BFF);
-  static const semanticGuardContainer = Color(0xFF241B45);
+  static const semanticGuard = Color(0xFFE57A12);
+  static const semanticGuardContainer = Color(0xFF361C08);
   static const semanticInfo = Color(0xFF7AA7FF);
   static const semanticInfoContainer = Color(0xFF0F2140);
   static const semanticNeutralPnl = Color(0xFFA9B3C7);
@@ -95,8 +95,8 @@ abstract final class AppColorsLight {
   static const semanticLossContainer = Color(0xFFFCE4E4);
   static const semanticWarning = Color(0xFF8A5A00);
   static const semanticWarningContainer = Color(0xFFFBF0D5);
-  static const semanticGuard = Color(0xFF6A3FD1);
-  static const semanticGuardContainer = Color(0xFFEDE6FF);
+  static const semanticGuard = Color(0xFFA85400);
+  static const semanticGuardContainer = Color(0xFFFFF1E6);
   static const semanticInfo = Color(0xFF1F5FCC);
   static const semanticInfoContainer = Color(0xFFE2EDFF);
   static const semanticNeutralPnl = Color(0xFF3D475C);

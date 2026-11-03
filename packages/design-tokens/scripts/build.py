@@ -120,6 +120,17 @@ for th in ("dark","light"):
     for o in ("mode.practice","mode.real","semantic.profit","semantic.loss"):
         e=de00(COL[th]["brand.primary"],COL[th][o]); rep.append(f"| {th} | `brand.primary` vs `{o}` | {e:.1f} | {'PASS' if e>=20 else 'FAIL'} |")
         if e<20: fails.append(f"{th}: brand.primary vs {o} ΔE00 {e:.1f} < 20")
+# Guard distinctness (0.3.1, lead decision: guard = amber). Guard must never read as PnL / mode / accent.
+# vs semantic.warning: both are amber by design (same "caution" family). Dark keeps ΔE ≥ 20; light cannot reach 20
+# while staying amber, AA on light surfaces and ≥ 20 from loss red → documented floor 8 (guard always ships with
+# shield icon + "Guard" label; warning with triangle icon). See CHANGELOG 0.3.1.
+GUARD_MIN={"mode.practice":20,"mode.real":20,"semantic.profit":20,"semantic.loss":20,"brand.primary":20}
+GUARD_WARN_MIN={"dark":20,"light":8}
+rep+=["","## Guard distinctness (ΔE2000 ≥ 20 vs PnL, mode, accent; vs warning: dark ≥ 20, light documented floor 8)","| theme | pair | ΔE00 | min | ok |","|---|---|---|---|---|"]
+for th in ("dark","light"):
+    for o,m in list(GUARD_MIN.items())+[("semantic.warning",GUARD_WARN_MIN[th])]:
+        e=de00(COL[th]["semantic.guard"],COL[th][o]); rep.append(f"| {th} | `semantic.guard` vs `{o}` | {e:.1f} | {m} | {'PASS' if e>=m else 'FAIL'} |")
+        if e<m: fails.append(f"{th}: semantic.guard vs {o} ΔE00 {e:.1f} < {m}")
 open(os.path.join(OUT,"contrast-report.md"),"w").write("\n".join(rep)+"\n")
 
 # ---------------- CSS blocks ----------------

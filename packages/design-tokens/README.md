@@ -17,6 +17,8 @@ Panduan lengkap (font bundling, Tailwind v4 utilities, mapping M3, aturan Tauri,
 
 Breaking v0.2.0 (untuk Flutter): `context.trade` → `context.tradeColors`, `numStyle()` → `AppText.num()`, `AppSpace.s0_5` → `AppSpace.sHalf`. Warna berubah: dark `border.strong` #6B7995, `text.tertiary` #919CB2.
 
+**v0.3.1 (3 Nov 2026) — guard status amber (keputusan lead):** `semantic.guard` dark #E57A12 / light #A85400 (container #361C08 / #FFF1E6), cek ΔE2000 guard vs PnL/mode/aksen/warning di build. Detail: `CHANGELOG.md`.
+
 **v0.3.0 (3 Nov 2026) — G1-blue (arah pilihan Boss: Canva G1, aksen violet → biru).** Perubahan nilai, bukan rename: **tidak ada token yang di-rename atau dihapus** (`bg.inset` tetap alias deprecated; penghapusan ditunda ke ≥ 0.4.0). Detail lengkap + tabel old → new: `CHANGELOG.md`.
 - Warna dark: surface near-black (`bg.canvas` #0A0B10 …), border/teks dirapikan, `brand.primary` **#4F8CFF** (biru, hue 219°; dulu violet #8B97FF), `border.focus` #8AB4FF, `semantic.info` #7AA7FF (keluarga biru). Light: `brand.primary` #1F5FD1.
 - `mode.practice` (#3FD0E0) dan `mode.real` (#FF7DC4) **tidak berubah**. Build sekarang mengecek ΔE2000 `brand.primary` vs `mode.practice`/`mode.real`/`semantic.profit`/`semantic.loss` ≥ 20 (dark: 30,6 / 36,0 / 50,5 / 42,0).

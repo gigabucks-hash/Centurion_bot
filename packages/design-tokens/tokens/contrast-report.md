@@ -43,11 +43,11 @@ Checks: 127 · terendah relatif target: `brand.primary` on `bg.overlay` = 4.82 (
 | text | `semantic.warning` #F5C04E | `bg.raised` #191C25 | 10.15 | 4.5 | PASS |
 | text | `semantic.warning` #F5C04E | `bg.overlay` #20242F | 9.25 | 4.5 | PASS |
 | text | `semantic.warning` #F5C04E | `bg.sunken` #07080C | 11.95 | 4.5 | PASS |
-| text | `semantic.guard` #B39BFF | `bg.canvas` #0A0B10 | 8.47 | 4.5 | PASS |
-| text | `semantic.guard` #B39BFF | `bg.surface` #12141B | 7.93 | 4.5 | PASS |
-| text | `semantic.guard` #B39BFF | `bg.raised` #191C25 | 7.33 | 4.5 | PASS |
-| text | `semantic.guard` #B39BFF | `bg.overlay` #20242F | 6.68 | 4.5 | PASS |
-| text | `semantic.guard` #B39BFF | `bg.sunken` #07080C | 8.63 | 4.5 | PASS |
+| text | `semantic.guard` #E57A12 | `bg.canvas` #0A0B10 | 6.67 | 4.5 | PASS |
+| text | `semantic.guard` #E57A12 | `bg.surface` #12141B | 6.24 | 4.5 | PASS |
+| text | `semantic.guard` #E57A12 | `bg.raised` #191C25 | 5.77 | 4.5 | PASS |
+| text | `semantic.guard` #E57A12 | `bg.overlay` #20242F | 5.26 | 4.5 | PASS |
+| text | `semantic.guard` #E57A12 | `bg.sunken` #07080C | 6.79 | 4.5 | PASS |
 | text | `semantic.info` #7AA7FF | `bg.canvas` #0A0B10 | 8.24 | 4.5 | PASS |
 | text | `semantic.info` #7AA7FF | `bg.surface` #12141B | 7.71 | 4.5 | PASS |
 | text | `semantic.info` #7AA7FF | `bg.raised` #191C25 | 7.13 | 4.5 | PASS |
@@ -98,11 +98,11 @@ Checks: 127 · terendah relatif target: `brand.primary` on `bg.overlay` = 4.82 (
 | non-text | `semantic.warning` #F5C04E | `bg.raised` #191C25 | 10.15 | 3.0 | PASS |
 | non-text | `semantic.warning` #F5C04E | `bg.overlay` #20242F | 9.25 | 3.0 | PASS |
 | non-text | `semantic.warning` #F5C04E | `bg.sunken` #07080C | 11.95 | 3.0 | PASS |
-| non-text | `semantic.guard` #B39BFF | `bg.canvas` #0A0B10 | 8.47 | 3.0 | PASS |
-| non-text | `semantic.guard` #B39BFF | `bg.surface` #12141B | 7.93 | 3.0 | PASS |
-| non-text | `semantic.guard` #B39BFF | `bg.raised` #191C25 | 7.33 | 3.0 | PASS |
-| non-text | `semantic.guard` #B39BFF | `bg.overlay` #20242F | 6.68 | 3.0 | PASS |
-| non-text | `semantic.guard` #B39BFF | `bg.sunken` #07080C | 8.63 | 3.0 | PASS |
+| non-text | `semantic.guard` #E57A12 | `bg.canvas` #0A0B10 | 6.67 | 3.0 | PASS |
+| non-text | `semantic.guard` #E57A12 | `bg.surface` #12141B | 6.24 | 3.0 | PASS |
+| non-text | `semantic.guard` #E57A12 | `bg.raised` #191C25 | 5.77 | 3.0 | PASS |
+| non-text | `semantic.guard` #E57A12 | `bg.overlay` #20242F | 5.26 | 3.0 | PASS |
+| non-text | `semantic.guard` #E57A12 | `bg.sunken` #07080C | 6.79 | 3.0 | PASS |
 | non-text | `semantic.info` #7AA7FF | `bg.canvas` #0A0B10 | 8.24 | 3.0 | PASS |
 | non-text | `semantic.info` #7AA7FF | `bg.surface` #12141B | 7.71 | 3.0 | PASS |
 | non-text | `semantic.info` #7AA7FF | `bg.raised` #191C25 | 7.13 | 3.0 | PASS |
@@ -125,7 +125,7 @@ Checks: 127 · terendah relatif target: `brand.primary` on `bg.overlay` = 4.82 (
 | pair | `semantic.profit` #3DD68C | `semantic.profitContainer` #0F2E22 | 7.81 | 4.5 | PASS |
 | pair | `semantic.loss` #FF7A7A | `semantic.lossContainer` #3A1518 | 6.40 | 4.5 | PASS |
 | pair | `semantic.warning` #F5C04E | `semantic.warningContainer` #33270C | 8.73 | 4.5 | PASS |
-| pair | `semantic.guard` #B39BFF | `semantic.guardContainer` #241B45 | 6.87 | 4.5 | PASS |
+| pair | `semantic.guard` #E57A12 | `semantic.guardContainer` #361C08 | 5.37 | 4.5 | PASS |
 | pair | `semantic.info` #7AA7FF | `semantic.infoContainer` #0F2140 | 6.71 | 4.5 | PASS |
 | pair | `mode.onPractice` #04161A | `mode.practice` #3FD0E0 | 9.97 | 4.5 | PASS |
 | pair | `mode.onReal` #1E0716 | `mode.real` #FF7DC4 | 8.19 | 4.5 | PASS |
@@ -137,7 +137,7 @@ Checks: 127 · terendah relatif target: `brand.primary` on `bg.overlay` = 4.82 (
 | pair | `semantic.info` #7AA7FF | `semantic.infoContainer` #0F2140 | 6.71 | 4.5 | PASS |
 
 ## light
-Checks: 127 · terendah relatif target: `semantic.profit` on `semantic.profitContainer` = 4.71 (target 4.5)
+Checks: 127 · terendah relatif target: `semantic.guard` on `bg.sunken` = 4.68 (target 4.5)
 
 | Kind | Foreground | Background | Ratio | Target | Result |
 |---|---|---|---|---|---|
@@ -176,11 +176,11 @@ Checks: 127 · terendah relatif target: `semantic.profit` on `semantic.profitCon
 | text | `semantic.warning` #8A5A00 | `bg.raised` #FFFFFF | 5.93 | 4.5 | PASS |
 | text | `semantic.warning` #8A5A00 | `bg.overlay` #FFFFFF | 5.93 | 4.5 | PASS |
 | text | `semantic.warning` #8A5A00 | `bg.sunken` #EEF0F5 | 5.20 | 4.5 | PASS |
-| text | `semantic.guard` #6A3FD1 | `bg.canvas` #F6F7FA | 6.04 | 4.5 | PASS |
-| text | `semantic.guard` #6A3FD1 | `bg.surface` #FFFFFF | 6.47 | 4.5 | PASS |
-| text | `semantic.guard` #6A3FD1 | `bg.raised` #FFFFFF | 6.47 | 4.5 | PASS |
-| text | `semantic.guard` #6A3FD1 | `bg.overlay` #FFFFFF | 6.47 | 4.5 | PASS |
-| text | `semantic.guard` #6A3FD1 | `bg.sunken` #EEF0F5 | 5.68 | 4.5 | PASS |
+| text | `semantic.guard` #A85400 | `bg.canvas` #F6F7FA | 4.98 | 4.5 | PASS |
+| text | `semantic.guard` #A85400 | `bg.surface` #FFFFFF | 5.34 | 4.5 | PASS |
+| text | `semantic.guard` #A85400 | `bg.raised` #FFFFFF | 5.34 | 4.5 | PASS |
+| text | `semantic.guard` #A85400 | `bg.overlay` #FFFFFF | 5.34 | 4.5 | PASS |
+| text | `semantic.guard` #A85400 | `bg.sunken` #EEF0F5 | 4.68 | 4.5 | PASS |
 | text | `semantic.info` #1F5FCC | `bg.canvas` #F6F7FA | 5.50 | 4.5 | PASS |
 | text | `semantic.info` #1F5FCC | `bg.surface` #FFFFFF | 5.89 | 4.5 | PASS |
 | text | `semantic.info` #1F5FCC | `bg.raised` #FFFFFF | 5.89 | 4.5 | PASS |
@@ -231,11 +231,11 @@ Checks: 127 · terendah relatif target: `semantic.profit` on `semantic.profitCon
 | non-text | `semantic.warning` #8A5A00 | `bg.raised` #FFFFFF | 5.93 | 3.0 | PASS |
 | non-text | `semantic.warning` #8A5A00 | `bg.overlay` #FFFFFF | 5.93 | 3.0 | PASS |
 | non-text | `semantic.warning` #8A5A00 | `bg.sunken` #EEF0F5 | 5.20 | 3.0 | PASS |
-| non-text | `semantic.guard` #6A3FD1 | `bg.canvas` #F6F7FA | 6.04 | 3.0 | PASS |
-| non-text | `semantic.guard` #6A3FD1 | `bg.surface` #FFFFFF | 6.47 | 3.0 | PASS |
-| non-text | `semantic.guard` #6A3FD1 | `bg.raised` #FFFFFF | 6.47 | 3.0 | PASS |
-| non-text | `semantic.guard` #6A3FD1 | `bg.overlay` #FFFFFF | 6.47 | 3.0 | PASS |
-| non-text | `semantic.guard` #6A3FD1 | `bg.sunken` #EEF0F5 | 5.68 | 3.0 | PASS |
+| non-text | `semantic.guard` #A85400 | `bg.canvas` #F6F7FA | 4.98 | 3.0 | PASS |
+| non-text | `semantic.guard` #A85400 | `bg.surface` #FFFFFF | 5.34 | 3.0 | PASS |
+| non-text | `semantic.guard` #A85400 | `bg.raised` #FFFFFF | 5.34 | 3.0 | PASS |
+| non-text | `semantic.guard` #A85400 | `bg.overlay` #FFFFFF | 5.34 | 3.0 | PASS |
+| non-text | `semantic.guard` #A85400 | `bg.sunken` #EEF0F5 | 4.68 | 3.0 | PASS |
 | non-text | `semantic.info` #1F5FCC | `bg.canvas` #F6F7FA | 5.50 | 3.0 | PASS |
 | non-text | `semantic.info` #1F5FCC | `bg.surface` #FFFFFF | 5.89 | 3.0 | PASS |
 | non-text | `semantic.info` #1F5FCC | `bg.raised` #FFFFFF | 5.89 | 3.0 | PASS |
@@ -258,7 +258,7 @@ Checks: 127 · terendah relatif target: `semantic.profit` on `semantic.profitCon
 | pair | `semantic.profit` #067A4B | `semantic.profitContainer` #DDF5EA | 4.71 | 4.5 | PASS |
 | pair | `semantic.loss` #C0262D | `semantic.lossContainer` #FCE4E4 | 4.88 | 4.5 | PASS |
 | pair | `semantic.warning` #8A5A00 | `semantic.warningContainer` #FBF0D5 | 5.23 | 4.5 | PASS |
-| pair | `semantic.guard` #6A3FD1 | `semantic.guardContainer` #EDE6FF | 5.35 | 4.5 | PASS |
+| pair | `semantic.guard` #A85400 | `semantic.guardContainer` #FFF1E6 | 4.82 | 4.5 | PASS |
 | pair | `semantic.info` #1F5FCC | `semantic.infoContainer` #E2EDFF | 4.99 | 4.5 | PASS |
 | pair | `mode.onPractice` #FFFFFF | `mode.practice` #0B7285 | 5.59 | 4.5 | PASS |
 | pair | `mode.onReal` #FFFFFF | `mode.real` #B8226F | 6.01 | 4.5 | PASS |
@@ -308,3 +308,19 @@ Total FAIL: 0
 | light | `brand.primary` vs `mode.real` | 34.3 | PASS |
 | light | `brand.primary` vs `semantic.profit` | 45.5 | PASS |
 | light | `brand.primary` vs `semantic.loss` | 43.0 | PASS |
+
+## Guard distinctness (ΔE2000 ≥ 20 vs PnL, mode, accent; vs warning: dark ≥ 20, light documented floor 8)
+| theme | pair | ΔE00 | min | ok |
+|---|---|---|---|---|
+| dark | `semantic.guard` vs `mode.practice` | 50.4 | 20 | PASS |
+| dark | `semantic.guard` vs `mode.real` | 43.4 | 20 | PASS |
+| dark | `semantic.guard` vs `semantic.profit` | 54.2 | 20 | PASS |
+| dark | `semantic.guard` vs `semantic.loss` | 24.7 | 20 | PASS |
+| dark | `semantic.guard` vs `brand.primary` | 52.5 | 20 | PASS |
+| dark | `semantic.guard` vs `semantic.warning` | 21.4 | 20 | PASS |
+| light | `semantic.guard` vs `mode.practice` | 43.4 | 20 | PASS |
+| light | `semantic.guard` vs `mode.real` | 38.5 | 20 | PASS |
+| light | `semantic.guard` vs `semantic.profit` | 46.4 | 20 | PASS |
+| light | `semantic.guard` vs `semantic.loss` | 20.5 | 20 | PASS |
+| light | `semantic.guard` vs `brand.primary` | 50.5 | 20 | PASS |
+| light | `semantic.guard` vs `semantic.warning` | 10.1 | 8 | PASS |

@@ -1,5 +1,32 @@
 # Changelog — @sentra/design-tokens (Centurion Trade)
 
+## 0.3.1 — 3 Nov 2026 · Guard status = amber (keputusan lead)
+Status guard (chip "Guard", ikon perisai, banner guard-reject) pindah dari violet ke **amber/oranye**. Violet lama terlalu dekat dengan aksen biru G1 dan Real magenta di layar kecil. Hanya nilai yang berubah; nama token tetap (`semantic.guard`, `semantic.guardContainer`; CSS `--color-semantic-guard*`; Dart `TradeColors.guard/guardContainer`, `AppColors*.semanticGuard*`).
+
+| token | 0.3.0 | 0.3.1 |
+|---|---|---|
+| `color.dark.semantic.guard` | #B39BFF | **#E57A12** |
+| `color.dark.semantic.guardContainer` | #241B45 | **#361C08** |
+| `color.light.semantic.guard` | #6A3FD1 | **#A85400** |
+| `color.light.semantic.guardContainer` | #EDE6FF | **#FFF1E6** |
+
+**Cek baru di `scripts/build.py` (exit 1 kalau gagal):** ΔE2000 `semantic.guard` vs `semantic.profit`, `semantic.loss`, `mode.practice`, `mode.real`, `brand.primary` ≥ 20 di kedua tema; vs `semantic.warning` ≥ 20 (dark) / ≥ 8 (light, pengecualian terdokumentasi, lihat di bawah).
+
+| ΔE2000 guard vs | profit | loss | practice | real | brand | warning |
+|---|---|---|---|---|---|---|
+| dark #E57A12 | 54,2 | 24,7 | 50,4 | 43,4 | 52,5 | 21,4 |
+| light #A85400 | 46,4 | 20,5 | 43,4 | 38,5 | 50,5 | 10,1 |
+
+**Kontras (teks, AA 4,5:1):** dark: canvas 6,67 · surface 6,24 · raised 5,77 · overlay 5,26 · sunken 6,79 · di guardContainer 5,37. Light: canvas 4,98 · surface/raised/overlay 5,34 · sunken 4,68 · di guardContainer 4,82. Total contrast FAIL: 0.
+
+**Guard vs `semantic.warning` (#F5C04E / #8A5A00).** Warning sudah amber-kuning; tidak ada token amber/oranye lain (palet identicon #1 #8A4A1F berjarak ΔE 25,3 dan hanya dipakai untuk avatar koin, bukan status). Guard dibuat **lebih oranye** (hue ~30°, warning ~42°). Dark lolos ≥ 20. Di light theme, tidak ada amber yang sekaligus AA di #EEF0F5, ≥ 20 dari loss #C0262D, dan ≥ 20 dari warning #8A5A00. Ruang antara kuning-tua dan merah terlalu sempit, dan semua kandidat yang lolos berwarna cokelat gelap (#3x2x1x), jadi tidak terbaca sebagai amber. Berbagi keluarga warna dengan warning dianggap aman karena:
+1. keduanya memang satu makna, yaitu "perhatian, tidak destruktif". Merah tetap khusus untuk loss/error;
+2. guard **selalu** tampil dengan ikon perisai + label "Guard"/alasan guard, sedangkan warning memakai ikon segitiga. Warna tidak pernah menjadi satu-satunya penanda (WCAG 1.4.1);
+3. guard dan warning tidak dipakai berdampingan sebagai pembeda status dalam satu sel atau kolom.
+Kalau nanti dibutuhkan ≥ 20 di light, opsinya adalah menggeser `light.semantic.warning` ke kuning-zaitun. Itu perubahan token lain dan butuh keputusan lead.
+
+Tidak berubah: semua token lain. **Renamed/removed:** tidak ada.
+
 ## 0.3.0 — 3 Nov 2026 · G1-blue (Boss-chosen direction)
 Arah visual pilihan Boss = Canva concept G1, dengan satu perubahan: aksen violet → **biru**. Ini perubahan **nilai**; nama token lama tetap.
 
