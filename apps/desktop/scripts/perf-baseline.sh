@@ -2,14 +2,14 @@
 # Perf baseline for the release build (Linux, headless Xvfb). Mock backend; no network.
 # Usage: DISPLAY=:143 scripts/perf-baseline.sh [runs=5]
 # Prints: cold start (exec → main window mapped, ms) per run + median, RSS/PSS of the whole process tree
-# (sentra + WebKit web/network processes) after 20 s, CPU % over 30 s while marks stream, bundle sizes.
+# (centurion + WebKit web/network processes) after 20 s, CPU % over 30 s while marks stream, bundle sizes.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"; desk="$(dirname "$here")"
-bin="$desk/src-tauri/target/release/sentra"
+bin="$desk/src-tauri/target/release/centurion"
 [[ -x "$bin" ]] || { echo "build first: npx tauri build --bundles deb" >&2; exit 2; }
 for t in xdotool python3; do command -v "$t" >/dev/null || { echo "missing tool: $t (not installing)" >&2; exit 3; }; done
 runs="${1:-5}"
-export XDG_DATA_HOME="${XDG_DATA_HOME:-/tmp/sentra-perf/data}" XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/sentra-perf/cache}" XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-/tmp/sentra-perf/config}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-/tmp/centurion-perf/data}" XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/centurion-perf/cache}" XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-/tmp/centurion-perf/config}"
 mkdir -p "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
 tree_pids() { local p=$1; echo "$p"; for c in $(pgrep -P "$p" || true); do tree_pids "$c"; done; }
 starts=()
