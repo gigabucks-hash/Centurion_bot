@@ -2,7 +2,7 @@
 // Verification only (ed25519 over the exact message, public key = address); no key custody, no signing of
 // transactions. Sessions: short-lived HS256 access token (same secret/claims the API verifies) + opaque
 // rotating refresh token (sha256 stored; reuse of a rotated token revokes the whole family).
-import { createHash, createHmac, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { ApiError } from "./errors.ts";
 import { asService } from "./db.ts";
 import { Router, readJson, send, type Ctx } from "./http.ts";
@@ -21,6 +21,23 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/** Desktop deep-link hand-off (API_ENDPOINTS 4.1.1): one-time code, 60 s, single use, PKCE S256, centurion://auth only. */
+export const DESKTOP_AUTH_URI = "centurion://auth";
+export const HANDOFF_CODE_TTL_MS = 60_000;
+const CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
+const VERIFIER = /^[A-Za-z0-9._~-]{43,128}$/;
+const STATE = /^[A-Za-z0-9_-]{16,128}$/;
+const HANDOFF_CODE = /^[A-Za-z0-9_-]{43}$/;
+const b64urlSha = (s: string) => createHash("sha256").update(s, "ascii").digest("base64url");
+/** RFC 7636 S256: BASE64URL(SHA256(verifier)) == challenge, constant time. */
+export function pkceS256Ok(verifier: string, challenge: string): boolean {
+  if (!VERIFIER.test(verifier) || !CHALLENGE.test(challenge)) return false;
+  const a = Buffer.from(b64urlSha(verifier));
+  const b = Buffer.from(challenge);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+interface HandoffEntry { userId: string; address: string; workspaceId: string; challenge: string; exp: number }
+
 export function registerAuth(r: Router, d: Deps): void {
   const cfg = d.cfg;
   const ip = (ctx: Ctx) => clientIp(ctx.req, cfg.trustProxy);
@@ -28,6 +45,12 @@ export function registerAuth(r: Router, d: Deps): void {
   // rejecting them never touches the database.
   const shared: Limiter = d.limiter instanceof PgRateLimiter ? d.limiter : new PgRateLimiter(d.db);
   const strangers = new RateLimiter();
+  // Hand-off codes live in this process only (60 s, single use): the API runs as a single instance (single owner).
+  // A multi-instance deployment needs a DB table instead (migration number after the engine's).
+  const handoff = new Map<string, HandoffEntry>();
+  const sweep = (now: number) => {
+    for (const [k, v] of handoff) if (v.exp <= now) handoff.delete(k);
+  };
 
   const enabled = () => {
     if (cfg.siwsDomains.length === 0) throw new ApiError("UNAVAILABLE", { reason: "AUTH_SIWS_DOMAINS not configured" });
@@ -157,6 +180,15 @@ export function registerAuth(r: Router, d: Deps): void {
     if (typeof b.signature !== "string" || b.signature.length > 128) throw new ApiError("VALIDATION_FAILED", { field: "signature" });
     const client = b.client ?? "web";
     if (typeof client !== "string" || !CLIENTS.has(client)) throw new ApiError("VALIDATION_FAILED", { field: "client", allowed: [...CLIENTS] });
+    // desktop hand-off: code_challenge + code_challenge_method + state go together; the response is a one-time code
+    const wantsCode = b.code_challenge !== undefined || b.code_challenge_method !== undefined || b.state !== undefined;
+    if (wantsCode) {
+      if (typeof b.code_challenge !== "string" || !CHALLENGE.test(b.code_challenge)) throw new ApiError("VALIDATION_FAILED", { field: "code_challenge", hint: "S256 challenge, 43 base64url chars" });
+      if (b.code_challenge_method !== "S256") throw new ApiError("VALIDATION_FAILED", { field: "code_challenge_method", allowed: ["S256"] });
+      if (typeof b.state !== "string" || !STATE.test(b.state)) throw new ApiError("VALIDATION_FAILED", { field: "state" });
+      if (client !== "desktop") throw new ApiError("VALIDATION_FAILED", { field: "client", allowed: ["desktop"] });
+      if (b.redirect_uri !== undefined && b.redirect_uri !== DESKTOP_AUTH_URI) throw new ApiError("VALIDATION_FAILED", { field: "redirect_uri", allowed: [DESKTOP_AUTH_URI] });
+    }
     const f = parseMessage(b.message);
     if (!f || f.address !== address || f.chain_id !== SIWS_CHAIN || hostOf(f.uri) !== f.domain) {
       throw new ApiError("SIWS_NONCE_INVALID", { reason: "message" });
@@ -188,9 +220,40 @@ export function registerAuth(r: Router, d: Deps): void {
       const w = (await c.query<{ ws: string }>("select public.ensure_owner_workspace($1::uuid)::text as ws", [u])).rows[0]!.ws;
       return { userId: u, workspaceId: w };
     });
+    if (wantsCode) {
+      const now = Date.now();
+      sweep(now);
+      const code = randomBytes(32).toString("base64url");
+      handoff.set(code, { userId, address, workspaceId, challenge: b.code_challenge as string, exp: now + HANDOFF_CODE_TTL_MS });
+      // no session, no cookies: the page returns centurion://auth?code=&state= and the app redeems it
+      send(ctx, 200, { data: { code, expires_in: HANDOFF_CODE_TTL_MS / 1000, expires_at: iso(now + HANDOFF_CODE_TTL_MS), state: b.state, redirect_uri: DESKTOP_AUTH_URI } });
+      return;
+    }
     const s = await session(userId, client, null, address);
     const out = sessionBody(s, userId, address);
     send(ctx, 200, { data: { ...out.data, workspace_id: workspaceId } });
+  });
+
+  // ---- desktop hand-off exchange (one-time code + PKCE verifier -> session) -----------------------
+  r.add("POST", "/v1/auth/desktop/exchange", async (ctx) => {
+    enabled();
+    await shared.hit(`desktop.exchange:ip:${ip(ctx)}`, 30, 60);
+    const b = await readJson(ctx);
+    for (const k of Object.keys(b)) {
+      if (!["code", "code_verifier", "client"].includes(k)) throw new ApiError("VALIDATION_FAILED", { field: k, hint: "unknown field" });
+    }
+    if (typeof b.code !== "string" || !HANDOFF_CODE.test(b.code)) throw new ApiError("VALIDATION_FAILED", { field: "code" });
+    if (typeof b.code_verifier !== "string" || !VERIFIER.test(b.code_verifier)) throw new ApiError("VALIDATION_FAILED", { field: "code_verifier" });
+    if ((b.client ?? "desktop") !== "desktop") throw new ApiError("VALIDATION_FAILED", { field: "client", allowed: ["desktop"] });
+    const now = Date.now();
+    const e = handoff.get(b.code);
+    handoff.delete(b.code); // single use, even when the verifier is wrong
+    if (!e || e.exp <= now) throw new ApiError("UNAUTHENTICATED", { reason: "code_invalid" });
+    if (!pkceS256Ok(b.code_verifier, e.challenge)) throw new ApiError("UNAUTHENTICATED", { reason: "code_verifier_mismatch" });
+    if (!ownerOk(e.address)) throw notOwner(); // owner list may have changed within the 60 s
+    const s = await session(e.userId, "desktop", null, e.address);
+    const out = sessionBody(s, e.userId, e.address);
+    send(ctx, 200, { data: { ...out.data, workspace_id: e.workspaceId } });
   });
 
   // ---- refresh (rotation) -------------------------------------------------------------------------
