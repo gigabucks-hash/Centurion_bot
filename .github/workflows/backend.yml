@@ -91,6 +91,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - uses: dtolnay/rust-toolchain@1.85
+      - name: fetch deps for the logo crate (tests build it offline)
+        working-directory: services/backend
+        run: cargo fetch --locked
       - run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - run: npm ci
       - name: typecheck

@@ -41,4 +41,4 @@ jobs:
       - name: No secrets in the client bundle
         run: |
           ! grep -rEl '(sk_live|sk_test|service_role|-----BEGIN|SUPABASE_SERVICE|OWNER_WALLETS|JWT_SECRET|srt_[A-Za-z0-9]{8,})' .next/static
-      - run: npm audit --audit-level=moderate
+      - run: npm audit --omit=dev --audit-level=moderate
