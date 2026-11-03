@@ -23,7 +23,7 @@ after(async () => {
 
 describe("contracts 1.1.4", () => {
   test("healthz reports 1.1.4", async () => {
-    assert.equal((await call(h.base, "GET", "/healthz")).body.contracts_version, "1.1.5");
+    assert.equal((await call(h.base, "GET", "/healthz")).body.contracts_version, "1.1.6");
   });
 
   test("coin and pick carry market_cap_lamports (string), mcap_usd (decimal string), mcap_as_of", async () => {

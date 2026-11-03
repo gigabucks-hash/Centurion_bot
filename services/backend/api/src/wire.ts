@@ -1,5 +1,7 @@
 // Row -> wire conversions. Rules (EVENTS_SCHEMA section 1): lamports / int64 as integer strings (node-pg
 // already returns int8 as string), timestamps RFC 3339 UTC with ms, scores/percentages as JSON numbers.
+import { logoUrl } from "./logo/config.ts";
+
 export function iso(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   return v instanceof Date ? v.toISOString() : new Date(String(v)).toISOString();
@@ -43,6 +45,8 @@ export function eventWire(r: EventRow, serverNow: string) {
     strategy_id: r.strategy_id,
     ck: r.ck,
     mint: r.mint,
+    // 1.1.6: our logo proxy URL for `mint` (null: no mint / proxy disabled); clients fall back to an identicon
+    logo_url: logoUrl(r.mint),
     actor: r.actor,
     mode: r.mode,
     payload: r.payload ?? {},
@@ -61,6 +65,7 @@ export function approvalWire(r: Record<string, unknown>) {
     mode: r.mode,
     subject: r.subject,
     mint: r.mint,
+    logo_url: logoUrl(r.mint), // 1.1.6
     amount_lamports: str(r.amount_lamports),
     is_first_buy: r.is_first_buy,
     risk: r.risk,

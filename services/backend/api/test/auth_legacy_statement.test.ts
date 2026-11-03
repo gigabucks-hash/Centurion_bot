@@ -45,6 +45,6 @@ describe("SIWS legacy statement retired", () => {
     const r = await call(h.base, "GET", "/healthz");
     assert.equal(r.body.product, "Centurion Trade");
     assert.equal(r.body.service, "Centurion Trade API");
-    assert.equal(r.body.contracts_version, "1.1.5");
+    assert.equal(r.body.contracts_version, "1.1.6");
   });
 });

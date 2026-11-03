@@ -16,8 +16,10 @@ import { registerReads } from "./routes_reads.ts";
 import { registerAccount } from "./routes_account.ts";
 import { registerAuth } from "./routes_auth.ts";
 import { autoRefresh, registerQuotes } from "./routes_quote.ts";
+import { registerLogos } from "./routes_logos.ts";
+import { logoUrl } from "./logo/config.ts";
 
-export const CONTRACTS_VERSION = "1.1.5";
+export const CONTRACTS_VERSION = "1.1.6";
 /** Product name (user facing). Crate/package/DB names keep the codename "centurion". */
 export const PRODUCT_NAME = "Centurion Trade";
 /** 1.1.3: closed enum, only with decision=reject (default user_declined, applied in SQL). */
@@ -26,6 +28,9 @@ export const APPROVAL_REJECT_REASONS = ["user_declined", "not_tradeable", "price
 export { authenticate, type Deps } from "./deps.ts";
 
 const etag = (rev: unknown) => ({ ETag: `"${String(rev)}"` });
+/** 1.1.6: positions come from SQL position_wire(); logo_hash is joined in the query, logo_url built here. */
+const withLogo = (w: Record<string, unknown>) => ({ ...w, logo_hash: w.logo_hash ?? null, logo_url: logoUrl(w.mint, w.logo_hash) });
+const LOGO_HASH_OF_P = "jsonb_build_object('logo_hash', (select l.logo_hash from public.coin_logos l where l.mint = p.mint and l.status = 'ok'))";
 
 export function buildRouter(d: Deps): Router {
   const r = new Router();
@@ -69,6 +74,8 @@ export function buildRouter(d: Deps): Router {
   };
   r.add("GET", "/healthz", (ctx) => health(ctx, false));
   r.add("GET", "/readyz", (ctx) => health(ctx, true));
+  // 1.1.6 coin-logo image proxy (unauthenticated, own limits; off unless LOGO_PROXY_ENABLED=true)
+  registerLogos(r, d);
 
   // ---- workspace --------------------------------------------------------------------------------
   r.add("GET", "/v1/workspaces/:ws", async (ctx) => {
@@ -105,7 +112,7 @@ export function buildRouter(d: Deps): Router {
     const rows = await asUser(d.db, p.claims, async (c) => {
       await requireMember(c, ws);
       const res = await c.query(
-        `select public.position_wire(p) as w, p.id,
+        `select public.position_wire(p) || ${LOGO_HASH_OF_P} as w, p.id,
                 to_char(p.opened_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cur_ts
            from public.positions p
           where p.workspace_id = $1 and p.mode = $2::public.trade_mode
@@ -122,7 +129,7 @@ export function buildRouter(d: Deps): Router {
     const page = rows.slice(0, limit);
     const last = page.at(-1);
     send(ctx, 200, {
-      items: page.map((x) => x.w),
+      items: page.map((x) => withLogo(x.w)),
       next_cursor: rows.length > limit && last ? encodeCursor(last.cur_ts, last.id) : null,
     });
   });
@@ -133,11 +140,11 @@ export function buildRouter(d: Deps): Router {
     const ws = uuidParam(ctx, "ws");
     const id = uuidParam(ctx, "id");
     const w = await asUser(d.db, p.claims, async (c) => {
-      const res = await c.query("select public.position_wire(p) as w from public.positions p where p.id = $1 and p.workspace_id = $2", [id, ws]);
+      const res = await c.query(`select public.position_wire(p) || ${LOGO_HASH_OF_P} as w from public.positions p where p.id = $1 and p.workspace_id = $2`, [id, ws]);
       return res.rows[0]?.w as Record<string, unknown> | undefined;
     });
     if (!w) throw new ApiError("NOT_FOUND");
-    send(ctx, 200, { data: w }, etag(w.rev));
+    send(ctx, 200, { data: withLogo(w) }, etag(w.rev));
   });
 
   /** Manual sell (practice only). SQL close_position(): role, mode, fraction, rev, idempotency. */

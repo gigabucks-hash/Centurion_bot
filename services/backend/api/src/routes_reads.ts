@@ -5,6 +5,7 @@ import { asService, asUser, requireMember } from "./db.ts";
 import { send, type Router } from "./http.ts";
 import { cursorParam, limitParam, modeParam, requireScope, seqParam, timeRange, uuidParam, UUID } from "./rules.ts";
 import { authenticate, type Deps } from "./deps.ts";
+import { logoUrl } from "./logo/config.ts";
 import { EVENT_COLUMNS, cursorCols, eventWire, iso, num, pageOf, str, type EventRow } from "./wire.ts";
 
 type Page = Record<string, any> & { cur_ts: string; cur_id: string };
@@ -34,6 +35,9 @@ function coinWire(r: Record<string, unknown>) {
     first_seen_at: iso(r.first_seen_at),
     migrated_at: iso(r.migrated_at),
     untrusted: r.untrusted ?? {},
+    // 1.1.6: content hash of the current proxied logo (null: none yet / unavailable) + our proxy URL
+    logo_hash: r.logo_hash ?? null,
+    logo_url: logoUrl(r.mint, r.logo_hash),
     ...mcapWire(r),
   };
 }
@@ -48,17 +52,19 @@ function mcapWire(r: Record<string, unknown>) {
     mcap_source: r.market_cap_lamports == null ? "unavailable" : r.venue === "curve" ? "curve" : "pool",
   };
 }
-const COIN_COLUMNS = "c.mint, c.decimals, c.token_program, c.quote_mint, c.launchpad, c.venue, c.creator, c.first_seen_at, c.migrated_at, c.untrusted, c.market_cap_lamports, c.mcap_usd, c.mcap_as_of";
+const COIN_COLUMNS = "c.mint, c.decimals, c.token_program, c.quote_mint, c.launchpad, c.venue, c.creator, c.first_seen_at, c.migrated_at, c.untrusted, c.market_cap_lamports, c.mcap_usd, c.mcap_as_of, (select l.logo_hash from public.coin_logos l where l.mint = c.mint and l.status = 'ok') as logo_hash";
 
 function pickWire(r: Record<string, unknown>) {
   return {
     id: r.id, ck: r.ck, workspace_id: r.workspace_id, strategy_id: r.strategy_id, mint: r.mint, mode: r.mode,
     stage: r.stage, score: num(r.score), score_threshold: num(r.score_threshold), checks: r.checks ?? [],
     guard: r.guard ?? null, guard_verdict: r.guard_verdict ?? null, created_at: iso(r.created_at), updated_at: iso(r.updated_at),
+    logo_hash: r.logo_hash ?? null, // 1.1.6
+    logo_url: logoUrl(r.mint, r.logo_hash),
     ...mcapWire(r),
   };
 }
-const PICK_COLUMNS = "id, ck, workspace_id, strategy_id, mint, mode::text as mode, stage::text as stage, score, score_threshold, checks, guard, guard_verdict, created_at, updated_at, market_cap_lamports, mcap_usd, mcap_as_of, (select cv.venue from public.coins cv where cv.mint = picks.mint) as venue";
+const PICK_COLUMNS = "id, ck, workspace_id, strategy_id, mint, mode::text as mode, stage::text as stage, score, score_threshold, checks, guard, guard_verdict, created_at, updated_at, market_cap_lamports, mcap_usd, mcap_as_of, (select cv.venue from public.coins cv where cv.mint = picks.mint) as venue, (select l.logo_hash from public.coin_logos l where l.mint = picks.mint and l.status = 'ok') as logo_hash";
 
 export function registerReads(r: Router, d: Deps): void {
   const ws0 = "/v1/workspaces/:ws";
