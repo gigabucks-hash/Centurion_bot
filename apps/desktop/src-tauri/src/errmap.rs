@@ -37,7 +37,9 @@ pub struct ErrorMap {
 
 pub fn map() -> &'static ErrorMap {
     static M: OnceLock<ErrorMap> = OnceLock::new();
-    M.get_or_init(|| serde_json::from_str(ERRORS_MAP_JSON).expect("packages/i18n/errors.map.json is valid"))
+    M.get_or_init(|| {
+        serde_json::from_str(ERRORS_MAP_JSON).expect("packages/i18n/errors.map.json is valid")
+    })
 }
 
 /// Legacy spellings still accepted on input (a pre-1.1.2 producer). Output is always canonical.
@@ -45,7 +47,11 @@ const LEGACY: &[(&str, &str)] = &[("PAPER_CASH_INSUFFICIENT", "PRACTICE_CASH_INS
 
 /// Canonical (1.1.2) spelling of an error / notice code.
 pub fn canonical(code: &str) -> &str {
-    LEGACY.iter().find(|(o, _)| *o == code).map(|(_, n)| *n).unwrap_or(code)
+    LEGACY
+        .iter()
+        .find(|(o, _)| *o == code)
+        .map(|(_, n)| *n)
+        .unwrap_or(code)
 }
 
 pub fn entry(code: &str) -> Option<&'static ErrorMapEntry> {
@@ -54,7 +60,9 @@ pub fn entry(code: &str) -> Option<&'static ErrorMapEntry> {
 
 /// i18n key for an error / notice code (`error.code.*` or a fallback such as `order.fail_reason.*`).
 pub fn i18n_key(code: &str) -> &'static str {
-    entry(code).map(|e| e.key.as_str()).unwrap_or(map().unknown.as_str())
+    entry(code)
+        .map(|e| e.key.as_str())
+        .unwrap_or(map().unknown.as_str())
 }
 
 /// The full `order.failed` `reason_code` set in contracts 1.1.2 (i18n 0.4.3 has a copy for each).
@@ -91,17 +99,44 @@ mod tests {
         assert_eq!(m.codes.len(), 67);
         assert_eq!(i18n_key("MODE_NOT_ALLOWED"), "error.code.mode_not_allowed");
         assert_eq!(entry("MODE_NOT_ALLOWED").unwrap().http, 403);
-        assert_eq!(i18n_key("QUOTE_MISSING_OR_STALE"), "error.code.quote_missing_or_stale");
-        assert_eq!(entry("QUOTE_MISSING_OR_STALE").unwrap().cta_key.as_deref(), Some("review.quote.refresh"));
-        assert_eq!(entry("GUARD_WEAKEN_REQUIRES_APPROVAL").unwrap().tone.as_deref(), Some("pending"));
-        assert_eq!(i18n_key("GUARD_WEAKEN_REQUIRES_APPROVAL"), "error.code.guard_weaken_requires_approval");
+        assert_eq!(
+            i18n_key("QUOTE_MISSING_OR_STALE"),
+            "error.code.quote_missing_or_stale"
+        );
+        assert_eq!(
+            entry("QUOTE_MISSING_OR_STALE").unwrap().cta_key.as_deref(),
+            Some("review.quote.refresh")
+        );
+        assert_eq!(
+            entry("GUARD_WEAKEN_REQUIRES_APPROVAL")
+                .unwrap()
+                .tone
+                .as_deref(),
+            Some("pending")
+        );
+        assert_eq!(
+            i18n_key("GUARD_WEAKEN_REQUIRES_APPROVAL"),
+            "error.code.guard_weaken_requires_approval"
+        );
         assert_eq!(i18n_key("VERSION_CONFLICT"), "error.code.version_conflict");
         assert_eq!(i18n_key("IDEMPOTENCY_KEY_REUSED"), "error.code.internal");
-        assert_eq!(i18n_key("PRECONDITION_REQUIRED"), "error.code.version_conflict");
-        assert_eq!(i18n_key("UNSUPPORTED_QUOTE_MINT"), "order.fail_reason.unsupported_quote_mint");
-        assert_eq!(i18n_key("PAPER_CASH_INSUFFICIENT"), "error.code.practice_cash_insufficient");
+        assert_eq!(
+            i18n_key("PRECONDITION_REQUIRED"),
+            "error.code.version_conflict"
+        );
+        assert_eq!(
+            i18n_key("UNSUPPORTED_QUOTE_MINT"),
+            "order.fail_reason.unsupported_quote_mint"
+        );
+        assert_eq!(
+            i18n_key("PAPER_CASH_INSUFFICIENT"),
+            "error.code.practice_cash_insufficient"
+        );
         assert_eq!(i18n_key("NOPE_NOT_A_CODE"), "error.code.internal");
-        assert_eq!(order_fail_key("MODE_NOT_ALLOWED"), "order.fail_reason.mode_not_allowed");
+        assert_eq!(
+            order_fail_key("MODE_NOT_ALLOWED"),
+            "order.fail_reason.mode_not_allowed"
+        );
         assert_eq!(order_fail_key("SOMETHING_NEW"), "order.fail_reason.unknown");
     }
 }

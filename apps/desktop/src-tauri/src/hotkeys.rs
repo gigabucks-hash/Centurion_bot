@@ -4,8 +4,8 @@
 //! approval queue) — they never approve, skip or sell.
 
 use crate::error::{AppError, AppResult};
-use crate::view::ShortcutConfig;
 use crate::state::AppState;
+use crate::view::ShortcutConfig;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
@@ -41,7 +41,13 @@ fn handle<R: Runtime>(app: &AppHandle<R>, a: Action) {
     match a {
         Action::Focus => crate::windows::focus_main(app),
         Action::OpenApprovals => {
-            let popup = app.state::<AppState>().engine.lock().unwrap().settings.approval_popup;
+            let popup = app
+                .state::<AppState>()
+                .engine
+                .lock()
+                .unwrap()
+                .settings
+                .approval_popup;
             if popup && crate::windows::POPUP_SUPPORTED {
                 if let Err(e) = crate::windows::open_approval_popup(app, true) {
                     log::warn!("open approval popup failed: {e}");
@@ -54,7 +60,8 @@ fn handle<R: Runtime>(app: &AppHandle<R>, a: Action) {
 }
 
 fn parse(s: &str) -> AppResult<Shortcut> {
-    s.parse::<Shortcut>().map_err(|e| AppError::Shortcut(format!("{s}: {e}")))
+    s.parse::<Shortcut>()
+        .map_err(|e| AppError::Shortcut(format!("{s}: {e}")))
 }
 
 /// Validate everything first, then swap registrations (unregister old, register new).

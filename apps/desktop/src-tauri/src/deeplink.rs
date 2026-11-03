@@ -32,7 +32,9 @@ fn b64url(bytes: &[u8]) -> String {
     const A: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut out = String::with_capacity(bytes.len() * 4 / 3 + 2);
     for c in bytes.chunks(3) {
-        let n = (c[0] as u32) << 16 | (*c.get(1).unwrap_or(&0) as u32) << 8 | *c.get(2).unwrap_or(&0) as u32;
+        let n = (c[0] as u32) << 16
+            | (*c.get(1).unwrap_or(&0) as u32) << 8
+            | *c.get(2).unwrap_or(&0) as u32;
         for i in 0..=c.len() {
             out.push(A[(n >> (18 - 6 * i) & 63) as usize] as char);
         }
@@ -53,7 +55,10 @@ impl Pkce {
     }
     pub fn from_verifier(verifier: String) -> Self {
         let challenge = b64url(&Sha256::digest(verifier.as_bytes()));
-        Self { verifier, challenge }
+        Self {
+            verifier,
+            challenge,
+        }
     }
 }
 
@@ -67,7 +72,10 @@ pub fn parse_auth_url(url: &str, expected_state: &str) -> Result<String, &'stati
     if url.len() > 1024 {
         return Err("too_long");
     }
-    let rest = url.strip_prefix(SCHEME).and_then(|r| r.strip_prefix("://")).ok_or("scheme")?;
+    let rest = url
+        .strip_prefix(SCHEME)
+        .and_then(|r| r.strip_prefix("://"))
+        .ok_or("scheme")?;
     if rest.contains('#') {
         return Err("fragment");
     }
@@ -87,11 +95,17 @@ pub fn parse_auth_url(url: &str, expected_state: &str) -> Result<String, &'stati
             return Err("duplicate");
         }
     }
-    let (Some(code), Some(state)) = (code, state) else { return Err("missing") };
+    let (Some(code), Some(state)) = (code, state) else {
+        return Err("missing");
+    };
     if !ct_eq(state.as_bytes(), expected_state.as_bytes()) {
         return Err("state");
     }
-    if code.len() != CODE_LEN || !code.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
+    if code.len() != CODE_LEN
+        || !code
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
         return Err("code");
     }
     Ok(code.to_owned())
@@ -118,7 +132,10 @@ fn code_fingerprint(code: &str) -> [u8; 32] {
 /// callback (replay, second tab) is refused. Codes already seen are remembered (SHA-256, last 32), so a code
 /// is never presented twice even across logins.
 #[derive(Default)]
-pub struct PendingLogins(Mutex<Option<(String, Pkce, Instant)>>, Mutex<std::collections::VecDeque<[u8; 32]>>);
+pub struct PendingLogins(
+    Mutex<Option<(String, Pkce, Instant)>>,
+    Mutex<std::collections::VecDeque<[u8; 32]>>,
+);
 impl PendingLogins {
     /// Start a login: fresh `state` + PKCE; returns (state, challenge) for the browser URL.
     pub fn start(&self) -> Result<(String, String), String> {
@@ -136,7 +153,9 @@ impl PendingLogins {
     /// Validate a deep link against the pending login → the code + verifier to exchange. Single use.
     pub fn accept(&self, url: &str) -> Result<AcceptedCode, &'static str> {
         let mut g = self.0.lock().unwrap();
-        let Some((state, _, at)) = g.as_ref() else { return Err("no_pending_login") };
+        let Some((state, _, at)) = g.as_ref() else {
+            return Err("no_pending_login");
+        };
         if at.elapsed() > PENDING_TTL {
             *g = None;
             return Err("expired");
@@ -152,7 +171,11 @@ impl PendingLogins {
             seen.pop_front();
         }
         let (_, pkce, _) = g.take().expect("checked");
-        Ok(AcceptedCode { code, verifier: pkce.verifier, received: Instant::now() })
+        Ok(AcceptedCode {
+            code,
+            verifier: pkce.verifier,
+            received: Instant::now(),
+        })
     }
 }
 
@@ -168,7 +191,10 @@ pub fn handoff_enabled() -> bool {
 
 /// The first `centurion://` argument of a launch (second-instance argv or the first launch), if any.
 pub fn url_in_argv(argv: &[String]) -> Option<&str> {
-    argv.iter().skip(1).map(String::as_str).find(|a| a.strip_prefix(SCHEME).is_some_and(|r| r.starts_with("://")))
+    argv.iter()
+        .skip(1)
+        .map(String::as_str)
+        .find(|a| a.strip_prefix(SCHEME).is_some_and(|r| r.starts_with("://")))
 }
 
 #[cfg(test)]
@@ -181,28 +207,58 @@ mod tests {
         assert_eq!(p.challenge, "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
         let r = Pkce::new().unwrap();
         assert_eq!(r.verifier.len(), 43);
-        assert_eq!(Pkce::from_verifier(r.verifier.clone()).challenge, r.challenge);
+        assert_eq!(
+            Pkce::from_verifier(r.verifier.clone()).challenge,
+            r.challenge
+        );
     }
 
     #[test]
     fn auth_url_is_parsed_strictly() {
         let code = "AbCdEf0123456789_-xyAbCdEf0123456789_-xyAbC"; // 43
         assert_eq!(code.len(), CODE_LEN);
-        assert_eq!(parse_auth_url(&format!("centurion://auth?code={code}&state=s1"), "s1"), Ok(code.into()));
-        assert_eq!(parse_auth_url(&format!("centurion://auth/?state=s1&code={code}"), "s1"), Ok(code.into()));
+        assert_eq!(
+            parse_auth_url(&format!("centurion://auth?code={code}&state=s1"), "s1"),
+            Ok(code.into())
+        );
+        assert_eq!(
+            parse_auth_url(&format!("centurion://auth/?state=s1&code={code}"), "s1"),
+            Ok(code.into())
+        );
         for (url, why) in [
             (format!("centurion://auth?code={code}&state=s2"), "state"),
-            (format!("centurion://evil?code={code}&state=s1"), "host_path"),
-            (format!("centurion://auth/x?code={code}&state=s1"), "host_path"),
-            (format!("centurion://auth@evil?code={code}&state=s1"), "host_path"),
+            (
+                format!("centurion://evil?code={code}&state=s1"),
+                "host_path",
+            ),
+            (
+                format!("centurion://auth/x?code={code}&state=s1"),
+                "host_path",
+            ),
+            (
+                format!("centurion://auth@evil?code={code}&state=s1"),
+                "host_path",
+            ),
             (format!("centurionx://auth?code={code}&state=s1"), "scheme"), // wrong scheme (was sentra:// before the rename)
             (format!("https://auth?code={code}&state=s1"), "scheme"),
-            (format!("centurion://auth?code={code}&state=s1#frag"), "fragment"),
-            (format!("centurion://auth?code={code}&state=s1&access_token=x"), "unexpected_param"),
-            (format!("centurion://auth?code={code}&code={code}&state=s1"), "duplicate"),
+            (
+                format!("centurion://auth?code={code}&state=s1#frag"),
+                "fragment",
+            ),
+            (
+                format!("centurion://auth?code={code}&state=s1&access_token=x"),
+                "unexpected_param",
+            ),
+            (
+                format!("centurion://auth?code={code}&code={code}&state=s1"),
+                "duplicate",
+            ),
             ("centurion://auth?code=short&state=s1".to_string(), "code"),
             (format!("centurion://auth?code={code}A&state=s1"), "code"), // 44 chars
-            (format!("centurion://auth?code={}+&state=s1", &code[..42]), "code"), // 43 chars, '+' not base64url
+            (
+                format!("centurion://auth?code={}+&state=s1", &code[..42]),
+                "code",
+            ), // 43 chars, '+' not base64url
             ("centurion://auth?state=s1".to_string(), "missing"),
         ] {
             assert_eq!(parse_auth_url(&url, "s1"), Err(why), "{url}");
@@ -214,19 +270,40 @@ mod tests {
     #[test]
     fn callback_is_single_use_and_forgeries_do_not_burn_the_login() {
         let p = PendingLogins::default();
-        assert_eq!(p.accept(&format!("centurion://auth?code={C}&state=x")).unwrap_err(), "no_pending_login");
+        assert_eq!(
+            p.accept(&format!("centurion://auth?code={C}&state=x"))
+                .unwrap_err(),
+            "no_pending_login"
+        );
         let (state, challenge) = p.start().unwrap();
         assert_eq!(challenge.len(), 43);
-        assert_eq!(p.accept(&format!("centurion://auth?code={C}&state=forged")).unwrap_err(), "state");
+        assert_eq!(
+            p.accept(&format!("centurion://auth?code={C}&state=forged"))
+                .unwrap_err(),
+            "state"
+        );
         let ok = format!("centurion://auth?code={C}&state={state}");
         let a = p.accept(&ok).unwrap();
-        assert_eq!((a.code.as_str(), Pkce::from_verifier(a.verifier.clone()).challenge), (C, challenge));
+        assert_eq!(
+            (
+                a.code.as_str(),
+                Pkce::from_verifier(a.verifier.clone()).challenge
+            ),
+            (C, challenge)
+        );
         assert!(!a.expired());
         assert_eq!(p.accept(&ok).unwrap_err(), "no_pending_login"); // replay refused
-        // same code again under a NEW login: still refused (codes are single use locally too)
+                                                                    // same code again under a NEW login: still refused (codes are single use locally too)
         let (s2, _) = p.start().unwrap();
-        assert_eq!(p.accept(&format!("centurion://auth?code={C}&state={s2}")).unwrap_err(), "code_reused");
-        let stale = AcceptedCode { received: Instant::now() - CODE_TTL - Duration::from_secs(1), ..a };
+        assert_eq!(
+            p.accept(&format!("centurion://auth?code={C}&state={s2}"))
+                .unwrap_err(),
+            "code_reused"
+        );
+        let stale = AcceptedCode {
+            received: Instant::now() - CODE_TTL - Duration::from_secs(1),
+            ..a
+        };
         assert!(stale.expired(), "60 s TTL checked locally");
     }
 
@@ -234,7 +311,14 @@ mod tests {
     fn deep_link_is_found_in_argv() {
         let argv = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         assert_eq!(url_in_argv(&argv(&["centurion", "--stop"])), None);
-        assert_eq!(url_in_argv(&argv(&["centurion", "centurion://auth?code=x&state=y"])), Some("centurion://auth?code=x&state=y"));
-        assert_eq!(url_in_argv(&argv(&["centurion://auth?code=x&state=y"])), None, "argv[0] is the program");
+        assert_eq!(
+            url_in_argv(&argv(&["centurion", "centurion://auth?code=x&state=y"])),
+            Some("centurion://auth?code=x&state=y")
+        );
+        assert_eq!(
+            url_in_argv(&argv(&["centurion://auth?code=x&state=y"])),
+            None,
+            "argv[0] is the program"
+        );
     }
 }

@@ -16,7 +16,11 @@ fn contracts() -> PathBuf {
 fn read(rel: &str) -> String {
     let path = contracts().join(rel);
     if std::env::var("CENTURION_CONTRACTS_WORKTREE").as_deref() != Ok("1") {
-        let out = std::process::Command::new("git").arg("-C").arg(contracts()).args(["show", &format!("HEAD:./{rel}")]).output();
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(contracts())
+            .args(["show", &format!("HEAD:./{rel}")])
+            .output();
         if let Some(o) = out.ok().filter(|o| o.status.success()) {
             return String::from_utf8(o.stdout).expect("utf-8");
         }
@@ -30,7 +34,10 @@ fn json_blocks(md: &str) -> Vec<Vec<serde_json::Value>> {
     while let Some(i) = rest.find("```json") {
         let body = &rest[i + 7..];
         let j = body.find("```").expect("closed fence");
-        let vals = serde_json::Deserializer::from_str(&body[..j]).into_iter::<serde_json::Value>().collect::<Result<Vec<_>, _>>().expect("valid JSON in fence");
+        let vals = serde_json::Deserializer::from_str(&body[..j])
+            .into_iter::<serde_json::Value>()
+            .collect::<Result<Vec<_>, _>>()
+            .expect("valid JSON in fence");
         out.push(vals);
         rest = &body[j + 3..];
     }
@@ -38,16 +45,27 @@ fn json_blocks(md: &str) -> Vec<Vec<serde_json::Value>> {
 }
 /// String literals of a TS union / array: `export type Name = | "a" | "b";` or `NAME: ... = [ "a", ... ]`.
 fn ts_literals(src: &str, start: &str) -> Vec<String> {
-    let i = src.find(start).unwrap_or_else(|| panic!("{start} not in events.ts"));
+    let i = src
+        .find(start)
+        .unwrap_or_else(|| panic!("{start} not in events.ts"));
     let tail = &src[i + start.len()..];
     let end = tail.find(';').unwrap();
-    tail[..end].split('"').skip(1).step_by(2).map(str::to_owned).collect()
+    tail[..end]
+        .split('"')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_owned)
+        .collect()
 }
 
 #[test]
 fn contracts_version_is_what_we_mirror() {
     let ts = read("src/wire/events.ts");
-    let published = ts.split("CONTRACTS_VERSION = \"").nth(1).and_then(|t| t.split('"').next()).expect("CONTRACTS_VERSION in events.ts");
+    let published = ts
+        .split("CONTRACTS_VERSION = \"")
+        .nth(1)
+        .and_then(|t| t.split('"').next())
+        .expect("CONTRACTS_VERSION in events.ts");
     let mm = |v: &str| v.split('.').take(2).collect::<Vec<_>>().join(".");
     // Patch releases are additive/no-shape; a minor/major bump must be reviewed here.
     assert_eq!(mm(published), mm(CONTRACTS_VERSION), "contracts {published} published, desktop mirrors {CONTRACTS_VERSION} — review CHANGELOG + model.rs");
@@ -65,10 +83,15 @@ fn events_schema_examples_deserialize() {
                 // Envelope (generic example and proposal.expired example).
                 let env: EventEnvelope = serde_json::from_value(v.clone()).expect("envelope");
                 assert_eq!(env.mode, Mode::Practice);
-                assert!(env.server_now.as_ref().and_then(|t| t.ms()).is_some(), "server_now parses");
+                assert!(
+                    env.server_now.as_ref().and_then(|t| t.ms()).is_some(),
+                    "server_now parses"
+                );
                 if env.kind == "proposal.expired" {
                     match KnownEvent::decode(&env).unwrap().expect("decodes") {
-                        KnownEvent::ProposalExpired(x) => assert_eq!(x.reason, ProposalExpiredReason::StrategyDeleted),
+                        KnownEvent::ProposalExpired(x) => {
+                            assert_eq!(x.reason, ProposalExpiredReason::StrategyDeleted)
+                        }
                         k => panic!("{k:?}"),
                     }
                     seen.1 += 1;
@@ -89,7 +112,8 @@ fn events_schema_examples_deserialize() {
                 assert_eq!(f.token_amount_raw, RawQty(980_392_156));
                 seen.3 += 1;
             } else if v.get("cash_lamports").is_some() {
-                let p: PortfolioSnapshot = serde_json::from_value(v.clone()).expect("portfolio.snapshot");
+                let p: PortfolioSnapshot =
+                    serde_json::from_value(v.clone()).expect("portfolio.snapshot");
                 assert_eq!(p.equity_lamports, Lamports(27_478_000_000));
                 assert_eq!(p.drawdown_pct, 8.4);
                 seen.4 += 1;
@@ -119,7 +143,8 @@ fn api_endpoints_409_body_maps_to_conflict() {
     let c = f.conflict().expect("conflict");
     assert!(c.current_rev > c.base_rev, "current_rev > base_rev");
     assert!(!c.changed_fields.is_empty() && c.current.is_some() && c.changed_by.is_some());
-    let cur: StrategySummary = serde_json::from_value(c.current.clone().unwrap()).expect("current is a strategy");
+    let cur: StrategySummary =
+        serde_json::from_value(c.current.clone().unwrap()).expect("current is a strategy");
     assert_eq!(Some(cur.rev), c.current_rev);
 }
 
@@ -129,15 +154,27 @@ fn errors_json_has_the_codes_the_desktop_handles() {
     let v: serde_json::Value = serde_json::from_str(&read("errors.json")).unwrap();
     // >= 4: a newer registry (Backend is adding v5 codes) must not break the desktop — unknown codes
     // fall back to `errors.json messages.id|en` in the UI.
-    assert!(v["version"].as_u64().is_some_and(|n| n >= 4), "errors.json version >= 4");
+    assert!(
+        v["version"].as_u64().is_some_and(|n| n >= 4),
+        "errors.json version >= 4"
+    );
     let codes = v["codes"].as_array().unwrap();
     for c in codes {
         let code = c["code"].as_str().unwrap();
         let kind = c["kind"].as_str().unwrap_or_else(|| panic!("{code} kind"));
-        assert!(["error", "notice", "skip"].contains(&kind), "{code} kind {kind}");
-        assert!(c["sqlstate"].as_str().is_some_and(|s| s.starts_with("P0")), "{code} sqlstate");
+        assert!(
+            ["error", "notice", "skip"].contains(&kind),
+            "{code} kind {kind}"
+        );
+        assert!(
+            c["sqlstate"].as_str().is_some_and(|s| s.starts_with("P0")),
+            "{code} sqlstate"
+        );
         for loc in ["en", "id"] {
-            assert!(c["messages"][loc].as_str().is_some_and(|m| !m.is_empty()), "{code} messages.{loc}");
+            assert!(
+                c["messages"][loc].as_str().is_some_and(|m| !m.is_empty()),
+                "{code} messages.{loc}"
+            );
         }
         // the desktop's classification must agree with the registry for every code it knows
         let ours = match crate::keys::code_kind(code) {
@@ -145,11 +182,17 @@ fn errors_json_has_the_codes_the_desktop_handles() {
             crate::keys::CodeKind::Notice => "notice",
             crate::keys::CodeKind::Skip => "skip",
         };
-        assert_eq!(ours, kind, "{code}: keys::code_kind disagrees with errors.json");
+        assert_eq!(
+            ours, kind,
+            "{code}: keys::code_kind disagrees with errors.json"
+        );
     }
     let find = |code: &str| codes.iter().find(|c| c["code"] == code);
     assert!(find("TELEGRAM_AUTH_INVALID").is_none(), "removed in 1.1.2");
-    assert!(find("PAPER_CASH_INSUFFICIENT").is_none(), "renamed PRACTICE_CASH_INSUFFICIENT");
+    assert!(
+        find("PAPER_CASH_INSUFFICIENT").is_none(),
+        "renamed PRACTICE_CASH_INSUFFICIENT"
+    );
     for (code, http, kind) in [
         ("VERSION_CONFLICT", 409, "error"),
         ("STRATEGY_REV_CONFLICT", 409, "error"),
@@ -182,7 +225,8 @@ fn ts_vocabularies_match_rust_enums() {
         let _ = crate::keys::exit_label(serde_json::from_value(de(&r)).unwrap());
     }
     for r in ts_literals(&ts, "export type ProposalExpiredReason =") {
-        serde_json::from_value::<ProposalExpiredReason>(de(&r)).unwrap_or_else(|_| panic!("ProposalExpiredReason {r}"));
+        serde_json::from_value::<ProposalExpiredReason>(de(&r))
+            .unwrap_or_else(|_| panic!("ProposalExpiredReason {r}"));
     }
     for r in ts_literals(&ts, "export type Venue =") {
         serde_json::from_value::<Venue>(de(&r)).unwrap_or_else(|_| panic!("Venue {r}"));
@@ -202,10 +246,28 @@ fn ts_vocabularies_match_rust_enums() {
     const IGNORED: &[&str] = &["guard.changed"];
     for t in types {
         let env = EventEnvelope {
-            id: "x".into(), seq: 1, kind: t.into(), version: 1, workspace_id: "w".into(), strategy_id: None, ck: None, mint: None,
-            ts: IsoTs::from_ms(0), actor: Actor::System, mode: Mode::Practice, payload: serde_json::json!({}), untrusted: Untrusted::default(), server_now: None, logo_url: None, logo_hash: None,
+            id: "x".into(),
+            seq: 1,
+            kind: t.into(),
+            version: 1,
+            workspace_id: "w".into(),
+            strategy_id: None,
+            ck: None,
+            mint: None,
+            ts: IsoTs::from_ms(0),
+            actor: Actor::System,
+            mode: Mode::Practice,
+            payload: serde_json::json!({}),
+            untrusted: Untrusted::default(),
+            server_now: None,
+            logo_url: None,
+            logo_hash: None,
         };
-        assert_eq!(KnownEvent::decode(&env).is_some(), !IGNORED.contains(&t), "desktop decoder coverage for {t}");
+        assert_eq!(
+            KnownEvent::decode(&env).is_some(),
+            !IGNORED.contains(&t),
+            "desktop decoder coverage for {t}"
+        );
     }
 }
 
@@ -217,7 +279,10 @@ fn contracts_1_1_2_typed_examples_decode() {
     for v in json_blocks(&read("EVENTS_SCHEMA.md")).into_iter().flatten() {
         if v.get("steps").is_some() && v.get("preset").is_some() {
             let p: PlanState = serde_json::from_value(v.clone()).expect("PlanState");
-            assert!(!p.steps.is_empty() && !p.steps.iter().any(|s| matches!(s, PlanStep::Unknown)), "every PlanStep kind known");
+            assert!(
+                !p.steps.is_empty() && !p.steps.iter().any(|s| matches!(s, PlanStep::Unknown)),
+                "every PlanStep kind known"
+            );
             seen.0 += 1;
         } else if v.get("mid_price_sol").is_some() && v.get("practice_epoch").is_some() {
             let f: FillWire = serde_json::from_value(v.clone()).expect("FillWire");
@@ -226,23 +291,42 @@ fn contracts_1_1_2_typed_examples_decode() {
         }
     }
     assert_eq!(seen, (1, 1), "PlanState + FillWire examples present");
-    let errs: Vec<_> = json_blocks(&read("API_ENDPOINTS.md")).into_iter().flatten().filter(|v| v.get("error").is_some()).collect();
+    let errs: Vec<_> = json_blocks(&read("API_ENDPOINTS.md"))
+        .into_iter()
+        .flatten()
+        .filter(|v| v.get("error").is_some())
+        .collect();
     assert!(errs.len() >= 2);
     for b in &errs {
-        let e: ApiError = serde_json::from_value(b.clone()).expect("ApiError {error:{code,message,...,server_now}, server_now}");
+        let e: ApiError = serde_json::from_value(b.clone())
+            .expect("ApiError {error:{code,message,...,server_now}, server_now}");
         assert!(!e.error.code.is_empty());
         if b["error"].get("current_rev").is_some() {
-            let c: ConflictBody = serde_json::from_value(b.clone()).expect("ConflictBody (details inside error)");
+            let c: ConflictBody =
+                serde_json::from_value(b.clone()).expect("ConflictBody (details inside error)");
             assert!(c.error.current_rev > c.error.base_rev);
-            assert!(!c.error.current.is_null(), "{}: `current` required", c.error.code);
+            assert!(
+                !c.error.current.is_null(),
+                "{}: `current` required",
+                c.error.code
+            );
             if c.error.code == "STRATEGY_REV_CONFLICT" {
                 assert!(c.error.changed_by.is_some());
             }
-            assert!(ApiFailure::from_body(409, b).conflict().is_some_and(|x| x.current.is_some()), "{} maps to a conflict", c.error.code);
+            assert!(
+                ApiFailure::from_body(409, b)
+                    .conflict()
+                    .is_some_and(|x| x.current.is_some()),
+                "{} maps to a conflict",
+                c.error.code
+            );
         }
     }
-    assert!(errs.iter().any(|b| b["error"]["code"] == "VERSION_CONFLICT" && !b["error"]["current"].is_null()),
-        "API_ENDPOINTS VERSION_CONFLICT example carries the required `current` (contracts 1f24d28)");
+    assert!(
+        errs.iter()
+            .any(|b| b["error"]["code"] == "VERSION_CONFLICT" && !b["error"]["current"].is_null()),
+        "API_ENDPOINTS VERSION_CONFLICT example carries the required `current` (contracts 1f24d28)"
+    );
     // seq / job_id are int64 strings; numbers are still accepted on input
     let j: JobWire = serde_json::from_value(serde_json::json!({"id": "9007199254740993", "kind": "close_position", "status": "done", "attempts": 1,
         "last_error": null, "created_at": "2026-10-29T10:00:00Z", "updated_at": "2026-10-29T10:00:01Z"})).unwrap();
@@ -255,42 +339,77 @@ fn contracts_1_1_2_typed_examples_decode() {
 #[test]
 fn errors_map_and_order_fail_reasons_match_contracts_and_catalog() {
     let i18n = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../packages/i18n");
-    let cat = |l: &str| -> serde_json::Value { serde_json::from_str(&std::fs::read_to_string(i18n.join(format!("{l}.json"))).unwrap()).unwrap() };
+    let cat = |l: &str| -> serde_json::Value {
+        serde_json::from_str(&std::fs::read_to_string(i18n.join(format!("{l}.json"))).unwrap())
+            .unwrap()
+    };
     let (en, id) = (cat("en"), cat("id"));
-    let has = |c: &serde_json::Value, key: &str| key.split('.').try_fold(c, |v, k| v.get(k)).is_some_and(|v| v.is_string());
+    let has = |c: &serde_json::Value, key: &str| {
+        key.split('.')
+            .try_fold(c, |v, k| v.get(k))
+            .is_some_and(|v| v.is_string())
+    };
     let reg: serde_json::Value = serde_json::from_str(&read("errors.json")).unwrap();
     let codes = reg["codes"].as_array().unwrap();
     let m = crate::errmap::map();
     assert!(has(&en, &m.unknown) && has(&id, &m.unknown));
-    assert!(reg["version"].as_u64().unwrap() >= u64::from(m.errors_json_version), "errors.json older than errors.map.json");
+    assert!(
+        reg["version"].as_u64().unwrap() >= u64::from(m.errors_json_version),
+        "errors.json older than errors.map.json"
+    );
     // every mapped code still exists in the registry (no stale rows)
     for code in m.codes.keys() {
-        assert!(codes.iter().any(|c| c["code"] == code.as_str()), "{code} in errors.map.json but not errors.json");
+        assert!(
+            codes.iter().any(|c| c["code"] == code.as_str()),
+            "{code} in errors.map.json but not errors.json"
+        );
     }
     if reg["version"].as_u64() == Some(u64::from(m.errors_json_version)) {
-        assert_eq!(m.codes.len(), codes.len(), "errors.map.json covers every errors.json code of its version");
+        assert_eq!(
+            m.codes.len(),
+            codes.len(),
+            "errors.map.json covers every errors.json code of its version"
+        );
     }
     for c in codes {
         let code = c["code"].as_str().unwrap();
         let Some(e) = crate::errmap::entry(code) else {
             // newer than errors.map.json: generic key + registry messages (UI fallback), never a panic
-            assert_eq!(crate::errmap::i18n_key(code), m.unknown, "{code} unmapped → unknown");
+            assert_eq!(
+                crate::errmap::i18n_key(code),
+                m.unknown,
+                "{code} unmapped → unknown"
+            );
             continue;
         };
         assert_eq!(e.kind, c["kind"].as_str().unwrap(), "{code} kind");
         assert_eq!(serde_json::json!(e.http), c["http"], "{code} http");
-        assert!(["copy", "fallback"].contains(&e.source.as_str()), "{code} source");
-        assert!(has(&en, &e.key) && has(&id, &e.key), "{code} → {} missing in en/id", e.key);
+        assert!(
+            ["copy", "fallback"].contains(&e.source.as_str()),
+            "{code} source"
+        );
+        assert!(
+            has(&en, &e.key) && has(&id, &e.key),
+            "{code} → {} missing in en/id",
+            e.key
+        );
     }
     let ts = read("src/wire/events.ts");
-    let i = ts.find("export interface OrderFailed").or_else(|| ts.find("OrderFailed")).unwrap();
+    let i = ts
+        .find("export interface OrderFailed")
+        .or_else(|| ts.find("OrderFailed"))
+        .unwrap();
     let wire = ts_literals(&ts[i..], "reason_code:");
     let mut ours = crate::errmap::ORDER_FAIL_REASONS.to_vec();
     let mut theirs: Vec<&str> = wire.iter().map(String::as_str).collect();
     ours.sort_unstable();
     theirs.sort_unstable();
     assert_eq!(ours, theirs, "order.failed reason_code set");
-    for code in crate::errmap::ORDER_FAIL_REASONS.iter().copied().chain(["SOMETHING_NEW"]) {
+    for code in crate::errmap::ORDER_FAIL_REASONS
+        .iter()
+        .copied()
+        .chain(["SOMETHING_NEW"])
+    {
         let k = crate::errmap::order_fail_key(code);
         assert!(has(&en, &k) && has(&id, &k), "{k} missing in en/id");
     }
@@ -301,17 +420,49 @@ fn errors_map_and_order_fail_reasons_match_contracts_and_catalog() {
 #[test]
 fn contracts_1_1_3_reject_reason_and_approval_wire() {
     let ts = read("src/wire/events.ts");
-    assert!(ts.contains(&format!("CONTRACTS_VERSION = \"{}\"", crate::model::CONTRACTS_VERSION)), "mirror == committed contracts");
+    assert!(
+        ts.contains(&format!(
+            "CONTRACTS_VERSION = \"{}\"",
+            crate::model::CONTRACTS_VERSION
+        )),
+        "mirror == committed contracts"
+    );
     assert_eq!(crate::model::CONTRACTS_VERSION, "1.1.5"); // TS constant not bumped by Backend in 1.1.6 (gap)
     let i = ts.find("export type ApprovalRejectReason").unwrap();
     let line = &ts[i..i + ts[i..].find(';').unwrap()];
-    let theirs: Vec<String> = line.split('"').skip(1).step_by(2).map(str::to_owned).collect();
-    let ours: Vec<String> = APPROVAL_REJECT_REASONS.iter().map(|r| serde_json::to_value(r).unwrap().as_str().unwrap().to_owned()).collect();
+    let theirs: Vec<String> = line
+        .split('"')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_owned)
+        .collect();
+    let ours: Vec<String> = APPROVAL_REJECT_REASONS
+        .iter()
+        .map(|r| {
+            serde_json::to_value(r)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
+        .collect();
     assert_eq!(ours, theirs, "APPROVAL_REJECT_REASONS");
-    assert!(serde_json::from_str::<ApprovalRejectReason>("\"bored\"").is_err(), "closed enum");
+    assert!(
+        serde_json::from_str::<ApprovalRejectReason>("\"bored\"").is_err(),
+        "closed enum"
+    );
     // ApprovalWire field set == TS interface field set
     let fields_of = |body: &'static str| -> Vec<&'static str> {
-        body.split(';').filter_map(|f| f.trim().rsplit('\n').next().and_then(|l| l.split(':').next())).map(|f| f.trim().trim_end_matches('?')).filter(|f| !f.is_empty() && !f.starts_with('/') && !f.starts_with('*')).collect()
+        body.split(';')
+            .filter_map(|f| {
+                f.trim()
+                    .rsplit('\n')
+                    .next()
+                    .and_then(|l| l.split(':').next())
+            })
+            .map(|f| f.trim().trim_end_matches('?'))
+            .filter(|f| !f.is_empty() && !f.starts_with('/') && !f.starts_with('*'))
+            .collect()
     };
     let ts: &'static str = Box::leak(ts.into_boxed_str());
     let mut ts_fields = fields_of(body_of(ts, "export interface ApprovalWire"));
@@ -345,23 +496,43 @@ fn contracts_1_1_3_reject_reason_and_approval_wire() {
 #[test]
 fn contracts_1_1_4_market_cap_and_stall() {
     let ts = read("src/wire/events.ts");
-    for f in ["market_cap_lamports: Lamports | null", "mcap_usd: DecimalString | null", "mcap_as_of: IsoTs | null"] {
+    for f in [
+        "market_cap_lamports: Lamports | null",
+        "mcap_usd: DecimalString | null",
+        "mcap_as_of: IsoTs | null",
+    ] {
         assert!(ts.contains(f), "MarketCapFields.{f}");
     }
-    for i in ["CoinDetected extends MarketCapFields", "ScreenerScored extends MarketCapFields", "PickCreated extends MarketCapFields"] {
+    for i in [
+        "CoinDetected extends MarketCapFields",
+        "ScreenerScored extends MarketCapFields",
+        "PickCreated extends MarketCapFields",
+    ] {
         assert!(ts.contains(i), "{i}");
     }
     let c: CoinDetected = serde_json::from_value(serde_json::json!({"mint": "Co68LzYNQArj5fmRmh4o2TVeEVx6FfaLiyRgDAjtpump", "venue": "curve", "launchpad": null,
         "creator": null, "decimals": 6, "token_program": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb", "quote_mint": null,
         "market_cap_lamports": "31250000000000", "mcap_usd": "4687500.00", "mcap_as_of": "2026-10-29T08:42:00.000Z"})).unwrap();
-    assert_eq!(c.mcap.market_cap_lamports, Some(Lamports(31_250_000_000_000)));
+    assert_eq!(
+        c.mcap.market_cap_lamports,
+        Some(Lamports(31_250_000_000_000))
+    );
     assert!(c.mcap.mcap_usd.is_some() && c.mcap.is_known());
-    let n: CoinDetected = serde_json::from_value(serde_json::json!({"mint": "m", "venue": "amm", "launchpad": null, "creator": null,
-        "market_cap_lamports": null, "mcap_usd": null, "mcap_as_of": null})).unwrap();
+    let n: CoinDetected = serde_json::from_value(
+        serde_json::json!({"mint": "m", "venue": "amm", "launchpad": null, "creator": null,
+        "market_cap_lamports": null, "mcap_usd": null, "mcap_as_of": null}),
+    )
+    .unwrap();
     assert!(!n.mcap.is_known(), "nullable");
-    let old: CoinDetected = serde_json::from_value(serde_json::json!({"mint": "m", "venue": "amm", "launchpad": null, "creator": null})).unwrap();
+    let old: CoinDetected = serde_json::from_value(
+        serde_json::json!({"mint": "m", "venue": "amm", "launchpad": null, "creator": null}),
+    )
+    .unwrap();
     assert!(!old.mcap.is_known(), "pre-1.1.4 producer");
-    assert_eq!(serde_json::from_value::<ExitReason>(serde_json::json!("stall")).unwrap(), ExitReason::Stall);
+    assert_eq!(
+        serde_json::from_value::<ExitReason>(serde_json::json!("stall")).unwrap(),
+        ExitReason::Stall
+    );
     // 7ba6273: proposal.updated (quote refresh, rev + 1); quote fields are ignored by the desktop.
     assert!(ts.contains("\"proposal.updated\": ProposalUpdated"));
     let u: ProposalUpdated = serde_json::from_value(serde_json::json!({"proposal_id": "p", "kind": "buy_pick", "rev": 3,

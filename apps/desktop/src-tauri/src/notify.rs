@@ -20,20 +20,35 @@ fn catalog(l: Locale) -> &'static serde_json::Value {
     static EN: OnceLock<serde_json::Value> = OnceLock::new();
     static ID: OnceLock<serde_json::Value> = OnceLock::new();
     match l {
-        Locale::En => EN.get_or_init(|| serde_json::from_str(include_str!("../../../../packages/i18n/en.json")).unwrap_or_default()),
-        Locale::Id => ID.get_or_init(|| serde_json::from_str(include_str!("../../../../packages/i18n/id.json")).unwrap_or_default()),
+        Locale::En => EN.get_or_init(|| {
+            serde_json::from_str(include_str!("../../../../packages/i18n/en.json"))
+                .unwrap_or_default()
+        }),
+        Locale::Id => ID.get_or_init(|| {
+            serde_json::from_str(include_str!("../../../../packages/i18n/id.json"))
+                .unwrap_or_default()
+        }),
     }
 }
 /// Dotted key → template (locale, then en). Missing → None (no ad-hoc copy).
 pub fn template(l: Locale, key: &str) -> Option<&'static str> {
-    let get = |c: &'static serde_json::Value| key.split('.').try_fold(c, |v, k| v.get(k)).and_then(|v| v.as_str());
+    let get = |c: &'static serde_json::Value| {
+        key.split('.')
+            .try_fold(c, |v, k| v.get(k))
+            .and_then(|v| v.as_str())
+    };
     get(catalog(l)).or_else(|| get(catalog(Locale::En)))
 }
 
 /// ICU subset: `{name}` → value; `{name, select, a {A} other {B}}` (branch bodies may hold `{name}`).
 /// Unknown names render empty. Enough for the notification templates; the UI uses the full formatter.
 pub fn icu(t: &str, args: &[(&str, &str)]) -> String {
-    let val = |n: &str| args.iter().find(|(k, _)| *k == n.trim()).map(|(_, v)| *v).unwrap_or("");
+    let val = |n: &str| {
+        args.iter()
+            .find(|(k, _)| *k == n.trim())
+            .map(|(_, v)| *v)
+            .unwrap_or("")
+    };
     let b = t.as_bytes();
     let (mut out, mut i) = (String::new(), 0);
     while i < b.len() {
@@ -101,8 +116,16 @@ pub fn icu(t: &str, args: &[(&str, &str)]) -> String {
 /// SOL amount in the UI locale (≤ 4 dp, trailing zeros trimmed; `id` uses a decimal comma).
 pub fn sol_text(l: Lamports, loc: Locale) -> String {
     let s = l.sol().round_dp(4).normalize();
-    let txt = if s < Decimal::ZERO { format!("\u{2212}{}", s.abs()) } else { s.to_string() };
-    let txt = if loc == Locale::Id { txt.replace('.', ",") } else { txt };
+    let txt = if s < Decimal::ZERO {
+        format!("\u{2212}{}", s.abs())
+    } else {
+        s.to_string()
+    };
+    let txt = if loc == Locale::Id {
+        txt.replace('.', ",")
+    } else {
+        txt
+    };
     format!("{txt} SOL")
 }
 
@@ -111,21 +134,44 @@ pub fn signal_copy(s: &PickView, mode: Mode, loc: Locale, server_now_ms: i64) ->
     // Token symbol is untrusted text (already sanitised by model::plain_text); capped again here.
     let sym: String = s.symbol.chars().take(12).collect();
     let strat: String = s.strategy.chars().take(40).collect();
-    let amount = s.amount_lamports.map(|l| sol_text(l, loc)).unwrap_or_else(|| "—".into());
+    let amount = s
+        .amount_lamports
+        .map(|l| sol_text(l, loc))
+        .unwrap_or_else(|| "—".into());
     let left = ((s.expires_at_ms - server_now_ms).max(0) / 1000) as u64;
     let mm_ss = format!("{}:{:02}", left / 60, left % 60);
     let mode_s = match mode {
         Mode::Practice => "practice",
         Mode::Real => "real",
     };
-    let args = [("mode", mode_s), ("symbol", sym.as_str()), ("strategy", strat.as_str()), ("amount_lamports", amount.as_str()), ("mm_ss", mm_ss.as_str())];
-    let base = if s.first_buy { "notif.first_buy" } else { "notif.pick_pending" };
-    let title = template(loc, &format!("{base}.title")).map(|t| icu(t, &args)).unwrap_or_else(|| format!("{} {}", mode_prefix(mode), crate::brand::app_name()));
-    let body = template(loc, &format!("{base}.body")).map(|t| icu(t, &args)).unwrap_or_default();
+    let args = [
+        ("mode", mode_s),
+        ("symbol", sym.as_str()),
+        ("strategy", strat.as_str()),
+        ("amount_lamports", amount.as_str()),
+        ("mm_ss", mm_ss.as_str()),
+    ];
+    let base = if s.first_buy {
+        "notif.first_buy"
+    } else {
+        "notif.pick_pending"
+    };
+    let title = template(loc, &format!("{base}.title"))
+        .map(|t| icu(t, &args))
+        .unwrap_or_else(|| format!("{} {}", mode_prefix(mode), crate::brand::app_name()));
+    let body = template(loc, &format!("{base}.body"))
+        .map(|t| icu(t, &args))
+        .unwrap_or_default();
     (title, body)
 }
 
-pub fn new_signal<R: Runtime>(app: &AppHandle<R>, s: &PickView, mode: Mode, loc: Locale, server_now_ms: i64) {
+pub fn new_signal<R: Runtime>(
+    app: &AppHandle<R>,
+    s: &PickView,
+    mode: Mode,
+    loc: Locale,
+    server_now_ms: i64,
+) {
     let now = crate::util::now_ms();
     let last = LAST_MS.load(Ordering::Relaxed);
     if now.saturating_sub(last) < MIN_GAP_MS {
@@ -153,8 +199,14 @@ mod tests {
     #[test]
     fn icu_subset_renders_vars_and_select() {
         let t = "[{mode, select, real {REAL} other {PAPER}}] Review {symbol}: x";
-        assert_eq!(icu(t, &[("mode", "practice"), ("symbol", "ORCA")]), "[PAPER] Review ORCA: x");
-        assert_eq!(icu(t, &[("mode", "real"), ("symbol", "ORCA")]), "[REAL] Review ORCA: x");
+        assert_eq!(
+            icu(t, &[("mode", "practice"), ("symbol", "ORCA")]),
+            "[PAPER] Review ORCA: x"
+        );
+        assert_eq!(
+            icu(t, &[("mode", "real"), ("symbol", "ORCA")]),
+            "[REAL] Review ORCA: x"
+        );
         assert_eq!(icu("{a} · {missing}", &[("a", "1")]), "1 · ");
     }
 
@@ -165,8 +217,14 @@ mod tests {
                 let t = template(loc, key).expect(key);
                 for (m, ms) in [(Mode::Practice, "practice"), (Mode::Real, "real")] {
                     let out = icu(t, &[("mode", ms), ("symbol", "ORCA"), ("strategy", "S")]);
-                    assert!(out.starts_with(&format!("{} ", mode_prefix(m))), "{loc:?} {key}: {out}");
-                    assert!(!out.contains("PRACTICE") && !out.contains("REAL SOL"), "old prefix: {out}");
+                    assert!(
+                        out.starts_with(&format!("{} ", mode_prefix(m))),
+                        "{loc:?} {key}: {out}"
+                    );
+                    assert!(
+                        !out.contains("PRACTICE") && !out.contains("REAL SOL"),
+                        "old prefix: {out}"
+                    );
                 }
             }
         }

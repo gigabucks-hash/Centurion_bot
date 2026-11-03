@@ -4,7 +4,10 @@
 
 use crate::model::ProposalStatus;
 use crate::state::AppState;
-use crate::view::{Account, ActivityView, ConflictView, PickView, PositionView, ScreenedCoin, Settings, StrategyView, SyncStatus, TickView};
+use crate::view::{
+    Account, ActivityView, ConflictView, PickView, PositionView, ScreenedCoin, Settings,
+    StrategyView, SyncStatus, TickView,
+};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 pub const SIGNAL_NEW: &str = "signal:new";
@@ -48,7 +51,12 @@ pub fn dispatch<R: Runtime>(app: &AppHandle<R>, outs: Vec<Out>) {
                 let (mode, popup, loc, now) = {
                     let st = app.state::<AppState>();
                     let e = st.engine.lock().unwrap();
-                    (e.mode, e.settings.approval_popup, e.settings.locale, e.server_now_ms())
+                    (
+                        e.mode,
+                        e.settings.approval_popup,
+                        e.settings.locale,
+                        e.server_now_ms(),
+                    )
                 };
                 crate::notify::new_signal(app, s, mode, loc, now);
                 if popup {
@@ -59,7 +67,14 @@ pub fn dispatch<R: Runtime>(app: &AppHandle<R>, outs: Vec<Out>) {
             }
             Out::SignalUpdate(s) => {
                 // UX: popup hides automatically once the queue is empty (after the 3 s expired notice).
-                let any_pending = app.state::<AppState>().engine.lock().unwrap().signals.iter().any(|x| x.status == ProposalStatus::Pending);
+                let any_pending = app
+                    .state::<AppState>()
+                    .engine
+                    .lock()
+                    .unwrap()
+                    .signals
+                    .iter()
+                    .any(|x| x.status == ProposalStatus::Pending);
                 if !any_pending {
                     crate::windows::hide_approval_popup_later(app, 3_200);
                 }

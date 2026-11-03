@@ -4,7 +4,10 @@
 //! ratios / scores / USD as numbers. Names follow the contracts CHANGELOG (e.g. `score_threshold`,
 //! not `passMark`). Desktop-only preferences live here as well.
 
-use crate::model::{Actor, Dec, GuardVerdict, IsoTs, Lamports, Mode, Num, ProposalExpiredReason, ProposalStatus, RawQty, Venue};
+use crate::model::{
+    Actor, Dec, GuardVerdict, IsoTs, Lamports, Mode, Num, ProposalExpiredReason, ProposalStatus,
+    RawQty, Venue,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -21,7 +24,12 @@ pub struct Tradeability {
 }
 impl Default for Tradeability {
     fn default() -> Self {
-        Self { tradeable: true, reason_code: None, quote_mint: None, quote_symbol: None }
+        Self {
+            tradeable: true,
+            reason_code: None,
+            quote_mint: None,
+            quote_symbol: None,
+        }
     }
 }
 
@@ -49,7 +57,10 @@ pub enum I18nArg {
 }
 impl I18nMsg {
     pub fn new(key: &str) -> Self {
-        Self { key: key.into(), args: BTreeMap::new() }
+        Self {
+            key: key.into(),
+            args: BTreeMap::new(),
+        }
     }
     pub fn arg(mut self, k: &str, v: I18nArg) -> Self {
         self.args.insert(k.into(), v);
@@ -295,7 +306,14 @@ impl StrategyView {
             exits: crate::model::ExitTimers::from_settings(&s.settings),
             mode: s.mode.unwrap_or(crate::model::Mode::Practice),
             real_locked,
-            real_locked_reason: if real_locked { Some(s.real_locked_reason.unwrap_or(crate::model::RealLockedReason::Other)) } else { None },
+            real_locked_reason: if real_locked {
+                Some(
+                    s.real_locked_reason
+                        .unwrap_or(crate::model::RealLockedReason::Other),
+                )
+            } else {
+                None
+            },
             paper_progress: s.paper_progress.unwrap_or_default(),
         }
     }
@@ -344,7 +362,10 @@ pub struct ShortcutConfig {
 
 impl Default for ShortcutConfig {
     fn default() -> Self {
-        Self { focus_terminal: "CommandOrControl+Shift+H".into(), open_approvals: Some("CommandOrControl+Shift+A".into()) }
+        Self {
+            focus_terminal: "CommandOrControl+Shift+H".into(),
+            open_approvals: Some("CommandOrControl+Shift+A".into()),
+        }
     }
 }
 
@@ -387,7 +408,13 @@ pub enum Locale {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { theme: Theme::Dark, density: Density::Compact, approval_popup: false, shortcuts: ShortcutConfig::default(), locale: Locale::Id }
+        Self {
+            theme: Theme::Dark,
+            density: Density::Compact,
+            approval_popup: false,
+            shortcuts: ShortcutConfig::default(),
+            locale: Locale::Id,
+        }
     }
 }
 

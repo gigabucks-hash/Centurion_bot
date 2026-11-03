@@ -1,7 +1,10 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 /// Small, dependency-free PRNG (xorshift64*) — good enough for mock data, NOT for crypto.
@@ -32,14 +35,18 @@ impl Rng {
         &xs[(self.next_u64() % xs.len() as u64) as usize]
     }
     pub fn hex(&mut self, n: usize) -> String {
-        (0..n).map(|_| char::from_digit((self.next_u64() % 16) as u32, 16).unwrap()).collect()
+        (0..n)
+            .map(|_| char::from_digit((self.next_u64() % 16) as u32, 16).unwrap())
+            .collect()
     }
 }
 
 const B58: &[u8] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 pub fn fake_mint(rng: &mut Rng) -> String {
-    (0..44).map(|_| B58[(rng.next_u64() % 58) as usize] as char).collect()
+    (0..44)
+        .map(|_| B58[(rng.next_u64() % 58) as usize] as char)
+        .collect()
 }
 
 /// Accept only base58 strings of plausible Solana pubkey length. Used before a mint

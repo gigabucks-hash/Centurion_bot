@@ -5,7 +5,11 @@ use logo::*;
 const MARK: &[u8] = b"CENTURION_EXIF_MARKER_7f3a";
 
 fn fx(name: &str) -> Vec<u8> {
-    std::fs::read(format!("{}/tests/fixtures/{name}", env!("CARGO_MANIFEST_DIR"))).expect("fixture")
+    std::fs::read(format!(
+        "{}/tests/fixtures/{name}",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("fixture")
 }
 
 fn contains(h: &[u8], n: &[u8]) -> bool {
@@ -13,7 +17,15 @@ fn contains(h: &[u8], n: &[u8]) -> bool {
 }
 
 fn px_of(outs: &[Output], size: u32) -> Vec<u8> {
-    decode(&outs.iter().find(|o| o.size == size && o.format == OutFormat::Webp).expect("size").bytes).expect("our webp decodes").data
+    decode(
+        &outs
+            .iter()
+            .find(|o| o.size == size && o.format == OutFormat::Webp)
+            .expect("size")
+            .bytes,
+    )
+    .expect("our webp decodes")
+    .data
 }
 
 #[test]
@@ -50,15 +62,31 @@ fn oversize_input_rejected() {
 #[test]
 fn decompression_bombs_rejected_before_allocation() {
     let e = decode(&fx("bomb_30000.png")).err().expect("bomb");
-    assert_eq!(e, LogoError::TooLargeDimensions { width: 30000, height: 30000 });
+    assert_eq!(
+        e,
+        LogoError::TooLargeDimensions {
+            width: 30000,
+            height: 30000
+        }
+    );
     let e = decode(&fx("bomb_screen.gif")).err().expect("gif bomb");
-    assert_eq!(e, LogoError::TooLargeDimensions { width: 65535, height: 65535 });
+    assert_eq!(
+        e,
+        LogoError::TooLargeDimensions {
+            width: 65535,
+            height: 65535
+        }
+    );
     // JPEG: patch the SOF0 frame size to 60000x60000
     let mut j = fx("photo_exif.jpg");
     let i = j.windows(2).position(|w| w == [0xFF, 0xC0]).expect("SOF0");
     j[i + 5..i + 7].copy_from_slice(&60000u16.to_be_bytes());
     j[i + 7..i + 9].copy_from_slice(&60000u16.to_be_bytes());
-    assert!(matches!(decode(&j), Err(LogoError::TooLargeDimensions { .. })), "{:?}", decode(&j).err());
+    assert!(
+        matches!(decode(&j), Err(LogoError::TooLargeDimensions { .. })),
+        "{:?}",
+        decode(&j).err()
+    );
     // 5000 x 1 passes the pixel cap but not the side cap
     let mut v = Vec::new();
     {
@@ -68,7 +96,13 @@ fn decompression_bombs_rejected_before_allocation() {
         w.write_image_data(&vec![0u8; 5000]).unwrap();
         w.finish().unwrap();
     }
-    assert_eq!(decode(&v).err(), Some(LogoError::TooLargeDimensions { width: 5000, height: 1 }));
+    assert_eq!(
+        decode(&v).err(),
+        Some(LogoError::TooLargeDimensions {
+            width: 5000,
+            height: 1
+        })
+    );
 }
 
 #[test]
@@ -77,10 +111,21 @@ fn metadata_is_stripped() {
         let input = fx(f);
         assert!(contains(&input, MARK), "fixture {f} must carry the marker");
         for o in transcode_all(&input).expect(f) {
-            assert!(!contains(&o.bytes, MARK), "{f} -> {} leaked metadata", o.file_name());
+            assert!(
+                !contains(&o.bytes, MARK),
+                "{f} -> {} leaked metadata",
+                o.file_name()
+            );
             assert!(!contains(&o.bytes, b"Exif") && !contains(&o.bytes, b"CenturionCam"));
-            assert!(!contains(&o.bytes, b"EXIF") && !contains(&o.bytes, b"XMP ") && !contains(&o.bytes, b"ICCP"));
-            assert!(!contains(&o.bytes, b"ANIM") && !contains(&o.bytes, b"VP8X"), "simple container only");
+            assert!(
+                !contains(&o.bytes, b"EXIF")
+                    && !contains(&o.bytes, b"XMP ")
+                    && !contains(&o.bytes, b"ICCP")
+            );
+            assert!(
+                !contains(&o.bytes, b"ANIM") && !contains(&o.bytes, b"VP8X"),
+                "simple container only"
+            );
         }
     }
 }
@@ -91,22 +136,53 @@ fn resize_outputs_all_sizes_webp_and_png_within_budget() {
     let names: Vec<String> = outs.iter().map(|o| o.file_name()).collect();
     assert_eq!(
         names,
-        ["48.webp", "64.webp", "96.webp", "128.webp", "192.webp", "48.png", "64.png", "96.png", "128.png", "192.png"]
+        [
+            "48.webp", "64.webp", "96.webp", "128.webp", "192.webp", "48.png", "64.png", "96.png",
+            "128.png", "192.png"
+        ]
     );
     for o in &outs {
         let d = decode(&o.bytes).expect("re-decodes");
         assert_eq!((d.width, d.height), (o.size, o.size));
-        let want = if o.format == OutFormat::Webp { Format::Webp } else { Format::Png };
+        let want = if o.format == OutFormat::Webp {
+            Format::Webp
+        } else {
+            Format::Png
+        };
         assert_eq!(sniff(&o.bytes), Ok(want));
-        assert!(o.bytes.len() <= HARD_MAX_BYTES, "{} is {} bytes", o.file_name(), o.bytes.len());
+        assert!(
+            o.bytes.len() <= HARD_MAX_BYTES,
+            "{} is {} bytes",
+            o.file_name(),
+            o.bytes.len()
+        );
         if o.size <= 96 && o.format == OutFormat::Webp {
-            assert!(o.bytes.len() <= TARGET_BYTES, "{} is {} bytes", o.file_name(), o.bytes.len());
+            assert!(
+                o.bytes.len() <= TARGET_BYTES,
+                "{} is {} bytes",
+                o.file_name(),
+                o.bytes.len()
+            );
         }
     }
     // PNG carries only IHDR/IDAT/IEND
     for o in outs.iter().filter(|o| o.format == OutFormat::Png) {
-        for c in [&b"tEXt"[..], b"zTXt", b"iTXt", b"eXIf", b"iCCP", b"tIME", b"gAMA", b"acTL"] {
-            assert!(!contains(&o.bytes, c), "{} has {:?}", o.file_name(), std::str::from_utf8(c));
+        for c in [
+            &b"tEXt"[..],
+            b"zTXt",
+            b"iTXt",
+            b"eXIf",
+            b"iCCP",
+            b"tIME",
+            b"gAMA",
+            b"acTL",
+        ] {
+            assert!(
+                !contains(&o.bytes, c),
+                "{} has {:?}",
+                o.file_name(),
+                std::str::from_utf8(c)
+            );
         }
     }
     // 300x200 -> 96: content 96x64 centered on transparency; left red, right blue
@@ -132,17 +208,30 @@ fn byte_budget_posterizes_noisy_images() {
         }
         px.push(255);
     }
-    assert!(encode_webp(&px, 96).unwrap().len() > HARD_MAX_BYTES, "noise is big unposterized");
+    assert!(
+        encode_webp(&px, 96).unwrap().len() > HARD_MAX_BYTES,
+        "noise is big unposterized"
+    );
     match encode_webp_budget(&px, 96) {
         Ok((b, bits)) => {
-            assert!(bits < 8 && b.len() <= HARD_MAX_BYTES, "bits {bits} len {}", b.len());
-            assert!(decode(&b).unwrap().data.chunks(4).all(|p| p[3] == 255), "alpha kept exact");
+            assert!(
+                bits < 8 && b.len() <= HARD_MAX_BYTES,
+                "bits {bits} len {}",
+                b.len()
+            );
+            assert!(
+                decode(&b).unwrap().data.chunks(4).all(|p| p[3] == 255),
+                "alpha kept exact"
+            );
         }
         Err(e) => assert_eq!(e, LogoError::OutputTooLarge),
     }
     // full transparency and opacity survive posterization
     let (b, _) = encode_webp_budget(&[0, 0, 0, 0, 255, 255, 255, 255].repeat(48 * 96), 96).unwrap();
-    assert_eq!(&decode(&b).unwrap().data[0..8], &[0, 0, 0, 0, 255, 255, 255, 255]);
+    assert_eq!(
+        &decode(&b).unwrap().data[0..8],
+        &[0, 0, 0, 0, 255, 255, 255, 255]
+    );
 }
 
 #[test]
@@ -155,7 +244,10 @@ fn alpha_and_gray_and_upscale() {
     // grayscale 10x40 -> pillarboxed
     let px = px_of(&transcode_all(&fx("gray_tall.png")).unwrap(), 96);
     assert_eq!(px[(48 * 96) * 4 + 3], 0, "left pillarbox transparent");
-    assert_eq!(&px[(48 * 96 + 48) * 4..(48 * 96 + 48) * 4 + 4], &[128, 128, 128, 255]);
+    assert_eq!(
+        &px[(48 * 96 + 48) * 4..(48 * 96 + 48) * 4 + 4],
+        &[128, 128, 128, 255]
+    );
 }
 
 #[test]
@@ -163,8 +255,12 @@ fn animated_inputs_use_first_frame_only() {
     for f in ["anim.gif", "anim.webp"] {
         for o in transcode_all(&fx(f)).expect(f) {
             let d = decode(&o.bytes).unwrap();
-            let c = &d.data[(d.width as usize * (d.height as usize / 2) + d.width as usize / 2) * 4..][..4];
-            assert!(c[0] > 200 && c[2] < 50, "{f}: first frame (red) expected, got {c:?}");
+            let c = &d.data
+                [(d.width as usize * (d.height as usize / 2) + d.width as usize / 2) * 4..][..4];
+            assert!(
+                c[0] > 200 && c[2] < 50,
+                "{f}: first frame (red) expected, got {c:?}"
+            );
         }
     }
 }
@@ -195,13 +291,19 @@ fn oversized_large_sizes_are_omitted_not_fatal() {
     let input = encode_png(&px, 256).unwrap();
     match transcode_all(&input) {
         Ok(outs) => {
-            assert!(outs.iter().any(|o| o.size == 48 && o.format == OutFormat::Webp));
+            assert!(outs
+                .iter()
+                .any(|o| o.size == 48 && o.format == OutFormat::Webp));
             for o in &outs {
                 assert!(o.bytes.len() <= HARD_MAX_BYTES);
             }
             // within a format, sizes are a prefix of SIZES (no holes)
             for f in [OutFormat::Webp, OutFormat::Png] {
-                let s: Vec<u32> = outs.iter().filter(|o| o.format == f).map(|o| o.size).collect();
+                let s: Vec<u32> = outs
+                    .iter()
+                    .filter(|o| o.format == f)
+                    .map(|o| o.size)
+                    .collect();
                 assert_eq!(s[..], SIZES[..s.len()]);
             }
         }

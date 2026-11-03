@@ -3,10 +3,10 @@
 mod auth;
 mod backend;
 mod brand;
-mod deeplink;
 mod commands;
 #[cfg(test)]
 mod contract_tests;
+mod deeplink;
 mod errmap;
 mod error;
 mod events;

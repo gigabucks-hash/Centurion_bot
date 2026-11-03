@@ -30,8 +30,15 @@ use tokio::sync::mpsc;
 
 const WORKSPACE_ID: &str = "10000000-0000-0000-0000-00000000000a";
 const USER_ID: &str = "50000000-0000-0000-0000-0000000000d1";
-const SYMBOLS: &[&str] = &["ORCA", "MOTH", "KITE", "BRRR", "ZAPP", "FERN", "LUMA", "DUSK", "GLOW", "RIFT", "NOVA", "PIKO"];
-const BLOCK_REASONS: &[&str] = &["bundled buys", "dev holds too much", "few real holders", "layered launch"];
+const SYMBOLS: &[&str] = &[
+    "ORCA", "MOTH", "KITE", "BRRR", "ZAPP", "FERN", "LUMA", "DUSK", "GLOW", "RIFT", "NOVA", "PIKO",
+];
+const BLOCK_REASONS: &[&str] = &[
+    "bundled buys",
+    "dev holds too much",
+    "few real holders",
+    "layered launch",
+];
 const CHECKS: &[(&str, &str)] = &[
     ("liquidity_min", "liquidity ok"),
     ("volume_1h", "volume ok"),
@@ -46,7 +53,10 @@ const LOG_CAP: usize = 20_000;
 const TOKEN_PROGRAM: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const TOKEN_2022: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 /// Non-SOL quote mints used for not-tradeable mock coins (USDC, USDT).
-const NON_SOL_QUOTES: &[&str] = &["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"];
+const NON_SOL_QUOTES: &[&str] = &[
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+];
 /// Delay before a `race` pool migration.
 const FLIP_AFTER_MS: i64 = 8_000;
 
@@ -59,8 +69,15 @@ pub enum NotTradeableMode {
 /// Server-side parse of a decision body (what the Phase-2 API does before `decide_approval`):
 /// an unknown `reject_reason`, or one sent with `decision=approve`, is `422 VALIDATION_FAILED`.
 #[allow(dead_code)] // the typed client can't produce bad values; exercised by tests
-pub fn parse_decision_body(body: &serde_json::Value) -> Result<ApprovalDecisionRequest, ApiFailure> {
-    let fail = |m: &str| ApiFailure::from_body(422, &json!({"error": {"code": "VALIDATION_FAILED", "message": m, "field": "reject_reason", "server_now": IsoTs::from_ms(0)}}));
+pub fn parse_decision_body(
+    body: &serde_json::Value,
+) -> Result<ApprovalDecisionRequest, ApiFailure> {
+    let fail = |m: &str| {
+        ApiFailure::from_body(
+            422,
+            &json!({"error": {"code": "VALIDATION_FAILED", "message": m, "field": "reject_reason", "server_now": IsoTs::from_ms(0)}}),
+        )
+    };
     if let Some(r) = body.get("reject_reason").filter(|v| !v.is_null()) {
         if serde_json::from_value::<ApprovalRejectReason>(r.clone()).is_err() {
             return Err(fail("unknown reject_reason"));
@@ -81,7 +98,11 @@ impl NotTradeableMode {
         }
     }
     fn new_coin_rate(self) -> f64 {
-        if self == Self::Off { 0.0 } else { 0.15 }
+        if self == Self::Off {
+            0.0
+        } else {
+            0.15
+        }
     }
 }
 const BUY_LAMPORTS: i128 = 250_000_000;
@@ -123,7 +144,10 @@ fn dec(x: f64) -> Decimal {
     Decimal::from_f64(x).unwrap_or_default().round_dp(12)
 }
 fn lam_of_sol(sol: Decimal) -> i128 {
-    (sol * Decimal::from(LAMPORTS_PER_SOL as i64)).round().to_i128().unwrap_or(0)
+    (sol * Decimal::from(LAMPORTS_PER_SOL as i64))
+        .round()
+        .to_i128()
+        .unwrap_or(0)
 }
 fn sol_of_lam(l: i128) -> Decimal {
     Decimal::from_i128_with_scale(l, 9)
@@ -143,14 +167,28 @@ struct Strat {
 }
 impl Strat {
     fn new(id: &str, name: &str, full: bool) -> Self {
-        Strat { id: id.into(), name: name.into(), rev: 1, status: "active".into(), settings: default_settings(full), history: vec![] }
+        Strat {
+            id: id.into(),
+            name: name.into(),
+            rev: 1,
+            status: "active".into(),
+            settings: default_settings(full),
+            history: vec![],
+        }
     }
     fn summary(&self) -> StrategySummary {
         let (reason, progress) = mock_real_gate(&self.id);
         StrategySummary {
-            id: self.id.clone(), name: self.name.clone(), rev: self.rev, status: Some(self.status.clone()), mode: Some(Mode::Practice), settings: self.settings.clone(),
+            id: self.id.clone(),
+            name: self.name.clone(),
+            rev: self.rev,
+            status: Some(self.status.clone()),
+            mode: Some(Mode::Practice),
+            settings: self.settings.clone(),
             // 1.1.6: Real is gated off in this phase: always locked (like the backend's real_gate.ts).
-            real_locked: Some(true), real_locked_reason: Some(reason), paper_progress: Some(progress),
+            real_locked: Some(true),
+            real_locked_reason: Some(reason),
+            paper_progress: Some(progress),
         }
     }
 }
@@ -160,12 +198,38 @@ impl Strat {
 /// - `…0c`: `policy` (wallet rules), Paper progress above the rules (still locked).
 ///
 /// The numbers are mock placeholders, not approved thresholds.
-pub(crate) fn mock_real_gate(id: &str) -> (crate::model::RealLockedReason, crate::model::PaperProgress) {
+pub(crate) fn mock_real_gate(
+    id: &str,
+) -> (crate::model::RealLockedReason, crate::model::PaperProgress) {
     use crate::model::{PaperProgress as P, RealLockedReason as R};
     match id.chars().last() {
-        Some('b') => (R::GateNotMet, P { days_done: 3, days_required: Some(7), trades_done: 12, trades_required: Some(30) }),
-        Some('c') => (R::Policy, P { days_done: 14, days_required: Some(7), trades_done: 41, trades_required: Some(30) }),
-        _ => (R::NeedsOwnerApproval, P { days_done: 1, days_required: None, trades_done: 4, trades_required: None }),
+        Some('b') => (
+            R::GateNotMet,
+            P {
+                days_done: 3,
+                days_required: Some(7),
+                trades_done: 12,
+                trades_required: Some(30),
+            },
+        ),
+        Some('c') => (
+            R::Policy,
+            P {
+                days_done: 14,
+                days_required: Some(7),
+                trades_done: 41,
+                trades_required: Some(30),
+            },
+        ),
+        _ => (
+            R::NeedsOwnerApproval,
+            P {
+                days_done: 1,
+                days_required: None,
+                trades_done: 4,
+                trades_required: None,
+            },
+        ),
     }
 }
 struct Coin {
@@ -269,7 +333,12 @@ impl Server {
     fn idem_check(&self, key: &str, fingerprint: &str) -> ApiResult<Option<serde_json::Value>> {
         match self.idem.get(key) {
             Some((fp, resp)) if fp == fingerprint => Ok(Some(resp.clone())),
-            Some(_) => self.err(422, "IDEMPOTENCY_KEY_REUSED", "Idempotency-Key reused with a different request body", json!({"idempotency_key": key})),
+            Some(_) => self.err(
+                422,
+                "IDEMPOTENCY_KEY_REUSED",
+                "Idempotency-Key reused with a different request body",
+                json!({"idempotency_key": key}),
+            ),
             None => Ok(None),
         }
     }
@@ -279,11 +348,28 @@ impl Server {
     fn uuid(&mut self, prefix: char) -> String {
         self.uid += 1;
         let r = self.rng.next_u64();
-        format!("{prefix}{:07x}-{:04x}-4{:03x}-8{:03x}-{:012x}", (r >> 36) & 0xfff_ffff, (r >> 20) & 0xffff, self.uid & 0xfff, (r >> 8) & 0xfff, r & 0xffff_ffff_ffff)
+        format!(
+            "{prefix}{:07x}-{:04x}-4{:03x}-8{:03x}-{:012x}",
+            (r >> 36) & 0xfff_ffff,
+            (r >> 20) & 0xffff,
+            self.uid & 0xfff,
+            (r >> 8) & 0xfff,
+            r & 0xffff_ffff_ffff
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn emit(&mut self, kind: &str, actor: Actor, subject: &str, strategy_id: Option<&str>, ck: Option<&str>, mint: Option<&str>, payload: serde_json::Value, untrusted: Untrusted) -> EventEnvelope {
+    fn emit(
+        &mut self,
+        kind: &str,
+        actor: Actor,
+        subject: &str,
+        strategy_id: Option<&str>,
+        ck: Option<&str>,
+        mint: Option<&str>,
+        payload: serde_json::Value,
+        untrusted: Untrusted,
+    ) -> EventEnvelope {
         // Monotonic but not gapless: occasionally skip numbers (rolled-back tx holes).
         self.seq += if self.rng.f64() < HOLE_PCT { 2 } else { 1 };
         let now = self.now();
@@ -321,7 +407,16 @@ impl Server {
 
     fn portfolio(&mut self) {
         let snap = self.snapshot();
-        self.emit("portfolio.snapshot", Actor::System, WORKSPACE_ID, None, None, None, serde_json::to_value(snap).unwrap(), Untrusted::default());
+        self.emit(
+            "portfolio.snapshot",
+            Actor::System,
+            WORKSPACE_ID,
+            None,
+            None,
+            None,
+            serde_json::to_value(snap).unwrap(),
+            Untrusted::default(),
+        );
     }
 
     fn snapshot(&mut self) -> PortfolioSnapshot {
@@ -329,7 +424,11 @@ impl Server {
         let value: i128 = self.positions.values().map(|p| self.value_of(p)).sum();
         let equity = self.cash + value;
         self.peak_equity = self.peak_equity.max(equity);
-        let dd_bps = if self.peak_equity > 0 { ((self.peak_equity - equity) * 10_000 / self.peak_equity) as i64 } else { 0 };
+        let dd_bps = if self.peak_equity > 0 {
+            ((self.peak_equity - equity) * 10_000 / self.peak_equity) as i64
+        } else {
+            0
+        };
         PortfolioSnapshot {
             cash_lamports: Lamports(self.cash),
             positions_cost_lamports: Lamports(cost),
@@ -353,16 +452,41 @@ impl Server {
         let st = &mut self.strategies[i];
         let base = st.rev;
         if field == "status" {
-            st.status = if st.status == "active" { "paused".into() } else { "active".into() };
+            st.status = if st.status == "active" {
+                "paused".into()
+            } else {
+                "active".into()
+            };
         } else if let Some(m) = st.settings.as_object_mut() {
             let cur = m.get(field).and_then(|v| v.as_f64()).unwrap_or(20.0);
-            m.insert(field.into(), json!(if cur >= 25.0 { 18 } else { cur as i64 + 2 }));
+            m.insert(
+                field.into(),
+                json!(if cur >= 25.0 { 18 } else { cur as i64 + 2 }),
+            );
         }
         st.rev += 1;
-        st.history.push((st.rev, vec![field.to_owned()], "mobile".into(), now));
+        st.history
+            .push((st.rev, vec![field.to_owned()], "mobile".into(), now));
         let (id, rev, status) = (st.id.clone(), st.rev, st.status.clone());
-        let kind = if field == "status" { if status == "paused" { "strategy.paused" } else { "strategy.resumed" } } else { "strategy.updated" };
-        self.emit(kind, Actor::User, &id, Some(&id), None, None, json!({"rev": rev, "base_rev": base, "status": status, "changed_fields": [field]}), Untrusted::default());
+        let kind = if field == "status" {
+            if status == "paused" {
+                "strategy.paused"
+            } else {
+                "strategy.resumed"
+            }
+        } else {
+            "strategy.updated"
+        };
+        self.emit(
+            kind,
+            Actor::User,
+            &id,
+            Some(&id),
+            None,
+            None,
+            json!({"rev": rev, "base_rev": base, "status": status, "changed_fields": [field]}),
+            Untrusted::default(),
+        );
     }
 
     /// 409 body per API_ENDPOINTS 2.1 for a stale strategy write.
@@ -388,16 +512,37 @@ impl Server {
         let keys: Vec<String> = self.positions.keys().cloned().collect();
         let closed = keys.len() as i64;
         for k in keys {
-            self.sell_inner(&k, Decimal::from(100), ExitReason::PracticeReset, -1, "Practice reset", Actor::System);
+            self.sell_inner(
+                &k,
+                Decimal::from(100),
+                ExitReason::PracticeReset,
+                -1,
+                "Practice reset",
+                Actor::System,
+            );
         }
-        let pending: Vec<String> = self.proposals.values().filter(|p| p.status == ProposalStatus::Pending).map(|p| p.id.clone()).collect();
+        let pending: Vec<String> = self
+            .proposals
+            .values()
+            .filter(|p| p.status == ProposalStatus::Pending)
+            .map(|p| p.id.clone())
+            .collect();
         for id in &pending {
             let p = self.proposals.get_mut(id).unwrap();
             p.status = ProposalStatus::Expired;
             p.version += 1;
             p.token = None;
-            let (ck, mint, sid, version) = (p.ck.clone(), p.mint.clone(), p.strategy_id.clone(), p.version);
-            let u = self.coins.get(&mint).map(|c| c.untrusted.clone()).unwrap_or_default();
+            let (ck, mint, sid, version) = (
+                p.ck.clone(),
+                p.mint.clone(),
+                p.strategy_id.clone(),
+                p.version,
+            );
+            let u = self
+                .coins
+                .get(&mint)
+                .map(|c| c.untrusted.clone())
+                .unwrap_or_default();
             self.emit("proposal.expired", Actor::System, id, Some(&sid), Some(&ck), Some(&mint), json!({
                 "proposal_id": id, "kind": "buy_pick", "rev": version, "reason": "practice_reset", "at": IsoTs::from_ms(now)}), u);
         }
@@ -408,17 +553,32 @@ impl Server {
         self.peak_equity = START_CASH;
         self.realized = 0;
         self.last_reset_ms = Some(now);
-        let archived = ResetArchived { positions: closed, closed_open_positions: closed, fills: closed * 2, snapshots: 0, expired_proposals: pending.len() as i64 };
+        let archived = ResetArchived {
+            positions: closed,
+            closed_open_positions: closed,
+            fills: closed * 2,
+            snapshots: 0,
+            expired_proposals: pending.len() as i64,
+        };
         let next = IsoTs::from_ms(now + RESET_COOLDOWN_MS);
         self.emit("practice.reset", Actor::User, WORKSPACE_ID, None, None, None, json!({
             "epoch": self.epoch, "previous_epoch": previous, "starting_balance_lamports": START_CASH.to_string(),
             "archived": archived, "next_allowed_at": next, "at": IsoTs::from_ms(now)}), Untrusted::default());
         self.portfolio();
-        PracticeResetResponse { epoch: self.epoch, starting_balance_lamports: Lamports(START_CASH), archived, next_allowed_at: next }
+        PracticeResetResponse {
+            epoch: self.epoch,
+            starting_balance_lamports: Lamports(START_CASH),
+            archived,
+            next_allowed_at: next,
+        }
     }
 
     fn value_of(&self, p: &Pos) -> i128 {
-        let price = self.coins.get(&p.mint).map(|c| c.price_sol).unwrap_or_default();
+        let price = self
+            .coins
+            .get(&p.mint)
+            .map(|c| c.price_sol)
+            .unwrap_or_default();
         lam_of_sol(ui_qty(p.qty_raw, p.decimals) * price)
     }
 
@@ -426,7 +586,9 @@ impl Server {
     /// 1.1.4 `MarketCapFields` from the mock price (SOL per whole token) × a 1e9-token supply. ~10 % of
     /// coins have an unknown supply → all three null (the column shows "—").
     fn mcap_json(&self, mint: &str) -> serde_json::Value {
-        let Some(c) = self.coins.get(mint) else { return json!({"market_cap_lamports": null, "mcap_usd": null, "mcap_as_of": null}) };
+        let Some(c) = self.coins.get(mint) else {
+            return json!({"market_cap_lamports": null, "mcap_usd": null, "mcap_as_of": null});
+        };
         if mint.as_bytes().last().is_some_and(|b| b % 10 == 0) {
             return json!({"market_cap_lamports": null, "mcap_usd": null, "mcap_as_of": null});
         }
@@ -435,13 +597,25 @@ impl Server {
         json!({"market_cap_lamports": lamports.to_string(), "mcap_usd": (sol * Decimal::from(SOL_USD)).round_dp(2).to_string(), "mcap_as_of": IsoTs::from_ms(self.now())})
     }
 
-    fn scored_payload(&mut self, mint: &str, score: i64, quote_mint: Option<&str>) -> serde_json::Value {
+    fn scored_payload(
+        &mut self,
+        mint: &str,
+        score: i64,
+        quote_mint: Option<&str>,
+    ) -> serde_json::Value {
         let tradeable = is_sol_quote(quote_mint);
         let mut checks = Vec::new();
-        let liq = self.coins.get(mint).map(|c| c.liquidity_usd.round_dp(0).to_f64().unwrap_or(0.0));
+        let liq = self
+            .coins
+            .get(mint)
+            .map(|c| c.liquidity_usd.round_dp(0).to_f64().unwrap_or(0.0));
         for (id, reason) in CHECKS {
             // The liquidity check reports what it measured (like the real screener); others stay null.
-            let measured = if *id == "liquidity_min" { json!(liq) } else { json!(null) };
+            let measured = if *id == "liquidity_min" {
+                json!(liq)
+            } else {
+                json!(null)
+            };
             checks.push(json!({"id": id, "class": "weighted", "passed": self.rng.f64() < 0.75, "measured": measured, "points": 10, "reason": reason}));
         }
         if let Some(q) = quote_mint {
@@ -457,7 +631,13 @@ impl Server {
             result["quote_mint"] = json!(q);
         }
         // 1.1.2: tradeable / skip_reason / quote_mint also at the screener.scored top level.
-        let rejected_by = if !tradeable { json!("quote_mint") } else if !passed { json!("score_threshold") } else { json!(null) };
+        let rejected_by = if !tradeable {
+            json!("quote_mint")
+        } else if !passed {
+            json!("score_threshold")
+        } else {
+            json!(null)
+        };
         let mut p = json!({"mint": mint, "passed": passed, "summary": format!("Fit {score}/{SCORE_THRESHOLD}"), "rejected_by": rejected_by,
             "failed": if passed { json!([]) } else { json!([rejected_by]) }, "tradeable": tradeable,
             "skip_reason": (!tradeable).then_some(UNSUPPORTED_QUOTE_MINT), "quote_mint": quote_mint, "result": result});
@@ -468,41 +648,94 @@ impl Server {
     /// `race`: the coin's pool moved to a non-SOL quote → re-score as not tradeable.
     fn flip_to_non_sol(&mut self, mint: &str) {
         let q = self.rng.pick(NON_SOL_QUOTES).to_string();
-        let Some(c) = self.coins.get_mut(mint) else { return };
+        let Some(c) = self.coins.get_mut(mint) else {
+            return;
+        };
         c.quote_mint = Some(q.clone());
         c.flip_at_ms = None;
         let (ck, sid, u) = (c.ck.clone(), c.strategy_id.clone(), c.untrusted.clone());
         let score = 70 + (self.rng.next_u64() % 30) as i64;
         let payload = self.scored_payload(mint, score, Some(&q));
-        self.emit("screener.scored", Actor::Screener, &ck, Some(&sid), Some(&ck), Some(mint), payload, u);
+        self.emit(
+            "screener.scored",
+            Actor::Screener,
+            &ck,
+            Some(&sid),
+            Some(&ck),
+            Some(mint),
+            payload,
+            u,
+        );
         self.watch_not_tradeable(mint);
     }
 
     /// `order.failed` (N-05) for an order that reached a not-tradeable coin anyway.
-    fn order_failed(&mut self, mint: &str, side: &str, proposal_id: Option<&str>, amount: Option<i128>, qty: Option<u128>) {
-        self.order_failed_with(mint, side, proposal_id, amount, qty, UNSUPPORTED_QUOTE_MINT, json!("Pool is quoted in a mint other than SOL"));
+    fn order_failed(
+        &mut self,
+        mint: &str,
+        side: &str,
+        proposal_id: Option<&str>,
+        amount: Option<i128>,
+        qty: Option<u128>,
+    ) {
+        self.order_failed_with(
+            mint,
+            side,
+            proposal_id,
+            amount,
+            qty,
+            UNSUPPORTED_QUOTE_MINT,
+            json!("Pool is quoted in a mint other than SOL"),
+        );
     }
 
     /// `order.failed` with any of the 8 contracts 1.1.2 reason codes.
     #[allow(clippy::too_many_arguments)]
-    fn order_failed_with(&mut self, mint: &str, side: &str, proposal_id: Option<&str>, amount: Option<i128>, qty: Option<u128>, reason: &str, detail: serde_json::Value) {
+    fn order_failed_with(
+        &mut self,
+        mint: &str,
+        side: &str,
+        proposal_id: Option<&str>,
+        amount: Option<i128>,
+        qty: Option<u128>,
+        reason: &str,
+        detail: serde_json::Value,
+    ) {
         let (ck, sid, u, q) = match self.coins.get(mint) {
-            Some(c) => (c.ck.clone(), c.strategy_id.clone(), c.untrusted.clone(), c.quote_mint.clone()),
+            Some(c) => (
+                c.ck.clone(),
+                c.strategy_id.clone(),
+                c.untrusted.clone(),
+                c.quote_mint.clone(),
+            ),
             None => return,
         };
         let oid = self.uuid('8');
         let now = self.now();
-        self.emit("order.failed", Actor::Executor, &oid, Some(&sid), Some(&ck), Some(mint), json!({
+        self.emit(
+            "order.failed",
+            Actor::Executor,
+            &oid,
+            Some(&sid),
+            Some(&ck),
+            Some(mint),
+            json!({
             "order_id": oid, "proposal_id": proposal_id, "mint": mint, "side": side,
             "amount_lamports": amount.map(|a| a.to_string()), "qty_raw": qty.map(|q| q.to_string()),
             "reason_code": reason, "detail": detail, "quote_mint": q,
-            "mode": "practice", "server_now": IsoTs::from_ms(now)}), u);
+            "mode": "practice", "server_now": IsoTs::from_ms(now)}),
+            u,
+        );
     }
 
     fn spawn_candidate(&mut self) {
         let mint = fake_mint(&mut self.rng);
         let sym = self.rng.pick(SYMBOLS).to_string();
-        let untrusted = Untrusted { name: Some(format!("{sym} (mock)")), symbol: Some(sym), ..Default::default() };
+        let untrusted = Untrusted {
+            name: Some(format!("{sym} (mock)")),
+            symbol: Some(sym),
+            ..Default::default()
+        };
         let si = (self.rng.next_u64() % self.strategies.len() as u64) as usize;
         let sid = self.strategies[si].id.clone();
         let ck = self.rng.hex(8);
@@ -510,17 +743,54 @@ impl Server {
         let liq = dec(self.rng.range(5_000.0, 60_000.0)).round_dp(2);
         let venue = if self.rng.f64() < 0.5 { "curve" } else { "amm" };
         let decimals: u8 = if self.rng.f64() < 0.8 { 6 } else { 9 };
-        let program = if self.rng.f64() < 0.85 { TOKEN_PROGRAM } else { TOKEN_2022 };
-        let quote = if self.rng.f64() < self.not_tradeable.new_coin_rate() { self.rng.pick(NON_SOL_QUOTES).to_string() } else { WSOL_MINT.to_string() };
-        let flip_at_ms = (self.not_tradeable == NotTradeableMode::Race && is_sol_quote(Some(&quote)) && self.rng.f64() < 0.4).then(|| self.now() + FLIP_AFTER_MS);
-        self.coins.insert(mint.clone(), Coin { price_sol: price, liquidity_usd: liq, untrusted: untrusted.clone(), ck: ck.clone(), strategy_id: sid.clone(), decimals, token_program: program, quote_mint: Some(quote.clone()), flip_at_ms });
+        let program = if self.rng.f64() < 0.85 {
+            TOKEN_PROGRAM
+        } else {
+            TOKEN_2022
+        };
+        let quote = if self.rng.f64() < self.not_tradeable.new_coin_rate() {
+            self.rng.pick(NON_SOL_QUOTES).to_string()
+        } else {
+            WSOL_MINT.to_string()
+        };
+        let flip_at_ms = (self.not_tradeable == NotTradeableMode::Race
+            && is_sol_quote(Some(&quote))
+            && self.rng.f64() < 0.4)
+            .then(|| self.now() + FLIP_AFTER_MS);
+        self.coins.insert(
+            mint.clone(),
+            Coin {
+                price_sol: price,
+                liquidity_usd: liq,
+                untrusted: untrusted.clone(),
+                ck: ck.clone(),
+                strategy_id: sid.clone(),
+                decimals,
+                token_program: program,
+                quote_mint: Some(quote.clone()),
+                flip_at_ms,
+            },
+        );
         self.emit("coin.detected", Actor::Ingest, &ck, Some(&sid), Some(&ck), Some(&mint),
             { let mut p = json!({"mint": mint, "venue": venue, "launchpad": "mock", "creator": null, "quote_mint": quote, "decimals": decimals, "token_program": program}); merge(&mut p, self.mcap_json(&mint)); p }, untrusted.clone());
 
-        let score = if self.rng.f64() < 0.15 { 40 + (self.rng.next_u64() % 29) as i64 } else { 70 + (self.rng.next_u64() % 45) as i64 };
+        let score = if self.rng.f64() < 0.15 {
+            40 + (self.rng.next_u64() % 29) as i64
+        } else {
+            70 + (self.rng.next_u64() % 45) as i64
+        };
         let payload = self.scored_payload(&mint, score, Some(&quote));
         let passed = payload["passed"].as_bool().unwrap_or(false);
-        self.emit("screener.scored", Actor::Screener, &ck, Some(&sid), Some(&ck), Some(&mint), payload, untrusted.clone());
+        self.emit(
+            "screener.scored",
+            Actor::Screener,
+            &ck,
+            Some(&sid),
+            Some(&ck),
+            Some(&mint),
+            payload,
+            untrusted.clone(),
+        );
         if !passed {
             if !is_sol_quote(Some(&quote)) {
                 // Not tradeable: guard not run, never proposed; the row stays visible and keeps a live (read-only) chart.
@@ -538,8 +808,16 @@ impl Server {
             self.coins.remove(&mint);
             return;
         }
-        self.emit("guard.result", Actor::Guard, &ck, Some(&sid), Some(&ck), Some(&mint),
-            json!({"mint": mint, "verdict": "PASS", "risk_score": 12, "reasons": [], "checks": []}), untrusted.clone());
+        self.emit(
+            "guard.result",
+            Actor::Guard,
+            &ck,
+            Some(&sid),
+            Some(&ck),
+            Some(&mint),
+            json!({"mint": mint, "verdict": "PASS", "risk_score": 12, "reasons": [], "checks": []}),
+            untrusted.clone(),
+        );
         let pick_mcap = self.mcap_json(&mint);
         self.emit("pick.created", Actor::Screener, &ck, Some(&sid), Some(&ck), Some(&mint),
             with_mcap(json!({"mint": mint, "summary": format!("Fit {score}/{SCORE_THRESHOLD}"), "score": {"passed": true, "score": score, "score_threshold": SCORE_THRESHOLD, "max_score": 115, "checks": [], "tradeable": true, "quote_mint": quote},
@@ -551,25 +829,64 @@ impl Server {
         let pid = self.uuid('3');
         let now = self.now();
         let quote = self.quote_for(&mint, now);
-        self.proposals.insert(pid.clone(), Prop { id: pid.clone(), ck: ck.clone(), mint: mint.clone(), strategy_id: sid.clone(), version: 1, status: ProposalStatus::Pending, expires_ms: expires, token: None, quote: quote.clone(), quoted_ms: now });
+        self.proposals.insert(
+            pid.clone(),
+            Prop {
+                id: pid.clone(),
+                ck: ck.clone(),
+                mint: mint.clone(),
+                strategy_id: sid.clone(),
+                version: 1,
+                status: ProposalStatus::Pending,
+                expires_ms: expires,
+                token: None,
+                quote: quote.clone(),
+                quoted_ms: now,
+            },
+        );
         let mut created = json!({
             "proposal_id": pid, "kind": "buy_pick", "rev": 1, "expires_at": IsoTs::from_ms(expires), "first_buy": true,
             "approval_mode": "ask_every_buy", "amount_lamports": BUY_LAMPORTS.to_string(), "risk_level": "medium",
             "summary": format!("Beli {} SOL (paper)", sol_of_lam(BUY_LAMPORTS).normalize()), "base_rev": null, "weakening": false, "diff": null, "estimate": null,
             // 1.1.2: self-contained card
             "mint": mint, "symbol": untrusted.symbol, "price_sol": Dec(price)});
-        merge(&mut created, serde_json::to_value(&quote).unwrap_or_default());
-        self.emit("proposal.created", Actor::Entry, &pid, Some(&sid), Some(&ck), Some(&mint), created, untrusted);
+        merge(
+            &mut created,
+            serde_json::to_value(&quote).unwrap_or_default(),
+        );
+        self.emit(
+            "proposal.created",
+            Actor::Entry,
+            &pid,
+            Some(&sid),
+            Some(&ck),
+            Some(&mint),
+            created,
+            untrusted,
+        );
     }
 
     /// 1.1.4 quote estimate (papersim-like): network fee = base 5 000 + priority 20 000 lamports, swap fee
     /// `FEE_BPS`, max slippage 300 bps, min out after max slippage, total max = SOL in + network fee.
     /// Valid for `QUOTE_TTL_MS`.
     fn quote_for(&self, mint: &str, now: i64) -> ProposalQuote {
-        let (price, decimals) = self.coins.get(mint).map(|c| (c.price_sol, c.decimals)).unwrap_or((Decimal::ONE, 6));
-        let net_sol = sol_of_lam(BUY_LAMPORTS) * (Decimal::ONE - Decimal::from(FEE_BPS) / Decimal::from(10_000));
-        let min_ui = if price.is_zero() { Decimal::ZERO } else { net_sol / price * (Decimal::ONE - Decimal::from(MAX_SLIPPAGE_BPS) / Decimal::from(10_000)) };
-        let min_raw = (min_ui * Decimal::from(10u64.pow(decimals as u32))).floor().to_u128().unwrap_or(0);
+        let (price, decimals) = self
+            .coins
+            .get(mint)
+            .map(|c| (c.price_sol, c.decimals))
+            .unwrap_or((Decimal::ONE, 6));
+        let net_sol = sol_of_lam(BUY_LAMPORTS)
+            * (Decimal::ONE - Decimal::from(FEE_BPS) / Decimal::from(10_000));
+        let min_ui = if price.is_zero() {
+            Decimal::ZERO
+        } else {
+            net_sol / price
+                * (Decimal::ONE - Decimal::from(MAX_SLIPPAGE_BPS) / Decimal::from(10_000))
+        };
+        let min_raw = (min_ui * Decimal::from(10u64.pow(decimals as u32)))
+            .floor()
+            .to_u128()
+            .unwrap_or(0);
         let network = BASE_FEE_LAMPORTS + PRIORITY_FEE_LAMPORTS;
         ProposalQuote {
             est_network_fee_lamports: Some(Lamports(network)),
@@ -590,8 +907,18 @@ impl Server {
 
     /// A guard-loosening PATCH: `proposal.created` (kind guard_change, weakening, 24 h expiry, base_rev =
     /// current rev) and the 202 body. The desktop never decides it (Web/Mobile review flow).
-    fn guard_change_proposal(&mut self, i: usize, base: u64, patch: serde_json::Value, weakened: Vec<String>, now: i64) -> StrategyPatch {
-        let (sid, name) = (self.strategies[i].id.clone(), self.strategies[i].name.clone());
+    fn guard_change_proposal(
+        &mut self,
+        i: usize,
+        base: u64,
+        patch: serde_json::Value,
+        weakened: Vec<String>,
+        now: i64,
+    ) -> StrategyPatch {
+        let (sid, name) = (
+            self.strategies[i].id.clone(),
+            self.strategies[i].name.clone(),
+        );
         let pid = self.uuid('3');
         let expires = now + 24 * 3_600_000;
         let diff: Vec<serde_json::Value> = weakened.iter().map(|f| json!({"field": f, "before": self.strategies[i].settings.get(f), "after": patch.get(f)})).collect();
@@ -614,7 +941,14 @@ impl Server {
 
     /// Silent quote refresh of pending proposals every `QUOTE_REFRESH_MS` (`proposal.updated`, rev + 1).
     fn refresh_quotes(&mut self, now: i64) {
-        let due: Vec<String> = self.proposals.values().filter(|p| p.status == ProposalStatus::Pending && now - p.quoted_ms >= QUOTE_REFRESH_MS).map(|p| p.id.clone()).collect();
+        let due: Vec<String> = self
+            .proposals
+            .values()
+            .filter(|p| {
+                p.status == ProposalStatus::Pending && now - p.quoted_ms >= QUOTE_REFRESH_MS
+            })
+            .map(|p| p.id.clone())
+            .collect();
         for id in due {
             let mint = self.proposals[&id].mint.clone();
             let q = self.quote_for(&mint, now);
@@ -627,8 +961,21 @@ impl Server {
             };
             let mut payload = json!({"proposal_id": id, "kind": "buy_pick", "rev": rev});
             merge(&mut payload, serde_json::to_value(&q).unwrap_or_default());
-            let untrusted = self.coins.get(&mint).map(|c| c.untrusted.clone()).unwrap_or_default();
-            self.emit("proposal.updated", Actor::Entry, &id, Some(&sid), Some(&ck), Some(&mint), payload, untrusted);
+            let untrusted = self
+                .coins
+                .get(&mint)
+                .map(|c| c.untrusted.clone())
+                .unwrap_or_default();
+            self.emit(
+                "proposal.updated",
+                Actor::Entry,
+                &id,
+                Some(&sid),
+                Some(&ck),
+                Some(&mint),
+                payload,
+                untrusted,
+            );
         }
     }
 
@@ -639,7 +986,11 @@ impl Server {
         self.nt_watch.push_back(mint.to_string());
         while self.nt_watch.len() > NT_WATCH_MAX {
             if let Some(old) = self.nt_watch.pop_front() {
-                let in_use = self.positions.values().any(|p| p.mint == old) || self.proposals.values().any(|p| p.mint == old && p.status == ProposalStatus::Pending);
+                let in_use = self.positions.values().any(|p| p.mint == old)
+                    || self
+                        .proposals
+                        .values()
+                        .any(|p| p.mint == old && p.status == ProposalStatus::Pending);
                 if !in_use {
                     self.coins.remove(&old);
                 }
@@ -654,7 +1005,11 @@ impl Server {
                 v.push(m.clone());
             }
         }
-        for p in self.proposals.values().filter(|p| p.status == ProposalStatus::Pending) {
+        for p in self
+            .proposals
+            .values()
+            .filter(|p| p.status == ProposalStatus::Pending)
+        {
             if !v.contains(&p.mint) {
                 v.push(p.mint.clone());
             }
@@ -665,20 +1020,34 @@ impl Server {
     fn step(&mut self) {
         let now = self.now();
         self.slot += 2;
-        let flips: Vec<String> = self.coins.iter().filter(|(_, c)| c.flip_at_ms.is_some_and(|t| t <= now)).map(|(m, _)| m.clone()).collect();
+        let flips: Vec<String> = self
+            .coins
+            .iter()
+            .filter(|(_, c)| c.flip_at_ms.is_some_and(|t| t <= now))
+            .map(|(m, _)| m.clone())
+            .collect();
         for m in flips {
             self.flip_to_non_sol(&m);
         }
         let mints = self.tracked_mints();
         for m in &mints {
-            let shock = if self.rng.f64() < 0.04 { self.rng.range(-0.25, 0.35) } else { 0.0 };
+            let shock = if self.rng.f64() < 0.04 {
+                self.rng.range(-0.25, 0.35)
+            } else {
+                0.0
+            };
             let f = dec(1.0 + self.rng.range(-0.035, 0.038) + shock);
             let price = {
                 let c = self.coins.get_mut(m).unwrap();
                 c.price_sol = (c.price_sol * f).max(Decimal::new(1, 12)).round_dp(12);
                 c.price_sol
             };
-            let position_ids: Vec<String> = self.positions.values().filter(|p| &p.mint == m).map(|p| p.key.clone()).collect();
+            let position_ids: Vec<String> = self
+                .positions
+                .values()
+                .filter(|p| &p.mint == m)
+                .map(|p| p.key.clone())
+                .collect();
             for p in self.positions.values_mut().filter(|p| &p.mint == m) {
                 p.peak = p.peak.max(price);
             }
@@ -706,17 +1075,36 @@ impl Server {
             if !self.coins.get(&p.mint).is_some_and(Coin::tradeable) {
                 continue;
             }
-            let price = self.coins.get(&p.mint).map(|c| c.price_sol).unwrap_or_default();
+            let price = self
+                .coins
+                .get(&p.mint)
+                .map(|c| c.price_sol)
+                .unwrap_or_default();
             let entry = sol_of_lam(p.cost) / ui_qty(p.qty_raw, p.decimals).max(Decimal::new(1, 12));
             let (r, peak_r) = (price / entry, p.peak / entry);
             let two = Decimal::from(2);
-            let timers = self.strategies.iter().find(|s| s.id == p.strategy_id).map(|s| crate::model::ExitTimers::from_settings(&s.settings)).unwrap_or_default();
+            let timers = self
+                .strategies
+                .iter()
+                .find(|s| s.id == p.strategy_id)
+                .map(|s| crate::model::ExitTimers::from_settings(&s.settings))
+                .unwrap_or_default();
             if let Some(why) = timer_exit(&timers, p, price, now) {
                 exits.push((p.key.clone(), why.0, why.1, why.2));
             } else if r >= two {
-                exits.push((p.key.clone(), ExitReason::ProfitTarget, 0, "Profit target +100%: sell 100%"));
+                exits.push((
+                    p.key.clone(),
+                    ExitReason::ProfitTarget,
+                    0,
+                    "Profit target +100%: sell 100%",
+                ));
             } else if peak_r >= dec(1.3) && price <= p.peak * dec(0.8) {
-                exits.push((p.key.clone(), ExitReason::PeakTrail, 1, "Peak trail 20% below high"));
+                exits.push((
+                    p.key.clone(),
+                    ExitReason::PeakTrail,
+                    1,
+                    "Peak trail 20% below high",
+                ));
             } else if r <= dec(0.6) {
                 exits.push((p.key.clone(), ExitReason::LossGuard, 2, "Loss guard -40%"));
             }
@@ -726,26 +1114,47 @@ impl Server {
         }
         // Move the stall references of the survivors.
         for p in self.positions.values_mut() {
-            let price = self.coins.get(&p.mint).map(|c| c.price_sol).unwrap_or_default();
-            if moved_pct(p.stall_ref.0, price) >= Decimal::from_f64(MOCK_STALL_MIN_MOVE_PCT).unwrap_or_default() {
+            let price = self
+                .coins
+                .get(&p.mint)
+                .map(|c| c.price_sol)
+                .unwrap_or_default();
+            if moved_pct(p.stall_ref.0, price)
+                >= Decimal::from_f64(MOCK_STALL_MIN_MOVE_PCT).unwrap_or_default()
+            {
                 p.stall_ref = (price, now);
             }
         }
         self.refresh_quotes(now);
 
-        let expired: Vec<String> = self.proposals.values().filter(|p| p.status == ProposalStatus::Pending && p.expires_ms <= now).map(|p| p.id.clone()).collect();
+        let expired: Vec<String> = self
+            .proposals
+            .values()
+            .filter(|p| p.status == ProposalStatus::Pending && p.expires_ms <= now)
+            .map(|p| p.id.clone())
+            .collect();
         for id in expired {
             let (ck, mint, sid, version) = {
                 let p = self.proposals.get_mut(&id).unwrap();
                 p.status = ProposalStatus::Expired;
                 p.version += 1;
-                (p.ck.clone(), p.mint.clone(), p.strategy_id.clone(), p.version)
+                (
+                    p.ck.clone(),
+                    p.mint.clone(),
+                    p.strategy_id.clone(),
+                    p.version,
+                )
             };
-            let u = self.coins.get(&mint).map(|c| c.untrusted.clone()).unwrap_or_default();
+            let u = self
+                .coins
+                .get(&mint)
+                .map(|c| c.untrusted.clone())
+                .unwrap_or_default();
             self.emit("proposal.expired", Actor::System, &id, Some(&sid), Some(&ck), Some(&mint),
                 json!({"proposal_id": id, "kind": "buy_pick", "rev": version, "reason": "timeout", "at": IsoTs::from_ms(now)}), u);
         }
-        self.proposals.retain(|_, p| p.status == ProposalStatus::Pending || now - p.expires_ms < 600_000);
+        self.proposals
+            .retain(|_, p| p.status == ProposalStatus::Pending || now - p.expires_ms < 600_000);
 
         if now >= self.next_remote_edit_ms && !self.strategies.is_empty() {
             self.next_remote_edit_ms = now + REMOTE_EDIT_EVERY_MS;
@@ -759,7 +1168,10 @@ impl Server {
         if now >= self.next_clock_ms {
             self.next_clock_ms = now + CLOCK_EVERY_MS;
             if let Some(tx) = &self.live {
-                let _ = tx.try_send(Inbound::Clock(ClockMessage { server_now: IsoTs::from_ms(now), safe_seq: self.seq }));
+                let _ = tx.try_send(Inbound::Clock(ClockMessage {
+                    server_now: IsoTs::from_ms(now),
+                    safe_seq: self.seq,
+                }));
             }
         }
     }
@@ -769,8 +1181,15 @@ impl Server {
             let p = &self.proposals[prop_id];
             (p.ck.clone(), p.mint.clone(), p.strategy_id.clone())
         };
-        let Some(coin) = self.coins.get(&mint) else { return };
-        let (mark, untrusted, decimals, token_program) = (coin.price_sol, coin.untrusted.clone(), coin.decimals, coin.token_program);
+        let Some(coin) = self.coins.get(&mint) else {
+            return;
+        };
+        let (mark, untrusted, decimals, token_program) = (
+            coin.price_sol,
+            coin.untrusted.clone(),
+            coin.decimals,
+            coin.token_program,
+        );
         if self.cash < BUY_LAMPORTS {
             // Two different things (Backend): this one order fails (kind error) …
             let pid = prop_id.to_string();
@@ -790,7 +1209,10 @@ impl Server {
         let swap_fee = BUY_LAMPORTS * FEE_BPS as i128 / 10_000;
         let net = BUY_LAMPORTS - swap_fee - NETWORK_FEE;
         let qty_ui = sol_of_lam(net) / exec;
-        let qty_raw = (qty_ui * Decimal::from(10u64.pow(decimals as u32))).floor().to_u128().unwrap_or(0);
+        let qty_raw = (qty_ui * Decimal::from(10u64.pow(decimals as u32)))
+            .floor()
+            .to_u128()
+            .unwrap_or(0);
         self.cash -= BUY_LAMPORTS;
         let n = self.pos_n.entry(ck.clone()).or_insert(0);
         let key = format!("{ck}.{n}");
@@ -805,13 +1227,40 @@ impl Server {
         fs["simulated"] = json!(true);
         fs["mark_price_sol"] = json!(Dec(mark));
         fs["fee_bps"] = json!(FEE_BPS);
-        self.emit("fill.simulated", Actor::Executor, &key, Some(&sid), Some(&ck), Some(&mint), fs, untrusted.clone());
+        self.emit(
+            "fill.simulated",
+            Actor::Executor,
+            &key,
+            Some(&sid),
+            Some(&ck),
+            Some(&mint),
+            fs,
+            untrusted.clone(),
+        );
         let opened = self.now();
         let pos_id = self.uuid('5');
         let mut fill = fill;
         fill["id"] = json!(self.uuid('6'));
         fill["created_at"] = json!(IsoTs::from_ms(opened));
-        self.positions.insert(key.clone(), Pos { id: pos_id.clone(), key: key.clone(), ck: ck.clone(), mint: mint.clone(), strategy_id: sid.clone(), qty_raw, cost: BUY_LAMPORTS, peak: mark, opened_ms: opened, untrusted: untrusted.clone(), realized: 0, rev: 1, decimals, stall_ref: (mark, opened) });
+        self.positions.insert(
+            key.clone(),
+            Pos {
+                id: pos_id.clone(),
+                key: key.clone(),
+                ck: ck.clone(),
+                mint: mint.clone(),
+                strategy_id: sid.clone(),
+                qty_raw,
+                cost: BUY_LAMPORTS,
+                peak: mark,
+                opened_ms: opened,
+                untrusted: untrusted.clone(),
+                realized: 0,
+                rev: 1,
+                decimals,
+                stall_ref: (mark, opened),
+            },
+        );
         self.emit("position.opened", Actor::Executor, &key, Some(&sid), Some(&ck), Some(&mint),
             json!({"position_key": key, "position_id": pos_id, "mint": mint, "fill": fill, "first_buy": true, "rev": 1, "practice_epoch": self.epoch,
                 "decimals": decimals, "token_program": token_program}), untrusted);
@@ -824,17 +1273,51 @@ impl Server {
         self.portfolio();
     }
 
-    fn sell_inner(&mut self, key: &str, pct: Decimal, rule: ExitReason, rule_index: i64, detail: &str, actor: Actor) {
-        let Some(p) = self.positions.get(key) else { return };
-        let (ck, mint, sid, u, pos_id) = (p.ck.clone(), p.mint.clone(), p.strategy_id.clone(), p.untrusted.clone(), p.id.clone());
-        let mark = self.coins.get(&mint).map(|c| c.price_sol).unwrap_or_default();
+    fn sell_inner(
+        &mut self,
+        key: &str,
+        pct: Decimal,
+        rule: ExitReason,
+        rule_index: i64,
+        detail: &str,
+        actor: Actor,
+    ) {
+        let Some(p) = self.positions.get(key) else {
+            return;
+        };
+        let (ck, mint, sid, u, pos_id) = (
+            p.ck.clone(),
+            p.mint.clone(),
+            p.strategy_id.clone(),
+            p.untrusted.clone(),
+            p.id.clone(),
+        );
+        let mark = self
+            .coins
+            .get(&mint)
+            .map(|c| c.price_sol)
+            .unwrap_or_default();
         self.emit("exit.triggered", Actor::Exit, key, Some(&sid), Some(&ck), Some(&mint),
             json!({"position_key": key, "rule": rule, "rule_index": rule_index, "sell_portion_pct": pct.to_f64(), "trigger_price_sol": Dec(mark), "detail": detail}), u.clone());
         let p = self.positions.get(key).unwrap();
         let full = pct >= Decimal::from(100);
         let p_dec = p.decimals;
-        let sell_raw = if full { p.qty_raw } else { (Decimal::from_u128(p.qty_raw).unwrap() * pct / Decimal::from(100)).floor().to_u128().unwrap_or(0) };
-        let cost_part = if full { p.cost } else { (Decimal::from_i128(p.cost).unwrap() * pct / Decimal::from(100)).round().to_i128().unwrap_or(0) };
+        let sell_raw = if full {
+            p.qty_raw
+        } else {
+            (Decimal::from_u128(p.qty_raw).unwrap() * pct / Decimal::from(100))
+                .floor()
+                .to_u128()
+                .unwrap_or(0)
+        };
+        let cost_part = if full {
+            p.cost
+        } else {
+            (Decimal::from_i128(p.cost).unwrap() * pct / Decimal::from(100))
+                .round()
+                .to_i128()
+                .unwrap_or(0)
+        };
         let slip_bps = dec(self.rng.range(0.5, 3.0)).round_dp(2);
         let exec = (mark * (Decimal::ONE - slip_bps / Decimal::from(10_000))).round_dp(12);
         let gross = lam_of_sol(ui_qty(sell_raw, p_dec) * exec);
@@ -852,7 +1335,13 @@ impl Server {
         if full {
             let p = self.positions.remove(key).unwrap();
             let pnl_total = p.realized + pnl;
-            let pnl_pct = if p.cost > 0 { (Decimal::from_i128(pnl_total).unwrap() * Decimal::from(100) / Decimal::from_i128(p.cost).unwrap()).round_dp(2) } else { Decimal::ZERO };
+            let pnl_pct = if p.cost > 0 {
+                (Decimal::from_i128(pnl_total).unwrap() * Decimal::from(100)
+                    / Decimal::from_i128(p.cost).unwrap())
+                .round_dp(2)
+            } else {
+                Decimal::ZERO
+            };
             let epoch = self.epoch;
             self.emit("position.closed", actor, key, Some(&sid), Some(&ck), Some(&mint), json!({
                 "position_key": key, "position_id": pos_id, "rev": p.rev + 1, "practice_epoch": epoch, "exit_reason": rule, "exit_price_sol": Dec(exec), "sol_out_lamports": out.to_string(),
@@ -863,9 +1352,14 @@ impl Server {
             p.cost -= cost_part;
             p.realized += pnl;
             p.rev += 1;
-            let (qty, peak, realized, rev, cost, dec_) = (p.qty_raw, p.peak, p.realized, p.rev, p.cost, p.decimals);
+            let (qty, peak, realized, rev, cost, dec_) =
+                (p.qty_raw, p.peak, p.realized, p.rev, p.cost, p.decimals);
             let q = ui_qty(qty, dec_);
-            let avg = if q.is_zero() { Decimal::ZERO } else { (sol_of_lam(cost) / q).round_dp(12) };
+            let avg = if q.is_zero() {
+                Decimal::ZERO
+            } else {
+                (sol_of_lam(cost) / q).round_dp(12)
+            };
             let ps = plan_state(avg, peak);
             let unreal = lam_of_sol(q * mark) - cost;
             let epoch = self.epoch;
@@ -880,7 +1374,13 @@ impl Server {
 
     fn page(&self, after_seq: i64, limit: u32) -> EventPage {
         let limit = limit.clamp(1, 500) as usize;
-        let mut items: Vec<EventEnvelope> = self.log.iter().filter(|e| e.seq > after_seq).take(limit + 1).cloned().collect();
+        let mut items: Vec<EventEnvelope> = self
+            .log
+            .iter()
+            .filter(|e| e.seq > after_seq)
+            .take(limit + 1)
+            .cloned()
+            .collect();
         let has_more = items.len() > limit;
         items.truncate(limit);
         EventPage {
@@ -895,7 +1395,13 @@ impl Server {
 
     /// 1.1.2 error body: `error` is always an object `{code, message, ...details, server_now}`
     /// (details and 409 merge data spread inside it), plus `server_now` next to it.
-    fn err<T>(&self, http: u16, code: &str, message: &str, details: serde_json::Value) -> ApiResult<T> {
+    fn err<T>(
+        &self,
+        http: u16,
+        code: &str,
+        message: &str,
+        details: serde_json::Value,
+    ) -> ApiResult<T> {
         let now = IsoTs::from_ms(self.now());
         let mut e = json!({"code": code, "message": message, "request_id": format!("req_mock{}", self.seq), "server_now": now});
         if let (Some(b), Some(d)) = (e.as_object_mut(), details.as_object()) {
@@ -903,11 +1409,19 @@ impl Server {
                 b.entry(k.clone()).or_insert(v.clone());
             }
         }
-        Err(ApiFailure::from_body(http, &json!({"error": e, "server_now": now})))
+        Err(ApiFailure::from_body(
+            http,
+            &json!({"error": e, "server_now": now}),
+        ))
     }
 
     fn precondition<T>(&self) -> ApiResult<T> {
-        self.err(428, "PRECONDITION_REQUIRED", "Write needs If-Match: <rev> or expected_rev", json!({}))
+        self.err(
+            428,
+            "PRECONDITION_REQUIRED",
+            "Write needs If-Match: <rev> or expected_rev",
+            json!({}),
+        )
     }
 }
 
@@ -925,15 +1439,21 @@ fn default_settings(full: bool) -> serde_json::Value {
         // 1.1.2: trail from PEAK and hard stop from ENTRY are separate keys (0 = off).
         m.insert(k::PEAK_TRAIL_PCT.into(), json!(20));
         m.insert(k::STOP_LOSS_PCT.into(), json!(0));
-        m.insert(k::EXIT_RULES.into(), json!({
-            k::PROFIT_TARGETS: [{ k::AT_GAIN_PCT: 100, k::SELL_PORTION_PCT: 100 }],
-            k::LOSS_GUARDS: [{ k::AT_LOSS_PCT: 40, k::SELL_PORTION_PCT: 100 }],
-        }));
+        m.insert(
+            k::EXIT_RULES.into(),
+            json!({
+                k::PROFIT_TARGETS: [{ k::AT_GAIN_PCT: 100, k::SELL_PORTION_PCT: 100 }],
+                k::LOSS_GUARDS: [{ k::AT_LOSS_PCT: 40, k::SELL_PORTION_PCT: 100 }],
+            }),
+        );
     }
     // 1.1.4 exit timers (every mock strategy): time stop 10 min (exit_reason max_hold) and stall exit
     // (|move| < 1 % over 90 s → exit_reason stall).
     m.insert("time_stop_s".into(), json!(MOCK_TIME_STOP_S));
-    m.insert("stall_exit".into(), json!({"window_s": MOCK_STALL_WINDOW_S, "min_move_pct": MOCK_STALL_MIN_MOVE_PCT}));
+    m.insert(
+        "stall_exit".into(),
+        json!({"window_s": MOCK_STALL_WINDOW_S, "min_move_pct": MOCK_STALL_MIN_MOVE_PCT}),
+    );
     serde_json::Value::Object(m)
 }
 
@@ -953,7 +1473,11 @@ pub fn sample_approval_wire(kind: &str) -> serde_json::Value {
 fn weakened_fields(cur: &serde_json::Value, patch: &serde_json::Value) -> Vec<String> {
     let num = |v: Option<&serde_json::Value>| v.and_then(|x| x.as_f64());
     let mut out = Vec::new();
-    for (k, lower_is_looser) in [("score_threshold", true), ("min_liquidity_usd", true), ("max_top_holders_share_pct", false)] {
+    for (k, lower_is_looser) in [
+        ("score_threshold", true),
+        ("min_liquidity_usd", true),
+        ("max_top_holders_share_pct", false),
+    ] {
         if let (Some(old), Some(new)) = (num(cur.get(k)), num(patch.get(k))) {
             if (lower_is_looser && new < old) || (!lower_is_looser && new > old) {
                 out.push(k.to_string());
@@ -970,20 +1494,32 @@ fn weakened_fields(cur: &serde_json::Value, patch: &serde_json::Value) -> Vec<St
 
 /// |price / reference − 1| in percent.
 fn moved_pct(reference: Decimal, price: Decimal) -> Decimal {
-    if reference.is_zero() { return Decimal::from(100) }
+    if reference.is_zero() {
+        return Decimal::from(100);
+    }
     ((price / reference - Decimal::ONE) * Decimal::from(100)).abs()
 }
 
 /// 1.1.4 timer exits (sell 100 %): `time_stop_s` → `max_hold`; `stall_exit` → `stall` once a full
 /// window passed without a ≥ min_move_pct move from the reference (never before a full window since entry).
-fn timer_exit(t: &crate::model::ExitTimers, p: &Pos, price: Decimal, now: i64) -> Option<(ExitReason, i64, &'static str)> {
+fn timer_exit(
+    t: &crate::model::ExitTimers,
+    p: &Pos,
+    price: Decimal,
+    now: i64,
+) -> Option<(ExitReason, i64, &'static str)> {
     if t.time_stop_s.is_some_and(|s| now - p.opened_ms >= s * 1000) {
         return Some((ExitReason::MaxHold, 3, "Time stop"));
     }
     let st = t.stall_exit?;
     let window_ms = st.window_s * 1000;
-    let flat = moved_pct(p.stall_ref.0, price) < Decimal::from_f64(st.min_move_pct).unwrap_or_default();
-    (now - p.opened_ms >= window_ms && now - p.stall_ref.1 >= window_ms && flat).then_some((ExitReason::Stall, 4, "Stall exit"))
+    let flat =
+        moved_pct(p.stall_ref.0, price) < Decimal::from_f64(st.min_move_pct).unwrap_or_default();
+    (now - p.opened_ms >= window_ms && now - p.stall_ref.1 >= window_ms && flat).then_some((
+        ExitReason::Stall,
+        4,
+        "Stall exit",
+    ))
 }
 
 /// Mock `plan_state` (1.1.2 `PlanState`, discriminated `PlanStep`) for the mock exit plan:
@@ -1015,7 +1551,11 @@ impl MockTransport {
         let strategies = vec![
             Strat::new("20000000-0000-0000-0000-00000000000a", "Mock · Curve", true),
             Strat::new("20000000-0000-0000-0000-00000000000b", "Mock · AMM", false),
-            Strat::new("20000000-0000-0000-0000-00000000000c", "Mock · Pullback", false),
+            Strat::new(
+                "20000000-0000-0000-0000-00000000000c",
+                "Mock · Pullback",
+                false,
+            ),
         ];
         let server = Server {
             seq: 18_000,
@@ -1045,11 +1585,18 @@ impl MockTransport {
             ws_rev: 1,
             epoch: 1,
             last_reset_ms: None,
-            force_conflict: !cfg!(test) && std::env::var("CENTURION_MOCK_FORCE_CONFLICT").is_ok_and(|v| v == "1"),
+            force_conflict: !cfg!(test)
+                && std::env::var("CENTURION_MOCK_FORCE_CONFLICT").is_ok_and(|v| v == "1"),
             next_remote_edit_ms: now + REMOTE_EDIT_EVERY_MS,
-            not_tradeable: if cfg!(test) { NotTradeableMode::Off } else { NotTradeableMode::from_env() },
+            not_tradeable: if cfg!(test) {
+                NotTradeableMode::Off
+            } else {
+                NotTradeableMode::from_env()
+            },
         };
-        Self { inner: Arc::new(Mutex::new(server)) }
+        Self {
+            inner: Arc::new(Mutex::new(server)),
+        }
     }
 
     /// Drive the simulated server (1 s ticks) on the async runtime.
@@ -1109,27 +1656,50 @@ impl Transport for MockTransport {
 
     async fn get_workspace(&self) -> ApiResult<ApiItem<WorkspaceSummary>> {
         let s = self.inner.lock().unwrap();
-        let data = WorkspaceSummary { id: WORKSPACE_ID.into(), name: "Mock workspace".into(), rev: s.ws_rev, practice_start_lamports: Some(Lamports(START_CASH)), modes_enabled: vec![Mode::Practice], practice_epoch: Some(s.epoch) };
-        Ok(ApiItem { data, server_now: IsoTs::from_ms(s.now()) })
+        let data = WorkspaceSummary {
+            id: WORKSPACE_ID.into(),
+            name: "Mock workspace".into(),
+            rev: s.ws_rev,
+            practice_start_lamports: Some(Lamports(START_CASH)),
+            modes_enabled: vec![Mode::Practice],
+            practice_epoch: Some(s.epoch),
+        };
+        Ok(ApiItem {
+            data,
+            server_now: IsoTs::from_ms(s.now()),
+        })
     }
 
     async fn get_portfolio(&self) -> ApiResult<ApiItem<PortfolioSnapshot>> {
         let mut s = self.inner.lock().unwrap();
         let data = s.snapshot();
-        Ok(ApiItem { data, server_now: IsoTs::from_ms(s.now()) })
+        Ok(ApiItem {
+            data,
+            server_now: IsoTs::from_ms(s.now()),
+        })
     }
 
     async fn list_strategies(&self) -> ApiResult<ApiItem<Vec<StrategySummary>>> {
         let s = self.inner.lock().unwrap();
         let data = s.strategies.iter().map(Strat::summary).collect();
-        Ok(ApiItem { data, server_now: IsoTs::from_ms(s.now()) })
+        Ok(ApiItem {
+            data,
+            server_now: IsoTs::from_ms(s.now()),
+        })
     }
 
     async fn get_approval(&self, proposal_id: &str) -> ApiResult<ApiItem<ApprovalDetail>> {
         let mut s = self.inner.lock().unwrap();
         let token = format!("apt_{}", s.rng.hex(22));
         let now = s.now();
-        let Some(p) = s.proposals.get_mut(proposal_id) else { return s.err(404, "NOT_FOUND", "Resource not found or not visible", json!({})) };
+        let Some(p) = s.proposals.get_mut(proposal_id) else {
+            return s.err(
+                404,
+                "NOT_FOUND",
+                "Resource not found or not visible",
+                json!({}),
+            );
+        };
         let pending = p.status == ProposalStatus::Pending && p.expires_ms > now;
         if pending {
             p.token = Some(token.clone());
@@ -1140,45 +1710,98 @@ impl Transport for MockTransport {
             status: p.status,
             expires_at: IsoTs::from_ms(p.expires_ms),
             decision_token: pending.then_some(token),
-            decision_token_expires_at: pending.then(|| IsoTs::from_ms(p.expires_ms.min(now + 15 * 60_000))),
+            decision_token_expires_at: pending
+                .then(|| IsoTs::from_ms(p.expires_ms.min(now + 15 * 60_000))),
             quote: p.quote.clone(),
         };
-        Ok(ApiItem { data: d, server_now: IsoTs::from_ms(now) })
+        Ok(ApiItem {
+            data: d,
+            server_now: IsoTs::from_ms(now),
+        })
     }
 
-    async fn decide(&self, proposal_id: &str, idem_key: &str, req: ApprovalDecisionRequest) -> ApiResult<ApiItem<ApprovalDecisionResponse>> {
+    async fn decide(
+        &self,
+        proposal_id: &str,
+        idem_key: &str,
+        req: ApprovalDecisionRequest,
+    ) -> ApiResult<ApiItem<ApprovalDecisionResponse>> {
         let mut s = self.inner.lock().unwrap();
         let now = s.now();
-        let fp = format!("decide:{proposal_id}:{:?}:{}:{}:{:?}", req.decision, req.expected_rev, req.token, req.reject_reason);
+        let fp = format!(
+            "decide:{proposal_id}:{:?}:{}:{}:{:?}",
+            req.decision, req.expected_rev, req.token, req.reject_reason
+        );
         if let Some(stored) = s.idem_check(idem_key, &fp)? {
-            let mut r: ApprovalDecisionResponse = serde_json::from_value(stored).expect("stored decision");
+            let mut r: ApprovalDecisionResponse =
+                serde_json::from_value(stored).expect("stored decision");
             r.replayed = true;
-            return Ok(ApiItem { data: r, server_now: IsoTs::from_ms(now) });
+            return Ok(ApiItem {
+                data: r,
+                server_now: IsoTs::from_ms(now),
+            });
         }
         if let Some((d, resp)) = s.decided.get(&req.token).cloned() {
             if d == req.decision {
                 let mut r = resp;
                 r.replayed = true;
-                return Ok(ApiItem { data: r, server_now: IsoTs::from_ms(now) });
+                return Ok(ApiItem {
+                    data: r,
+                    server_now: IsoTs::from_ms(now),
+                });
             }
-            return s.err(409, "APPROVAL_ALREADY_DECIDED", "Already decided", json!({}));
+            return s.err(
+                409,
+                "APPROVAL_ALREADY_DECIDED",
+                "Already decided",
+                json!({}),
+            );
         }
         // 1.1.3: reject_reason only with reject (unknown values are refused when the body is parsed:
         // `parse_decision_body`).
         if req.decision == Decision::Approve && req.reject_reason.is_some() {
-            return s.err(422, "VALIDATION_FAILED", "reject_reason is only allowed with decision=reject", json!({"field": "reject_reason"}));
+            return s.err(
+                422,
+                "VALIDATION_FAILED",
+                "reject_reason is only allowed with decision=reject",
+                json!({"field": "reject_reason"}),
+            );
         }
-        let reject_reason = (req.decision == Decision::Reject).then(|| req.reject_reason.unwrap_or(ApprovalRejectReason::UserDeclined));
-        let Some(p) = s.proposals.get(proposal_id) else { return s.err(404, "NOT_FOUND", "Resource not found or not visible", json!({})) };
+        let reject_reason = (req.decision == Decision::Reject).then(|| {
+            req.reject_reason
+                .unwrap_or(ApprovalRejectReason::UserDeclined)
+        });
+        let Some(p) = s.proposals.get(proposal_id) else {
+            return s.err(
+                404,
+                "NOT_FOUND",
+                "Resource not found or not visible",
+                json!({}),
+            );
+        };
         if p.status != ProposalStatus::Pending {
-            let code = if p.status == ProposalStatus::Expired { "APPROVAL_EXPIRED" } else { "APPROVAL_ALREADY_DECIDED" };
+            let code = if p.status == ProposalStatus::Expired {
+                "APPROVAL_EXPIRED"
+            } else {
+                "APPROVAL_ALREADY_DECIDED"
+            };
             return s.err(409, code, "Not pending", json!({"status": p.status}));
         }
         if p.expires_ms <= now {
-            return s.err(409, "APPROVAL_EXPIRED", "Approval expired", json!({"reason": "timeout"}));
+            return s.err(
+                409,
+                "APPROVAL_EXPIRED",
+                "Approval expired",
+                json!({"reason": "timeout"}),
+            );
         }
         if p.token.as_deref() != Some(req.token.as_str()) {
-            return s.err(403, "APPROVAL_TOKEN_INVALID", "Decision token invalid", json!({}));
+            return s.err(
+                403,
+                "APPROVAL_TOKEN_INVALID",
+                "Decision token invalid",
+                json!({}),
+            );
         }
         if p.version != req.expected_rev {
             let v = p.version;
@@ -1188,32 +1811,70 @@ impl Transport for MockTransport {
         if req.decision == Decision::Approve && s.quote_strict && p.quote.is_stale(now) {
             // Real-mode server rule (SQL approval_quote_check); practice never blocks.
             let exp = p.quote.quote_expires_at.clone();
-            return s.err(409, "QUOTE_MISSING_OR_STALE", "Quote missing or expired; refresh it before approving", json!({"quote_expires_at": exp}));
+            return s.err(
+                409,
+                "QUOTE_MISSING_OR_STALE",
+                "Quote missing or expired; refresh it before approving",
+                json!({"quote_expires_at": exp}),
+            );
         }
         if req.decision == Decision::Approve && !s.coins.get(&mint).is_some_and(Coin::tradeable) {
             // Server-side WF-20 guard (desktop already blocks): N-05 order.failed + 422.
             s.order_failed(&mint, "buy", Some(proposal_id), Some(BUY_LAMPORTS), None);
-            return s.err(422, UNSUPPORTED_QUOTE_MINT, "Pool is quoted in a mint other than SOL", json!({"mint": mint}));
+            return s.err(
+                422,
+                UNSUPPORTED_QUOTE_MINT,
+                "Pool is quoted in a mint other than SOL",
+                json!({"mint": mint}),
+            );
         }
         let p = s.proposals.get_mut(proposal_id).unwrap();
         p.token = None;
         p.version += 1;
-        p.status = if req.decision == Decision::Approve { ProposalStatus::Approved } else { ProposalStatus::Rejected };
+        p.status = if req.decision == Decision::Approve {
+            ProposalStatus::Approved
+        } else {
+            ProposalStatus::Rejected
+        };
         let (status, version) = (p.status, p.version);
-        let u = s.coins.get(&mint).map(|c| c.untrusted.clone()).unwrap_or_default();
-        let kind = if status == ProposalStatus::Approved { "proposal.approved" } else { "proposal.rejected" };
+        let u = s
+            .coins
+            .get(&mint)
+            .map(|c| c.untrusted.clone())
+            .unwrap_or_default();
+        let kind = if status == ProposalStatus::Approved {
+            "proposal.approved"
+        } else {
+            "proposal.rejected"
+        };
         s.emit(kind, Actor::User, proposal_id, Some(&sid), Some(&ck), Some(&mint), json!({
             "proposal_id": proposal_id, "kind": "buy_pick", "rev": version, "decided_by": USER_ID, "decided_via": "desktop", "reason": req.reason, "reject_reason": reject_reason}), u);
         if status == ProposalStatus::Approved {
             s.buy(proposal_id);
         }
-        let resp = ApprovalDecisionResponse { proposal_id: proposal_id.into(), status, version, reject_reason, replayed: false };
+        let resp = ApprovalDecisionResponse {
+            proposal_id: proposal_id.into(),
+            status,
+            version,
+            reject_reason,
+            replayed: false,
+        };
         s.decided.insert(req.token, (req.decision, resp.clone()));
-        s.idem.insert(idem_key.into(), (fp, serde_json::to_value(&resp).unwrap()));
-        Ok(ApiItem { data: resp, server_now: IsoTs::from_ms(now) })
+        s.idem
+            .insert(idem_key.into(), (fp, serde_json::to_value(&resp).unwrap()));
+        Ok(ApiItem {
+            data: resp,
+            server_now: IsoTs::from_ms(now),
+        })
     }
 
-    async fn close(&self, position_id: &str, idem_key: &str, if_match: Option<u64>, fraction_bps: u16) -> ApiResult<CloseResponse> {
+    async fn close(
+        &self,
+        position_id: &str,
+        idem_key: &str,
+        if_match: Option<u64>,
+        fraction_bps: u16,
+    ) -> ApiResult<CloseResponse> {
         let mut s = self.inner.lock().unwrap();
         let fp = format!("close:{position_id}:{fraction_bps}:{if_match:?}");
         if let Some(stored) = s.idem_check(idem_key, &fp)? {
@@ -1222,10 +1883,17 @@ impl Transport for MockTransport {
             return Ok(r);
         }
         let Some(p) = s.positions.values().find(|p| p.id == position_id) else {
-            return s.err(409, "POSITION_ALREADY_CLOSED", "Position is closed or unknown", json!({"position_id": position_id}));
+            return s.err(
+                409,
+                "POSITION_ALREADY_CLOSED",
+                "Position is closed or unknown",
+                json!({"position_id": position_id}),
+            );
         };
         // 1.1.2: positions carry rev; close needs If-Match (428 without, 409 when stale).
-        let Some(base) = if_match else { return s.precondition() };
+        let Some(base) = if_match else {
+            return s.precondition();
+        };
         let key = p.key.clone();
         if base != p.rev {
             let cur = p.rev;
@@ -1233,13 +1901,23 @@ impl Transport for MockTransport {
             return s.err(409, "VERSION_CONFLICT", &format!("Position rev is {cur}, not {base}"), json!({"current_rev": cur, "base_rev": base, "changed_fields": ["qty_raw"], "current": current}));
         }
         if !(1..=FRACTION_BPS_MAX).contains(&fraction_bps) {
-            return s.err(422, "INVALID_FRACTION", "fraction_bps must be an integer 1-10000", json!({"field": "fraction_bps"}));
+            return s.err(
+                422,
+                "INVALID_FRACTION",
+                "fraction_bps must be an integer 1-10000",
+                json!({"field": "fraction_bps"}),
+            );
         }
         let (mint, qty, dec_) = (p.mint.clone(), p.qty_raw, p.decimals);
         let (sid, ck, u) = (p.strategy_id.clone(), p.ck.clone(), p.untrusted.clone());
         if !s.coins.get(&mint).is_some_and(Coin::tradeable) {
             s.order_failed(&mint, "sell", None, None, Some(qty));
-            return s.err(422, UNSUPPORTED_QUOTE_MINT, "Pool is quoted in a mint other than SOL", json!({"mint": mint, "position_id": position_id}));
+            return s.err(
+                422,
+                UNSUPPORTED_QUOTE_MINT,
+                "Pool is quoted in a mint other than SOL",
+                json!({"mint": mint, "position_id": position_id}),
+            );
         }
         // order.submitted → (simulated fill) → order.filled → fill.simulated + position.updated|closed
         let now = s.now();
@@ -1253,28 +1931,55 @@ impl Transport for MockTransport {
         s.emit("order.submitted", Actor::User, &order_id, Some(&sid), Some(&ck), Some(&mint),
             json!({"order": order, "position_id": position_id, "position_rev": base, "practice_epoch": epoch}), u.clone());
         let pct = Decimal::from(fraction_bps) / Decimal::from(100);
-        s.sell_inner(&key, pct, ExitReason::Manual, -1, "Manual sell (desktop)", Actor::User);
+        s.sell_inner(
+            &key,
+            pct,
+            ExitReason::Manual,
+            -1,
+            "Manual sell (desktop)",
+            Actor::User,
+        );
         let (rev, qty_raw, status) = match s.positions.get(&key) {
             Some(p) => (p.rev, p.qty_raw, "open"),
             None => (base + 1, 0, "closed"),
         };
-        let fill = s.log.iter().rev().find(|e| e.kind == "fill.simulated" && e.payload["position_key"] == key.as_str()).map(|e| {
-            let mut f = e.payload.clone();
-            f["id"] = json!(e.id);
-            f["created_at"] = json!(e.ts);
-            f
-        });
+        let fill = s
+            .log
+            .iter()
+            .rev()
+            .find(|e| e.kind == "fill.simulated" && e.payload["position_key"] == key.as_str())
+            .map(|e| {
+                let mut f = e.payload.clone();
+                f["id"] = json!(e.id);
+                f["created_at"] = json!(e.ts);
+                f
+            });
         order["status"] = json!("filled");
-        order["fill_id"] = fill.as_ref().map(|f| f["id"].clone()).unwrap_or(json!(null));
+        order["fill_id"] = fill
+            .as_ref()
+            .map(|f| f["id"].clone())
+            .unwrap_or(json!(null));
         order["updated_at"] = json!(IsoTs::from_ms(s.now()));
         s.emit("order.filled", Actor::Executor, &order_id, Some(&sid), Some(&ck), Some(&mint),
             json!({"order": order, "fill": fill, "position_id": position_id, "position_rev": rev, "practice_epoch": epoch}), u);
         let resp = CloseResponse {
             // API_ENDPOINTS 4.4: `position` = the position at request time (rev `base`); the new rev
             // arrives with position.updated / position.closed / order.filled.position_rev.
-            position: PositionWire { id: position_id.into(), position_key: key, rev: base, qty_raw: RawQty(qty_raw), status: status.into(), practice_epoch: Some(epoch),
-                decimals: Some(dec_), token_program: None, cost_basis_lamports: None, avg_entry_price_sol: None, exit_reason: (status == "closed").then_some(ExitReason::Manual),
-                logo_url: crate::logo::mock_logo_url(&mint), logo_hash: crate::logo::mock_logo_hash(&mint) },
+            position: PositionWire {
+                id: position_id.into(),
+                position_key: key,
+                rev: base,
+                qty_raw: RawQty(qty_raw),
+                status: status.into(),
+                practice_epoch: Some(epoch),
+                decimals: Some(dec_),
+                token_program: None,
+                cost_basis_lamports: None,
+                avg_entry_price_sol: None,
+                exit_reason: (status == "closed").then_some(ExitReason::Manual),
+                logo_url: crate::logo::mock_logo_url(&mint),
+                logo_hash: crate::logo::mock_logo_hash(&mint),
+            },
             order: serde_json::from_value(order).expect("OrderWire"),
             order_id,
             fill: fill.and_then(|f| serde_json::from_value::<FillWire>(f).ok()),
@@ -1283,14 +1988,30 @@ impl Transport for MockTransport {
             replayed: false,
             server_now: IsoTs::from_ms(s.now()),
         };
-        s.idem.insert(idem_key.into(), (fp, serde_json::to_value(&resp).unwrap()));
+        s.idem
+            .insert(idem_key.into(), (fp, serde_json::to_value(&resp).unwrap()));
         Ok(resp)
     }
 
-    async fn set_strategy_paused(&self, id: &str, _idem_key: &str, if_match: Option<u64>, paused: bool) -> ApiResult<ApiItem<StrategySummary>> {
+    async fn set_strategy_paused(
+        &self,
+        id: &str,
+        _idem_key: &str,
+        if_match: Option<u64>,
+        paused: bool,
+    ) -> ApiResult<ApiItem<StrategySummary>> {
         let mut s = self.inner.lock().unwrap();
-        let Some(i) = s.strategies.iter().position(|x| x.id == id) else { return s.err(404, "NOT_FOUND", "Resource not found or not visible", json!({})) };
-        let Some(base) = if_match else { return s.precondition() };
+        let Some(i) = s.strategies.iter().position(|x| x.id == id) else {
+            return s.err(
+                404,
+                "NOT_FOUND",
+                "Resource not found or not visible",
+                json!({}),
+            );
+        };
+        let Some(base) = if_match else {
+            return s.precondition();
+        };
         if s.force_conflict {
             s.remote_edit(i, crate::keys::settings::PEAK_TRAIL_PCT);
         }
@@ -1299,26 +2020,56 @@ impl Transport for MockTransport {
         }
         let now = s.now();
         let st = &mut s.strategies[i];
-        st.status = if paused { "paused".into() } else { "active".into() };
+        st.status = if paused {
+            "paused".into()
+        } else {
+            "active".into()
+        };
         st.rev += 1;
-        st.history.push((st.rev, vec!["status".into()], "desktop".into(), now));
+        st.history
+            .push((st.rev, vec!["status".into()], "desktop".into(), now));
         let out = st.summary();
-        let kind = if paused { "strategy.paused" } else { "strategy.resumed" };
+        let kind = if paused {
+            "strategy.paused"
+        } else {
+            "strategy.resumed"
+        };
         s.emit(kind, Actor::User, id, Some(id), None, None, json!({"rev": out.rev, "base_rev": base, "status": out.status, "changed_fields": ["status"]}), Untrusted::default());
-        Ok(ApiItem { data: out, server_now: IsoTs::from_ms(now) })
+        Ok(ApiItem {
+            data: out,
+            server_now: IsoTs::from_ms(now),
+        })
     }
 
-    async fn patch_strategy(&self, id: &str, _idem_key: &str, if_match: Option<u64>, settings_patch: serde_json::Value) -> ApiResult<StrategyPatch> {
+    async fn patch_strategy(
+        &self,
+        id: &str,
+        _idem_key: &str,
+        if_match: Option<u64>,
+        settings_patch: serde_json::Value,
+    ) -> ApiResult<StrategyPatch> {
         let mut s = self.inner.lock().unwrap();
         let now = s.now();
-        let Some(i) = s.strategies.iter().position(|x| x.id == id) else { return s.err(404, "NOT_FOUND", "Resource not found or not visible", json!({})) };
-        let Some(base) = if_match else { return s.precondition() };
+        let Some(i) = s.strategies.iter().position(|x| x.id == id) else {
+            return s.err(
+                404,
+                "NOT_FOUND",
+                "Resource not found or not visible",
+                json!({}),
+            );
+        };
+        let Some(base) = if_match else {
+            return s.precondition();
+        };
         if s.strategies[i].rev != base {
             return s.strategy_conflict(i, base);
         }
         let mut patch = settings_patch;
         crate::keys::normalize(&mut patch);
-        let keys: Vec<String> = patch.as_object().map(|m| m.keys().cloned().collect()).unwrap_or_default();
+        let keys: Vec<String> = patch
+            .as_object()
+            .map(|m| m.keys().cloned().collect())
+            .unwrap_or_default();
         // 1.1.4: loosening any guard → 202 + guard_change proposal; nothing is applied (SQL guard_weakened_fields()).
         let weakened = weakened_fields(&s.strategies[i].settings, &patch);
         if !weakened.is_empty() {
@@ -1335,13 +2086,30 @@ impl Transport for MockTransport {
             }
         }
         st.rev += 1;
-        st.history.push((st.rev, keys.clone(), "desktop".into(), now));
+        st.history
+            .push((st.rev, keys.clone(), "desktop".into(), now));
         let out = st.summary();
-        s.emit("strategy.updated", Actor::User, id, Some(id), None, None, json!({"rev": out.rev, "base_rev": base, "changed_fields": keys}), Untrusted::default());
-        Ok(StrategyPatch::Applied(ApiItem { data: out, server_now: IsoTs::from_ms(now) }))
+        s.emit(
+            "strategy.updated",
+            Actor::User,
+            id,
+            Some(id),
+            None,
+            None,
+            json!({"rev": out.rev, "base_rev": base, "changed_fields": keys}),
+            Untrusted::default(),
+        );
+        Ok(StrategyPatch::Applied(ApiItem {
+            data: out,
+            server_now: IsoTs::from_ms(now),
+        }))
     }
 
-    async fn reset_practice(&self, _idem_key: &str, if_match: Option<u64>) -> ApiResult<ApiItem<PracticeResetResponse>> {
+    async fn reset_practice(
+        &self,
+        _idem_key: &str,
+        if_match: Option<u64>,
+    ) -> ApiResult<ApiItem<PracticeResetResponse>> {
         let mut s = self.inner.lock().unwrap();
         let now = s.now();
         // contracts: body `{}` + Idempotency-Key; no rev required (the server ignores If-Match). A
@@ -1351,19 +2119,39 @@ impl Transport for MockTransport {
             return s.err(409, "VERSION_CONFLICT", &format!("Workspace rev is {cur}"), json!({
                 "current_rev": cur, "base_rev": base, "changed_fields": ["practice_epoch"], "current": {"id": WORKSPACE_ID, "rev": cur}}));
         }
-        if let Some(next) = s.last_reset_ms.map(|t| t + RESET_COOLDOWN_MS).filter(|n| *n > now) {
+        if let Some(next) = s
+            .last_reset_ms
+            .map(|t| t + RESET_COOLDOWN_MS)
+            .filter(|n| *n > now)
+        {
             // HTTP also sends `Retry-After: <s>`; the in-process mock carries it as `retry_after_s`.
             let retry_after_s = ((next - now) + 999) / 1000;
-            return s.err(429, "RESET_COOLDOWN", "Practice can be reset once per 24 h", json!({"next_allowed_at": IsoTs::from_ms(next), "retry_after_s": retry_after_s}));
+            return s.err(
+                429,
+                "RESET_COOLDOWN",
+                "Practice can be reset once per 24 h",
+                json!({"next_allowed_at": IsoTs::from_ms(next), "retry_after_s": retry_after_s}),
+            );
         }
         let data = s.reset();
-        Ok(ApiItem { data, server_now: IsoTs::from_ms(now) })
+        Ok(ApiItem {
+            data,
+            server_now: IsoTs::from_ms(now),
+        })
     }
 
     async fn coin_timeline(&self, mint: &str) -> ApiResult<CoinTimeline> {
         let s = self.inner.lock().unwrap();
-        let items = s.log.iter().filter(|e| e.mint.as_deref() == Some(mint)).cloned().collect();
-        Ok(CoinTimeline { items, server_now: IsoTs::from_ms(s.now()) })
+        let items = s
+            .log
+            .iter()
+            .filter(|e| e.mint.as_deref() == Some(mint))
+            .cloned()
+            .collect();
+        Ok(CoinTimeline {
+            items,
+            server_now: IsoTs::from_ms(s.now()),
+        })
     }
 
     async fn exit_reason_stats(&self, _window: &str) -> ApiResult<ApiItem<Vec<ExitReasonStat>>> {
@@ -1371,7 +2159,9 @@ impl Transport for MockTransport {
         // (reason, count, pnl, sum pnl_pct, wins, sum hold_s)
         let mut agg: Vec<(ExitReason, i64, i128, f64, i64, i64)> = Vec::new();
         for e in s.log.iter().filter(|e| e.kind == "position.closed") {
-            let Ok(c) = serde_json::from_value::<PositionClosed>(e.payload.clone()) else { continue };
+            let Ok(c) = serde_json::from_value::<PositionClosed>(e.payload.clone()) else {
+                continue;
+            };
             let win = i64::from(c.pnl_lamports.0 > 0);
             match agg.iter_mut().find(|a| a.0 == c.exit_reason) {
                 Some(a) => {
@@ -1381,7 +2171,14 @@ impl Transport for MockTransport {
                     a.4 += win;
                     a.5 += c.hold_seconds;
                 }
-                None => agg.push((c.exit_reason, 1, c.pnl_lamports.0, c.pnl_pct.unwrap_or(0.0), win, c.hold_seconds)),
+                None => agg.push((
+                    c.exit_reason,
+                    1,
+                    c.pnl_lamports.0,
+                    c.pnl_pct.unwrap_or(0.0),
+                    win,
+                    c.hold_seconds,
+                )),
             }
         }
         let r2 = |x: f64| (x * 100.0).round() / 100.0;
@@ -1396,7 +2193,10 @@ impl Transport for MockTransport {
                 avg_hold_s: Some(r2(h as f64 / n as f64)),
             })
             .collect();
-        Ok(ApiItem { data, server_now: IsoTs::from_ms(s.now()) })
+        Ok(ApiItem {
+            data,
+            server_now: IsoTs::from_ms(s.now()),
+        })
     }
 }
 
@@ -1427,7 +2227,11 @@ mod tests {
                 assert!(e.seq > last, "strictly increasing");
                 last = e.seq;
                 n += 1;
-                assert!(KnownEvent::decode(e).unwrap().is_ok(), "mock emits valid v1 payloads: {}", e.kind);
+                assert!(
+                    KnownEvent::decode(e).unwrap().is_ok(),
+                    "mock emits valid v1 payloads: {}",
+                    e.kind
+                );
             }
             after = page.next_after_seq.unwrap();
             if !page.has_more {
@@ -1441,15 +2245,47 @@ mod tests {
     async fn decision_needs_token_and_version_and_is_replay_safe() {
         let t = MockTransport::new(0);
         let pid = pending_id(&t);
-        let bad = ApprovalDecisionRequest { decision: Decision::Approve, token: "apt_nope".into(), expected_rev: 1, reason: None, reject_reason: None };
-        assert_eq!(t.decide(&pid, "k1", bad).await.unwrap_err().code(), "APPROVAL_TOKEN_INVALID");
+        let bad = ApprovalDecisionRequest {
+            decision: Decision::Approve,
+            token: "apt_nope".into(),
+            expected_rev: 1,
+            reason: None,
+            reject_reason: None,
+        };
+        assert_eq!(
+            t.decide(&pid, "k1", bad).await.unwrap_err().code(),
+            "APPROVAL_TOKEN_INVALID"
+        );
         let a = t.get_approval(&pid).await.unwrap().data;
-        let stale = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.clone().unwrap(), expected_rev: 9, reason: None, reject_reason: None };
-        assert_eq!(t.decide(&pid, "k2", stale).await.unwrap_err().conflict().unwrap().current_rev, Some(1));
-        let ok = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.unwrap(), expected_rev: a.version, reason: None, reject_reason: None };
+        let stale = ApprovalDecisionRequest {
+            decision: Decision::Approve,
+            token: a.decision_token.clone().unwrap(),
+            expected_rev: 9,
+            reason: None,
+            reject_reason: None,
+        };
+        assert_eq!(
+            t.decide(&pid, "k2", stale)
+                .await
+                .unwrap_err()
+                .conflict()
+                .unwrap()
+                .current_rev,
+            Some(1)
+        );
+        let ok = ApprovalDecisionRequest {
+            decision: Decision::Approve,
+            token: a.decision_token.unwrap(),
+            expected_rev: a.version,
+            reason: None,
+            reject_reason: None,
+        };
         let r1 = t.decide(&pid, "k3", ok.clone()).await.unwrap().data;
         assert!(!r1.replayed && r1.status == ProposalStatus::Approved);
-        assert!(t.decide(&pid, "k3", ok).await.unwrap().data.replayed, "same token + decision → replayed");
+        assert!(
+            t.decide(&pid, "k3", ok).await.unwrap().data.replayed,
+            "same token + decision → replayed"
+        );
         assert_eq!(t.with(|s| s.positions.len()), 1);
         assert!(t.with(|s| s.cash) < START_CASH);
     }
@@ -1458,20 +2294,45 @@ mod tests {
     async fn strategy_writes_need_if_match_and_409_carries_merge_data() {
         let t = MockTransport::new(0);
         let id = "20000000-0000-0000-0000-00000000000a";
-        assert_eq!(t.set_strategy_paused(id, "k0", None, true).await.unwrap_err(), ApiFailure::PreconditionRequired);
-        let StrategyPatch::Applied(s1) = t.patch_strategy(id, "k", Some(1), json!({"peak_trail_pct": 25})).await.unwrap() else { panic!("applied") };
+        assert_eq!(
+            t.set_strategy_paused(id, "k0", None, true)
+                .await
+                .unwrap_err(),
+            ApiFailure::PreconditionRequired
+        );
+        let StrategyPatch::Applied(s1) = t
+            .patch_strategy(id, "k", Some(1), json!({"peak_trail_pct": 25}))
+            .await
+            .unwrap()
+        else {
+            panic!("applied")
+        };
         let s1 = s1.data;
         assert_eq!(s1.rev, 2);
         t.with(|s| s.remote_edit(0, "status")); // mobile pauses it → rev 3
-        let err = t.set_strategy_paused(id, "k2", Some(2), false).await.unwrap_err();
+        let err = t
+            .set_strategy_paused(id, "k2", Some(2), false)
+            .await
+            .unwrap_err();
         let c = err.conflict().expect("409");
         assert_eq!(c.code, "STRATEGY_REV_CONFLICT");
         assert_eq!((c.current_rev, c.base_rev), (Some(3), Some(2)));
         assert_eq!(c.changed_fields, vec!["status"]);
-        assert_eq!(c.changed_by.as_ref().unwrap().via.as_deref(), Some("mobile"));
+        assert_eq!(
+            c.changed_by.as_ref().unwrap().via.as_deref(),
+            Some("mobile")
+        );
         assert_eq!(c.current.as_ref().unwrap()["status"], "paused");
         // Retry on the fresh rev succeeds.
-        assert_eq!(t.set_strategy_paused(id, "k3", c.current_rev, false).await.unwrap().data.status.as_deref(), Some("active"));
+        assert_eq!(
+            t.set_strategy_paused(id, "k3", c.current_rev, false)
+                .await
+                .unwrap()
+                .data
+                .status
+                .as_deref(),
+            Some("active")
+        );
     }
 
     #[tokio::test]
@@ -1483,12 +2344,37 @@ mod tests {
         let a = t.get_approval(&pid).await.unwrap().data;
         t.with(|s| s.flip_to_non_sol(&mint));
         let ev = t.list_events(0, 500).await.unwrap();
-        let rescored = ev.items.iter().rev().find(|e| e.kind == "screener.scored" && e.mint.as_deref() == Some(&mint)).unwrap();
+        let rescored = ev
+            .items
+            .iter()
+            .rev()
+            .find(|e| e.kind == "screener.scored" && e.mint.as_deref() == Some(&mint))
+            .unwrap();
         assert_eq!(rescored.payload["result"]["tradeable"], false);
-        assert_eq!(rescored.payload["result"]["skip_reason"], UNSUPPORTED_QUOTE_MINT);
-        let req = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.unwrap(), expected_rev: a.version, reason: None, reject_reason: None };
-        assert_eq!(t.decide(&pid, "k", req).await.unwrap_err().code(), UNSUPPORTED_QUOTE_MINT);
-        assert!(t.list_events(0, 500).await.unwrap().items.iter().any(|e| e.kind == "order.failed" && e.payload["reason_code"] == UNSUPPORTED_QUOTE_MINT));
+        assert_eq!(
+            rescored.payload["result"]["skip_reason"],
+            UNSUPPORTED_QUOTE_MINT
+        );
+        let req = ApprovalDecisionRequest {
+            decision: Decision::Approve,
+            token: a.decision_token.unwrap(),
+            expected_rev: a.version,
+            reason: None,
+            reject_reason: None,
+        };
+        assert_eq!(
+            t.decide(&pid, "k", req).await.unwrap_err().code(),
+            UNSUPPORTED_QUOTE_MINT
+        );
+        assert!(t
+            .list_events(0, 500)
+            .await
+            .unwrap()
+            .items
+            .iter()
+            .any(
+                |e| e.kind == "order.failed" && e.payload["reason_code"] == UNSUPPORTED_QUOTE_MINT
+            ));
         assert!(t.with(|s| s.positions.is_empty()));
 
         // Tradeable pick → position (rev 1); close needs If-Match + fraction_bps 1..=10000.
@@ -1500,29 +2386,88 @@ mod tests {
             s.proposals.keys().next().unwrap().clone()
         });
         let a2 = t.get_approval(&pid2).await.unwrap().data;
-        t.decide(&pid2, "k2", ApprovalDecisionRequest { decision: Decision::Approve, token: a2.decision_token.unwrap(), expected_rev: a2.version, reason: None, reject_reason: None }).await.unwrap();
+        t.decide(
+            &pid2,
+            "k2",
+            ApprovalDecisionRequest {
+                decision: Decision::Approve,
+                token: a2.decision_token.unwrap(),
+                expected_rev: a2.version,
+                reason: None,
+                reject_reason: None,
+            },
+        )
+        .await
+        .unwrap();
         let id = t.with(|s| s.positions.values().next().unwrap().id.clone());
-        assert_eq!(t.close(&id, "c0", None, 5_000).await.unwrap_err(), ApiFailure::PreconditionRequired);
+        assert_eq!(
+            t.close(&id, "c0", None, 5_000).await.unwrap_err(),
+            ApiFailure::PreconditionRequired
+        );
         let c = t.close(&id, "c1", Some(9), 5_000).await.unwrap_err();
         assert_eq!(c.conflict().unwrap().current_rev, Some(1));
-        assert_eq!(c.conflict().unwrap().current.as_ref().unwrap()["rev"], 1, "error.current inside the error object");
-        assert_eq!(t.close(&id, "c2", Some(1), 0).await.unwrap_err().code(), "INVALID_FRACTION");
+        assert_eq!(
+            c.conflict().unwrap().current.as_ref().unwrap()["rev"],
+            1,
+            "error.current inside the error object"
+        );
+        assert_eq!(
+            t.close(&id, "c2", Some(1), 0).await.unwrap_err().code(),
+            "INVALID_FRACTION"
+        );
         let r = t.close(&id, "c3", Some(1), 5_000).await.unwrap();
-        assert_eq!((r.position.rev, r.status.as_str(), r.replayed), (1, "filled", false), "position at request time");
+        assert_eq!(
+            (r.position.rev, r.status.as_str(), r.replayed),
+            (1, "filled", false),
+            "position at request time"
+        );
         assert!(r.fill.is_some() && r.job_id.is_some() && r.order.fraction_bps == 5_000);
         // idempotency: identical retry replays, same key + different body = 422
         assert!(t.close(&id, "c3", Some(1), 5_000).await.unwrap().replayed);
-        assert_eq!(t.close(&id, "c3", Some(2), 2_500).await.unwrap_err().code(), "IDEMPOTENCY_KEY_REUSED");
+        assert_eq!(
+            t.close(&id, "c3", Some(2), 2_500).await.unwrap_err().code(),
+            "IDEMPOTENCY_KEY_REUSED"
+        );
         let ev = t.list_events(0, 500).await.unwrap().items;
-        assert!(ev.iter().any(|e| e.kind == "order.submitted") && ev.iter().any(|e| e.kind == "order.filled" && e.payload["position_rev"] == 2));
-        for e in ev.iter().filter(|e| e.kind.starts_with("order.") || e.kind.starts_with("position.")) {
-            assert!(matches!(KnownEvent::decode(e), Some(Ok(_))), "{} decodes: {:?}", e.kind, KnownEvent::decode(e).map(|r| r.err()));
+        assert!(
+            ev.iter().any(|e| e.kind == "order.submitted")
+                && ev
+                    .iter()
+                    .any(|e| e.kind == "order.filled" && e.payload["position_rev"] == 2)
+        );
+        for e in ev
+            .iter()
+            .filter(|e| e.kind.starts_with("order.") || e.kind.starts_with("position."))
+        {
+            assert!(
+                matches!(KnownEvent::decode(e), Some(Ok(_))),
+                "{} decodes: {:?}",
+                e.kind,
+                KnownEvent::decode(e).map(|r| r.err())
+            );
         }
-        let upd = t.list_events(0, 500).await.unwrap().items.into_iter().rev().find(|e| e.kind == "position.updated").unwrap();
-        assert!(upd.payload["cost_basis_lamports"].is_string() && upd.payload["unrealized_pnl_lamports"].is_string());
+        let upd = t
+            .list_events(0, 500)
+            .await
+            .unwrap()
+            .items
+            .into_iter()
+            .rev()
+            .find(|e| e.kind == "position.updated")
+            .unwrap();
+        assert!(
+            upd.payload["cost_basis_lamports"].is_string()
+                && upd.payload["unrealized_pnl_lamports"].is_string()
+        );
         let r = t.close(&id, "c4", Some(2), 10_000).await.unwrap();
         assert_eq!(r.position.status, "closed");
-        assert_eq!(t.close(&id, "c5", Some(3), 10_000).await.unwrap_err().code(), "POSITION_ALREADY_CLOSED");
+        assert_eq!(
+            t.close(&id, "c5", Some(3), 10_000)
+                .await
+                .unwrap_err()
+                .code(),
+            "POSITION_ALREADY_CLOSED"
+        );
     }
 
     #[tokio::test]
@@ -1530,9 +2475,24 @@ mod tests {
         let t = MockTransport::new(0);
         let pid = pending_id(&t);
         let a = t.get_approval(&pid).await.unwrap().data;
-        t.decide(&pid, "k", ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.unwrap(), expected_rev: a.version, reason: None, reject_reason: None }).await.unwrap();
+        t.decide(
+            &pid,
+            "k",
+            ApprovalDecisionRequest {
+                decision: Decision::Approve,
+                token: a.decision_token.unwrap(),
+                expected_rev: a.version,
+                reason: None,
+                reject_reason: None,
+            },
+        )
+        .await
+        .unwrap();
         assert_eq!(t.with(|s| s.positions.len()), 1);
-        assert_eq!(t.reset_practice("r0", Some(999)).await.unwrap_err().code(), "VERSION_CONFLICT");
+        assert_eq!(
+            t.reset_practice("r0", Some(999)).await.unwrap_err().code(),
+            "VERSION_CONFLICT"
+        );
         let rev = t.get_workspace().await.unwrap().data.rev;
         let r = t.reset_practice("r1", Some(rev)).await.unwrap().data;
         assert_eq!(r.starting_balance_lamports, Lamports(30_000_000_000));
@@ -1540,16 +2500,28 @@ mod tests {
         assert!(t.with(|s| s.positions.is_empty() && s.cash == START_CASH));
         let ev = t.list_events(0, 500).await.unwrap();
         assert!(ev.items.iter().any(|e| e.kind == "practice.reset"));
-        assert!(ev.items.iter().any(|e| e.kind == "position.closed" && e.payload["exit_reason"] == "practice_reset"));
+        assert!(ev
+            .items
+            .iter()
+            .any(|e| e.kind == "position.closed" && e.payload["exit_reason"] == "practice_reset"));
         let rev = t.get_workspace().await.unwrap().data.rev;
         let cd = t.reset_practice("r2", Some(rev)).await.unwrap_err();
         assert_eq!(cd.code(), "RESET_COOLDOWN");
-        assert!(matches!(&cd, ApiFailure::Api { http: 429, details: Some(d), .. } if d["next_allowed_at"].is_string() && d["retry_after_s"].as_i64().is_some_and(|s| s > 0)));
+        assert!(
+            matches!(&cd, ApiFailure::Api { http: 429, details: Some(d), .. } if d["next_allowed_at"].is_string() && d["retry_after_s"].as_i64().is_some_and(|s| s > 0))
+        );
         let msg = cd.to_string();
-        assert!(msg.starts_with("RESET_COOLDOWN:") && msg.contains("[next_allowed_at=") && msg.contains("[retry_after_s="), "{msg}");
+        assert!(
+            msg.starts_with("RESET_COOLDOWN:")
+                && msg.contains("[next_allowed_at=")
+                && msg.contains("[retry_after_s="),
+            "{msg}"
+        );
         let stats = t.exit_reason_stats("24h").await.unwrap().data;
         assert_eq!(stats[0].exit_reason, ExitReason::PracticeReset);
-        let mint = t.with(|s| s.log.iter().find_map(|e| e.mint.clone())).unwrap();
+        let mint = t
+            .with(|s| s.log.iter().find_map(|e| e.mint.clone()))
+            .unwrap();
         assert!(!t.coin_timeline(&mint).await.unwrap().items.is_empty());
     }
 
@@ -1560,26 +2532,63 @@ mod tests {
         let a = t.get_approval(&pid).await.unwrap().data;
         let tok = a.decision_token.clone().unwrap();
         // approve + reject_reason → 422 VALIDATION_FAILED (mapped through errors.map.json)
-        let bad = ApprovalDecisionRequest { decision: Decision::Approve, token: tok.clone(), expected_rev: a.version, reason: None, reject_reason: Some(ApprovalRejectReason::Other) };
+        let bad = ApprovalDecisionRequest {
+            decision: Decision::Approve,
+            token: tok.clone(),
+            expected_rev: a.version,
+            reason: None,
+            reject_reason: Some(ApprovalRejectReason::Other),
+        };
         let e = t.decide(&pid, "rr0", bad).await.unwrap_err();
         assert_eq!(e.code(), "VALIDATION_FAILED");
-        assert_eq!(crate::errmap::i18n_key(e.code()), "error.code.validation_failed");
+        assert_eq!(
+            crate::errmap::i18n_key(e.code()),
+            "error.code.validation_failed"
+        );
         // unknown value / approve-with-reason are refused at body parse
         assert_eq!(parse_decision_body(&json!({"decision": "reject", "token": "t", "expected_rev": 1, "reject_reason": "bored"})).unwrap_err().code(), "VALIDATION_FAILED");
         assert_eq!(parse_decision_body(&json!({"decision": "approve", "token": "t", "expected_rev": 1, "reject_reason": "other"})).unwrap_err().code(), "VALIDATION_FAILED");
         assert!(parse_decision_body(&json!({"decision": "reject", "token": "t", "expected_rev": 1, "reject_reason": "not_tradeable"})).is_ok());
         // a skip of a not-tradeable card sends not_tradeable; it is echoed on the response + proposal.rejected
-        let ok = ApprovalDecisionRequest { decision: Decision::Reject, token: tok, expected_rev: a.version, reason: None, reject_reason: Some(crate::commands::skip_reason(false)) };
-        assert_eq!(serde_json::to_value(&ok).unwrap()["reject_reason"], "not_tradeable");
+        let ok = ApprovalDecisionRequest {
+            decision: Decision::Reject,
+            token: tok,
+            expected_rev: a.version,
+            reason: None,
+            reject_reason: Some(crate::commands::skip_reason(false)),
+        };
+        assert_eq!(
+            serde_json::to_value(&ok).unwrap()["reject_reason"],
+            "not_tradeable"
+        );
         let r = t.decide(&pid, "rr1", ok).await.unwrap().data;
         assert_eq!(r.reject_reason, Some(ApprovalRejectReason::NotTradeable));
-        let ev = t.list_events(0, 500).await.unwrap().items.into_iter().find(|e| e.kind == "proposal.rejected").unwrap();
+        let ev = t
+            .list_events(0, 500)
+            .await
+            .unwrap()
+            .items
+            .into_iter()
+            .find(|e| e.kind == "proposal.rejected")
+            .unwrap();
         assert_eq!(ev.payload["reject_reason"], "not_tradeable");
         assert!(matches!(KnownEvent::decode(&ev), Some(Ok(_))));
         // normal skip → user_declined; approve sends none
-        assert_eq!(crate::commands::skip_reason(true), ApprovalRejectReason::UserDeclined);
-        let ap = ApprovalDecisionRequest { decision: Decision::Approve, token: "x".into(), expected_rev: 1, reason: None, reject_reason: None };
-        assert!(serde_json::to_value(&ap).unwrap().get("reject_reason").is_none());
+        assert_eq!(
+            crate::commands::skip_reason(true),
+            ApprovalRejectReason::UserDeclined
+        );
+        let ap = ApprovalDecisionRequest {
+            decision: Decision::Approve,
+            token: "x".into(),
+            expected_rev: 1,
+            reason: None,
+            reject_reason: None,
+        };
+        assert!(serde_json::to_value(&ap)
+            .unwrap()
+            .get("reject_reason")
+            .is_none());
     }
 
     #[tokio::test]
@@ -1587,8 +2596,15 @@ mod tests {
         let t = MockTransport::new(0);
         let pid = pending_id(&t);
         let ev = t.list_events(0, 1000).await.unwrap();
-        let created = ev.items.iter().find(|e| e.kind == "proposal.created" && e.payload["proposal_id"] == pid.as_str()).unwrap();
-        assert_eq!(created.payload["total_max_lamports"], (BUY_LAMPORTS + 25_000 + ATA_RENT_LAMPORTS).to_string());
+        let created = ev
+            .items
+            .iter()
+            .find(|e| e.kind == "proposal.created" && e.payload["proposal_id"] == pid.as_str())
+            .unwrap();
+        assert_eq!(
+            created.payload["total_max_lamports"],
+            (BUY_LAMPORTS + 25_000 + ATA_RENT_LAMPORTS).to_string()
+        );
         assert_eq!(created.payload["swap_fee_bps"], 125.0);
         assert!(created.payload["quote_expires_at"].is_string());
         // refresh due → silent proposal.updated, same rev + new quote_id (1.1.5), approval resource carries the new quote
@@ -1599,22 +2615,42 @@ mod tests {
             n
         });
         let ev = t.list_events(0, 1000).await.unwrap();
-        let up = ev.items.iter().rev().find(|e| e.kind == "proposal.updated").expect("proposal.updated");
+        let up = ev
+            .items
+            .iter()
+            .rev()
+            .find(|e| e.kind == "proposal.updated")
+            .expect("proposal.updated");
         assert_eq!(up.payload["rev"], 1);
         assert!(up.payload["quote_id"].is_string());
-        assert!(matches!(KnownEvent::decode(up), Some(Ok(KnownEvent::ProposalUpdated(ref u))) if u.version == 1 && u.quote.is_set() && u.quote.quote_id.is_some()));
+        assert!(
+            matches!(KnownEvent::decode(up), Some(Ok(KnownEvent::ProposalUpdated(ref u))) if u.version == 1 && u.quote.is_set() && u.quote.quote_id.is_some())
+        );
         let a = t.get_approval(&pid).await.unwrap().data;
         assert_eq!(a.version, 1);
         assert!(!a.quote.is_stale(now));
         // strict (Real-rule) knob: expired quote → 409 QUOTE_MISSING_OR_STALE; practice default never blocks
         t.with(|s| {
             s.quote_strict = true;
-            s.proposals.get_mut(&pid).unwrap().quote.quote_expires_at = Some(IsoTs::from_ms(now - 1));
+            s.proposals.get_mut(&pid).unwrap().quote.quote_expires_at =
+                Some(IsoTs::from_ms(now - 1));
         });
-        let req = ApprovalDecisionRequest { decision: Decision::Approve, token: a.decision_token.clone().unwrap(), expected_rev: 1, reason: None, reject_reason: None };
-        assert_eq!(t.decide(&pid, "kq", req.clone()).await.unwrap_err().code(), "QUOTE_MISSING_OR_STALE");
+        let req = ApprovalDecisionRequest {
+            decision: Decision::Approve,
+            token: a.decision_token.clone().unwrap(),
+            expected_rev: 1,
+            reason: None,
+            reject_reason: None,
+        };
+        assert_eq!(
+            t.decide(&pid, "kq", req.clone()).await.unwrap_err().code(),
+            "QUOTE_MISSING_OR_STALE"
+        );
         t.with(|s| s.quote_strict = false);
-        assert!(t.decide(&pid, "kq2", req).await.is_ok(), "practice is never blocked by the quote");
+        assert!(
+            t.decide(&pid, "kq2", req).await.is_ok(),
+            "practice is never blocked by the quote"
+        );
     }
 
     #[tokio::test]
@@ -1622,19 +2658,38 @@ mod tests {
         let t = MockTransport::new(0);
         let id = "20000000-0000-0000-0000-00000000000a";
         let before = t.with(|s| s.strategies[0].settings.clone());
-        match t.patch_strategy(id, "kw", Some(1), json!({"score_threshold": 40})).await.unwrap() {
-            StrategyPatch::PendingApproval { proposal, guard_change, .. } => {
+        match t
+            .patch_strategy(id, "kw", Some(1), json!({"score_threshold": 40}))
+            .await
+            .unwrap()
+        {
+            StrategyPatch::PendingApproval {
+                proposal,
+                guard_change,
+                ..
+            } => {
                 assert!(proposal.weakening);
                 assert_eq!(proposal.kind, ProposalKind::GuardChange);
                 assert_eq!(guard_change["fields"], json!(["score_threshold"]));
             }
             other => panic!("{other:?}"),
         }
-        assert_eq!(t.with(|s| (s.strategies[0].rev, s.strategies[0].settings.clone())), (1, before), "nothing applied");
+        assert_eq!(
+            t.with(|s| (s.strategies[0].rev, s.strategies[0].settings.clone())),
+            (1, before),
+            "nothing applied"
+        );
         let ev = t.list_events(0, 1000).await.unwrap();
-        assert!(ev.items.iter().any(|e| e.kind == "proposal.created" && e.payload["kind"] == "guard_change" && e.payload["weakening"] == true));
+        assert!(ev.items.iter().any(|e| e.kind == "proposal.created"
+            && e.payload["kind"] == "guard_change"
+            && e.payload["weakening"] == true));
         // stricter → applied
-        assert!(matches!(t.patch_strategy(id, "ks", Some(1), json!({"score_threshold": 90})).await.unwrap(), StrategyPatch::Applied(_)));
+        assert!(matches!(
+            t.patch_strategy(id, "ks", Some(1), json!({"score_threshold": 90}))
+                .await
+                .unwrap(),
+            StrategyPatch::Applied(_)
+        ));
     }
 
     #[test]
@@ -1644,19 +2699,55 @@ mod tests {
         let st = timers.stall_exit.unwrap();
         let p0 = 1_000_000i64;
         let px = Decimal::from_str("0.001").unwrap();
-        let pos = |opened: i64, refp: Decimal, ref_ms: i64| Pos { id: "p".into(), key: "k".into(), ck: "c".into(), mint: "m".into(), strategy_id: "s".into(), qty_raw: 1, cost: 1,
-            peak: refp, opened_ms: opened, untrusted: Untrusted::default(), realized: 0, rev: 1, decimals: 6, stall_ref: (refp, ref_ms) };
+        let pos = |opened: i64, refp: Decimal, ref_ms: i64| Pos {
+            id: "p".into(),
+            key: "k".into(),
+            ck: "c".into(),
+            mint: "m".into(),
+            strategy_id: "s".into(),
+            qty_raw: 1,
+            cost: 1,
+            peak: refp,
+            opened_ms: opened,
+            untrusted: Untrusted::default(),
+            realized: 0,
+            rev: 1,
+            decimals: 6,
+            stall_ref: (refp, ref_ms),
+        };
         let w = st.window_s * 1000;
         // flat for a full window → stall
-        assert_eq!(timer_exit(&timers, &pos(p0, px, p0), px, p0 + w).map(|x| x.0), Some(ExitReason::Stall));
+        assert_eq!(
+            timer_exit(&timers, &pos(p0, px, p0), px, p0 + w).map(|x| x.0),
+            Some(ExitReason::Stall)
+        );
         // not before a full window since entry
         assert_eq!(timer_exit(&timers, &pos(p0, px, p0), px, p0 + w - 1), None);
         // moved ≥ min_move_pct → no stall
-        assert_eq!(timer_exit(&timers, &pos(p0, px, p0), px * Decimal::from_str("1.02").unwrap(), p0 + w), None);
+        assert_eq!(
+            timer_exit(
+                &timers,
+                &pos(p0, px, p0),
+                px * Decimal::from_str("1.02").unwrap(),
+                p0 + w
+            ),
+            None
+        );
         // time stop wins once the hold time passed
-        assert_eq!(timer_exit(&timers, &pos(p0, px, p0 + 1), px * Decimal::from(2), p0 + MOCK_TIME_STOP_S * 1000).map(|x| x.0), Some(ExitReason::MaxHold));
+        assert_eq!(
+            timer_exit(
+                &timers,
+                &pos(p0, px, p0 + 1),
+                px * Decimal::from(2),
+                p0 + MOCK_TIME_STOP_S * 1000
+            )
+            .map(|x| x.0),
+            Some(ExitReason::MaxHold)
+        );
         // out-of-range settings are ignored
-        let bad = crate::model::ExitTimers::from_settings(&json!({"time_stop_s": 0, "stall_exit": {"window_s": 2, "min_move_pct": 1}}));
+        let bad = crate::model::ExitTimers::from_settings(
+            &json!({"time_stop_s": 0, "stall_exit": {"window_s": 2, "min_move_pct": 1}}),
+        );
         assert_eq!(bad, crate::model::ExitTimers::default());
     }
 }

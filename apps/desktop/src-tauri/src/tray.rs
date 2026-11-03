@@ -8,8 +8,14 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Buka / Open", true, None::<&str>)?;
     let stop = MenuItem::with_id(app, "stop", "Stop trading…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Keluar / Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &stop, &PredefinedMenuItem::separator(app)?, &quit])?;
-    let mut b = TrayIconBuilder::with_id("main").tooltip(crate::brand::app_name()).menu(&menu).show_menu_on_left_click(true);
+    let menu = Menu::with_items(
+        app,
+        &[&open, &stop, &PredefinedMenuItem::separator(app)?, &quit],
+    )?;
+    let mut b = TrayIconBuilder::with_id("main")
+        .tooltip(crate::brand::app_name())
+        .menu(&menu)
+        .show_menu_on_left_click(true);
     if let Some(icon) = app.default_window_icon() {
         b = b.icon(icon.clone());
     }

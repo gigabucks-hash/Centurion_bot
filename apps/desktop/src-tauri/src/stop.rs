@@ -36,7 +36,12 @@ pub struct StopRequest {
 impl StopRequest {
     /// `mode` must name the mode the app is in (a stale dialog from another mode is refused),
     /// `source` one of ui|tray|shortcut, `confirm` exactly [`CONFIRM_WORD`].
-    pub fn parse(mode: &str, current: Mode, source: &str, confirm: &str) -> Result<Self, &'static str> {
+    pub fn parse(
+        mode: &str,
+        current: Mode,
+        source: &str,
+        confirm: &str,
+    ) -> Result<Self, &'static str> {
         let mode = match mode {
             "practice" => Mode::Practice,
             "real" => Mode::Real,
@@ -82,12 +87,33 @@ mod tests {
     use super::*;
     #[test]
     fn stop_arguments_are_validated() {
-        assert_eq!(StopRequest::parse("practice", Mode::Practice, "tray", "STOP"), Ok(StopRequest { mode: Mode::Practice, source: StopSource::Tray }));
-        assert_eq!(StopRequest::parse("real", Mode::Practice, "ui", "STOP"), Err("mode_mismatch"));
-        assert_eq!(StopRequest::parse("live", Mode::Practice, "ui", "STOP"), Err("mode"));
-        assert_eq!(StopRequest::parse("practice", Mode::Practice, "mcp", "STOP"), Err("source"));
-        assert_eq!(StopRequest::parse("practice", Mode::Practice, "ui", "stop"), Err("confirm"));
-        assert_eq!(StopRequest::parse("practice", Mode::Practice, "ui", ""), Err("confirm"));
+        assert_eq!(
+            StopRequest::parse("practice", Mode::Practice, "tray", "STOP"),
+            Ok(StopRequest {
+                mode: Mode::Practice,
+                source: StopSource::Tray
+            })
+        );
+        assert_eq!(
+            StopRequest::parse("real", Mode::Practice, "ui", "STOP"),
+            Err("mode_mismatch")
+        );
+        assert_eq!(
+            StopRequest::parse("live", Mode::Practice, "ui", "STOP"),
+            Err("mode")
+        );
+        assert_eq!(
+            StopRequest::parse("practice", Mode::Practice, "mcp", "STOP"),
+            Err("source")
+        );
+        assert_eq!(
+            StopRequest::parse("practice", Mode::Practice, "ui", "stop"),
+            Err("confirm")
+        );
+        assert_eq!(
+            StopRequest::parse("practice", Mode::Practice, "ui", ""),
+            Err("confirm")
+        );
     }
     #[test]
     fn quick_action_flag_is_exact_and_not_argv0() {

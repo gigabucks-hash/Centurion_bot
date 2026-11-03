@@ -38,7 +38,10 @@ pub enum LogoError {
     TooLargeInput,
     SvgRejected,
     Unsupported,
-    TooLargeDimensions { width: u64, height: u64 },
+    TooLargeDimensions {
+        width: u64,
+        height: u64,
+    },
     /** Re-encoded output still above HARD_MAX_BYTES after the strongest posterization. */
     OutputTooLarge,
     Decode(String),
@@ -491,13 +494,21 @@ pub fn transcode_all(input: &[u8]) -> Result<Vec<Output>, LogoError> {
         for n in SIZES {
             let px = resize_square(&img, n);
             match encode_budget(fmt, &px, n) {
-                Ok((bytes, bits)) => out.push(Output { size: n, format: fmt, bytes, bits }),
+                Ok((bytes, bits)) => out.push(Output {
+                    size: n,
+                    format: fmt,
+                    bytes,
+                    bits,
+                }),
                 Err(LogoError::OutputTooLarge) => break, // larger sizes only get bigger
                 Err(e) => return Err(e),
             }
         }
     }
-    if !out.iter().any(|o| o.format == OutFormat::Webp && o.size == SIZES[0]) {
+    if !out
+        .iter()
+        .any(|o| o.format == OutFormat::Webp && o.size == SIZES[0])
+    {
         return Err(LogoError::OutputTooLarge);
     }
     Ok(out)

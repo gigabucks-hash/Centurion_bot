@@ -171,7 +171,10 @@ pub fn exit_label(r: ExitReason) -> &'static str {
 
 /// Wire id string of an exit rule (for plan_state lookups / logs).
 pub fn exit_id(r: ExitReason) -> String {
-    serde_json::to_value(r).ok().and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_default()
+    serde_json::to_value(r)
+        .ok()
+        .and_then(|v| v.as_str().map(str::to_owned))
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -179,20 +182,47 @@ mod tests {
     use super::*;
     #[test]
     fn exit_labels_match_i18n_package() {
-        let id: serde_json::Value = serde_json::from_str(include_str!("../../../../packages/i18n/id.json")).unwrap();
-        for r in [ExitReason::SellFloor, ExitReason::ProfitTarget, ExitReason::LossGuard, ExitReason::PeakTrail, ExitReason::MaxHold, ExitReason::Idle, ExitReason::SellPressure, ExitReason::NoNewHigh, ExitReason::RugDetected, ExitReason::DrawdownHalt, ExitReason::Manual, ExitReason::StrategyRetired, ExitReason::PracticeReset, ExitReason::Stall] {
-            assert_eq!(id["exit_reason"][exit_id(r)].as_str(), Some(exit_label(r)), "{}", exit_id(r));
+        let id: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../packages/i18n/id.json")).unwrap();
+        for r in [
+            ExitReason::SellFloor,
+            ExitReason::ProfitTarget,
+            ExitReason::LossGuard,
+            ExitReason::PeakTrail,
+            ExitReason::MaxHold,
+            ExitReason::Idle,
+            ExitReason::SellPressure,
+            ExitReason::NoNewHigh,
+            ExitReason::RugDetected,
+            ExitReason::DrawdownHalt,
+            ExitReason::Manual,
+            ExitReason::StrategyRetired,
+            ExitReason::PracticeReset,
+            ExitReason::Stall,
+        ] {
+            assert_eq!(
+                id["exit_reason"][exit_id(r)].as_str(),
+                Some(exit_label(r)),
+                "{}",
+                exit_id(r)
+            );
         }
         assert_eq!(exit_label(ExitReason::Stall), "Exit stagnan");
         assert_eq!(exit_label(ExitReason::MaxHold), "Time stop");
     }
     #[test]
     fn error_codes_and_quote_labels() {
-        assert_eq!(error_code("PAPER_CASH_INSUFFICIENT"), "PRACTICE_CASH_INSUFFICIENT");
+        assert_eq!(
+            error_code("PAPER_CASH_INSUFFICIENT"),
+            "PRACTICE_CASH_INSUFFICIENT"
+        );
         assert_eq!(error_code("VERSION_CONFLICT"), "VERSION_CONFLICT");
         assert_eq!(code_kind("UNSUPPORTED_QUOTE_MINT"), CodeKind::Skip);
         assert_eq!(code_kind("PAPER_CASH_INSUFFICIENT"), CodeKind::Notice);
-        assert_eq!(quote_symbol("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"), Some("USDC"));
+        assert_eq!(
+            quote_symbol("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"),
+            Some("USDC")
+        );
     }
 
     #[test]
@@ -200,8 +230,11 @@ mod tests {
         let mut v = serde_json::json!({"passMark": 70, "exits": {"takeProfits": [{"gainPct": 100, "sellPct": 50}]},
             "exit_reason": "trailing_stop", "stream": "graduated", "exitPlan": "ladder", "keep": "take_profit"});
         normalize(&mut v);
-        assert_eq!(v, serde_json::json!({"score_threshold": 70, "exit_rules": {"profit_targets": [{"at_gain_pct": 100, "sell_portion_pct": 50}]},
-            "exit_reason": "peak_trail", "venue": "amm", "exit_preset": "three_step_ladder", "keep": "take_profit"}));
+        assert_eq!(
+            v,
+            serde_json::json!({"score_threshold": 70, "exit_rules": {"profit_targets": [{"at_gain_pct": 100, "sell_portion_pct": 50}]},
+            "exit_reason": "peak_trail", "venue": "amm", "exit_preset": "three_step_ladder", "keep": "take_profit"})
+        );
         let mut w = v.clone();
         normalize(&mut w);
         assert_eq!(w, v, "idempotent on v1.1 input");

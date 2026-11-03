@@ -51,7 +51,9 @@ macro_rules! int_string {
         impl<'de> Deserialize<'de> for $name {
             fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
                 let s = String::deserialize(d)?;
-                s.parse::<$inner>().map($name).map_err(|_| serde::de::Error::custom(UnitError::NotInteger(s)))
+                s.parse::<$inner>()
+                    .map($name)
+                    .map_err(|_| serde::de::Error::custom(UnitError::NotInteger(s)))
             }
         }
         impl fmt::Display for $name {
@@ -61,8 +63,16 @@ macro_rules! int_string {
         }
     };
 }
-int_string!(Lamports, i128, "Lamports as an integer string (`\"250000000\"` = 0.25 SOL). Signed so PnL fits.");
-int_string!(RawQty, u128, "Raw SPL token base units as an integer string.");
+int_string!(
+    Lamports,
+    i128,
+    "Lamports as an integer string (`\"250000000\"` = 0.25 SOL). Signed so PnL fits."
+);
+int_string!(
+    RawQty,
+    u128,
+    "Raw SPL token base units as an integer string."
+);
 
 impl Lamports {
     /// SOL as a decimal (display / internal math only).
@@ -70,7 +80,12 @@ impl Lamports {
         Decimal::from_i128_with_scale(self.0, 9).normalize()
     }
     pub fn from_sol(sol: Decimal) -> Self {
-        Lamports((sol * Decimal::from(LAMPORTS_PER_SOL as i64)).round().to_i128().unwrap_or(0))
+        Lamports(
+            (sol * Decimal::from(LAMPORTS_PER_SOL as i64))
+                .round()
+                .to_i128()
+                .unwrap_or(0),
+        )
     }
 }
 
@@ -84,7 +99,9 @@ impl Dec {
         if t.is_empty() || t.contains(['e', 'E']) || t.starts_with('+') {
             return Err(UnitError::NotDecimal(s.into()));
         }
-        Decimal::from_str(t).map(Dec).map_err(|_| UnitError::NotDecimal(s.into()))
+        Decimal::from_str(t)
+            .map(Dec)
+            .map_err(|_| UnitError::NotDecimal(s.into()))
     }
 }
 impl fmt::Display for Dec {
@@ -115,7 +132,9 @@ impl IsoTs {
         IsoTs(dt.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
     }
     pub fn ms(&self) -> Option<i64> {
-        chrono::DateTime::parse_from_rfc3339(&self.0).ok().map(|d| d.timestamp_millis())
+        chrono::DateTime::parse_from_rfc3339(&self.0)
+            .ok()
+            .map(|d| d.timestamp_millis())
     }
 }
 
@@ -132,8 +151,12 @@ pub mod seq {
     fn parse<E: serde::de::Error>(w: Wire) -> Result<i64, E> {
         match w {
             Wire::N(n) => Ok(n),
-            Wire::S(s) if !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()) => s.parse().map_err(E::custom),
-            Wire::S(s) => Err(E::custom(format!("seq must be an integer string, got {s:?}"))),
+            Wire::S(s) if !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()) => {
+                s.parse().map_err(E::custom)
+            }
+            Wire::S(s) => Err(E::custom(format!(
+                "seq must be an integer string, got {s:?}"
+            ))),
         }
     }
     pub fn serialize<S: Serializer>(v: &i64, s: S) -> Result<S::Ok, S::Error> {
@@ -162,7 +185,9 @@ pub const WSOL_MINT: &str = "So11111111111111111111111111111111111111112";
 pub const UNSUPPORTED_QUOTE_MINT: &str = "UNSUPPORTED_QUOTE_MINT";
 /// `None` = unknown (legacy producer) → tradeable, like Backend `is_sol_quote`.
 pub fn is_sol_quote(quote_mint: Option<&str>) -> bool {
-    quote_mint.map_or(true, |m| m == WSOL_MINT || m == "11111111111111111111111111111111")
+    quote_mint.map_or(true, |m| {
+        m == WSOL_MINT || m == "11111111111111111111111111111111"
+    })
 }
 
 // ---------------------------------------------------------------- vocabularies
@@ -325,7 +350,9 @@ pub struct ProposalQuote {
 }
 impl ProposalQuote {
     pub fn is_set(&self) -> bool {
-        self.quote_ts.is_some() || self.total_max_lamports.is_some() || self.est_network_fee_lamports.is_some()
+        self.quote_ts.is_some()
+            || self.total_max_lamports.is_some()
+            || self.est_network_fee_lamports.is_some()
     }
     /// Missing or expired at `server_now_ms` (Real approve would be refused).
     #[allow(dead_code)] // used by the mock's Real-mode check and tests
@@ -353,12 +380,20 @@ pub struct ExitTimers {
 }
 impl ExitTimers {
     pub fn from_settings(settings: &serde_json::Value) -> Self {
-        let time_stop_s = settings.get("time_stop_s").and_then(|v| v.as_i64()).filter(|s| (1..=604_800).contains(s));
+        let time_stop_s = settings
+            .get("time_stop_s")
+            .and_then(|v| v.as_i64())
+            .filter(|s| (1..=604_800).contains(s));
         let stall_exit = settings
             .get("stall_exit")
             .and_then(|v| serde_json::from_value::<StallExit>(v.clone()).ok())
-            .filter(|s| (5..=86_400).contains(&s.window_s) && (0.01..=100.0).contains(&s.min_move_pct));
-        ExitTimers { time_stop_s, stall_exit }
+            .filter(|s| {
+                (5..=86_400).contains(&s.window_s) && (0.01..=100.0).contains(&s.min_move_pct)
+            });
+        ExitTimers {
+            time_stop_s,
+            stall_exit,
+        }
     }
 }
 
@@ -417,19 +452,41 @@ pub fn plain_text(s: &str, max: usize) -> String {
         .chars()
         .filter(|c| !c.is_control() && !matches!(*c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}' | '\u{200B}'..='\u{200F}'))
         .collect();
-    cleaned.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(max).collect()
+    cleaned
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(max)
+        .collect()
 }
 
 impl Untrusted {
     /// Display symbol: sanitised `untrusted.symbol`, else a short mint.
     pub fn display_symbol(&self, mint: Option<&str>) -> String {
-        match self.symbol.as_deref().map(|s| plain_text(s, 16)).filter(|s| !s.is_empty()) {
+        match self
+            .symbol
+            .as_deref()
+            .map(|s| plain_text(s, 16))
+            .filter(|s| !s.is_empty())
+        {
             Some(s) => s,
-            None => mint.map(|m| format!("{}…{}", &m[..4.min(m.len())], &m[m.len().saturating_sub(4)..])).unwrap_or_else(|| "?".into()),
+            None => mint
+                .map(|m| {
+                    format!(
+                        "{}…{}",
+                        &m[..4.min(m.len())],
+                        &m[m.len().saturating_sub(4)..]
+                    )
+                })
+                .unwrap_or_else(|| "?".into()),
         }
     }
     pub fn display_name(&self) -> Option<String> {
-        self.name.as_deref().map(|s| plain_text(s, 48)).filter(|s| !s.is_empty())
+        self.name
+            .as_deref()
+            .map(|s| plain_text(s, 48))
+            .filter(|s| !s.is_empty())
     }
 }
 
@@ -706,7 +763,11 @@ pub struct PositionUpdated {
     /// 1.1.2: server cost basis / average entry / unrealized (replaces the client-side estimate).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cost_basis_lamports: Option<Lamports>,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "avg_entry_price")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "avg_entry_price"
+    )]
     pub avg_entry_price_sol: Option<Dec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unrealized_pnl_lamports: Option<Lamports>,
@@ -894,16 +955,60 @@ pub struct StepBase {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PlanStep {
-    ProfitTarget { #[serde(flatten)] base: StepBase, at_gain_pct: Num, sell_portion_pct: Num, trigger_price_sol: Dec },
-    LossGuard { #[serde(flatten)] base: StepBase, at_loss_pct: Num, sell_portion_pct: Num, trigger_price_sol: Dec },
+    ProfitTarget {
+        #[serde(flatten)]
+        base: StepBase,
+        at_gain_pct: Num,
+        sell_portion_pct: Num,
+        trigger_price_sol: Dec,
+    },
+    LossGuard {
+        #[serde(flatten)]
+        base: StepBase,
+        at_loss_pct: Num,
+        sell_portion_pct: Num,
+        trigger_price_sol: Dec,
+    },
     /// Hard stop from ENTRY (`stop_loss_pct`).
-    StopLoss { #[serde(flatten)] base: StepBase, stop_loss_pct: Num, stop_price_sol: Dec },
+    StopLoss {
+        #[serde(flatten)]
+        base: StepBase,
+        stop_loss_pct: Num,
+        stop_price_sol: Dec,
+    },
     /// Trailing stop from the PEAK (`peak_trail_pct`).
-    PeakTrail { #[serde(flatten)] base: StepBase, trail_pct: Num, armed: bool, peak_price_sol: Option<Dec>, stop_price_sol: Option<Dec> },
-    Giveback { #[serde(flatten)] base: StepBase, giveback_pct: Num, after_step: u32, peak_price_sol: Option<Dec> },
-    MaxHold { #[serde(flatten)] base: StepBase, deadline: IsoTs },
-    Idle { #[serde(flatten)] base: StepBase, idle_exit_seconds: i64, last_trade_at: Option<IsoTs> },
-    SellFloor { #[serde(flatten)] base: StepBase, max_loss_pct: Num, liquidity_drop_pct: Num },
+    PeakTrail {
+        #[serde(flatten)]
+        base: StepBase,
+        trail_pct: Num,
+        armed: bool,
+        peak_price_sol: Option<Dec>,
+        stop_price_sol: Option<Dec>,
+    },
+    Giveback {
+        #[serde(flatten)]
+        base: StepBase,
+        giveback_pct: Num,
+        after_step: u32,
+        peak_price_sol: Option<Dec>,
+    },
+    MaxHold {
+        #[serde(flatten)]
+        base: StepBase,
+        deadline: IsoTs,
+    },
+    Idle {
+        #[serde(flatten)]
+        base: StepBase,
+        idle_exit_seconds: i64,
+        last_trade_at: Option<IsoTs>,
+    },
+    SellFloor {
+        #[serde(flatten)]
+        base: StepBase,
+        max_loss_pct: Num,
+        liquidity_drop_pct: Num,
+    },
     #[serde(other)]
     Unknown,
 }
@@ -973,7 +1078,9 @@ impl KnownEvent {
         if env.version > EVENT_SCHEMA_VERSION {
             return None; // newer payload version → ignore until the client is updated
         }
-        fn p<T: serde::de::DeserializeOwned>(v: &serde_json::Value) -> Result<T, serde_json::Error> {
+        fn p<T: serde::de::DeserializeOwned>(
+            v: &serde_json::Value,
+        ) -> Result<T, serde_json::Error> {
             serde_json::from_value(v.clone())
         }
         let v = &env.payload;
@@ -1077,8 +1184,12 @@ pub enum ApprovalRejectReason {
     Other,
 }
 #[allow(dead_code)] // mirrored list; the contract test pins it to events.ts
-pub const APPROVAL_REJECT_REASONS: [ApprovalRejectReason; 4] =
-    [ApprovalRejectReason::UserDeclined, ApprovalRejectReason::NotTradeable, ApprovalRejectReason::PriceMoved, ApprovalRejectReason::Other];
+pub const APPROVAL_REJECT_REASONS: [ApprovalRejectReason; 4] = [
+    ApprovalRejectReason::UserDeclined,
+    ApprovalRejectReason::NotTradeable,
+    ApprovalRejectReason::PriceMoved,
+    ApprovalRejectReason::Other,
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ApprovalDecisionResponse {
@@ -1209,7 +1320,12 @@ pub enum RealLockedReason {
     Other,
 }
 #[cfg_attr(not(test), allow(dead_code))]
-pub const REAL_LOCKED_REASONS: [RealLockedReason; 4] = [RealLockedReason::NeedsOwnerApproval, RealLockedReason::GateNotMet, RealLockedReason::Policy, RealLockedReason::Other];
+pub const REAL_LOCKED_REASONS: [RealLockedReason; 4] = [
+    RealLockedReason::NeedsOwnerApproval,
+    RealLockedReason::GateNotMet,
+    RealLockedReason::Policy,
+    RealLockedReason::Other,
+];
 
 /// contracts 1.1.6 `PaperProgress`: `*_required` null = the owner has not set that rule yet ("not set").
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -1281,7 +1397,9 @@ pub struct ConflictErrorBody {
 
 /// A field that must be present **and** non-null (missing → "missing field", null → error).
 #[allow(dead_code)] // used by ConflictErrorBody (typed body for the Phase-2 HttpTransport)
-fn required_non_null<'de, D: serde::Deserializer<'de>>(d: D) -> Result<serde_json::Value, D::Error> {
+fn required_non_null<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<serde_json::Value, D::Error> {
     let v = <serde_json::Value as serde::Deserialize>::deserialize(d)?;
     if v.is_null() {
         return Err(serde::de::Error::custom("`current` must not be null"));
@@ -1382,18 +1500,30 @@ mod tests {
         let l: Lamports = serde_json::from_str("\"250000000\"").unwrap();
         assert_eq!(l.sol().to_string(), "0.25");
         assert_eq!(serde_json::to_string(&l).unwrap(), "\"250000000\"");
-        assert!(serde_json::from_str::<Lamports>("250000000").is_err(), "JSON numbers rejected");
+        assert!(
+            serde_json::from_str::<Lamports>("250000000").is_err(),
+            "JSON numbers rejected"
+        );
         assert!(serde_json::from_str::<Lamports>("\"0.5\"").is_err());
         let d: Dec = serde_json::from_str("\"0.000000213400\"").unwrap();
         assert_eq!(d.to_string(), "0.0000002134");
         assert!(Dec::parse("1e-7").is_err(), "exponent rejected");
-        assert!(serde_json::from_str::<Dec>("0.5").is_err(), "float rejected");
-        assert_eq!(Lamports::from_sol(Dec::parse("0.25").unwrap().0), Lamports(250_000_000));
+        assert!(
+            serde_json::from_str::<Dec>("0.5").is_err(),
+            "float rejected"
+        );
+        assert_eq!(
+            Lamports::from_sol(Dec::parse("0.25").unwrap().0),
+            Lamports(250_000_000)
+        );
     }
 
     #[test]
     fn untrusted_is_plain_text() {
-        let u = Untrusted { symbol: Some("<b>\u{202E}EVIL\u{0007}   COIN</b>xxxxxxxxxxxxxx".into()), ..Default::default() };
+        let u = Untrusted {
+            symbol: Some("<b>\u{202E}EVIL\u{0007}   COIN</b>xxxxxxxxxxxxxx".into()),
+            ..Default::default()
+        };
         let s = u.display_symbol(None);
         assert!(!s.contains('\u{202E}') && !s.contains('\u{0007}'));
         assert!(s.chars().count() <= 16);
@@ -1403,17 +1533,29 @@ mod tests {
 
     #[test]
     fn seq_accepts_number_and_int64_string() {
-        let c: ClockMessage = serde_json::from_str(r#"{"server_now":"2026-10-29T08:42:00.000Z","safe_seq":18000}"#).unwrap();
+        let c: ClockMessage =
+            serde_json::from_str(r#"{"server_now":"2026-10-29T08:42:00.000Z","safe_seq":18000}"#)
+                .unwrap();
         assert_eq!(c.safe_seq, 18_000);
-        let c: ClockMessage = serde_json::from_str(r#"{"server_now":"2026-10-29T08:42:00.000Z","safe_seq":"9007199254740993"}"#).unwrap();
+        let c: ClockMessage = serde_json::from_str(
+            r#"{"server_now":"2026-10-29T08:42:00.000Z","safe_seq":"9007199254740993"}"#,
+        )
+        .unwrap();
         assert_eq!(c.safe_seq, 9_007_199_254_740_993, "beyond 2^53 stays exact");
-        assert!(serde_json::from_str::<ClockMessage>(r#"{"server_now":"x","safe_seq":"1e3"}"#).is_err());
-        assert_eq!(serde_json::to_value(&c).unwrap()["safe_seq"], "9007199254740993");
+        assert!(
+            serde_json::from_str::<ClockMessage>(r#"{"server_now":"x","safe_seq":"1e3"}"#).is_err()
+        );
+        assert_eq!(
+            serde_json::to_value(&c).unwrap()["safe_seq"],
+            "9007199254740993"
+        );
         assert_eq!(pct_to_bps(25), Some(2_500));
         assert_eq!(pct_to_bps(100), Some(FRACTION_BPS_MAX));
         assert_eq!(pct_to_bps(0), None);
         assert!(is_sol_quote(None) && is_sol_quote(Some(WSOL_MINT)));
-        assert!(!is_sol_quote(Some("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")));
+        assert!(!is_sol_quote(Some(
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        )));
     }
 
     #[test]

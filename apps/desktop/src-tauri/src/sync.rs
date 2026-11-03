@@ -6,9 +6,9 @@
 
 use crate::backend::{ActiveTransport, Inbound, Transport};
 use crate::events::{dispatch, Out};
+use crate::model::Actor;
 use crate::state::{AppState, Engine};
 use crate::view::Tone;
-use crate::model::Actor;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager, Runtime};
@@ -57,7 +57,12 @@ fn with_engine<R: Runtime, T>(app: &AppHandle<R>, f: impl FnOnce(&mut Engine) ->
 }
 
 /// Load / refetch REST state: workspace rev, strategies (names + rev), portfolio.
-pub async fn refresh<R: Runtime>(app: &AppHandle<R>, t: &ActiveTransport, strategies: bool, portfolio: bool) {
+pub async fn refresh<R: Runtime>(
+    app: &AppHandle<R>,
+    t: &ActiveTransport,
+    strategies: bool,
+    portfolio: bool,
+) {
     let mut outs = Vec::new();
     if portfolio {
         match (t.get_workspace().await, t.get_portfolio().await) {
@@ -145,7 +150,15 @@ pub fn spawn<R: Runtime>(app: AppHandle<R>, t: Arc<ActiveTransport>) {
             backoff = Duration::from_millis(500);
             let o = with_engine(&app, |e| {
                 e.connected = true;
-                e.note(Actor::System, Tone::Info, format!("Terhubung ke backend ({}) · resume dari seq {}", t.label(), cur.watermark))
+                e.note(
+                    Actor::System,
+                    Tone::Info,
+                    format!(
+                        "Terhubung ke backend ({}) · resume dari seq {}",
+                        t.label(),
+                        cur.watermark
+                    ),
+                )
             });
             dispatch(&app, vec![Out::Connection(true), o]);
             let mut last_catchup = Instant::now() - MIN_CATCHUP_GAP;
@@ -194,7 +207,11 @@ pub fn spawn<R: Runtime>(app: AppHandle<R>, t: Arc<ActiveTransport>) {
             let o = with_engine(&app, |e| {
                 e.connected = false;
                 e.sync.reconnects += 1;
-                e.note(Actor::System, Tone::Bad, "Stream terputus — menyambung ulang")
+                e.note(
+                    Actor::System,
+                    Tone::Bad,
+                    "Stream terputus — menyambung ulang",
+                )
             });
             dispatch(&app, vec![Out::Connection(false), o]);
             tokio::time::sleep(backoff).await;
@@ -208,7 +225,10 @@ mod tests {
 
     #[test]
     fn cursor_holds_watermark_on_gap_until_page() {
-        let mut c = Cursor { watermark: 100, gap_pending: false };
+        let mut c = Cursor {
+            watermark: 100,
+            gap_pending: false,
+        };
         assert!(!c.on_live(101));
         assert_eq!(c.watermark, 101);
         assert!(c.on_live(104), "gap → catch up");
@@ -251,7 +271,14 @@ mod tests {
         let total = t.list_events(0, 500).await.unwrap();
         assert!(gaps > 0, "test must exercise gaps");
         assert_eq!(cur.watermark, total.items.last().unwrap().seq);
-        assert_eq!(e.snapshot().signals.len(), total.items.iter().filter(|x| x.kind == "proposal.created").count());
+        assert_eq!(
+            e.snapshot().signals.len(),
+            total
+                .items
+                .iter()
+                .filter(|x| x.kind == "proposal.created")
+                .count()
+        );
         assert!(e.sync.skew_ms > 1_000, "skew measured from server_now");
     }
 }

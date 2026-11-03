@@ -19,11 +19,20 @@ pub fn open_chart<R: Runtime>(app: &AppHandle<R>, mint: &str) -> AppResult<()> {
         w.set_focus()?;
         return Ok(());
     }
-    WebviewWindowBuilder::new(app, &label, WebviewUrl::App(format!("index.html#/chart?mint={mint}").into()))
-        .title(format!("{} {} — Chart {}…", prefix(app), crate::brand::app_name(), &mint[..6]))
-        .inner_size(960.0, 600.0)
-        .min_inner_size(480.0, 320.0)
-        .build()?;
+    WebviewWindowBuilder::new(
+        app,
+        &label,
+        WebviewUrl::App(format!("index.html#/chart?mint={mint}").into()),
+    )
+    .title(format!(
+        "{} {} — Chart {}…",
+        prefix(app),
+        crate::brand::app_name(),
+        &mint[..6]
+    ))
+    .inner_size(960.0, 600.0)
+    .min_inner_size(480.0, 320.0)
+    .build()?;
     Ok(())
 }
 
@@ -33,10 +42,18 @@ pub fn open_activity<R: Runtime>(app: &AppHandle<R>) -> AppResult<()> {
         w.set_focus()?;
         return Ok(());
     }
-    WebviewWindowBuilder::new(app, "activity", WebviewUrl::App("index.html#/activity".into()))
-        .title(format!("{} {} — Activity", prefix(app), crate::brand::app_name()))
-        .inner_size(520.0, 760.0)
-        .build()?;
+    WebviewWindowBuilder::new(
+        app,
+        "activity",
+        WebviewUrl::App("index.html#/activity".into()),
+    )
+    .title(format!(
+        "{} {} — Activity",
+        prefix(app),
+        crate::brand::app_name()
+    ))
+    .inner_size(520.0, 760.0)
+    .build()?;
     Ok(())
 }
 
@@ -52,25 +69,35 @@ pub const POPUP_SUPPORTED: bool = cfg!(target_os = "linux");
 
 pub fn open_approval_popup<R: Runtime>(app: &AppHandle<R>, focus: bool) -> AppResult<()> {
     if !POPUP_SUPPORTED {
-        return Err(AppError::Invalid("popup dinonaktifkan di OS ini sampai tes W-NOFOCUS lulus".into()));
+        return Err(AppError::Invalid(
+            "popup dinonaktifkan di OS ini sampai tes W-NOFOCUS lulus".into(),
+        ));
     }
     let w = match app.get_webview_window(APPROVAL_LABEL) {
         Some(w) => w,
         None => {
-            let b = WebviewWindowBuilder::new(app, APPROVAL_LABEL, WebviewUrl::App("index.html#/popup".into()))
-                .title(format!("{} {} — Approval", prefix(app), crate::brand::app_name()))
-                .inner_size(POPUP_W, POPUP_H)
-                .resizable(false)
-                .maximizable(false)
-                .minimizable(false)
-                .decorations(false)
-                .shadow(true)
-                .always_on_top(true)
-                .visible_on_all_workspaces(true)
-                .skip_taskbar(true)
-                .theme(Some(tauri::Theme::Dark))
-                .visible(false)
-                .focused(false);
+            let b = WebviewWindowBuilder::new(
+                app,
+                APPROVAL_LABEL,
+                WebviewUrl::App("index.html#/popup".into()),
+            )
+            .title(format!(
+                "{} {} — Approval",
+                prefix(app),
+                crate::brand::app_name()
+            ))
+            .inner_size(POPUP_W, POPUP_H)
+            .resizable(false)
+            .maximizable(false)
+            .minimizable(false)
+            .decorations(false)
+            .shadow(true)
+            .always_on_top(true)
+            .visible_on_all_workspaces(true)
+            .skip_taskbar(true)
+            .theme(Some(tauri::Theme::Dark))
+            .visible(false)
+            .focused(false);
             #[cfg(target_os = "macos")]
             let b = b.accept_first_mouse(false); // first click only focuses the popup
             b.build()?
@@ -116,7 +143,14 @@ pub fn hide_approval_popup_later<R: Runtime>(app: &AppHandle<R>, ms: u64) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
-        let empty = !app.state::<AppState>().engine.lock().unwrap().signals.iter().any(|s| s.status == crate::model::ProposalStatus::Pending);
+        let empty = !app
+            .state::<AppState>()
+            .engine
+            .lock()
+            .unwrap()
+            .signals
+            .iter()
+            .any(|s| s.status == crate::model::ProposalStatus::Pending);
         if empty {
             hide_approval_popup(&app);
         }
