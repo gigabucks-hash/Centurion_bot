@@ -1,4 +1,4 @@
-import type { MarkMessage } from "@sentra/contracts/wire";
+import type { MarkMessage } from "@centurion/contracts/wire";
 import type { OpenPosition } from "./types";
 
 /**

@@ -1,4 +1,4 @@
-import { formatMcapSol, formatMcapUsd } from "@sentra/i18n/format";
+import { formatMcapSol, formatMcapUsd } from "@centurion/i18n/format";
 import type { MarketCap } from "@/lib/types";
 import type { Locale, T } from "@/lib/i18n/core";
 

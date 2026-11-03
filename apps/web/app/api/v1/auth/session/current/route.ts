@@ -7,7 +7,7 @@ import { upstreamAuth } from "@/lib/auth/upstream";
 /**
  * GET /api/v1/auth/session/current (web BFF only): {address, expires_at} for scheduling the silent refresh.
  * 401 when the access cookie is missing/expired (the client then calls /session/refresh once).
- * Under the refresh cookie path so the browser also sends sentra_rt here (unused).
+ * Under the refresh cookie path so the browser also sends centurion_rt here (unused).
  */
 export async function GET() {
   const at = (await cookies()).get(ACCESS_COOKIE)?.value;

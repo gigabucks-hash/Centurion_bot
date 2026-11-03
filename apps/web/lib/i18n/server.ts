@@ -2,10 +2,13 @@ import { cookies } from "next/headers";
 import { createFmt, type Fmt } from "../format.ts";
 import type { TradingMode } from "../types.ts";
 import { createT, DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type Locale, type T } from "./index.ts";
+import { LEGACY_LOCALE_COOKIE } from "../legacy-storage.ts";
 
 /** Reads the locale cookie. Call inside a Suspense boundary (runtime data). */
 export async function getLocale(): Promise<Locale> {
-  const v = (await cookies()).get(LOCALE_COOKIE)?.value;
+  const c = await cookies();
+  // Pre-rename cookie as a read-only fallback until the user changes the locale again.
+  const v = c.get(LOCALE_COOKIE)?.value ?? c.get(LEGACY_LOCALE_COOKIE)?.value;
   return isLocale(v) ? v : DEFAULT_LOCALE;
 }
 

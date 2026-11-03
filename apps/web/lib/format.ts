@@ -1,11 +1,11 @@
 /**
  * Number/date formatting (QA-01). Every value goes through the UX reference formatters in
- * @sentra/i18n/format (packages/i18n 0.4.0 format.mjs, workspace dependency; no local copy), bound to the UI
+ * @centurion/i18n/format (packages/i18n 0.4.0 format.mjs, workspace dependency; no local copy), bound to the UI
  * locale (en → en-US, id → id-ID) and the mode (Practice amounts read "paper SOL"). No component
  * hardcodes a number locale. Get a formatter with useFmt() (client) or getFmt(mode) (server).
  */
 import { solToLamports } from "./contracts";
-import { formatCompact, formatCountdown, formatDateTime, formatInt, formatLamports, formatPct, formatSol, formatSolVar, formatTime, formatUsd, LOCALES } from "@sentra/i18n/format";
+import { formatCompact, formatCountdown, formatDateTime, formatInt, formatLamports, formatPct, formatSol, formatSolVar, formatTime, formatUsd, LOCALES } from "@centurion/i18n/format";
 import type { Locale } from "./i18n/index.ts";
 import type { TradingMode } from "./types.ts";
 

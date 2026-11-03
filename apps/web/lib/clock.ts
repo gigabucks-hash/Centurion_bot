@@ -2,7 +2,7 @@
  * Server clock. Countdowns use `server_now` from the last response / realtime clock message, never the
  * device clock alone (EVENTS_SCHEMA §1): skew = server_now − local receive time, now() = Date.now() + skew.
  */
-import { remainingMs, skewFrom } from "@sentra/i18n/format";
+import { remainingMs, skewFrom } from "@centurion/i18n/format";
 
 let skewMs = 0;
 

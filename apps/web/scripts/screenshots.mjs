@@ -135,7 +135,7 @@ await setMode("practice");
 
 // Light theme
 const light = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: "light", timezoneId: "Asia/Jakarta" });
-await light.addInitScript(() => localStorage.setItem("sentra_theme", "light"));
+await light.addInitScript(() => localStorage.setItem("centurion_theme", "light"));
 const lp = await light.newPage();
 for (const [n, p] of [["13-overview-light", "/"], ["13b-approvals-light", "/approvals"], ["13c-coin-trail-light", coin], ["13d-settings-light", "/settings"], ["13e-login-light", "/login"]]) {
   await lp.goto(`${BASE}${p}`, { waitUntil: "domcontentloaded" }); await lp.waitForTimeout(1500);

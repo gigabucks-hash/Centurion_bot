@@ -1,5 +1,5 @@
 import { CloseBody, parse } from "@/lib/schemas/wire";
-import type { ClosePositionResponse, FillWire, OrderWire } from "@sentra/contracts/wire";
+import type { ClosePositionResponse, FillWire, OrderWire } from "@centurion/contracts/wire";
 import { fail, gateMode, idempotent, now, readJson } from "@/lib/bff";
 import { expectedRev, guarded } from "@/lib/bff-wrap";
 import { positionToWire, solToLamports } from "@/lib/contracts";

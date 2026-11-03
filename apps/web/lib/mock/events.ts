@@ -1,12 +1,12 @@
 /** Mock event log in contract envelope form (EVENTS_SCHEMA §1). Backs /events and /events/stream. */
-import type { EventEnvelope, Mode } from "@sentra/contracts/wire";
+import type { EventEnvelope, Mode } from "@centurion/contracts/wire";
 import { tradeEventToEnvelope, type FeedPayload } from "@/lib/contracts";
 import { recentEvents, seedStrategies } from "./data";
 import { createEventGenerator } from "./stream";
 import type { Seq } from "@/lib/seq";
 
-const g = globalThis as unknown as { __sentraLive?: Record<Mode, EventEnvelope<string, FeedPayload>[]> };
-const live = (g.__sentraLive ??= { practice: [], real: [] });
+const g = globalThis as unknown as { __centurionLive?: Record<Mode, EventEnvelope<string, FeedPayload>[]> };
+const live = (g.__centurionLive ??= { practice: [], real: [] });
 const gens: Partial<Record<Mode, ReturnType<typeof createEventGenerator>>> = {};
 
 /** Seeded history + everything streamed so far for this workspace mode (Practice and Real never mix). */

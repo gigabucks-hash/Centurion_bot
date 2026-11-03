@@ -1,10 +1,10 @@
 /**
  * zod schemas for every JSON body this app's route handlers accept (SECURITY: validate all inputs at the edge).
- * Shapes follow @sentra/contracts 1.1.4; unknown top-level keys are rejected where the contract is closed.
+ * Shapes follow @centurion/contracts 1.1.4; unknown top-level keys are rejected where the contract is closed.
  * `parse()` turns a failure into the contract VALIDATION_FAILED body with the offending field paths.
  */
 import { z } from "zod";
-import { APPROVAL_REJECT_REASONS } from "@sentra/contracts/wire";
+import { APPROVAL_REJECT_REASONS } from "@centurion/contracts/wire";
 import { fail } from "@/lib/bff";
 
 const id = z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/);

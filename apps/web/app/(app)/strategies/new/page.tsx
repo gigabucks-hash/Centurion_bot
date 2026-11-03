@@ -33,7 +33,7 @@ async function Builder({ searchParams }: { searchParams: PageProps<"/strategies/
         </div>
       )}
       {mode === "real" && <p className="mb-4 rounded-md border border-border-default bg-bg-sunken px-3 py-2 text-caption text-text-secondary">{t("builder.realNote")}</p>}
-      <StrategyBuilder key={`${preset}-${source?.id ?? ""}`} initial={initial} base={null} strategyId={null} rev={null} mode="practice" draftKey={`sentra_draft_new_${source?.id ?? preset}`} />
+      <StrategyBuilder key={`${preset}-${source?.id ?? ""}`} initial={initial} base={null} strategyId={null} rev={null} mode="practice" draftKey={`centurion_draft_new_${source?.id ?? preset}`} />
     </>
   );
 }

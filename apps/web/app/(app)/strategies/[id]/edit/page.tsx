@@ -27,7 +27,7 @@ async function Edit({ params }: { params: PageProps<"/strategies/[id]/edit">["pa
   return (
     <>
       <PageHeader title={<span className="flex items-center gap-2">{t("builder.editTitle", { name: s.name })} <StatusBadge status={s.status} /></span>} breadcrumb={crumb} subtitle={t("builder.editSubtitle", { rev: s.rev })} />
-      <StrategyBuilder initial={structuredClone(s.settings)} base={s.status === "draft" ? null : s.settings} strategyId={s.id} rev={s.rev} mode={s.mode} draftKey={`sentra_draft_${s.id}_rev${s.rev}`} />
+      <StrategyBuilder initial={structuredClone(s.settings)} base={s.status === "draft" ? null : s.settings} strategyId={s.id} rev={s.rev} mode={s.mode} draftKey={`centurion_draft_${s.id}_rev${s.rev}`} />
     </>
   );
 }

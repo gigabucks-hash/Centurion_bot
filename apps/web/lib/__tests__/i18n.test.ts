@@ -24,13 +24,13 @@ test("every app key is defined in English and every string parses as ICU", () =>
   }
 });
 
-test("every alias points at a key in @sentra/i18n 0.4.3 (en + id)", async () => {
+test("every alias points at a key in @centurion/i18n 0.4.3 (en + id)", async () => {
   const { ALIASES } = await import("../i18n/aliases.ts");
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
   const leaves = (o: Record<string, unknown>, p = ""): string[] => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" ? leaves(v as Record<string, unknown>, `${p}${k}.`) : [`${p}${k}`]));
   for (const loc of ["en", "id"]) {
-    const keys = new Set(leaves(req(`@sentra/i18n/${loc}.json`)));
+    const keys = new Set(leaves(req(`@centurion/i18n/${loc}.json`)));
     const missing = Object.values(ALIASES).map((a) => (typeof a === "string" ? a : a.key)).filter((k) => !keys.has(k));
     assert.deepEqual(missing, [], loc);
   }
@@ -63,8 +63,8 @@ test("0.4.3: every screener.* key exists in en + id and is reachable through an 
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
   const flat = (o: Record<string, unknown>, p = ""): string[] => Object.entries(o).flatMap(([k, v]) => (typeof v === "string" ? [`${p}${k}`] : flat(v as Record<string, unknown>, `${p}${k}.`)));
-  const en = flat(req("@sentra/i18n/en.json")).filter((k) => k.startsWith("screener."));
-  const id = new Set(flat(req("@sentra/i18n/id.json")));
+  const en = flat(req("@centurion/i18n/en.json")).filter((k) => k.startsWith("screener."));
+  const id = new Set(flat(req("@centurion/i18n/id.json")));
   const targets = new Set<string>(Object.values(ALIASES).map((a) => (typeof a === "string" ? a : a.key) as string));
   assert.ok(en.length >= 34, `screener keys: ${en.length}`);
   for (const k of en) {
@@ -74,11 +74,11 @@ test("0.4.3: every screener.* key exists in en + id and is reachable through an 
 });
 
 test("0.4.3: errors.map.json maps all errors.json v4 codes to existing UX keys; unknown → error.code.internal", async () => {
-  const { ERROR_CODES } = await import("@sentra/contracts/wire");
+  const { ERROR_CODES } = await import("@centurion/contracts/wire");
   const { errorUxKey } = await import("../errors.ts");
   const { createRequire } = await import("node:module");
   const req = createRequire(import.meta.url);
-  const map = req("@sentra/i18n/errors.map.json") as { codes: Record<string, { key: string }> };
+  const map = req("@centurion/i18n/errors.map.json") as { codes: Record<string, { key: string }> };
   const all = Object.keys(ERROR_CODES);
   // errors.json v5 adds GUARD_WEAKEN_REQUIRES_APPROVAL and v6 adds QUOTE_MISSING_OR_STALE; errors.map.json still maps the v4 codes (app copy covers the gap).
   assert.ok(all.length >= 56);

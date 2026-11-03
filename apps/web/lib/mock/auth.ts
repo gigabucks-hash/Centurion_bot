@@ -14,9 +14,9 @@ export const SIWS_STATEMENT_VERSION = 2;
 const MIN = 60_000;
 export const MOCK_OTP = "123456";
 const g = globalThis as unknown as {
-  __sentraAuth?: { nonces: Map<string, { address: string; domain: string; exp: number }>; otps: Map<string, { sentAt: number; exp: number; attempts: number; lockedUntil?: number }> };
+  __centurionAuth?: { nonces: Map<string, { address: string; domain: string; exp: number }>; otps: Map<string, { sentAt: number; exp: number; attempts: number; lockedUntil?: number }> };
 };
-const st = (g.__sentraAuth ??= { nonces: new Map(), otps: new Map() });
+const st = (g.__centurionAuth ??= { nonces: new Map(), otps: new Map() });
 
 export function siwsNonce(address: string, domain: string, uri: string, now = Date.now()) {
   const nonce = crypto.randomUUID().replace(/-/g, "").slice(0, 24);

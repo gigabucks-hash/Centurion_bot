@@ -8,7 +8,7 @@ export const en = {
   common: {
     loadMore: "Load more",
     dismiss: "Dismiss",
-    /** PWA short_name / narrow header; the full name is @sentra/i18n app.name. */
+    /** PWA short_name / narrow header; the full name is @centurion/i18n app.name. */
     brandShort: "Centurion",
     mockBuild: "Mock data build · no wallet, RPC or chain access",
     loading: "Loading…",
@@ -638,10 +638,10 @@ export const en = {
     mockNote: "Mock build: nothing here contacts an identity provider, wallet or push service.",
   },
   apiError: {
-    // errors.json v5 (contracts fdc52e3); not yet in @sentra/i18n errors.map.json → app copy until UX maps it.
+    // errors.json v5 (contracts fdc52e3); not yet in @centurion/i18n errors.map.json → app copy until UX maps it.
     GUARD_WEAKEN_REQUIRES_APPROVAL: "Change waiting for approval. It loosens a guard, so nothing applies until you approve it.",
     QUOTE_MISSING_OR_STALE: "This quote expired. Refresh it and review the trade again before approving.",
-    // errors.json codes newer than @sentra/i18n errors.map.json (contracts working tree: MCP/agent + kill switch).
+    // errors.json codes newer than @centurion/i18n errors.map.json (contracts working tree: MCP/agent + kill switch).
     LOOSEN_REQUIRES_APP: "Loosening limits or guards can only be requested in the Centurion Trade app.",
     RESUME_REQUIRES_APP: "Buying was paused in the app. Resume it in the Centurion Trade app.",
     BUYS_PAUSED: "Buys are paused. Exits keep running.",

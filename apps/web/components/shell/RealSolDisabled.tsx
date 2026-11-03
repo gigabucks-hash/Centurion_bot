@@ -1,7 +1,7 @@
 import { ShieldOff } from "lucide-react";
 import { getT } from "@/lib/i18n/server";
 
-/** Proper state for `403 REAL_SOL_DISABLED` (SENTRA_REAL_SOL=disabled): replaces the page body in Real mode. */
+/** Proper state for `403 REAL_SOL_DISABLED` (CENTURION_REAL_SOL=disabled): replaces the page body in Real mode. */
 export async function RealSolDisabled() {
   const t = await getT();
   return (

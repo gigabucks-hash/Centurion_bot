@@ -14,7 +14,7 @@ import { request } from "@/lib/client";
 import { envelopeToTradeEvent } from "@/lib/contracts";
 import { errorText } from "@/lib/errors";
 import { TZ } from "@/lib/format";
-import type { AnyEvent, EventPage } from "@sentra/contracts/wire";
+import type { AnyEvent, EventPage } from "@centurion/contracts/wire";
 
 const PAGE = 100;
 const VIRTUAL_AFTER = 150;

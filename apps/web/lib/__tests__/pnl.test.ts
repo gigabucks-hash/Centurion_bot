@@ -34,7 +34,7 @@ test("decimalSign compares decimal strings exactly (no floats)", () => {
   assert.equal(decimalSign(""), null);
 });
 
-test("Pnl = @sentra/i18n pnlSol/pnlPct: exact zero '0.00' neutral; tiny '<0.000001' signed + toned", () => {
+test("Pnl = @centurion/i18n pnlSol/pnlPct: exact zero '0.00' neutral; tiny '<0.000001' signed + toned", () => {
   for (const z of [{ sol: 0 }, { sol: -0 }, { sol: "0.00" }, { sol: "-0.00" }, { lamports: "0" }, { lamports: "-0" }] as const) {
     const d = pnlDisplay(z, "en", { unit: false });
     assert.deepEqual({ text: d.text, tone: d.tone, arrow: d.arrow, sign: d.sign }, { text: "0.00", tone: "neutral", arrow: "", sign: "" }, JSON.stringify(z));

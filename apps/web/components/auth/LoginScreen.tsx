@@ -128,7 +128,7 @@ export function LoginScreen() {
                           <label htmlFor="email" className="mb-1 block text-label text-text-secondary">{t("login.email")}</label>
                           <input id="email" type="email" autoComplete="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="h-10 w-full rounded-sm border border-border-default bg-bg-sunken px-3 text-body outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus" />
                         </div>
-                        <SentraButton icon={<Mail size={16} aria-hidden />} label={t("login.sendCode")} type="submit" busy={busy === "email_otp"} disabled={disabled("email_otp")} />
+                        <CenturionButton icon={<Mail size={16} aria-hidden />} label={t("login.sendCode")} type="submit" busy={busy === "email_otp"} disabled={disabled("email_otp")} />
                       </form>
                     )}
                   </div>
@@ -251,7 +251,7 @@ function TelegramButton(p: BrandProps) {
   );
 }
 
-function SentraButton({ icon, label, onClick, busy, disabled, type = "button" }: { icon: React.ReactNode; label: string; onClick?: () => void; busy: boolean; disabled: boolean; type?: "button" | "submit" }) {
+function CenturionButton({ icon, label, onClick, busy, disabled, type = "button" }: { icon: React.ReactNode; label: string; onClick?: () => void; busy: boolean; disabled: boolean; type?: "button" | "submit" }) {
   return (
     <button type={type} onClick={onClick} disabled={disabled || busy} aria-busy={busy || undefined} className={cn(BASE, "border border-border-default bg-bg-surface text-text-primary")}>
       {busy ? <Loader2 size={16} className="shrink-0 animate-spin" aria-hidden /> : icon}
@@ -481,7 +481,7 @@ function WalletFlow({ wallet, behaviour, onDone }: { wallet: string; behaviour: 
           <Button className="mt-3 min-h-11 w-full" variant="secondary" onClick={reset}>{t("walletLogin.disconnect")}</Button>
         </div>
       ) : !address || !challenge ? (
-        <SentraButton icon={<Wallet size={16} aria-hidden />} label={t("walletLogin.connect")} busy={busy === "connect"} disabled={busy != null} onClick={connect} />
+        <CenturionButton icon={<Wallet size={16} aria-hidden />} label={t("walletLogin.connect")} busy={busy === "connect"} disabled={busy != null} onClick={connect} />
       ) : (
         <>
           <p className="flex items-center justify-between gap-2 text-caption text-text-secondary">

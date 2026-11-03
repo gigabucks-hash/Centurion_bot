@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import type { ClockMessage, MarkMessage } from "@sentra/contracts/wire";
+import type { ClockMessage, MarkMessage } from "@centurion/contracts/wire";
 import { gateMode } from "@/lib/bff";
 import { usdToPriceSol, toDecimalString } from "@/lib/contracts";
 import { liveEnvelope, workspaceEnvelopes } from "@/lib/mock/events";

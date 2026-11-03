@@ -13,8 +13,8 @@ export async function POST(req: Request) {
   try {
     const r = otpVerify(String(email ?? ""), String(code ?? ""));
     const c = await cookies();
-    c.set("sentra_session", `mock:${r.method}`, { path: "/", httpOnly: true, sameSite: "lax" });
-    c.set("sentra_mode", "practice", { path: "/", httpOnly: true, sameSite: "lax" });
+    c.set("centurion_session", `mock:${r.method}`, { path: "/", httpOnly: true, sameSite: "lax" });
+    c.set("centurion_mode", "practice", { path: "/", httpOnly: true, sameSite: "lax" });
     return ok({ is_new_account: true });
   } catch (e) {
     if (e instanceof WireError) return fail(e.code, e.extra, e.details);

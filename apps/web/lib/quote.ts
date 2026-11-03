@@ -1,5 +1,5 @@
 /**
- * Review-sheet quote state on top of @sentra/i18n format.mjs (0.4.6/0.4.7) helpers, for the contracts 1.1.4 wire.
+ * Review-sheet quote state on top of @centurion/i18n format.mjs (0.4.6/0.4.7) helpers, for the contracts 1.1.4 wire.
  *
  * 0.4.7 `quoteState().complete` checks the 1.1.5 field set (quote_id, est_ata_rent_lamports, …). contracts in the repo
  * are still 1.1.4 (no quote_id), so a Real quote would never count as complete and approve would stay blocked.
@@ -7,7 +7,7 @@
  * (fee, min out, total, expiry) — the server's 409 QUOTE_MISSING_OR_STALE stays authoritative either way.
  * Hold reset key: quote_id (1.1.5, quoteChanged) → else quote_ts (1.1.4 re-quote) → else rev.
  */
-import { quoteChanged, quoteState, type QuoteState } from "@sentra/i18n/format";
+import { quoteChanged, quoteState, type QuoteState } from "@centurion/i18n/format";
 import type { Approval, ApprovalQuote } from "./types";
 
 const iso = (ms?: number) => (ms ? new Date(ms).toISOString() : null);

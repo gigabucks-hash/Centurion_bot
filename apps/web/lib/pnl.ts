@@ -3,7 +3,7 @@
  * Rule: a loss is NEVER rendered with the profit token, and colour is never the only signal
  * (always paired with ▲/▼ and +/− in the text).
  */
-import { pnlPct, pnlSol, type PnlOut } from "@sentra/i18n/format";
+import { pnlPct, pnlSol, type PnlOut } from "@centurion/i18n/format";
 
 export type PnlTone = "profit" | "loss" | "neutral";
 
@@ -41,7 +41,7 @@ export function pnlArrow(v: number | string | null | undefined): "▲" | "▼" |
 }
 
 /**
- * Shared PnL display (T-15) = the package helpers `pnlSol()` / `pnlPct()` from @sentra/i18n/format, unchanged:
+ * Shared PnL display (T-15) = the package helpers `pnlSol()` / `pnlPct()` from @centurion/i18n/format, unchanged:
  * exact zero → "0.00" neutral, no arrow/sign; non-zero → ▲/▼ + +/− + tone, tiny values "<0.000001" (never "0").
  * Inputs: `lamports` (wire string, exact), `sol` (number or decimal string), `pct` (percentage number, 8.4 = 8.4%).
  */

@@ -1,9 +1,9 @@
 /**
- * Brand (Boss 2026-10-29): product name "Centurion Trade" from @sentra/i18n app.name (0.4.7+). Package names stay
- * @sentra/*. Colours are the design-token values (packages/design-tokens tokens.css, dark theme) because metadata,
+ * Brand (Boss 2026-10-29): product name "Centurion Trade" from @centurion/i18n app.name (0.4.7+). Package names stay
+ * @centurion/*. Colours are the design-token values (packages/design-tokens tokens.css, dark theme) because metadata,
  * the manifest and generated images cannot read CSS variables.
  */
-import en from "@sentra/i18n/en.json" with { type: "json" };
+import en from "@centurion/i18n/en.json" with { type: "json" };
 
 export const APP_NAME: string = en.app.name; // "Centurion Trade"
 export const APP_SHORT_NAME = "Centurion";

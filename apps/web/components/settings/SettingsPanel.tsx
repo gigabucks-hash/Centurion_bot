@@ -16,7 +16,7 @@ import {
 import { ApiError, errorText } from "@/lib/errors";
 import { createFmt } from "@/lib/format";
 import { LOCALES } from "@/lib/i18n/core";
-import { LOCALES as LOCALE_TAGS } from "@sentra/i18n/format";
+import { LOCALES as LOCALE_TAGS } from "@centurion/i18n/format";
 import { useFmt, useLocale, useT } from "@/lib/i18n/client";
 import type { ApprovalMode } from "@/lib/types";
 import { Badge, Button, Card, cn } from "@/components/ui";
@@ -71,7 +71,7 @@ export function SettingsPanel({ signedInWith }: { signedInWith: Method | null })
   useEffect(() => {
     const tm = setTimeout(() => {
       setMyDevice(deviceId());
-      setTheme((localStorage.getItem("sentra_theme") as "dark" | "light" | null) ?? (document.documentElement.dataset.theme === "light" ? "light" : "dark"));
+      setTheme((localStorage.getItem("centurion_theme") as "dark" | "light" | null) ?? (document.documentElement.dataset.theme === "light" ? "light" : "dark"));
     }, 0);
     fetchPracticeReset().then(setPractice).catch(() => {});
     fetchDeletion().then(setDeletion).catch(() => {});
@@ -90,7 +90,7 @@ export function SettingsPanel({ signedInWith }: { signedInWith: Method | null })
     const resolved = v === "system" ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : v;
     document.documentElement.dataset.theme = resolved;
     try {
-      localStorage.setItem("sentra_theme", resolved);
+      localStorage.setItem("centurion_theme", resolved);
     } catch {
       /* ignore */
     }

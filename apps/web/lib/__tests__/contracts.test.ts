@@ -105,7 +105,7 @@ test("1.1.2 error body: details flattened into error, server_now inside", async 
 });
 
 test("errors.json v4 carries en + id copy for every code", async () => {
-  const { ERROR_CODES, errorMessage } = await import("@sentra/contracts/wire");
+  const { ERROR_CODES, errorMessage } = await import("@centurion/contracts/wire");
   for (const code of Object.keys(ERROR_CODES) as (keyof typeof ERROR_CODES)[]) {
     assert.ok(errorMessage(code, "en").length > 0, code);
     assert.ok(errorMessage(code, "id").length > 0, code);

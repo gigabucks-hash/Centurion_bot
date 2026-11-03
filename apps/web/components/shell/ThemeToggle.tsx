@@ -17,7 +17,7 @@ export function ThemeToggle() {
       onClick={() => {
         document.documentElement.dataset.theme = next;
         try {
-          localStorage.setItem("sentra_theme", next);
+          localStorage.setItem("centurion_theme", next);
         } catch {
           /* ignore */
         }

@@ -6,16 +6,17 @@
  * - Errors become typed ApiError (lib/errors.ts) with contract codes → i18n `apiError.<CODE>`.
  * - Writes carry an Idempotency-Key; retries reuse the same key.
  */
-import { pctToFractionBps } from "@sentra/i18n/format";
-import type { ConflictError, GuardChangeProposed, MarkMessage, ProposalUpdated, ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof } from "@sentra/contracts/wire";
+import { pctToFractionBps } from "@centurion/i18n/format";
+import type { ConflictError, GuardChangeProposed, MarkMessage, ProposalUpdated, ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof } from "@centurion/contracts/wire";
 import { observeServerNow } from "./clock";
+import { readMigrated } from "./legacy-storage";
 import { approvalFromWire, coinSummaryFromWire, type CoinWireWithMcap, payloadHash, positionFromWire, type PositionWireView, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire, type ApprovalRejectReason, type WireSettings } from "./contracts";
 import { ApiError, toApiError } from "./errors";
 import type { Approval, CoinSummary, ConnectionState, OpenPosition, PublishResult, StrategySettings, TradeEvent, TradingMode } from "./types";
 import { createRealtime } from "./realtime";
 
 /** Window event fired after an approval change so other UI (nav badge) can refresh. */
-export const APPROVALS_CHANGED = "sentra:approvals-changed";
+export const APPROVALS_CHANGED = "centurion:approvals-changed";
 export const WS = "ws_mock";
 const base = `/api/v1/workspaces/${WS}`;
 
@@ -136,7 +137,7 @@ export async function cancelGuardChangeClient(id: string): Promise<Approval> {
  */
 export async function closePositionClient(p: OpenPosition, sellPct: number): Promise<{ position: OpenPosition; status: string }> {
   const { data } = await request<ClosePositionResponse & { position_after?: PositionWireView }>(`/positions/${encodeURIComponent(p.key)}/close?mode=${p.mode}`, {
-    body: { fraction_bps: pctToFractionBps(sellPct) }, // @sentra/i18n 0.4.3 helper; UI stays in percent
+    body: { fraction_bps: pctToFractionBps(sellPct) }, // @centurion/i18n 0.4.3 helper; UI stays in percent
     headers: { "If-Match": `"${p.rev}"` },
   });
   const after = data.position_after ? positionFromWire(data.position_after) : { ...p, rev: p.rev + 1 };
@@ -244,10 +245,10 @@ export const fetchDeletion = async () => (await request<DeletionState>("/api/v1/
 export const requestDeletionClient = async () => (await request<DeletionState>("/api/v1/me/deletion", { body: {} })).data;
 export const cancelDeletionClient = async () => (await request<DeletionState>("/api/v1/me/deletion", { method: "DELETE" })).data;
 
-const DEVICE_KEY = "sentra.device_id";
+const DEVICE_KEY = "centurion.device_id";
 /** App-generated install id (8–128 [A-Za-z0-9_-]); kept in localStorage on web. Not a secret. */
 export function deviceId(): string {
-  let id = localStorage.getItem(DEVICE_KEY);
+  let id = readMigrated(localStorage, DEVICE_KEY);
   if (!id) {
     id = `web_${crypto.randomUUID().replace(/-/g, "")}`;
     localStorage.setItem(DEVICE_KEY, id);
@@ -281,7 +282,7 @@ export const revokeDeviceClient = async () => (await request<unknown>(`/api/v1/d
  * mock SSE default, "sse" for a backend SSE URL, "supabase" skeleton). Returns an unsubscribe function.
  */
 /** Window event fired for every 1.1.4 proposal.updated (detail = ProposalUpdated wire payload). */
-export const PROPOSAL_UPDATED = "sentra:proposal-updated";
+export const PROPOSAL_UPDATED = "centurion:proposal-updated";
 
 export function subscribeActivity(mode: TradingMode, onEvent: (e: TradeEvent) => void, onStatus: (s: ConnectionState) => void, onMark?: (m: MarkMessage) => void): () => void {
   return createRealtime({ workspaceId: WS, mode }).subscribe({

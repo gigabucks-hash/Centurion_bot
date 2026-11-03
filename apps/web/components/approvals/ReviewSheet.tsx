@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Check, RefreshCw } from "lucide-react";
-import { formatBps, formatLamportsOrDash, formatRawQty, formatRelativeSeconds } from "@sentra/i18n/format";
+import { formatBps, formatLamportsOrDash, formatRawQty, formatRelativeSeconds } from "@centurion/i18n/format";
 import type { Approval } from "@/lib/types";
 import { clockSkewMs } from "@/lib/clock";
 import { quoteKey, reviewQuoteState } from "@/lib/quote";
@@ -15,7 +15,7 @@ const PRICE_MOVED_PCT = 1;
 const UPDATED_INLINE_MS = 4000;
 
 /**
- * Transaction review step (UX WF-22, contracts 1.1.4 quote fields; @sentra/i18n 0.4.6/0.4.7 review.quote.*).
+ * Transaction review step (UX WF-22, contracts 1.1.4 quote fields; @centurion/i18n 0.4.6/0.4.7 review.quote.*).
  * - Rows: you pay, price, min received, network + priority fee, swap fee, max slippage, total (max). Formatting is the
  *   package's null-safe helpers (formatLamportsOrDash / formatBps / formatRawQty → "—"); freshness = quoteState on
  *   server time (lib/quote.ts adds the 1.1.4 completeness fallback).

@@ -17,10 +17,10 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: Object.entries(SECURITY_HEADERS).map(([key, value]) => ({ key, value })) }];
   },
   // QA-15: dev-only badge away from the left nav so QA screenshots stay clean.
-  // SENTRA_QA_SHOTS=1 (screenshot runs) hides it entirely; otherwise bottom-right, clear of the left nav.
-  devIndicators: process.env.SENTRA_QA_SHOTS === "1" ? false : { position: "bottom-right" },
-  // Shared workspace packages (@sentra/design-tokens, @sentra/contracts) live in ../../packages.
-  transpilePackages: ["@sentra/contracts", "@sentra/i18n"],
+  // CENTURION_QA_SHOTS=1 (screenshot runs) hides it entirely; otherwise bottom-right, clear of the left nav.
+  devIndicators: process.env.CENTURION_QA_SHOTS === "1" ? false : { position: "bottom-right" },
+  // Shared workspace packages (@centurion/design-tokens, @centurion/contracts) live in ../../packages.
+  transpilePackages: ["@centurion/contracts", "@centurion/i18n"],
   outputFileTracingRoot: path.join(__dirname, "../.."),
   turbopack: {
     root: path.join(__dirname, "../.."),

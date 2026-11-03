@@ -5,7 +5,7 @@
 import type { Approval, ApprovalDecision, OpenPosition, PublishResult, RiskLevel, Strategy, StrategySettings, TradingMode } from "@/lib/types";
 import { diffSettings, validate, weakensGuard } from "@/lib/strategy-schema";
 import { APPROVAL_REJECT_REASONS, approvalToWire, settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
-import type { ApprovalDecisionRequest, ErrorCode } from "@sentra/contracts/wire";
+import type { ApprovalDecisionRequest, ErrorCode } from "@centurion/contracts/wire";
 import { coinSummaries, seedStrategies, trails } from "./data";
 
 /** Error carrying a contract error code (errors.json); the BFF turns it into the wire error body. */
@@ -48,7 +48,7 @@ interface State {
   practice?: { epoch: number; lastResetAt: number | null };
 }
 
-const g = globalThis as unknown as { __sentraMock?: State };
+const g = globalThis as unknown as { __centurionMock?: State };
 
 function initApprovals(now: number, strategies: Strategy[]): Approval[] {
   return seedApprovals(now, strategies).map((a) => ({ ...a, rev: 1, ...(a.kind === "buy_pick" && a.status === "pending" && !a.screenerState && a.amountSol ? { quote: mockQuote(a, now) } : {}) }));
@@ -162,12 +162,12 @@ function seedApprovals(now: number, strategies: Strategy[]): Omit<Approval, "rev
 }
 
 function state(): State {
-  if (g.__sentraMock && !g.__sentraMock.sold) g.__sentraMock.sold = {};
-  if (!g.__sentraMock) {
+  if (g.__centurionMock && !g.__centurionMock.sold) g.__centurionMock.sold = {};
+  if (!g.__centurionMock) {
     const strategies = structuredClone(seedStrategies);
-    g.__sentraMock = { strategies, approvals: initApprovals(Date.now(), strategies), audit: [], seq: 300, sold: {} };
+    g.__centurionMock = { strategies, approvals: initApprovals(Date.now(), strategies), audit: [], seq: 300, sold: {} };
   }
-  return g.__sentraMock;
+  return g.__centurionMock;
 }
 
 /** Lazily advance time-based transitions. */
@@ -443,8 +443,8 @@ export function decideApproval(id: string, d: ApprovalDecision, now = Date.now()
 // Contract v1.1.2 decision flow: decision tokens, approval rev (If-Match / expected_rev), confirmation challenges
 // ---------------------------------------------------------------------------
 
-const tokens = ((globalThis as unknown as { __sentraTokens?: Map<string, { approvalId: string; exp: number; used?: { decision: string; result: unknown } }> }).__sentraTokens ??= new Map());
-const challenges = ((globalThis as unknown as { __sentraChallenges?: Map<string, { action: string; target: string; payloadHash: string; exp: number; used: boolean }> }).__sentraChallenges ??= new Map());
+const tokens = ((globalThis as unknown as { __centurionTokens?: Map<string, { approvalId: string; exp: number; used?: { decision: string; result: unknown } }> }).__centurionTokens ??= new Map());
+const challenges = ((globalThis as unknown as { __centurionChallenges?: Map<string, { action: string; target: string; payloadHash: string; exp: number; used: boolean }> }).__centurionChallenges ??= new Map());
 const TOKEN_TTL_MS = 15 * MIN;
 export const CHALLENGE_TTL_MS = 2 * MIN;
 
@@ -545,8 +545,8 @@ export function refreshQuote(id: string, now = Date.now()): Approval {
 }
 
 /** proposal.updated outbox for the mock SSE stream (drained by events/stream). */
-const gp = globalThis as unknown as { __sentraProposalUpdates?: { at: number; approval: Approval }[] };
-export const proposalUpdates = (gp.__sentraProposalUpdates ??= []);
+const gp = globalThis as unknown as { __centurionProposalUpdates?: { at: number; approval: Approval }[] };
+export const proposalUpdates = (gp.__centurionProposalUpdates ??= []);
 
 export function getApproval(id: string): Approval | null {
   tick();

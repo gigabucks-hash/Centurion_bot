@@ -11,8 +11,8 @@ export const DELETION_GRACE_DAYS = 7; // server-side setting (ACCOUNT_DELETION_G
 type Deletion = { state: "active" | "pending_deletion" | "deleted"; scheduled_for: string | null; rev: number };
 type Device = { id: string; device_id: string; platform: "ios" | "android" | "web" | "desktop"; provider: "fcm" | "apns" | "webpush"; app_version: string; locale: string; rev: number; last_seen_at: string; token: string };
 
-const g = globalThis as unknown as { __sentraAccount?: { deletion: Deletion; devices: Map<string, Device>; seq: number } };
-const acct = () => (g.__sentraAccount ??= { deletion: { state: "active", scheduled_for: null, rev: 1 }, devices: new Map(), seq: 0 });
+const g = globalThis as unknown as { __centurionAccount?: { deletion: Deletion; devices: Map<string, Device>; seq: number } };
+const acct = () => (g.__centurionAccount ??= { deletion: { state: "active", scheduled_for: null, rev: 1 }, devices: new Map(), seq: 0 });
 
 export const getDeletion = (): Deletion => ({ ...acct().deletion });
 

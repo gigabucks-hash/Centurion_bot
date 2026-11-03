@@ -1,5 +1,5 @@
 {
-  "name": "@sentra/web",
+  "name": "@centurion/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -15,9 +15,9 @@
     "ci": "npm run lint && npm run typecheck && npm test && npm run build && npm run audit"
   },
   "dependencies": {
-    "@sentra/contracts": "file:../../packages/contracts",
-    "@sentra/design-tokens": "file:../../packages/design-tokens",
-    "@sentra/i18n": "file:../../packages/i18n",
+    "@centurion/contracts": "file:../../packages/contracts",
+    "@centurion/design-tokens": "file:../../packages/design-tokens",
+    "@centurion/i18n": "file:../../packages/i18n",
     "@tanstack/react-virtual": "3.14.24",
     "clsx": "2.1.1",
     "lightweight-charts": "5.2.1",

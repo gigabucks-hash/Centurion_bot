@@ -23,8 +23,8 @@ export interface Session {
 }
 
 interface Family { address: string; userId: string; revoked: boolean; current: string; refreshExp: number }
-const g = globalThis as unknown as { __sentraSessions?: { families: Map<string, Family>; refresh: Map<string, string>; access: Map<string, { sid: string; exp: number }> } };
-const st = (g.__sentraSessions ??= { families: new Map(), refresh: new Map(), access: new Map() });
+const g = globalThis as unknown as { __centurionSessions?: { families: Map<string, Family>; refresh: Map<string, string>; access: Map<string, { sid: string; exp: number }> } };
+const st = (g.__centurionSessions ??= { families: new Map(), refresh: new Map(), access: new Map() });
 const rand = (n = 32) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => (b % 36).toString(36)).join("");
 
 function mint(sid: string, f: Family, now: number): Session {

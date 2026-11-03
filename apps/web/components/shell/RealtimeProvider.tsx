@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ConnectionState, TradeEvent, TradingMode } from "@/lib/types";
-import type { MarkMessage } from "@sentra/contracts/wire";
+import type { MarkMessage } from "@centurion/contracts/wire";
 import { subscribeActivity } from "@/lib/client";
 import { createRafBatcher } from "@/lib/raf-batch";
 

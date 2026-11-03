@@ -23,6 +23,7 @@ const RevisionConflict = dynamic(() => import("./RevisionConflict").then((m) => 
 import { Badge, Button, Card, cn } from "@/components/ui";
 import { NumberInput, Segmented, Toggle, useToast } from "@/components/ui/client";
 import { ModeBadge } from "@/components/domain";
+import { readMigrated } from "@/lib/legacy-storage";
 
 const AUTOSAVE_MS = 800;
 
@@ -70,7 +71,7 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
   useEffect(() => {
     const tm = setTimeout(() => {
       try {
-        const raw = localStorage.getItem(draftKey);
+        const raw = readMigrated(localStorage, draftKey);
         if (raw) setRestorable(JSON.parse(raw) as StrategySettings);
       } catch {
         /* ignore */

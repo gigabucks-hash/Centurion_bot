@@ -1,5 +1,5 @@
 import { createTranslator } from "next-intl";
-import type uxEn from "@sentra/i18n/en.json";
+import type uxEn from "@centurion/i18n/en.json";
 import { ALIASES } from "./aliases.ts";
 import type { AliasKey } from "./aliases.ts";
 import type { en } from "./en.ts";
@@ -11,7 +11,7 @@ import type { en } from "./en.ts";
 export const LOCALES = ["en", "id"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
-export const LOCALE_COOKIE = "sentra_locale";
+export const LOCALE_COOKIE = "centurion_locale";
 
 type Widen<T> = { [K in keyof T]: T[K] extends string ? string : Widen<T[K]> };
 export type Messages = Widen<typeof en>;

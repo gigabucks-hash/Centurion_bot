@@ -1,5 +1,5 @@
 import { DecisionBody, parse } from "@/lib/schemas/wire";
-import type { ApprovalDecisionRequest } from "@sentra/contracts/wire";
+import type { ApprovalDecisionRequest } from "@centurion/contracts/wire";
 import { fail, idempotent, now, readJson, realSolDisabled } from "@/lib/bff";
 import { expectedRev } from "@/lib/bff-wrap";
 import { decideApprovalWire, getApproval, WireError } from "@/lib/mock/store";

@@ -3,7 +3,7 @@
  * base-10 strings. JS numbers lose precision above 2^53, so every comparison goes through BigInt.
  * Never `Number(seq)`, never `a.seq - b.seq`.
  */
-import type { Int64String } from "@sentra/contracts/wire";
+import type { Int64String } from "@centurion/contracts/wire";
 
 export type Seq = Int64String;
 

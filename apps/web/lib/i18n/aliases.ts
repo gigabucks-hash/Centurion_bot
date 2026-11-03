@@ -1,5 +1,5 @@
 /**
- * Our copy keys → the UX catalog @sentra/i18n 0.4.1 (packages/i18n, 398 keys, workspace dependency).
+ * Our copy keys → the UX catalog @centurion/i18n 0.4.1 (packages/i18n, 398 keys, workspace dependency).
  * When an alias exists the UX string wins (en + id); the "app" namespace (lib/i18n/en.ts) only covers
  * copy the UX catalog does not have yet. `map` adapts our placeholder names to the UX ICU arguments.
  */
@@ -186,7 +186,7 @@ export const ALIASES = {
   // 0.4.1: UNSUPPORTED_QUOTE_MINT → neutral "Not tradeable", no Approve/Skip.
   "screener.notTradeable": "screener.not_tradeable.badge",
   "screener.notTradeableDetail": "screener.not_tradeable.detail",
-  // @sentra/i18n 0.4.3 screener.* (WF-20/21). Placeholders = screener.scored fields + {quote_symbol}.
+  // @centurion/i18n 0.4.3 screener.* (WF-20/21). Placeholders = screener.scored fields + {quote_symbol}.
   "notTradeable.filter": "screener.not_tradeable.badge",
   "notTradeable.quotePair": "screener.detail.quote_pair",
   "notTradeable.quoteValue": { key: "screener.detail.quote_not_sol", map: (v) => ({ ...v, quote_symbol: v.quote_symbol ?? v.quote }) },

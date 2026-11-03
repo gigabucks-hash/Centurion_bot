@@ -8,7 +8,7 @@
  * (open item). The default build uses the in-process mock (lib/mock) and never calls this.
  */
 import { randomUUID } from "node:crypto";
-import type { AnyEvent, EventPage, ExitStatsRow } from "@sentra/contracts/wire";
+import type { AnyEvent, EventPage, ExitStatsRow } from "@centurion/contracts/wire";
 import type { DashboardApi } from "./api";
 import { approvalFromWire, coinSummaryFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings } from "./contracts";
 import { ApiError, toApiError } from "./errors";

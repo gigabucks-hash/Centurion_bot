@@ -137,8 +137,8 @@ test("CSP style hash matches the installed lightweight-charts attribution <style
 
 test("i18n 0.4.6: guard_weaken_requires_approval is pending copy (no 'perlu approval'), driven by errors.map", async () => {
   const { errorPresentation } = await import("../errors");
-  const id = (await import("@sentra/i18n/id.json", { with: { type: "json" } })).default as unknown as { error: { code: Record<string, string> } };
-  const en = (await import("@sentra/i18n/en.json", { with: { type: "json" } })).default as unknown as { error: { code: Record<string, string> } };
+  const id = (await import("@centurion/i18n/id.json", { with: { type: "json" } })).default as unknown as { error: { code: Record<string, string> } };
+  const en = (await import("@centurion/i18n/en.json", { with: { type: "json" } })).default as unknown as { error: { code: Record<string, string> } };
   const idCopy = id.error.code.guard_weaken_requires_approval as string;
   assert.doesNotMatch(idCopy, /perlu approval/);
   assert.match(idCopy, /menunggu approval/);

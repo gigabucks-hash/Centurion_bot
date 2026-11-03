@@ -11,7 +11,7 @@
  * seq is an int64 string: the watermark advances with BigInt (lib/seq.ts), from SSE ids and clock.safe_seq only.
  * Every `server_now` / clock frame updates lib/clock.ts.
  */
-import type { AnyEvent, ClockMessage, EventEnvelope, MarkMessage, Mode, ProposalUpdated } from "@sentra/contracts/wire";
+import type { AnyEvent, ClockMessage, EventEnvelope, MarkMessage, Mode, ProposalUpdated } from "@centurion/contracts/wire";
 import { observeServerNow } from "./clock";
 import { envelopeToTradeEvent, KIND_TO_TYPE } from "./contracts";
 import { isSeq, seqGt, type Seq } from "./seq";

@@ -9,7 +9,7 @@ import { NOT_TRADEABLE } from "@/lib/types";
 import type { Approval, SkipReason, TradingMode } from "@/lib/types";
 import { cancelGuardChangeClient, decideApprovalClient, fetchApproval, fetchApprovals, PROPOSAL_UPDATED, refreshQuoteClient, type DecideOptions } from "@/lib/client";
 import { applyProposalUpdated } from "@/lib/contracts";
-import type { ProposalUpdated } from "@sentra/contracts/wire";
+import type { ProposalUpdated } from "@centurion/contracts/wire";
 import { ApiError, errorPresentation, errorText, toastKind } from "@/lib/errors";
 import { fmtCountdown } from "@/lib/format";
 import { useT, useFmt } from "@/lib/i18n/client";

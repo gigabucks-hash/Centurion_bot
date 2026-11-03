@@ -1,13 +1,13 @@
 /**
- * Edge mappers between the contract wire format (@sentra/contracts/wire, v1.1.2) and the UI view models in
+ * Edge mappers between the contract wire format (@centurion/contracts/wire, v1.1.2) and the UI view models in
  * lib/types.ts. Rule: lamports / decimals stay strings on the wire; they become JS numbers only here, at the
  * edge, right before formatting. Nothing outside lib/contracts.ts, lib/http-api.ts and the mock BFF builds
  * wire objects.
  */
-import { lamportsToSol, type Actor, type AnyEvent, type EventEnvelope, type EventPage, type ExitReason, type Lamports, type Mode } from "@sentra/contracts/wire";
-import { APPROVAL_REJECT_REASONS, type ApprovalRejectReason, type ApprovalWire, type DecidedVia } from "@sentra/contracts/wire";
-import type { DecimalString, ErrorCode, ExitStatsRow, MarketCapFields, PositionWire, ProposalStatus, ProposalUpdated, TokenProgram } from "@sentra/contracts/wire";
-import { pctToFractionBps } from "@sentra/i18n/format";
+import { lamportsToSol, type Actor, type AnyEvent, type EventEnvelope, type EventPage, type ExitReason, type Lamports, type Mode } from "@centurion/contracts/wire";
+import { APPROVAL_REJECT_REASONS, type ApprovalRejectReason, type ApprovalWire, type DecidedVia } from "@centurion/contracts/wire";
+import type { DecimalString, ErrorCode, ExitStatsRow, MarketCapFields, PositionWire, ProposalStatus, ProposalUpdated, TokenProgram } from "@centurion/contracts/wire";
+import { pctToFractionBps } from "@centurion/i18n/format";
 import { logoHintFromWire, wireLogoUrl } from "./media";
 import { safeSymbol } from "./untrusted";
 import { cmpSeq, maxSeq, minSeq, seqGt, seqLt, type Seq } from "./seq";
@@ -588,7 +588,7 @@ export function coinSummaryFromWire(w: CoinWire): CoinSummary {
 }
 
 /**
- * UI percent of the remaining quantity → contract `fraction_bps` (1–10000) via @sentra/i18n 0.4.3
+ * UI percent of the remaining quantity → contract `fraction_bps` (1–10000) via @centurion/i18n 0.4.3
  * `pctToFractionBps` (throws RangeError INVALID_FRACTION outside 0.01–100 %). `sell_pct` is gone (1.1.2).
  */
 export const pctToBps = (pct: number): number => pctToFractionBps(pct);

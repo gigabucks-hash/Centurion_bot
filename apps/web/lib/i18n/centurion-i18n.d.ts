@@ -1,5 +1,5 @@
-/** Types for @sentra/i18n/format (format.mjs 0.4.2 ships without .d.ts; owned by UX, typed here). */
-declare module "@sentra/i18n/format" {
+/** Types for @centurion/i18n/format (format.mjs 0.4.2 ships without .d.ts; owned by UX, typed here). */
+declare module "@centurion/i18n/format" {
   export const LOCALES: { en: string; id: string };
   type SolOpts = { kind?: "amount" | "pnl"; paper?: boolean };
   export function formatSol(v: number, loc: string, o?: SolOpts): string;

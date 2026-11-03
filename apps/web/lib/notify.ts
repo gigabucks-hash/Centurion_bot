@@ -1,9 +1,9 @@
 /**
- * N-05 `order.failed` (contracts 1.1.2, @sentra/i18n 0.4.1): `notif.failed.title|body` with wire vars
+ * N-05 `order.failed` (contracts 1.1.2, @centurion/i18n 0.4.1): `notif.failed.title|body` with wire vars
  * {side, symbol, reason_code, amount_lamports, mode}. reason_code → `order.fail_reason.<code lower>` (unknown →
  * `.unknown`, never the raw code); amount_lamports → formatLamports (exact BigInt split) in the UI locale.
  */
-import { formatLamports } from "@sentra/i18n/format";
+import { formatLamports } from "@centurion/i18n/format";
 import type { T } from "./i18n";
 import type { TradingMode } from "./types";
 

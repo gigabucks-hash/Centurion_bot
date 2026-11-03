@@ -4,7 +4,7 @@
  * mode as a query param on reads and a body field on writes, Idempotency-Key on writes.
  * Mock only: nothing here touches wallets, RPC or chain.
  */
-import { errorMessage, type ErrorCode, type Mode } from "@sentra/contracts/wire";
+import { errorMessage, type ErrorCode, type Mode } from "@centurion/contracts/wire";
 import { httpStatus } from "./errors";
 
 export const MOCK_WORKSPACE = "ws_mock";
@@ -34,11 +34,11 @@ export function fail(code: ErrorCode, extra: Record<string, unknown> = {}, detai
 
 /**
  * Real SOL switch for the mock. Contract today: `mode=real` → 403 REAL_SOL_DISABLED.
- * SENTRA_REAL_SOL=mock (default in this prototype) keeps the mock Real workspace browsable for design QA;
- * SENTRA_REAL_SOL=disabled reproduces the production answer so the disabled state can be tested.
+ * CENTURION_REAL_SOL=mock (default in this prototype) keeps the mock Real workspace browsable for design QA;
+ * CENTURION_REAL_SOL=disabled reproduces the production answer so the disabled state can be tested.
  */
 export function realSolDisabled(): boolean {
-  return process.env.SENTRA_REAL_SOL === "disabled";
+  return process.env.CENTURION_REAL_SOL === "disabled";
 }
 
 export function parseMode(v: unknown): Mode | null {
@@ -54,8 +54,8 @@ export function gateMode(v: unknown): Mode | Response {
 }
 
 // Idempotency (24 h in the contract; process lifetime here).
-const g = globalThis as unknown as { __sentraIdem?: Map<string, { hash: string; status: number; body: unknown }> };
-const idem = (g.__sentraIdem ??= new Map());
+const g = globalThis as unknown as { __centurionIdem?: Map<string, { hash: string; status: number; body: unknown }> };
+const idem = (g.__centurionIdem ??= new Map());
 
 /**
  * Wraps a mutating handler: requires `Idempotency-Key` (8..128 chars), replays the stored response for the

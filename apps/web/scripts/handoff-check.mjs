@@ -23,7 +23,7 @@ const ok = got.at(-1);
 console.log("return params:", [...ok.searchParams.keys()].join(","), "state ok:", ok.searchParams.get("state") === state);
 console.log("statement:", /Sign in to Centurion Trade/.test(ok.searchParams.get("message") ?? ""));
 console.log("tokens in URL:", /srt_|mat_|access_token|refresh_token/.test(ok.search));
-console.log("cookies set by hand-off:", (await ctx.cookies()).filter((c) => /sentra_(at|rt)/.test(c.name)).length);
+console.log("cookies set by hand-off:", (await ctx.cookies()).filter((c) => /centurion_(at|rt)/.test(c.name)).length);
 // non-owner → error=wallet_not_allowed
 await page.goto(`${BASE}/auth/desktop?redirect_uri=${cb}&state=${state}`, { waitUntil: "networkidle" });
 await page.getByTestId("mock-wallet").selectOption({ index: 1 });

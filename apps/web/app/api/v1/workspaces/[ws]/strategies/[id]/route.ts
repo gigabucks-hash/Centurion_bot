@@ -1,6 +1,6 @@
 import { parse, StrategyPatchBody } from "@/lib/schemas/wire";
 import { idempotent, ok, readJson, fail, MOCK_WORKSPACE } from "@/lib/bff";
-import type { GuardChangeWire } from "@sentra/contracts/wire";
+import type { GuardChangeWire } from "@centurion/contracts/wire";
 import { expectedRev, guarded } from "@/lib/bff-wrap";
 import { approvalToWire } from "@/lib/contracts";
 import { getStrategy, patchStrategy, strategyToWire } from "@/lib/mock/store";

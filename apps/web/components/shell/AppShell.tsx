@@ -19,7 +19,7 @@ function Brand() {
   const t = useT();
   return (
     <Link href="/" className="flex items-baseline gap-2 text-text-primary">
-      {/* Brand = @sentra/i18n app.name ("Centurion Trade", Boss 2026-10-29); short form on narrow phones. */}
+      {/* Brand = @centurion/i18n app.name ("Centurion Trade", Boss 2026-10-29); short form on narrow phones. */}
       <span className="text-titleSm"><span aria-hidden>◆ </span><span className="hidden min-[400px]:inline">{t.ux("app.name")}</span><span className="min-[400px]:hidden">{t("common.brandShort")}</span></span>
     </Link>
   );
@@ -134,7 +134,7 @@ export function ShellSkeleton() {
 
 export function AppShell({ children, sessionKeeper = true, mode, pendingApprovals, walletConnected, cashSol, lossStopPct, runningStrategies }: {
   children: ReactNode;
-  /** Silent refresh of the httpOnly session (off when SENTRA_AUTH_GATE=0 for local perf/screenshot runs). */
+  /** Silent refresh of the httpOnly session (off when CENTURION_AUTH_GATE=0 for local perf/screenshot runs). */
   sessionKeeper?: boolean;
   mode: TradingMode;
   pendingApprovals: number;

@@ -78,7 +78,7 @@ export const id: PartialMessages = {
     guardPending: "[{mode}] Perubahan guard menunggu · {strategy}: melonggarkan guard",
   },
   guardDialog: { locked: "Wajib · tidak bisa dimatikan", ruleRevert: "Auto-revert 24 jam setelah berlaku (selalu aktif untuk Real SOL)" },
-  // 1.1.4 labels from @sentra/i18n id.json exit_reason.*
+  // 1.1.4 labels from @centurion/i18n id.json exit_reason.*
   exitReason: { max_hold: "Time stop", stall: "Exit stagnan" },
   desktopAuth: {
     title: "Masuk ke aplikasi desktop",

@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { connection } from "next/server";
 import type { TradingMode } from "@/lib/types";
 
-export const MODE_COOKIE = "sentra_mode";
+export const MODE_COOKIE = "centurion_mode";
 
 export async function getMode(): Promise<TradingMode> {
   const c = await cookies();

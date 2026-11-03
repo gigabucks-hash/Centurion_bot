@@ -2,7 +2,7 @@
 /**
  * Coin price chart with entry/exit markers.
  * TradingView Lightweight Charts™ (Apache-2.0) — attribution logo kept on per TradingView's request.
- * Colours are read from the Sentra CSS tokens and re-applied on theme change.
+ * Colours are read from the Centurion CSS tokens and re-applied on theme change.
  */
 import { useEffect, useRef } from "react";
 import { AreaSeries, createChart, createSeriesMarkers, type SeriesMarker, type Time, type UTCTimestamp } from "lightweight-charts";
@@ -10,7 +10,7 @@ import type { PricePoint, TradeEvent } from "@/lib/types";
 import { readToken, tokenVar } from "@/lib/theme";
 
 import { useFmt } from "@/lib/i18n/client";
-import { LOCALES } from "@sentra/i18n/format";
+import { LOCALES } from "@centurion/i18n/format";
 import { TZ } from "@/lib/format";
 
 const clock = (tag: string, h12: boolean) => (sec: number, withSec: boolean) =>

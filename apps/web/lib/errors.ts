@@ -1,11 +1,11 @@
 /**
- * Contract error codes (packages/contracts/errors.json v4 via @sentra/contracts/wire) → typed ApiError → UI copy.
+ * Contract error codes (packages/contracts/errors.json v4 via @centurion/contracts/wire) → typed ApiError → UI copy.
  * Copy (i18n 0.4.3): `errors.map.json` `codes[code].key` → UX copy in en/id; unmapped codes → `error.code.internal`.
  * (errors.json v4 `messages` stay server-side, e.g. in the mock BFF's `error.message`.)
  * Never show the raw server `message` string from a response body.
  */
-import { ERROR_CODES, isErrorCode, type ErrorCode } from "@sentra/contracts/wire";
-import ERRORS_MAP from "@sentra/i18n/errors.map.json";
+import { ERROR_CODES, isErrorCode, type ErrorCode } from "@centurion/contracts/wire";
+import ERRORS_MAP from "@centurion/i18n/errors.map.json";
 import type { MessageKey, T } from "./i18n";
 
 export type ClientErrorCode = ErrorCode | "UNKNOWN" | "OFFLINE";
@@ -65,7 +65,7 @@ export type ErrorPresentation = {
 };
 
 /**
- * Drives error UI from @sentra/i18n errors.map.json (0.4.6: tone/title_key/cta_key/inline_key/modes) instead of
+ * Drives error UI from @centurion/i18n errors.map.json (0.4.6: tone/title_key/cta_key/inline_key/modes) instead of
  * per-screen ifs: `inline_key` → inline (with `cta_key` as its action), tone pending/info → banner, else toast.
  * A code whose `modes` excludes the current mode is not blocking there → downgraded to an info toast.
  */
@@ -85,7 +85,7 @@ export function toastKind(p: ErrorPresentation): "error" | "warning" | "info" {
   return p.tone === "error" ? "error" : p.tone === "warning" ? "warning" : "info";
 }
 
-/** UX key for a contract code via @sentra/i18n 0.4.3 errors.map.json (`codes[code].key`); unknown → `error.code.internal`. */
+/** UX key for a contract code via @centurion/i18n 0.4.3 errors.map.json (`codes[code].key`); unknown → `error.code.internal`. */
 export function errorUxKey(code: string): string {
   const m = ERRORS_MAP as { unknown: string; codes: Record<string, { key: string }> };
   return m.codes[code]?.key ?? m.unknown;

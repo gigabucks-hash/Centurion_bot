@@ -13,7 +13,7 @@ async function Shell({ children }: { children: React.ReactNode }) {
   const [overview, locale] = await Promise.all([getApi().getOverview(mode), getLocale()]);
   return (
     <I18nProvider locale={locale} messages={messagesFor(locale) as unknown as Record<string, unknown>} mode={mode}>
-    <AppShell sessionKeeper={process.env.SENTRA_AUTH_GATE !== "0"} mode={mode} pendingApprovals={overview.pendingApprovals} walletConnected={overview.walletConnected} cashSol={overview.cashSol} lossStopPct={overview.lossStopPct} runningStrategies={overview.runningStrategies}>
+    <AppShell sessionKeeper={process.env.CENTURION_AUTH_GATE !== "0"} mode={mode} pendingApprovals={overview.pendingApprovals} walletConnected={overview.walletConnected} cashSol={overview.cashSol} lossStopPct={overview.lossStopPct} runningStrategies={overview.runningStrategies}>
       {mode === "real" && realSolDisabled() ? <RealSolDisabled /> : children}
     </AppShell>
     </I18nProvider>

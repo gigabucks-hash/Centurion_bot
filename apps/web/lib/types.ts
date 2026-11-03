@@ -1,7 +1,7 @@
 /**
- * UI view models for the Sentra dashboard.
+ * UI view models for the Centurion dashboard.
  *
- * Shared enums are imported from the official wire contract (@sentra/contracts/wire, v1.1.2) so
+ * Shared enums are imported from the official wire contract (@centurion/contracts/wire, v1.1.2) so
  * they cannot drift. Wire payloads (lamport / decimal strings, ISO timestamps, no floats) are
  * decoded into these view models ONLY at the API edge (lib/contracts.ts + lib/http-api.ts);
  * `Sol` numbers here are display values derived from lamport strings via BigInt math.
@@ -23,7 +23,7 @@ import type {
   RiskLevel as WireRiskLevel,
   TokenProgram,
   ErrorCode,
-} from "@sentra/contracts/wire";
+} from "@centurion/contracts/wire";
 
 /** Unix epoch milliseconds. */
 export type Timestamp = number;
@@ -412,11 +412,11 @@ export interface MarketCap {
 // Exit stats
 // ---------------------------------------------------------------------------
 
-/** = @sentra/contracts wire `ExitReason` (v1). */
+/** = @centurion/contracts wire `ExitReason` (v1). */
 export type ExitReason = WireExitReason;
 
 /** The contract list itself (wire.EXIT_REASONS), re-exported so UI and backend cannot drift. */
-export { EXIT_REASONS } from "@sentra/contracts/wire";
+export { EXIT_REASONS } from "@centurion/contracts/wire";
 
 export interface ExitReasonStat {
   reason: ExitReason;
