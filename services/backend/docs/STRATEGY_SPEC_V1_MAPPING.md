@@ -1,7 +1,21 @@
 # Strategy Spec v1 mapping (Centurion Trade P1 engine, paper only)
 
-Status: **rev 3 DRAFT, awaiting Bubu/Zola final PASS** (2026-11-03 ~15:10 WIB, Backend). Not locked. Design /
-mapping only; nothing here is built yet. Source: `/workspace/sentra-inbox/STRATEGY_SPEC_V1_CONSOLIDATED.txt`.
+Status: **Spec v1 LOCKED 2026-11-03 (Bubu/Zola PASS via Yumi)**, rev 3.1 (~15:15 WIB, Backend). This is the
+build reference for the P1 paper engine; changes need a new rev and a new PASS. Source: `/workspace/sentra-inbox/STRATEGY_SPEC_V1_CONSOLIDATED.txt`.
+
+## Rev 3.1 changelog (2026-11-03, LOCKED)
+
+Final PASS: Zola (Scout + Momentum), Bubu (Guard), via Yumi 15:13. Folded in:
+- **R3-1 changed (Yumi):** hop-2 funder tracing only for the **top 10 holders (entity-clustered) + the dev set**;
+  hop 1 on every wallet checked; `credit_cap` reject stays the backstop. Keys: `funder_hops_top10_dev: 2`,
+  `funder_hops_other: 1` (Bubu; replaces `funder_hops`).
+- **R3-2..R3-7 confirmed as assumed:** Burn&Earn counts as locked (only the fee NFT moves); A keeps max hold + 7 d;
+  dev = 72 h dev set; Z-5 recovery measured at decision; delay A 120 s / B 60 s; B-1 excludes pool/program accounts.
+- **Fail closed on budget (Bubu):** any check that hits its per-check call cap or the daily credit cap is
+  **UNVERIFIED -> REJECT** (like the honeypot), never a WARN or a skip. Reason codes `unverified_call_cap`,
+  `credit_cap`.
+- **Monitoring tag (Zola):** entries where the price at entry is already > 20 % below the window peak (passed
+  anti-top) get decision tag `post_peak_dip_gt20`, so paper logs can compare win rates. Tag only, no score effect.
 
 ## Rev 3 changelog (2026-11-03)
 
@@ -173,7 +187,7 @@ Components: Scout, Guard, Momentum, Risk, Entry, Exec, Exit, Reporter (§5).
 | G3 | Launch layers: Block0 s0 = **token create slot** (R2-4), s0+1..s0+3, first 60 s; graduated pools **also** scan the pool/migration create slot +3 (B-4). **HARD VETO (A and B)** if those buyers still hold >= 15 % combined, or >= 5 wallets in s0..s0+2 share one funder (R2-5); **10-15 % combined = WARN** | 15 % / 5 wallets; WARN 10 % | same | `launch_layers: {slots_after_s0: 3, migration_slots_after: 3, window_s: 60, holder_veto_pct: 15, holder_warn_pct: 10, shared_funder_veto_wallets: 5, shared_funder_slots: 2}` | RPC getSignaturesForAddress (early slots) + getTransaction + funder tracing | **$2, $3** |
 | G3 | Remaining bundler/sniper share | fail > 8 % | fail > 15 % | `bundled_share_pct_fail` / `sniper_share_pct_fail` (8 / 15), `bundler_sniper_abs_fail_pct: 20` (always) | same | $2 |
 | G4 | Serial launcher: > 3 prior launches that died = **peak MC < $20K within a 30-day look-back** (B-6, R2-9) | 3 | 3 | `serial_launcher: {max_dead_prior: 3, dead_below_mcap_usd: 20000, mcap_basis: "peak", lookback_s: 2592000}` | RPC creator history + prior mints' pools | **$4** |
-| G5 | Entity clustering (owner + funder) BEFORE the top 10 / single-holder caps; insider cluster fail > 20 %, warn > 15 %; distribution network >= 50 wallets or >= 5 % of supply = WARN; **funder depth 2**; CEX hot wallets excluded as funders (Helius identity labels) (B-3, R2-8) | | same | `clustering: {insider_fail_pct: 20, insider_warn_pct: 15, network_warn_wallets: 50, network_warn_supply_pct: 5, funder_hops: 2}`, `cex_exclusion: {enabled: true, source: "helius_identity", extra_wallets: []}` | RPC funder tracing of top holders + Helius identity labels | **$3** (x2 for hop 2, §7) |
+| G5 | Entity clustering (owner + funder) BEFORE the top 10 / single-holder caps; insider cluster fail > 20 %, warn > 15 %; distribution network >= 50 wallets or >= 5 % of supply = WARN; **funder depth 2 for the top 10 (entity-clustered) + dev set, 1 for everyone else** (R3-1); CEX hot wallets excluded as funders (Helius identity labels) (B-3, R2-8) | | same | `clustering: {insider_fail_pct: 20, insider_warn_pct: 15, network_warn_wallets: 50, network_warn_supply_pct: 5, funder_hops_top10_dev: 2, funder_hops_other: 1}`, `cex_exclusion: {enabled: true, source: "helius_identity", extra_wallets: []}` | RPC funder tracing of top holders + Helius identity labels | **$3** (x2 for hop 2, §7) |
 | G5b | **Young-pool single funder** (B-1): pool age < 600 s and one funder behind >= 80 % of holder supply -> FAIL; migration + program accounts excluded | | same | `young_pool_s: 600`, `young_pool_single_funder_pct_fail: 80` | from G5 funder data | (in $3) |
 | G8 | Single entity cap | <= 5 % | <= 10 % | `single_holder_pct_fail` (entity-level) | after G5 | - |
 | G6/G8 | Dev share incl. locked/vesting (Streamflow escrows); dev set = deployer/mint-authority setter + wallets it funded or sent tokens to within 72 h pre-launch; non-pump pools: the pool creator counts as dev unless LP safe >= 95 %; reject if a dev lock unlocks within the max hold | dev <= 2 % | dev <= 5 % | `creator_share_pct_fail` 2 / 5, `dev_window_s: 259200`, `dev_includes_locked: true`, `dev_unlock_within_max_hold: "reject"` | RPC deployer history (72 h) + Streamflow escrow scan | **$3, $5** |
@@ -232,7 +246,8 @@ Components: Scout, Guard, Momentum, Risk, Entry, Exec, Exit, Reporter (§5).
 
 Every decision is logged: stage, pass/reject, reason codes, per-module scores and reasons, the weights used,
 `config_rev`, latency, `sim-approx` / `warming` labels, and RPC credits spent on the candidate. Every fill is logged
-with PnL (network fee separate). Every RPC credit-cap hit is logged (`engine_alerts`, reason `credit_cap`), and the
+with PnL (network fee separate). Decision tags include `post_peak_dip_gt20` (entry price > 20 % below the window peak; Zola monitoring, no score
+effect) next to `sim-approx` / `warming`. Every RPC credit-cap hit is logged (`engine_alerts`, reason `credit_cap`), and the
 daily report (Nero) carries daily credit usage: used / cap, month-to-date, cap hits, top check types by credits.
 - Storage: Postgres (migration number after the rename, >= 0022), or JSONL files when PG is down.
 - Daily CSVs: `/shared/centurion/YYYY-MM-DD_{decisions,fills,pnl}.csv`. The dir does not exist yet and is created on
@@ -375,7 +390,7 @@ clusters **10 min**; launch layers and deployer history forever per mint/creator
 |---|---|---|---|
 | $1 | HWS subscriptions: AMM logs / vault / insider token-account `accountSubscribe` for armed + held pools | 0 calls; ~2-25 subscriptions per armed/held mint (WS messages may bill) | armed/held only; drop on expiry/exit; cap total subscriptions (e.g. 200) |
 | $2 | **Launch layers** (G3, G13 DESSA): `getSignaturesForAddress` walked back to s0 on the bonding curve / mint, then `getTransaction` for s0..s0+3 + first 60 s | 2-20 sig pages + 50-300 tx = **~60-320** | once per mint, cached forever; after cheap filters; cap 400 calls (cap hit -> UNVERIFIED -> reject) |
-| $3 | **Funder tracing** (G3 shared funder, G5 clustering, G5b young-pool funder, G6 dev set 72 h, G13 fresh-wallet transfers): per wallet `getSignaturesForAddress` (bounded by time) + `getTransaction` of the first inbound SOL/token transfer | hop 1: 2-4 per wallet x ~40-70 wallets = ~100-280; **hop 2 (B-3): + up to the same again = ~200-560** | cap 60 wallets at hop 1 and 60 distinct funders at hop 2; CEX-labelled funders stop the walk; wallet->funder cache 7 d (shared across mints) |
+| $3 | **Funder tracing** (G3 shared funder, G5 clustering, G5b young-pool funder, G6 dev set 72 h, G13 fresh-wallet transfers): per wallet `getSignaturesForAddress` (bounded by time) + `getTransaction` of the first inbound SOL/token transfer | hop 1: 2-4 per wallet x ~40-70 wallets = ~100-280; **hop 2 (top 10 + dev set only, R3-1): + ~20-60** = **~120-340** | cap 60 wallets at hop 1 and 20 distinct funders at hop 2; CEX-labelled funders stop the walk; wallet->funder cache 7 d (shared across mints) |
 | $4 | **Serial launcher** (G4): creator signatures + create txs of prior mints + their current pool/curve state (`getMultipleAccounts`) | 1-10 pages + 10-100 tx + 1-3 batch = **~20-110** | per creator, cached 24 h; stop counting once > 3 dead are found |
 | $5 | **LP lockers + Streamflow escrows** (G2, G6): `getProgramAccounts` with a mint/pool memcmp on each of the 5 whitelisted programs (incl. DAMM v2 positions, Z-3) + LP holders | 5 gPA + 1-3 reads = **~6-8 (heavy gPA)** | once per mint, cached 30 min; lock end re-read only for held mints |
 | $6 | **Holders** (Scout, last step): DAS `getTokenAccounts` 1000/page, stop as soon as the minimum is reached | A: 2 pages (>= 1500); B: 1 page (>= 500) = **1-2 (DAS)** | last step; cache 10 min; credits metered (Apex G-3) |
@@ -384,10 +399,11 @@ clusters **10 min**; launch layers and deployer history forever per mint/creator
 | $9 | **Jupiter round trip** (G10): 2 keyless quotes (SOL->token at size, token->SOL) | 2 HTTP calls, no Helius credits | 0.5 req/s keyless = max ~15 candidates/min; queue; cache 15 s; JUP down + sim available -> R2-14 |
 | $10 | **G12 all-pool audit LP holders**: `getTokenLargestAccounts` on each pool's LP mint | 1 per pool (~1-4) | with $7, cached 10 min |
 
-Rough total for a deep candidate: **~300-1000 calls** with funder depth 2 (rev 2: ~200-750). 50-150 deep
-candidates/day would need ~15k-150k calls/day before cross-mint caching, so the **25000/day cap will bind**: it covers
-roughly 25-80 deep candidates/day (more as the funder/creator caches warm). Candidates past the cap are rejected
-`credit_cap`, logged, and counted in the daily report. 25000 x 31 = 775k/month (monthly meter). Credits per call vary by
+Rough total for a deep candidate: **~220-800 calls** with hop 2 limited to the top 10 + dev set (rev 3: ~300-1000).
+50-150 deep candidates/day would need ~11k-120k calls/day before cross-mint caching, so the **25000/day cap can
+bind**: it covers roughly 30-110 deep candidates/day (more as the funder/creator caches warm). Candidates past the cap are rejected
+`credit_cap` (fail closed: UNVERIFIED -> REJECT, never WARN/skip), logged, and counted in the daily report. A per-check
+call cap hit (e.g. $2 400 calls) is likewise `unverified_call_cap` -> REJECT. 25000 x 31 = 775k/month (monthly meter). Credits per call vary by
 method (DAS / gPA bill more), so the meter counts credits, not calls. **No upgrade (STOP rule); projections past the
 cap go to Apex.**
 
@@ -456,7 +472,19 @@ cap go to Apex.**
 - **R2-20 Fill replay randomness.** The uniform 400-1200 ms delay is seeded by order id (assumed) for reproducible
   replays.
 
-## 9. New questions (rev 3)
+## 9. Rev 3 questions: answered (Yumi 15:13; rev 3.1)
+
+| Q | Answer |
+|---|---|
+| R3-1 | **changed:** hop 2 only for top 10 holders (entity-clustered) + dev set; hop 1 on all; credit_cap backstop |
+| R3-2 | Burn&Earn counts as locked (assumption confirmed) |
+| R3-3 | A keeps max hold + 7 d (confirmed) |
+| R3-4 | 72 h dev set (confirmed) |
+| R3-5 | measured at decision (confirmed) |
+| R3-6 | A 120 s, B 60 s (confirmed) |
+| R3-7 | exclude pool/program accounts (confirmed) |
+
+### 9.1 Rev 3 question text (kept for reference)
 
 - **R3-1 Credit cap vs funnel.** With funder depth 2, a deep candidate costs ~300-1000 calls, so 25000/day covers only
   ~25-80 deep candidates/day. Accept `credit_cap` rejects, or cap hop 2 (for example, hop 2 only for the top 10 holders)?
