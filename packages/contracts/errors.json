@@ -295,8 +295,8 @@
       "sqlstate": "P0403",
       "retryable": false,
       "messages": {
-        "en": "Only practice mode is allowed; real mode is not enabled",
-        "id": "Hanya mode practice yang diizinkan; mode real belum aktif"
+        "en": "This strategy is not approved for Real mode",
+        "id": "Strategi ini belum disetujui untuk mode Real"
       }
     },
     {

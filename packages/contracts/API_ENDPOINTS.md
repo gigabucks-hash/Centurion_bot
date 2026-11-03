@@ -226,7 +226,7 @@ have no implementation; the rows below are kept as the earlier design.
 ### 4.3 Strategies (`/workspaces/{ws}/strategies`)
 | Method | Path | Scope | Notes |
 |---|---|---|---|
-| GET | `/?mode=&status=` | read | with `rev`, headline stats |
+| GET | `/?mode=&status=` | read | with `rev`, headline stats; 1.1.6: every strategy read also carries `real_locked`, `real_locked_reason`, `paper_progress` (`StrategyRealGateFields`) |
 | POST | `/` | trade | `{mode, name, settings}`; settings validated by `config/strategy_settings.schema.json` + DB CHECK |
 | GET | `/{id}` / `/{id}/revisions` | read | |
 | PATCH | `/{id}` | trade | `If-Match` or `{expected_rev}` + `{settings_patch}` (JSON merge at the top level; `null` removes a key; nested objects such as `guard_checks` are replaced whole). Non-weakening -> applied (`200`, `rev+1`). **Weakening** (any guard field less strict, per SQL `guard_weakened_fields()`) -> **`202 {data: {proposal: ApprovalWire, guard_change: GuardChangeWire}}`** + `Location: /approvals/{id}`; **nothing is applied**; the whole patch (mixed strengthen + weaken too) becomes one `guard_change` proposal (24 h expiry, `base_rev` = current rev). A weakening patch cannot carry `name`/`status` (422). **MCP (`centurion_client = mcp`) cannot propose:** a weakening patch -> `403 FORBIDDEN_ROLE {reason: "agent_cannot_loosen"}`, nothing created; non-weakening patches are allowed with the agent `control` scope. **Clients (1.1.5):** use this REST PATCH (202 + proposal) for every guard change; `409 GUARD_WEAKEN_REQUIRES_APPROVAL` from the `update_strategy` RPC is an internal guard, not a client flow. Real uses the same flow plus a 2,500 ms hold (step-up in Phase 7, 4.6). Stale -> 409 (2.1) |

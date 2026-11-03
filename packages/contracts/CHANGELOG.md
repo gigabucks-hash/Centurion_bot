@@ -19,6 +19,15 @@ rewritten in place to the new names. Clients import `@centurion/contracts` / `@c
   `AGENT_BUDGET_EXCEEDED` (429, retryable), `AGENT_TRADE_DISABLED` (403), `SIWS_SESSION_REQUIRED` (403),
   `AGENT_REQUEST_EXPIRED` (410). Generated `src/wire/errors.ts` + Rust `error_codes.rs`; Dart tables not yet
   regenerated (mobile).
+- **Per-strategy Real gate (UX v2, additive):** strategy reads carry `real_locked: boolean`, `real_locked_reason:
+  "needs_owner_approval" | "gate_not_met" | "policy" | "other" | null` and `paper_progress: {days_done, days_required,
+  trades_done, trades_required}` (`*_required: number | null`, from settings `centurion.real_gate.min_paper_days` /
+  `min_paper_trades`; null = not set by the owner, no value approved yet). `mode` stays `practice | real` (UI "Paper" =
+  `practice`). Real is gated off: always `real_locked: true`, reason `needs_owner_approval`. TS:
+  `StrategyRealGateFields`, `PaperProgress`, `RealLockedReason`, `REAL_LOCKED_REASONS`.
+- **`MODE_NOT_ALLOWED` redefined** (403, same code/sqlstate): now means "this strategy is not approved for Real"
+  (en "This strategy is not approved for Real mode", id "Strategi ini belum disetujui untuk mode Real"); was "only
+  practice mode is allowed".
 - MCP/OAuth (backend `api/src/mcp`, `api/src/oauth`, migrations 0020/0021): see `services/backend/docs/MCP_DESIGN.md`.
 
 ## 1.1.5 (2026-10-29, backend ef74131): quotes without rev bumps, sell quotes, Centurion Trade

@@ -66,7 +66,8 @@ Practice reset is a direct action. It is **not** a `team_action` proposal.
   target to `scripts/gen-errors.mjs`).
 - RPC errors: `PostgrestException.code` = sqlstate, `.message` = the code, `.details` = JSON text of the details.
   REST: `{error: {code, message, ...details, server_now}, server_now}`; `error` is always an object.
-- `MODE_NOT_ALLOWED`: "Only practice mode is allowed; real mode is not enabled". Wire modes are
+- `MODE_NOT_ALLOWED` (1.1.6 meaning): "This strategy is not approved for Real mode" (see strategy
+  `real_locked` / `real_locked_reason`). Wire modes are
   `practice | real`; nothing on the wire says `paper` (healthz: `{mode: "practice", real_enabled: false}`).
 - New in 1.1.2: `POSITION_ALREADY_CLOSED` (409), `INVALID_FRACTION` (422), `UNSUPPORTED_QUOTE_MINT`,
   `SLIPPAGE_EXCEEDED`, `INSUFFICIENT_PRACTICE_BALANCE`, `GUARD_FAILED`, `POOL_STALE`, and notice codes

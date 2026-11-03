@@ -99,7 +99,7 @@ export const ERROR_CODES: Record<ErrorCode, ErrorCodeInfo> = {
   CURSOR_INVALID: { kind: "error", http: 400, sqlstate: "P0400", retryable: false, messages: { en: "Malformed pagination cursor", id: "Kursor halaman tidak valid" } },
   CURSOR_EXPIRED: { kind: "error", http: 410, sqlstate: "P0410", retryable: false, messages: { en: "Cursor older than retention; resync from snapshot", id: "Kursor melewati masa simpan; sinkronkan ulang dari snapshot" } },
   REPLAY_WINDOW_EXCEEDED: { kind: "error", http: 422, sqlstate: "P0422", retryable: false, messages: { en: "Replay window exceeds the 7 day limit", id: "Rentang replay melebihi batas 7 hari" } },
-  MODE_NOT_ALLOWED: { kind: "error", http: 403, sqlstate: "P0403", retryable: false, messages: { en: "Only practice mode is allowed; real mode is not enabled", id: "Hanya mode practice yang diizinkan; mode real belum aktif" } },
+  MODE_NOT_ALLOWED: { kind: "error", http: 403, sqlstate: "P0403", retryable: false, messages: { en: "This strategy is not approved for Real mode", id: "Strategi ini belum disetujui untuk mode Real" } },
   REAL_SOL_DISABLED: { kind: "error", http: 403, sqlstate: "P0403", retryable: false, messages: { en: "Real SOL execution is disabled until Phase 7 approval", id: "Eksekusi Real SOL dinonaktifkan sampai Fase 7 disetujui" } },
   GUARD_COOLDOWN_ACTIVE: { kind: "error", http: 409, sqlstate: "P0409", retryable: true, messages: { en: "Guard change is in its cooldown window", id: "Perubahan guard masih dalam masa jeda" } },
   CONFIRMATION_REQUIRED: { kind: "error", http: 428, sqlstate: "P0428", retryable: false, messages: { en: "This action needs a proof-of-confirmation (WebAuthn + typed name + hold)", id: "Tindakan ini perlu konfirmasi (WebAuthn + ketik nama + tahan)" } },

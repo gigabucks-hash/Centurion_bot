@@ -398,6 +398,32 @@ export interface GuardChanged {
 }
 export interface EntryArmed { pick_id: Uuid; condition: string; expires_at: IsoTs }
 export interface EntryExpired { pick_id: Uuid; reason: string }
+/**
+ * 1.1.6 per-strategy Real gate (UX v2). Present on every strategy read (`GET .../strategies`, `GET .../strategies/{id}`).
+ * `mode` is the existing strategy mode (`Mode`): the UI label "Paper" = wire `practice` (nothing on the wire says
+ * `paper`). Real is gated off in this phase, so `real_locked` is always `true` with `real_locked_reason`
+ * `needs_owner_approval` (default) and no live path exists. `paper_progress.*_required` come from server settings
+ * `centurion.real_gate.min_paper_days` / `centurion.real_gate.min_paper_trades` (env `CENTURION_REAL_GATE_MIN_PAPER_DAYS`
+ * / `_TRADES`); `null` = threshold not set by the owner yet (show "not set", never assume a number).
+ * days_done = whole days since the strategy's first practice buy (`first_buy_at`, 0 when none);
+ * trades_done = closed practice positions of the strategy (all epochs).
+ */
+export type RealLockedReason = "needs_owner_approval" | "gate_not_met" | "policy" | "other";
+export const REAL_LOCKED_REASONS: readonly RealLockedReason[] = ["needs_owner_approval", "gate_not_met", "policy", "other"];
+export interface PaperProgress {
+  days_done: number;
+  days_required: number | null;
+  trades_done: number;
+  trades_required: number | null;
+}
+export interface StrategyRealGateFields {
+  mode: Mode;
+  /** true while the strategy may not run in Real (always true in this phase). */
+  real_locked: boolean;
+  /** null only when real_locked is false. */
+  real_locked_reason: RealLockedReason | null;
+  paper_progress: PaperProgress;
+}
 export interface StrategyLifecycle { rev: number; base_rev?: number; status?: string; changed_fields?: string[]; expired_proposals?: number; /** set when an approved guard_change applied the update */ proposal_id?: Uuid }
 export interface PracticeReset {
   epoch: number; previous_epoch: number; starting_balance_lamports: Lamports;
