@@ -5,13 +5,16 @@ Outputs: tokens.css · tailwind.theme.css (Tailwind v4, CSS-first @theme) · tau
          app_tokens.dart (Flutter M3 + google_fonts) · tailwind.config.tokens.legacy-v3.js · contrast-report.md
 Exit code 1 if any WCAG check fails."""
 import json, os, sys
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")
 HERE=os.path.dirname(os.path.abspath(__file__))
 # Defaults: monorepo package layout (src/tokens.json → tokens/) or design-source layout (tokens/tokens.json → tokens/)
 _pkg_src=os.path.join(HERE,"..","src","tokens.json")
 SRC=sys.argv[1] if len(sys.argv)>1 else (_pkg_src if os.path.exists(_pkg_src) else os.path.join(HERE,"..","tokens","tokens.json"))
 OUT=sys.argv[2] if len(sys.argv)>2 else os.path.abspath(os.path.join(HERE,"..","tokens"))
 os.makedirs(OUT,exist_ok=True)
-tok=json.load(open(SRC))
+tok=json.load(open(SRC, encoding="utf-8"))
 
 def leaves(node,prefix=""):
     for k,v in node.items():
@@ -150,7 +153,7 @@ for th in ("dark","light"):
     _h=COL[th]["scrim.sheet"].lstrip("#"); _a=int(_h[6:8],16)/255 if len(_h)==8 else 1.0
     _ok=0.32<=_a<=0.70; rep.append(f"| {th} | {COL[th]['scrim.sheet']} | {_a:.2f} | {'PASS' if _ok else 'FAIL'} |")
     if not _ok: fails.append(f"{th}: scrim.sheet alpha {_a:.2f} outside 0.32–0.70")
-open(os.path.join(OUT,"contrast-report.md"),"w").write("\n".join(rep)+"\n")
+open(os.path.join(OUT,"contrast-report.md"),"w",encoding="utf-8",newline="\n").write("\n".join(rep)+"\n")
 
 # ---------------- CSS blocks ----------------
 def colvars(th,ind="  "):
@@ -202,7 +205,7 @@ def plain_css(default_density):
     o+=[f'[data-density="{other}"] {{']+typevars(other)+denvars(other)+["}"]
     o+=MODE+SKEL+RM+NUM
     return o
-open(os.path.join(OUT,"tokens.css"),"w").write("\n".join(plain_css("comfortable"))+"\n")
+open(os.path.join(OUT,"tokens.css"),"w",encoding="utf-8",newline="\n").write("\n".join(plain_css("comfortable"))+"\n")
 
 t=plain_css("compact")
 t[0]=HDR+"\n/* Tauri desktop: dark default (no OS auto-switch unless app sets data-theme),\n   density COMPACT default (controls 32px, hit area ≥ 24px = WCAG 2.2 SC 2.5.8). */"
@@ -214,7 +217,7 @@ t+=[":root { --window-mode-strip: 4px; --titlebar-height: 32px; }",
     "html, body {","  background: var(--color-bg-canvas);","  color: var(--color-text-primary);","  font-family: var(--font-sans);",
     "  font-size: var(--text-body);","  line-height: var(--text-body--line-height);","}",
     "/* Hit area helper: visual 24–32px control keeps ≥24px pointer target */",".hit { min-width: var(--spacing-hit); min-height: var(--spacing-hit); }"]
-open(os.path.join(OUT,"tauri.css"),"w").write("\n".join(t)+"\n")
+open(os.path.join(OUT,"tauri.css"),"w",encoding="utf-8",newline="\n").write("\n".join(t)+"\n")
 
 # Tailwind v4 CSS-first
 tw=[HDR,"/* Tailwind CSS v4 — usage (globals.css):",'   @import "tailwindcss";','   @import "@centurion/design-tokens/tailwind.theme.css";',
@@ -227,7 +230,7 @@ tw=[HDR,"/* Tailwind CSS v4 — usage (globals.css):",'   @import "tailwindcss";
     "@theme {"]+colvars("dark")+STATIC+typevars("comfortable")+denvars("comfortable")+[
     "  --color-mode-accent: var(--mode-accent, var(--color-mode-practice));","  --color-mode-container: var(--mode-container, var(--color-mode-practiceContainer));","  --color-mode-on: var(--mode-on, var(--color-mode-onPractice));","}","",
     '[data-theme="light"] {']+colvars("light")+["}",'[data-density="compact"] {']+typevars("compact")+denvars("compact")+["}"]+MODE+SKEL+RM+["@utility tabular { font-variant-numeric: tabular-nums slashed-zero; }"]
-open(os.path.join(OUT,"tailwind.theme.css"),"w").write("\n".join(tw)+"\n")
+open(os.path.join(OUT,"tailwind.theme.css"),"w",encoding="utf-8",newline="\n").write("\n".join(tw)+"\n")
 
 # legacy v3
 groups={}
@@ -236,7 +239,7 @@ for k in list(COL['dark'])+list(ALIAS['dark']):  # alias (deprecated) keeps bg-i
 legacy={"darkMode":["selector",'[data-theme="dark"]'],"theme":{"extend":{"colors":groups,"fontFamily":{"sans":["var(--font-sans)"],"mono":["var(--font-mono)"]},
   "fontSize":{k:[f"var(--text-{k})",{"lineHeight":f"var(--text-{k}--line-height)","fontWeight":f"var(--text-{k}--font-weight)"}] for k in TYP['comfortable']},
   "borderRadius":{k:f"{v}px" for k,v in RAD.items()},"boxShadow":{**{f"e{k}":shadow(v) for k,v in EL.items()},**{k:f"var(--shadow-{k})" for k in SHD["dark"]}}}}}
-open(os.path.join(OUT,"tailwind.config.tokens.legacy-v3.js"),"w").write("/** LEGACY (Tailwind v3) — MVP memakai Tailwind v4 (tailwind.theme.css). Butuh tokens.css di-import. */\nmodule.exports = "+json.dumps(legacy,indent=2)+";\n")
+open(os.path.join(OUT,"tailwind.config.tokens.legacy-v3.js"),"w",encoding="utf-8",newline="\n").write("/** LEGACY (Tailwind v3) — MVP memakai Tailwind v4 (tailwind.theme.css). Butuh tokens.css di-import. */\nmodule.exports = "+json.dumps(legacy,indent=2)+";\n")
 
 # ---------------- Flutter ----------------
 def dc(h):
@@ -380,15 +383,11 @@ for th in ("dark","light"):
         "    );","  }"]
 d+=["}","","extension TradeColorsX on BuildContext {","  /// Null-safe: falls back to the palette matching the current brightness (no crash in tests / ad-hoc Theme()).",
     "  TradeColors get tradeColors =>","      Theme.of(this).extension<TradeColors>() ??","      (Theme.of(this).brightness == Brightness.dark ? TradeColors.dark : TradeColors.light);","}"]
-open(os.path.join(OUT,"app_tokens.dart"),"w").write("\n".join(d)+"\n")
+open(os.path.join(OUT,"app_tokens.dart"),"w",encoding="utf-8",newline="\n").write("\n".join(d)+"\n")
 import shutil, subprocess
 _dart=shutil.which("dart") or ("/home/box/sdk/flutter/bin/dart" if os.path.exists("/home/box/sdk/flutter/bin/dart") else None)
 if _dart: subprocess.run([_dart,"format","--line-length","120",os.path.join(OUT,"app_tokens.dart")],capture_output=True)
 else: print("note: dart not found — app_tokens.dart not formatted (T-05)")
-import shutil, subprocess
-_dart=shutil.which("dart") or ("/home/box/sdk/flutter/bin/dart" if os.path.exists("/home/box/sdk/flutter/bin/dart") else None)
-if _dart: subprocess.run([_dart,"format","--line-length","120",os.path.join(OUT,"app_tokens.dart")],capture_output=True)
-else: print("note: dart not found — app_tokens.dart not formatted")
 # ---- CSS validation (v0.2.1): brace balance always; full parse with lightningcss when available
 import re as _re, subprocess as _sp, shutil as _sh
 def _balance(css):
@@ -401,7 +400,7 @@ def _balance(css):
     return None if d==0 else f"{d} unclosed '{{'"
 css_errors=[]
 for _f in ["tokens.css","tauri.css","tailwind.theme.css"]:
-    _p=os.path.join(OUT,_f); _e=_balance(open(_p).read())
+    _p=os.path.join(OUT,_f); _e=_balance(open(_p,encoding="utf-8").read())
     if _e: css_errors.append(f"{_f}: {_e}")
 _nm=os.environ.get("LIGHTNINGCSS_NODE_PATH","/tmp/twcheck/node_modules")
 if _sh.which("node") and os.path.isdir(os.path.join(_nm,"lightningcss")):

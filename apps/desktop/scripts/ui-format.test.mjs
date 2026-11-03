@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { formatFractionBps, LOCALES } from "../../../packages/i18n/format.mjs";
 import { LOCAL_TEMPLATES } from "../src/i18n/local.ts";
 
@@ -88,7 +89,7 @@ test("i18n 0.4.10/0.4.11: desktop uses no deprecated/removed key, and every lite
   const banned = new Map();
   for (const r of mig.releases ?? []) for (const kind of ["deprecated", "removed"]) for (const e of r[kind] ?? []) banned.set(e.key ?? e.from ?? e, `${r.version} ${kind}${e.use ? ` → ${e.use}` : ""}`);
   for (const r of mig.releases ?? []) for (const e of r.renamed ?? []) if (e.from) banned.set(e.from, `${r.version} renamed → ${e.to}`);
-  const root = new URL("../src", import.meta.url).pathname;
+  const root = fileURLToPath(new URL("../src", import.meta.url));
   const files = [];
   const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); statSync(p).isDirectory() ? walk(p) : /\.tsx?$/.test(f) && files.push(p); } };
   walk(root);

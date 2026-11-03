@@ -1,5 +1,6 @@
 // Error envelope from packages/contracts/errors.json (single registry: code -> http, sqlstate, messages).
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 export interface ErrorDef {
   code: string;
@@ -11,7 +12,8 @@ export interface ErrorDef {
 }
 
 const REGISTRY_PATH =
-  process.env.CENTURION_ERRORS_JSON ?? new URL("../../../../packages/contracts/errors.json", import.meta.url).pathname;
+  process.env.CENTURION_ERRORS_JSON ??
+  fileURLToPath(new URL("../../../../packages/contracts/errors.json", import.meta.url));
 
 const registry: Map<string, ErrorDef> = new Map(
   (JSON.parse(readFileSync(REGISTRY_PATH, "utf8")) as { codes: ErrorDef[] }).codes.map((d) => [d.code, d]),
