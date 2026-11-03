@@ -104,7 +104,7 @@ create or replace function public.emit_ws_event(p_ws uuid, p_subject text, p_typ
                                                p_mint text, p_actor public.event_actor, p_payload jsonb)
 returns void language sql as $$
   insert into public.events (id, workspace_id, strategy_id, mint, ts, type, actor, payload)
-  values (p_subject || ':' || (extract(epoch from clock_timestamp()) * 1000)::bigint || ':' || p_type,
+  values (p_subject || ':' || (extract(epoch from clock_timestamp()) * 1000000)::bigint || ':' || p_type,
           p_ws, p_strategy, p_mint, clock_timestamp(), p_type, p_actor, p_payload)
 $$;
 

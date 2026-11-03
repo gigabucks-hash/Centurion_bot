@@ -179,7 +179,7 @@ begin
   returning * into s;
   if s.rev <> p_expected_rev then
     insert into public.events (id, workspace_id, strategy_id, ts, type, actor, payload)
-    values (s.id::text || ':' || (extract(epoch from clock_timestamp()) * 1000)::bigint || ':strategy.updated',
+    values (s.id::text || ':' || (extract(epoch from clock_timestamp()) * 1000000)::bigint || ':strategy.updated',
             s.workspace_id, s.id, clock_timestamp(), 'strategy.updated',
             (case when v_actor is null then 'system' else 'user' end)::public.event_actor,
             jsonb_build_object('rev', s.rev, 'base_rev', p_expected_rev, 'status', s.status,
