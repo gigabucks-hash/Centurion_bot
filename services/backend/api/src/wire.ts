@@ -29,10 +29,17 @@ export interface EventRow {
   mode: string;
   payload: Record<string, unknown>;
   untrusted: Record<string, unknown>;
+  /** 1.1.6: current logo content hash of `mint` (null: none / no mint). */
+  logo_hash?: string | null;
 }
 
+/** Correlated lookup of the current logo hash for `<table>.mint` (coin_logos PK; null when none). */
+const logoHashOf = (table: string) =>
+  `(select l.logo_hash from public.coin_logos l where l.mint = ${table}.mint and l.status = 'ok') as logo_hash`;
+
 export const EVENT_COLUMNS =
-  "seq, id, type, version, ts, workspace_id, strategy_id, ck, mint, actor::text as actor, mode::text as mode, payload, untrusted";
+  "seq, id, type, version, ts, workspace_id, strategy_id, ck, mint, actor::text as actor, mode::text as mode, payload, untrusted, " +
+  logoHashOf("events");
 
 export function eventWire(r: EventRow, serverNow: string) {
   return {
@@ -45,8 +52,9 @@ export function eventWire(r: EventRow, serverNow: string) {
     strategy_id: r.strategy_id,
     ck: r.ck,
     mint: r.mint,
-    // 1.1.6: our logo proxy URL for `mint` (null: no mint / proxy disabled); clients fall back to an identicon
-    logo_url: logoUrl(r.mint),
+    // 1.1.6: logo content hash + our proxy URL for `mint` (null: no mint / no logo / proxy disabled -> identicon)
+    logo_hash: r.mint ? (r.logo_hash ?? null) : null,
+    logo_url: logoUrl(r.mint, r.logo_hash),
     actor: r.actor,
     mode: r.mode,
     payload: r.payload ?? {},
@@ -65,7 +73,8 @@ export function approvalWire(r: Record<string, unknown>) {
     mode: r.mode,
     subject: r.subject,
     mint: r.mint,
-    logo_url: logoUrl(r.mint), // 1.1.6
+    logo_hash: r.mint ? ((r.logo_hash as string | null | undefined) ?? null) : null, // 1.1.6
+    logo_url: logoUrl(r.mint, r.logo_hash),
     amount_lamports: str(r.amount_lamports),
     is_first_buy: r.is_first_buy,
     risk: r.risk,
@@ -103,7 +112,8 @@ export function approvalWire(r: Record<string, unknown>) {
 }
 
 export const APPROVAL_COLUMNS =
-  "id, workspace_id, strategy_id, kind::text as kind, mode::text as mode, subject, mint, amount_lamports, is_first_buy, risk, weakening, status::text as status, rev, expire_reason::text as expire_reason, base_rev, decision, reject_reason::text as reject_reason, decided_via::text as decided_via, decided_by, payload, created_at, expires_at, decided_at, est_network_fee_lamports, priority_fee_lamports, swap_fee_bps, max_slippage_bps, min_out_raw, total_max_lamports, quote_ts, quote_expires_at, position_id, quote_id, quote_refreshed_at, est_ata_rent_lamports, expected_out_lamports, min_out_lamports, (select c.decimals from public.coins c where c.mint = approvals.mint) as decimals, (select c.token_program from public.coins c where c.mint = approvals.mint) as token_program";
+  "id, workspace_id, strategy_id, kind::text as kind, mode::text as mode, subject, mint, amount_lamports, is_first_buy, risk, weakening, status::text as status, rev, expire_reason::text as expire_reason, base_rev, decision, reject_reason::text as reject_reason, decided_via::text as decided_via, decided_by, payload, created_at, expires_at, decided_at, est_network_fee_lamports, priority_fee_lamports, swap_fee_bps, max_slippage_bps, min_out_raw, total_max_lamports, quote_ts, quote_expires_at, position_id, quote_id, quote_refreshed_at, est_ata_rent_lamports, expected_out_lamports, min_out_lamports, (select c.decimals from public.coins c where c.mint = approvals.mint) as decimals, (select c.token_program from public.coins c where c.mint = approvals.mint) as token_program, " +
+  logoHashOf("approvals");
 
 export function portfolioWire(r: Record<string, unknown>) {
   return {

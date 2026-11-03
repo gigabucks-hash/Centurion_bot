@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { FetchError, isPublicIp, safeFetch, type SafeFetchOptions } from "../src/logo/ssrf.ts";
@@ -441,7 +441,7 @@ test("GET /v1/img/coin/{mint}?s=&v=: strict headers, immutable only for current 
   routes.set("/i/still.webp", img(fx("still.webp"), "image/webp"));
   routes.set("/m/svg2.json", json({ image: `${G()}/i/logo.svg` }));
   routes.set("/i/logo.svg", img(fx("logo.svg"), "image/svg+xml"));
-  const { s, rpc, dir } = svc({ ratePerIpPerMin: 24, coldPerIpPerMin: 3 });
+  const { s, rpc, dir } = svc({ ratePerIpPerMin: 40, coldPerIpPerMin: 3 });
   const mint = mintN(50);
   rpc.uris.set(mint, `${G()}/m/route.json`);
   rpc.uris.set(mintN(53), `${G()}/m/svg2.json`);
@@ -477,6 +477,31 @@ test("GET /v1/img/coin/{mint}?s=&v=: strict headers, immutable only for current 
     assert.equal(p2.headers.get("x-logo-size"), "128");
     const w2 = await fetch(U(mint, "?s=128"), { headers: { Accept: "image/avif,image/webp,*/*" } });
     assert.equal(w2.headers.get("content-type"), "image/webp");
+    // 128/192 accepted for both formats (desktop report): 200 with the exact size when the variant exists
+    for (const q of ["?s=128", "?s=192", "?s=128&fmt=png", "?s=192&fmt=png"]) {
+      const x = await fetch(U(mint, q));
+      assert.equal(x.status, 200, q);
+      assert.equal(x.headers.get("x-logo-size"), q.slice(3, 6), q);
+      await x.arrayBuffer();
+    }
+    // a variant omitted by the transcoder (over HARD_MAX_BYTES 16 KiB) -> next smaller size of that format, never 422
+    const metaFile = `${dir}/${mint.slice(0, 2)}/${mint}/meta.json`;
+    const meta = JSON.parse(readFileSync(metaFile, "utf8"));
+    for (const f of ["128.webp", "192.webp"]) {
+      delete meta.etags[f];
+      rmSync(`${dir}/${mint.slice(0, 2)}/${mint}/${f}`, { force: true });
+    }
+    writeFileSync(metaFile, JSON.stringify(meta));
+    for (const q of ["?s=192", "?s=128"]) {
+      const x = await fetch(U(mint, q));
+      assert.equal(x.status, 200, `fallback ${q}`);
+      assert.equal(x.headers.get("x-logo-size"), "96", `fallback ${q}`);
+      assert.equal(x.headers.get("content-type"), "image/webp");
+      await x.arrayBuffer();
+    }
+    const pngStill = await fetch(U(mint, "?s=192&fmt=png"));
+    assert.equal(pngStill.headers.get("x-logo-size"), "192", "other format unaffected");
+    await pngStill.arrayBuffer();
     for (const q of ["", "?s=32", "?s=100", "?s=64&fmt=svg", "?s=64.svg", "?s=abc"]) {
       const x = await fetch(U(mint, q));
       assert.equal(x.status, 422, q);
@@ -503,7 +528,7 @@ test("GET /v1/img/coin/{mint}?s=&v=: strict headers, immutable only for current 
     // cold limit: 3 cache misses per IP per minute (mint 50, 51, 53 used them)
     assert.equal((await fetch(U(mintN(52), "?s=64"))).status, 429);
     let last = 200;
-    for (let i = 0; i < 24; i++) last = (await fetch(U(mint, "?s=48"))).status;
+    for (let i = 0; i < 60; i++) last = (await fetch(U(mint, "?s=48"))).status;
     assert.equal(last, 429, "per-IP limit");
   } finally {
     server.closeAllConnections();
@@ -566,6 +591,31 @@ test("REST wires (DB): coin, pick and position carry logo_hash + logo_url; block
     assert.equal(p.body.data.logo_url?.startsWith(`/v1/img/coin/${p.body.data.mint}?s=96`), true);
     const list = await call(h.base, "GET", `/v1/workspaces/${WS}/positions?mode=practice`, { token: t });
     assert.ok(list.body.items.every((x: Record<string, unknown>) => "logo_hash" in x && "logo_url" in x));
+    // 1.1.6 (desktop): approvals and event envelopes carry logo_hash next to logo_url
+    const AP = "30000000-0000-0000-0000-000000000090";
+    await h.db.query(
+      "insert into public.approvals (id, workspace_id, strategy_id, kind, subject, mint, amount_lamports, is_first_buy, expires_at) values ($1, $2, '20000000-0000-0000-0000-0000000000a1', 'buy_pick', 'logopick', $3, 250000000, false, now() + interval '10 minutes')",
+      [AP, WS, COIN],
+    );
+    const ap = await call(h.base, "GET", `/v1/workspaces/${WS}/approvals/${AP}`, { token: t });
+    assert.equal(ap.status, 200, JSON.stringify(ap.body));
+    assert.equal(ap.body.data.logo_hash, "HashHashHash0001");
+    assert.equal(ap.body.data.logo_url, `/v1/img/coin/${COIN}?s=96&v=HashHashHash0001`);
+    const aps = await call(h.base, "GET", `/v1/workspaces/${WS}/approvals`, { token: t });
+    assert.ok(aps.body.items.every((x: Record<string, unknown>) => "logo_hash" in x && (x.mint === null ? x.logo_hash === null : true)));
+    await h.db.query(
+      "insert into public.events (id, workspace_id, mint, ts, type, actor, payload) values ('logoev1:1:coin.detected', $1, $2, now(), 'coin.detected', 'ingest', '{}'::jsonb), ('logoev2:2:coin.detected', $1, null, now(), 'coin.detected', 'ingest', '{}'::jsonb)",
+      [WS, COIN],
+    );
+    const ev = await call(h.base, "GET", `/v1/workspaces/${WS}/events?limit=100`, { token: t });
+    assert.equal(ev.status, 200, JSON.stringify(ev.body));
+    const e1 = ev.body.items.find((x: Record<string, unknown>) => x.id === "logoev1:1:coin.detected");
+    const e2 = ev.body.items.find((x: Record<string, unknown>) => x.id === "logoev2:2:coin.detected");
+    assert.ok(e1 && e2, "both events listed");
+    assert.equal(e1.logo_hash, "HashHashHash0001");
+    assert.equal(e1.logo_url, `/v1/img/coin/${COIN}?s=96&v=HashHashHash0001`);
+    assert.equal(e2.logo_hash, null);
+    assert.equal(e2.logo_url, null);
     await h.db.query("insert into public.coin_logo_blocklist (mint, reason) values ($1, 'nsfw')", [COIN]);
     await assert.rejects(h.db.query("insert into public.coin_logos (mint, status, logo_hash) values ($1, 'ok', null)", ["So11111111111111111111111111111111111111112"]), /check/);
     setLogoWire(false, "");
