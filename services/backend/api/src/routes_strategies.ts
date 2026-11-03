@@ -9,6 +9,7 @@ import {
 } from "./rules.ts";
 import { authenticate, type Deps } from "./deps.ts";
 import { cursorCols, iso, pageOf } from "./wire.ts";
+import { withRealGate } from "./real_gate.ts";
 
 // row type for keyset pages
 type Page = Record<string, any> & { cur_ts: string; cur_id: string };
@@ -74,7 +75,9 @@ export function registerStrategies(r: Router, d: Deps): void {
           order by s.created_at desc, s.id desc limit $6`,
         [ws, mode, status, cur?.ts ?? null, cur?.id ?? null, limit + 1],
       );
-      return q.rows as Page[];
+      const page = q.rows as Page[];
+      const gated = await withRealGate(c, d.cfg, ws, page.map((x) => x.w as Record<string, unknown>));
+      return page.map((x, i) => ({ ...x, w: gated[i] }));
     });
     send(ctx, 200, pageOf(rows, limit, (x) => x.w));
   });
@@ -106,7 +109,7 @@ export function registerStrategies(r: Router, d: Deps): void {
     requireScope(p, "read");
     const ws = uuidParam(ctx, "ws");
     const id = uuidParam(ctx, "id");
-    const w = await asUser(d.db, p.claims, (c) => strategyIn(c, id, ws));
+    const w = await asUser(d.db, p.claims, async (c) => (await withRealGate(c, d.cfg, ws, [await strategyIn(c, id, ws)]))[0]!);
     send(ctx, 200, { data: w }, etag(w.rev));
   });
 

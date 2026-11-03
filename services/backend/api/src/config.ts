@@ -54,6 +54,13 @@ export interface Config {
   authOwnerPerMin: number;
   authGlobalPerMin: number;
   authOwnerMaxDelayMs: number;
+  /**
+   * Per-strategy Real gate thresholds (contracts 1.1.6 `paper_progress.*_required`; settings
+   * `centurion.real_gate.min_paper_days` / `min_paper_trades`). No values are approved yet: unset = null ("not set").
+   * Display only: Real stays locked regardless (no live path exists).
+   */
+  realGateMinPaperDays: number | null;
+  realGateMinPaperTrades: number | null;
 }
 
 function flag(env: NodeJS.ProcessEnv, k: string): boolean {
@@ -130,6 +137,13 @@ function int(env: NodeJS.ProcessEnv, k: string, d: number, min: number, max: num
   return n;
 }
 
+/** Optional integer: unset/empty = null (no default value is assumed). */
+function optInt(env: NodeJS.ProcessEnv, k: string, min: number, max: number): number | null {
+  const raw = env[k];
+  if (raw === undefined || raw.trim() === "") return null;
+  return int(env, k, 0, min, max);
+}
+
 /** Practice mode only: anything but TRADING_MODE=paper refuses to start (no real-SOL path exists). */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const mode = env.TRADING_MODE ?? "";
@@ -176,5 +190,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     authOwnerPerMin: int(env, "AUTH_OWNER_PER_MIN", 60, 1, 10_000),
     authGlobalPerMin: int(env, "AUTH_GLOBAL_PER_MIN", 600, 1, 100_000),
     authOwnerMaxDelayMs: int(env, "AUTH_OWNER_MAX_DELAY_MS", 3_000, 0, 10_000),
+    realGateMinPaperDays: optInt(env, "CENTURION_REAL_GATE_MIN_PAPER_DAYS", 1, 3650),
+    realGateMinPaperTrades: optInt(env, "CENTURION_REAL_GATE_MIN_PAPER_TRADES", 1, 1_000_000),
   };
 }
