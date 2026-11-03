@@ -1426,17 +1426,9 @@
   "@killSwitchActionEngage": {
     "description": "manual Stop → real.buys.paused (exit plans keep running); initial focus; one click + one dialog, no 2FA, no hold"
   },
-  "killSwitchActionOpen": "Stop all Real trading",
-  "@killSwitchActionOpen": {
-    "description": "DEPRECATED 0.4.9: use kill_switch.action.engage (Stop = new buys only). Still read by apps/desktop StopControl; removed in the first i18n release after apps/desktop StopControl.tsx migrates to kill_switch.action.engage + kill_switch.dialog.effect.exits_keep"
-  },
   "killSwitchActionResume": "Resume buying",
   "@killSwitchActionResume": {
     "description": "→ real.buys.resumed (immediate); replaces kill_switch.reenable.action"
-  },
-  "killSwitchDialogEffectBuys": "New buys are blocked and all Real strategies pause.",
-  "@killSwitchDialogEffectBuys": {
-    "description": "DEPRECATED 0.4.9: use kill_switch.dialog.effect.exits_keep. Still read by apps/desktop StopControl; removed in the first i18n release after apps/desktop StopControl.tsx migrates to kill_switch.action.engage + kill_switch.dialog.effect.exits_keep"
   },
   "killSwitchDialogEffectExitsKeep": "Exit plans, TP and SL keep running.",
   "@killSwitchDialogEffectExitsKeep": {

@@ -2,6 +2,24 @@
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
+## 0.4.11 · 3 Nov 2026 · hapus 2 key deprecated (**BREAKING** untuk pembaca key ini; tidak ada pembaca tersisa)
+786 key (−2, 0 ditambah, 0 rename, copy lain tidak berubah). Hanya `en.json`, `id.json`, `arb/`, `key-migrations.json`, `REPORT.md` dan test Flutter yang berubah.
+
+### Dihapus
+| Key | Pengganti | Deprecated |
+|---|---|---|
+| `kill_switch.action.open` | `kill_switch.action.engage` (label aksi) / `kill_switch.dialog.title` (judul tombol Real di Desktop) | 0.4.9 (`a615ba3`) |
+| `kill_switch.dialog.effect.buys` | `kill_switch.dialog.effect.exits_keep` | 0.4.9 (`a615ba3`) |
+
+Syarat hapus terpenuhi: Desktop StopControl sudah migrasi (`8af282e`). rg seluruh `/workspace/centurion` (3 Nov 2026, 15.10 WIB): tidak ada pemanggil di
+apps/web, apps/desktop, apps/mobile (termasuk getter `killSwitchActionOpen` / `killSwitchDialogEffectBuys`). Sisa hanya definisi di salinan ARB
+`apps/mobile/lib/l10n/app_{en,id}.arb` + `gen/` (bukan pemanggil); hilang saat Mobile menyalin ARB 0.4.11 dan menjalankan gen-l10n. `apps/desktop/README.md`
+baris 124–125 hanya mencatat migrasinya.
+
+### Build
+- `key-migrations.json`: rilis 0.4.11 `removed` (dengan `use` pengganti). Cek release log: key `deprecated` di 0.4.9 tidak wajib ada lagi bila dihapus di rilis berikutnya.
+- gen-l10n, analyze (0 issue), test Flutter 11/11 (2 ekspektasi key deprecated dihapus), `format.test.mjs` 10/10.
+
 ## 0.4.10 · 3 Nov 2026 (G1-blue v2) · contracts 1.1.6 (errors.json v7, RealLockedReason, paper_progress), design-tokens 0.3.4
 788 key (+97, 0 dihapus, 0 rename). 62 key copy berubah. Contracts working tree = HEAD (bersih saat build). `errors.map.json` ikut berubah (9 kode errors v7
 sekarang punya copy sendiri: 67/67 · copy 56 · fallback 11). `notifications.map.json`, `reject_reasons.map.json`, `format.mjs` sama dengan 0.4.9.

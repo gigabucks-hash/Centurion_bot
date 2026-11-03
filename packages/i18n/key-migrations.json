@@ -758,6 +758,27 @@
         }
       ],
       "description_changed": []
+    },
+    {
+      "version": "0.4.11",
+      "note": "Removes the two keys deprecated in 0.4.9 (a615ba3) after apps/desktop StopControl migrated (8af282e). rg of /workspace/centurion on 3 Nov 2026: no caller in apps/web, apps/desktop or apps/mobile code; only the copied ARB + generated getters in apps/mobile/lib/l10n (definitions, not callers).",
+      "renamed": [],
+      "added": [],
+      "deprecated": [],
+      "copy_changed": [],
+      "description_changed": [],
+      "removed": [
+        {
+          "key": "kill_switch.action.open",
+          "use": "kill_switch.action.engage",
+          "note": "deprecated 0.4.9 (a615ba3); Desktop StopControl migrated in 8af282e"
+        },
+        {
+          "key": "kill_switch.dialog.effect.buys",
+          "use": "kill_switch.dialog.effect.exits_keep",
+          "note": "deprecated 0.4.9 (a615ba3); Desktop StopControl migrated in 8af282e"
+        }
+      ]
     }
   ]
 }

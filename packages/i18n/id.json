@@ -425,12 +425,10 @@
   "kill_switch": {
     "action": {
       "engage": "Hentikan pembelian",
-      "open": "Stop semua trading Real",
       "resume": "Lanjutkan pembelian"
     },
     "dialog": {
       "effect": {
-        "buys": "Buy baru diblokir dan semua strategi Real dijeda.",
         "exits_keep": "Exit plan, TP & SL tetap jalan.",
         "inflight": "Order yang sudah terkirim tidak bisa ditarik.",
         "proposals": "Proposal Real tertunda kedaluwarsa.",

@@ -146,8 +146,6 @@ void main() {
     expect(TradeColors.dark.guard, const Color(0xFFE57A12)); // design-tokens 0.3.1 guard amber
     expect(TradeColors.light.guard, const Color(0xFFA85400));
     expect(id.dashboardHeadline, 'Semua posisimu, sekilas.');
-    expect(id.killSwitchActionOpen, 'Stop semua trading Real'); // deprecated, kept for apps/desktop
-    expect(en.killSwitchDialogEffectBuys, startsWith('New buys are blocked')); // deprecated, kept for apps/desktop
   });
   test('0.4.10: G1-blue v2 copy (Paper in copy, verb-first, strategy mode, real_locked gate, quote, receipt, TP/SL, risk chip)', () {
     expect(en.modePracticeLabel, 'PAPER'); // key name unchanged until 0.5.0
