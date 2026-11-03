@@ -28,6 +28,13 @@ Pemakaian:
 - Contrast FAIL 0, CSS valid (lightningcss), baris ≤ 120, `dart analyze` bersih.
 - Konstruktor `TradeColors` punya 3 field wajib baru (`onWarning`, `chrome`, `scrimSheet`). Di apps/* tidak ada yang membuat instance sendiri (rg 3 Nov 2026), jadi cukup salin `app_tokens.dart`.
 
+### Tambahan 0.3.4 (commit terpisah, versi tetap 0.3.4; nilai token tidak berubah)
+- **Font `fonts/Inter-Bold.ttf`** + `fonts/Inter-OFL.txt` + `fonts/SOURCE.md`: rilis resmi rsms/inter **v4.1** (`extras/ttf/Inter-Bold.ttf`, tidak diubah),
+  sha256 `288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f`. Alasan: inisial identicon logo koin = **Inter 700** (COIN_LOGO §4, vektor
+  `coin-logo-spec.html`, `coin_avatar.dart` w700), sedangkan Flutter hanya membundel Inter 400/500/600. `package.json`: `files` + export `./fonts/*`.
+- **README "Ukuran file logo koin": batas request klien 96 → 192** (keputusan Apex). Set `s` tetap 48/64/96/128/192 (contracts 1.1.6 `LOGO_SIZES`),
+  `s` = ukuran terkecil ≥ px × dpr, Flutter `cacheWidth`/`cacheHeight` = `s`. Anggaran WebP tetap ≤ 8 KB; 16 KiB = batas keras server saja. Tidak pernah SVG.
+
 ## 0.3.3 — 3 Nov 2026 · G1-blue v2 light theme
 Perubahan source sudah masuk di `ed273fc` (checkpoint sebelum rename). Rilis ini menambahkan bump versi + catatan. Tidak ada rename atau penghapusan.
 

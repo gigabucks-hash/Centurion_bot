@@ -57,7 +57,8 @@ Aturan wajib di semua platform:
 
 ## Ukuran file logo koin (proxy, 0.3.2)
 Token `coin.logo.size.*` = ukuran **tampil** (20/24/32/48/64 px). Proxy backend menyajikan file di set **`s` = 48 / 64 / 96 / 128 / 192** (`GET /v1/img/coin/{mint}?s=…&v={logo_hash}`).
-Aturan klien: minta **ukuran terkecil di set yang ≥ px × dpr** (dpr = devicePixelRatio; Desktop maks. 2). Kalau melebihi 192, pakai 192.
+Aturan klien: minta **ukuran terkecil di set yang ≥ px × dpr** (dpr = devicePixelRatio; Desktop maks. 2). Kalau melebihi 192, pakai 192 (contoh: 32 px @3x → 96; 64 px @2x → 128).
+
 | tampil | @1x | @2x | @3x |
 |---|---|---|---|
 | 20 | 48 | 48 | 64 |
@@ -65,7 +66,7 @@ Aturan klien: minta **ukuran terkecil di set yang ≥ px × dpr** (dpr = deviceP
 | 32 | 48 | 64 | 96 |
 | 48 | 48 | 96 | 192 |
 | 64 | 64 | 128 | 192 |
-**Status:** s=128/192 dan aturan nearest-size **masih pending di contracts Backend** (contracts saat ini: `s=48|64|96`). Sampai landed, pakai 96 untuk kebutuhan > 96.
+**Batas request klien = 192** (0.3.4, keputusan Apex 3 Nov 2026; sebelumnya dibatasi 96). Set ini sudah ada di contracts 1.1.6 (`LOGO_SIZES`, `logoSizeFor()`). Decode di ukuran file: Flutter `cacheWidth`/`cacheHeight` = `s`. Anggaran WebP tetap ≤ 8 KB per logo; 16 KiB hanya batas keras server (bukan anggaran). Tidak pernah SVG.
 Spek: `/workspace/ux-solbot/docs/COIN_LOGO.md` §2.
 
 ## Surface `bg.sunken` (0.2.4)
@@ -84,6 +85,7 @@ MVP: `google_fonts` (unduh runtime). Production: google_fonts 9.x mencocokkan as
 |---|---|---|---|
 | Inter | 400 · 500 · 600 | `Inter-Regular.ttf` · `Inter-Medium.ttf` · `Inter-SemiBold.ttf` | `static/Inter_18pt-{Regular,Medium,SemiBold}.ttf`, **wajib rename** ke `Inter-*.ttf` |
 | Sora (0.3.0) | 600 (display/headline/title) | `Sora-SemiBold.ttf` | **Tidak ada** `static/Sora-SemiBold.ttf` di Google Fonts (`github.com/google/fonts` `ofl/sora` hanya punya variable `Sora[wght].ttf`). File ini di-*instance* dari `Sora[wght].ttf` pada **wght 600** (fontTools `varLib.instancer --static --update-name-table`). Ambil file siap pakai + sha256 + `OFL.txt` di `/workspace/ux-solbot/visual/g1-blue/fonts/` (lihat `SOURCE.md`) |
+| Inter Bold (0.3.4) | 700 (hanya inisial identicon logo koin, COIN_LOGO §4) | `Inter-Bold.ttf` | Di paket ini: `fonts/Inter-Bold.ttf` + `fonts/Inter-OFL.txt` (rsms/inter v4.1, tidak diubah, sha256 `288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f`, lihat `fonts/SOURCE.md`) |
 | JetBrains Mono | 500 · 600 (angka, `AppText.num`) | `JetBrainsMono-Medium.ttf` · `JetBrainsMono-SemiBold.ttf` | `static/JetBrainsMono-{Medium,SemiBold}.ttf`, **tanpa rename** |
 
 Weight lain (mis. JetBrains Mono 700) tidak dibundel: `AppText.num(weight: w700)` gagal saat runtime fetching OFF. Pakai w500/w600.

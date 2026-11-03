@@ -7,6 +7,7 @@
     "src",
     "tokens",
     "scripts",
+    "fonts",
     "README.md",
     "CHANGELOG.md"
   ],
@@ -15,7 +16,8 @@
     "./tailwind.theme.css": "./tokens/tailwind.theme.css",
     "./tokens.css": "./tokens/tokens.css",
     "./tauri.css": "./tokens/tauri.css",
-    "./tokens/*": "./tokens/*"
+    "./tokens/*": "./tokens/*",
+    "./fonts/*": "./fonts/*"
   },
   "scripts": {
     "build": "python3 scripts/build.py",
