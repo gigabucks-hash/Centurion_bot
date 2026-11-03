@@ -28,6 +28,7 @@ abstract final class AppColorsDark {
   static const bgRaised = Color(0xFF191C25);
   static const bgOverlay = Color(0xFF20242F);
   static const bgSunken = Color(0xFF07080C);
+  static const bgChrome = Color(0xFF0D0F15);
   static const borderSubtle = Color(0xFF1E222C);
   static const borderDefault = Color(0xFF2C313E);
   static const borderStrong = Color(0xFF6C7590);
@@ -48,6 +49,7 @@ abstract final class AppColorsDark {
   static const semanticLossContainer = Color(0xFF3A1518);
   static const semanticWarning = Color(0xFFF5C04E);
   static const semanticWarningContainer = Color(0xFF33270C);
+  static const semanticOnWarning = Color(0xFF1A1203);
   static const semanticGuard = Color(0xFFE57A12);
   static const semanticGuardContainer = Color(0xFF361C08);
   static const semanticInfo = Color(0xFF7AA7FF);
@@ -65,6 +67,7 @@ abstract final class AppColorsDark {
   static const inverseOnSurface = Color(0xFF12141B);
   static const inversePrimary = Color(0xFF1F5FD1);
   static const scrimOverlay = Color(0xFF000000);
+  static const scrimSheet = Color(0x99000000);
   static const skeletonBase = Color(0xFF272D3C);
   static const skeletonHighlight = Color(0xFF353C4E);
   @Deprecated('Use bgSunken (design-tokens 0.2.4)')
@@ -77,6 +80,7 @@ abstract final class AppColorsLight {
   static const bgRaised = Color(0xFFFFFFFF);
   static const bgOverlay = Color(0xFFFFFFFF);
   static const bgSunken = Color(0xFFEEF0F5);
+  static const bgChrome = Color(0xFFFFFFFF);
   static const borderSubtle = Color(0xFFE4E7EE);
   static const borderDefault = Color(0xFFCDD3DE);
   static const borderStrong = Color(0xFF7D879B);
@@ -97,6 +101,7 @@ abstract final class AppColorsLight {
   static const semanticLossContainer = Color(0xFFFCE4E4);
   static const semanticWarning = Color(0xFF8A5A00);
   static const semanticWarningContainer = Color(0xFFFBF0D5);
+  static const semanticOnWarning = Color(0xFFFFFFFF);
   static const semanticGuard = Color(0xFFA85400);
   static const semanticGuardContainer = Color(0xFFFFF1E6);
   static const semanticInfo = Color(0xFF1F5FCC);
@@ -114,6 +119,7 @@ abstract final class AppColorsLight {
   static const inverseOnSurface = Color(0xFFECEEF4);
   static const inversePrimary = Color(0xFF6E9FFF);
   static const scrimOverlay = Color(0xFF000000);
+  static const scrimSheet = Color(0x610F1420);
   static const skeletonBase = Color(0xFFDFE3EA);
   static const skeletonHighlight = Color(0xFFF1F3F7);
   @Deprecated('Use bgSunken (design-tokens 0.2.4)')
@@ -179,6 +185,19 @@ abstract final class AppElevation {
   static const e2 = <BoxShadow>[BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.32), offset: Offset(0, 2), blurRadius: 6)];
   static const e3 = <BoxShadow>[BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.36), offset: Offset(0, 8), blurRadius: 20)];
   static const e4 = <BoxShadow>[BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.44), offset: Offset(0, 16), blurRadius: 40)];
+  // 0.3.4 per-theme component shadows (tokens.json shadow.{dark,light}.*)
+  static const cardDark = <BoxShadow>[];
+  static const dialogDark = <BoxShadow>[
+    BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.5), offset: Offset(0, 16), blurRadius: 40),
+  ];
+  static const cardLight = <BoxShadow>[
+    BoxShadow(color: Color.fromRGBO(15, 20, 32, 0.06), offset: Offset(0, 1), blurRadius: 2),
+  ];
+  static const dialogLight = <BoxShadow>[
+    BoxShadow(color: Color.fromRGBO(15, 20, 32, 0.14), offset: Offset(0, 12), blurRadius: 32),
+  ];
+  static List<BoxShadow> card(Brightness b) => b == Brightness.dark ? cardDark : cardLight;
+  static List<BoxShadow> dialog(Brightness b) => b == Brightness.dark ? dialogDark : dialogLight;
 }
 
 class AppMotion {
@@ -277,6 +296,7 @@ class TradeColors extends ThemeExtension<TradeColors> {
     required this.neutral,
     required this.warning,
     required this.warningContainer,
+    required this.onWarning,
     required this.guard,
     required this.guardContainer,
     required this.info,
@@ -289,6 +309,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
     required this.real,
     required this.realContainer,
     required this.onReal,
+    required this.chrome,
+    required this.scrimSheet,
   });
   final Color profit;
   final Color profitContainer;
@@ -297,6 +319,7 @@ class TradeColors extends ThemeExtension<TradeColors> {
   final Color neutral;
   final Color warning;
   final Color warningContainer;
+  final Color onWarning;
   final Color guard;
   final Color guardContainer;
   final Color info;
@@ -309,6 +332,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
   final Color real;
   final Color realContainer;
   final Color onReal;
+  final Color chrome;
+  final Color scrimSheet;
   static const dark = TradeColors(
     profit: AppColorsDark.semanticProfit,
     profitContainer: AppColorsDark.semanticProfitContainer,
@@ -317,6 +342,7 @@ class TradeColors extends ThemeExtension<TradeColors> {
     neutral: AppColorsDark.semanticNeutralPnl,
     warning: AppColorsDark.semanticWarning,
     warningContainer: AppColorsDark.semanticWarningContainer,
+    onWarning: AppColorsDark.semanticOnWarning,
     guard: AppColorsDark.semanticGuard,
     guardContainer: AppColorsDark.semanticGuardContainer,
     info: AppColorsDark.semanticInfo,
@@ -329,6 +355,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
     real: AppColorsDark.modeReal,
     realContainer: AppColorsDark.modeRealContainer,
     onReal: AppColorsDark.modeOnReal,
+    chrome: AppColorsDark.bgChrome,
+    scrimSheet: AppColorsDark.scrimSheet,
   );
   static const light = TradeColors(
     profit: AppColorsLight.semanticProfit,
@@ -338,6 +366,7 @@ class TradeColors extends ThemeExtension<TradeColors> {
     neutral: AppColorsLight.semanticNeutralPnl,
     warning: AppColorsLight.semanticWarning,
     warningContainer: AppColorsLight.semanticWarningContainer,
+    onWarning: AppColorsLight.semanticOnWarning,
     guard: AppColorsLight.semanticGuard,
     guardContainer: AppColorsLight.semanticGuardContainer,
     info: AppColorsLight.semanticInfo,
@@ -350,6 +379,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
     real: AppColorsLight.modeReal,
     realContainer: AppColorsLight.modeRealContainer,
     onReal: AppColorsLight.modeOnReal,
+    chrome: AppColorsLight.bgChrome,
+    scrimSheet: AppColorsLight.scrimSheet,
   );
 
   /// T-15 PnL rule: tone by the EXACT value (lamports/BigInt or num). 0 → neutral, no arrow, no sign, text "0.00".
@@ -372,6 +403,7 @@ class TradeColors extends ThemeExtension<TradeColors> {
     Color? neutral,
     Color? warning,
     Color? warningContainer,
+    Color? onWarning,
     Color? guard,
     Color? guardContainer,
     Color? info,
@@ -384,6 +416,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
     Color? real,
     Color? realContainer,
     Color? onReal,
+    Color? chrome,
+    Color? scrimSheet,
   }) {
     return TradeColors(
       profit: profit ?? this.profit,
@@ -393,6 +427,7 @@ class TradeColors extends ThemeExtension<TradeColors> {
       neutral: neutral ?? this.neutral,
       warning: warning ?? this.warning,
       warningContainer: warningContainer ?? this.warningContainer,
+      onWarning: onWarning ?? this.onWarning,
       guard: guard ?? this.guard,
       guardContainer: guardContainer ?? this.guardContainer,
       info: info ?? this.info,
@@ -405,6 +440,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
       real: real ?? this.real,
       realContainer: realContainer ?? this.realContainer,
       onReal: onReal ?? this.onReal,
+      chrome: chrome ?? this.chrome,
+      scrimSheet: scrimSheet ?? this.scrimSheet,
     );
   }
 
@@ -419,6 +456,7 @@ class TradeColors extends ThemeExtension<TradeColors> {
       neutral: Color.lerp(neutral, other.neutral, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
       warningContainer: Color.lerp(warningContainer, other.warningContainer, t)!,
+      onWarning: Color.lerp(onWarning, other.onWarning, t)!,
       guard: Color.lerp(guard, other.guard, t)!,
       guardContainer: Color.lerp(guardContainer, other.guardContainer, t)!,
       info: Color.lerp(info, other.info, t)!,
@@ -431,6 +469,8 @@ class TradeColors extends ThemeExtension<TradeColors> {
       real: Color.lerp(real, other.real, t)!,
       realContainer: Color.lerp(realContainer, other.realContainer, t)!,
       onReal: Color.lerp(onReal, other.onReal, t)!,
+      chrome: Color.lerp(chrome, other.chrome, t)!,
+      scrimSheet: Color.lerp(scrimSheet, other.scrimSheet, t)!,
     );
   }
 }

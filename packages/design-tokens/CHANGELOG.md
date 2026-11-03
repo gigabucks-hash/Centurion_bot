@@ -1,5 +1,33 @@
 # Changelog — @centurion/design-tokens (Centurion Trade)
 
+## 0.3.4 — 3 Nov 2026 · surface chrome, sheet scrim, component shadows, onWarning (disetujui lead)
+Menambahkan 5 token yang dipakai mockup G1-blue v2 sehingga apps tidak perlu hard-code. Hanya penambahan; **tidak ada rename, penghapusan, atau perubahan nilai.**
+
+| token | dark | light | CSS | Dart |
+|---|---|---|---|---|
+| `color.*.bg.chrome` | #0D0F15 | #FFFFFF | `--color-bg-chrome` | `AppColors*.bgChrome`, `TradeColors.chrome` |
+| `color.*.scrim.sheet` | #00000099 (α 0,60) | #0F142061 (α 0,38) | `--color-scrim-sheet` | `AppColors*.scrimSheet`, `TradeColors.scrimSheet` |
+| `shadow.*.card` | none | 0 1 2 rgba(15,20,32,0.06) | `--shadow-card` (per tema; Tailwind `shadow-card`) | `AppElevation.cardDark/cardLight`, `AppElevation.card(brightness)` |
+| `shadow.*.dialog` | 0 16 40 rgba(0,0,0,0.5) | 0 12 32 rgba(15,20,32,0.14) | `--shadow-dialog` (Tailwind `shadow-dialog`) | `AppElevation.dialogDark/dialogLight`, `AppElevation.dialog(brightness)` |
+| `color.*.semantic.onWarning` | #1A1203 | #FFFFFF | `--color-semantic-onWarning` | `AppColors*.semanticOnWarning`, `TradeColors.onWarning` |
+
+Pemakaian:
+- `bg.chrome`: sidebar desktop dan bottom tab bar mobile.
+- `scrim.sheet`: di belakang bottom sheet/dialog. Alpha sudah termasuk; **jangan** ditambah opacity lagi. `scrim.overlay` (opaque) dan slot M3 `ColorScheme.scrim` tidak berubah.
+- `shadow.card`: kartu di tema terang. Kartu di tema gelap tanpa bayangan.
+- `shadow.dialog`: dialog dan sheet.
+- `onWarning`: glyph di atas fill solid `semantic.warning` / `semantic.guard`.
+- `elevation.e0–e4` tetap ada, tidak berubah.
+
+### Build
+- `bg.chrome` masuk ke matriks surface: semua token teks ≥ 4,5:1 dan non-teks ≥ 3:1 di chrome.
+- Pasangan baru: `onWarning` di `warning` (dark 11,07 / light 5,93) dan di `guard` (dark 6,29 / light 5,34).
+- Cek alpha `scrim.sheet` 0,32–0,70.
+- Dart `dc()` kini menerima `#RRGGBBAA` (→ `0xAARRGGBB`). `bs()` membaca warna rgba penuh, bukan hanya hitam.
+- Grup `shadow` baru (per tema, DTCG `$type: shadow`).
+- Contrast FAIL 0, CSS valid (lightningcss), baris ≤ 120, `dart analyze` bersih.
+- Konstruktor `TradeColors` punya 3 field wajib baru (`onWarning`, `chrome`, `scrimSheet`). Di apps/* tidak ada yang membuat instance sendiri (rg 3 Nov 2026), jadi cukup salin `app_tokens.dart`.
+
 ## 0.3.3 — 3 Nov 2026 · G1-blue v2 light theme
 Perubahan source sudah masuk di `ed273fc` (checkpoint sebelum rename). Rilis ini menambahkan bump versi + catatan. Tidak ada rename atau penghapusan.
 

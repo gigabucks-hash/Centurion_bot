@@ -13,6 +13,7 @@ module.exports = {
           "raised": "var(--color-bg-raised)",
           "overlay": "var(--color-bg-overlay)",
           "sunken": "var(--color-bg-sunken)",
+          "chrome": "var(--color-bg-chrome)",
           "inset": "var(--color-bg-inset)"
         },
         "border": {
@@ -42,6 +43,7 @@ module.exports = {
           "lossContainer": "var(--color-semantic-lossContainer)",
           "warning": "var(--color-semantic-warning)",
           "warningContainer": "var(--color-semantic-warningContainer)",
+          "onWarning": "var(--color-semantic-onWarning)",
           "guard": "var(--color-semantic-guard)",
           "guardContainer": "var(--color-semantic-guardContainer)",
           "info": "var(--color-semantic-info)",
@@ -64,7 +66,8 @@ module.exports = {
           "primary": "var(--color-inverse-primary)"
         },
         "scrim": {
-          "overlay": "var(--color-scrim-overlay)"
+          "overlay": "var(--color-scrim-overlay)",
+          "sheet": "var(--color-scrim-sheet)"
         },
         "skeleton": {
           "base": "var(--color-skeleton-base)",
@@ -185,7 +188,9 @@ module.exports = {
         "e1": "0 1px 2px 0px rgba(0,0,0,0.3)",
         "e2": "0 2px 6px 0px rgba(0,0,0,0.32)",
         "e3": "0 8px 20px 0px rgba(0,0,0,0.36)",
-        "e4": "0 16px 40px 0px rgba(0,0,0,0.44)"
+        "e4": "0 16px 40px 0px rgba(0,0,0,0.44)",
+        "card": "var(--shadow-card)",
+        "dialog": "var(--shadow-dialog)"
       }
     }
   }

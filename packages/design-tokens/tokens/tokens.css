@@ -6,6 +6,7 @@
   --color-bg-raised: #191C25;
   --color-bg-overlay: #20242F;
   --color-bg-sunken: #07080C;
+  --color-bg-chrome: #0D0F15;
   --color-border-subtle: #1E222C;
   --color-border-default: #2C313E;
   --color-border-strong: #6C7590;
@@ -26,6 +27,7 @@
   --color-semantic-lossContainer: #3A1518;
   --color-semantic-warning: #F5C04E;
   --color-semantic-warningContainer: #33270C;
+  --color-semantic-onWarning: #1A1203;
   --color-semantic-guard: #E57A12;
   --color-semantic-guardContainer: #361C08;
   --color-semantic-info: #7AA7FF;
@@ -43,9 +45,12 @@
   --color-inverse-onSurface: #12141B;
   --color-inverse-primary: #1F5FD1;
   --color-scrim-overlay: #000000;
+  --color-scrim-sheet: #00000099;
   --color-skeleton-base: #272D3C;
   --color-skeleton-highlight: #353C4E;
   --coin-logo-ring: rgba(255, 255, 255, 0.12);
+  --shadow-card: none;
+  --shadow-dialog: 0 16px 40px 0px rgba(0,0,0,0.5);
   --color-bg-inset: var(--color-bg-sunken); /* deprecated alias (0.2.4): use --color-bg-sunken */
 }
 [data-theme="light"] {
@@ -55,6 +60,7 @@
   --color-bg-raised: #FFFFFF;
   --color-bg-overlay: #FFFFFF;
   --color-bg-sunken: #EEF0F5;
+  --color-bg-chrome: #FFFFFF;
   --color-border-subtle: #E4E7EE;
   --color-border-default: #CDD3DE;
   --color-border-strong: #7D879B;
@@ -75,6 +81,7 @@
   --color-semantic-lossContainer: #FCE4E4;
   --color-semantic-warning: #8A5A00;
   --color-semantic-warningContainer: #FBF0D5;
+  --color-semantic-onWarning: #FFFFFF;
   --color-semantic-guard: #A85400;
   --color-semantic-guardContainer: #FFF1E6;
   --color-semantic-info: #1F5FCC;
@@ -92,9 +99,12 @@
   --color-inverse-onSurface: #ECEEF4;
   --color-inverse-primary: #6E9FFF;
   --color-scrim-overlay: #000000;
+  --color-scrim-sheet: #0F142061;
   --color-skeleton-base: #DFE3EA;
   --color-skeleton-highlight: #F1F3F7;
   --coin-logo-ring: rgba(15, 20, 32, 0.1);
+  --shadow-card: 0 1px 2px 0px rgba(15,20,32,0.06);
+  --shadow-dialog: 0 12px 32px 0px rgba(15,20,32,0.14);
   --color-bg-inset: var(--color-bg-sunken); /* deprecated alias (0.2.4): use --color-bg-sunken */
 }
 @media (prefers-color-scheme: light) {
@@ -104,6 +114,7 @@
     --color-bg-raised: #FFFFFF;
     --color-bg-overlay: #FFFFFF;
     --color-bg-sunken: #EEF0F5;
+    --color-bg-chrome: #FFFFFF;
     --color-border-subtle: #E4E7EE;
     --color-border-default: #CDD3DE;
     --color-border-strong: #7D879B;
@@ -124,6 +135,7 @@
     --color-semantic-lossContainer: #FCE4E4;
     --color-semantic-warning: #8A5A00;
     --color-semantic-warningContainer: #FBF0D5;
+    --color-semantic-onWarning: #FFFFFF;
     --color-semantic-guard: #A85400;
     --color-semantic-guardContainer: #FFF1E6;
     --color-semantic-info: #1F5FCC;
@@ -141,9 +153,12 @@
     --color-inverse-onSurface: #ECEEF4;
     --color-inverse-primary: #6E9FFF;
     --color-scrim-overlay: #000000;
+    --color-scrim-sheet: #0F142061;
     --color-skeleton-base: #DFE3EA;
     --color-skeleton-highlight: #F1F3F7;
     --coin-logo-ring: rgba(15, 20, 32, 0.1);
+    --shadow-card: 0 1px 2px 0px rgba(15,20,32,0.06);
+    --shadow-dialog: 0 12px 32px 0px rgba(15,20,32,0.14);
     --color-bg-inset: var(--color-bg-sunken); /* deprecated alias (0.2.4): use --color-bg-sunken */
   }
 }

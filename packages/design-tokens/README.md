@@ -17,6 +17,14 @@ Panduan lengkap (font bundling, Tailwind v4 utilities, mapping M3, aturan Tauri,
 
 Breaking v0.2.0 (untuk Flutter): `context.trade` → `context.tradeColors`, `numStyle()` → `AppText.num()`, `AppSpace.s0_5` → `AppSpace.sHalf`. Warna berubah: dark `border.strong` #6B7995, `text.tertiary` #919CB2.
 
+**v0.3.4 (3 Nov 2026) — 5 token surface baru (hanya penambahan):**
+- `bg.chrome` (sidebar/tab bar; dark #0D0F15, light #FFFFFF) → `--color-bg-chrome`, `TradeColors.chrome`.
+- `scrim.sheet` (dark #00000099, light #0F142061; alpha sudah termasuk) → `--color-scrim-sheet`, `TradeColors.scrimSheet`.
+- `shadow.{dark,light}.card` / `.dialog` → `--shadow-card`, `--shadow-dialog` (per tema; Tailwind `shadow-card`, `shadow-dialog`), Dart `AppElevation.card(b)` / `dialog(b)`.
+- `semantic.onWarning` (dark #1A1203, light #FFFFFF) → `--color-semantic-onWarning`, `TradeColors.onWarning`.
+
+Detail: `CHANGELOG.md`.
+
 **v0.3.3 (3 Nov 2026) — G1-blue v2 light theme:** light `brand.primary` + `border.focus` **#2456D6**. Token baru `mode.practiceStripe` (dark #164D56 / light #CDEBF0) dan `mode.onPracticeContainer` (dark #3FD0E0 / light #064E5B), CSS `--color-mode-practiceStripe` / `--color-mode-onPracticeContainer`, Dart `TradeColors.practiceStripe` / `.onPracticeContainer`. Pakai keduanya untuk badge bergaris Practice, yang di UI berlabel **Paper** sejak i18n 0.4.10. Nama token tetap `practice`. Detail: `CHANGELOG.md`.
 
 **v0.3.2 (3 Nov 2026) — docs saja, nilai token tidak berubah:** aturan guard vs warning (§ "Guard vs warning"), path sumber Sora diperbaiki (§ Font bundling), set ukuran logo proxy (§ "Ukuran file logo koin"). Detail: `CHANGELOG.md`.
