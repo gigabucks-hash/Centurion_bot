@@ -108,13 +108,21 @@ void main() {
   });
   test('Rev 4.7: brand, Real notif plurals (=0 empty branch), selects, sell preview', () {
     expect(en.appName, 'Centurion Trade');
-    expect(id.authSiwsStatement, 'Masuk ke Centurion Trade');
+    expect(id.authSiwsStatement, 'Sign in to Centurion Trade'); // i18n 0.4.8+: ID = EN verbatim (signed statement)
     expect(en.screenerNotTradeableDetail, contains('Centurion Trade only trades SOL pairs'));
     expect(en.notifRealSellAllCompletedTitle(0), '[REAL SOL] Sell all done');
     expect(id.notifRealSellAllCompletedTitle(2), '[REAL SOL] Jual semua: 2 gagal');
-    expect(en.notifRealSellAllCompletedBody(0, 3), '3 sold');
-    expect(en.notifRealSellAllCompletedBody(1, 2), '2 sold · 1 failed and is still open');
-    expect(id.notifRealSellAllCompletedBody(2, 1), '1 terjual · 2 gagal, masih terbuka');
+    // i18n 0.4.9: args are alphabetical (failed_count, requested_count, sold_count).
+    expect(en.notifRealSellAllCompletedBody(0, 3, 3), '3 of 3 sold');
+    expect(
+      en.notifRealSellAllCompletedBody(1, 3, 2),
+      '2 of 3 sold · 1 failed: still open, its exit plan keeps running',
+    );
+    expect(
+      id.notifRealSellAllCompletedBody(2, 3, 1),
+      '1 dari 3 terjual · 2 gagal: tetap terbuka, exit plan tetap jalan',
+    );
+    expect(en.notifRealKillSwitchClearedBody('revoked'), startsWith('Trading authority is still revoked'));
     expect(
       id.notifRealKillSwitchTrippedBody('loss_velocity'),
       startsWith('Dihentikan otomatis: kerugian naik terlalu cepat'),

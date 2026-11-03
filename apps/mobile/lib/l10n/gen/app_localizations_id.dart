@@ -26,7 +26,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get appTitle => 'Centurion Trade · bot trading Solana';
 
   @override
-  String get authSiwsStatement => 'Masuk ke Centurion Trade';
+  String get authSiwsStatement => 'Sign in to Centurion Trade';
 
   @override
   String get builderApprovalModeRealNote => 'Real SOL: “Off” tidak tersedia di MVP.';
@@ -437,6 +437,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get conflictStateOffline => 'Tidak bisa cek versi terbaru saat offline. Drafmu disimpan lokal.';
 
   @override
+  String get dashboardEyebrow => 'Command deck';
+
+  @override
   String get dashboardFeedFilterAll => 'Semua';
 
   @override
@@ -453,6 +456,9 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get dashboardFeedTitle => 'Feed aktivitas';
+
+  @override
+  String get dashboardHeadline => 'Semua posisimu, sekilas.';
 
   @override
   String get dashboardKpiAwaiting => 'Menunggu approval';
@@ -912,13 +918,19 @@ class AppLocalizationsId extends AppLocalizations {
   String get guardWeakenTypeName => 'Ketik nama strategi untuk konfirmasi';
 
   @override
-  String get killSwitchActionEngage => 'Stop sekarang';
+  String get killSwitchActionEngage => 'Hentikan pembelian';
 
   @override
   String get killSwitchActionOpen => 'Stop semua trading Real';
 
   @override
+  String get killSwitchActionResume => 'Lanjutkan pembelian';
+
+  @override
   String get killSwitchDialogEffectBuys => 'Buy baru diblokir dan semua strategi Real dijeda.';
+
+  @override
+  String get killSwitchDialogEffectExitsKeep => 'Exit plan, TP & SL tetap jalan.';
 
   @override
   String get killSwitchDialogEffectInflight => 'Order yang sudah terkirim tidak bisa ditarik.';
@@ -930,19 +942,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get killSwitchDialogEffectUnsigned => 'Order belum diteken dibatalkan.';
 
   @override
-  String get killSwitchDialogTitle => 'Stop semua trading Real?';
+  String get killSwitchDialogTitle => 'Hentikan pembelian Real baru?';
 
   @override
   String get killSwitchOffline => 'Server tidak terjangkau. Stop belum terkonfirmasi. Mencoba lagi…';
 
   @override
-  String get killSwitchOptionExitsFreeze => 'Bekukan exit plan juga: posisi TANPA stop loss otomatis';
-
-  @override
   String get killSwitchOptionExitsRun => 'Exit plan tetap jalan (disarankan)';
-
-  @override
-  String get killSwitchOptionRevoke => 'Cabut izin bot di provider (hard stop)';
 
   @override
   String killSwitchOptionSellAll(int count) {
@@ -963,13 +969,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get killSwitchReasonPolicyMismatch => 'aturan wallet tidak cocok';
 
   @override
-  String get killSwitchReenableAction => 'Aktifkan lagi trading Real';
-
-  @override
-  String get killSwitchReenableResumeNote => 'Strategi tetap dijeda. Lanjutkan satu per satu.';
-
-  @override
-  String get killSwitchRevokePending => 'Trading dihentikan. Pencabutan izin tertunda; akan dicoba lagi.';
+  String get killSwitchReasonProviderError => 'masalah provider/signer · hanya exit yang berjalan';
 
   @override
   String get killSwitchScopeGlobal => 'Semua trading Real';
@@ -985,7 +985,34 @@ class AppLocalizationsId extends AppLocalizations {
       'Jual di harga pasar sekarang. Cek keamanan tetap berlaku: simulasi dan batas slippage.';
 
   @override
+  String killSwitchSellAllFailureRow(String reason_code, String symbol) {
+    return '$symbol: $reason_code. Tetap terbuka; exit plan tetap jalan.';
+  }
+
+  @override
   String get killSwitchSellAllHold => 'Tahan 2,5 dtk untuk jual semua';
+
+  @override
+  String killSwitchSellAllInProgress(int requested_count) {
+    final intl.NumberFormat requested_countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String requested_countString = requested_countNumberFormat.format(requested_count);
+
+    String _temp0 = intl.Intl.pluralLogic(
+      requested_count,
+      locale: localeName,
+      other: 'Menjual $requested_countString posisi…',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String killSwitchSellAllRateLimited(int retry_after_s) {
+    final intl.NumberFormat retry_after_sNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String retry_after_sString = retry_after_sNumberFormat.format(retry_after_s);
+
+    String _temp0 = intl.Intl.pluralLogic(retry_after_s, locale: localeName, other: '$retry_after_sString detik');
+    return 'Jual semua baru saja diminta. Coba lagi dalam $_temp0.';
+  }
 
   @override
   String killSwitchSellAllTitle(int count) {
@@ -1013,10 +1040,10 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String killSwitchStatusExits(String state) {
-    String _temp0 = intl.Intl.selectLogic(state, {'running': 'Exit plan berjalan', 'other': 'Exit plan dibekukan'});
-    return '$_temp0';
-  }
+  String get killSwitchStatusExits => 'Exit plan tetap jalan';
+
+  @override
+  String get killSwitchStatusResumeHint => 'Izin bot tetap aktif. Tanpa cooldown: lanjutkan kapan saja dengan 1 klik.';
 
   @override
   String get killSwitchStatusTitle => 'Pembelian baru dihentikan';
@@ -1394,24 +1421,29 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String notifRealBuysResumedBody(String actor_type, String device_label) {
-    String _temp0 = intl.Intl.selectLogic(actor_type, {'user': 'Olehmu di $device_label.', 'other': 'Oleh sistem.'});
-    return '$_temp0 Strategi tetap dijeda sampai kamu melanjutkannya.';
+    String _temp0 = intl.Intl.selectLogic(actor_type, {'user': 'olehmu di $device_label', 'other': 'oleh sistem'});
+    return 'Pembelian baru jalan lagi sekarang · $_temp0';
   }
 
   @override
   String get notifRealBuysResumedTitle => '[REAL SOL] Pembelian baru dilanjutkan';
 
   @override
-  String notifRealDepositDetectedBody(String amount_lamports, String balance_lamports, String cap_lamports) {
-    return '+$amount_lamports · saldo $balance_lamports dari $cap_lamports';
+  String notifRealDepositDetectedBody(String amount_lamports, String balance_lamports) {
+    return '+$amount_lamports · saldo $balance_lamports';
   }
 
   @override
   String get notifRealDepositDetectedTitle => '[REAL SOL] Deposit masuk';
 
   @override
-  String get notifRealKillSwitchClearedBody =>
-      'Trading Real bisa jalan lagi. Strategi tetap dijeda sampai kamu melanjutkannya.';
+  String notifRealKillSwitchClearedBody(String signer_state) {
+    String _temp0 = intl.Intl.selectLogic(signer_state, {
+      'revoked': 'Izin trading masih dicabut · berikan izin lagi untuk lanjut',
+      'other': 'Pembelian Real baru jalan lagi sekarang',
+    });
+    return '$_temp0';
+  }
 
   @override
   String get notifRealKillSwitchClearedTitle => '[REAL SOL] Henti otomatis dicabut';
@@ -1419,11 +1451,12 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String notifRealKillSwitchTrippedBody(String reason) {
     String _temp0 = intl.Intl.selectLogic(reason, {
-      'policy_mismatch': 'aturan wallet tidak cocok',
-      'loss_velocity': 'kerugian naik terlalu cepat',
-      'other': 'aturan keamanan terpicu',
+      'policy_mismatch': 'Dihentikan otomatis: aturan wallet tidak cocok. Buy baru diblokir.',
+      'loss_velocity': 'Dihentikan otomatis: kerugian naik terlalu cepat. Buy baru diblokir.',
+      'provider_error': 'Dihentikan otomatis: masalah provider/signer · hanya exit yang berjalan.',
+      'other': 'Dihentikan otomatis: aturan keamanan terpicu. Buy baru diblokir.',
     });
-    return 'Dihentikan otomatis: $_temp0. Buy baru diblokir.';
+    return '$_temp0';
   }
 
   @override
@@ -1462,18 +1495,24 @@ class AppLocalizationsId extends AppLocalizations {
   String get notifRealPolicyMismatchTitle => '[REAL SOL] Aturan wallet tidak cocok';
 
   @override
-  String notifRealSellAllCompletedBody(int failed_count, int sold_count) {
+  String notifRealSellAllCompletedBody(int failed_count, int requested_count, int sold_count) {
     final intl.NumberFormat failed_countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
     final String failed_countString = failed_countNumberFormat.format(failed_count);
+    final intl.NumberFormat requested_countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String requested_countString = requested_countNumberFormat.format(requested_count);
     final intl.NumberFormat sold_countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
     final String sold_countString = sold_countNumberFormat.format(sold_count);
 
-    String _temp0 = intl.Intl.pluralLogic(sold_count, locale: localeName, other: '$sold_countString terjual');
+    String _temp0 = intl.Intl.pluralLogic(
+      sold_count,
+      locale: localeName,
+      other: '$sold_countString dari $requested_countString terjual',
+    );
     String _temp1 = intl.Intl.pluralLogic(
       failed_count,
       locale: localeName,
       zero: '',
-      other: ' · $failed_countString gagal, masih terbuka',
+      other: ' · $failed_countString gagal: tetap terbuka, exit plan tetap jalan',
     );
     return '$_temp0$_temp1';
   }
@@ -1493,19 +1532,19 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String notifRealSellAllCompletedTotal(String amount_lamports) {
-    return 'Total keluar: $amount_lamports';
+  String notifRealSellAllCompletedTotal(String amount_out_lamports) {
+    return 'Total keluar: $amount_out_lamports';
   }
 
   @override
-  String notifRealSellAllRequestedBody(int count) {
-    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
-    final String countString = countNumberFormat.format(count);
+  String notifRealSellAllRequestedBody(int requested_count) {
+    final intl.NumberFormat requested_countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String requested_countString = requested_countNumberFormat.format(requested_count);
 
     String _temp0 = intl.Intl.pluralLogic(
-      count,
+      requested_count,
       locale: localeName,
-      other: 'Menjual $countString posisi di harga pasar.',
+      other: 'Menjual $requested_countString posisi di harga pasar.',
     );
     return '$_temp0 Guard tetap berlaku.';
   }
@@ -1524,9 +1563,8 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String notifRealSignerRevokedBody(String reason) {
     String _temp0 = intl.Intl.selectLogic(reason, {
-      'kill_switch': 'Dicabut oleh kill switch.',
-      'expiry': 'Izinnya sudah habis.',
       'user': 'Kamu mencabutnya.',
+      'expiry': 'Izinnya sudah habis.',
       'other': 'Dicabut.',
     });
     return '$_temp0 Trading Real tidak bisa menandatangani sampai kamu otorisasi lagi.';
@@ -1674,6 +1712,9 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get positionsDensityLabel => 'Kepadatan tabel';
+
+  @override
   String positionsEmpty(String mode) {
     String _temp0 = intl.Intl.selectLogic(mode, {
       'real': 'Tidak ada posisi terbuka',
@@ -1689,6 +1730,12 @@ class AppLocalizationsId extends AppLocalizations {
   String positionsEquityTitle(String range) {
     return 'Ekuitas · $range';
   }
+
+  @override
+  String get positionsExitHeldBadge => 'Exit ditahan';
+
+  @override
+  String get positionsExitHeldDetail => 'Exit plan, TP & SL ditahan sampai kamu memberi izin trading lagi.';
 
   @override
   String positionsNextAction(String gain, String pct, String rung) {
@@ -1722,6 +1769,12 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get positionsSellHoldReleased => 'Dilepas terlalu cepat — tidak ada yang dijual';
+
+  @override
+  String get positionsSellManual => 'Jual manual';
+
+  @override
+  String get positionsSellManualNote => 'Jual manual tetap bisa, ditandatangani di Phantom.';
 
   @override
   String get positionsSellNeverFromNotification => 'Jual tidak pernah tersedia dari notifikasi atau popup.';
@@ -1818,6 +1871,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get queuePickKindGuardChange => 'Melonggarkan guard';
 
   @override
+  String get queuePickKindSellPosition => 'Jual';
+
+  @override
   String get queuePickReviewChange => 'Tinjau perubahan';
 
   @override
@@ -1843,6 +1899,9 @@ class AppLocalizationsId extends AppLocalizations {
   String queueRealHold(String amount_lamports) {
     return 'Tahan untuk setujui $amount_lamports';
   }
+
+  @override
+  String get queueRealWithinLimits => 'Dalam batas: cukup tahan, tanpa Phantom.';
 
   @override
   String get queueSkipReasonAlreadyPumped => 'Sudah pump';
@@ -1881,8 +1940,11 @@ class AppLocalizationsId extends AppLocalizations {
   String get queueTabSkipped => 'Dilewati';
 
   @override
-  String queueTabWithCount(String count, String label) {
-    return '$label · $count';
+  String queueTabWithCount(int count, String label) {
+    final intl.NumberFormat countNumberFormat = intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
+    return '$label · $countString';
   }
 
   @override
@@ -1949,6 +2011,11 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get reviewPriorityFee => 'Priority fee';
+
+  @override
+  String reviewQuoteAgeValid(String age_seconds, String valid_seconds) {
+    return 'Umur quote $age_seconds dtk · berlaku $valid_seconds dtk';
+  }
 
   @override
   String get reviewQuoteAutoRefreshing => 'Memperbarui otomatis…';
@@ -2175,10 +2242,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get screenerTitle => 'Koin · screener';
 
   @override
-  String get settingsAppearanceDensityComfortable => 'Comfortable';
+  String get settingsAppearanceDensityComfortable => 'Nyaman';
 
   @override
-  String get settingsAppearanceDensityCompact => 'Compact';
+  String get settingsAppearanceDensityCompact => 'Ringkas';
 
   @override
   String get settingsAppearanceDensityLabel => 'Kepadatan';
@@ -2489,10 +2556,16 @@ class AppLocalizationsId extends AppLocalizations {
   String get tokenProgramToken2022 => 'Token-2022';
 
   @override
+  String get walletAuthorizeRegrant => 'Berikan izin trading lagi';
+
+  @override
+  String get walletAuthorizeRegrantNote => 'Butuh Phantom + passkey. Setelah izin aktif, exit plan lanjut otomatis.';
+
+  @override
   String get walletLimitsSettingCapLamports => 'Batas total';
 
   @override
-  String get walletLimitsSettingDailyLamports => 'Maks. 24 jam';
+  String get walletLimitsSettingDailyLamports => 'Maks. per 24 jam bergulir';
 
   @override
   String get walletLimitsSettingMaxPositions => 'Maks. posisi terbuka';
@@ -2502,12 +2575,6 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get walletLimitsSettingPerTradeLamports => 'Maks. per trade';
-
-  @override
-  String get walletOwnerAddBackup => 'Tambah wallet cadangan…';
-
-  @override
-  String get walletOwnerBackup => 'Wallet pemilik cadangan · bukan tujuan penarikan';
 
   @override
   String get walletOwnerCancel => 'Batalkan';
@@ -2527,11 +2594,32 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String get walletOwnerTitle => 'Wallet pemilik';
+  String get walletOwnerTitle => 'Wallet utama';
 
   @override
   String get walletOwnerTypeLast4 => 'Ketik 4 karakter terakhir alamat baru';
 
   @override
-  String get walletWithdrawFailReasonUnknown => 'Error tak dikenal';
+  String get walletWithdrawFailReasonDestinationNotOwned => 'tujuan bukan wallet utamamu';
+
+  @override
+  String get walletWithdrawFailReasonInsufficientBalance => 'saldo tidak cukup';
+
+  @override
+  String get walletWithdrawFailReasonOther => 'terjadi kesalahan';
+
+  @override
+  String get walletWithdrawFailReasonProviderError => 'gangguan provider wallet';
+
+  @override
+  String get walletWithdrawFailReasonTxExpired => 'tidak terkirim tepat waktu';
+
+  @override
+  String get walletWithdrawFailReasonUnknown => 'error tak dikenal';
+
+  @override
+  String get walletWithdrawFailReasonUserRejected => 'kamu menolak tanda tangan';
+
+  @override
+  String get walletWithdrawFailReasonWithdrawSimulationFailed => 'simulasi keamanan gagal';
 }

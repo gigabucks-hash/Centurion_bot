@@ -2,8 +2,8 @@
 // Regenerate: dart run tool/gen_errors.dart  (CI: tool/ci_check_errors.sh)
 // ignore_for_file: lines_longer_than_80_chars, constant_identifier_names
 
-const int apiErrorCodesVersion = 6;
-const int apiErrorCodesCount = 58;
+const int apiErrorCodesVersion = 7;
+const int apiErrorCodesCount = 67;
 
 /// `error` = API/RPC error body; `notice` = system.notice code; `skip` = screener skip_reason
 /// (may also be an `order.failed` reason_code).
@@ -54,6 +54,24 @@ enum ApiErrorCode {
     messageEn: 'Resource not found or not visible',
     messageId: 'Data tidak ditemukan atau tidak dapat diakses',
     sqlState: 'P0404',
+  ),
+  logoNotFound(
+    'LOGO_NOT_FOUND',
+    kind: ApiErrorKind.error,
+    http: 404,
+    retryable: false,
+    messageEn: 'No logo is available for this coin',
+    messageId: 'Logo untuk koin ini tidak tersedia',
+    sqlState: 'P0404',
+  ),
+  logoRejected(
+    'LOGO_REJECTED',
+    kind: ApiErrorKind.error,
+    http: 422,
+    retryable: false,
+    messageEn: 'The coin\'s logo was rejected (size, format, SVG, decoding or moderation)',
+    messageId: 'Logo koin ditolak (ukuran, format, SVG, gagal dibaca, atau moderasi)',
+    sqlState: 'P0422',
   ),
   validationFailed(
     'VALIDATION_FAILED',
@@ -231,8 +249,8 @@ enum ApiErrorCode {
     kind: ApiErrorKind.error,
     http: 403,
     retryable: false,
-    messageEn: 'Only practice mode is allowed; real mode is not enabled',
-    messageId: 'Hanya mode practice yang diizinkan; mode real belum aktif',
+    messageEn: 'This strategy is not approved for Real mode',
+    messageId: 'Strategi ini belum disetujui untuk mode Real',
     sqlState: 'P0403',
   ),
   realSolDisabled(
@@ -507,6 +525,69 @@ enum ApiErrorCode {
     messageEn: 'A market data source is degraded; new picks may be delayed',
     messageId: 'Sumber data pasar sedang terganggu; pick baru mungkin tertunda',
     sqlState: 'P0503',
+  ),
+  loosenRequiresApp(
+    'LOOSEN_REQUIRES_APP',
+    kind: ApiErrorKind.error,
+    http: 403,
+    retryable: false,
+    messageEn: 'Loosening limits or guards can only be requested in the Centurion Trade app',
+    messageId: 'Melonggarkan batas atau guard hanya bisa diminta di aplikasi Centurion Trade',
+    sqlState: 'P0403',
+  ),
+  resumeRequiresApp(
+    'RESUME_REQUIRES_APP',
+    kind: ApiErrorKind.error,
+    http: 403,
+    retryable: false,
+    messageEn: 'Buying was paused in the app; resume it in the Centurion Trade app',
+    messageId: 'Pembelian dijeda dari aplikasi; lanjutkan lewat aplikasi Centurion Trade',
+    sqlState: 'P0403',
+  ),
+  buysPaused(
+    'BUYS_PAUSED',
+    kind: ApiErrorKind.error,
+    http: 409,
+    retryable: false,
+    messageEn: 'Buys are paused',
+    messageId: 'Pembelian sedang dijeda',
+    sqlState: 'P0409',
+  ),
+  agentBudgetExceeded(
+    'AGENT_BUDGET_EXCEEDED',
+    kind: ApiErrorKind.error,
+    http: 429,
+    retryable: true,
+    messageEn: 'Agent call budget exceeded; try again later',
+    messageId: 'Batas panggilan agen terlampaui; coba lagi nanti',
+    sqlState: 'P0429',
+  ),
+  agentTradeDisabled(
+    'AGENT_TRADE_DISABLED',
+    kind: ApiErrorKind.error,
+    http: 403,
+    retryable: false,
+    messageEn: 'Agent trading is off; turn it on in the Centurion Trade app',
+    messageId: 'Trading oleh agen nonaktif; aktifkan di aplikasi Centurion Trade',
+    sqlState: 'P0403',
+  ),
+  siwsSessionRequired(
+    'SIWS_SESSION_REQUIRED',
+    kind: ApiErrorKind.error,
+    http: 403,
+    retryable: false,
+    messageEn: 'Sign in with your wallet in the Centurion Trade app',
+    messageId: 'Masuk dengan wallet di aplikasi Centurion Trade',
+    sqlState: 'P0403',
+  ),
+  agentRequestExpired(
+    'AGENT_REQUEST_EXPIRED',
+    kind: ApiErrorKind.error,
+    http: 410,
+    retryable: false,
+    messageEn: 'This agent connection request has expired; start again from the agent',
+    messageId: 'Permintaan koneksi agen ini kedaluwarsa; mulai lagi dari agen',
+    sqlState: 'P0410',
   ),
   rateLimited(
     'RATE_LIMITED',

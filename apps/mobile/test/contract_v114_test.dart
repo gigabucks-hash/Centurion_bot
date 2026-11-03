@@ -276,9 +276,19 @@ void main() {
                 File(Platform.environment['ERRORS_JSON'] ?? '../../packages/contracts/errors.json').readAsStringSync(),
               )
               as Map;
-      final wire = {for (final e in errs['codes'] as List) (e as Map)['code']};
-      expect(errorL10nCodes.toSet(), wire, reason: 'errors.json v6 (58 codes)');
-      expect(errorL10nCodes, hasLength(58));
+      final wire = {for (final e in errs['codes'] as List) (e as Map)['code'] as String};
+      // errors.json (Backend) can run ahead of errors.map.json (UX). Every mapped code must exist on the
+      // wire; wire codes without i18n copy fall back to the errors.json catalog message (never the key).
+      expect(wire.containsAll(errorL10nCodes), isTrue, reason: 'errors.map.json has a code errors.json lacks');
+      final en = AppLocalizationsEn();
+      final idL = AppLocalizationsId();
+      for (final code in wire.difference(errorL10nCodes.toSet())) {
+        final c = ApiErrorCode.fromWire(code);
+        expect(c, isNot(ApiErrorCode.unknown), reason: code);
+        expect(errorText(en, c), c.message('en'), reason: code);
+        expect(errorText(idL, c), c.message('id'), reason: code);
+      }
+      expect(errorText(idL, ApiErrorCode.fromWire('LOGO_NOT_FOUND')), 'Logo untuk koin ini tidak tersedia');
       expect(errorTone(ApiErrorCode.guardWeakenRequiresApproval), ErrorTone.pending);
       expect(errorTone(ApiErrorCode.quoteMissingOrStale), ErrorTone.warning);
       expect(errorTone(ApiErrorCode.versionConflict), ErrorTone.error);

@@ -122,7 +122,7 @@ abstract class AppLocalizations {
   /// **'Centurion Trade · Solana trading bot'**
   String get appTitle;
 
-  /// DISPLAY copy only. The signed SIWS statement is server-defined (strict message): Backend must change it too, else verify fails
+  /// VERBATIM signed SIWS statement (server statement_version bumped, Rev 4.8): never translate, must equal the server string exactly
   ///
   /// In en, this message translates to:
   /// **'Sign in to Centurion Trade'**
@@ -740,6 +740,12 @@ abstract class AppLocalizations {
   /// **'Can’t check for newer versions while offline. Your draft is kept locally.'**
   String get conflictStateOffline;
 
+  /// 0.4.9 G1 eyebrow above the dashboard headline (product term, not translated); style AppText.eyebrow / text-eyebrow
+  ///
+  /// In en, this message translates to:
+  /// **'Command deck'**
+  String get dashboardEyebrow;
+
   /// dashboard.feed.filter.all
   ///
   /// In en, this message translates to:
@@ -775,6 +781,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Activity feed'**
   String get dashboardFeedTitle;
+
+  /// 0.4.9 G1 dashboard headline (Sora display)
+  ///
+  /// In en, this message translates to:
+  /// **'All your positions at a glance.'**
+  String get dashboardHeadline;
 
   /// dashboard.kpi.awaiting
   ///
@@ -1580,23 +1592,35 @@ abstract class AppLocalizations {
   /// **'Type the strategy name to confirm'**
   String get guardWeakenTypeName;
 
-  /// initial focus; one click + one dialog, no 2FA, no hold
+  /// manual Stop → real.buys.paused (exit plans keep running); initial focus; one click + one dialog, no 2FA, no hold
   ///
   /// In en, this message translates to:
-  /// **'Stop now'**
+  /// **'Stop buying'**
   String get killSwitchActionEngage;
 
-  /// kill_switch.action.open
+  /// DEPRECATED 0.4.9: use kill_switch.action.engage (Stop = new buys only). Still read by apps/desktop StopControl; removed in the first i18n release after apps/desktop StopControl.tsx migrates to kill_switch.action.engage + kill_switch.dialog.effect.exits_keep
   ///
   /// In en, this message translates to:
   /// **'Stop all Real trading'**
   String get killSwitchActionOpen;
 
-  /// kill_switch.dialog.effect.buys
+  /// → real.buys.resumed (immediate); replaces kill_switch.reenable.action
+  ///
+  /// In en, this message translates to:
+  /// **'Resume buying'**
+  String get killSwitchActionResume;
+
+  /// DEPRECATED 0.4.9: use kill_switch.dialog.effect.exits_keep. Still read by apps/desktop StopControl; removed in the first i18n release after apps/desktop StopControl.tsx migrates to kill_switch.action.engage + kill_switch.dialog.effect.exits_keep
   ///
   /// In en, this message translates to:
   /// **'New buys are blocked and all Real strategies pause.'**
   String get killSwitchDialogEffectBuys;
+
+  /// 0.4.9 G1 Stop dialog: Stop = new buys only (Boss decision)
+  ///
+  /// In en, this message translates to:
+  /// **'Exit plans, TP and SL keep running.'**
+  String get killSwitchDialogEffectExitsKeep;
 
   /// kill_switch.dialog.effect.inflight
   ///
@@ -1616,10 +1640,10 @@ abstract class AppLocalizations {
   /// **'Unsigned orders are cancelled.'**
   String get killSwitchDialogEffectUnsigned;
 
-  /// kill_switch.dialog.title
+  /// exit plans keep running
   ///
   /// In en, this message translates to:
-  /// **'Stop all Real trading?'**
+  /// **'Stop new Real buys?'**
   String get killSwitchDialogTitle;
 
   /// kill_switch.offline
@@ -1628,23 +1652,11 @@ abstract class AppLocalizations {
   /// **'Can’t reach the server. Stop isn’t confirmed yet. Retrying…'**
   String get killSwitchOffline;
 
-  /// kill_switch.option.exits_freeze
-  ///
-  /// In en, this message translates to:
-  /// **'Freeze exit plans too: positions have NO automatic stop loss'**
-  String get killSwitchOptionExitsFreeze;
-
   /// kill_switch.option.exits_run
   ///
   /// In en, this message translates to:
   /// **'Exit plan keeps running (recommended)'**
   String get killSwitchOptionExitsRun;
-
-  /// kill_switch.option.revoke
-  ///
-  /// In en, this message translates to:
-  /// **'Revoke the bot’s authority at the provider (hard stop)'**
-  String get killSwitchOptionRevoke;
 
   /// kill_switch.option.sell_all
   ///
@@ -1670,23 +1682,11 @@ abstract class AppLocalizations {
   /// **'wallet rules don’t match'**
   String get killSwitchReasonPolicyMismatch;
 
-  /// resume after Stop (real.buys.resumed) or clear an auto trip (real.kill_switch.cleared); step-up rules per Backend. No delay copy: clear_requested was dropped
+  /// kill_switch_reason=provider_error (Backend final Phase 7, auto trips only; lower-case: used mid-sentence)
   ///
   /// In en, this message translates to:
-  /// **'Re-enable Real trading'**
-  String get killSwitchReenableAction;
-
-  /// kill_switch.reenable.resume_note
-  ///
-  /// In en, this message translates to:
-  /// **'Strategies stay paused. Resume them one by one.'**
-  String get killSwitchReenableResumeNote;
-
-  /// kill_switch.revoke_pending
-  ///
-  /// In en, this message translates to:
-  /// **'Trading stopped. Revoking authority is pending; we’ll retry.'**
-  String get killSwitchRevokePending;
+  /// **'a provider or signer problem · only exits run'**
+  String get killSwitchReasonProviderError;
 
   /// wire scope=global
   ///
@@ -1712,11 +1712,29 @@ abstract class AppLocalizations {
   /// **'Sells at market now. Safety checks still apply: simulation and your slippage cap.'**
   String get killSwitchSellAllBody;
 
+  /// one per failures[] item; symbol resolved from mint (untrusted); reason_code → order.fail_reason.<lower> (unknown → .unknown)
+  ///
+  /// In en, this message translates to:
+  /// **'{symbol}: {reason_code}. Still open; exit plan keeps running.'**
+  String killSwitchSellAllFailureRow(String reason_code, String symbol);
+
   /// kill_switch.sell_all.hold
   ///
   /// In en, this message translates to:
   /// **'Hold 2.5 s to sell all'**
   String get killSwitchSellAllHold;
+
+  /// after real.sell_all.requested until real.sell_all.completed (same sell_all_id); button disabled
+  ///
+  /// In en, this message translates to:
+  /// **'{requested_count,plural,one{Selling {requested_count} position…} other{Selling {requested_count} positions…}}'**
+  String killSwitchSellAllInProgress(int requested_count);
+
+  /// 429 RATE_LIMITED on sell all (~1 per 60 s); retry_after_s = error.retry_after_s / Retry-After, counts down
+  ///
+  /// In en, this message translates to:
+  /// **'Sell all was just requested. Try again in {retry_after_s,plural,one{{retry_after_s} second} other{{retry_after_s} seconds}}.'**
+  String killSwitchSellAllRateLimited(int retry_after_s);
 
   /// lead decision: confirm dialog + 2.5 s hold, NO Phantom step-up
   ///
@@ -1736,11 +1754,17 @@ abstract class AppLocalizations {
   /// **'Stopped {actor_type, select, user {by you on {device_label}} rule {automatically} other {by the system}} at {at}'**
   String killSwitchStatusBy(String actor_type, String at, String device_label);
 
-  /// kill_switch.status.exits
+  /// Rev 5.2: exits are never frozen (no state var)
   ///
   /// In en, this message translates to:
-  /// **'{state, select, running {Exit plan running} other {Exit plan frozen}}'**
-  String killSwitchStatusExits(String state);
+  /// **'Exit plans keep running'**
+  String get killSwitchStatusExits;
+
+  /// 0.4.9 G1 stopped banner, next to kill_switch.action.resume
+  ///
+  /// In en, this message translates to:
+  /// **'Bot authority stays active. No cooldown: resume any time with one click.'**
+  String get killSwitchStatusResumeHint;
 
   /// manual Stop = real.buys.paused (exits keep running); auto trip = real.kill_switch.tripped
   ///
@@ -2309,7 +2333,7 @@ abstract class AppLocalizations {
   /// N-44
   ///
   /// In en, this message translates to:
-  /// **'{actor_type, select, user {By you on {device_label}.} other {By the system.}} Strategies stay paused until you resume them.'**
+  /// **'New buys run again now · {actor_type, select, user {by you on {device_label}} other {by the system}}'**
   String notifRealBuysResumedBody(String actor_type, String device_label);
 
   /// N-44 RESERVED Phase 7; placeholders = wire vars (snake_case)
@@ -2321,8 +2345,8 @@ abstract class AppLocalizations {
   /// N-39
   ///
   /// In en, this message translates to:
-  /// **'+{amount_lamports} · balance {balance_lamports} of {cap_lamports}'**
-  String notifRealDepositDetectedBody(String amount_lamports, String balance_lamports, String cap_lamports);
+  /// **'+{amount_lamports} · balance {balance_lamports}'**
+  String notifRealDepositDetectedBody(String amount_lamports, String balance_lamports);
 
   /// N-39 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
@@ -2333,8 +2357,8 @@ abstract class AppLocalizations {
   /// N-31
   ///
   /// In en, this message translates to:
-  /// **'Real trading can run again. Strategies stay paused until you resume them.'**
-  String get notifRealKillSwitchClearedBody;
+  /// **'{signer_state, select, revoked {Trading authority is still revoked · grant it again to continue} other {New Real buys run again now}}'**
+  String notifRealKillSwitchClearedBody(String signer_state);
 
   /// N-31 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
@@ -2345,7 +2369,7 @@ abstract class AppLocalizations {
   /// N-29
   ///
   /// In en, this message translates to:
-  /// **'Stopped automatically: {reason, select, policy_mismatch {wallet rules don’t match} loss_velocity {losses grew too fast} other {a safety rule triggered}}. New buys are blocked.'**
+  /// **'{reason, select, policy_mismatch {Stopped automatically: wallet rules don’t match. New buys are blocked.} loss_velocity {Stopped automatically: losses grew too fast. New buys are blocked.} provider_error {Stopped automatically: provider/signer problem · only exits run.} other {Stopped automatically: a safety rule triggered. New buys are blocked.}}'**
   String notifRealKillSwitchTrippedBody(String reason);
 
   /// N-29 RESERVED Phase 7; placeholders = wire vars (snake_case)
@@ -2405,8 +2429,8 @@ abstract class AppLocalizations {
   /// N-46
   ///
   /// In en, this message translates to:
-  /// **'{sold_count,plural,one{{sold_count} sold} other{{sold_count} sold}}{failed_count,plural,one{ · {failed_count} failed and is still open} other{ · {failed_count} failed and are still open} =0{}}'**
-  String notifRealSellAllCompletedBody(int failed_count, int sold_count);
+  /// **'{sold_count,plural,one{{sold_count} of {requested_count} sold} other{{sold_count} of {requested_count} sold}}{failed_count,plural,one{ · {failed_count} failed: still open, its exit plan keeps running} other{ · {failed_count} failed: still open, their exit plans keep running} =0{}}'**
+  String notifRealSellAllCompletedBody(int failed_count, int requested_count, int sold_count);
 
   /// N-46 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
@@ -2414,17 +2438,17 @@ abstract class AppLocalizations {
   /// **'[REAL SOL] {failed_count,plural,other{Sell all: {failed_count} failed} =0{Sell all done}}'**
   String notifRealSellAllCompletedTitle(int failed_count);
 
-  /// N-46 extra line, only when amount_lamports is not null (formatLamports)
+  /// N-46 extra line, only when amount_out_lamports is not null (formatLamports)
   ///
   /// In en, this message translates to:
-  /// **'Total out: {amount_lamports}'**
-  String notifRealSellAllCompletedTotal(String amount_lamports);
+  /// **'Total out: {amount_out_lamports}'**
+  String notifRealSellAllCompletedTotal(String amount_out_lamports);
 
   /// N-45
   ///
   /// In en, this message translates to:
-  /// **'{count,plural,one{Selling {count} position at market.} other{Selling {count} positions at market.}} Guards still apply.'**
-  String notifRealSellAllRequestedBody(int count);
+  /// **'{requested_count,plural,one{Selling {requested_count} position at market.} other{Selling {requested_count} positions at market.}} Guards still apply.'**
+  String notifRealSellAllRequestedBody(int requested_count);
 
   /// N-45 RESERVED Phase 7; placeholders = wire vars (snake_case)
   ///
@@ -2447,7 +2471,7 @@ abstract class AppLocalizations {
   /// N-24
   ///
   /// In en, this message translates to:
-  /// **'{reason, select, kill_switch {Revoked by the kill switch.} expiry {The authority expired.} user {You revoked it.} other {Revoked.}} Real trading can’t sign until you authorize it again.'**
+  /// **'{reason, select, user {You revoked it.} expiry {The authority expired.} other {Revoked.}} Real trading can’t sign until you authorize it again.'**
   String notifRealSignerRevokedBody(String reason);
 
   /// N-24 RESERVED Phase 7; placeholders = wire vars (snake_case)
@@ -2660,6 +2684,12 @@ abstract class AppLocalizations {
   /// **'Balance {trend, select, up {up} down {down} other {unchanged}} over {range}, from {start} to {end}'**
   String portfolioSparklineA11y(String end, String range, String start, String trend);
 
+  /// 0.4.9 G1: accessible name of the Comfortable/Compact segmented control in a table card header (role=radiogroup); options = settings.appearance.density.*
+  ///
+  /// In en, this message translates to:
+  /// **'Table density'**
+  String get positionsDensityLabel;
+
   /// positions.empty
   ///
   /// In en, this message translates to:
@@ -2677,6 +2707,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Equity · {range}'**
   String positionsEquityTitle(String range);
+
+  /// 0.4.9 G1: chip on each position affected by an auto-trip policy_mismatch (exit plan, TP and SL held until re-grant); never color-only
+  ///
+  /// In en, this message translates to:
+  /// **'Exits on hold'**
+  String get positionsExitHeldBadge;
+
+  /// 0.4.9 G1 policy_mismatch banner body
+  ///
+  /// In en, this message translates to:
+  /// **'Exit plans, TP and SL are on hold until you grant trading authority again.'**
+  String get positionsExitHeldDetail;
 
   /// positions.next_action
   ///
@@ -2719,6 +2761,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Released early — nothing was sold'**
   String get positionsSellHoldReleased;
+
+  /// 0.4.9 G1: per-row action while exits are on hold; signed in Phantom (not the bot signer). Label of the action, not exit_reason.manual
+  ///
+  /// In en, this message translates to:
+  /// **'Sell manually'**
+  String get positionsSellManual;
+
+  /// 0.4.9 G1 policy_mismatch banner
+  ///
+  /// In en, this message translates to:
+  /// **'Manual selling still works, signed in Phantom.'**
+  String get positionsSellManualNote;
 
   /// positions.sell.never_from_notification
   ///
@@ -2846,6 +2900,12 @@ abstract class AppLocalizations {
   /// **'Loosens guard'**
   String get queuePickKindGuardChange;
 
+  /// ProposalKind sell_position (contracts 1.1.5)
+  ///
+  /// In en, this message translates to:
+  /// **'Sell'**
+  String get queuePickKindSellPosition;
+
   /// queue.pick.review_change
   ///
   /// In en, this message translates to:
@@ -2875,6 +2935,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hold to approve {amount_lamports}'**
   String queueRealHold(String amount_lamports);
+
+  /// 0.4.9 G1 Real approval card/queue hint when the pick is inside the wallet limits (hold only, no Phantom step)
+  ///
+  /// In en, this message translates to:
+  /// **'Within limits: just hold, no Phantom.'**
+  String get queueRealWithinLimits;
 
   /// queue.skip_reason.already_pumped
   ///
@@ -2952,7 +3018,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{label} · {count}'**
-  String queueTabWithCount(String count, String label);
+  String queueTabWithCount(int count, String label);
 
   /// queue.title
   ///
@@ -3067,6 +3133,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Priority fee'**
   String get reviewPriorityFee;
+
+  /// 0.4.9 G1 quote row next to review.quote.refresh; age_seconds = now − quote_ts, valid_seconds = quoteState().expiresInS (skew-corrected, integers as text)
+  ///
+  /// In en, this message translates to:
+  /// **'Quote {age_seconds} s old · valid {valid_seconds} s'**
+  String reviewQuoteAgeValid(String age_seconds, String valid_seconds);
 
   /// once per expiry while the sheet is visible and not held (GET auto-refreshes a stale quote)
   ///
@@ -3440,13 +3512,13 @@ abstract class AppLocalizations {
   /// **'Coins · screener'**
   String get screenerTitle;
 
-  /// settings.appearance.density.comfortable
+  /// 0.4.9 G1: also the table header toggle
   ///
   /// In en, this message translates to:
   /// **'Comfortable'**
   String get settingsAppearanceDensityComfortable;
 
-  /// settings.appearance.density.compact
+  /// 0.4.9 G1: also the table header toggle (Desktop/Web only; mobile has no compact mode)
   ///
   /// In en, this message translates to:
   /// **'Compact'**
@@ -4034,47 +4106,47 @@ abstract class AppLocalizations {
   /// **'Token-2022'**
   String get tokenProgramToken2022;
 
-  /// real.limit.* setting=cap_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue
+  /// CTA when signer_state=revoked (e.g. after policy_mismatch the signer stays revoked until re-granted)
+  ///
+  /// In en, this message translates to:
+  /// **'Grant trading authority again'**
+  String get walletAuthorizeRegrant;
+
+  /// 0.4.9 G1 policy_mismatch banner / sticky CTA, under wallet.authorize.regrant
+  ///
+  /// In en, this message translates to:
+  /// **'Needs Phantom + passkey. Once authority is active, exit plans resume automatically.'**
+  String get walletAuthorizeRegrantNote;
+
+  /// real.limit.* setting=cap_lamports (confirmed by Backend, Rev 4.8); from/to via formatLimitValue
   ///
   /// In en, this message translates to:
   /// **'Total cap'**
   String get walletLimitsSettingCapLamports;
 
-  /// real.limit.* setting=daily_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue
+  /// real.limit.* setting=daily_lamports (confirmed by Backend, Rev 4.8); from/to via formatLimitValue
   ///
   /// In en, this message translates to:
-  /// **'Max per 24 h'**
+  /// **'Max per rolling 24 h'**
   String get walletLimitsSettingDailyLamports;
 
-  /// real.limit.* setting=max_positions (PROPOSED key name, confirm with Backend); from/to via formatLimitValue
+  /// real.limit.* setting=max_positions (confirmed by Backend, Rev 4.8); from/to via formatLimitValue
   ///
   /// In en, this message translates to:
   /// **'Max open positions'**
   String get walletLimitsSettingMaxPositions;
 
-  /// real.limit.* setting=max_slippage_bps (PROPOSED key name, confirm with Backend); from/to via formatLimitValue
+  /// real.limit.* setting=max_slippage_bps (confirmed by Backend, Rev 4.8); from/to via formatLimitValue
   ///
   /// In en, this message translates to:
   /// **'Max slippage'**
   String get walletLimitsSettingMaxSlippageBps;
 
-  /// real.limit.* setting=per_trade_lamports (PROPOSED key name, confirm with Backend); from/to via formatLimitValue
+  /// real.limit.* setting=per_trade_lamports (confirmed by Backend, Rev 4.8); from/to via formatLimitValue
   ///
   /// In en, this message translates to:
   /// **'Max per trade'**
   String get walletLimitsSettingPerTradeLamports;
-
-  /// wallet.owner.add_backup
-  ///
-  /// In en, this message translates to:
-  /// **'Add backup wallet…'**
-  String get walletOwnerAddBackup;
-
-  /// wallet.owner.backup
-  ///
-  /// In en, this message translates to:
-  /// **'Backup owner wallet · not a withdraw destination'**
-  String get walletOwnerBackup;
 
   /// cancels a pending (quarantined) wallet
   ///
@@ -4106,10 +4178,10 @@ abstract class AppLocalizations {
   /// **'Active {usable_at} · {hh_mm_ss} left'**
   String walletOwnerPending(String hh_mm_ss, String usable_at);
 
-  /// wallet.owner.title
+  /// Rev 5.2: one owner wallet, no backup
   ///
   /// In en, this message translates to:
-  /// **'Owner wallets'**
+  /// **'Main wallet'**
   String get walletOwnerTitle;
 
   /// wallet.owner.type_last4
@@ -4118,11 +4190,53 @@ abstract class AppLocalizations {
   /// **'Type the last 4 characters of the new address'**
   String get walletOwnerTypeLast4;
 
-  /// N-42 {reason_code} when the code has no error.code.* copy
+  /// real.withdraw.failed reason_code=destination_not_owned (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42
   ///
   /// In en, this message translates to:
-  /// **'Unknown error'**
+  /// **'the destination isn’t your main wallet'**
+  String get walletWithdrawFailReasonDestinationNotOwned;
+
+  /// real.withdraw.failed reason_code=insufficient_balance (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42
+  ///
+  /// In en, this message translates to:
+  /// **'not enough balance'**
+  String get walletWithdrawFailReasonInsufficientBalance;
+
+  /// real.withdraw.failed reason_code=other (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42
+  ///
+  /// In en, this message translates to:
+  /// **'something went wrong'**
+  String get walletWithdrawFailReasonOther;
+
+  /// real.withdraw.failed reason_code=provider_error (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42
+  ///
+  /// In en, this message translates to:
+  /// **'wallet provider error'**
+  String get walletWithdrawFailReasonProviderError;
+
+  /// real.withdraw.failed reason_code=tx_expired (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42
+  ///
+  /// In en, this message translates to:
+  /// **'it wasn’t sent in time'**
+  String get walletWithdrawFailReasonTxExpired;
+
+  /// fallback for a reason_code outside the enum
+  ///
+  /// In en, this message translates to:
+  /// **'unknown error'**
   String get walletWithdrawFailReasonUnknown;
+
+  /// real.withdraw.failed reason_code=user_rejected (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42
+  ///
+  /// In en, this message translates to:
+  /// **'you rejected the signature'**
+  String get walletWithdrawFailReasonUserRejected;
+
+  /// real.withdraw.failed reason_code=withdraw_simulation_failed (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42
+  ///
+  /// In en, this message translates to:
+  /// **'the safety simulation failed'**
+  String get walletWithdrawFailReasonWithdrawSimulationFailed;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

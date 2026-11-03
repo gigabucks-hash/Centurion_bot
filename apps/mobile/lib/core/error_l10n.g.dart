@@ -87,10 +87,16 @@ String errorText(AppLocalizations l, ApiErrorCode? c, [Map<String, Object?> d = 
     ApiErrorCode.versionConflict => l.errorCodeVersionConflict,
     ApiErrorCode.walletRoleConflict => l.errorCodeWalletRoleConflict,
     ApiErrorCode.webauthnInvalid => l.errorCodeWebauthnInvalid,
+    // App-local fallback for errors.json codes not in @centurion/i18n errors.map.json yet (UX owns the copy):
+    // AGENT_BUDGET_EXCEEDED, AGENT_REQUEST_EXPIRED, AGENT_TRADE_DISABLED, BUYS_PAUSED, LOGO_NOT_FOUND,
+    // LOGO_REJECTED, LOOSEN_REQUIRES_APP, RESUME_REQUIRES_APP, SIWS_SESSION_REQUIRED.
+    // Uses the errors.json catalog message (the same text the server sends).
+    _ => c.message(l.localeName) ?? l.errorCodeInternal,
   };
 }
 
-/// Codes covered here (parity with errors.map.json).
+/// Codes with i18n copy (parity with errors.map.json). errors.json codes outside this list
+/// render via the fallback in [errorText] until UX adds them to errors.map.json.
 const errorL10nCodes = <String>[
   'ACCOUNT_DELETION_BLOCKED',
   'ACCOUNT_DELETION_PENDING',
