@@ -641,6 +641,8 @@ export const en = {
     // errors.json v5 (contracts fdc52e3); not yet in @centurion/i18n errors.map.json → app copy until UX maps it.
     GUARD_WEAKEN_REQUIRES_APPROVAL: "Change waiting for approval. It loosens a guard, so nothing applies until you approve it.",
     QUOTE_MISSING_OR_STALE: "This quote expired. Refresh it and review the trade again before approving.",
+    LOGO_NOT_FOUND: "No logo for this coin yet. Showing its generated badge instead.",
+    LOGO_REJECTED: "This coin's logo couldn't be shown safely. Showing its generated badge instead.",
     // errors.json codes newer than @centurion/i18n errors.map.json (contracts working tree: MCP/agent + kill switch).
     LOOSEN_REQUIRES_APP: "Loosening limits or guards can only be requested in the Centurion Trade app.",
     RESUME_REQUIRES_APP: "Buying was paused in the app. Resume it in the Centurion Trade app.",

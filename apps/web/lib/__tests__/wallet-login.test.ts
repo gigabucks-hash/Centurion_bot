@@ -41,8 +41,12 @@ test("desktop hand-off: allow-listed return URIs only, state required, no tokens
   const { parseHandoff, safeRedirect, successUrl, errorUrl, DESKTOP_AUTH_URI } = await import("../auth/handoff");
   const state = "abcdefghijklmnop1234";
   assert.equal(DESKTOP_AUTH_URI, "centurion://auth");
-  assert.deepEqual(parseHandoff({ state }), { state, redirect: "centurion://auth" });
-  assert.deepEqual(parseHandoff({ state, redirect_uri: "http://127.0.0.1:53111/siws/callback", client: "desktop" }), { state, redirect: "http://127.0.0.1:53111/siws/callback" });
+  const code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
+  // deep link requires PKCE S256 (c2de06b); without it the hand-off is rejected
+  assert.equal(parseHandoff({ state }), null);
+  assert.equal(parseHandoff({ state, code_challenge, code_challenge_method: "plain" }), null);
+  assert.deepEqual(parseHandoff({ state, code_challenge, code_challenge_method: "S256" }), { kind: "deeplink", state, redirect: "centurion://auth", codeChallenge: code_challenge });
+  assert.deepEqual(parseHandoff({ state, redirect_uri: "http://127.0.0.1:53111/siws/callback", client: "desktop" }), { kind: "loopback", state, redirect: "http://127.0.0.1:53111/siws/callback" });
   for (const bad of ["https://evil.example/cb", "centurion://auth/../x", "javascript:alert(1)", "http://127.0.0.1:80/siws/callback", "http://localhost:5000/siws/callback", "legacy-scheme://auth"]) {
     assert.equal(safeRedirect(bad), null, bad);
     assert.equal(parseHandoff({ state, redirect_uri: bad }), null, bad);

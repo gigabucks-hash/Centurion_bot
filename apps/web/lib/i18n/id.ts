@@ -125,6 +125,8 @@ export const id: PartialMessages = {
   apiError: {
     GUARD_WEAKEN_REQUIRES_APPROVAL: "Perubahan menunggu approval. Ini melonggarkan guard, jadi belum berlaku sampai kamu approve.",
     QUOTE_MISSING_OR_STALE: "Kuotasi ini kedaluwarsa. Perbarui lalu tinjau transaksi lagi sebelum menyetujui.",
+    LOGO_NOT_FOUND: "Logo koin ini belum tersedia. Ditampilkan badge otomatis sebagai gantinya.",
+    LOGO_REJECTED: "Logo koin ini tidak bisa ditampilkan dengan aman. Ditampilkan badge otomatis sebagai gantinya.",
     LOOSEN_REQUIRES_APP: "Melonggarkan limit atau guard hanya bisa diminta di aplikasi Centurion Trade.",
     RESUME_REQUIRES_APP: "Pembelian dijeda di aplikasi. Lanjutkan lagi di aplikasi Centurion Trade.",
     BUYS_PAUSED: "Pembelian sedang dijeda. Exit tetap berjalan.",
