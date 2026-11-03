@@ -1,4 +1,9 @@
 {
+  "alert": {
+    "approve_before": "Approve {symbol} before {mm_ss}",
+    "guard_rejected": "Review {symbol}: Guard rejected the buy",
+    "tp_hit": "Check {symbol}: TP{n} hit, {pct}% sold"
+  },
   "app": {
     "about": {
       "title": "About Centurion Trade",
@@ -188,6 +193,10 @@
     }
   },
   "dashboard": {
+    "balance": {
+      "real_label": "Real balance · trading wallet",
+      "today": "today"
+    },
     "eyebrow": "Command deck",
     "feed": {
       "filter": {
@@ -207,6 +216,17 @@
       "open_positions": "Open positions",
       "realized_pnl": "Realized PnL"
     },
+    "needs_action": {
+      "count": "{count, plural, one {# new} other {# new}}",
+      "title": "Needs action"
+    },
+    "stat": {
+      "daily_limit_real": "Real daily limit",
+      "open_positions": "Open positions",
+      "paper_strategies": "Paper strategies",
+      "realized_today": "Realized PnL · today",
+      "win_rate_7d": "Win rate · 7 days"
+    },
     "strategies": {
       "col": {
         "approval": "Approval",
@@ -221,7 +241,7 @@
       "title": "Strategies"
     },
     "subtitle": {
-      "practice": "Practice workspace · start {start} · live updates"
+      "practice": "Paper strategies · start {start} · live updates"
     },
     "title": "Team overview"
   },
@@ -229,6 +249,9 @@
     "code": {
       "account_deletion_blocked": "Close your Real SOL positions and withdraw your trading wallet first.",
       "account_deletion_pending": "Account deletion is already scheduled.",
+      "agent_budget_exceeded": "The agent hit its call limit. Try again later.",
+      "agent_request_expired": "This agent connection request expired. Start again from the agent.",
+      "agent_trade_disabled": "Agent trading is off. Turn it on in the Centurion Trade app.",
       "approval_already_decided": "This was already decided on another device.",
       "approval_expired": "This proposal expired: {reason}",
       "approval_requires_app": "Decide this in the official app, not via MCP.",
@@ -236,6 +259,7 @@
       "auth_tg_invalid": "Telegram login couldn’t be verified. Try again.",
       "auth_tg_no_profile": "Allow Telegram to share your profile to sign in.",
       "auth_tg_replay": "This Telegram login was already used. Start again.",
+      "buys_paused": "New buys are stopped. Resume buying first.",
       "confirmation_invalid": "This confirmation expired or was already used. Start again.",
       "confirmation_required": "This change needs confirmation: passkey, typed name and hold.",
       "confirmation_restart_required": "The strategy changed during confirmation. Start the confirmation again.",
@@ -248,20 +272,25 @@
       "invalid_fraction": "Choose a sell amount from 0.01% to 100%.",
       "job_dead_lettered": "A background task failed after all retries. Support has been notified.",
       "last_login_method": "This is your only sign-in method. Link another one before unlinking.",
-      "mode_not_allowed": "Only Practice is available. Real SOL isn’t enabled yet.",
+      "logo_not_found": "No logo for this coin. The symbol initials are shown instead.",
+      "logo_rejected": "This coin's logo was rejected. The symbol initials are shown instead.",
+      "loosen_requires_app": "Open the Centurion Trade app to loosen limits or guards.",
+      "mode_not_allowed": "This strategy isn’t approved for Real yet. It keeps running in Paper.",
       "not_found": "Not found, or you don’t have access.",
       "otp_invalid": "Wrong or expired code.",
       "otp_locked": "Too many attempts. Try again in 15 minutes.",
       "position_already_closed": "This position is already closed.",
-      "practice_cash_insufficient": "Practice cash is too low for the next entry. Entries pause until cash recovers or you reset Practice.",
+      "practice_cash_insufficient": "Paper cash is too low for the next entry. Entries pause until cash recovers or you reset Paper.",
       "quote_missing_or_stale": "Quote expired — refresh it and check the values again before approving.",
       "rate_limited": "Too many requests. Try again in {retry_after_s, plural, one {# second} other {# seconds}}.",
       "real_sol_disabled": "Real SOL isn’t available yet.",
       "reauth_required": "Please confirm it’s you again to continue.",
       "replay_unavailable": "Replay isn’t available right now. Showing the estimate.",
-      "reset_cooldown": "Practice can be reset once a day. Next: {next_allowed_at}",
+      "reset_cooldown": "Paper can be reset once a day. Next: {next_allowed_at}",
+      "resume_requires_app": "Buying was paused in the app. Resume it in the Centurion Trade app.",
       "settings_schema_invalid": "These strategy settings aren’t valid. Check the highlighted fields.",
       "siws_nonce_invalid": "This sign-in request expired. Try again.",
+      "siws_session_required": "Sign in with your wallet in the Centurion Trade app.",
       "siws_signature_invalid": "The wallet signature couldn’t be verified.",
       "source_degraded": "A market data source is degraded. New picks may be delayed.",
       "strategy_retired": "This strategy was archived or deleted.",
@@ -284,7 +313,7 @@
     "max_hold": "Time stop",
     "no_new_high": "No new high",
     "peak_trail": "Trailing stop",
-    "practice_reset": "Practice reset",
+    "practice_reset": "Paper reset",
     "profit_target": "Take profit",
     "rug_detected": "Rug detected",
     "sell_floor": "Sell floor",
@@ -306,8 +335,8 @@
       "detail": "Real trading was stopped"
     },
     "practice_reset": {
-      "badge": "Practice reset",
-      "detail": "Practice was reset; pending buys were cleared"
+      "badge": "Paper reset",
+      "detail": "Paper was reset; pending buys were cleared"
     },
     "price_moved": {
       "badge": "Price moved",
@@ -431,6 +460,7 @@
       "hold": "Hold 2.5 s to sell all",
       "in_progress": "{requested_count, plural, one {Selling # position…} other {Selling # positions…}}",
       "rate_limited": "Sell all was just requested. Try again in {retry_after_s, plural, one {# second} other {# seconds}}.",
+      "retry_title": "Retry selling {symbol}",
       "title": "{count, plural, one {Sell # Real position now?} other {Sell # Real positions now?}}"
     },
     "status": {
@@ -438,6 +468,7 @@
       "by": "Stopped {actor_type, select, user {by you on {device_label}} rule {automatically} other {by the system}} at {at}",
       "exits": "Exit plans keep running",
       "resume_hint": "Bot authority stays active. No cooldown: resume any time with one click.",
+      "resume_when_ready": "Resume Real buying when ready",
       "title": "New buys stopped"
     }
   },
@@ -460,7 +491,7 @@
       "title": "Enter the code",
       "wrong": "{remaining, plural, one {Wrong code. # attempt left.} other {Wrong code. # attempts left.}}"
     },
-    "practice_default": "New accounts always start in PRACTICE mode.",
+    "practice_default": "New strategies always start in Paper.",
     "subtitle": "One account, many sign-in methods. You can link more later.",
     "telegram": {
       "cancelled": "Telegram login was cancelled. Nothing changed.",
@@ -486,9 +517,9 @@
   },
   "mode": {
     "practice": {
-      "banner": "Practice · paper SOL, no real SOL moves",
-      "banner_short": "Practice · paper SOL",
-      "label": "PRACTICE"
+      "banner": "Paper · paper SOL, no real SOL moves",
+      "banner_short": "Paper · paper SOL",
+      "label": "PAPER"
     },
     "real": {
       "banner": "Real SOL · wallet connected, orders use real SOL",
@@ -501,7 +532,7 @@
         "requirements": "Requires a connected trading wallet and 2FA.",
         "title": "Switch to Real SOL?"
       },
-      "toast_practice": "Back to Practice"
+      "toast_practice": "Strategy back to Paper"
     }
   },
   "nav": {
@@ -527,199 +558,199 @@
     },
     "approved": {
       "body": "Order is being placed",
-      "title": "Approved: {symbol}"
+      "title": "View {symbol}: approved"
     },
     "deletion_cancelled": {
       "body": "Your account stays active.",
-      "title": "Account deletion cancelled"
+      "title": "Check account: deletion cancelled"
     },
     "deletion_scheduled": {
       "body": "Your account will be deleted on {scheduled_for}. Cancel in Settings if this wasn’t you.",
-      "title": "Account deletion scheduled"
+      "title": "Check account: deletion scheduled"
     },
     "expired": {
       "body": "{reason}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} expired"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Re-check {symbol}: approval expired"
     },
     "failed": {
       "body": "{reason_code} · {amount_lamports}. {mode, select, real {Network fees may apply.} other {No SOL was spent.}}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {side, select, sell {Sell} other {Buy}} {symbol} failed"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Check {symbol}: {side, select, sell {sell} other {buy}} failed"
     },
     "filled": {
       "body": "{amount_lamports} at {price} · exit plan armed",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Bought {symbol}"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] View {symbol}: bought"
     },
     "first_buy": {
       "body": "This strategy hasn’t bought yet. Review before it starts · {amount_lamports} · {mm_ss} left",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] First buy for {strategy}: {symbol}"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Review first buy for {strategy}: {symbol}"
     },
     "grouped": {
       "body": "Open the queue to review",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {count, plural, one {# pick awaits approval} other {# picks await approval}}"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Review {count, plural, one {# pick} other {# picks}} awaiting approval"
     },
     "guard_active": {
       "body": "Auto-reverts {auto_revert_at}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} guard is now looser"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Review {strategy}: guard is now looser"
     },
     "guard_cancelled": {
       "body": "{strategy} was edited elsewhere. Request the change again.",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change cancelled"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Check guard: change cancelled"
     },
     "guard_cooldown": {
       "body": "{strategy}: effective {cooldown_until}. Cancel if this wasn’t you.",
-      "title": "[REAL SOL] Guard loosens in 10 min"
+      "title": "[REAL] Cancel within 10 min to keep the guard"
     },
     "guard_requested": {
       "body": "{strategy}: {setting} {from} → {to} loosens a guard",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Guard change pending"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Confirm the pending guard change"
     },
     "guard_reverted": {
       "body": "{setting} back to {from}",
-      "title": "[REAL SOL] {strategy} guard restored"
+      "title": "[REAL] Check {strategy}: guard restored"
     },
     "loss_stop": {
       "body": "Down {pct} from peak. Re-arm needs approval.",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {strategy} paused"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Review {strategy}: paused by loss stop"
     },
     "mode_practice": {
-      "body": "Orders use paper SOL",
-      "title": "Back to PRACTICE"
+      "body": "This strategy’s orders use paper SOL",
+      "title": "Check strategy mode: back to PAPER"
     },
     "mode_real": {
-      "body": "Next orders use real SOL",
-      "title": "Now in REAL SOL"
+      "body": "Next orders of this strategy use real SOL",
+      "title": "Check strategy mode: now in REAL"
     },
     "offline": {
       "body": "Data may be delayed. Retrying…",
-      "title": "Lost connection to server"
+      "title": "Reconnect: lost connection to server"
     },
     "pick_pending": {
       "body": "{strategy} · {amount_lamports} · {mm_ss} left",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] {symbol} awaits approval"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Review {symbol}: awaiting approval"
     },
     "practice_reset": {
       "body": "Balance back to {amount_lamports}. Pending buys were cleared.",
-      "title": "[PRACTICE] Practice reset"
+      "title": "[PAPER] Check balance: Paper reset"
     },
     "real": {
       "buys": {
         "paused": {
           "body": "Open positions keep their exit plan · {actor_type, select, user {by you on {device_label}} other {by the system}}",
-          "title": "[REAL SOL] New buys stopped"
+          "title": "[REAL] Resume buying when ready: new buys stopped"
         },
         "resumed": {
           "body": "New buys run again now · {actor_type, select, user {by you on {device_label}} other {by the system}}",
-          "title": "[REAL SOL] New buys resumed"
+          "title": "[REAL] Check buys: new buys resumed"
         }
       },
       "deposit": {
         "detected": {
           "body": "+{amount_lamports} · balance {balance_lamports}",
-          "title": "[REAL SOL] Deposit received"
+          "title": "[REAL] View deposit: received"
         }
       },
       "kill_switch": {
         "cleared": {
           "body": "{signer_state, select, revoked {Trading authority is still revoked · grant it again to continue} other {New Real buys run again now}}",
-          "title": "[REAL SOL] Automatic stop cleared"
+          "title": "[REAL] Check Real: automatic stop cleared"
         },
         "tripped": {
           "body": "{reason, select, policy_mismatch {Stopped automatically: wallet rules don’t match. New buys are blocked.} loss_velocity {Stopped automatically: losses grew too fast. New buys are blocked.} provider_error {Stopped automatically: provider/signer problem · only exits run.} other {Stopped automatically: a safety rule triggered. New buys are blocked.}}",
-          "title": "[REAL SOL] Real trading stopped automatically"
+          "title": "[REAL] Review Real: trading stopped automatically"
         }
       },
       "limit": {
         "changed": {
           "body": "{setting}: {from} → {to}",
-          "title": "[REAL SOL] Limits updated"
+          "title": "[REAL] Check limits: updated"
         },
         "loosen_requested": {
           "body": "{setting}: {from} → {to} from {activates_at}, and it stays until you change it. Cancel if this wasn’t you.",
-          "title": "[REAL SOL] Limit change pending"
+          "title": "[REAL] Review limit change: pending"
         }
       },
       "policy": {
         "activated": {
           "body": "Matches what you approved.",
-          "title": "[REAL SOL] Wallet rules v{version} active"
+          "title": "[REAL] Check wallet rules: v{version} active"
         },
         "mismatch": {
           "body": "Real trading stopped for safety. Open the app to compare v{version}.",
-          "title": "[REAL SOL] Wallet rules don’t match"
+          "title": "[REAL] Compare wallet rules: they don’t match"
         }
       },
       "sell_all": {
         "completed": {
           "body": "{sold_count, plural, one {# of {requested_count} sold} other {# of {requested_count} sold}}{failed_count, plural, =0 {} one { · # failed: still open, its exit plan keeps running} other { · # failed: still open, their exit plans keep running}}",
-          "title": "[REAL SOL] {failed_count, plural, =0 {Sell all done} other {Sell all: # failed}}",
+          "title": "[REAL] {failed_count, plural, =0 {View sell all: done} other {Retry sell all: # failed}}",
           "total": "Total out: {amount_out_lamports}"
         },
         "requested": {
           "body": "{requested_count, plural, one {Selling # position at market.} other {Selling # positions at market.}} Guards still apply.",
-          "title": "[REAL SOL] Selling all positions"
+          "title": "[REAL] Track sell all: selling all positions"
         }
       },
       "signer": {
         "granted": {
           "body": "The bot can swap within your limits until {expires_at}. It can’t transfer or withdraw.",
-          "title": "[REAL SOL] Trading authority granted"
+          "title": "[REAL] Check trading authority: granted"
         },
         "revoked": {
           "body": "{reason, select, user {You revoked it.} expiry {The authority expired.} other {Revoked.}} Real trading can’t sign until you authorize it again.",
-          "title": "[REAL SOL] Bot authority revoked"
+          "title": "[REAL] Grant authority again: bot authority revoked"
         }
       },
       "withdraw": {
         "confirmed": {
           "body": "{amount_lamports} arrived in your main wallet {address_short}.",
-          "title": "[REAL SOL] Withdrawal received"
+          "title": "[REAL] View withdrawal: received"
         },
         "failed": {
           "body": "{amount_lamports} wasn’t sent: {reason_code}. Your balance is unchanged.",
-          "title": "[REAL SOL] Withdrawal failed"
+          "title": "[REAL] Check withdrawal: failed"
         },
         "requested": {
           "body": "{amount_lamports} → main wallet {address_short}",
-          "title": "[REAL SOL] Withdrawal sent"
+          "title": "[REAL] Track withdrawal: sent"
         }
       },
       "withdraw_address": {
         "added": {
           "body": "{address_short} becomes active {usable_at}. Cancel before {cancel_until} if this wasn’t you.",
-          "title": "[REAL SOL] New main wallet registered"
+          "title": "[REAL] Review new main wallet: registered"
         },
         "cancelled": {
           "body": "{address_short} won’t be added.",
-          "title": "[REAL SOL] Main wallet change cancelled"
+          "title": "[REAL] Check main wallet: change cancelled"
         },
         "usable": {
           "body": "{address_short} is now your main wallet and withdraw destination.",
-          "title": "[REAL SOL] Main wallet active"
+          "title": "[REAL] Check main wallet: active"
         }
       }
     },
     "skipped": {
       "body": "Reason: {reason}",
-      "title": "Skipped: {symbol}"
+      "title": "View {symbol}: skipped"
     },
     "sl_hit": {
       "body": "{stop_type} · {pnl} ({pct})",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Stopped out of {symbol}"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Check {symbol}: stop loss hit"
     },
     "token_invalid": {
       "body": "Open the app to continue",
-      "title": "Notification action expired"
+      "title": "Open the app: notification action expired"
     },
     "tp_hit": {
       "body": "Sold {pct_sold} at +{pct} · {pnl}",
-      "title": "[{mode, select, real {REAL SOL} other {PRACTICE}}] Took profit on {symbol}"
+      "title": "[{mode, select, real {REAL} other {PAPER}}] Check {symbol}: take profit hit"
     }
   },
   "order": {
     "fail_reason": {
       "guard_failed": "A guard check failed right before the order",
       "insufficient_practice_balance": "Not enough paper SOL",
-      "mode_not_allowed": "Only Practice orders run; Real SOL isn’t enabled yet",
+      "mode_not_allowed": "This strategy isn’t approved for Real; only Paper orders run",
       "pool_stale": "Pool data was out of date; the order was not sent",
       "position_already_closed": "This position was already closed",
       "slippage_exceeded": "Price moved more than your slippage limit",
@@ -754,6 +785,9 @@
     },
     "next_action": "Next: {rung} at {gain} (sell {pct})",
     "open_count": "{count, plural, one {# open} other {# open}}",
+    "pnl": {
+      "unrealized": "Unrealized PnL"
+    },
     "sell": {
       "confirm_title": "Confirm sell",
       "estimate": "Estimated proceeds",
@@ -772,8 +806,27 @@
       "title": "Sell {symbol}",
       "unavailable": "Sell — not available"
     },
+    "stats": {
+      "age": "Position age",
+      "entry_price": "Entry price",
+      "mcap": "Market cap",
+      "qty": "Amount",
+      "title": "Stats",
+      "value_cost": "Value / cost",
+      "volume_24h": "Volume 24h"
+    },
     "title": "Positions",
-    "title_paper": "Positions (paper)"
+    "title_paper": "Positions (paper)",
+    "tpsl": {
+      "note": "Thin line = previous value. Applies to the rest of the position; sends no transaction.",
+      "reset": "Reset",
+      "save": "Save exit plan",
+      "sell_pct": "sell {pct}%",
+      "stop_loss": "Stop loss",
+      "take_profit": "Take profit {n}",
+      "title": "Edit TP / SL",
+      "was": "was {value}"
+    }
   },
   "queue": {
     "batch": {
@@ -833,6 +886,18 @@
       "title": "Why does this need approval?"
     }
   },
+  "receipt": {
+    "done": "Done",
+    "exit_plan_armed": "Exit plan armed",
+    "fees": "Fees",
+    "paid": "Paid",
+    "received": "Received",
+    "title": {
+      "buy": "Bought {symbol}",
+      "sell": "Sold {symbol}"
+    },
+    "view_tx": "View transaction"
+  },
   "reject_reason": {
     "not_tradeable": "Not tradeable",
     "other": "Other",
@@ -841,13 +906,14 @@
   },
   "review": {
     "ata_rent": "Token account rent (new)",
+    "buy_title": "Approve buying {symbol}",
     "details_toggle": "Fees & slippage",
     "estimate_note": "Estimates as of {time}. Final values can change with the price.",
     "min_received": "Min. received",
     "min_received_value": "≥ {min_out} {symbol}",
     "network_fee": "Est. network fee",
     "network_fee_breakdown": "base {base} + priority {priority}",
-    "practice_note": "Practice: simulated fill. No real SOL moves.",
+    "practice_note": "Paper: simulated fill. No real SOL moves.",
     "price": "Price",
     "price_moved": "Price moved {pct} since this pick. Review again before approving.",
     "priority_fee": "Priority fee",
@@ -855,16 +921,22 @@
       "age_valid": "Quote {age_seconds} s old · valid {valid_seconds} s",
       "auto_refreshing": "Refreshing automatically…",
       "changed_during_hold": "Quote changed. Check the new values and hold again.",
+      "details": "Details",
+      "expires_countdown": "{mm_ss} until it expires",
       "expires_in": "{seconds, plural, one {Expires in # s} other {Expires in # s}}",
       "id": "Quote {quote_id}",
       "loading": "Hold is off until the quote is complete.",
       "missing": "No quote yet — refresh to continue",
-      "practice_stale": "Estimate expired. Practice can still approve; values may differ.",
+      "practice_stale": "Estimate expired. Paper can still approve; values may differ.",
+      "rate": "1 SOL = {rate} {symbol}",
       "refresh": "Refresh quote",
       "refreshing": "Refreshing quote…",
       "stale": "Quote expired — refresh to continue",
+      "stale_action": "Refresh the quote, then re-check the values before approving.",
       "updated_ago": "{seconds, plural, =0 {Quote updated just now} one {Quote updated # s ago} other {Quote updated # s ago}}",
-      "updated_inline": "Quote updated"
+      "updated_inline": "Quote updated",
+      "you_pay": "You pay",
+      "you_receive_est": "You receive (estimate)"
     },
     "real_note": "Real SOL: network fees are paid even if the order fails.",
     "slippage": "Max slippage",
@@ -874,6 +946,14 @@
     "total_max": "Total (max)",
     "total_max_hint": "= SOL in + network fee + token account rent",
     "you_pay": "You pay"
+  },
+  "risk": {
+    "chip": {
+      "a11y": "{label}: {used} of {limit} SOL used",
+      "daily_limit": "Daily limit",
+      "guard": "Guard",
+      "usage": "{used}/{limit}"
+    }
   },
   "screener": {
     "action": {
@@ -989,7 +1069,7 @@
     "notif": {
       "desktop_popup": "Desktop always-on-top popup",
       "email": "Email",
-      "practice_actions": "Allow Approve from notifications (Practice only)",
+      "practice_actions": "Allow Approve from notifications (Paper only)",
       "push": "Push notifications"
     },
     "section": {
@@ -1063,11 +1143,69 @@
     "totp_optional": "TOTP is optional and doesn’t replace either signature."
   },
   "strategy": {
+    "approval": {
+      "hold_note": "In Paper, hold 1.2 s. In Real, hold 2.5 s."
+    },
     "approval_mode": {
       "ask_every_buy": "Ask: every buy",
       "ask_first_buy": "Ask: first buy",
       "off": "Off (auto)"
     },
+    "edit_params": "Edit parameters",
+    "editor": {
+      "eyebrow": "Strategy editor",
+      "rev_note": "Saved as rev {rev} · applies to the next pick",
+      "section": {
+        "approval": "Approval",
+        "entry": "Entry",
+        "exit": "Exit plan"
+      }
+    },
+    "list": {
+      "col": {
+        "mode": "Mode",
+        "status": "Status",
+        "strategy": "Strategy"
+      },
+      "filter": {
+        "all": "All · {count}",
+        "paper": "Paper · {count}",
+        "real": "Real · {count}"
+      },
+      "pnl_7d": "7-day PnL",
+      "summary": "{real_count} Real · {paper_count} Paper",
+      "title": "Every strategy runs in Paper or Real."
+    },
+    "mode": {
+      "label": "Strategy mode",
+      "paper": "Paper",
+      "paper_desc": "Runs with paper SOL. No real SOL, no Phantom.",
+      "real": "Real",
+      "scope_note": "Mode applies per strategy. Open positions keep their original mode."
+    },
+    "new": "New strategy",
+    "real_gate": {
+      "days_done": "{days_done, plural, one {# day} other {# days}} in Paper",
+      "not_set": "Rule not set yet",
+      "progress_days": "{days_done}/{days_required} days",
+      "progress_trades": "{trades_done}/{trades_required} trades",
+      "trades_done": "{trades_done, plural, one {# trade} other {# trades}} closed"
+    },
+    "real_locked": {
+      "a11y": "Real option disabled: {reason}",
+      "badge": "Needs Boss approval",
+      "chip": "Real locked",
+      "chip_short": "locked",
+      "explain": "Real is locked. Boss approves each strategy before it can use real SOL. Until then it keeps running in Paper.",
+      "list_note": "Real stays locked until Boss approves. The strategy keeps running in Paper meanwhile."
+    },
+    "real_locked_reason": {
+      "gate_not_met": "Paper requirements not met yet",
+      "needs_owner_approval": "Needs Boss approval",
+      "other": "Not available right now",
+      "policy": "Blocked by wallet rules"
+    },
+    "save": "Save strategy",
     "status": {
       "draft": "Draft",
       "paused": "Paused",
@@ -1089,7 +1227,8 @@
   "wallet": {
     "authorize": {
       "regrant": "Grant trading authority again",
-      "regrant_note": "Needs Phantom + passkey. Once authority is active, exit plans resume automatically."
+      "regrant_note": "Needs Phantom + passkey. Once authority is active, exit plans resume automatically.",
+      "regrant_title": "Grant trading permission again to resume Real"
     },
     "limits": {
       "setting": {

@@ -2,6 +2,51 @@
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
+## 0.4.10 · 3 Nov 2026 (G1-blue v2) · contracts 1.1.6 (errors.json v7, RealLockedReason, paper_progress), design-tokens 0.3.4
+788 key (+97, 0 dihapus, 0 rename). 62 key copy berubah. Contracts working tree = HEAD (bersih saat build). `errors.map.json` ikut berubah (9 kode errors v7
+sekarang punya copy sendiri: 67/67 · copy 56 · fallback 11). `notifications.map.json`, `reject_reasons.map.json`, `format.mjs` sama dengan 0.4.9.
+
+### Keputusan lead
+- **'Practice' → 'Paper' di SEMUA copy** (EN+ID), termasuk prefix push: `[REAL SOL]`/`[PRACTICE]` → **`[REAL]`/`[PAPER]`**. Build gagal kalau
+  'Practice' atau prefix lama masih ada di copy.
+- **Nama key TIDAK berubah di 0.4.10.** `mode.practice.*`, `*.practice_reset`, `notif.mode_practice.*`, dll. tetap; nilai wire `practice` tetap
+  (contracts 1.1.6). **Rename key `practice` → `paper` menunggu 0.5.0** (akan tercatat di `key-migrations.json` sebagai `renamed` old→new).
+- `MODE_NOT_ALLOWED` = per strategi: "This strategy isn’t approved for Real…" / "Strategi ini belum disetujui untuk Real…" (`error.code.*` dan
+  `order.fail_reason.*`).
+- Tidak ada copy yang memakai nama kerja lama (cek brand tetap jalan).
+
+### Copy berubah
+- 16 key Practice → Paper (label mode `PAPER`, banner, toast, subtitle dashboard, `practice_reset` badge/detail/exit reason, review note, login default,
+  setting notif, RESET_COOLDOWN, PRACTICE_CASH_INSUFFICIENT, MODE_NOT_ALLOWED).
+- **Judul push verb-first** untuk N-01…N-46 (mis. "Review {symbol}: awaiting approval" / "Tinjau {symbol}: menunggu approval", "Check {symbol}: take
+  profit hit", "[REAL] Resume buying when ready: new buys stopped", "{failed_count, plural, =0 {View sell all: done} other {Retry sell all: # failed}}").
+  Variabel dan select/plural tidak berubah.
+- `notif.mode_real.body` / `notif.mode_practice.body`: per strategi.
+
+### Ditambahkan (97)
+| Grup | Key |
+|---|---|
+| Strategi + mode | `strategy.list.{title,filter.all,filter.real,filter.paper,summary,col.strategy,col.mode,col.status,pnl_7d}`, `strategy.{new,save,edit_params}`, `strategy.editor.{eyebrow,rev_note,section.entry,section.exit,section.approval}`, `strategy.mode.{label,paper,real,paper_desc,scope_note}`, `strategy.approval.hold_note` |
+| Real terkunci (contracts 1.1.6) | `strategy.real_locked.{chip,chip_short,badge,explain,list_note,a11y}`, `strategy.real_locked_reason.{needs_owner_approval,gate_not_met,policy,other}` (build cek 4/4 vs `RealLockedReason`) |
+| Gate Paper→Real (**placeholder**) | `strategy.real_gate.progress_days` "{days_done}/{days_required} hari", `.progress_trades`, `.days_done` / `.trades_done` (dipakai saat `*_required = null`), `.not_set` "Aturan belum ditetapkan". **Tanpa angka hardcoded**: aturan gate menunggu keputusan Boss |
+| Dashboard | `dashboard.balance.{real_label,today}`, `dashboard.stat.{realized_today,open_positions,win_rate_7d,paper_strategies,daily_limit_real}`, `dashboard.needs_action.{title,count}` |
+| Quote card | `review.buy_title`, `review.quote.{you_pay,you_receive_est,rate,details,expires_countdown,stale_action}` |
+| Receipt | `receipt.{title.buy,title.sell,paid,received,fees,exit_plan_armed,view_tx,done}` |
+| PnL block + statistik | `positions.pnl.unrealized`, `positions.stats.{title,value_cost,qty,entry_price,mcap,volume_24h,age}` |
+| TP/SL ticket | `positions.tpsl.{title,take_profit,stop_loss,sell_pct,was,note,reset,save}` |
+| Risk chip | `risk.chip.{guard,daily_limit,usage,a11y}` |
+| Alert verb-first in-app | `alert.{guard_rejected,tp_hit,approve_before}`, `kill_switch.status.resume_when_ready`, `wallet.authorize.regrant_title`, `kill_switch.sell_all.retry_title` |
+| errors v7 (contracts 1.1.6) | `error.code.{logo_not_found,logo_rejected,loosen_requires_app,resume_requires_app,buys_paused,agent_budget_exceeded,agent_trade_disabled,siws_session_required,agent_request_expired}` |
+
+Tema terang/gelap/sistem memakai key yang sudah ada `settings.appearance.theme.{label,dark,light,system}` (tidak dibuat `theme.*`).
+`review.quote.expires_in` (plural detik) tidak berubah; hitung mundur mm:ss = key baru `review.quote.expires_countdown`.
+
+### Build
+- Arg ICU dibaca depth-aware (isi cabang select seperti `{sell}` bukan argumen).
+- Build gagal jika key didefinisikan dua kali, jika 'Practice'/prefix lama ada di copy, atau jika `RealLockedReason` tidak punya copy.
+- Test Flutter (`test/flutter/l10n_plural_test.dart`): ekspektasi prefix/Paper diperbarui + grup 0.4.10. gen-l10n, analyze (0 issue), 11/11 test lulus;
+  `format.test.mjs` 10/10.
+
 ## 0.4.9 · 3 Nov 2026 (G1-blue) · contracts HEAD (errors.json v6, events 1.1.5), design-tokens 0.3.1
 691 key (+13 −7 dibanding 0.4.8 yang dipublish: 12 key G1 + `kill_switch.action.resume`). Build: `CONTRACTS_ERRORS`/`CONTRACTS_EVENTS_TS` = versi **commit HEAD** contracts (working tree contracts
 punya perubahan Backend yang belum di-commit, tidak dipakai). `errors.map.json`, `notifications.map.json`, `reject_reasons.map.json`, `format.mjs` sama dengan 0.4.8.

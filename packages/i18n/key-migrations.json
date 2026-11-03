@@ -401,6 +401,363 @@
         }
       ],
       "description_changed": []
+    },
+    {
+      "version": "0.4.10",
+      "note": "G1-blue v2. Copy 'Practice' → 'Paper' everywhere (lead decision); push prefix [REAL SOL]/[PRACTICE] → [REAL]/[PAPER]. KEY NAMES UNCHANGED: *.practice* keys and the wire value `practice` stay; key renames to `paper` wait for 0.5.0 (will be listed here as renamed with old→new). MODE_NOT_ALLOWED = 'this strategy isn’t approved for Real' (contracts 1.1.6). Paper→Real gate copy is generic ({days_done}/{days_required}, {trades_done}/{trades_required}) because the rule is a placeholder until Boss decides.",
+      "renamed": [],
+      "removed": [],
+      "deprecated": [],
+      "added": [
+        "alert.approve_before",
+        "alert.guard_rejected",
+        "alert.tp_hit",
+        "dashboard.balance.real_label",
+        "dashboard.balance.today",
+        "dashboard.needs_action.count",
+        "dashboard.needs_action.title",
+        "dashboard.stat.daily_limit_real",
+        "dashboard.stat.open_positions",
+        "dashboard.stat.paper_strategies",
+        "dashboard.stat.realized_today",
+        "dashboard.stat.win_rate_7d",
+        "error.code.agent_budget_exceeded",
+        "error.code.agent_request_expired",
+        "error.code.agent_trade_disabled",
+        "error.code.buys_paused",
+        "error.code.logo_not_found",
+        "error.code.logo_rejected",
+        "error.code.loosen_requires_app",
+        "error.code.resume_requires_app",
+        "error.code.siws_session_required",
+        "kill_switch.sell_all.retry_title",
+        "kill_switch.status.resume_when_ready",
+        "positions.pnl.unrealized",
+        "positions.stats.age",
+        "positions.stats.entry_price",
+        "positions.stats.mcap",
+        "positions.stats.qty",
+        "positions.stats.title",
+        "positions.stats.value_cost",
+        "positions.stats.volume_24h",
+        "positions.tpsl.note",
+        "positions.tpsl.reset",
+        "positions.tpsl.save",
+        "positions.tpsl.sell_pct",
+        "positions.tpsl.stop_loss",
+        "positions.tpsl.take_profit",
+        "positions.tpsl.title",
+        "positions.tpsl.was",
+        "receipt.done",
+        "receipt.exit_plan_armed",
+        "receipt.fees",
+        "receipt.paid",
+        "receipt.received",
+        "receipt.title.buy",
+        "receipt.title.sell",
+        "receipt.view_tx",
+        "review.buy_title",
+        "review.quote.details",
+        "review.quote.expires_countdown",
+        "review.quote.rate",
+        "review.quote.stale_action",
+        "review.quote.you_pay",
+        "review.quote.you_receive_est",
+        "risk.chip.a11y",
+        "risk.chip.daily_limit",
+        "risk.chip.guard",
+        "risk.chip.usage",
+        "strategy.approval.hold_note",
+        "strategy.edit_params",
+        "strategy.editor.eyebrow",
+        "strategy.editor.rev_note",
+        "strategy.editor.section.approval",
+        "strategy.editor.section.entry",
+        "strategy.editor.section.exit",
+        "strategy.list.col.mode",
+        "strategy.list.col.status",
+        "strategy.list.col.strategy",
+        "strategy.list.filter.all",
+        "strategy.list.filter.paper",
+        "strategy.list.filter.real",
+        "strategy.list.pnl_7d",
+        "strategy.list.summary",
+        "strategy.list.title",
+        "strategy.mode.label",
+        "strategy.mode.paper",
+        "strategy.mode.paper_desc",
+        "strategy.mode.real",
+        "strategy.mode.scope_note",
+        "strategy.new",
+        "strategy.real_gate.days_done",
+        "strategy.real_gate.not_set",
+        "strategy.real_gate.progress_days",
+        "strategy.real_gate.progress_trades",
+        "strategy.real_gate.trades_done",
+        "strategy.real_locked.a11y",
+        "strategy.real_locked.badge",
+        "strategy.real_locked.chip",
+        "strategy.real_locked.chip_short",
+        "strategy.real_locked.explain",
+        "strategy.real_locked.list_note",
+        "strategy.real_locked_reason.gate_not_met",
+        "strategy.real_locked_reason.needs_owner_approval",
+        "strategy.real_locked_reason.other",
+        "strategy.real_locked_reason.policy",
+        "strategy.save",
+        "wallet.authorize.regrant_title"
+      ],
+      "copy_changed": [
+        {
+          "key": "mode.practice.label",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "mode.practice.banner",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "mode.practice.banner_short",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "mode.switch.toast_practice",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "dashboard.subtitle.practice",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "exit_reason.practice_reset",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "expire_reason.practice_reset.badge",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "expire_reason.practice_reset.detail",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "order.fail_reason.mode_not_allowed",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "review.practice_note",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "review.quote.practice_stale",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "login.practice_default",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "settings.notif.practice_actions",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "error.code.reset_cooldown",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "error.code.mode_not_allowed",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "error.code.practice_cash_insufficient",
+          "note": "Practice → Paper"
+        },
+        {
+          "key": "error.code.mode_not_allowed",
+          "note": "per strategy: not approved for Real (contracts 1.1.6)"
+        },
+        {
+          "key": "order.fail_reason.mode_not_allowed",
+          "note": "per strategy: not approved for Real"
+        },
+        {
+          "key": "notif.mode_real.body",
+          "note": "per strategy"
+        },
+        {
+          "key": "notif.mode_practice.body",
+          "note": "per strategy"
+        },
+        {
+          "key": "notif.pick_pending.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.first_buy.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.approved.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.filled.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.failed.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.skipped.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.expired.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.tp_hit.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.sl_hit.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.guard_requested.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.guard_cooldown.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.guard_active.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.guard_reverted.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.mode_real.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.mode_practice.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.loss_stop.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.offline.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.token_invalid.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.grouped.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.guard_cancelled.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.practice_reset.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.deletion_scheduled.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.deletion_cancelled.title",
+          "note": "verb-first; prefix [REAL]/[PAPER]"
+        },
+        {
+          "key": "notif.real.signer.granted.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.signer.revoked.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.policy.activated.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.policy.mismatch.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.limit.changed.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.limit.loosen_requested.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.kill_switch.tripped.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.kill_switch.cleared.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.withdraw_address.added.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.withdraw_address.usable.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.withdraw_address.cancelled.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.deposit.detected.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.withdraw.requested.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.withdraw.confirmed.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.withdraw.failed.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.buys.paused.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.buys.resumed.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.sell_all.requested.title",
+          "note": "verb-first; prefix [REAL]"
+        },
+        {
+          "key": "notif.real.sell_all.completed.title",
+          "note": "verb-first; prefix [REAL]"
+        }
+      ],
+      "description_changed": []
     }
   ]
 }

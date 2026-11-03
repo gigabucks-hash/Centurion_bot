@@ -1,10 +1,10 @@
-# @centurion/i18n · v0.4.9 (G1-blue copy, Centurion Trade, contracts 1.1.5, 3 Nov 2026 WIB)
+# @centurion/i18n · v0.4.10 (G1-blue v2 copy, Centurion Trade, contracts 1.1.6, 3 Nov 2026 WIB)
 
 Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/build_locales.py` (EN = source, ID = locale). Perubahan copy → minta UX, lalu publish ulang ke folder ini.
 
 | File | Isi | Konsumen |
 |---|---|---|
-| `en.json`, `id.json` | 691 key, nested, ICU MessageFormat (plural/select) | Web (next-intl), Desktop |
+| `en.json`, `id.json` | 788 key, nested, ICU MessageFormat (plural/select) | Web (next-intl), Desktop |
 | `arb/app_en.arb`, `arb/app_id.arb` | key lowerCamel (`notif.pick_pending.title` → `notifPickPendingTitle`), placeholder bertipe dari AST ICU (`int` untuk plural dan `*_count`, `String` lainnya). **Plural tanpa `#`**: `#` diganti `{count}` (dll.) + metadata `int`/`decimalPattern`. Lolos `flutter gen-l10n` + `dart analyze` 0 issue + `test/flutter/l10n_plural_test.dart` | Flutter |
 | `format.mjs` | formatter angka/waktu terikat locale UI | Web, Desktop (Flutter: port 1:1) |
 | `notifications.map.json` | N-01..N-22 + RESERVED Real N-23..N-46 (`reserved`, `channels`, `payload`) → wire `type`, kondisi, key title/body, `vars` (wire), `computed` (dihitung di device), aksi push + `token` per mode | push worker, Flutter/Web notif handler |
@@ -31,7 +31,7 @@ Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/
 - Push data-only dirender **di device** dari `notif.<key>.title|body` (lihat `notifications.map.json`). Real SOL: aksi push hanya `open`; token + approve/skip hanya Practice `buy_pick`. Event/`v` tak dikenal atau `mode` hilang → fail closed (generik "Buka app").
 
 ## Changelog
-Lihat [`CHANGELOG.md`](CHANGELOG.md) (0.4.0–0.4.9, BREAKING ditandai). 0.4.9: key copy G1-blue (kepadatan tabel, stop/resume, baris quote, exit ditahan, jual manual, izin ulang, dashboard); 2 key `kill_switch.*` deprecated (masih dipakai Desktop).
+Lihat [`CHANGELOG.md`](CHANGELOG.md) (0.4.0–0.4.10, BREAKING ditandai). 0.4.10: copy G1-blue v2. 'Practice' → 'Paper' di semua copy (prefix push `[REAL]`/`[PAPER]`; nama key tetap, rename key menunggu 0.5.0), judul alert verb-first, mode strategi + `real_locked` (contracts 1.1.6), gate Paper→Real generik (placeholder), quote card, receipt, PnL block, TP/SL ticket, risk chip. 0.4.9: key copy G1-blue (kepadatan tabel, stop/resume, baris quote, exit ditahan, jual manual, izin ulang, dashboard); 2 key `kill_switch.*` deprecated (masih dipakai Desktop).
 
 ### Deprecated: rencana penghapusan
 | Key | Pengganti | Dihapus |

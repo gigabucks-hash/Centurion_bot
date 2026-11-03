@@ -19,15 +19,15 @@ void main() {
     expect(id.conflictDiscardConfirm(4), 'Buang 4 editan? Tidak bisa diurungkan.');
     expect(en.loginOtpWrong(1), 'Wrong code. 1 attempt left.');
     expect(id.errorCodeRateLimited(30), 'Terlalu banyak permintaan. Coba lagi dalam 30 detik.');
-    expect(en.notifGroupedTitle(5, 'real'), '[REAL SOL] 5 picks await approval');
-    expect(id.notifGroupedTitle(1200, 'practice'), '[PRACTICE] 1.200 pick menunggu approval'); // locale grouping
+    expect(en.notifGroupedTitle(5, 'real'), '[REAL] Review 5 picks awaiting approval');
+    expect(id.notifGroupedTitle(1200, 'practice'), '[PAPER] Tinjau 1.200 pick yang menunggu approval'); // locale grouping
     expect(id.settingsDeleteGrace(7), 'Masa tenggang: 7 hari');
     for (final s in [en.positionsOpenCount(2), id.queueBatchSelected(2), en.builderStepWeakened(1), id.dashboardKpiExpiringSoon(3), en.queueRealBatchConfirmTitle(2), en.commonDurationSeconds(9)]) {
       expect(s.contains('#'), isFalse, reason: s);
     }
   });
   test('expire_reason practice_reset / account_deleted exported', () {
-    expect(en.expireReasonPracticeResetBadge, 'Practice reset');
+    expect(en.expireReasonPracticeResetBadge, 'Paper reset');
     expect(id.expireReasonAccountDeletedDetail, 'Akun telah dihapus');
   });
   test('T-15 PnL helpers: exact zero neutral, no arrow/sign', () {
@@ -40,12 +40,12 @@ void main() {
     expect(t.pnl(-1e-9), t.loss);
   });
   test('Rev 4.3: wire-named vars {symbol}/{amount_lamports}, TP +, new fail reasons, WF-21 labels', () {
-    expect(en.notifPickPendingTitle('real', 'EXM'), '[REAL SOL] EXM awaits approval');
+    expect(en.notifPickPendingTitle('real', 'EXM'), '[REAL] Review EXM: awaiting approval');
     expect(id.notifPickPendingBody('0,25 SOL', '04:52', 'Yumi'), 'Yumi · 0,25 SOL · sisa 04:52');
     expect(en.notifTpHitBody('40.0%', '50%', '+0.12 SOL'), 'Sold 50% at +40.0% · +0.12 SOL');
     expect(id.notifPracticeResetBody('10 paper SOL'), 'Saldo kembali ke 10 paper SOL. Buy tertunda dihapus.');
     expect(en.orderFailReasonPositionAlreadyClosed, 'This position was already closed');
-    expect(id.orderFailReasonModeNotAllowed, contains('Real SOL belum aktif'));
+    expect(id.orderFailReasonModeNotAllowed, contains('belum disetujui untuk Real'));
     expect(en.orderFailReasonValidationFailed, isNotEmpty);
     expect(id.errorCodeInvalidFraction, 'Pilih porsi jual dari 0,01% sampai 100%.');
     expect(id.screenerDetailQuoteNotSol('USDC'), 'USDC · bukan SOL');
@@ -95,14 +95,14 @@ void main() {
     expect(en.appName, 'Centurion Trade');
     expect(id.authSiwsStatement, 'Sign in to Centurion Trade'); // verbatim signed statement (0.4.8)
     expect(en.screenerNotTradeableDetail, contains('Centurion Trade only trades SOL pairs'));
-    expect(en.notifRealSellAllCompletedTitle(0), '[REAL SOL] Sell all done');
-    expect(id.notifRealSellAllCompletedTitle(2), '[REAL SOL] Jual semua: 2 gagal');
+    expect(en.notifRealSellAllCompletedTitle(0), '[REAL] View sell all: done');
+    expect(id.notifRealSellAllCompletedTitle(2), '[REAL] Ulangi jual semua: 2 gagal');
     expect(en.notifRealSellAllCompletedBody(0, 3, 3), '3 of 3 sold');
     expect(en.notifRealSellAllCompletedBody(1, 3, 2), '2 of 3 sold · 1 failed: still open, its exit plan keeps running');
     expect(id.notifRealSellAllCompletedBody(2, 3, 1), '1 dari 3 terjual · 2 gagal: tetap terbuka, exit plan tetap jalan');
     expect(id.notifRealKillSwitchTrippedBody('loss_velocity'), startsWith('Dihentikan otomatis: kerugian naik terlalu cepat'));
     expect(en.notifRealKillSwitchTrippedBody('new_reason_x'), contains('a safety rule triggered'));
-    expect(id.notifRealBuysPausedTitle, '[REAL SOL] Pembelian baru dihentikan');
+    expect(id.notifRealBuysPausedTitle, '[REAL] Lanjutkan pembelian saat siap: pembelian baru dihentikan');
     expect(id.notifRealBuysPausedBody('user', 'MacBook'), 'Exit plan posisi tetap jalan · olehmu di MacBook');
     expect(en.notifRealSellAllRequestedBody(1), 'Selling 1 position at market. Guards still apply.');
     expect(id.notifRealLimitLoosenRequestedBody('Maks. per trade', '0,05 SOL', '0,1 SOL', '30 Okt 19.02'), contains('berlaku sampai kamu ubah'));
@@ -148,5 +148,30 @@ void main() {
     expect(id.dashboardHeadline, 'Semua posisimu, sekilas.');
     expect(id.killSwitchActionOpen, 'Stop semua trading Real'); // deprecated, kept for apps/desktop
     expect(en.killSwitchDialogEffectBuys, startsWith('New buys are blocked')); // deprecated, kept for apps/desktop
+  });
+  test('0.4.10: G1-blue v2 copy (Paper in copy, verb-first, strategy mode, real_locked gate, quote, receipt, TP/SL, risk chip)', () {
+    expect(en.modePracticeLabel, 'PAPER'); // key name unchanged until 0.5.0
+    expect(id.notifPracticeResetTitle, '[PAPER] Cek saldo: Paper di-reset');
+    expect(en.notifPickPendingTitle('practice', 'EXM'), '[PAPER] Review EXM: awaiting approval');
+    expect(en.errorCodeModeNotAllowed, startsWith('This strategy isn’t approved for Real'));
+    expect(en.strategyModePaper, 'Paper');
+    expect(id.strategyRealLockedChip, 'Real terkunci');
+    expect(id.strategyRealLockedReasonNeedsOwnerApproval, 'Butuh persetujuan Boss');
+    expect(id.strategyRealGateProgressDays('4', '7'), '4/7 hari'); // generic: rule is a placeholder until Boss decides
+    expect(en.strategyRealGateProgressTrades('23', '30'), '23/30 trades');
+    expect(en.strategyRealGateDaysDone(1), '1 day in Paper'); // days_required = null
+    expect(id.strategyRealGateTradesDone(23), '23 trade selesai');
+    expect(id.strategyRealGateNotSet, 'Aturan belum ditetapkan');
+    expect(en.strategyRealLockedExplain.contains(RegExp(r'\d')), isFalse); // no hardcoded gate numbers
+    expect(en.strategyListFilterPaper(3), 'Paper · 3');
+    expect(id.reviewBuyTitle('EXM'), 'Setujui beli EXM');
+    expect(id.receiptTitleBuy('EXM'), 'Terbeli EXM');
+    expect(id.positionsTpslTakeProfit('2'), 'Take profit 2');
+    expect(en.riskChipA11y('Daily limit', '1', '0.4'), 'Daily limit: 0.4 of 1 SOL used'); // params alphabetical: label, limit, used
+    expect(id.alertTpHit('1', '50', 'EXM'), 'Cek EXM: TP1 tercapai, 50% terjual'); // params alphabetical: n, pct, symbol
+    expect(en.errorCodeBuysPaused, startsWith('New buys are stopped'));
+    for (final s in [en.strategyRealGateDaysDone(3), id.strategyRealGateDaysDone(3), en.strategyRealGateTradesDone(5)]) {
+      expect(s.contains('#'), isFalse, reason: s);
+    }
   });
 }

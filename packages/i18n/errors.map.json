@@ -1,5 +1,5 @@
 {
-  "errors_json_version": 6,
+  "errors_json_version": 7,
   "unknown": "error.code.internal",
   "codes": {
     "UNAUTHENTICATED": {
@@ -35,6 +35,20 @@
       "source": "copy",
       "kind": "error",
       "http": 404,
+      "retryable": false
+    },
+    "LOGO_NOT_FOUND": {
+      "key": "error.code.logo_not_found",
+      "source": "copy",
+      "kind": "error",
+      "http": 404,
+      "retryable": false
+    },
+    "LOGO_REJECTED": {
+      "key": "error.code.logo_rejected",
+      "source": "copy",
+      "kind": "error",
+      "http": 422,
       "retryable": false
     },
     "VALIDATION_FAILED": {
@@ -423,6 +437,55 @@
       "kind": "notice",
       "http": 503,
       "retryable": true
+    },
+    "LOOSEN_REQUIRES_APP": {
+      "key": "error.code.loosen_requires_app",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "RESUME_REQUIRES_APP": {
+      "key": "error.code.resume_requires_app",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "BUYS_PAUSED": {
+      "key": "error.code.buys_paused",
+      "source": "copy",
+      "kind": "error",
+      "http": 409,
+      "retryable": false
+    },
+    "AGENT_BUDGET_EXCEEDED": {
+      "key": "error.code.agent_budget_exceeded",
+      "source": "copy",
+      "kind": "error",
+      "http": 429,
+      "retryable": true
+    },
+    "AGENT_TRADE_DISABLED": {
+      "key": "error.code.agent_trade_disabled",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "SIWS_SESSION_REQUIRED": {
+      "key": "error.code.siws_session_required",
+      "source": "copy",
+      "kind": "error",
+      "http": 403,
+      "retryable": false
+    },
+    "AGENT_REQUEST_EXPIRED": {
+      "key": "error.code.agent_request_expired",
+      "source": "copy",
+      "kind": "error",
+      "http": 410,
+      "retryable": false
     },
     "RATE_LIMITED": {
       "key": "error.code.rate_limited",
