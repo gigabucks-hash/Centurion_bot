@@ -58,8 +58,27 @@ void main() {
 
   test('committed api_errors.g.dart == fresh generator output (sync / golden)', () async {
     final root = Platform.environment['FLUTTER_ROOT'];
-    final dart = root == null ? 'dart' : '$root/bin/dart';
-    final r = await Process.run(dart, ['run', 'tool/gen_errors.dart', '--check', '--source', source]);
+    // Windows SDKs ship `bin/dart.bat` plus the real `bin/cache/dart-sdk/bin/dart.exe`; spawning
+    // `bin/dart` there fails with "%1 is not a valid Win32 application". Use the .exe (or the .bat
+    // through cmd) on Windows; Linux/macOS keep `bin/dart` unchanged.
+    var dart = root == null ? 'dart' : '$root/bin/dart';
+    var shell = false;
+    if (Platform.isWindows) {
+      final exe = root == null ? null : '$root/bin/cache/dart-sdk/bin/dart.exe';
+      if (exe != null && File(exe).existsSync()) {
+        dart = exe;
+      } else {
+        dart = root == null ? 'dart.bat' : '$root/bin/dart.bat';
+        shell = true;
+      }
+    }
+    final r = await Process.run(dart, [
+      'run',
+      'tool/gen_errors.dart',
+      '--check',
+      '--source',
+      source,
+    ], runInShell: shell);
     expect(r.exitCode, 0, reason: '${r.stdout}${r.stderr}\nRun: dart run tool/gen_errors.dart');
   }, timeout: const Timeout(Duration(minutes: 2)));
 
