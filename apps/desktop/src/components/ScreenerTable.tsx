@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { Coins } from "lucide-react";
 import { CoinAvatar } from "./CoinAvatar";
+import { Icon } from "./Icon";
 import type { ScreenedCoin } from "../api";
 import { formatRelativeSeconds, LOCALES, mcapView, useLang, useT, type Lang, type T } from "../i18n";
 import { serverNow } from "../state/store";
@@ -44,7 +46,7 @@ export function ScreenerTable({ coins, selected, onSelect, onOpenQueue }: {
         ))}
       </div>
       {!rows.length ? (
-        <div className="empty">{t("screener.empty")}</div>
+        <div className="empty"><Icon glyph={Coins} size={32} />{t("screener.empty")}</div>
       ) : (
         <table className="positions screener-table">
           <thead>

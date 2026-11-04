@@ -1,11 +1,13 @@
 import { popupSupported, POPUP_DISABLED_REASON } from "./platform";
 import { useEffect, useState } from "react";
+import { Settings as SettingsGlyph } from "lucide-react";
 import { core, type PatchOutcome, type Settings } from "../api";
 import { useTerm } from "../state/store";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { errorCodeOf, errorDetails, errorText, parseIsoTs, useLang, useT } from "../i18n";
 import { fmtTime } from "./format";
 import { HoldButton } from "./HoldButton";
+import { Icon } from "./Icon";
 import { gateView, HOLD_MS, type Line } from "./strategyGate";
 import type { StrategyView } from "../api";
 
@@ -214,7 +216,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal">
-        <h3>Pengaturan desktop</h3>
+        <h3><Icon glyph={SettingsGlyph} size={20} /> Pengaturan desktop</h3>
         <label>
           <div className="muted">Tema</div>
           <select value={cfg.theme} onChange={(e) => setCfg({ ...cfg, theme: e.target.value as Settings["theme"] })}>

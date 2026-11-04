@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Activity, ChartNoAxesColumn, Coins, ExternalLink, Settings as SettingsGlyph, SquareCheck, Wallet } from "lucide-react";
 import { core, EVT, runtime, type PickView, type PositionView, type SellQuote } from "../api";
 import { ApproveConfirm } from "../components/ApproveConfirm";
 import { MockTtlBadge } from "../components/MockTtlBadge";
@@ -6,13 +7,16 @@ import { popupSupported, POPUP_DISABLED_REASON } from "../components/platform";
 import { QuickLook, type QuickLookTarget } from "../components/QuickLook";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { ModeChrome } from "../components/ModeChrome";
-import { PositionsSummary, PositionsTable } from "../components/PositionsTable";
+import { PositionsBar, PositionsSummary, PositionsTable } from "../components/PositionsTable";
 import { PriceChart } from "../components/PriceChart";
 import { SellConfirm } from "../components/SellConfirm";
 import { SettingsDialog } from "../components/SettingsDialog";
 import { SignalQueue, useServerNow } from "../components/SignalQueue";
 import { ConflictToast } from "../components/ConflictToast";
 import { CoinDetail } from "../components/CoinDetail";
+import { CoinAvatar } from "../components/CoinAvatar";
+import { Icon } from "../components/Icon";
+import { useCoinLogo } from "../components/useCoinLogo";
 import { isBlocked } from "../components/NotTradeable";
 import { ScreenerTable } from "../components/ScreenerTable";
 import { errorMessage, errorText, I18N_PACKAGE_VERSION, solText, useLang, useT } from "../i18n";
@@ -53,6 +57,7 @@ export function TerminalView() {
   const cursorPos: PositionView | undefined = st.positions.find((p) => p.mint === st.cursorMint) ?? st.positions[0];
   const chartMint = st.cursorMint ?? cursorSig?.mint ?? null;
   const chartSym = st.signals.find((s) => s.mint === chartMint)?.symbol ?? st.positions.find((p) => p.mint === chartMint)?.symbol;
+  const chartLogo = useCoinLogo(chartMint);
 
   // REAL SOL: approve always goes through dialog + hold 2.5 s (UX); Practice approves directly.
   const qlTarget: QuickLookTarget | null = (() => {
@@ -170,12 +175,13 @@ export function TerminalView() {
         <span style={{ marginLeft: "auto" }} className="dim">
           <kbd>J/K</kbd> nav <kbd>A</kbd> approve <kbd>S</kbd> skip <kbd>X</kbd> pilih <kbd>⇧A</kbd> approve terpilih <kbd>⇧X</kbd> sell <kbd>Space</kbd> quick-look <kbd>↵</kbd> chart <kbd>L</kbd> feed <kbd>C</kbd> koin <kbd>P</kbd> popup
         </span>
-        <button className="ghost" onClick={() => setSettingsOpen(true)}>Settings<kbd>,</kbd></button>
+        <button className="ghost" onClick={() => setSettingsOpen(true)}><Icon glyph={SettingsGlyph} size={16} /> Settings<kbd>,</kbd></button>
       </ModeChrome>
       <div className="grid">
         <section className="panel area-queue">
           <header>
-            {t("queue.title")} <MockTtlBadge sample={pending[0]} /> <span>{pending.length} pending{st.selectedIds.size ? ` · ${t("queue.batch.selected", { count: st.selectedIds.size })}` : ""}</span>
+            <span className="panel-title"><Icon glyph={SquareCheck} size={16} /> {t("queue.title")} <MockTtlBadge sample={pending[0]} /></span>
+            <span>{pending.length} pending{st.selectedIds.size ? ` · ${t("queue.batch.selected", { count: st.selectedIds.size })}` : ""}</span>
           </header>
           <div className="body">
             <SignalQueue
@@ -195,13 +201,13 @@ export function TerminalView() {
           <header>
             <span className="tabs" role="tablist">
               <button role="tab" className={`tab${center === "chart" ? " on" : ""}`} aria-selected={center === "chart"} onClick={() => setCenter("chart")}>
-                {t("chart.title")} <span className="mono">{chartSym ?? "—"}</span>
+                <Icon glyph={ChartNoAxesColumn} size={18} /> {t("chart.title")} <span className="coin-sym" data-testid="chart-tab-coin">{chartMint && <CoinAvatar mint={chartMint} symbol={chartSym ?? "•"} logoHash={chartLogo} size={20} />}<span className="mono">{chartSym ?? "—"}</span></span>
               </button>
               <button role="tab" className={`tab${center === "coins" ? " on" : ""}`} aria-selected={center === "coins"} onClick={() => setCenter("coins")} data-testid="tab-coins">
-                {t("screener.title")} <span className="num">{st.screened.length}</span><kbd>C</kbd>
+                <Icon glyph={Coins} size={18} /> {t("screener.title")} <span className="num">{st.screened.length}</span><kbd>C</kbd>
               </button>
             </span>
-            {center === "chart" && <button className="ghost" onClick={() => chartMint && run(() => core.openChartWindow(chartMint))}>⧉ Detach</button>}
+            {center === "chart" && <button className="ghost" onClick={() => chartMint && run(() => core.openChartWindow(chartMint))}><Icon glyph={ExternalLink} size={16} /> Detach</button>}
           </header>
           {center === "chart" ? (
             <PriceChart mint={chartMint} />
@@ -214,15 +220,17 @@ export function TerminalView() {
         </section>
         <section className="panel area-activity">
           <header>
-            Activity <button className="ghost" onClick={() => run(() => core.openActivityWindow())}>⧉ Detach</button>
+            <span className="panel-title"><Icon glyph={Activity} size={16} /> Activity</span>
+            <button className="ghost" onClick={() => run(() => core.openActivityWindow())}><Icon glyph={ExternalLink} size={16} /> Detach</button>
           </header>
           <div className="body"><ActivityFeed items={st.activity} /></div>
         </section>
         <section className="panel area-positions">
-          <header>{t(st.mode === "real" ? "positions.title" : "positions.title_paper")} <PositionsSummary positions={st.positions} /></header>
+          <header><span className="panel-title"><Icon glyph={Wallet} size={16} /> {t(st.mode === "real" ? "positions.title" : "positions.title_paper")}</span> <PositionsSummary positions={st.positions} /></header>
           <div className="body">
             <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onFocusRow={st.setCursor} onSell={(p) => sell(p)} now={now} />
           </div>
+          {cursorPos && <PositionsBar p={cursorPos} now={now} onSell={(p) => sell(p)} sellLabel={t("positions.sell.unavailable")} />}
         </section>
       </div>
       <div className="statusbar">

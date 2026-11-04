@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Power } from "lucide-react";
 import { core, EVT, type StopResult } from "../api";
+import { Icon } from "./Icon";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { errorText, useLang, useT } from "../i18n";
 import { useTerm } from "../state/store";
@@ -41,7 +43,7 @@ export function StopControl() {
   return (
     <>
       <button className="sm danger stop-btn" data-action="stop" onClick={() => setAsk("ui")} title={real ? t("kill_switch.dialog.title") : t("desktop.stop.title_practice")}>
-        ■ {t("kill_switch.action.engage")}
+        <Icon glyph={Power} size={16} /> {t("kill_switch.action.engage")}
       </button>
       {msg && <span className={msg.ok ? "dim" : "neg"} role="status">{msg.text}</span>}
       {ask && <StopDialog real={real} running={running} busy={busy} onCancel={() => setAsk(null)} onConfirm={confirm} />}
@@ -60,7 +62,7 @@ function StopDialog({ real, running, busy, onCancel, onConfirm }: { real: boolea
         <p className="dim num">{running} running</p>
         <div className="actions">
           <button autoFocus onClick={onCancel}>{t("common.action.cancel")}<kbd>Esc</kbd></button>
-          <button className="danger" disabled={busy} aria-busy={busy} data-action="stop-confirm" onClick={onConfirm}>{t("kill_switch.action.engage")}</button>
+          <button className="danger" disabled={busy} aria-busy={busy} data-action="stop-confirm" onClick={onConfirm}><Icon glyph={Power} size={18} /> {t("kill_switch.action.engage")}</button>
         </div>
       </div>
     </div>

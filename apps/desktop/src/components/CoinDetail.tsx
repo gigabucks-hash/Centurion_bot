@@ -1,6 +1,7 @@
 import type { PickView, ScreenedCoin } from "../api";
 import { skipChip, useLang, useT } from "../i18n";
 import { fmtUsdLocale, shortMint } from "./format";
+import { CoinAvatar } from "./CoinAvatar";
 import { NtChip, NtDetail } from "./NotTradeable";
 import { PriceChart } from "./PriceChart";
 
@@ -38,6 +39,7 @@ export function CoinDetail({ coin, pick, onOpenQueue, onSkip }: {
   return (
     <aside className={`coin-detail${nt ? " is-nt" : ""}`} aria-labelledby="cd-title" data-testid="coin-detail">
       <header>
+        <CoinAvatar mint={coin.mint} symbol={coin.symbol} logoHash={coin.logo_hash} size={32} notTradeable={nt} />
         <b id="cd-title">${coin.symbol}</b>
         {nt && <NtChip />}
       </header>
@@ -53,7 +55,7 @@ export function CoinDetail({ coin, pick, onOpenQueue, onSkip }: {
         <PriceChart mint={coin.mint} />
       </div>
       {nt ? (
-        <>
+        <div className="detail-actions">
           {/* Disabled CTA stays visible and labelled; the reason is written above (not tooltip-only). */}
           <button className="cta-disabled" disabled aria-disabled="true" aria-describedby="cd-title">{t("screener.detail.approve_unavailable")}</button>
           {pick && onSkip && (
@@ -62,9 +64,11 @@ export function CoinDetail({ coin, pick, onOpenQueue, onSkip }: {
               <div className="dim note">{t("screener.detail.skip_hint")}</div>
             </>
           )}
-        </>
+        </div>
       ) : coin.status === "pick" ? (
-        <button className="primary" onClick={() => onOpenQueue(coin.mint)}>{t("screener.action.open_queue")}</button>
+        <div className="detail-actions">
+          <button className="primary" onClick={() => onOpenQueue(coin.mint)}>{t("screener.action.open_queue")}</button>
+        </div>
       ) : null}
     </aside>
   );

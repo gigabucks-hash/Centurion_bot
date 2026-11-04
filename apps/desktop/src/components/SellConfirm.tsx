@@ -3,6 +3,10 @@ import type { Mode, SellQuote } from "../api";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { formatFractionBps, solText, useLang, useT } from "../i18n";
 import { HoldButton } from "./HoldButton";
+import { ArrowDownRight } from "lucide-react";
+import { CoinAvatar } from "./CoinAvatar";
+import { Icon } from "./Icon";
+import { useCoinLogo } from "./useCoinLogo";
 
 const HOLD_MS: Record<Mode, number> = { practice: 1200, real: 2500 }; // = --motion-holdPractice / --motion-holdReal
 
@@ -30,10 +34,11 @@ export function SellConfirm({ quote, mode, onConfirm, onCancel, onPct }: {
   const lang = useLang();
   const fractionBps = Math.round(quote.pct * 100); // wire `fraction_bps`; copy shows %
   const pctLabel = formatFractionBps(fractionBps, lang);
+  const logoHash = useCoinLogo(quote.mint);
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal">
-        <h3>{t("positions.sell.title", { symbol: `$${quote.symbol}` })} · {t(mode === "practice" ? "mode.practice.label" : "mode.real.label")}</h3>
+        <h3><Icon glyph={ArrowDownRight} size={20} /><span className="coin-sym"><CoinAvatar mint={quote.mint} symbol={quote.symbol} logoHash={logoHash} size={20} /></span>{t("positions.sell.title", { symbol: `$${quote.symbol}` })} · {t(mode === "practice" ? "mode.practice.label" : "mode.real.label")}</h3>
         <div>
           <b className="num">{pctLabel}</b> · {t("positions.sell.estimate")}{" "}
           <span className="num">{solText(quote.est_sol_out_lamports, lang, mode === "practice")}</span>

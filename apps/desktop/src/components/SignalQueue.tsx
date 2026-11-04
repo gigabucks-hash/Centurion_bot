@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { CoinAvatar } from "./CoinAvatar";
 import type { PickView } from "../api";
+import { Check, ExternalLink, Inbox, X } from "lucide-react";
+import { Icon } from "./Icon";
 import { MOCK_SUFFIX, quoteState, skipChip, useLang, useT, solText } from "../i18n";
 import { serverNow, useTerm } from "../state/store";
 import { fmtMmSs, fmtPriceDec, fmtUsdLocale, shortMint } from "./format";
@@ -39,7 +41,7 @@ export function SignalQueue(p: Props) {
   const lang = useLang();
   const paper = useTerm((s) => s.mode) === "practice";
   const skew = useTerm((s) => s.skewMs);
-  if (!p.signals.length) return <div className="empty">{t("queue.empty")} {MOCK_SUFFIX}</div>;
+  if (!p.signals.length) return <div className="empty"><Icon glyph={Inbox} size={32} />{t("queue.empty")} {MOCK_SUFFIX}</div>;
   return (
     <div role="list">
       {p.signals.map((s) => {
@@ -104,22 +106,22 @@ export function SignalQueue(p: Props) {
               // Skip chip preselected from reject_reasons.map.json; Rust sends its reject_reason (`not_tradeable`).
               <div className="skip-reason" role="radiogroup" aria-label={t("queue.pick.skip")}>
                 <span className="dim">{t("queue.pick.skip")}:</span>
-                <span className="chip reason on" role="radio" aria-checked="true">✓ {t(skipChip("not_tradeable")?.label_key ?? "queue.skip_reason.not_tradeable")}</span>
+                <span className="chip reason on" role="radio" aria-checked="true"><Icon glyph={Check} size={16} /> {t(skipChip("not_tradeable")?.label_key ?? "queue.skip_reason.not_tradeable")}</span>
               </div>
             )}
             <div className="actions">
               {nt ? (
-                <button className="cta-disabled" disabled aria-disabled="true" data-action="approve">{t("queue.pick.cannot_approve")}</button>
+                <button className="cta-disabled" disabled aria-disabled="true" data-action="approve"><Icon glyph={Check} size={18} /> {t("queue.pick.cannot_approve")}</button>
               ) : quoteBlocked ? (
-                <button className="cta-disabled" disabled aria-disabled="true" data-action="approve" title={t("review.quote.stale")}>{t("queue.pick.approve")}<kbd>A</kbd></button>
+                <button className="cta-disabled" disabled aria-disabled="true" data-action="approve" title={t("review.quote.stale")}><Icon glyph={Check} size={18} /> {t("queue.pick.approve")}<kbd>A</kbd></button>
               ) : (
-                <button className="success" data-action="approve" onClick={(e) => { e.stopPropagation(); p.onApprove(s); }}>{t("queue.pick.approve")}<kbd>A</kbd></button>
+                <button className="success" data-action="approve" onClick={(e) => { e.stopPropagation(); p.onApprove(s); }}><Icon glyph={Check} size={18} /> {t("queue.pick.approve")}<kbd>A</kbd></button>
               )}
               {/* Skip stays available: rejecting a pick is not a trade, it only clears the queue. */}
-              <button className="ghost" onClick={(e) => { e.stopPropagation(); p.onSkip(s); }}>{t("queue.pick.skip")}<kbd>S</kbd></button>
+              <button className="ghost" onClick={(e) => { e.stopPropagation(); p.onSkip(s); }}><Icon glyph={X} size={18} /> {t("queue.pick.skip")}<kbd>S</kbd></button>
               {!p.compactActions && p.onOpenChart && (
                 <button className="ghost" onClick={(e) => { e.stopPropagation(); p.onOpenChart!(s.mint); }} title="Buka chart di window terpisah">
-                  ⧉ Chart<kbd>↵</kbd>
+                  <Icon glyph={ExternalLink} size={18} /> Chart<kbd>↵</kbd>
                 </button>
               )}
               <span className={`num countdown ${nt ? "neutral" : urgent ? "neg" : "dim"}`} style={{ marginLeft: "auto" }} aria-label="Sisa waktu (jam server)">

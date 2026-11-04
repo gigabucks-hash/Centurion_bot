@@ -1,5 +1,8 @@
 import { useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import type { PickView } from "../api";
+import { CoinAvatar } from "./CoinAvatar";
+import { Icon } from "./Icon";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { solText, useLang, useT, wireVars } from "../i18n";
 import { HoldButton } from "./HoldButton";
@@ -20,7 +23,7 @@ export function ApproveConfirm({ signal, onConfirm, onCancel }: { signal: PickVi
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="approve-title">
       <div className="modal">
-        <h3 id="approve-title">Approve REAL SOL · ${signal.symbol}</h3>
+        <h3 id="approve-title"><Icon glyph={ShieldCheck} size={20} /><span className="coin-sym"><CoinAvatar mint={signal.mint} symbol={signal.symbol} logoHash={signal.logo_hash} size={20} /></span> Approve REAL SOL · ${signal.symbol}</h3>
         <div>{signal.strategy} · {solText(signal.amount_lamports, lang, false)}{signal.score != null ? ` · fit ${signal.score}/${signal.score_threshold}` : ""}</div>
         <div className="muted" style={{ marginTop: 8 }}>Order memakai SOL nyata (di prototipe: mock). Server re-validate sebelum eksekusi. Tahan tombol (mouse atau Enter) 2,5 dtk.</div>
         <div className="actions">

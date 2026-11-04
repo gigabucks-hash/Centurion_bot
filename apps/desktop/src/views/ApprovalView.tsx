@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ExternalLink, X } from "lucide-react";
 import { core, type PickView } from "../api";
+import { CoinAvatar } from "../components/CoinAvatar";
+import { Icon } from "../components/Icon";
 import { fmtMmSs } from "../components/format";
 import { NtChip } from "../components/NotTradeable";
 import { errorText, solText, useLang, useT } from "../i18n";
@@ -91,6 +94,7 @@ export function ApprovalView() {
       {shown ? (
         <div className="popup-body">
           <div className="popup-head">
+            <CoinAvatar mint={shown.mint} symbol={shown.symbol} logoHash={shown.logo_hash} size={32} notTradeable={nt} />
             <b id="popup-title">${shown.symbol}</b>
             {nt ? <NtChip /> : <span className="chip">{shown.strategy.replace(/^Mock · /, "")}</span>}
             {isPending ? (
@@ -102,13 +106,13 @@ export function ApprovalView() {
           <div className="meta">{nt ? t("screener.not_tradeable.detail") : <>{shown.strategy} · {solText(shown.amount_lamports, lang, mode === "practice")}</>}{!nt && shown.score != null ? ` · fit ${shown.score}/${shown.score_threshold}` : ""}</div>
           <div className="timerbar" aria-hidden><i style={{ width: `${isPending ? Math.max(0, Math.min(100, (left / total) * 100)) : 0}%` }} /></div>
           <div className="popup-actions">
-            <button disabled={!can} onClick={skip}>{t("queue.pick.skip")} <kbd>S</kbd></button>
+            <button disabled={!can} onClick={skip}><Icon glyph={X} size={18} /> {t("queue.pick.skip")} <kbd>S</kbd></button>
             {nt ? (
               <button className="cta-disabled" disabled aria-disabled="true">{t("queue.pick.cannot_approve")}</button>
             ) : mode === "practice" ? (
-              <button className="primary" disabled={!can} onClick={approve}>{t("queue.pick.approve")} <kbd>A</kbd></button>
+              <button className="primary" disabled={!can} onClick={approve}><Icon glyph={Check} size={18} /> {t("queue.pick.approve")} <kbd>A</kbd></button>
             ) : (
-              <button className="real" disabled={!can} onClick={approve} title="Approve REAL hanya dari window utama (dialog + tahan 2,5 dtk)">Buka untuk approve ↗</button>
+              <button className="real" disabled={!can} onClick={approve} title="Approve REAL hanya dari window utama (dialog + tahan 2,5 dtk)"><Icon glyph={ExternalLink} size={18} /> Buka untuk approve ↗</button>
             )}
           </div>
           <div className="popup-foot">

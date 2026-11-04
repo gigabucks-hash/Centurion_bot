@@ -16,17 +16,23 @@ if (!src) {
   process.exit(1);
 }
 const dst = here("../src/design/centurion-tokens.css");
-// The full copy carries the G1-blue palette (0.3.3+), on hold until Boss approves: only with --full.
+// The full copy carries the approved G1-blue palette (0.3.4). `--full` replaces the main copy; the subset
+// below stays palette-free on purpose.
 if (process.argv.includes("--full")) {
   copyFileSync(src, dst);
-  writeFileSync(dst, `/* SYNCED COPY of ${src} — do not edit, run \`npm run sync:tokens -- --full\`. */\n` + readFileSync(dst, "utf8"));
+  // Copy normalizes EOL to LF: the repo index is LF, and the source checkout may be CRLF. Without this a
+  // regen rewrites every line and hides the real token diff.
+  const body = readFileSync(dst, "utf8").replace(/\r\n/g, "\n");
+  // Header uses a repo-relative label so a build on someone else's machine does not bake a local path in.
+  const label = src.split(/[\\/]/).slice(-3).join("/");
+  writeFileSync(dst, `/* SYNCED COPY of ${label} — do not edit, run \`npm run sync:tokens -- --full\`. */\n` + body);
   console.log(`tokens synced from ${src}`);
 } else {
-  console.log("main token copy kept (pre-G1-blue); pass --full to replace it");
+  console.log("main token copy kept; pass --full to replace it with the approved G1-blue 0.3.4 palette");
 }
 
-// ---- Approved subset (Apex, 3 Nov 2026): design-tokens 0.3.4 additions + coin-logo tokens, WITHOUT the
-// G1-blue palette of 0.3.3+ (the main copy above stays at the pre-G1 values until Boss approves G1-blue).
+// ---- Subset kept for the approved G1-blue 0.3.4 rollout: extra tokens applied to desktop chrome/dialogs,
+// extracted per selector so the main copy can be regenerated without dragging the whole palette in.
 // Extracts only the listed custom properties from tauri.css, per selector, into centurion-tokens-subset.css.
 const SUBSET = [
   "--color-bg-chrome", "--color-scrim-sheet", "--shadow-card", "--shadow-dialog", "--color-semantic-onWarning",

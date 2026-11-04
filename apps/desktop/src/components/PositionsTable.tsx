@@ -1,5 +1,7 @@
 import type { PlanState, PositionView } from "../api";
+import { ArrowDownRight, Wallet } from "lucide-react";
 import { CoinAvatar } from "./CoinAvatar";
+import { Icon } from "./Icon";
 import { pnlLamports, pnlPercent, pnlText, solText, TONE_CLASS, useLang, useT, type Lang } from "../i18n";
 import { useTerm } from "../state/store";
 import { fmtPriceDec } from "./format";
@@ -78,7 +80,7 @@ export function PositionsTable({ positions, cursorMint, onCursor, onFocusRow, on
   const lang = useLang();
   const mode = useTerm((s) => s.mode);
   const paper = mode === "practice";
-  if (!positions.length) return <div className="empty">{t("positions.empty", { mode })}</div>;
+  if (!positions.length) return <div className="empty"><Icon glyph={Wallet} size={32} />{t("positions.empty", { mode })}</div>;
   return (
     <table className="positions">
       <thead>
@@ -104,9 +106,9 @@ export function PositionsTable({ positions, cursorMint, onCursor, onFocusRow, on
               <td className="num muted col-hold">{fmtHold(now - p.opened_at_ms)}</td>
               <td>
                 {nt ? (
-                  <button className="sm cta-disabled" disabled aria-disabled="true" data-action="sell">{t("positions.sell.unavailable")}</button>
+                  <button className="sm cta-disabled" disabled aria-disabled="true" data-action="sell"><Icon glyph={ArrowDownRight} size={18} /> {t("positions.sell.unavailable")}</button>
                 ) : (
-                  <button className="sm" data-action="sell" onClick={(e) => { e.stopPropagation(); onSell(p); }}>Sell <kbd>⇧X</kbd></button>
+                  <button className="sm" data-action="sell" onClick={(e) => { e.stopPropagation(); onSell(p); }}><Icon glyph={ArrowDownRight} size={18} /> Sell <kbd>⇧X</kbd></button>
                 )}
               </td>
             </tr>
@@ -114,5 +116,38 @@ export function PositionsTable({ positions, cursorMint, onCursor, onFocusRow, on
         })}
       </tbody>
     </table>
+  );
+}
+
+/**
+ * Sticky action bar for the focused position (UX G7). The terminal has no separate position page, so this
+ * is the position "detail" affordance: avatar + symbol + strategy + hold + PnL, with the same Sell action
+ * (⇧X) as the row. Read-only quick-look (C2) stays read-only; this bar never opens a confirm by itself.
+ */
+export function PositionsBar({ p, now = Date.now(), onSell, sellLabel }: {
+  p: PositionView;
+  now?: number;
+  onSell: (p: PositionView) => void;
+  sellLabel: string;
+}) {
+  const lang = useLang();
+  const paper = useTerm((s) => s.mode) === "practice";
+  const nt = p.tradeable === false;
+  const pct = pnlPercent(p.pnl_pct, lang);
+  return (
+    <div className="positions-bar" data-testid="positions-bar" data-mint={p.mint}>
+      <span className="coin-sym">
+        <CoinAvatar mint={p.mint} symbol={p.symbol} logoHash={p.logo_hash} size={20} notTradeable={nt} />
+        <b>${p.symbol}</b>
+      </span>
+      <span className="dim">{p.strategy.replace(/^Mock · /, "")}</span>
+      <span className="num dim">hold {fmtHold(now - p.opened_at_ms)}</span>
+      <span className={`num bar-pnl ${pct ? TONE_CLASS[pct.tone] : "muted"}`} title={solText(p.cost_lamports, lang, paper)}>{pnlText(pct)}</span>
+      {nt ? (
+        <button className="sm cta-disabled" disabled aria-disabled="true" data-action="sell"><Icon glyph={ArrowDownRight} size={18} /> {sellLabel}</button>
+      ) : (
+        <button className="sm" data-action="sell" onClick={() => onSell(p)}><Icon glyph={ArrowDownRight} size={18} /> Sell <kbd>⇧X</kbd></button>
+      )}
+    </div>
   );
 }

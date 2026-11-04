@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import { FlaskConical, ShieldCheck } from "lucide-react";
 import { useT } from "../i18n";
 import { useTerm } from "../state/store";
+import { Icon } from "./Icon";
 import { StopControl } from "./StopControl";
 
 /** 4px mode strip + title bar, required on EVERY window (UX Tauri README §1). Title bar is a drag region. */
@@ -11,7 +13,10 @@ export function ModeChrome({ title, children, stop }: { title: string; children?
     <>
       <div className="mode-strip" aria-hidden />
       <div className="titlebar" data-tauri-drag-region>
-        <span className="mode-label" role="status">{mode === "practice" ? `◇ ${t("mode.practice.label")}` : `● ${t("mode.real.label")}`}</span>
+        <span className="mode-label" role="status">
+          <Icon glyph={mode === "practice" ? FlaskConical : ShieldCheck} size={16} />
+          {mode === "practice" ? t("mode.practice.label") : t("mode.real.label")}
+        </span>
         {/* C15: Real SOL on desktop = Phase 7 (out of MVP). This chrome is a reference preview behind CENTURION_MOCK_MODE=real only. */}
         {mode === "real" && <span className="chip badge-mock" title="Real SOL di desktop = Phase 7 (di luar MVP). Ini pratinjau mock.">Phase 7 preview · mock</span>}
         <span className="brand" data-tauri-drag-region>{t("app.name")}</span>

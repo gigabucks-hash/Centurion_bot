@@ -45,6 +45,7 @@ body {
 
 button {
   font: inherit; font-weight: var(--text-label--font-weight);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
   min-height: var(--d-control); min-width: 24px;
   color: var(--color-text-primary);
   background: var(--color-bg-raised);
@@ -79,6 +80,7 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--color-borde
   background: repeating-linear-gradient(135deg, var(--color-mode-practice) 0 6px, var(--color-mode-practiceContainer) 6px 10px);
 }
 .mode-label {
+  display: inline-flex; align-items: center; gap: var(--space-1);
   font-size: var(--d-small); font-weight: var(--text-overline--font-weight); letter-spacing: .06em;
   padding: 1px var(--space-2); border-radius: var(--radius-full);
   background: var(--mode-container); color: var(--mode-accent); border: 1px solid var(--mode-accent);
@@ -88,7 +90,8 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--color-borde
 .titlebar {
   display: flex; align-items: center; gap: var(--d-gap);
   padding: 0 var(--space-3);
-  background: var(--color-bg-surface);
+  /* 0.3.4 (G1-blue): app chrome is its own surface step, not a content surface. */
+  background: var(--color-bg-chrome);
   border-bottom: 1px solid var(--color-border-subtle);
   min-width: 0; white-space: nowrap; overflow: hidden;
 }
@@ -96,7 +99,7 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--color-borde
 .statusbar {
   display: flex; gap: var(--space-3); align-items: center;
   padding: 2px var(--space-3); font-size: var(--d-small);
-  background: var(--color-bg-surface); border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-chrome); border-top: 1px solid var(--color-border-subtle);
 }
 .chip { font-size: var(--d-small); padding: 0 var(--space-2); border-radius: var(--radius-full); border: 1px solid var(--color-border-default); color: var(--color-text-secondary); }
 
@@ -133,8 +136,9 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--color-borde
 .bar > i { display: block; height: 100%; background: var(--color-brand-primary); transition: width var(--duration-base) linear; }
 .bar.urgent > i { background: var(--color-semantic-loss); }
 
-.feed-item { display: grid; grid-template-columns: 64px 64px 1fr; gap: var(--space-2); padding: 2px var(--space-3); font-size: var(--d-small); }
+.feed-item { display: grid; grid-template-columns: 64px 64px 1fr; gap: var(--space-2); padding: 2px var(--space-3); font-size: var(--d-small); align-items: center; }
 .feed-item .actor { color: var(--color-brand-primary); }
+.feed-item .feed-coin { display: inline-flex; align-items: center; gap: var(--space-1); margin-right: var(--space-1); vertical-align: middle; }
 .feed-item.k-expired, .feed-item.k-skipped { color: var(--color-text-tertiary); }
 
 table.positions { width: 100%; border-collapse: collapse; font-size: var(--d-small); }
@@ -154,6 +158,12 @@ table.positions button { min-height: 24px; padding: 0 var(--space-2); }
 .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--d-control); cursor: pointer; }
 .toggle-row input[type="checkbox"] { width: 20px; min-height: 20px; flex: none; accent-color: var(--color-brand-primary); }
 .empty { padding: var(--space-4); color: var(--color-text-tertiary); text-align: center; }
+.empty .icon { display: block; margin: 0 auto var(--space-2); color: var(--color-text-tertiary); }
+
+/* Lucide (G1 icon set): one family, currentColor only, never a hex prop. */
+.icon { flex: none; vertical-align: -0.125em; }
+.panel-title { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.panel-title > :last-child { min-width: 0; }
 
 /* Hold-to-confirm: fill is time-based (works with reduced motion because duration comes from JS). */
 .hold { position: relative; overflow: hidden; }
@@ -205,7 +215,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 button.primary kbd, button.real kbd, button.success kbd, button.danger kbd { color: inherit; border-color: currentColor; opacity: .8; }
 
 /* ---- Space quick-look (C2): non-modal detail panel for the focused row ---- */
-.quicklook { position: fixed; right: var(--space-4); bottom: 40px; width: 320px; z-index: 5; background: var(--color-bg-overlay); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); box-shadow: var(--shadow-e3); padding: var(--space-3); font-size: var(--text-body); }
+.quicklook { position: fixed; right: var(--space-4); bottom: 40px; width: 320px; z-index: 5; background: var(--color-bg-overlay); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); box-shadow: var(--shadow-dialog); padding: var(--space-3); font-size: var(--text-body); }
 .quicklook header { display: flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-6) var(--space-2) 0; font-size: var(--text-caption); }
 .quicklook header b { font-size: var(--text-titleSm); }
 .quicklook dl { margin: 0 0 var(--space-2); display: grid; gap: 2px; }
@@ -217,7 +227,7 @@ button.primary kbd, button.real kbd, button.success kbd, button.danger kbd { col
 .badge-mock { color: var(--color-semantic-warning); border-color: var(--color-semantic-warning); background: var(--color-semantic-warningContainer); font-size: var(--text-caption); }
 [data-row]:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -2px; }
 /* contracts v1.1: 409 conflict toast, account lifecycle banner, settings sections */
-.toast { position: fixed; left: var(--space-4); bottom: 40px; width: 340px; z-index: 6; background: var(--color-bg-overlay); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); box-shadow: var(--shadow-e3); padding: var(--space-3); display: grid; gap: 4px; font-size: var(--text-body); }
+.toast { position: fixed; left: var(--space-4); bottom: 40px; width: 340px; z-index: 6; background: var(--color-bg-overlay); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); box-shadow: var(--shadow-dialog); padding: var(--space-3); display: grid; gap: 4px; font-size: var(--text-body); }
 .toast.conflict { border-color: var(--color-semantic-warning); }
 .toast .close { position: absolute; top: 6px; right: 6px; min-height: 24px; padding: 0 6px; }
 .account-banner { position: fixed; top: 44px; left: 50%; transform: translateX(-50%); z-index: 6; background: var(--color-semantic-warningContainer); color: var(--color-text-primary); border: 1px solid var(--color-semantic-warning); border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--text-body); }
@@ -352,6 +362,7 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 .coin-avatar.identicon.one.s20 { font-size: 10px; } .coin-avatar.identicon.one.s24 { font-size: 12px; } .coin-avatar.identicon.one.s32 { font-size: 16px; }
 .coin-avatar.nt { filter: grayscale(1); opacity: var(--coin-logo-not-tradeable-opacity); box-shadow: none; outline: 1px dashed var(--color-text-tertiary); outline-offset: -1px; }
 .coin-sym { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.modal h3 .coin-sym { vertical-align: middle; margin-right: var(--space-1); }
 @media (prefers-reduced-motion: reduce) { .coin-avatar img { transition: none; } }
 
 /* ---- Per-strategy mode (contracts 1.1.6): Paper / Real (locked). Existing tokens only; no G1-blue. */
@@ -361,3 +372,29 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 .strategy-mode .seg button:disabled { opacity: 0.6; cursor: not-allowed; }
 .strategy-mode .chip.lock { padding: 1px 6px; border-radius: var(--radius-full); border: 1px solid var(--color-border-default); color: var(--color-text-secondary); }
 .strategy-mode .gate-progress { flex-basis: 100%; }
+
+/* ---- 0.3.4 (G1-blue) chrome/sticky adoption ------------------------------------------------
+ * Detail panels keep their actions reachable while the body scrolls (UX G7 sticky bar).
+ * Flat rules: 1 px border, no card shadow; elevation only on dialogs/sheets/popovers
+ * (--shadow-dialog) and --shadow-card (none in dark) on the surfaces that need it.
+ */
+.coin-detail .detail-actions {
+  position: sticky; bottom: calc(-1 * var(--space-3));
+  margin: auto calc(-1 * var(--space-3)) calc(-1 * var(--space-3));
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-subtle);
+  display: grid; gap: var(--space-1);
+}
+.coin-detail .detail-actions button { margin: 0; }
+.positions-bar {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-bg-chrome);
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: var(--d-small); min-width: 0;
+}
+.positions-bar .coin-sym { flex: 0 1 auto; min-width: 0; }
+.positions-bar .coin-sym b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.positions-bar .bar-pnl { margin-left: auto; flex: none; }
+.positions-bar button { flex: none; width: auto; min-height: 24px; padding: 0 var(--space-2); }
