@@ -3,11 +3,12 @@ import { NotTradeableChip, NotTradeableCta, NotTradeableReason } from "@/compone
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { ArrowLeft, Check, X } from "lucide-react";
 import { getApi } from "@/lib/api";
 import { connection } from "next/server";
-import type { Position } from "@/lib/types";
+import type { CoinTrail, Position } from "@/lib/types";
+import type { Fmt } from "@/lib/format";
+import type { T } from "@/lib/i18n/core";
 import { shortMint } from "@/lib/format";
 import { Badge, Card, EmptyState, PageHeader, Pnl, StatTile, Table } from "@/components/ui";
 import { Mcap } from "@/components/Mcap";
@@ -20,14 +21,10 @@ import { CoinAvatar } from "@/components/CoinAvatar";
 
 export const metadata: Metadata = { title: "Coin trail" };
 
-async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] }) {
-  await connection();
-  const [{ mint }, t] = await Promise.all([params, getT()]);
-  const trail = await getApi().getCoinTrail(mint);
-  if (!trail) notFound();
+/** Renders an already-resolved trail; the existence check happens in the page so a miss can still return 404. */
+function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
   // Per-strategy mode: the trail is shown in its own strategy's mode (no workspace mismatch any more).
   const mode = trail.mode;
-  const f = await getFmt(mode);
   const { coin, positions, events } = trail;
   const pos = positions[0];
   const ordered = [...events].sort((a, b) => a.ts - b.ts);
@@ -144,10 +141,15 @@ async function Trail({ params }: { params: PageProps<"/coins/[mint]">["params"] 
   );
 }
 
-export default function CoinTrailPage(props: PageProps<"/coins/[mint]">) {
-  return (
-    <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-bg-surface" />}>
-      <Trail params={props.params} />
-    </Suspense>
-  );
+/**
+ * Resolve before the first byte: notFound() can only set HTTP 404 while nothing has been streamed, so this route must
+ * not sit behind a Suspense boundary (no page-level <Suspense>, no `loading.tsx` in this segment or above it, no
+ * Suspense around <Shell> in app/(app)/layout.tsx).
+ */
+export default async function CoinTrailPage(props: PageProps<"/coins/[mint]">) {
+  await connection();
+  const [{ mint }, t] = await Promise.all([props.params, getT()]);
+  const trail = await getApi().getCoinTrail(mint);
+  if (!trail) notFound();
+  return <Trail trail={trail} t={t} f={await getFmt(trail.mode)} />;
 }

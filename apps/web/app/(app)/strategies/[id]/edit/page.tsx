@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { getApi } from "@/lib/api";
 import { connection } from "next/server";
 import { PageHeader } from "@/components/ui";
@@ -12,9 +11,14 @@ import { getT } from "@/lib/i18n/server";
 
 export const metadata: Metadata = { title: "Edit strategy" };
 
-async function Edit({ params }: { params: PageProps<"/strategies/[id]/edit">["params"] }) {
+/**
+ * The existence check runs in the page itself, before anything is rendered: notFound() can only set HTTP 404 while
+ * no byte has gone out, so this route must not sit behind a Suspense boundary (no page-level <Suspense>, no
+ * `loading.tsx` in this segment or above it, no Suspense around <Shell> in app/(app)/layout.tsx).
+ */
+export default async function EditStrategyPage(props: PageProps<"/strategies/[id]/edit">) {
   await connection();
-  const [{ id }, t] = await Promise.all([params, getT()]);
+  const [{ id }, t] = await Promise.all([props.params, getT()]);
   const s = await getApi().getStrategy(id);
   if (!s) notFound();
   const crumb = <Link href="/strategies" className="hover:underline">{t("nav.strategies")}</Link>;
@@ -25,13 +29,5 @@ async function Edit({ params }: { params: PageProps<"/strategies/[id]/edit">["pa
       <StrategyModeCard key={`${s.id}-${s.rev}-${s.mode}`} strategy={s} />
       <StrategyBuilder initial={structuredClone(s.settings)} base={s.status === "draft" ? null : s.settings} strategyId={s.id} rev={s.rev} mode={s.mode} draftKey={`centurion_draft_${s.id}_rev${s.rev}`} />
     </>
-  );
-}
-
-export default function EditStrategyPage(props: PageProps<"/strategies/[id]/edit">) {
-  return (
-    <Suspense fallback={<div className="h-96 animate-pulse rounded-lg bg-bg-surface" />}>
-      <Edit params={props.params} />
-    </Suspense>
   );
 }
