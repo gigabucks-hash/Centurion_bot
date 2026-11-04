@@ -29,9 +29,11 @@ const PGHOST = process.env.PGHOST ?? "/tmp";
 const PGPORT = process.env.PGPORT ?? "55432";
 const PGUSER = process.env.PGUSER ?? "postgres";
 const env = { ...process.env, PGHOST, PGPORT, PGUSER };
+// psql -o needs a writable sink: Windows has NUL instead of /dev/null.
+const NULL_DEVICE = process.platform === "win32" ? "NUL" : "/dev/null";
 
 function psql(db: string, args: string[]): void {
-  execFileSync("psql", ["-q", "-X", "-v", "ON_ERROR_STOP=1", "-d", db, "-o", "/dev/null", ...args], { env, stdio: ["ignore", "ignore", "pipe"] });
+  execFileSync("psql", ["-q", "-X", "-v", "ON_ERROR_STOP=1", "-d", db, "-o", NULL_DEVICE, ...args], { env, stdio: ["ignore", "ignore", "pipe"] });
 }
 
 export function resetDatabase(): string {

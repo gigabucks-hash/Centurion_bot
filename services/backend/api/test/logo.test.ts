@@ -23,7 +23,7 @@ import type { Deps } from "../src/deps.ts";
 
 const backend = fileURLToPath(new URL("../..", import.meta.url));
 const FX = `${backend}crates/logo/tests/fixtures/`;
-const BIN = `${backend}target/release/centurion-logo`;
+const BIN = `${backend}target/release/centurion-logo${process.platform === "win32" ? ".exe" : ""}`;
 const fx = (n: string) => readFileSync(FX + n);
 const MARK = Buffer.from("CENTURION_EXIF_MARKER_7f3a");
 
