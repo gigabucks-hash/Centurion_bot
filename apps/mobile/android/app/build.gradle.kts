@@ -1,7 +1,31 @@
+// Imported explicitly: inside the Kotlin DSL the `java` extension accessor from the Java base plugin
+// shadows the `java.*` package, so `java.util.Properties()` fails to resolve ("Unresolved reference 'util'").
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Release signing lives outside the repo: apps/mobile/android/key.properties (gitignored, see
+// android/.gitignore) + the keystore it points at. CI writes both from repository secrets.
+// Without key.properties (fresh clone, local dev, PR builds) release falls back to the debug key so
+// `flutter run --release` keeps working. Never commit key.properties or the keystore.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasReleaseKeystore = keystorePropertiesFile.isFile
+val keystoreProperties = Properties().apply {
+    if (hasReleaseKeystore) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+if (hasReleaseKeystore) {
+    listOf("storeFile", "storePassword", "keyAlias", "keyPassword").forEach { key ->
+        require(!keystoreProperties.getProperty(key).isNullOrBlank()) {
+            "key.properties exists but '$key' is missing or empty"
+        }
+    }
 }
 
 android {
@@ -29,6 +53,17 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             // Explicit (MASVS-RESILIENCE): never debuggable; R8 shrinks the Java/Kotlin side.
@@ -36,9 +71,14 @@ android {
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // A public build must be signed with the upload key: Play Store rejects debug-signed APKs and
+            // a later release-signed build cannot update a debug-signed install (signature mismatch).
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.lifecycle("release signing: key.properties not found, falling back to the DEBUG key (not distributable)")
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

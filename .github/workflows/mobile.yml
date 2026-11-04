@@ -54,11 +54,19 @@ jobs:
       fail-on-vuln: false
       upload-sarif: false
 
-  # Release hardening check: obfuscated Android build (symbols kept as an artifact).
+  # Release hardening check: obfuscated Android build (symbols + APK kept as artifacts).
   release-build:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: flutter
     runs-on: ubuntu-latest
+    # Signing material comes only from repository secrets (Settings → Secrets → Actions). Nothing is echoed,
+    # and key.properties / *.jks are gitignored, so no secret can reach the repo. With the secrets unset the
+    # build still runs (debug-signed) and the "Verify APK signing" step reports it as a warning.
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     defaults:
       run:
         working-directory: apps/mobile
@@ -74,10 +82,44 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      - name: Restore release keystore from secrets (kept out of the repo)
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        working-directory: apps/mobile/android
+        run: |
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > upload-keystore.jks
+          {
+            printf 'storeFile=upload-keystore.jks\n'
+            printf 'storePassword=%s\n' "$ANDROID_KEYSTORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
+          } > key.properties
+          test -s upload-keystore.jks
+      - name: Note when the build will fall back to the debug key
+        if: env.ANDROID_KEYSTORE_BASE64 == ''
+        run: echo "::warning::ANDROID_KEYSTORE_BASE64 is not set — this APK is debug-signed and must not be distributed"
       - name: obfuscated release APK (--obfuscate --split-debug-info)
         run: tool/build_release.sh apk --target-platform android-arm64
+      - name: Verify APK signing
+        run: |
+          sdk_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          build_tools="$(ls -d "$sdk_root"/build-tools/* | sort -V | tail -1)"
+          certs="$("$build_tools/apksigner" verify --print-certs build/app/outputs/flutter-apk/app-release.apk)"
+          echo "$certs" | head -3
+          if echo "$certs" | grep -q 'CN=Android Debug'; then
+            if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+              echo "::error::keystore secrets are set but the APK is still debug-signed (CN=Android Debug): check the secret names and key.properties"
+              exit 1
+            fi
+            echo "::warning::APK is debug-signed (CN=Android Debug) because ANDROID_KEYSTORE_BASE64 is not set: not distributable"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: mobile-debug-symbols-${{ github.sha }}
           path: apps/mobile/build/symbols/
           retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-apk-${{ github.sha }}
+          path: apps/mobile/build/app/outputs/flutter-apk/*.apk
+          retention-days: 14

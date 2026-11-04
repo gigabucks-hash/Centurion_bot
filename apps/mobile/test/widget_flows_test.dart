@@ -440,7 +440,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('typedConfirm')), findsNothing);
       expect(find.byType(HoldToConfirmButton), findsNothing);
-      final s = (await b.watchStrategies().first).firstWhere((x) => x.id == 'stg_pullback');
+      // Mock streams are real async: read them through runAsync so the fake-async widget clock does not deadlock.
+      final strategies = await tester.runAsync(() => b.watchStrategies().first);
+      final s = strategies!.firstWhere((x) => x.id == 'stg_pullback');
       expect(s.mode, TradeMode.practice);
     });
   });
