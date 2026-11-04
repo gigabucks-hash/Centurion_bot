@@ -39,7 +39,7 @@ void main() {
     await tester.tap(find.byKey(const Key('loginPhantom')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('loginPhantom')), findsNothing);
-    expect(find.text('Team overview'), findsOneWidget);
+    expect(find.text('Portfolio'), findsOneWidget);
     b.dispose();
   });
 

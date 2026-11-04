@@ -59,8 +59,9 @@ class _CenturionAppState extends ConsumerState<CenturionApp> {
     return MaterialApp.router(
       onGenerateTitle: (context) => AppLocalizations.of(context).appName,
       debugShowCheckedModeBanner: false,
-      // Dark is the default per SPEC; light kept for OS-level switch later.
-      themeMode: ThemeMode.dark,
+      // G1-blue: light and dark are equal citizens; follow the OS setting.
+      // Both themes are complete, so there is no locked default any more.
+      themeMode: ThemeMode.system,
       theme: CenturionTheme.light(),
       darkTheme: CenturionTheme.dark(),
       routerConfig: _router,

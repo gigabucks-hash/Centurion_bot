@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/api/server_clock.dart';
 import '../../data/models/models.dart';
 import '../format.dart';
+import 'app_icons.dart';
 import '../theme/centurion_theme.dart';
 import '../../l10n/gen/app_localizations.dart';
 
@@ -146,10 +147,10 @@ class RiskBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tradeColors;
     final (label, color, bg, icon) = switch (level) {
-      RiskLevel.low => ('RENDAH', t.profit, t.profitContainer, Icons.shield_outlined),
-      RiskLevel.medium => ('SEDANG', t.warning, t.warningContainer, Icons.info_outline),
-      RiskLevel.high => ('TINGGI', t.loss, t.lossContainer, Icons.warning_amber),
-      RiskLevel.critical => ('KRITIS', t.loss, t.lossContainer, Icons.dangerous_outlined),
+      RiskLevel.low => ('RENDAH', t.profit, t.profitContainer, AppIcons.guard),
+      RiskLevel.medium => ('SEDANG', t.warning, t.warningContainer, AppIcons.info),
+      RiskLevel.high => ('TINGGI', t.loss, t.lossContainer, AppIcons.warning),
+      RiskLevel.critical => ('KRITIS', t.loss, t.lossContainer, AppIcons.critical),
     };
     return TagChip('Risk level: $label', color: color, container: bg, icon: icon);
   }
@@ -194,7 +195,7 @@ class _ExpiryCountdownState extends ConsumerState<ExpiryCountdown> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(urgent ? Icons.timer_outlined : Icons.schedule, size: 14, color: c),
+            Icon(urgent ? AppIcons.pending : AppIcons.clock, size: 14, color: c),
             const SizedBox(width: 4),
             Text(fmtCountdown(left), style: AppText.num(13, color: c)),
           ],

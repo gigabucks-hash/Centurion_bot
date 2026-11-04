@@ -465,9 +465,78 @@ void main() {
         final avatars = tester.widgetList<CoinAvatar>(find.byType(CoinAvatar));
         expect(avatars, isNotEmpty);
         expect(avatars.map((a) => a.size).toSet(), {size});
-        expect(find.byType(CoinIdenticon), findsWidgets, reason: 'mock has no logo_hash: identicons');
+        expect(
+          avatars.every((a) => a.logoHash != null && CoinLogo.isMint(a.mint)),
+          isTrue,
+          reason: 'every mock coin carries a mint + logo_hash',
+        );
+        expect(find.byType(CoinIdenticon), findsNothing, reason: 'logos, not identicons');
         b.dispose();
       });
     }
+  });
+
+  group('mock backend: a logo for every coin', () {
+    test('screener, positions and buy approvals: valid mint + hash with a shipped asset', () {
+      final b = MockBackend();
+      addTearDown(b.dispose);
+      final coins = [
+        for (final c in b.debugScreener) (c.symbol, c.mint, c.logoHash),
+        for (final p in b.debugPositions) (p.symbol, p.mint, p.logoHash),
+        for (final a in b.debugApprovals.where((a) => a.kind == ApprovalKind.buyPick))
+          (a.symbol ?? '', a.mint, a.logoHash),
+      ];
+      expect(coins, isNotEmpty);
+      for (final (symbol, mint, hash) in coins) {
+        expect(CoinLogo.isMint(mint), isTrue, reason: '$symbol mint');
+        expect(hash, isNotNull, reason: '$symbol logo_hash');
+        expect(File('assets/mock_logo/$hash.webp').existsSync(), isTrue, reason: '$symbol → $hash');
+      }
+    });
+
+    test('activity coins carry a logo too', () async {
+      final b = MockBackend();
+      addTearDown(b.dispose);
+      final feed = await b.watchFeed().first;
+      final coinEvents = feed.where((e) => e.symbol != null);
+      expect(coinEvents, isNotEmpty);
+      for (final e in coinEvents) {
+        expect(CoinLogo.isMint(e.mint), isTrue, reason: e.message);
+        expect(File('assets/mock_logo/${e.logoHash}.webp').existsSync(), isTrue, reason: e.message);
+      }
+    });
+
+    test('mock origin maps to the bundled asset, never the network', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final m = MockBackend.mockMint('KEPL');
+      final uri = CoinLogo.proxyUri(
+        apiBase: Uri.parse(CoinLogo.mockOrigin),
+        mint: m,
+        logoHash: MockBackend.mockLogoHash(m),
+        size: 48,
+      )!;
+      expect(uri.toString(), startsWith('https://logo.mock.invalid/v1/img/coin/'));
+      final image = container.read(coinLogoImageFactoryProvider)(uri, 48);
+      expect(image, isA<AssetImage>());
+      expect((image as AssetImage).assetName, startsWith('assets/mock_logo/mocklogo'));
+    });
+
+    testWidgets('a mock coin renders its bundled logo instead of the identicon', (tester) async {
+      final m = MockBackend.mockMint('KEPL');
+      final hash = MockBackend.mockLogoHash(m);
+      await tester.pumpWidget(
+        _host(
+          CoinAvatar(mint: m, symbol: 'KEPL', logoHash: hash),
+          apiBase: Uri.parse(CoinLogo.mockOrigin),
+        ),
+      );
+      await tester.runAsync(() async {
+        await precacheImage(AssetImage('assets/mock_logo/$hash.webp'), tester.element(find.byType(CoinAvatar)));
+      });
+      await tester.pump();
+      expect(find.byType(RawImage), findsOneWidget);
+      expect(find.byType(CoinIdenticon), findsNothing);
+    });
   });
 }

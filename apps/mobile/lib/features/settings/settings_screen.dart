@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/feature_flags.dart';
+import '../../core/widgets/app_icons.dart';
 import 'practice_reset_tile.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -23,23 +24,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Lainnya')),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
           ListTile(
             key: const Key('morePositions'),
-            leading: const Icon(Icons.account_balance_wallet_outlined),
+            leading: const Icon(AppIcons.positions),
             title: const Text('Posisi'),
             subtitle: const Text('Open & closed, PnL per posisi'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(AppIcons.chevronRight),
             onTap: () => context.go('/positions'),
           ),
           ListTile(
             key: const Key('moreNotifications'),
-            leading: const Icon(Icons.notifications_outlined),
+            leading: const Icon(AppIcons.notifications),
             title: const Text('Notifikasi'),
             subtitle: const Text('Bahasa ID/EN, notifikasi diterima, katalog 17 event'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(AppIcons.chevronRight),
             onTap: () => context.go('/more/notifications'),
           ),
           const _Header('Practice'),
@@ -47,44 +48,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Consumer(
             builder: (context, ref, _) => ListTile(
               key: const Key('realModeFlag'),
-              leading: const Icon(Icons.lock_outline),
+              leading: const Icon(AppIcons.locked),
               title: const Text('Mode Real SOL'),
               subtitle: Text(realModeStatus(ref.watch(featureFlagsProvider).realSolEnabled)),
             ),
           ),
           const _Header('Notifications'),
           SwitchListTile(
+            secondary: const Icon(AppIcons.notifications),
             title: const Text('Buy picks waiting for approval'),
             value: _pushPicks,
             onChanged: (v) => setState(() => _pushPicks = v),
           ),
           SwitchListTile(
+            secondary: const Icon(AppIcons.switches),
             title: const Text('Setting change requests'),
             value: _pushSettings,
             onChanged: (v) => setState(() => _pushSettings = v),
           ),
           SwitchListTile(
+            secondary: const Icon(AppIcons.fills),
             title: const Text('Fills (bought / sold)'),
             value: _pushFills,
             onChanged: (v) => setState(() => _pushFills = v),
           ),
           const _Header('Security'),
           SwitchListTile(
+            secondary: const Icon(AppIcons.guard),
             title: const Text('Biometric before approving'),
             subtitle: const Text('Selalu aktif untuk aksi Real SOL (tidak bisa dimatikan)'),
             value: _biometric,
             onChanged: (v) => setState(() => _biometric = v), // applies to Practice only
           ),
           const ListTile(
-            leading: Icon(Icons.key_off_outlined),
+            leading: Icon(AppIcons.keyOff),
             title: Text('No private keys on this device'),
             subtitle: Text('Signing happens server-side under policy limits'),
           ),
           const _Header('Account'),
-          const ListTile(title: Text('Backend'), subtitle: Text('Mock (offline prototype)')),
-          const ListTile(title: Text('Version'), subtitle: Text('0.1.0 prototype')),
+          const ListTile(
+            leading: Icon(AppIcons.backend),
+            title: Text('Backend'),
+            subtitle: Text('Mock (offline prototype)'),
+          ),
+          const ListTile(leading: Icon(AppIcons.info), title: Text('Version'), subtitle: Text('0.1.0 prototype')),
           ListTile(
-            leading: const Icon(Icons.logout),
+            leading: const Icon(AppIcons.signOut),
             title: const Text('Sign out'),
             onTap: () => ScaffoldMessenger.of(
               context,

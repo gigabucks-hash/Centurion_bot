@@ -6,15 +6,16 @@ import '../../l10n/gen/app_localizations.dart';
 import '../error_l10n.g.dart';
 import '../l10n_format.dart';
 import '../theme/centurion_theme.dart';
+import 'app_icons.dart';
 
 /// Colors per i18n tone: pending = info (a status, never red), warning, error.
 ({Color fg, Color bg, IconData icon}) toneStyle(BuildContext context, ErrorTone tone) {
   final t = context.tradeColors;
   final cs = Theme.of(context).colorScheme;
   return switch (tone) {
-    ErrorTone.pending => (fg: t.info, bg: t.infoContainer, icon: Icons.hourglass_top),
-    ErrorTone.warning => (fg: t.warning, bg: t.warningContainer, icon: Icons.warning_amber),
-    ErrorTone.error => (fg: cs.onErrorContainer, bg: cs.errorContainer, icon: Icons.error_outline),
+    ErrorTone.pending => (fg: t.info, bg: t.infoContainer, icon: AppIcons.pending),
+    ErrorTone.warning => (fg: t.warning, bg: t.warningContainer, icon: AppIcons.warning),
+    ErrorTone.error => (fg: cs.onErrorContainer, bg: cs.errorContainer, icon: AppIcons.error),
   };
 }
 

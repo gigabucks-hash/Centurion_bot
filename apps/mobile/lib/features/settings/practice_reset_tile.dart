@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
+import '../../core/widgets/app_icons.dart';
 import '../../data/api/api_exception.dart';
 import '../../data/api/server_clock.dart';
 import '../../data/providers.dart';
@@ -68,7 +69,7 @@ class _PracticeResetTileState extends ConsumerState<PracticeResetTile> {
   @override
   Widget build(BuildContext context) => ListTile(
     key: const Key('practiceReset'),
-    leading: const Icon(Icons.restart_alt),
+    leading: const Icon(AppIcons.reset),
     title: const Text('Reset Practice'),
     subtitle: const Text('Kembali ke 30 paper SOL · maks 1× / 24 jam'),
     enabled: !_busy,

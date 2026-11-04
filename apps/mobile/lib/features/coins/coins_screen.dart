@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/l10n_format.dart';
 import '../../core/theme/centurion_theme.dart';
+import '../../core/widgets/app_icons.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';
@@ -170,7 +171,7 @@ class NotTradeableCoinCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right, color: t.neutral),
+                Icon(AppIcons.chevronRight, color: t.neutral),
               ],
             ),
           ),
@@ -187,7 +188,7 @@ class NotTradeableChip extends StatelessWidget {
   Widget build(BuildContext context) => TagChip(
     AppLocalizations.of(context).screenerNotTradeableBadge,
     color: context.tradeColors.neutral,
-    icon: Icons.block,
+    icon: AppIcons.blocked,
   );
 }
 
@@ -266,7 +267,7 @@ class CoinDetailScreen extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline, size: 18, color: t.neutral),
+                  Icon(AppIcons.info, size: 18, color: t.neutral),
                   const SizedBox(width: AppSpace.s2),
                   Expanded(child: Text(l10n.screenerNotTradeableDetail, style: text.bodyMedium)),
                 ],

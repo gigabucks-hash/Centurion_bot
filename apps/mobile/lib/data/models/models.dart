@@ -763,6 +763,10 @@ class TimeExits {
 abstract final class CoinLogo {
   static const proxyPath = '/v1/img/coin/';
 
+  /// Prototype logo origin: the mock build has no backend, so [CoinAvatar] maps this origin to the
+  /// bundled `assets/mock_logo/<logo_hash>.webp` instead of the network. Never used by a real API.
+  static const mockOrigin = 'https://logo.mock.invalid';
+
   /// Proxy sizes the backend accepts (transcode.ts LOGO_SIZES @ d4dcc51; other `s` → 422 VALIDATION_FAILED).
   static const fileSizes = [48, 64, 96, 128, 192];
   static const maxRequestSize = 192;

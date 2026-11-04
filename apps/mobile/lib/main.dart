@@ -17,7 +17,7 @@ void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
   // OFL 1.1: bundled fonts ship with their license (shown on the licenses page).
   LicenseRegistry.addLicense(() async* {
-    for (final f in ['Inter-OFL.txt', 'JetBrainsMono-OFL.txt']) {
+    for (final f in ['Inter-OFL.txt', 'Sora-OFL.txt', 'JetBrainsMono-OFL.txt']) {
       yield LicenseEntryWithLineBreaks(['google_fonts'], await rootBundle.loadString('assets/google_fonts/$f'));
     }
   });

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/app_icons.dart';
 import '../../core/auth/phantom_deeplink.dart';
 import '../../core/error_l10n.g.dart';
 import '../../data/api/api_exception.dart';
@@ -85,7 +86,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onPressed: _busy ? null : _signIn,
                 icon: _busy
                     ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.account_balance_wallet_outlined),
+                    : const Icon(AppIcons.positions),
                 label: Text(_busy ? s.phantomWaiting : s.buttonPhantom),
               ),
               const SizedBox(height: 12),

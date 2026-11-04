@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/feature_flags.dart';
 import '../../core/format.dart';
 import '../../core/theme/centurion_theme.dart';
+import '../../core/widgets/app_icons.dart';
 import '../../core/widgets/common.dart';
 import '../../data/api/api_exception.dart';
 import '../../data/api/settings_keys.dart';
@@ -52,8 +53,8 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tradeColors;
     return running
-        ? TagChip('Running', color: t.profit, container: t.profitContainer, icon: Icons.play_arrow)
-        : TagChip('Paused', color: t.warning, container: t.warningContainer, icon: Icons.pause);
+        ? TagChip('Running', color: t.profit, container: t.profitContainer, icon: AppIcons.play)
+        : TagChip('Paused', color: t.warning, container: t.warningContainer, icon: AppIcons.pause);
   }
 }
 
@@ -134,7 +135,7 @@ class StrategiesScreen extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final filter = ref.watch(strategyModeFilterProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Strategi')),
+      appBar: AppBar(title: const Text('Bots')),
       body: AsyncBody(
         value: strategies,
         data: (all) {
@@ -190,7 +191,7 @@ class StrategiesScreen extends ConsumerWidget {
                                   child: Text(s.name, style: text.titleMedium, overflow: TextOverflow.ellipsis),
                                 ),
                                 ModeChip(s.mode),
-                                const Icon(Icons.chevron_right),
+                                const Icon(AppIcons.chevronRight),
                               ],
                             ),
                           ),

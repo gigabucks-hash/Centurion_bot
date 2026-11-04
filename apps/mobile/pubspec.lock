@@ -123,6 +123,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_lucide:
+    dependency: "direct main"
+    description:
+      name: flutter_lucide
+      sha256: "4ff0d9aed924ba520586f8d763fad840d195e1f30a41ccf1d96b4ea660d6a420"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.67.0"
   flutter_riverpod:
     dependency: "direct main"
     description:

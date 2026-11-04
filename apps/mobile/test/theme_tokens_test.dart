@@ -9,7 +9,7 @@ void main() {
     final t = CenturionTheme.dark();
     final tc = t.extension<TradeColors>()!;
     expect(tc.neutral, AppColorsDark.semanticNeutralPnl);
-    expect(t.colorScheme.outline, const Color(0xFF6B7995)); // T-03 fix
+    expect(t.colorScheme.outline, const Color(0xFF6C7590)); // T-03 fix; design-tokens 0.3.4 borderStrong
     expect(t.colorScheme.surfaceTint, const Color(0x00000000)); // T-08 fix
     expect(t.textTheme.labelMedium!.fontFamily, startsWith('Inter'));
     expect(AppText.num(14).fontFamily, startsWith('JetBrainsMono'));

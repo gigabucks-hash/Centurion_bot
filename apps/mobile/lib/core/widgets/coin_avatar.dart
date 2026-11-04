@@ -10,8 +10,10 @@ import '../../data/api/api_exception.dart';
 import '../../data/models/models.dart';
 import '../theme/app_tokens.dart';
 
-/// API base for the logo proxy (`{base}/v1/img/coin/{mint}`). Null in the mock build → identicons only.
-final apiBaseUrlProvider = Provider<Uri?>((_) => null);
+/// API base for the logo proxy (`{base}/v1/img/coin/{mint}`). The prototype ships no backend, so the
+/// default is [CoinLogo.mockOrigin]: `logo_hash` resolves to the bundled `assets/mock_logo/` marks and
+/// every coin shows a logo. A real API build overrides this with the server origin.
+final apiBaseUrlProvider = Provider<Uri?>((_) => Uri.parse(CoinLogo.mockOrigin));
 
 /// Extra origins (scheme://host[:port]) whose proxy `logo_url`s are trusted, e.g. Backend's
 /// `LOGO_PUBLIC_BASE_URL`. Default: none = the API origin only.
@@ -19,11 +21,14 @@ final logoOriginsProvider = Provider<Set<String>>((_) => const {});
 
 /// How a proxy URL becomes pixels. Tests swap in memory images or failures; production decodes the
 /// network image at [decodePx] = the requested proxy size s (≤ 192) so a logo never sits in memory larger.
+/// The prototype origin ([CoinLogo.mockOrigin]) is served from the bundled mock marks instead.
 typedef CoinLogoImageFactory = ImageProvider Function(Uri uri, int decodePx);
 
 final coinLogoImageFactoryProvider = Provider<CoinLogoImageFactory>(
   (_) =>
-      (uri, px) => ResizeImage(NetworkImage(uri.toString()), width: px, height: px, policy: ResizeImagePolicy.fit),
+      (uri, px) => uri.origin == CoinLogo.mockOrigin
+      ? AssetImage('assets/mock_logo/${uri.queryParameters['v']}.webp')
+      : ResizeImage(NetworkImage(uri.toString()), width: px, height: px, policy: ResizeImagePolicy.fit),
 );
 
 /// Per-session logo bookkeeping (COIN_LOGO §2 "Retry"): LOGO_NOT_FOUND / LOGO_REJECTED (and any other
@@ -298,7 +303,7 @@ class _CoinAvatarState extends ConsumerState<CoinAvatar> {
   Widget build(BuildContext context) {
     final size = widget.size;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final ring = dark ? const Color(0x1FFFFFFF) : const Color(0x1A0F1420); // coin.logo.ring 0.12 / 0.10
+    final ring = dark ? AppCoinLogo.ringDark : AppCoinLogo.ringLight; // coin.logo.ring 0.12 / 0.10
     final Widget content = switch (_phase) {
       _Phase.blank => const SizedBox.shrink(),
       _Phase.skeleton => DecoratedBox(

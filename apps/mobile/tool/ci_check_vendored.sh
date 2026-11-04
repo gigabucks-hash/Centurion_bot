@@ -25,12 +25,12 @@ pin lib/l10n/app_en.arb afc446840b81ef64c4a31014507c60a68d1ade00c449d74da086dc81
 pin lib/l10n/app_id.arb cb68043ac0a2ef4ca591960072c45de8e35003b560c87c7b98d14eb45b19dd47 "i18n 0.4.11 ($I18N_PIN)" \
   "git show $I18N_PIN:packages/i18n/arb/app_id.arb > lib/l10n/app_id.arb"
 
-# design-tokens PINNED to 0.2.5 (bd58541): 0.3.x is the G1-blue palette, which waits for Boss's visual approval.
-# Only the rename-only Sentra -> Centurion edit differs. To adopt 0.3.x later, copy the package file and re-pin.
-TOKENS_PIN=bd58541
-pin lib/core/theme/app_tokens.dart 1ecfd53a5f77172eb7c1bffe70595512dd73c2458554314224b09a67bde76950 \
-  "design-tokens 0.2.5 ($TOKENS_PIN, pinned)" \
-  "git show $TOKENS_PIN:packages/design-tokens/tokens/app_tokens.dart | sed -e 's/Sentra (working name)/Centurion (working name)/' -e 's#@sentra/#@centurion/#g'"
+# design-tokens 0.3.4 (5234c44): G1-blue palette. Copied verbatim; the 0.3.x generator header already says
+# "Centurion Trade (@centurion/design-tokens)", so no rename edit is needed.
+TOKENS_PIN=5234c44
+pin lib/core/theme/app_tokens.dart 5043960aa540def820cc376868332ee5792cf239d6b1d9693592c6027f06417f \
+  "design-tokens 0.3.4 ($TOKENS_PIN)" \
+  "git show $TOKENS_PIN:packages/design-tokens/tokens/app_tokens.dart > lib/core/theme/app_tokens.dart"
 
 # Inter Bold (rsms/inter v4.1, OFL) for identicon initials: design-tokens 5594cee fonts/Inter-Bold.ttf.
 pin assets/fonts/Inter-Bold.ttf 288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f \

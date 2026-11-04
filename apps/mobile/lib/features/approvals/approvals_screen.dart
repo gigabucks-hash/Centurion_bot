@@ -9,6 +9,7 @@ import '../../core/feature_flags.dart';
 import '../../core/format.dart';
 import '../../core/theme/centurion_theme.dart';
 import '../../core/widgets/api_feedback.dart';
+import '../../core/widgets/app_icons.dart';
 import '../../core/widgets/common.dart';
 import '../../data/api/api_exception.dart';
 import '../../data/api/server_clock.dart';
@@ -243,7 +244,7 @@ class ApprovalsScreen extends ConsumerWidget {
                   InboxFilter.skipped => _byStatus(all.valueOrNull, ApprovalStatus.skipped),
                   InboxFilter.expired => _byStatus(all.valueOrNull, ApprovalStatus.expired),
                 };
-                if (list.isEmpty) return const EmptyState(icon: Icons.inbox_outlined, text: 'Tidak ada item');
+                if (list.isEmpty) return const EmptyState(icon: AppIcons.empty, text: 'Tidak ada item');
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(AppSpace.s4, AppSpace.s2, AppSpace.s4, AppSpace.s8),
                   itemCount: list.length,
@@ -347,7 +348,7 @@ class ApprovalCard extends ConsumerWidget {
                   l10n.screenerNotTradeableBadge,
                   key: Key('notTradeable_${a.id}'),
                   color: t.neutral,
-                  icon: Icons.block,
+                  icon: AppIcons.blocked,
                 ),
                 const SizedBox(height: AppSpace.s1),
                 Text(l10n.screenerNotTradeableDetail, style: text.bodySmall!.copyWith(color: t.neutral)),
@@ -514,7 +515,7 @@ class _GuardChangeCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.warning_amber, color: t.warning, size: 20),
+                  Icon(AppIcons.warning, color: t.warning, size: 20),
                   const SizedBox(width: AppSpace.s2),
                   Expanded(
                     child: Text('Guard dilemahkan', style: text.titleMedium!.copyWith(color: t.warning)),

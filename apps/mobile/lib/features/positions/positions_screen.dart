@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
 import '../../core/theme/centurion_theme.dart';
+import '../../core/widgets/app_icons.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/page_footer.dart';
 import '../../data/models/models.dart';
@@ -94,7 +95,7 @@ class _PositionsScreenState extends ConsumerState<PositionsScreen> {
                     const SliverToBoxAdapter(child: SizedBox(height: AppSpace.s3)),
                     if (openList.isEmpty)
                       const SliverToBoxAdapter(
-                        child: EmptyState(icon: Icons.inbox_outlined, text: 'Belum ada posisi terbuka'),
+                        child: EmptyState(icon: AppIcons.empty, text: 'Belum ada posisi terbuka'),
                       )
                     else
                       SliverList.builder(
@@ -247,7 +248,7 @@ class PositionDetailScreen extends ConsumerWidget {
       body: AsyncBody(
         value: value,
         data: (p) {
-          if (p == null) return const EmptyState(icon: Icons.search_off, text: 'Posisi tidak ditemukan');
+          if (p == null) return const EmptyState(icon: AppIcons.searchOff, text: 'Posisi tidak ditemukan');
           final tt = Theme.of(context).textTheme;
           final cs = Theme.of(context).colorScheme;
           final now = DateTime.now();
@@ -293,7 +294,7 @@ class PositionDetailScreen extends ConsumerWidget {
               if (!p.isOpen)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.flag_outlined),
+                  leading: const Icon(AppIcons.closed),
                   title: Text(p.exitReason ?? 'Closed'),
                   subtitle: p.closedAt == null ? null : Text('Ditutup ${fmtTime(p.closedAt!)} WIB'),
                 ),
@@ -492,7 +493,7 @@ class _NextAction extends StatelessWidget {
       key: const Key('nextAction'),
       margin: EdgeInsets.zero,
       child: ListTile(
-        leading: const Icon(Icons.schedule),
+        leading: const Icon(AppIcons.clock),
         title: Text(
           next == null
               ? 'Berikutnya: trailing −${plan.trailPct.round()}% dari high'

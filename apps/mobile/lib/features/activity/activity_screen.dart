@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
 import '../../core/theme/centurion_theme.dart';
+import '../../core/widgets/app_icons.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/page_footer.dart';
 import '../../data/models/models.dart';
@@ -89,7 +90,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                 });
                 final list = filter == null ? events : events.where((e) => e.actor == filter).toList();
                 if (list.isEmpty && paged.done) {
-                  return const EmptyState(icon: Icons.bolt_outlined, text: 'Belum ada aktivitas');
+                  return const EmptyState(icon: AppIcons.feed, text: 'Belum ada aktivitas');
                 }
                 final now = DateTime.now();
                 return ListView.builder(
@@ -119,18 +120,18 @@ class ActivityTile extends StatelessWidget {
   final bool dense;
 
   static IconData iconFor(ActivityKind k) => switch (k) {
-    ActivityKind.found => Icons.radar,
-    ActivityKind.passed => Icons.check_circle_outline,
-    ActivityKind.armed => Icons.gps_fixed,
-    ActivityKind.expired => Icons.timer_off_outlined,
-    ActivityKind.blocked => Icons.shield_outlined,
-    ActivityKind.bought => Icons.south_west,
-    ActivityKind.sold => Icons.north_east,
-    ActivityKind.proposal => Icons.how_to_vote_outlined,
-    ActivityKind.skipped => Icons.redo,
-    ActivityKind.approved => Icons.task_alt,
-    ActivityKind.paused => Icons.pause_circle_outline,
-    ActivityKind.resumed => Icons.play_circle_outline,
+    ActivityKind.found => AppIcons.found,
+    ActivityKind.passed => AppIcons.approve,
+    ActivityKind.armed => AppIcons.armed,
+    ActivityKind.expired => AppIcons.expired,
+    ActivityKind.blocked => AppIcons.blocked,
+    ActivityKind.bought => AppIcons.bought,
+    ActivityKind.sold => AppIcons.sold,
+    ActivityKind.proposal => AppIcons.proposal,
+    ActivityKind.skipped => AppIcons.skipped,
+    ActivityKind.approved => AppIcons.approved,
+    ActivityKind.paused => AppIcons.paused,
+    ActivityKind.resumed => AppIcons.resumed,
   };
 
   @override

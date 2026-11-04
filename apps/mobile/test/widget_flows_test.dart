@@ -6,6 +6,7 @@ import 'package:centurion_mobile/app/app.dart';
 import 'package:centurion_mobile/core/approval_guard.dart';
 import 'package:centurion_mobile/core/feature_flags.dart';
 import 'package:centurion_mobile/core/theme/centurion_theme.dart';
+import 'package:centurion_mobile/core/widgets/app_icons.dart';
 import 'package:centurion_mobile/core/widgets/common.dart';
 import 'package:centurion_mobile/data/mock/mock_backend.dart';
 import 'package:centurion_mobile/data/models/models.dart';
@@ -37,9 +38,43 @@ void main() {
     await tester.pumpWidget(_app(b, '/'));
     await tester.pump();
     expect(find.textContaining('Paper · paper SOL, tidak ada SOL nyata'), findsOneWidget);
-    expect(find.text('Team overview'), findsOneWidget);
+    expect(find.text('Portfolio'), findsOneWidget);
     expect(find.byKey(const Key('totalPnl')), findsOneWidget);
     expect(tester.widget<Text>(find.byKey(const Key('pendingKpi'))).data, '4');
+    // G1-blue Portfolio: equity hero, one partitioned KPI strip, guard banner, bot list, example-data marker.
+    expect(find.byKey(const Key('equityHero')), findsOneWidget);
+    expect(find.byKey(const Key('kpiStrip')), findsOneWidget);
+    expect(find.text('WIN RATE'), findsOneWidget);
+    expect(find.text('MAX DD'), findsOneWidget);
+    expect(find.text('EXPOSURE'), findsOneWidget);
+    expect(find.byKey(const Key('guardBanner')), findsOneWidget);
+    expect(find.byKey(const Key('exampleData')), findsOneWidget);
+    expect(find.byKey(const Key('bot_stg_pullback')), findsOneWidget);
+    b.dispose();
+  });
+
+  testWidgets('nav: Home / Bots / Activity / Risk / Settings, approvals badge on Home', (tester) async {
+    await _phone(tester);
+    final b = MockBackend();
+    await tester.pumpWidget(_app(b, '/'));
+    await tester.pump();
+    final bar = find.byType(NavigationBar);
+    for (final label in ['Home', 'Bots', 'Activity', 'Risk', 'Settings']) {
+      expect(find.descendant(of: bar, matching: find.text(label)), findsOneWidget);
+    }
+    expect(find.descendant(of: bar, matching: find.text('Approvals')), findsNothing);
+    b.dispose();
+  });
+
+  testWidgets('risk tab: limits strip, guard rows, pending guard changes', (tester) async {
+    await _phone(tester);
+    final b = MockBackend();
+    await tester.pumpWidget(_app(b, '/risk'));
+    await tester.pump();
+    expect(find.text('Within limits'), findsOneWidget);
+    expect(find.byKey(const Key('riskLimits')), findsOneWidget);
+    expect(find.text('Guard per bot'), findsOneWidget);
+    expect(find.text('Menunggu persetujuan'), findsOneWidget);
     b.dispose();
   });
 
@@ -288,7 +323,7 @@ void main() {
       find.descendant(of: find.byKey(const Key('notTradeable_USDX')), matching: find.byType(TagChip)),
     );
     expect(chip.color, tester.element(card).tradeColors.neutral);
-    expect(chip.icon, Icons.block);
+    expect(chip.icon, AppIcons.blocked);
     expect(find.descendant(of: card, matching: find.byType(ButtonStyleButton)), findsNothing);
     expect(find.ancestor(of: card, matching: find.byType(Dismissible)), findsNothing);
     expect(find.textContaining('Approve'), findsNothing);

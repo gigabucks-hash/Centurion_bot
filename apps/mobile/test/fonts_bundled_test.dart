@@ -13,6 +13,7 @@ const bundled = [
   'Inter-Regular.ttf',
   'Inter-Medium.ttf',
   'Inter-SemiBold.ttf',
+  'Sora-SemiBold.ttf',
   'JetBrainsMono-Medium.ttf',
   'JetBrainsMono-SemiBold.ttf',
 ];
@@ -22,22 +23,23 @@ void main() {
     expect(GoogleFonts.config.allowRuntimeFetching, isFalse);
   });
 
-  test('all 5 static fonts + both OFL texts are bundled assets', () async {
+  test('all 6 static fonts + 3 OFL texts are bundled assets', () async {
     final assets = (await AssetManifest.loadFromAssetBundle(rootBundle)).listAssets();
-    for (final f in [...bundled, 'Inter-OFL.txt', 'JetBrainsMono-OFL.txt']) {
+    for (final f in [...bundled, 'Inter-OFL.txt', 'Sora-OFL.txt', 'JetBrainsMono-OFL.txt']) {
       expect(assets, contains('assets/google_fonts/$f'));
     }
     // google_fonts 9 matches by suffix "<Family>-<Weight>": Google's raw names would not match.
     expect('Inter_18pt-Regular'.endsWith('Inter-Regular'), isFalse);
-    for (final f in ['Inter-OFL.txt', 'JetBrainsMono-OFL.txt']) {
+    for (final f in ['Inter-OFL.txt', 'Sora-OFL.txt', 'JetBrainsMono-OFL.txt']) {
       expect(await rootBundle.loadString('assets/google_fonts/$f'), contains('SIL Open Font License, Version 1.1'));
     }
   });
 
-  test('each bundled weight loads with fetching off (Inter 400/500/600, JetBrains Mono 500/600)', () async {
+  test('each bundled weight loads with fetching off (Inter 400/500/600, Sora 600, JetBrains Mono 500/600)', () async {
     for (final w in [FontWeight.w400, FontWeight.w500, FontWeight.w600]) {
       GoogleFonts.inter(fontWeight: w);
     }
+    GoogleFonts.sora(fontWeight: FontWeight.w600);
     for (final w in [FontWeight.w500, FontWeight.w600]) {
       GoogleFonts.jetBrainsMono(fontWeight: w);
     }

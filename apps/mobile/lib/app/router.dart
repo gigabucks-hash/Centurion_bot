@@ -8,6 +8,7 @@ import '../features/auth/login_screen.dart';
 import '../features/coins/coins_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/positions/positions_screen.dart';
+import '../features/risk/risk_screen.dart';
 import '../features/settings/notifications_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/shell/home_shell.dart';
@@ -49,6 +50,30 @@ GoRouter buildRouter({String initialLocation = '/', bool Function()? isSignedIn,
                       GoRoute(path: ':symbol', builder: (_, s) => CoinDetailScreen(s.pathParameters['symbol']!)),
                     ],
                   ),
+                  // G1-blue: approvals are no longer a tab. The queue opens from the Home bell,
+                  // the guard banner, the Risk tab, and the push deep links below.
+                  GoRoute(
+                    path: 'approvals',
+                    builder: (_, _) => const ApprovalsScreen(),
+                    routes: [
+                      // Push deep link target: highlights the approval in the inbox.
+                      GoRoute(
+                        path: ':id',
+                        builder: (_, s) => ApprovalsScreen(highlightId: s.pathParameters['id']),
+                        routes: [
+                          // Guard change review: full-screen dialog over the shell.
+                          GoRoute(
+                            path: 'review',
+                            parentNavigatorKey: rootKey,
+                            pageBuilder: (_, s) => MaterialPage(
+                              fullscreenDialog: true,
+                              child: GuardReviewScreen(approvalId: s.pathParameters['id']!),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ],
@@ -63,33 +88,10 @@ GoRouter buildRouter({String initialLocation = '/', bool Function()? isSignedIn,
             ],
           ),
           StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/approvals',
-                builder: (_, _) => const ApprovalsScreen(),
-                routes: [
-                  // Push deep link target: highlights the approval in the inbox.
-                  GoRoute(
-                    path: ':id',
-                    builder: (_, s) => ApprovalsScreen(highlightId: s.pathParameters['id']),
-                    routes: [
-                      // Guard change review: full-screen dialog over the shell.
-                      GoRoute(
-                        path: 'review',
-                        parentNavigatorKey: rootKey,
-                        pageBuilder: (_, s) => MaterialPage(
-                          fullscreenDialog: true,
-                          child: GuardReviewScreen(approvalId: s.pathParameters['id']!),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+            routes: [GoRoute(path: '/activity', builder: (_, _) => const ActivityScreen())],
           ),
           StatefulShellBranch(
-            routes: [GoRoute(path: '/activity', builder: (_, _) => const ActivityScreen())],
+            routes: [GoRoute(path: '/risk', builder: (_, _) => const RiskScreen())],
           ),
           StatefulShellBranch(
             routes: [
@@ -98,7 +100,7 @@ GoRouter buildRouter({String initialLocation = '/', bool Function()? isSignedIn,
                 builder: (_, _) => const SettingsScreen(),
                 routes: [GoRoute(path: 'notifications', builder: (_, _) => const NotificationsScreen())],
               ),
-              // Wireframe 12: Positions lives under the Lainnya tab. Path kept
+              // Wireframe 12: Positions lives under the Settings tab. Path kept
               // as `/positions` so push deep links stay short and stable.
               GoRoute(
                 path: '/positions',

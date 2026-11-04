@@ -7,6 +7,7 @@ import '../../core/format.dart';
 import '../../core/l10n_format.dart';
 import '../../core/perf/latest_throttle.dart';
 import '../../core/theme/centurion_theme.dart';
+import '../../core/widgets/coin_avatar.dart';
 import '../../core/widgets/common.dart';
 import '../../data/api/server_clock.dart';
 import '../../data/models/models.dart';
@@ -118,7 +119,7 @@ class _ProposalReviewSheetState extends ConsumerState<ProposalReviewSheet> {
     final state = q?.stateAt(now) ?? QuoteState.missing;
     final real = a.mode == TradeMode.real;
     final blocked = quoteBlocksApprove(a, now);
-    final symbol = a.title.split(' ').last;
+    final symbol = a.symbol ?? a.title.split(' ').last;
 
     Widget row(String k, String v, {Key? key}) => Padding(
       key: key,
@@ -144,7 +145,19 @@ class _ProposalReviewSheetState extends ConsumerState<ProposalReviewSheet> {
         children: [
           Row(
             children: [
-              Expanded(child: Text(l.reviewTitle('buy'), style: text.titleLarge)),
+              if (a.mint != null) ...[
+                CoinAvatar(mint: a.mint, symbol: symbol, logoHash: a.logoHash, logoUrl: a.logoUrl),
+                const SizedBox(width: AppSpace.s2),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('\$$symbol', style: text.titleLarge),
+                    Text(l.reviewTitle('buy'), style: text.bodySmall!.copyWith(color: cs.onSurfaceVariant)),
+                  ],
+                ),
+              ),
               if (_justUpdated)
                 Semantics(
                   liveRegion: true,

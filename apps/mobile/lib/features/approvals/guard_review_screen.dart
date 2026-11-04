@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/feature_flags.dart';
 import '../../core/theme/centurion_theme.dart';
+import '../../core/widgets/app_icons.dart';
 import '../../core/widgets/common.dart';
 import '../../data/api/api_exception.dart';
 import '../../data/api/settings_keys.dart';
@@ -80,7 +81,7 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
     if (a == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: const EmptyState(icon: Icons.search_off, text: 'Item tidak ditemukan'),
+        body: const EmptyState(icon: AppIcons.searchOff, text: 'Item tidak ditemukan'),
       );
     }
     final approval = a;
@@ -100,7 +101,7 @@ class _GuardReviewScreenState extends ConsumerState<GuardReviewScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).maybePop()),
+        leading: IconButton(icon: const Icon(AppIcons.close), onPressed: () => Navigator.of(context).maybePop()),
         title: const Text('Konfirmasi perubahan guard'),
       ),
       body: Column(

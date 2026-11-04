@@ -75,7 +75,7 @@ void main() {
     expect(en.queueBatchExcludedNotTradeable(1), '1 pick left out: not tradeable');
     expect(id.positionsSellQuoteTtl('8'), 'Quote berlaku 8 dtk.');
     expect(en.screenerDetailSkipHint, contains('Skipping'));
-    expect(AppColorsDark.bgSunken, const Color(0xFF080A0F));
+    expect(AppColorsDark.bgSunken, const Color(0xFF07080C));
     // ignore: deprecated_member_use_from_same_package
     expect(AppColorsLight.bgInset, AppColorsLight.bgSunken);
   });
@@ -94,7 +94,7 @@ void main() {
       id.errorCodeGuardWeakenRequiresApproval,
       startsWith('Perubahan menunggu approval'),
     ); // 0.4.6: pending tone, not an error
-    expect(AppColorsDark.skeletonBase, const Color(0xFF262F43));
+    expect(AppColorsDark.skeletonBase, const Color(0xFF272D3C));
     expect(AppColorsLight.skeletonHighlight, const Color(0xFFF1F3F7));
   });
   test('Rev 4.6: quote freshness plurals (=0 branch, no #), stall, guard pending, mcap', () {

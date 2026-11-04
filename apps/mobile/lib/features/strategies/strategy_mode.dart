@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../core/theme/centurion_theme.dart';
+import '../../core/widgets/app_icons.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/models.dart';
 import '../../l10n/gen/app_localizations.dart';
@@ -43,7 +44,7 @@ class RealLockedChip extends StatelessWidget {
       container: true,
       label: l.strategyRealLockedA11y(realLockedReasonText(l, reason)),
       excludeSemantics: true,
-      child: TagChip(l.strategyRealLockedChip, color: muted, icon: Icons.lock_outline),
+      child: TagChip(l.strategyRealLockedChip, color: muted, icon: AppIcons.locked),
     );
   }
 }
@@ -72,7 +73,7 @@ class StrategyModeSection extends StatelessWidget {
             ButtonSegment(
               value: TradeMode.real,
               enabled: false,
-              icon: s.realLocked ? const Icon(Icons.lock_outline, size: 16) : null,
+              icon: s.realLocked ? const Icon(AppIcons.locked, size: 16) : null,
               label: Semantics(
                 label: s.realLocked ? l.strategyRealLockedA11y(realLockedReasonText(l, s.realLockedReason)) : null,
                 child: Text(l.strategyModeReal),

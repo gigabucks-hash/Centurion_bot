@@ -67,6 +67,36 @@ class MockBackend
   static const wsolMint = 'So11111111111111111111111111111111111111112';
   static const usdcMint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
+  /// Prototype coin identity (contracts 1.1.6 logo fields): every mock coin gets a deterministic
+  /// base58 mint derived from its symbol and a `logo_hash` (`mocklogo0..4`), so the app shows a logo
+  /// for every coin instead of the symbol-initials identicon. Served from `assets/mock_logo/`.
+  static const mockLogoCount = 5;
+  static const _base58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+  /// FNV-1a 32-bit (16-bit split multiply so it is exact on the web too).
+  static int _fnv1a32(String s) {
+    var h = 0x811C9DC5;
+    for (final b in utf8.encode(s)) {
+      h ^= b;
+      h = ((h & 0xFFFF) * 0x01000193 + (((h >>> 16) * 0x01000193 & 0xFFFF) << 16)) & 0xFFFFFFFF;
+    }
+    return h;
+  }
+
+  /// Stable 44-char base58 mint for a mock symbol (valid for [CoinLogo.isMint]).
+  static String mockMint(String symbol) {
+    var h = _fnv1a32('mock:$symbol');
+    final out = StringBuffer();
+    for (var i = 0; i < 44; i++) {
+      h = ((h & 0xFFFF) * 0x01000193 + (((h >>> 16) * 0x01000193 & 0xFFFF) << 16)) & 0xFFFFFFFF;
+      out.write(_base58[h % _base58.length]);
+    }
+    return out.toString();
+  }
+
+  /// `logo_hash` for a mock mint; every hash has a bundled mark.
+  static String mockLogoHash(String mint) => 'mocklogo${_fnv1a32(mint) % mockLogoCount}';
+
   /// Mock raw token qty for [cost] at [priceUsd] (SOL = 180 USD), scaled by [decimals].
   static BigInt _qtyRaw(Lamports cost, Decimal priceUsd, int decimals) {
     final usd = cost.toSol() * Decimal.fromInt(180);
@@ -567,6 +597,10 @@ class MockBackend
       'approval_id': approvalId,
       'position_id': positionId,
     }, mode: mode);
+    // 1.1.6 push data: optional mint + logo_hash so the in-app notification shows the coin logo.
+    final pushSymbol = vars['symbol'];
+    final pushMint = pushSymbol is String ? mockMint(pushSymbol) : null;
+    final pushLogo = pushMint == null ? null : mockLogoHash(pushMint);
     _pushes.add({
       'v': '1',
       'event': event,
@@ -579,6 +613,8 @@ class MockBackend
           : '${AppIdentity.scheme}://positions/${positionId ?? ''}',
       'approval_id': ?approvalId,
       'position_id': ?positionId,
+      'mint': ?pushMint,
+      'logo_hash': ?pushLogo,
       if (approvalId != null) 'version': '${_approvals.where((a) => a.id == approvalId).firstOrNull?.rev ?? 1}',
       if (!real && pick) 'token': ?token,
       if (exp != null) 'exp': exp.toUtc().toIso8601String(),
@@ -849,6 +885,8 @@ class MockBackend
   final _screener = <ScreenerCoin>[
     ScreenerCoin(
       symbol: 'MOON',
+      mint: mockMint('MOON'),
+      logoHash: mockLogoHash(mockMint('MOON')),
       strategyId: 'stg_pull',
       marketCap: MarketCap(
         lamports: Lamports.parse('1200000000000'),
@@ -861,8 +899,10 @@ class MockBackend
       tokenProgram: splTokenProgram,
       quoteMint: wsolMint,
     ),
-    const ScreenerCoin(
+    ScreenerCoin(
       symbol: 'USDX',
+      mint: mockMint('USDX'),
+      logoHash: mockLogoHash(mockMint('USDX')),
       strategyId: 'stg_pull',
       score: 71,
       outcome: ScreenerOutcome.notTradeable,
@@ -872,8 +912,10 @@ class MockBackend
       tokenProgram: splTokenProgram,
       quoteMint: usdcMint,
     ),
-    const ScreenerCoin(
+    ScreenerCoin(
       symbol: 'RUGZ',
+      mint: mockMint('RUGZ'),
+      logoHash: mockLogoHash(mockMint('RUGZ')),
       strategyId: 'stg_pull',
       score: 64,
       outcome: ScreenerOutcome.rejected,
@@ -884,6 +926,8 @@ class MockBackend
     ),
     ScreenerCoin(
       symbol: 'KIRA',
+      mint: mockMint('KIRA'),
+      logoHash: mockLogoHash(mockMint('KIRA')),
       strategyId: 'stg_pull',
       marketCap: MarketCap(lamports: Lamports.parse('640000000000'), asOf: DateTime.utc(2026, 10, 29, 9)),
       score: 77,
@@ -1075,6 +1119,8 @@ class MockBackend
         message: msg,
         strategyId: strategyId,
         symbol: symbol,
+        mint: symbol == null ? null : mockMint(symbol),
+        logoHash: symbol == null ? null : mockLogoHash(mockMint(symbol)),
         pnlLamports: pnlLamports,
       ),
     );
@@ -1268,6 +1314,8 @@ class MockBackend
         status: ApprovalStatus.pending,
         title: 'Buy $sym',
         symbol: sym,
+        mint: mockMint(sym),
+        logoHash: mockLogoHash(mockMint(sym)),
         detail: '${s.name} · fit $score/70 · guard ${6 + _rng.nextInt(3)}/8 · mcap \$${(40 + _rng.nextInt(400))}k',
         pickType: pickType,
         mode: s.mode,
@@ -1310,7 +1358,8 @@ class MockBackend
               exitPlan: planFor(preset, opened),
               strategyId: a.strategyId!,
               symbol: sym,
-              mint: _fakeMint(),
+              mint: a.mint ?? mockMint(sym),
+              logoHash: mockLogoHash(a.mint ?? mockMint(sym)),
               mode: TradeMode.practice,
               state: PositionState.open,
               costLamports: amount,
@@ -1436,7 +1485,8 @@ class MockBackend
           id: 'ck${100 + i}.0',
           strategyId: stg,
           symbol: sym,
-          mint: _fakeMint(),
+          mint: mockMint(sym),
+          logoHash: mockLogoHash(mockMint(sym)),
           mode: TradeMode.practice,
           state: PositionState.open,
           costLamports: cost,
@@ -1459,7 +1509,8 @@ class MockBackend
         id: 'ck099.0',
         strategyId: 'stg_newpairs',
         symbol: 'FERN',
-        mint: _fakeMint(),
+        mint: mockMint('FERN'),
+        logoHash: mockLogoHash(mockMint('FERN')),
         mode: TradeMode.practice,
         state: PositionState.closed,
         costLamports: _sol('0.2'),
@@ -1506,6 +1557,8 @@ class MockBackend
         status: ApprovalStatus.pending,
         title: 'Buy KEPL',
         symbol: 'KEPL',
+        mint: mockMint('KEPL'),
+        logoHash: mockLogoHash(mockMint('KEPL')),
         detail: 'Pullback v2 · fit 86/70 · guard 8/8 · −8% dip hit',
         createdAt: now.subtract(const Duration(minutes: 8)),
         expiresAt: now.add(const Duration(seconds: 102)),
@@ -1520,6 +1573,8 @@ class MockBackend
         status: ApprovalStatus.pending,
         title: 'Buy RIVR',
         symbol: 'RIVR',
+        mint: mockMint('RIVR'),
+        logoHash: mockLogoHash(mockMint('RIVR')),
         detail: 'New Pairs Scout · fit 78/70 · guard 7/8 · top10 41%',
         createdAt: now.subtract(const Duration(minutes: 3)),
         expiresAt: now.add(const Duration(minutes: 7, seconds: 15)),
@@ -1572,6 +1627,8 @@ class MockBackend
         expireReason: ExpireReason.strategyDeleted,
         title: 'Buy ZINC',
         symbol: 'ZINC',
+        mint: mockMint('ZINC'),
+        logoHash: mockLogoHash(mockMint('ZINC')),
         detail: 'Scalp Launch · strategy deleted',
         createdAt: now.subtract(const Duration(minutes: 20)),
         expiresAt: now.subtract(const Duration(minutes: 10)),
