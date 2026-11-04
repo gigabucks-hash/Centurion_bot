@@ -9,6 +9,7 @@ import { useFmt, useT } from "@/lib/i18n/client";
 import { Button, cn } from "@/components/ui";
 import { Dialog, HoldButton, useNow } from "@/components/ui/client";
 import { ModeBadge } from "@/components/domain";
+import { CoinAvatar } from "@/components/CoinAvatar";
 
 const HOLD_REAL_MS = 2500;
 const PRICE_MOVED_PCT = 1;
@@ -102,7 +103,7 @@ export function ReviewSheet({ a, busy, onClose, onApprove, onRefresh }: {
     : null;
 
   return (
-    <Dialog open onClose={onClose} accent={real ? "real" : "practice"} initialFocusRef={cancelRef} title={<span className="flex flex-wrap items-center gap-2">{t.ux("review.title", { side: "buy" })} · {sym} <ModeBadge mode={a.mode} /></span>}>
+    <Dialog open onClose={onClose} accent={real ? "real" : "practice"} initialFocusRef={cancelRef} title={<span className="flex flex-wrap items-center gap-2">{a.mint && <CoinAvatar mint={a.mint} logoHash={a.logoHash} symbol={a.symbol} />}{t.ux("review.title", { side: "buy" })} · {sym} <ModeBadge mode={a.mode} /></span>}>
       <div data-testid="review-sheet" data-quote-state={qs.state} data-quote-key={key}>
         {holdReset && (
           <p role="alert" className="mb-3 flex items-start gap-2 rounded-md border border-semantic-warning/60 bg-semantic-warningContainer px-3 py-2 text-caption text-text-primary" data-testid="hold-reset">

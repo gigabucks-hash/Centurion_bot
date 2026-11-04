@@ -5,7 +5,7 @@ import { getApi } from "@/lib/api";
 import { acrossModes, listAllStrategies, modesOf, portfolioMode } from "@/lib/mode";
 import type { Strategy } from "@/lib/types";
 
-import { Badge, Card, PageHeader, Pnl, Sparkline, StatTile, Table } from "@/components/ui";
+import { Badge, Card, PageHeader, Pnl, Sparkline, StatStrip, Table } from "@/components/ui";
 import { ApprovalModeBadge, severityTone, StatusBadge, StrategyModeChips } from "@/components/domain";
 import { PortfolioModeTabs } from "@/components/PortfolioModeTabs";
 import { EquityChart } from "@/components/charts/EquityChart";
@@ -45,20 +45,20 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
         actions={<PortfolioModeTabs mode={mode} modes={modes} href={(m) => (m === "practice" ? "/" : "/?mode=real")} t={t} />}
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label={t("overview.cash")} value={f.sol(o.cashSol)} hint={t("overview.inPositions", { amount_lamports: f.amount(o.inPositionsSol) })} />
-        <StatTile label={t("overview.realized")} value={<Pnl mode={mode} sol={o.realizedPnlSol} unit />} hint={t("overview.vsStart", { pct: f.pct(realizedPct) })} />
-        <StatTile label={t("overview.openPositions")} value={`${o.openPositions} / ${o.openPositionsCap}`} hint={t("overview.openHint", { amount_lamports: f.amount(o.inPositionsSol), unreal: f.sol(o.unrealizedPnlSol, { sign: true }) })} />
-        <Link href="/approvals" className="rounded-lg focus-visible:outline-2">
-          <StatTile
-            label={t("overview.waiting")}
-            value={f.int(o.pendingApprovals)}
-            tone={o.pendingApprovals ? "warning" : "neutral"}
-            hint={o.expiringSoon ? <span className="text-semantic-loss">{t("overview.expiringSoon", { n: o.expiringSoon })}</span> : t("overview.noneExpiring")}
-            className="h-full hover:border-border-default"
-          />
-        </Link>
-      </div>
+      <StatStrip
+        items={[
+          { label: t("overview.cash"), value: <>{f.sol(o.cashSol, { unit: false })}<span className="text-caption font-normal"> {t(mode === "practice" ? "overview.paperSol" : "overview.realSol")}</span></>, hint: t("overview.inPositions", { amount_lamports: f.amount(o.inPositionsSol) }) },
+          { label: t("overview.realized"), value: <Pnl mode={mode} sol={o.realizedPnlSol} unit />, hint: t("overview.vsStart", { pct: f.pct(realizedPct) }) },
+          { label: t("overview.openPositions"), value: `${o.openPositions} / ${o.openPositionsCap}`, hint: t("overview.openHint", { amount_lamports: f.amount(o.inPositionsSol), unreal: f.sol(o.unrealizedPnlSol, { sign: true }) }) },
+          {
+            label: t("overview.waiting"),
+            value: f.int(o.pendingApprovals),
+            tone: o.pendingApprovals ? "warning" : "neutral",
+            hint: o.expiringSoon ? <span className="text-semantic-loss">{t("overview.expiringSoon", { n: o.expiringSoon })}</span> : t("overview.noneExpiring"),
+            href: "/approvals",
+          },
+        ]}
+      />
 
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">

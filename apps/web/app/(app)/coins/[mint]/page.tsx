@@ -10,7 +10,7 @@ import type { CoinTrail, Position } from "@/lib/types";
 import type { Fmt } from "@/lib/format";
 import type { T } from "@/lib/i18n/core";
 import { shortMint } from "@/lib/format";
-import { Badge, Card, EmptyState, PageHeader, Pnl, StatTile, Table } from "@/components/ui";
+import { Badge, Card, PageHeader, Pnl, StatStrip, Table } from "@/components/ui";
 import { Mcap } from "@/components/Mcap";
 import { eventKindMeta, ModeBadge } from "@/components/domain";
 import { getT, getFmt } from "@/lib/i18n/server";
@@ -71,12 +71,14 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
           </div>
         </section>
       )}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label={t("trail.score")} value={trail.score ? `${trail.score.value} / ${trail.score.passMark}` : "—"} tone={trail.score && trail.score.value >= trail.score.passMark ? "profit" : "warning"} />
-        <StatTile label={t("trail.size")} value={pos ? f.sol(pos.solIn) : "—"} hint={pos ? t("trail.fee", { bps: pos.feeBps }) : t("trail.notEntered")} />
-        <StatTile label={pos?.status === "open" ? t("trail.unrealized") : t("trail.pnl")} value={pos ? <Pnl mode={mode} sol={pos.pnlSol} unit /> : "—"} hint={pos ? t("trail.peak", { pct: f.num(pos.pnlPct, 1), peak: f.num(pos.peakGainPct, 1) }) : undefined} />
-        <StatTile label={t("trail.hold")} value={pos ? f.duration(holdS) : "—"} hint={pos?.exitReason ? t(`exitReason.${pos.exitReason}`) : pos ? t("trail.stillOpen") : undefined} />
-      </div>
+      <StatStrip
+        items={[
+          { label: t("trail.score"), value: trail.score ? `${trail.score.value} / ${trail.score.passMark}` : "—", tone: trail.score && trail.score.value >= trail.score.passMark ? "profit" : "warning" },
+          { label: t("trail.size"), value: pos ? <>{f.sol(pos.solIn, { unit: false })}<span className="text-caption font-normal"> {t(mode === "practice" ? "overview.paperSol" : "overview.realSol")}</span></> : "—", hint: pos ? t("trail.fee", { bps: pos.feeBps }) : t("trail.notEntered") },
+          { label: pos?.status === "open" ? t("trail.unrealized") : t("trail.pnl"), value: pos ? <Pnl mode={mode} sol={pos.pnlSol} unit /> : "—", hint: pos ? t("trail.peak", { pct: f.num(pos.pnlPct, 1), peak: f.num(pos.peakGainPct, 1) }) : undefined },
+          { label: t("trail.hold"), value: pos ? f.duration(holdS) : "—", hint: pos?.exitReason ? t(`exitReason.${pos.exitReason}`) : pos ? t("trail.stillOpen") : undefined },
+        ]}
+      />
 
       <Card title={t("trail.trail")} className="mt-4"><CoinTrailSteps trail={trail} /></Card>
 

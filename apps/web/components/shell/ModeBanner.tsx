@@ -19,6 +19,10 @@ export function ModeBanner({ realCount, paperCount }: { realCount: number; paper
       )}
     >
       {real ? <span>● {t.ux("strategy.list.summary", { real_count: realCount, paper_count: paperCount })}</span> : <span>{t("mode.bannerPractice")}</span>}
+      {/* UX G8 §3.11: honesty marker, always in the first viewport. text.tertiary on bg.sunken = 5.06 light / 7.04 dark. */}
+      <span data-testid="example-data" className="ml-auto shrink-0 rounded-full border border-dashed border-border-default bg-bg-sunken px-2 py-0.5 text-overline uppercase tracking-wide text-text-tertiary">
+        {t("common.exampleData")}
+      </span>
     </div>
   );
 }

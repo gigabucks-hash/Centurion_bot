@@ -57,7 +57,7 @@ function BottomNav({ pending, onMore }: { pending: number; onMore: () => void })
   const t = useT();
   const isActive = useActive();
   return (
-    <nav aria-label={t("nav.main")} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border-subtle bg-bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
+    <nav aria-label={t("nav.main")} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border-subtle bg-bg-chrome pb-[env(safe-area-inset-bottom)] lg:hidden">
       {NAV.filter((n) => n.mobile).map(({ href, short, icon: Icon }) => (
         <Link key={href} href={href} aria-current={isActive(href) ? "page" : undefined} className="relative flex min-h-tap-touch flex-col items-center justify-center gap-0.5 text-caption">
           <span className={cn("grid h-7 w-12 place-items-center rounded-full", isActive(href) ? "bg-brand-primaryContainer text-brand-onPrimaryContainer" : "text-text-secondary")}>
@@ -191,7 +191,7 @@ export function AppShell({ children, sessionKeeper = true, modes, realCount, pap
 
         <div className="flex flex-1">
           {/* QA-14: the column background stretches with the content; the nav inside stays sticky. */}
-          <aside className="hidden w-[200px] shrink-0 border-r border-border-subtle bg-bg-surface lg:block">
+          <aside className="hidden w-[200px] shrink-0 border-r border-border-subtle bg-bg-chrome lg:block">
             <div className="sticky top-22 flex h-[calc(100dvh-88px)] flex-col gap-4 px-2 py-4">
               <SideNav pending={pending} />
               <p className="mt-auto px-2 text-caption text-text-tertiary">{t("common.mockBuild")}</p>
@@ -203,8 +203,8 @@ export function AppShell({ children, sessionKeeper = true, modes, realCount, pap
         <BottomNav pending={pending} onMore={() => setMore(true)} />
         {more && (
           <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t("nav.more")}>
-            <button className="absolute inset-0 bg-bg-sunken/80" aria-label={t("common.close")} onClick={() => setMore(false)} />
-            <div className="absolute inset-x-0 bottom-0 rounded-t-xl border-t border-border-default bg-bg-overlay p-4 shadow-e4">
+            <button className="absolute inset-0 bg-scrim-sheet" aria-label={t("common.close")} onClick={() => setMore(false)} />
+            <div className="absolute inset-x-0 bottom-0 rounded-t-xl border-t border-border-default bg-bg-overlay p-4 shadow-dialog">
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-titleSm">{t("nav.more")}</span>
                 <button onClick={() => setMore(false)} aria-label={t("common.close")} className="grid h-10 w-10 place-items-center rounded-full text-text-secondary hover:bg-bg-raised"><X size={18} /></button>

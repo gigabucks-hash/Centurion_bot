@@ -37,14 +37,14 @@ export function Dialog({ open, onClose, title, children, accent, labelledBy = "d
   const bar = { real: "bg-mode-real", practice: "bg-mode-practice stripes-practice", warning: "bg-semantic-warning" };
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
-      <button aria-label={t("common.closeDialog")} className="absolute inset-0 bg-bg-sunken/80" onClick={onClose} tabIndex={-1} />
+      <button aria-label={t("common.closeDialog")} className="absolute inset-0 bg-scrim-sheet" onClick={onClose} tabIndex={-1} />
       <div
         ref={panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className={cn("relative max-h-[92vh] w-full overflow-y-auto rounded-t-xl border border-border-default bg-bg-overlay shadow-e4 sm:rounded-xl", wide ? "sm:max-w-3xl" : "sm:max-w-lg")}
+        className={cn("relative max-h-[92vh] w-full overflow-y-auto rounded-t-xl border border-border-default bg-bg-overlay shadow-dialog sm:rounded-xl", wide ? "sm:max-w-3xl" : "sm:max-w-lg")}
       >
         {accent && <div className={cn("h-1.5", bar[accent])} aria-hidden />}
         <div className="p-5 sm:p-6">

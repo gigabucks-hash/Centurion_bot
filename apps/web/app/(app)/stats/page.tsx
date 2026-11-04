@@ -5,7 +5,7 @@ import { listAllStrategies, modesOf, portfolioMode } from "@/lib/mode";
 import { PortfolioModeTabs } from "@/components/PortfolioModeTabs";
 import type { ExitReasonStat } from "@/lib/types";
 
-import { Card, EmptyState, PageHeader, Pnl, StatTile, Table } from "@/components/ui";
+import { Card, EmptyState, PageHeader, Pnl, StatStrip, Table } from "@/components/ui";
 import { ExitCountChart, ExitPnlChart } from "@/components/charts/ExitCharts";
 import { StatsFilters } from "@/components/StatsFilters";
 import { getT, getFmt } from "@/lib/i18n/server";
@@ -40,12 +40,14 @@ async function StatsBody({ searchParams }: { searchParams: PageProps<"/stats">["
   return (
     <>
       {filters}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label={t("stats.closed")} value={f.int(total)} />
-        <StatTile label={t("stats.winRate")} value={`${f.num((wins / total) * 100, 1)}%`} hint={t("stats.wins", { n: wins })} />
-        <StatTile label={t("stats.total")} value={<Pnl mode={mode} sol={pnl} unit />} />
-        <StatTile label={t("stats.costliest")} value={t(`exitReason.${worst.reason}`)} tone="warning" hint={<Pnl mode={mode} sol={worst.totalPnlSol} unit />} />
-      </div>
+      <StatStrip
+        items={[
+          { label: t("stats.closed"), value: f.int(total) },
+          { label: t("stats.winRate"), value: `${f.num((wins / total) * 100, 1)}%`, hint: t("stats.wins", { n: wins }) },
+          { label: t("stats.total"), value: <Pnl mode={mode} sol={pnl} unit /> },
+          { label: t("stats.costliest"), value: t(`exitReason.${worst.reason}`), tone: "warning", hint: <Pnl mode={mode} sol={worst.totalPnlSol} unit /> },
+        ]}
+      />
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card title={t("stats.byReason")}><ExitCountChart stats={stats} t={t} f={f} /></Card>
         <Card title={t("stats.avgPct")}><ExitPnlChart stats={stats} t={t} f={f} /></Card>

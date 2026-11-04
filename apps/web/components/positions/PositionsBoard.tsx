@@ -181,7 +181,7 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
                 <div className="mt-2"><Segmented label={t("positions.sellShare")} value={pct} onChange={setPct} options={PCTS.map((p) => ({ value: p, label: f.pct(Number(p), 0, false) }))} /></div>
                 <p className="mt-3 flex justify-between text-caption"><span className="text-text-tertiary">{t.ux("positions.sell.estimate")}</span><span className="num">≈ {f.sol(focused.solIn * remaining(focused) * (1 + focused.pnlPct / 100) * (Number(pct) / 100))}</span></p>
                 <p className="mt-1 text-caption text-text-secondary">{pct === "100" ? t.ux("positions.sell.plan_cancelled") : t.ux("positions.sell.remaining_plan")}</p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="sticky bottom-[calc(3rem+env(safe-area-inset-bottom))] z-20 -mx-3 mt-3 grid gap-2 border-t border-border-subtle bg-bg-surface/95 px-3 pt-3 backdrop-blur sm:grid-cols-2 lg:bottom-0">
                   <HoldButton durationMs={SELL_HOLD_MS[mode]} variant={mode === "real" ? "real" : "warning"} disabled={busy || mode === "real" || !!focused.screenerState} onConfirm={sell} hint={t.ux("positions.sell.hold.released")}>
                     {t.ux(mode === "real" ? "positions.sell.hold.real" : "positions.sell.hold.practice", { pct: f.pct(Number(pct), 0, false) })}
                   </HoldButton>

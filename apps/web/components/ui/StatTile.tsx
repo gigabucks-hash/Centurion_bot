@@ -12,7 +12,7 @@ export function StatTile({ label, value, hint, tone = "neutral", icon, className
 }) {
   const color = { neutral: "text-text-primary", profit: "text-semantic-profit", loss: "text-semantic-loss", warning: "text-semantic-warning" }[tone];
   return (
-    <div className={cn("rounded-lg border border-border-subtle bg-bg-surface p-4 shadow-e1", className)}>
+    <div className={cn("rounded-lg border border-border-subtle bg-bg-surface p-4 shadow-card", className)}>
       <div className="flex items-center justify-between text-label text-text-secondary">
         <span>{label}</span>
         {icon && <span className="text-text-tertiary">{icon}</span>}

@@ -11,6 +11,8 @@ export const en = {
     /** PWA short_name / narrow header; the full name is @centurion/i18n app.name. */
     brandShort: "Centurion",
     mockBuild: "Mock data build · no wallet, RPC or chain access",
+    /** Honesty marker (UX G8 §3.11): always in the first viewport; text ≥ 4.5:1. */
+    exampleData: "Example data",
     loading: "Loading…",
     cancel: "Cancel",
     cancelEsc: "Cancel (Esc)",

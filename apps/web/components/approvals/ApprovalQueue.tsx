@@ -324,7 +324,7 @@ export function ApprovalQueue({ initial, modes, initialFocus = null }: { initial
       </div>
 
       {selPicks.length > 0 && (
-        <div className={cn("sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-3 rounded-md border px-4 py-2 shadow-e2", real ? "border-mode-real bg-mode-realContainer" : "border-border-default bg-bg-overlay")}>
+        <div className={cn("sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-3 rounded-md border px-4 py-2 shadow-card", real ? "border-mode-real bg-mode-realContainer" : "border-border-default bg-bg-overlay")}>
           <span className="text-label">{t("approvals.selected", { n: selPicks.length })}</span>
           {real && <span className="num text-label">{t("approvals.total", { amount_lamports: f.amount(selTotal) })}</span>}
           {ntPending > 0 && <span className="text-caption text-text-tertiary" data-not-tradeable>{t("notTradeable.batchExcluded", { n: ntPending })}</span>}
@@ -372,8 +372,11 @@ export function ApprovalQueue({ initial, modes, initialFocus = null }: { initial
       {tab === "pending" && focused && focused.status === "pending" && !isNotTradeable(focused) && (
         <>
           <div aria-hidden className="h-20 lg:hidden" />
-          <div data-testid="thumb-bar" className={cn("fixed inset-x-0 bottom-[calc(3rem+env(safe-area-inset-bottom))] z-20 grid grid-cols-[1fr_2fr] gap-2 border-t bg-bg-surface/95 px-4 py-2 shadow-e3 backdrop-blur lg:hidden", focused.mode === "real" ? "border-mode-real" : "border-border-subtle")}>
-            <p className="col-span-2 truncate text-caption text-text-secondary">{focused.kind === "buy_pick" ? `$${focused.symbol}` : focused.title} · {focused.amountSol != null ? f.sol(focused.amountSol) : focused.strategyName}</p>
+          <div data-testid="thumb-bar" className={cn("fixed inset-x-0 bottom-[calc(3rem+env(safe-area-inset-bottom))] z-20 grid grid-cols-[1fr_2fr] gap-2 border-t bg-bg-surface/95 px-4 py-2 shadow-card backdrop-blur lg:hidden", focused.mode === "real" ? "border-mode-real" : "border-border-subtle")}>
+            <div className="col-span-2 flex min-w-0 items-center gap-2">
+              {focused.kind === "buy_pick" && focused.mint && <CoinAvatar mint={focused.mint} logoHash={focused.logoHash} symbol={focused.symbol} />}
+              <p className="min-w-0 flex-1 truncate text-caption text-text-secondary">{focused.kind === "buy_pick" ? `$${focused.symbol}` : focused.title} · {focused.amountSol != null ? f.sol(focused.amountSol) : focused.strategyName}</p>
+            </div>
             <Button className="min-h-12" onClick={() => (focused.kind === "buy_pick" ? setSkipFor(focused) : skip(focused))}><X size={16} aria-hidden /> {focused.kind === "buy_pick" ? t("approvals.skip") : t("approvals.rejectChange")}</Button>
             <Button className="min-h-12" variant={focused.mode === "real" ? "real" : focused.kind === "buy_pick" ? "success" : "primary"} onClick={() => approve(focused)}>
               <ShieldAlert size={16} aria-hidden /> {t("approvals.review")}
@@ -471,7 +474,7 @@ function QueueCard({ a, focused, selected, onFocus, onToggle, onApprove, onSkip,
       onClick={onFocus}
       aria-current={focused || undefined}
       className={cn(
-        "flex flex-wrap items-center gap-3 rounded-lg border bg-bg-surface p-3 shadow-e1 transition duration-fast sm:flex-nowrap",
+        "flex flex-wrap items-center gap-3 rounded-lg border bg-bg-surface p-3 shadow-card transition duration-fast sm:flex-nowrap",
         focused ? "border-brand-primary" : "border-border-subtle",
         a.kind === "guard_change" && pending && "border-l-4 border-l-semantic-warning",
         a.mode === "real" && pending && "border-l-4 border-l-mode-real",
@@ -600,7 +603,7 @@ function SkipDialog({ a, onClose, onSkip }: { a: Approval | null; onClose: () =>
   const firstRef = useRef<HTMLButtonElement>(null);
   if (!a) return null;
   return (
-    <Dialog open onClose={onClose} title={t("approvals.skipTitle", { symbol: a.symbol ? `$${a.symbol}` : a.title })} initialFocusRef={firstRef}>
+    <Dialog open onClose={onClose} title={<span className="inline-flex items-center gap-2">{a.mint && <CoinAvatar mint={a.mint} logoHash={a.logoHash} symbol={a.symbol} />}{t("approvals.skipTitle", { symbol: a.symbol ? `$${a.symbol}` : a.title })}</span>} initialFocusRef={firstRef}>
       <p className="text-body text-text-secondary">{t("approvals.skipBody")}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {SKIP_REASONS.map((r, i) => (
@@ -625,7 +628,7 @@ function RealPickDialog({ picks, onClose, onConfirm, busy }: { picks: Approval[]
       <ul className="divide-y divide-border-subtle rounded-md border border-border-subtle">
         {picks.map((a) => (
           <li key={a.id} className="flex items-center justify-between gap-2 px-3 py-2 text-body">
-            <span><b>${a.symbol}</b> <span className="text-caption text-text-secondary">· {a.strategyName}</span></span>
+            <span className="inline-flex min-w-0 items-center gap-2">{a.mint && <CoinAvatar mint={a.mint} logoHash={a.logoHash} symbol={a.symbol} size="xs" />}<span className="truncate"><b>${a.symbol}</b> <span className="text-caption text-text-secondary">· {a.strategyName}</span></span></span>
             <span className="num">{f.sol(a.amountSol ?? 0)}</span>
           </li>
         ))}

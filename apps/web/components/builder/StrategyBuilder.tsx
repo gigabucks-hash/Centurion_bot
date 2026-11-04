@@ -364,7 +364,7 @@ export function StrategyBuilder({ initial, base, strategyId, rev, mode, draftKey
 
           {step === "review" && <Review s={s} errors={errors} />}
 
-          <div className="mt-6 flex justify-between border-t border-border-subtle pt-4">
+          <div className="sticky bottom-[calc(3rem+env(safe-area-inset-bottom))] z-20 -mx-4 mt-6 flex items-center justify-between gap-3 border-t border-border-subtle bg-bg-surface/95 px-4 py-3 backdrop-blur lg:bottom-0">
             <Button variant="ghost" disabled={step === STEPS[0].id} onClick={() => setStep(STEPS[STEPS.findIndex((x) => x.id === step) - 1].id)}>{t("common.back")}</Button>
             {step !== "review" ? (
               <Button variant="primary" onClick={() => setStep(STEPS[STEPS.findIndex((x) => x.id === step) + 1].id)}>{t("common.next")}</Button>

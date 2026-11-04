@@ -111,7 +111,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const t = useT();
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-surface p-6 shadow-e2 sm:p-8">
+      <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-surface p-6 shadow-card sm:p-8">
         <p className="mb-1 text-title"><span aria-hidden>◆ </span>{t.ux("app.name")}</p>
         <h1 className="mb-4 text-titleSm text-text-secondary">{t("desktopAuth.title")}</h1>
         {children}

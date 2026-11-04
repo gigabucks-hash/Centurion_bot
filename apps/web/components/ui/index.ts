@@ -1,6 +1,7 @@
 export { Card } from "./Card";
 export { Badge, type Tone } from "./Badge";
 export { StatTile } from "./StatTile";
+export { StatStrip, type StatItem } from "./StatStrip";
 export { Table, type Column } from "./Table";
 export { EmptyState } from "./EmptyState";
 export { Button, type ButtonVariant } from "./Button";

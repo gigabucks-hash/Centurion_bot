@@ -16,11 +16,16 @@ export function Pnl({ sol, pct, lamports, className, unit = false, mode }: { sol
   const f = useFmt();
   const paper = (mode ?? f.mode) === "practice";
   const d = pnlDisplay(lamports != null ? { lamports } : sol != null ? { sol } : { pct: pct ?? 0 }, f.locale, { paper, unit: lamports != null || sol != null ? unit : undefined });
+  // Unit suffix comes from the package as "…\u00A0paper SOL": render it one step smaller so hero numbers (28 px) keep
+  // their digits readable inside a KPI cell instead of overflowing the divider. No re-formatting, no re-rounding.
+  const [main, ...rest] = d.text.split("\u00A0");
+  const unitText = rest.join("\u00A0");
   return (
     <span className={cn("num whitespace-nowrap", PNL_TEXT_CLASS[d.tone], className)} data-pnl-tone={d.tone}>
       {d.arrow && <span aria-hidden>{d.arrow} </span>}
       <span className="sr-only">{t(d.tone === "neutral" ? "common.flat" : d.tone === "profit" ? "common.up" : "common.down")} </span>
-      {d.text}
+      {main}
+      {unitText && <span className="text-caption font-normal">{"\u00A0"}{unitText}</span>}
     </span>
   );
 }

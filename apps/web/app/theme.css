@@ -18,12 +18,13 @@
 }
 
 /*
- * design-tokens 0.3.4 (0e35c34 + 5594cee) adds bg.chrome, scrim.sheet, shadow.card, shadow.dialog and
- * semantic.onWarning. They arrive through the @import above as --color-bg-chrome, --color-scrim-sheet, --shadow-card,
- * --shadow-dialog, --color-semantic-onWarning (utilities bg-bg-chrome, bg-scrim-sheet, shadow-card, shadow-dialog,
- * text-semantic-onWarning). Not applied yet: none of them has the same value as what the current (approved) look uses
- * (sidebar = bg.surface, sheet scrim = bg.sunken/80, dialog = shadow.e4, no text on solid warning), so switching would
- * restyle the app. They are adopted with the G1-blue v2 restyle once Boss approves it.
+ * design-tokens 0.3.4 (G1-blue v2) adds bg.chrome, scrim.sheet, shadow.card, shadow.dialog and semantic.onWarning.
+ * They arrive through the @import above as --color-bg-chrome, --color-scrim-sheet, --shadow-card, --shadow-dialog,
+ * --color-semantic-onWarning (utilities bg-bg-chrome, bg-scrim-sheet, shadow-card, shadow-dialog,
+ * text-semantic-onWarning). Adopted (pending Boss sign-off on G1-blue): sidebar + bottom tab bar = bg-bg-chrome,
+ * sheet/dialog scrim = bg-scrim-sheet (alpha is baked into the token, do not add opacity), dialogs and the "more"
+ * sheet = shadow-dialog, cards/stat tiles = shadow-card (dark = none, light = 0 1px 2px rgba(15,20,32,.06)).
+ * semantic.onWarning has no consumer yet: web has no solid warning/guard fill that carries text or a glyph.
  * Coin logo / identicon tokens used by components/CoinAvatar.tsx: --color-identicon-0..11, --color-identicon-fg,
  * --coin-logo-ring, --coin-logo-not-tradeable-opacity, --color-skeleton-base.
  */

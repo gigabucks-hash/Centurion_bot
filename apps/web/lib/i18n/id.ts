@@ -12,7 +12,7 @@ export const id: PartialMessages = {
     on: "Aktif", off: "Mati", all: "Semua", allStrategies: "Semua strategi", strategy: "Strategi", details: "detail ›", seeAll: "Semua ›",
     restore: "Pulihkan", discard: "Buang", releaseCancel: "Lepas = batal.", holdSeconds: "Tahan {s} dtk. Lepas = batal.",
     up: "naik", down: "turun", flat: "datar", profitSr: "untung: ", lossSr: "rugi: ", expiresIn: "Kedaluwarsa dalam {time}",
-    closeDialog: "Tutup dialog", language: "Bahasa", mockBuild: "Build data mock · tanpa wallet, RPC atau akses chain",
+    closeDialog: "Tutup dialog", language: "Bahasa", exampleData: "Data contoh", mockBuild: "Build data mock · tanpa wallet, RPC atau akses chain",
   },
   mode: {
     practiceShort: "Paper", realShort: "Real",

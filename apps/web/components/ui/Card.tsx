@@ -11,7 +11,7 @@ export function Card({ title, subtitle, action, children, className, bodyClassNa
   as?: "section" | "div" | "article";
 }) {
   return (
-    <As className={cn("rounded-lg border border-border-subtle bg-bg-surface shadow-e1", className)}>
+    <As className={cn("rounded-lg border border-border-subtle bg-bg-surface shadow-card", className)}>
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
           <div className="min-w-0">

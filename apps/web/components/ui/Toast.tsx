@@ -25,7 +25,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((t) => {
           const I = icon[t.kind];
           return (
-            <div key={t.id} role="status" className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-md border border-border-default bg-bg-overlay px-4 py-3 shadow-e3">
+            <div key={t.id} role="status" className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-md border border-border-default bg-bg-overlay px-4 py-3 shadow-dialog">
               <I size={16} className={cn("shrink-0", color[t.kind])} aria-hidden />
               <span className="flex-1 text-body text-text-primary">{t.text}</span>
               {t.action && (
