@@ -21,9 +21,9 @@ use std::str::FromStr;
 pub const EVENT_SCHEMA_VERSION: u32 = 1;
 /// Contracts release this mirror was verified against (contract test checks major.minor).
 /// Mirrors `CONTRACTS_VERSION` in the committed `packages/contracts/src/wire/events.ts`. Pinned package is
-/// 1.1.6 (4e0d7f3, `contracts.pin.json`), but Backend left the TS constant at "1.1.5" (reported gap);
-/// the backend `/healthz` says "1.1.6". The health check accepts any 1.1.x.
-pub const CONTRACTS_VERSION: &str = "1.1.5";
+/// 1.1.6 (`contracts.pin.json`), the TS constant was bumped to it by Backend, and the backend `/healthz`
+/// says "1.1.6". The health check accepts any 1.1.x.
+pub const CONTRACTS_VERSION: &str = "1.1.6";
 /// JSON number on the wire (pcts, ratios, bps, USD notionals, scores). Display/threshold only.
 pub type Num = f64;
 pub const LAMPORTS_PER_SOL: i128 = 1_000_000_000;

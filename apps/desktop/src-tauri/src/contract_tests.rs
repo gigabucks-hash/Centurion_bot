@@ -427,7 +427,7 @@ fn contracts_1_1_3_reject_reason_and_approval_wire() {
         )),
         "mirror == committed contracts"
     );
-    assert_eq!(crate::model::CONTRACTS_VERSION, "1.1.5"); // TS constant not bumped by Backend in 1.1.6 (gap)
+    assert_eq!(crate::model::CONTRACTS_VERSION, "1.1.6");
     let i = ts.find("export type ApprovalRejectReason").unwrap();
     let line = &ts[i..i + ts[i..].find(';').unwrap()];
     let theirs: Vec<String> = line

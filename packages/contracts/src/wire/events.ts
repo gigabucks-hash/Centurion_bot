@@ -1,4 +1,4 @@
-// Centurion stream contract v1.1.4 (snake_case everywhere). Mirrors services/backend/crates/common/src/event.rs,
+// Centurion stream contract v1.1.6 (snake_case everywhere). Mirrors services/backend/crates/common/src/event.rs,
 // the SQL wire functions (position_wire, order_wire, fill_wire) and EVENTS_SCHEMA.md.
 // Number rule: SOL amounts = lamport integer strings, raw token amounts = integer strings, prices = decimal
 // strings, int64 ids (seq, job_id) = integer strings; percentages, ratios, bps, USD notionals, scores,
@@ -7,7 +7,7 @@ import type { ErrorCode } from "./errors";
 import type { Base58, DecimalString, Int64String, IsoTs, Lamports, RawQty, Uuid } from "./units";
 
 export const EVENT_SCHEMA_VERSION = 1 as const;
-export const CONTRACTS_VERSION = "1.1.5" as const;
+export const CONTRACTS_VERSION = "1.1.6" as const;
 
 /** Any JSON value (used instead of `unknown` on the wire). */
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };

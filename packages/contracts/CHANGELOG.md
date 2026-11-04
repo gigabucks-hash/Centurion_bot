@@ -2,6 +2,10 @@
 
 ## 1.1.6 (2026-11-03): Centurion rename, coin logos, MCP error codes
 
+- **`CONTRACTS_VERSION` is `1.1.6`.** The TS constant in `src/wire/events.ts` had lagged at `1.1.5`
+  while the package and the API `/healthz` were already `1.1.6`; clients that mirror it must bump too
+  (desktop `model.rs` / contract test).
+
 **Repo-wide rename (no `sentra` left in code):** package `@centurion/contracts` (was the old codename package), env
 `CENTURION_*` (e.g. `CENTURION_SESSION_SECRET`), JWT claim `centurion_client`, JWT iss `centurion-api`, DB GUCs
 `centurion.*`, SSE NOTIFY channel `centurion_marks`, headers `X-Centurion-*`, deep links `centurion://...`, wallet
