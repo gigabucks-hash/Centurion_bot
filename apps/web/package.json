@@ -21,7 +21,7 @@
     "@tanstack/react-virtual": "3.14.24",
     "clsx": "2.1.1",
     "lightweight-charts": "5.2.1",
-    "lucide-react": "1.64.0",
+    "lucide-react": "1.67.0",
     "next": "16.4.3",
     "next-intl": "4.14.9",
     "react": "19.3.0",
