@@ -31,6 +31,11 @@ export function isLocale(v: unknown): v is Locale {
   return typeof v === "string" && (LOCALES as readonly string[]).includes(v);
 }
 
+/** Locale from the `centurion_locale` cookie value; unknown or missing → the default (English). */
+export function localeFromCookie(value: string | null | undefined): Locale {
+  return isLocale(value) ? value : DEFAULT_LOCALE;
+}
+
 export function interpolate(s: string, vars?: Vars): string {
   if (!vars) return s;
   return s.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));

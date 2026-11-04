@@ -18,7 +18,12 @@ npm run build && npm start   # production on :3100
 npm run lint && npm run typecheck
 npm run screenshots          # app must be running on :3100 → screenshots/*.png
 ```
-Env (optional): `DATA_SOURCE=mock|http` (default `mock`), `API_BASE_URL`, `CHROME_PATH`, `BASE`.
+Env: every value is optional and the mock build needs none. See [`.env.example`](.env.example) for the full list —
+`DATA_SOURCE=mock|http` + `API_BASE_URL`, `OWNER_WALLETS`, `CENTURION_INSECURE_COOKIES`, `CENTURION_AUTH_GATE`,
+`CENTURION_MOCK_REAL_DEMO`, `CENTURION_QA_SHOTS`, the `NEXT_PUBLIC_AUTH_*` flags, and the screenshot `BASE`/`CHROME_PATH`.
+
+Note for local production runs: `npm start` serves over plain http, so set `CENTURION_INSECURE_COOKIES=1` or the
+browser drops the `Secure` session cookie and every app route redirects to `/login`.
 
 ## Design tokens (UX Phase 0 → Tailwind v4)
 Source: `/workspace/ux-solbot/tokens/tokens.css` + `tailwind.config.tokens.js`. The v3 preset is ported to a v4 `@theme` block in `app/theme.css`. The default palette is reset, so only semantic names exist:
@@ -113,10 +118,10 @@ lib/mock/               ← seeded data, mutable store (TTL, holds, cooldown, au
 ```
 
 ## Deviations from the SPEC (on purpose, mock build)
-- UI copy is English (the wireframes are Indonesian). Numbers use id-ID format. Language is still an open i18n question
+- UI copy ships in English and Indonesian (`lib/i18n/en.ts` + `id.ts` merged with `@centurion/i18n`; `lib/i18n/aliases.ts` maps the app keys to UX keys). English is the default, Indonesian is picked in Settings › Language and stored in the `centurion_locale` cookie; `<html lang>` follows it. Numbers use id-ID format in both
 - The 2FA / biometric step is a "Verify with passkey (mock)" button. No codes or credentials are read. Production should use WebAuthn
 - Swipe is only on Practice picks. Real SOL swipe is turned off completely (stricter than "Real above a limit")
-- App pages aren't auth-gated (mock). There's no Settings / linked-accounts page yet, and no rev-conflict banner
+- App pages are auth-gated (`lib/auth/gate.ts`: no session → 307 to `/login?next=…`; disable locally with `CENTURION_AUTH_GATE=0`). Sign-in is mock SIWS/OTP against the in-memory BFF, not a real identity provider. Settings (`/settings`, `components/settings/SettingsPanel.tsx`) covers profile, sign-in methods with the last-method lock, trading wallet, mode defaults, practice reset, notifications/devices, security, appearance and language. Revision conflicts are handled by `components/builder/RevisionConflict.tsx` (S1-S4) and the 409 `VERSION_CONFLICT` banner in `components/approvals/ApprovalQueue.tsx`
 - IdP buttons use neutral placeholder glyphs until we have official Google/Apple/Telegram assets
 - Risk impact, replay and the builder simulation are deterministic mock estimates
 - Switching to Real skips the wallet-setup wizard and shows a notice instead

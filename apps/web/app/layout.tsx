@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { APP_DESCRIPTION, APP_NAME, APP_TITLE, BRAND_COLORS } from "@/lib/brand";
+import { LOCALE_COOKIE, localeFromCookie } from "@/lib/i18n/core";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/client";
 import { THEME_INIT } from "@/lib/security/theme-init";
@@ -28,9 +30,11 @@ export const viewport: Viewport = {
 };
 
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // The app ships en + id copy behind a cookie; <html lang> must follow it (screen readers, spellcheck, hyphenation).
+  const locale = localeFromCookie((await cookies()).get(LOCALE_COOKIE)?.value);
   return (
-    <html lang="en" data-theme="dark" className={`${inter.variable} ${mono.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang={locale} data-theme="dark" className={`${inter.variable} ${mono.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         {/* Theme before first paint: plain text child (no dangerouslySetInnerHTML), allowed by its CSP hash. */}
         <script>{THEME_INIT}</script>

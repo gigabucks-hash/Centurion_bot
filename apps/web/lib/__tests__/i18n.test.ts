@@ -24,6 +24,18 @@ test("every app key is defined in English and every string parses as ICU", () =>
   }
 });
 
+test("locale cookie → <html lang>: known locales only, anything else falls back to en", async () => {
+  const { localeFromCookie, LOCALES } = await import("../i18n/core.ts");
+  assert.deepEqual([...LOCALES], ["en", "id"]);
+  assert.equal(localeFromCookie("id"), "id");
+  assert.equal(localeFromCookie("en"), "en");
+  assert.equal(localeFromCookie("id-ID"), "en"); // a BCP-47 tag is not a supported UI locale
+  assert.equal(localeFromCookie("fr"), "en");
+  assert.equal(localeFromCookie(""), "en");
+  assert.equal(localeFromCookie(undefined), "en");
+  assert.equal(localeFromCookie(null), "en");
+});
+
 test("every alias points at a key in @centurion/i18n 0.4.10+ (en + id)", async () => {
   const { ALIASES } = await import("../i18n/aliases.ts");
   const { createRequire } = await import("node:module");
