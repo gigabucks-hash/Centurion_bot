@@ -131,9 +131,12 @@ Future<void> main(List<String> args) async {
     stderr.writeln(fmt.stderr);
     exit(2);
   }
-  final formatted = tmp.readAsStringSync();
+  // `git checkout` on Windows (core.autocrlf) writes the committed file with CRLF
+  // while the generator emits LF; the check compares content, not the platform EOL.
+  String lf(String s) => s.replaceAll('\r\n', '\n');
+  final formatted = lf(tmp.readAsStringSync());
   if (args.contains('--check')) {
-    final current = File(out).existsSync() ? File(out).readAsStringSync() : '';
+    final current = File(out).existsSync() ? lf(File(out).readAsStringSync()) : '';
     if (current != formatted) {
       stderr.writeln('$out is stale: run `dart run tool/gen_errors.dart`');
       exit(1);

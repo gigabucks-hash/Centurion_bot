@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -29,6 +30,11 @@ const vectors = [
 const mint = 'tUS1YuHKJDnzQddko3sTDKq1F7v58ZPsvkwRHBTGN844';
 const hash = 'abcdef0123456789';
 final api = Uri.parse('https://api.example.com');
+
+/// Skia text anti-aliasing differs between Linux CI and Windows, so the reference
+/// PNG is kept per platform (Windows differs from the Linux baseline by 3.91% of
+/// pixels). Same widget and same assertions on both; only the file path changes.
+String goldenPath(String name) => Platform.isWindows ? 'goldens/windows/$name' : 'goldens/$name';
 
 /// Image provider whose result the test controls (keyed by URL so the ImageCache can hit).
 class _Logo extends ImageProvider<String> {
@@ -434,7 +440,7 @@ void main() {
       );
       await tester.runAsync(() => GoogleFonts.pendingFonts());
       await tester.pump();
-      await expectLater(find.byType(Column).first, matchesGoldenFile('goldens/coin_identicons.png'));
+      await expectLater(find.byType(Column).first, matchesGoldenFile(goldenPath('coin_identicons.png')));
     });
   });
 
