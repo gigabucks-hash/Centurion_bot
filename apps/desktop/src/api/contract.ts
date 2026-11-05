@@ -203,6 +203,8 @@ export interface Account {
   cash_lamports: Lamports | null;
   equity_lamports: Lamports | null;
   unrealized_pnl_lamports: Lamports | null;
+  /** Closed-trade ledger (PortfolioSnapshot.realized_pnl_lamports), per mode. */
+  realized_pnl_lamports: Lamports | null;
   drawdown_pct: number | null;
   as_of_seq: Int64String | null;
   epoch: number | null;

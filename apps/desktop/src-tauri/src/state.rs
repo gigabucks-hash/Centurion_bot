@@ -282,6 +282,7 @@ impl Engine {
         self.account.cash_lamports = Some(p.cash_lamports);
         self.account.equity_lamports = Some(p.equity_lamports);
         self.account.unrealized_pnl_lamports = Some(p.unrealized_pnl_lamports);
+        self.account.realized_pnl_lamports = Some(p.realized_pnl_lamports);
         self.account.drawdown_pct = Some(p.drawdown_pct);
         self.account.as_of_seq = Some(p.as_of_seq);
         if p.practice_epoch.is_some() {
@@ -1064,6 +1065,7 @@ impl Engine {
                     cash_lamports: Some(r.starting_balance_lamports),
                     equity_lamports: Some(r.starting_balance_lamports),
                     unrealized_pnl_lamports: Some(Lamports(0)),
+                    realized_pnl_lamports: Some(Lamports(0)),
                     drawdown_pct: Some(0.0),
                     as_of_seq: None,
                     epoch: Some(r.epoch),

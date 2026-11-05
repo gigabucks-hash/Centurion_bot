@@ -240,6 +240,9 @@ pub struct Account {
     pub cash_lamports: Option<Lamports>,
     pub equity_lamports: Option<Lamports>,
     pub unrealized_pnl_lamports: Option<Lamports>,
+    /// Closed-trade ledger (`PortfolioSnapshot::realized_pnl_lamports`): locked in by take-profits
+    /// and closed trades. Next to `unrealized`, this is what the PnL report splits.
+    pub realized_pnl_lamports: Option<Lamports>,
     pub drawdown_pct: Option<Num>,
     /// int64 string (1.1.2) — compare with BigInt in TS.
     #[serde(with = "crate::model::seq::opt")]

@@ -8,6 +8,7 @@ import { QuickLook, type QuickLookTarget } from "../components/QuickLook";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { ModeChrome } from "../components/ModeChrome";
 import { PositionsBar, PositionsSummary, PositionsTable } from "../components/PositionsTable";
+import { PnlReport } from "../components/PnlReport";
 import { PriceChart } from "../components/PriceChart";
 import { SellConfirm } from "../components/SellConfirm";
 import { SettingsDialog } from "../components/SettingsDialog";
@@ -227,6 +228,7 @@ export function TerminalView() {
         </section>
         <section className="panel area-positions">
           <header><span className="panel-title"><Icon glyph={Wallet} size={16} /> {t(st.mode === "real" ? "positions.title" : "positions.title_paper")}</span> <PositionsSummary positions={st.positions} /></header>
+          <PnlReport />
           <div className="body">
             <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onFocusRow={st.setCursor} onSell={(p) => sell(p)} now={now} />
           </div>

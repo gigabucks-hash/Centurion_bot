@@ -313,6 +313,13 @@ table.positions tr.cursor td:last-child { background: var(--color-brand-primaryC
 .quicklook .ql-badges { display: flex; min-width: 0; margin: 0 0 var(--space-2); }
 .quicklook .ql-badges .chip.nt { max-width: 100%; min-width: 0; }
 .chip.nt .nt-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* PnL report (G1): flat strip above the positions table; cells split by 1 px border.subtle, no shadow. */
+.pnl-report { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--color-border-subtle); background: var(--color-bg-surface); }
+.pnl-report .pnl-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: var(--space-2) var(--space-3); }
+.pnl-report .pnl-cell + .pnl-cell { border-left: 1px solid var(--color-border-subtle); }
+.pnl-report .pnl-k { font-size: var(--text-overline); line-height: var(--text-overline--line-height); font-weight: var(--text-overline--font-weight); letter-spacing: var(--text-overline--letter-spacing); text-transform: uppercase; color: var(--color-text-tertiary); }
+.pnl-report .pnl-v { font-size: var(--text-numSm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* D8: PnL never truncated (T-15: a non-zero value must never read as 0); narrow centre drops low-priority columns */
 .area-positions { container-type: inline-size; }
 table.positions td.col-pnl { min-width: 14ch; }

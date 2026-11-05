@@ -31,6 +31,8 @@ export const LOCAL_TEMPLATES: Record<"en" | "id", Record<string, string>> = {
     "desktop.stop.effect_practice": "Every running strategy is paused. New picks stop; open positions keep their exit plan.",
     "desktop.stop.done": "{count, plural, one {# strategy paused} other {# strategies paused}}",
     "desktop.stop.failed": "Not paused: {list}",
+    "pnl.report.title": "PnL report",
+    "pnl.report.total": "Total PnL",
   },
   id: {
     "feed.event.fill": "Paper {side} {amount_lamports} @ {price} SOL · biaya {fee} · slippage {slip}",
@@ -50,6 +52,8 @@ export const LOCAL_TEMPLATES: Record<"en" | "id", Record<string, string>> = {
     "desktop.stop.effect_practice": "Semua strategi yang berjalan dijeda. Pick baru berhenti; posisi terbuka tetap memakai exit plan.",
     "desktop.stop.done": "{count, plural, other {# strategi dijeda}}",
     "desktop.stop.failed": "Belum dijeda: {list}",
+    "pnl.report.title": "Laporan PnL",
+    "pnl.report.total": "Total PnL",
   },
 };
 

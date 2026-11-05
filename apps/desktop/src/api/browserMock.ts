@@ -66,6 +66,7 @@ let settings: Settings = {
 };
 let seq = 18_000;
 let cash = START;
+let realized = 0n;
 let epoch = 1;
 const quotes = new Map<string, SellQuote>();
 
@@ -83,6 +84,7 @@ function account() {
     cash_lamports: lam(cash),
     equity_lamports: lam(cash + value),
     unrealized_pnl_lamports: lam(value - cost),
+    realized_pnl_lamports: lam(realized),
     drawdown_pct: 0,
     as_of_seq: String(seq),
     epoch,
@@ -340,6 +342,8 @@ export const browserMockAdapter: CoreApi = {
     const q = quotes.get(nonce);
     quotes.delete(nonce);
     if (!q) throw new Error("quote expired");
+    const pos = positions.get(q.position_key);
+    if (pos) realized += BigInt(q.est_sol_out_lamports) - BigInt(pos.cost_lamports);
     positions.delete(q.position_key);
     cash += BigInt(q.est_sol_out_lamports);
     log("user", "position.closed", "info", q.mint, q.symbol, `Jual manual ${q.pct}%`);
