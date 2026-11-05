@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   // give little and must not be shared anyway → Cache Components / PPR off; every route renders with its nonce.
   cacheComponents: false,
   poweredByHeader: false,
+  // Deploy: emit a self-contained server (`.next/standalone`) so the runtime image carries only the traced
+  // deps and the workspace packages, not the full dev toolchain. See docs/release/web.md.
+  output: "standalone",
   // PERF: modern formats for next/image (brand/coin art); AVIF first, WebP fallback.
   images: { formats: ["image/avif", "image/webp"], dangerouslyAllowSVG: false },
   // SECURITY: the static security headers also on paths the proxy skips (_next/static, images, brand/).

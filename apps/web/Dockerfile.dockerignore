@@ -1,0 +1,31 @@
+# Build context for apps/web/Dockerfile is the REPO ROOT (`docker build -f apps/web/Dockerfile .`).
+# BuildKit reads this file because it is named after the Dockerfile: <Dockerfile>.dockerignore.
+# A plain root .dockerignore is intentionally not used: the repo root is shared by every app.
+
+.git
+.github
+.gitignore
+
+# Dependencies and build output are produced inside the image.
+**/node_modules
+**/.next
+**/tsconfig.tsbuildinfo
+**/*.log
+
+# Never send local env files. Runtime config comes from `docker run --env` / the orchestrator.
+**/.env
+**/.env.*
+
+# Other platforms and non-runtime trees only slow the context down.
+apps/mobile
+apps/desktop
+services
+tools
+docs
+screenshots
+**/target
+
+# Web-only QA/perf assets are not needed to build or run the server.
+apps/web/ci
+apps/web/perf
+apps/web/screenshots
