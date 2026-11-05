@@ -12,6 +12,7 @@ import '../../data/repositories/repositories.dart';
 import '../../data/providers.dart';
 import 'widgets/equity_card.dart';
 import 'widgets/exit_progress_bar.dart';
+import 'widgets/pnl_report_card.dart';
 import 'widgets/sell_sheet.dart';
 import '../../core/widgets/coin_avatar.dart';
 
@@ -92,6 +93,14 @@ class _PositionsScreenState extends ConsumerState<PositionsScreen> {
                 sliver: SliverMainAxisGroup(
                   slivers: [
                     const SliverToBoxAdapter(child: EquityCard()),
+                    const SliverToBoxAdapter(child: SizedBox(height: AppSpace.s3)),
+                    SliverToBoxAdapter(
+                      child: switch (ref.watch(summaryProvider).valueOrNull) {
+                        final s? => PnlReportCard(summary: s),
+                        // Summary is loading or failed: the equity card above already owns that state.
+                        _ => const SizedBox.shrink(),
+                      },
+                    ),
                     const SliverToBoxAdapter(child: SizedBox(height: AppSpace.s3)),
                     if (openList.isEmpty)
                       const SliverToBoxAdapter(
@@ -227,7 +236,20 @@ class _ClosedRow extends StatelessWidget {
       leading: CoinAvatar(mint: p.mint, symbol: p.symbol, logoHash: p.logoHash, logoUrl: p.logoUrl),
       title: Text('\$${p.symbol}'),
       subtitle: Text(p.exitReason ?? 'Closed', overflow: TextOverflow.ellipsis),
-      trailing: PnlText(p.pnlLamports),
+      trailing: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          PnlText(p.pnlLamports),
+          const SizedBox(height: AppSpace.sHalf),
+          Text(
+            'terealisasi',
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall!.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ],
+      ),
       onTap: () => context.go('/positions/${Uri.encodeComponent(p.id)}'),
     );
   }
@@ -292,11 +314,52 @@ class PositionDetailScreen extends ConsumerWidget {
                 if (p.isOpen) _NextAction(position: p, now: now),
               ],
               if (!p.isOpen)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(AppIcons.closed),
-                  title: Text(p.exitReason ?? 'Closed'),
-                  subtitle: p.closedAt == null ? null : Text('Ditutup ${fmtTime(p.closedAt!)} WIB'),
+                Card(
+                  key: const Key('realizedPnl'),
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpace.s3),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('PnL terealisasi', style: tt.titleSmall),
+                                  const SizedBox(height: AppSpace.sHalf),
+                                  Text(
+                                    'Terkunci saat posisi ditutup',
+                                    style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                PnlText(p.pnlLamports, size: 20, unit: true),
+                                const SizedBox(height: AppSpace.sHalf),
+                                Text(
+                                  fmtPct(p.pnlPct, arrow: false),
+                                  style: AppText.num(12, color: context.pnlColor(p.pnlPct)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpace.s2),
+                        Text(
+                          '${p.exitReason ?? 'Closed'}'
+                          '${p.closedAt == null ? '' : ' · ditutup ${fmtTime(p.closedAt!)} WIB'}',
+                          style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               const SizedBox(height: AppSpace.s4),
               if (p.isOpen)

@@ -10,6 +10,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/sparkline.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';
+import '../positions/widgets/pnl_report_card.dart';
 import '../positions/widgets/equity_card.dart' show equityHistoryProvider;
 
 /// G1-blue Portfolio home: equity hero, range chart, one partitioned KPI strip, guard banner
@@ -139,6 +140,8 @@ class _Portfolio extends ConsumerWidget {
         _SegmentedRange(range: range),
         const SizedBox(height: AppSpace.s4),
         _KpiStrip(winRate: winRate, maxDrawdown: maxDd, open: summary.openPositions, maxOpen: maxOpen),
+        const SizedBox(height: AppSpace.s4),
+        PnlReportCard(summary: summary),
         const SizedBox(height: AppSpace.s4),
         _GuardBanner(pendingGuardChanges: guardChanges, running: running.length),
         const SizedBox(height: AppSpace.s5),

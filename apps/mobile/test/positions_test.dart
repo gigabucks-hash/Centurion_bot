@@ -203,6 +203,11 @@ void main() {
     // Lainnya tab is the selected destination (wireframe 12).
     expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 4);
 
+    // PnL report sits under the equity card; realized is separate from unrealized.
+    await tester.scrollUntilVisible(find.byKey(const Key('pnlReport')), 200);
+    expect(find.byKey(const Key('pnlRealized')), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.byKey(const Key('sell_ck101.0')), 200);
     await tester.tap(find.byKey(const Key('sell_ck101.0')));
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
     expect(find.text('Jual \$MOTH'), findsOneWidget);

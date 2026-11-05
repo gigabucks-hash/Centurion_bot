@@ -47,8 +47,14 @@ void main() {
     expect(find.text('WIN RATE'), findsOneWidget);
     expect(find.text('MAX DD'), findsOneWidget);
     expect(find.text('EXPOSURE'), findsOneWidget);
-    expect(find.byKey(const Key('guardBanner')), findsOneWidget);
     expect(find.byKey(const Key('exampleData')), findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('pnlReport')), 200);
+    expect(find.byKey(const Key('pnlUnrealized')), findsOneWidget);
+    expect(find.byKey(const Key('pnlRealized')), findsOneWidget);
+    expect(find.byKey(const Key('pnlTotal')), findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('guardBanner')), 200);
+    expect(find.byKey(const Key('guardBanner')), findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('bot_stg_pullback')), 200);
     expect(find.byKey(const Key('bot_stg_pullback')), findsOneWidget);
     b.dispose();
   });
