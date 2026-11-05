@@ -210,24 +210,23 @@ class _SummaryCard extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: AppSpace.s3),
-            Text(s.realizedFor(s.windowLabel(window)), style: label),
+            Text(s.unrealized, style: label),
             const SizedBox(height: AppSpace.s1),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: PnlText(summary.realizedPnlWindow, key: const Key('pnlReportRealized'), size: 40, unit: true),
+              child: summary.unrealizedPnl == null
+                  ? Text(s.unavailable, key: const Key('pnlReportUnrealized'), style: muted)
+                  : PnlText(summary.unrealizedPnl!, key: const Key('pnlReportUnrealized'), size: 40, unit: true),
             ),
-            const SizedBox(height: AppSpace.s1),
-            Text(s.partialNote, style: muted),
             const SizedBox(height: AppSpace.s3),
             Divider(height: 1, thickness: 1, color: cs.outlineVariant),
             const SizedBox(height: AppSpace.s2),
             _PairRow(
               left: _MiniPnl(
-                label: s.unrealized,
-                value: summary.unrealizedPnl,
-                valueKey: const Key('pnlReportUnrealized'),
+                label: s.realizedFor(s.windowLabel(window)),
+                value: summary.realizedPnlWindow,
+                valueKey: const Key('pnlReportRealized'),
               ),
               right: _MiniValue(
                 label: s.closedLabel,
@@ -235,6 +234,8 @@ class _SummaryCard extends StatelessWidget {
                 valueKey: const Key('pnlReportClosed'),
               ),
             ),
+            const SizedBox(height: AppSpace.s1),
+            Text(s.partialNote, style: muted),
             const SizedBox(height: AppSpace.s2),
             Divider(height: 1, thickness: 1, color: cs.outlineVariant),
             const SizedBox(height: AppSpace.s2),
