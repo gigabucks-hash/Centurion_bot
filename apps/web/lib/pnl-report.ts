@@ -25,6 +25,19 @@ export function parsePnlWindow(v: unknown): (typeof PNL_WINDOWS)[number] {
   return (PNL_WINDOWS as readonly string[]).includes(String(s)) ? (s as (typeof PNL_WINDOWS)[number]) : "7d";
 }
 
+/**
+ * A filter change (mode/strategy/range) restarts the ledger at its first page. The keyset cursor is an
+ * opaque `(closed_at, id)` position and is NOT bound to the filter that produced it, so keeping it would
+ * page the new filter from the old position and silently skip that filter's newest rows.
+ */
+export function pnlFilterQuery(current: string, key: string, value: string): string {
+  const q = new URLSearchParams(current);
+  if (value) q.set(key, value);
+  else q.delete(key);
+  q.delete("cursor");
+  return q.toString();
+}
+
 export interface PnlReportInput {
   /** WorkspaceOverview.realizedPnlSol (per mode). */
   realized: number;

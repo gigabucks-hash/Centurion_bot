@@ -93,3 +93,14 @@ test("closed ledger pages by keyset: newest first, no duplicates, cursor ends", 
     assert.ok(second.items.every((r) => r.closedAt <= first.items[first.items.length - 1].closedAt));
   }
 });
+
+test("a filter change drops the ledger cursor (keyset position is not filter-bound)", async () => {
+  const { pnlFilterQuery } = await import("../pnl-report.ts");
+  // Page 2 of 7d is an opaque (closed_at, id) position; switching range must start the new ledger at page 1,
+  // otherwise the new range pages from the old position and silently skips its newest rows.
+  assert.equal(pnlFilterQuery("window=7d&cursor=abc", "window", "30d"), "window=30d");
+  assert.equal(pnlFilterQuery("window=7d&strategy=one&cursor=abc", "strategy", "two"), "window=7d&strategy=two");
+  assert.equal(pnlFilterQuery("window=7d&strategy=one&cursor=abc", "strategy", ""), "window=7d");
+  // A no-cursor URL is unchanged apart from the edited key (order kept, no stray `?`).
+  assert.equal(pnlFilterQuery("window=7d", "window", "all"), "window=all");
+});
