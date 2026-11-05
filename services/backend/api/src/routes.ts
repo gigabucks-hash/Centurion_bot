@@ -123,7 +123,7 @@ export function buildRouter(d: Deps): Router {
                 to_char(${sortCol} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cur_ts
            from public.positions p
           where p.workspace_id = $1 and p.mode = $2::public.trade_mode
-            and ($3::text is null or p.status::text = $3)
+            and ($3::public.position_status is null or p.status = $3::public.position_status)
             and ($4::uuid is null or p.strategy_id = $4)
             and p.practice_epoch = coalesce($5::int, (select practice_epoch from public.workspaces where id = $1))
             and ($6::timestamptz is null or ${sortCol} >= $6)

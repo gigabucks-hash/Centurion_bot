@@ -102,6 +102,8 @@ Alternative if Product prefers a visible "skipped" state: add `PickStage::Paused
 
 ## Decisions needed before implementation
 
+Short option table for Boss: [`BUYS_PAUSED_OPTIONS.md`](BUYS_PAUSED_OPTIONS.md).
+
 1. Event vocabulary: reuse `order.failed` + `BUYS_PAUSED` (smallest change, recommended) or add a
    new pick stage/event (contracts + mobile + SQL).
 2. Unknown/DB-error policy: paper `false` (recommended now) vs fail-closed (required for Phase 7).
