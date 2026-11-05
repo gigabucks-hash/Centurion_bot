@@ -7,6 +7,7 @@ import '../features/approvals/guard_review_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/coins/coins_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
+import '../features/positions/pnl_report_screen.dart';
 import '../features/positions/positions_screen.dart';
 import '../features/risk/risk_screen.dart';
 import '../features/settings/notifications_screen.dart';
@@ -34,6 +35,9 @@ GoRouter buildRouter({String initialLocation = '/', bool Function()? isSignedIn,
           },
     routes: [
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      // PnL report: full-screen drill-down over the shell (opened from the PnL
+      // card on Home and Positions). Pushed, not replaced, so Back returns.
+      GoRoute(path: '/pnl', builder: (_, _) => const PnlReportScreen()),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => HomeShell(shell: shell),
         branches: [

@@ -141,7 +141,7 @@ class _Portfolio extends ConsumerWidget {
         const SizedBox(height: AppSpace.s4),
         _KpiStrip(winRate: winRate, maxDrawdown: maxDd, open: summary.openPositions, maxOpen: maxOpen),
         const SizedBox(height: AppSpace.s4),
-        PnlReportCard(summary: summary),
+        PnlReportCard(summary: summary, onTap: () => context.push('/pnl')),
         const SizedBox(height: AppSpace.s4),
         _GuardBanner(pendingGuardChanges: guardChanges, running: running.length),
         const SizedBox(height: AppSpace.s5),

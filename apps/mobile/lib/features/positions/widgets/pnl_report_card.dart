@@ -1,110 +1,138 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/centurion_theme.dart';
+import '../../../core/widgets/app_icons.dart';
 import '../../../core/widgets/common.dart';
 import '../../../data/models/models.dart';
+import '../pnl_strings.dart';
 
-/// PnL report card (G1-blue): one flat card, unrealized vs realized vs total.
+/// PnL card (G1-blue): unrealized vs realized vs total, from the server summary.
 ///
-/// Source of truth is the server portfolio summary — no client-side re-derivation:
+/// Source of truth is the server portfolio summary — nothing is re-derived:
 /// - unrealized = mark-to-market of the open remainder (partial sells included);
 /// - realized   = proceeds locked in by take-profits and closed trades;
-/// - total      = realized + unrealized (the number the equity hero moves by).
+/// - total      = realized + unrealized (exactly what the equity hero moves by).
 ///
-/// Closed trades keep their realized PnL in the Positions list (`PnlText` per row),
-/// so this card never has to guess a trade's result after it leaves the open list.
+/// The card is the door to [PnlReportScreen] (closed-trade ledger + per exit
+/// reason breakdown). Closed trades keep their realized PnL in the Positions
+/// list, so this card never guesses a trade's result after it leaves the open list.
 class PnlReportCard extends StatelessWidget {
-  const PnlReportCard({super.key, required this.summary});
+  const PnlReportCard({super.key, required this.summary, this.onTap});
 
   final PortfolioSummary summary;
 
+  /// Opens the report. Null keeps the card static (widget tests / embeds).
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
+    final s = PnlStrings.of(Localizations.localeOf(context).languageCode);
     final text = Theme.of(context).textTheme;
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Card(
-      key: const Key('pnlReport'),
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpace.s4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(child: Text('PnL', style: text.titleMedium)),
-                Text('${summary.openPositions} posisi terbuka', style: text.labelSmall!.copyWith(color: muted)),
+    final cs = Theme.of(context).colorScheme;
+    final muted = text.labelSmall!.copyWith(color: cs.onSurfaceVariant);
+    final card = Padding(
+      padding: const EdgeInsets.all(AppSpace.s4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(s.cardTitle, style: text.titleMedium)),
+              Text(s.openCount(summary.openPositions), key: const Key('pnlOpenCount'), style: muted),
+              if (onTap != null) ...[
+                const SizedBox(width: AppSpace.s1),
+                Icon(AppIcons.chevronRight, size: 16, color: cs.primary),
               ],
-            ),
-            const SizedBox(height: AppSpace.s3),
-            _PnlRow(
-              label: 'Belum terealisasi',
-              hint: 'Mark-to-market posisi terbuka',
-              value: summary.unrealizedPnlLamports,
-              key: const Key('pnlUnrealized'),
-            ),
-            const SizedBox(height: AppSpace.s3),
-            Divider(height: 1, thickness: 1, color: Theme.of(context).colorScheme.outlineVariant),
-            const SizedBox(height: AppSpace.s3),
-            _PnlRow(
-              label: 'Terealisasi',
-              hint: 'Terkunci saat trade ditutup',
-              value: summary.realizedPnlLamports,
-              key: const Key('pnlRealized'),
-            ),
-            const SizedBox(height: AppSpace.s3),
-            Divider(height: 1, thickness: 1, color: Theme.of(context).colorScheme.outlineVariant),
-            const SizedBox(height: AppSpace.s3),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            ],
+          ),
+          const SizedBox(height: AppSpace.s3),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Total PnL', style: text.titleSmall),
-                      const SizedBox(height: AppSpace.sHalf),
-                      Text('Realized + unrealized', style: text.labelSmall!.copyWith(color: muted)),
-                    ],
+                  child: _Cell(
+                    key: const Key('pnlUnrealized'),
+                    label: s.unrealized,
+                    value: summary.unrealizedPnlLamports,
                   ),
                 ),
-                PnlText(summary.totalPnlLamports, key: const Key('pnlTotal'), size: 18, unit: true),
+                VerticalDivider(width: 1, thickness: 1, color: cs.outlineVariant),
+                Expanded(
+                  child: _Cell(key: const Key('pnlRealized'), label: s.realized, value: summary.realizedPnlLamports),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.s3),
+          Divider(height: 1, thickness: 1, color: cs.outlineVariant),
+          const SizedBox(height: AppSpace.s2),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(s.total, style: text.titleSmall),
+                    Text(s.totalHint, style: muted),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpace.s2),
+              PnlText(summary.totalPnlLamports, key: const Key('pnlTotal'), size: 16, unit: true),
+            ],
+          ),
+          if (onTap != null) ...[
+            const SizedBox(height: AppSpace.s2),
+            Row(
+              children: [
+                Text(s.viewReport, style: text.labelLarge!.copyWith(color: cs.primary)),
+                const SizedBox(width: AppSpace.sHalf),
+                Icon(AppIcons.chevronRight, size: 14, color: cs.primary),
               ],
             ),
           ],
-        ),
+        ],
       ),
+    );
+    return Card(
+      key: const Key('pnlReport'),
+      margin: EdgeInsets.zero,
+      clipBehavior: onTap == null ? Clip.none : Clip.antiAlias,
+      child: onTap == null ? card : InkWell(onTap: onTap, child: card),
     );
   }
 }
 
-class _PnlRow extends StatelessWidget {
-  const _PnlRow({required this.label, required this.hint, required this.value, super.key});
+class _Cell extends StatelessWidget {
+  const _Cell({required this.label, required this.value, super.key});
 
   final String label;
-  final String hint;
   final Lamports value;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: text.bodyMedium),
-              const SizedBox(height: AppSpace.sHalf),
-              Text(hint, style: text.labelSmall!.copyWith(color: muted)),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.s2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: text.labelSmall!.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-        const SizedBox(width: AppSpace.s2),
-        PnlText(value, size: 16, unit: true),
-      ],
+          const SizedBox(height: AppSpace.s1),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: PnlText(value, size: 19, unit: true),
+          ),
+        ],
+      ),
     );
   }
 }

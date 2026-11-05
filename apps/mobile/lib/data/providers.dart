@@ -131,6 +131,15 @@ final summaryProvider = StreamProvider<PortfolioSummary>(
   (ref) => ref.watch(portfolioRepositoryProvider).watchSummary(),
 );
 
+/// `exit_stats()` aggregates for the active mode (closed trades only): count,
+/// realized pnl, win rate and average hold per exit reason. The PnL report uses
+/// this instead of re-adding the loaded rows, which may be paged.
+final exitStatsProvider = FutureProvider.autoDispose<List<ExitStat>>((ref) {
+  return ref
+      .watch(centurionRpcProvider)
+      .exitStats(ref.watch(workspaceIdProvider), mode: ref.watch(workspaceModeProvider));
+});
+
 final positionsProvider = StreamProvider<List<Position>>((ref) {
   final gate = ref.watch(practiceEpochGateProvider);
   return ref.watch(portfolioRepositoryProvider).watchPositions().map(gate.filter);

@@ -38,6 +38,7 @@ abstract final class AppIcons {
   static const search = LucideIcons.search;
   static const searchOff = LucideIcons.search_x;
   static const empty = LucideIcons.inbox;
+  static const back = LucideIcons.arrow_left;
   static const close = LucideIcons.x;
   static const chevronRight = LucideIcons.chevron_right;
   static const chevronDown = LucideIcons.chevron_down;

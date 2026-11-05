@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/exit_reason_l10n.dart';
 import '../../core/format.dart';
 import '../../core/theme/centurion_theme.dart';
 import '../../core/widgets/app_icons.dart';
+import '../../core/widgets/coin_avatar.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/page_footer.dart';
 import '../../data/models/models.dart';
 import '../../data/repositories/repositories.dart';
 import '../../data/providers.dart';
+import '../../l10n/gen/app_localizations.dart';
+import 'pnl_strings.dart';
+import 'widgets/closed_trade_row.dart';
 import 'widgets/equity_card.dart';
 import 'widgets/exit_progress_bar.dart';
 import 'widgets/pnl_report_card.dart';
 import 'widgets/sell_sheet.dart';
-import '../../core/widgets/coin_avatar.dart';
 
 /// "26 mnt" / "1 j 5 mnt".
 String fmtHold(Duration d) {
@@ -96,7 +100,7 @@ class _PositionsScreenState extends ConsumerState<PositionsScreen> {
                     const SliverToBoxAdapter(child: SizedBox(height: AppSpace.s3)),
                     SliverToBoxAdapter(
                       child: switch (ref.watch(summaryProvider).valueOrNull) {
-                        final s? => PnlReportCard(summary: s),
+                        final s? => PnlReportCard(summary: s, onTap: () => context.push('/pnl')),
                         // Summary is loading or failed: the equity card above already owns that state.
                         _ => const SizedBox.shrink(),
                       },
@@ -117,7 +121,13 @@ class _PositionsScreenState extends ConsumerState<PositionsScreen> {
                         ),
                       ),
                     if (closed.isNotEmpty) ...[
-                      const SliverToBoxAdapter(child: SectionHeader('Closed')),
+                      SliverToBoxAdapter(
+                        child: SectionHeader(
+                          AppLocalizations.of(context).coinTrailStepClosed,
+                          action: PnlStrings.of(Localizations.localeOf(context).languageCode).viewReport,
+                          onAction: () => context.push('/pnl'),
+                        ),
+                      ),
                       SliverList.builder(
                         itemCount: closed.length + 1,
                         itemBuilder: (context, i) {
@@ -125,7 +135,10 @@ class _PositionsScreenState extends ConsumerState<PositionsScreen> {
                             WidgetsBinding.instance.addPostFrameCallback((_) => _closedPages.loadMore());
                           }
                           if (i == closed.length) return PageFooter(state: paged, onRetry: _closedPages.loadMore);
-                          return _ClosedRow(position: closed[i]);
+                          return ClosedTradeRow(
+                            position: closed[i],
+                            onTap: () => context.go('/positions/${Uri.encodeComponent(closed[i].id)}'),
+                          );
                         },
                       ),
                     ],
@@ -225,36 +238,6 @@ class PositionCard extends ConsumerWidget {
   }
 }
 
-class _ClosedRow extends StatelessWidget {
-  const _ClosedRow({required this.position});
-  final Position position;
-  @override
-  Widget build(BuildContext context) {
-    final p = position;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CoinAvatar(mint: p.mint, symbol: p.symbol, logoHash: p.logoHash, logoUrl: p.logoUrl),
-      title: Text('\$${p.symbol}'),
-      subtitle: Text(p.exitReason ?? 'Closed', overflow: TextOverflow.ellipsis),
-      trailing: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          PnlText(p.pnlLamports),
-          const SizedBox(height: AppSpace.sHalf),
-          Text(
-            'terealisasi',
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall!.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-      onTap: () => context.go('/positions/${Uri.encodeComponent(p.id)}'),
-    );
-  }
-}
-
 /// Detail: vertical ladder (TP filled/next/pending, now, trail, entry, SL),
 /// next action + time stop (SPEC §6).
 class PositionDetailScreen extends ConsumerWidget {
@@ -273,6 +256,8 @@ class PositionDetailScreen extends ConsumerWidget {
           if (p == null) return const EmptyState(icon: AppIcons.searchOff, text: 'Posisi tidak ditemukan');
           final tt = Theme.of(context).textTheme;
           final cs = Theme.of(context).colorScheme;
+          final s = PnlStrings.of(Localizations.localeOf(context).languageCode);
+          final l = AppLocalizations.of(context);
           final now = DateTime.now();
           return ListView(
             padding: const EdgeInsets.all(AppSpace.s4),
@@ -329,12 +314,9 @@ class PositionDetailScreen extends ConsumerWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('PnL terealisasi', style: tt.titleSmall),
+                                  Text(s.realized, style: tt.titleSmall),
                                   const SizedBox(height: AppSpace.sHalf),
-                                  Text(
-                                    'Terkunci saat posisi ditutup',
-                                    style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant),
-                                  ),
+                                  Text(s.realizedHeroHint, style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
                                 ],
                               ),
                             ),
@@ -353,8 +335,8 @@ class PositionDetailScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: AppSpace.s2),
                         Text(
-                          '${p.exitReason ?? 'Closed'}'
-                          '${p.closedAt == null ? '' : ' · ditutup ${fmtTime(p.closedAt!)} WIB'}',
+                          '${p.exitReason == null ? l.coinTrailStepClosed : exitReasonLabel(l, p.exitReason!)}'
+                          '${p.closedAt == null ? '' : ' · ${s.closedAt} ${fmtTime(p.closedAt!)} WIB'}',
                           style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant),
                         ),
                       ],
