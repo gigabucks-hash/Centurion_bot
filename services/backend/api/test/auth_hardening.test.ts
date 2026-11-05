@@ -19,7 +19,15 @@ const sig = (m: string) => b58encode(sign(null, Buffer.from(m, "utf8"), W.key));
 describe("SIWS hardening", () => {
   let h: Harness;
   before(async () => {
-    h = await startHarness({ AUTH_SIWS_DOMAINS: DOMAIN, OWNER_WALLETS: W.address, AUTH_USER_CREATE: "direct" });
+    // The v1 transition window is pinned here: the shipped default ends at 2026-11-05T12:00Z, and this
+    // suite must not start failing on the wall clock. Retirement itself is covered by
+    // auth_legacy_statement.test.ts (AUTH_SIWS_LEGACY_STATEMENT=false).
+    h = await startHarness({
+      AUTH_SIWS_DOMAINS: DOMAIN,
+      OWNER_WALLETS: W.address,
+      AUTH_USER_CREATE: "direct",
+      AUTH_SIWS_LEGACY_STATEMENT_UNTIL: "2099-01-01T00:00:00Z",
+    });
   });
   after(async () => h.stop());
   const nonce = (extra: Record<string, unknown> = {}) =>
@@ -58,7 +66,7 @@ describe("SIWS hardening", () => {
     assert.ok(String(n.body.data.message).includes("\n\nSign in to Centurion Trade\n"), n.body.data.message);
     assert.equal((await nonce({ statement_version: 3 })).status, 422);
     assert.equal((await nonce({ statement_version: "1" })).status, 422);
-    // legacy v1 is still accepted during the transition window (default until 2026-11-05T12:00:00Z)
+    // legacy v1 is still accepted during the transition window (pinned to 2099 by this harness)
     const legacy = await nonce({ statement_version: 1 });
     assert.equal(legacy.status, 200);
     assert.ok(String(legacy.body.data.message).includes("Sign in to Centurion (practice)."));
