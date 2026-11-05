@@ -1531,12 +1531,21 @@ pub struct ClosedPositionRow {
     pub mint: String,
     #[serde(default)]
     pub logo_hash: Option<String>,
+    /// Owning bot; resolved to its name by the UI (the wire only carries the id).
+    #[serde(default)]
+    pub strategy_id: Option<String>,
     #[serde(default)]
     pub exit_reason: Option<ExitReason>,
     #[serde(default)]
+    pub opened_at: Option<IsoTs>,
+    #[serde(default)]
     pub closed_at: Option<IsoTs>,
+    /// SOL spent to open the position (never reduced by partial sells).
+    #[serde(default)]
+    pub sol_in_lamports: Option<Lamports>,
     #[serde(default)]
     pub sol_out_lamports: Option<Lamports>,
+    /// Reported context only; the swap fee is already inside sol_in/sol_out.
     #[serde(default)]
     pub fees_lamports: Option<Lamports>,
     #[serde(default)]

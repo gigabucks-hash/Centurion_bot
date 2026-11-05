@@ -295,6 +295,8 @@ struct Pos {
     /// SOL actually spent to open the position (never reduced by partial sells) — the denominator
     /// of `pnl_pct`, matching the backend's `sol_in_lamports`.
     sol_in: i128,
+    /// Swap + network fees reported so far ("Fees (reported)"; already inside cost/sol_out).
+    fees: i128,
     peak: Decimal,
     opened_ms: i64,
     untrusted: Untrusted,
@@ -1276,6 +1278,7 @@ impl Server {
                 qty_raw,
                 cost: BUY_LAMPORTS,
                 sol_in: BUY_LAMPORTS,
+                fees: swap_fee + NETWORK_FEE,
                 peak: mark,
                 opened_ms: opened,
                 untrusted: untrusted.clone(),
@@ -1373,14 +1376,17 @@ impl Server {
                 None
             };
             let epoch = self.epoch;
+            let fees_total = p.fees + swap_fee + NETWORK_FEE;
             self.emit("position.closed", actor, key, Some(&sid), Some(&ck), Some(&mint), json!({
                 "position_key": key, "position_id": pos_id, "rev": p.rev + 1, "practice_epoch": epoch, "exit_reason": rule, "exit_price_sol": Dec(exec), "sol_out_lamports": out.to_string(),
+                "sol_in_lamports": p.sol_in.to_string(), "fees_lamports": fees_total.to_string(), "opened_at": IsoTs::from_ms(p.opened_ms),
                 "pnl_lamports": pnl_total.to_string(), "pnl_pct": pnl_pct, "hold_seconds": (now - p.opened_ms) / 1000}), u);
         } else {
             let p = self.positions.get_mut(key).unwrap();
             p.qty_raw -= sell_raw;
             p.cost -= cost_part;
             p.realized += pnl;
+            p.fees += swap_fee + NETWORK_FEE;
             p.rev += 1;
             let (qty, peak, realized, rev, cost, dec_) =
                 (p.qty_raw, p.peak, p.realized, p.rev, p.cost, p.decimals);
@@ -2241,6 +2247,7 @@ impl Transport for MockTransport {
         let value: i128 = s.positions.values().map(|p| s.value_of(p)).sum();
         let unrealized = value - cost;
         let mut realized_window = 0i128;
+        let mut fees_window = 0i128;
         let (mut count, mut wins) = (0i64, 0i64);
         let mut sum_hold = 0i64;
         let (mut best, mut worst): (Option<i128>, Option<i128>) = (None, None);
@@ -2252,6 +2259,10 @@ impl Transport for MockTransport {
                 continue;
             };
             realized_window += c.pnl_lamports.0;
+            fees_window += e.payload["fees_lamports"]
+                .as_str()
+                .and_then(|x| x.parse::<i128>().ok())
+                .unwrap_or(0);
             count += 1;
             wins += i64::from(c.pnl_lamports.0 > 0);
             sum_hold += c.hold_seconds;
@@ -2274,7 +2285,7 @@ impl Transport for MockTransport {
             win_count: wins,
             win_rate_pct: (count > 0).then(|| r2(wins as f64 * 100.0 / count as f64)),
             avg_hold_s: (count > 0).then(|| r2(sum_hold as f64 / count as f64)),
-            fees_lamports: Lamports(0),
+            fees_lamports: Lamports(fees_window),
             best_pnl_lamports: best.map(Lamports),
             worst_pnl_lamports: worst.map(Lamports),
             as_of_seq: Some(s.seq.to_string()),
@@ -2291,6 +2302,12 @@ impl Transport for MockTransport {
             .filter(|e| e.kind == "position.closed" && in_window(now, window, &e.ts))
             .filter_map(|e| {
                 let c = serde_json::from_value::<PositionClosed>(e.payload.clone()).ok()?;
+                let num = |k: &str| {
+                    e.payload[k]
+                        .as_str()
+                        .and_then(|x| x.parse::<i128>().ok())
+                        .map(Lamports)
+                };
                 Some(ClosedPositionRow {
                     id: e.payload["position_id"]
                         .as_str()
@@ -2299,10 +2316,13 @@ impl Transport for MockTransport {
                     position_key: c.position_key,
                     mint: e.mint.clone().unwrap_or_default(),
                     logo_hash: e.logo_hash.clone(),
+                    strategy_id: e.strategy_id.clone(),
                     exit_reason: Some(c.exit_reason),
+                    opened_at: e.payload["opened_at"].as_str().map(|s| IsoTs(s.to_owned())),
                     closed_at: Some(e.ts.clone()),
+                    sol_in_lamports: num("sol_in_lamports"),
                     sol_out_lamports: Some(c.sol_out_lamports),
-                    fees_lamports: None,
+                    fees_lamports: num("fees_lamports"),
                     pnl_lamports: Some(c.pnl_lamports),
                     pnl_pct: c.pnl_pct,
                     hold_seconds: Some(c.hold_seconds),
@@ -2828,6 +2848,7 @@ mod tests {
             qty_raw: 1,
             cost: 1,
             sol_in: 1,
+            fees: 0,
             peak: refp,
             opened_ms: opened,
             untrusted: Untrusted::default(),

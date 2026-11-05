@@ -34,6 +34,54 @@ const ms = (iso: string | null | undefined) => {
   return Number.isFinite(t) ? t : null;
 };
 
+/** WIB = UTC+7 all year (no DST), so a fixed offset is exact and device-independent. */
+const WIB_TZ = "Asia/Jakarta";
+const WIB_OFFSET_MS = 7 * 3_600_000;
+
+const wibFormats = new Map<string, Intl.DateTimeFormat>();
+function wibFormat(locale: string, opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(opts)}`;
+  let f = wibFormats.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat(locale, { timeZone: WIB_TZ, ...opts });
+    wibFormats.set(key, f);
+  }
+  return f;
+}
+
+type WibStamp = { ms: number; day: string; clock: string };
+
+function wibStamp(iso: string | null | undefined, locale: string): WibStamp | null {
+  const t = ms(iso);
+  if (t == null) return null;
+  const d = new Date(t + WIB_OFFSET_MS);
+  return {
+    ms: t,
+    // UTC getters on the shifted instant give the WIB calendar day, whatever the device zone is.
+    day: `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`,
+    clock: wibFormat(locale, { hour: "numeric", minute: "2-digit" }).format(t),
+  };
+}
+
+/**
+ * Compact entry → exit for the closed ledger, both times in WIB (GMT+7). The exit date is shown
+ * only when the exit falls on a different WIB day (the UX rule); a missing side prints an em dash.
+ */
+export function entryExitText(
+  entry: string | null | undefined,
+  exit: string | null | undefined,
+  locale: string,
+): string {
+  const a = wibStamp(entry, locale);
+  const b = wibStamp(exit, locale);
+  if (!a || !b) return "—";
+  if (a.day === b.day) return `${a.clock} → ${b.clock}`;
+  const crossYear = a.day.slice(0, 4) !== b.day.slice(0, 4);
+  const date = wibFormat(locale, { month: "short", day: "numeric", ...(crossYear ? { year: "numeric" } : {}) });
+  // A middle dot keeps the date and clock apart in both locales (en-US drops the comma without a year).
+  return `${a.clock} → ${date.format(b.ms)} · ${b.clock}`;
+}
+
 /** Newest close first (server order) unless a column is chosen; null values always sort last. */
 export function sortClosed(rows: readonly ClosedTradeView[], key: PnlSortKey, dir: SortDir): ClosedTradeView[] {
   const sign = dir === "asc" ? 1 : -1;

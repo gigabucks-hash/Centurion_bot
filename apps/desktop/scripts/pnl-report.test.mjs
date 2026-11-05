@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { LOCAL_TEMPLATES } from "../src/i18n/local.ts";
-import { PNL_RANGES, pnlReconciles, pnlTotal, sortClosed } from "../src/components/pnlReportView.ts";
+import { PNL_RANGES, entryExitText, pnlReconciles, pnlTotal, sortClosed } from "../src/components/pnlReportView.ts";
 
 const src = readFileSync(new URL("../src/components/PnlReportDialog.tsx", import.meta.url), "utf8");
 const args = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join();
@@ -86,6 +86,29 @@ test("summary is authoritative: no client re-sum of the ledger for realized", ()
   assert.match(src, /pnl\.report\.reconcile_note/);
 });
 
+test("closed ledger carries In/Out/Fees/Bot and a compact WIB entry→exit", () => {
+  for (const k of ["pnl.report.sol_in", "pnl.report.sol_out", "pnl.report.fees_reported", "pnl.report.bot", "pnl.report.entry_exit"]) {
+    assert.match(src, new RegExp(`t\\("${k}"\\)`), k);
+  }
+  assert.match(src, /r\.sol_in_lamports == null \? "—" : solText/);
+  assert.match(src, /r\.sol_out_lamports == null \? "—" : solText/);
+  assert.match(src, /r\.fees_lamports == null \? "—" : solText/);
+  assert.match(src, /entryExitText\(r\.opened_at, r\.closed_at, LOCALES\[lang\]\)/);
+  assert.match(src, /bots\.get\(id\)/, "bot id resolves to the strategy name");
+  assert.match(src, /data-entry-exit/);
+});
+
+test("entry→exit is WIB and only adds the exit date across midnight", () => {
+  // 02:00Z/03:30Z = 09:00/10:30 WIB (same day).
+  assert.equal(entryExitText("2026-11-05T02:00:00.000Z", "2026-11-05T03:30:00.000Z", "en-US"), "9:00 AM → 10:30 AM");
+  // 16:52Z = 23:52 WIB Nov 5 → 17:12Z = 00:12 WIB Nov 6 (crosses midnight in WIB, not in UTC).
+  assert.equal(entryExitText("2026-11-05T16:52:00.000Z", "2026-11-05T17:12:00.000Z", "en-US"), "11:52 PM → Nov 6 · 12:12 AM");
+  // Year rollover keeps the year on the exit date.
+  assert.equal(entryExitText("2026-12-31T15:00:00.000Z", "2026-12-31T17:30:00.000Z", "en-US"), "10:00 PM → Jan 1, 2027 · 12:30 AM");
+  assert.equal(entryExitText(null, "2026-11-05T17:12:00.000Z", "en-US"), "—");
+  assert.equal(entryExitText("2026-11-05T16:52:00.000Z", null, "en-US"), "—");
+});
+
 test("new report copy exists in EN and ID with matching placeholders", () => {
   const keys = [
     "pnl.report.open_hint",
@@ -95,6 +118,11 @@ test("new report copy exists in EN and ID with matching placeholders", () => {
     "pnl.report.open_count",
     "pnl.report.fees_reported",
     "pnl.report.fees_hint",
+    "pnl.report.sol_in",
+    "pnl.report.sol_out",
+    "pnl.report.bot",
+    "pnl.report.entry_exit",
+    "pnl.report.ledger_hint",
     "pnl.report.reconcile",
     "pnl.report.reconcile_note",
     "pnl.report.reconcile_bad",

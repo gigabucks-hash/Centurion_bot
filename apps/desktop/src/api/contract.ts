@@ -308,9 +308,16 @@ export interface ClosedTradeView {
   position_key: string;
   mint: string;
   logo_hash: string | null;
+  /** Owning bot id; the UI resolves the display name from the strategy list. */
+  strategy_id: Uuid | null;
   exit_reason: ExitReason | null;
+  opened_at: IsoTs | null;
   closed_at: IsoTs | null;
+  /** SOL spent to open (receipt "In"), exact string; never re-derived from the cost basis. */
+  sol_in_lamports: Lamports | null;
   sol_out_lamports: Lamports | null;
+  /** Reported context only; never subtracted again (swap fees are already in SOL in/out). */
+  fees_lamports: Lamports | null;
   pnl_lamports: Lamports | null;
   pnl_pct: number | null;
   hold_seconds: number | null;

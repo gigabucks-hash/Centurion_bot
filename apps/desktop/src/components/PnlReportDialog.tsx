@@ -7,7 +7,7 @@ import { useTerm } from "../state/store";
 import { CoinAvatar } from "./CoinAvatar";
 import { Icon } from "./Icon";
 import { shortMint } from "./format";
-import { PNL_RANGES, pnlReconciles, pnlTotal, sortClosed, type PnlSortKey, type SortDir } from "./pnlReportView";
+import { PNL_RANGES, entryExitText, pnlReconciles, pnlTotal, sortClosed, type PnlSortKey, type SortDir } from "./pnlReportView";
 
 /** Realized PnL is locked at close; unrealized still follows the mark. Server numbers only. */
 function holdText(seconds: number | null, t: ReturnType<typeof useT>) {
@@ -68,6 +68,11 @@ export function PnlReportDialog({ onClose }: { onClose: () => void }) {
     for (const a of st.activity) if (a.mint && a.symbol) m.set(a.mint, a.symbol);
     return m;
   }, [st.screened, st.signals, st.positions, st.activity]);
+
+  // Closed rows carry the bot id only; the name comes from the strategy list already in the store.
+  const bots = useMemo(() => new Map(st.strategies.map((s) => [s.id, s.name] as const)), [st.strategies]);
+  const botText = (id: string | null) =>
+    id == null ? "—" : bots.get(id) ?? (id.length > 12 ? `${id.slice(0, 8)}…` : id);
 
   const rows = useMemo(() => sortClosed(data?.closed ?? [], sort.key, sort.dir), [data, sort]);
   const pctText = (pct: number | null) => {
@@ -207,7 +212,7 @@ export function PnlReportDialog({ onClose }: { onClose: () => void }) {
               <p className="dim">{t("pnl.report.no_exits")}</p>
             )}
 
-            <h4>{t("pnl.report.closed_trades")} <span className="dim num">{sum.closed_count}{data.closed.length < sum.closed_count ? "+" : ""}</span></h4>
+            <h4>{t("pnl.report.closed_trades")} <span className="dim num">{sum.closed_count}{data.closed.length < sum.closed_count ? "+" : ""}</span> <span className="dim pnl-ledger-hint">{t("pnl.report.ledger_hint")}</span></h4>
             {rows.length ? (
               <div className="pnl-ledger" data-testid="pnl-ledger">
                 <table className="pnl-table pnl-closed">
@@ -216,8 +221,12 @@ export function PnlReportDialog({ onClose }: { onClose: () => void }) {
                       <th>{t("pnl.report.coin")}</th>
                       {th("pnl", t("pnl.report.realized_short"))}
                       {th("pct", "%")}
+                      <th className="num">{t("pnl.report.sol_in")}</th>
+                      <th className="num">{t("pnl.report.sol_out")}</th>
+                      <th className="num" title={t("pnl.report.fees_hint")}>{t("pnl.report.fees_reported")}</th>
+                      <th>{t("pnl.report.bot")}</th>
                       <th>{t("pnl.report.exit_reason")}</th>
-                      {th("closed", t("pnl.report.closed_at"))}
+                      {th("closed", t("pnl.report.entry_exit"))}
                       {th("hold", t("pnl.report.hold"))}
                     </tr>
                   </thead>
@@ -231,8 +240,12 @@ export function PnlReportDialog({ onClose }: { onClose: () => void }) {
                           <td><span className="coin-sym" title={r.mint}><CoinAvatar mint={r.mint} symbol={sym} logoHash={r.logo_hash} size={20} /><b>${sym}</b></span></td>
                           <td className={`num ${p ? TONE_CLASS[p.tone] : "muted"}`}>{p ? pnlText(p) : "—"}</td>
                           <td className={`num ${pct ? TONE_CLASS[pct.tone] : "muted"}`}>{pct ? pnlText(pct) : "—"}</td>
+                          <td className="num">{r.sol_in_lamports == null ? "—" : solText(r.sol_in_lamports, lang, paper)}</td>
+                          <td className="num">{r.sol_out_lamports == null ? "—" : solText(r.sol_out_lamports, lang, paper)}</td>
+                          <td className="num" title={t("pnl.report.fees_hint")}>{r.fees_lamports == null ? "—" : solText(r.fees_lamports, lang, paper)}</td>
+                          <td className="col-bot" title={r.strategy_id ?? undefined}><span className="bot-name">{botText(r.strategy_id)}</span></td>
                           <td>{r.exit_reason ? reason(r.exit_reason) : "—"}</td>
-                          <td className="num muted">{r.closed_at ? localTime(r.closed_at, lang) : "—"}</td>
+                          <td className="num muted" title={r.closed_at ? localTime(r.closed_at, lang) : undefined} data-entry-exit>{entryExitText(r.opened_at, r.closed_at, LOCALES[lang])}</td>
                           <td className="num muted">{holdText(r.hold_seconds, t)}</td>
                         </tr>
                       );

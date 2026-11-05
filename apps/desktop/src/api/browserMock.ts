@@ -354,14 +354,21 @@ export const browserMockAdapter: CoreApi = {
       const pnl = BigInt(q.est_sol_out_lamports) - BigInt(pos.cost_lamports);
       realized += pnl;
       const pct = BigInt(pos.cost_lamports) > 0n ? Number((pnl * 10_000n) / BigInt(pos.cost_lamports)) / 100 : null;
+      // The quote's 98.75 % payout is the only fee this mock models; report it as context only.
+      const gross = (BigInt(pos.value_lamports) * BigInt(q.pct)) / 100n;
+      const fees = gross > BigInt(q.est_sol_out_lamports) ? gross - BigInt(q.est_sol_out_lamports) : 0n;
       closedTrades.unshift({
         id: pos.position_id ?? `${pos.key}:${Date.now()}`,
         position_key: pos.key,
         mint: pos.mint,
         logo_hash: pos.logo_hash ?? null,
+        strategy_id: pos.strategy_id ?? null,
         exit_reason: "manual" as ExitReason,
+        opened_at: new Date(pos.opened_at_ms).toISOString(),
         closed_at: new Date().toISOString(),
+        sol_in_lamports: pos.cost_lamports,
         sol_out_lamports: q.est_sol_out_lamports,
+        fees_lamports: fees.toString(),
         pnl_lamports: pnl.toString(),
         pnl_pct: pct,
         hold_seconds: Math.max(0, Math.round((Date.now() - pos.opened_at_ms) / 1000)),
@@ -456,6 +463,7 @@ export const browserMockAdapter: CoreApi = {
     let windowPnl = 0n;
     let wins = 0;
     let sumHold = 0;
+    let fees = 0n;
     let best: bigint | null = null, worst: bigint | null = null;
     const groups = new Map<ExitReason, { count: number; pnl: bigint; pct: number; wins: number; hold: number }>();
     for (const t of statsRows) {
@@ -463,6 +471,7 @@ export const browserMockAdapter: CoreApi = {
       windowPnl += pnl;
       if (pnl > 0n) wins += 1;
       sumHold += t.hold_seconds;
+      fees += BigInt(t.fees_lamports ?? "0");
       best = best == null || pnl > best ? pnl : best;
       worst = worst == null || pnl < worst ? pnl : worst;
       const g = groups.get(t.exit_reason) ?? { count: 0, pnl: 0n, pct: 0, wins: 0, hold: 0 };
@@ -500,7 +509,7 @@ export const browserMockAdapter: CoreApi = {
         win_count: wins,
         win_rate_pct: count ? r2((wins * 100) / count) : null,
         avg_hold_s: count ? r2(sumHold / count) : null,
-        fees_lamports: "0",
+        fees_lamports: fees.toString(),
         best_pnl_lamports: best?.toString() ?? null,
         worst_pnl_lamports: worst?.toString() ?? null,
       },

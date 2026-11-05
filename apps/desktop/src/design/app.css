@@ -326,7 +326,7 @@ table.positions tr.cursor td:last-child { background: var(--color-brand-primaryC
 }
 
 /* PnL report window: summary strip, per-exit table and the closed ledger (realized is locked at close). */
-.pnl-modal { width: min(760px, 92vw); max-height: 86vh; display: flex; flex-direction: column; padding: 0; }
+.pnl-modal { width: min(1120px, 96vw); max-height: 86vh; display: flex; flex-direction: column; padding: 0; }
 .pnl-modal .pnl-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border-subtle); }
 .pnl-modal .pnl-head h3 { margin: 0; display: flex; align-items: center; gap: var(--space-2); }
 .pnl-modal .icon-btn { width: auto; min-height: 24px; padding: 0 var(--space-1); }
@@ -352,6 +352,9 @@ table.positions tr.cursor td:last-child { background: var(--color-brand-primaryC
 .pnl-modal .pnl-table td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--color-border-subtle); white-space: nowrap; }
 .pnl-modal .pnl-ledger { max-height: 260px; overflow: auto; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); }
 .pnl-modal .pnl-ledger .pnl-table th { position: sticky; top: 0; background: var(--color-bg-overlay); z-index: 1; }
+.pnl-modal .pnl-closed .col-bot { max-width: 16ch; }
+.pnl-modal .pnl-closed .col-bot .bot-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pnl-modal .pnl-ledger-hint { font-weight: 400; }
 .pnl-modal .pnl-empty { display: flex; flex-direction: column; gap: 2px; padding: var(--space-4); border: 1px dashed var(--color-border-default); border-radius: var(--radius-sm); text-align: center; }
 .pnl-modal .pnl-note { margin: var(--space-2) 0 0; font-size: var(--text-caption); }
 @media (max-width: 760px) {

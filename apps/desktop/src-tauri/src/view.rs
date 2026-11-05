@@ -307,10 +307,17 @@ pub struct ClosedTradeView {
     pub position_key: String,
     pub mint: String,
     pub logo_hash: Option<String>,
+    /// Owning bot id; the UI resolves the display name from the strategy list.
+    pub strategy_id: Option<String>,
     /// Trusted exit reason; null on a legacy closed row without one (UI shows "—").
     pub exit_reason: Option<crate::model::ExitReason>,
+    pub opened_at: Option<IsoTs>,
     pub closed_at: Option<IsoTs>,
+    /// SOL spent to open (receipt "In"); never re-derived from the cost basis.
+    pub sol_in_lamports: Option<Lamports>,
     pub sol_out_lamports: Option<Lamports>,
+    /// Reported context only; never subtracted again (swap fees are already netted).
+    pub fees_lamports: Option<Lamports>,
     /// Frozen at close; null only on a legacy row (never recomputed here).
     pub pnl_lamports: Option<Lamports>,
     pub pnl_pct: Option<Num>,
