@@ -66,3 +66,20 @@ are reported, never subtracted twice. Tests: `api/test/pnl.test.ts`.
 - web: eslint 0 errors, `tsc --noEmit`, `npm test`, `npm run build`
 - desktop: `npm run build`, `npm run test:ui`; Rust compiles in CI (local cargo is blocked by
   Application Control 4551)
+
+## Known gaps (v1.1)
+
+Deliberate, tracked scope that v1 ships without:
+
+- **Full receipt per closed trade on desktop and mobile.** Web's ledger already carries in, out,
+  reported fees, entry→exit and bot; desktop and mobile rows show realised PnL, %, hold, exit reason
+  and close time, and link to the position detail. SOL in/out and reported fees per row are next.
+- **Bot filter on mobile and desktop.** The strip's unrealised/realised/total are a workspace+mode
+  snapshot and do not narrow by `strategy_id`, so a bot filter would mix two scopes in one strip.
+  Web exposes it and states the scope; mobile and desktop show workspace numbers only.
+- **Mobile string extraction.** The 23 report strings live in `pnl_strings.dart` until an
+  `@sentra/i18n` round publishes them to ARB and the vendored copies and pin are updated.
+- **Web visual check.** `/pnl` is covered by typecheck, tests and the build, but no light/dark
+  screenshot pass has been recorded yet.
+- **REST adapter mapping on mobile.** The repository override outside `lib/` still has to map
+  `pnl_lamports`, `pnl_pct`, `hold_seconds`, `logo_hash` and `logo_url` onto `Position`.
