@@ -65,8 +65,19 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
     const c = coin.get(r.mint);
     return { ...r, symbol: r.symbol ?? c?.symbol ?? shortMint(r.mint), logoHash: r.logoHash ?? c?.logoHash ?? null };
   });
+  /** Entry → exit in WIB; the exit day is shown only when the position crossed midnight (dense ledger). */
+  const when = (r: ClosedTrade) =>
+    f.sameDay(r.openedAt, r.closedAt)
+      ? `${f.dateTimeShort(r.openedAt)} → ${f.time(r.closedAt)}`
+      : `${f.dateTimeShort(r.openedAt)} → ${f.dateTimeShort(r.closedAt)}`;
+  const exitsLink = (
+    <Link href={mode === "real" ? "/stats?mode=real" : "/stats"} className="inline-flex h-9 items-center rounded-md border border-border-default px-3 text-label text-text-secondary hover:bg-bg-raised">
+      {t("pnl.exitsLink")}
+    </Link>
+  );
 
   const rangeLabel = t(WINDOW_KEY[window]);
+  const unit = t(mode === "practice" ? "overview.paperSol" : "overview.realSol");
   // 0022 scope: the card's realized/unrealized/total are workspace+mode totals. With a bot filter the
   // numbers below the filter come from that bot only, so say so instead of showing two "all-time" values.
   const botName = strategyId ? (name.get(strategyId) ?? shortMint(strategyId)) : null;
@@ -82,18 +93,12 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
       <PageHeader
         title={t("pnl.title")}
         subtitle={t("pnl.subtitle")}
-        actions={
-          <>
-            <Link href={mode === "real" ? "/stats?mode=real" : "/stats"} className="inline-flex h-9 items-center rounded-md border border-border-default px-3 text-label text-text-secondary hover:bg-bg-raised">
-              {t("pnl.exitsLink")}
-            </Link>
-            <PortfolioModeTabs mode={mode} modes={modes} href={(m) => (m === "practice" ? "/pnl" : "/pnl?mode=real")} t={t} />
-          </>
-        }
+        actions={<PortfolioModeTabs mode={mode} modes={modes} href={(m) => (m === "practice" ? "/pnl" : "/pnl?mode=real")} t={t} />}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <PnlFilters strategies={strategies.map((s) => ({ id: s.id, name: s.name }))} />
+        {exitsLink}
       </div>
 
       <PnlReport report={allTime} mode={mode} t={t} f={f} href={null} layout="strip" heading={botName ? t("pnl.allBotsHeading") : t("pnl.allTime")} />
@@ -139,12 +144,21 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
       <Card
         className="mt-4"
         title={t("pnl.ledger")}
-        action={<span className="text-caption text-text-tertiary">{t("pnl.latest", { n: rows.length })}</span>}
+        action={
+          <span className="text-caption text-text-tertiary">
+            {cursor ? t("pnl.pageCount", { n: rows.length }) : t("pnl.latest", { n: rows.length })}
+          </span>
+        }
       >
+        <p className="mb-2 text-caption text-text-tertiary">
+          {t("pnl.ledgerNote", { unit })}
+          <span className="hidden sm:inline xl:hidden"> · {t("pnl.scrollHint")}</span>
+        </p>
         <Table<ClosedTrade>
           rows={rows}
           rowKey={(r) => r.id}
-          minWidth={1120}
+          minWidth={900}
+          dense
           mobile="cards"
           labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
           empty={
@@ -164,14 +178,13 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
                 </Link>
               ),
             },
-            { key: "closed", header: t("pnl.colClosedAt"), nowrap: true, cell: (r) => <span className="text-text-secondary">{f.dateTime(r.closedAt)}</span> },
-            { key: "strategy", header: t("pnl.colStrategy"), cell: (r) => (r.strategyId ? name.get(r.strategyId) ?? "—" : "—") },
-            { key: "in", header: t("pnl.colIn", { unit: t(mode === "practice" ? "overview.paperSol" : "overview.realSol") }), numeric: true, cell: (r) => f.sol(r.solInSol, { unit: false }) },
-            { key: "out", header: t("pnl.colOut", { unit: t(mode === "practice" ? "overview.paperSol" : "overview.realSol") }), numeric: true, cell: (r) => f.sol(r.solOutSol, { unit: false }) },
-            { key: "pnl", header: t("pnl.colRealized"), numeric: true, cell: (r) => <Pnl sol={r.pnlSol} mode={mode} unit /> },
+            { key: "strategy", header: t("pnl.colStrategy"), cell: (r) => <div className="max-w-[8.5rem]">{r.strategyId ? name.get(r.strategyId) ?? "—" : "—"}</div> },
+            { key: "in", header: t("pnl.colIn"), numeric: true, cell: (r) => f.sol(r.solInSol, { unit: false }) },
+            { key: "out", header: t("pnl.colOut"), numeric: true, cell: (r) => f.sol(r.solOutSol, { unit: false }) },
+            { key: "pnl", header: t("pnl.colRealized"), numeric: true, cell: (r) => <Pnl sol={r.pnlSol} mode={mode} /> },
             { key: "pct", header: t("pnl.colPct"), numeric: true, cell: (r) => (r.pnlPct != null ? <Pnl pct={r.pnlPct} mode={mode} /> : "—") },
-            { key: "fees", header: t("pnl.colFees"), numeric: true, cell: (r) => (r.feesSol != null ? f.sol(r.feesSol, { unit: false }) : "—") },
-            { key: "window", header: t("pnl.colWindow"), nowrap: true, cell: (r) => <span className="text-text-secondary">{f.dateTime(r.openedAt)} → {f.dateTime(r.closedAt)}</span> },
+            { key: "fees", header: t("pnl.colFees"), numeric: true, headerWrap: true, cell: (r) => (r.feesSol != null ? f.sol(r.feesSol, { unit: false }) : "—") },
+            { key: "window", header: t("pnl.colWindow"), nowrap: true, cell: (r) => <span className="text-text-secondary">{when(r)}</span> },
             { key: "hold", header: t("pnl.colHold"), numeric: true, cell: (r) => (r.holdSeconds != null ? f.duration(r.holdSeconds) : "—") },
             { key: "exit", header: t("pnl.colExit"), nowrap: true, cell: (r) => (r.exitReason ? t(`exitReason.${r.exitReason}`) : "—") },
           ]}

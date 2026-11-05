@@ -11,6 +11,8 @@ import type { TradingMode } from "./types.ts";
 
 export const TZ = "Asia/Jakarta";
 const NBSP = "\u00A0";
+/** ISO-like calendar key in WIB, used only to compare two instants (never displayed). */
+const dayKey = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: TZ });
 
 export type Fmt = ReturnType<typeof build>;
 
@@ -54,6 +56,10 @@ function build(locale: Locale, mode: TradingMode) {
     time: (ts: number) => formatTime(ts, loc, TZ),
     /** Date + time with zone ("Oct 29, 3:04 PM GMT+7"). */
     dateTime: (ts: number) => formatDateTime(ts, loc, TZ),
+    /** Date + time without the zone ("Oct 29 · 3:04 PM"); ledgers note the zone once. */
+    dateTimeShort: (ts: number) => `${f.day(ts)} · ${f.time(ts)}`,
+    /** Same WIB calendar day (ledger shows the exit day only when it differs from entry). */
+    sameDay: (a: number, b: number) => dayKey.format(a) === dayKey.format(b),
     /** Day + month only ("Oct 29" / "29 Okt"). */
     day: (ts: number) => new Intl.DateTimeFormat(tag, { day: "numeric", month: "short", timeZone: TZ }).format(ts),
     /** Compact duration, never wraps (NBSP). */

@@ -11,6 +11,8 @@ export interface Column<T> {
   numeric?: boolean;
   /** Never wrap (chips, durations). Numeric columns are always nowrap. */
   nowrap?: boolean;
+  /** Let this column's header wrap onto two lines (keeps a long label without widening a dense table). */
+  headerWrap?: boolean;
   /** Mobile card list (MOBILE_TABLES.md): "primary" = right of row 1, "status" = row 2, default = inside expand. */
   mobile?: "primary" | "status";
   className?: string;
@@ -22,7 +24,7 @@ export interface Column<T> {
  *   secondary columns in a tap-to-expand accordion (<details name> = one open at a time, 48 px targets).
  * - mobile="sticky" (B): first column sticky with a shadow, horizontal scroll + one-line hint (compare rows).
  */
-export function Table<T>({ columns, rows, rowKey, empty, minWidth = 560, mobile = "sticky", labels }: {
+export function Table<T>({ columns, rows, rowKey, empty, minWidth = 560, mobile = "sticky", labels, dense = false }: {
   columns: Column<T>[];
   rows: T[];
   rowKey: (row: T) => string;
@@ -31,6 +33,8 @@ export function Table<T>({ columns, rows, rowKey, empty, minWidth = 560, mobile 
   mobile?: "cards" | "sticky";
   /** Localized "Show details" / "Scroll for more columns" (table.mobile.*). */
   labels?: { expand: string; scrollHint: string };
+  /** Tighter horizontal padding for wide ledgers that must fit a desktop viewport. */
+  dense?: boolean;
 }) {
   if (rows.length === 0 && empty) return <>{empty}</>;
   const align = (c: Column<T>) => (c.numeric || c.align === "right" ? "text-right" : c.align === "center" ? "text-center" : "text-left");
@@ -78,7 +82,7 @@ export function Table<T>({ columns, rows, rowKey, empty, minWidth = 560, mobile 
             <thead className="sticky top-0 bg-bg-surface">
               <tr className="border-b border-border-subtle text-label text-text-tertiary">
                 {columns.map((c, i) => (
-                  <th key={c.key} scope="col" className={cn("px-4 py-2 font-medium", align(c), (c.numeric || c.nowrap) && "whitespace-nowrap", i === 0 && "sticky left-0 z-10 bg-bg-surface shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:static sm:shadow-none", c.className)}>
+                  <th key={c.key} scope="col" className={cn(dense ? "px-3" : "px-4", "py-2 font-medium", align(c), c.headerWrap ? "whitespace-normal" : (c.numeric || c.nowrap) && "whitespace-nowrap", i === 0 && "sticky left-0 z-10 bg-bg-surface shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:static sm:shadow-none", c.className)}>
                     {c.header}
                   </th>
                 ))}
@@ -91,7 +95,8 @@ export function Table<T>({ columns, rows, rowKey, empty, minWidth = 560, mobile 
                     <td
                       key={c.key}
                       className={cn(
-                        "px-4 py-3",
+                        dense ? "px-3" : "px-4",
+                        "py-3",
                         align(c),
                         c.numeric && "num text-numSm tabular-nums",
                         (c.numeric || c.nowrap) && "whitespace-nowrap",
