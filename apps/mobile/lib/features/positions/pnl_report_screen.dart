@@ -40,6 +40,24 @@ class _PnlReportScreenState extends ConsumerState<PnlReportScreen> {
   DateTime? _to;
   bool _ledgerReady = false;
   bool _syncScheduled = false;
+  bool _queryRead = false;
+
+  /// `/pnl?window=24h|7d|30d|all` (web parity; `range=` and `1d` accepted).
+  /// Read once, before the first build, so the first request is already right.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_queryRead) return;
+    _queryRead = true;
+    final q = GoRouterState.of(context).uri.queryParameters;
+    _window = switch (q['window'] ?? q['range']) {
+      '24h' || '1d' => PnlWindow.d1,
+      '7d' => PnlWindow.d7,
+      '30d' => PnlWindow.d30,
+      'all' => PnlWindow.all,
+      _ => _window,
+    };
+  }
 
   late final PagedListController<Position> _closedPages = PagedListController(
     ({cursor, limit = defaultPageLimit}) => ref

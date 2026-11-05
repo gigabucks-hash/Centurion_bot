@@ -163,6 +163,21 @@ void main() {
     expect(_text(tester, const Key('pnlReportClosed')).data, '2');
   });
 
+  testWidgets('PnL report: /pnl?window=30d opens on 30D and pages that range', (tester) async {
+    await _phone(tester);
+    final b = MockBackend();
+    addTearDown(b.dispose);
+    b.debugAddPosition(_oldClosed(b));
+    expect(b.pnlSummaryRow(window: PnlWindow.d30)['closed_count'], 2);
+
+    await tester.pumpWidget(_app(b, location: '/pnl?window=30d'));
+    await _settle(tester);
+    await _settle(tester);
+
+    expect(tester.widget<ChoiceChip>(find.byKey(const Key('pnlWindow_d30'))).selected, isTrue);
+    expect(_text(tester, const Key('pnlReportClosed')).data, '2');
+  });
+
   testWidgets('PnL report: zero closes keep realized neutral and stats em-dash (never 0%)', (tester) async {
     await _phone(tester);
     final b = MockBackend();
