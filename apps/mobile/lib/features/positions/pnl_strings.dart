@@ -9,6 +9,8 @@
 /// pnl.win_rate, pnl.avg_hold, pnl.stats_unavailable, pnl.partial_note.
 library;
 
+import '../../data/models/models.dart';
+
 class PnlStrings {
   const PnlStrings._(this._id);
   factory PnlStrings.of(String languageCode) => PnlStrings._(languageCode == 'id');
@@ -26,6 +28,21 @@ class PnlStrings {
   String openCount(int n) => _id ? '$n terbuka' : '$n open';
   String get reportTitle => _id ? 'Laporan PnL' : 'PnL report';
   String get reportEyebrow => _id ? 'PNL REPORT' : 'PNL REPORT';
+
+  /// 1D/7D/30D/All chips (the server window is `24h|7d|30d|all`).
+  String windowLabel(PnlWindow w) => switch (w) {
+    PnlWindow.d1 => '1D',
+    PnlWindow.d7 => '7D',
+    PnlWindow.d30 => '30D',
+    PnlWindow.all => _id ? 'Semua' : 'All',
+  };
+
+  String realizedFor(String range) => _id ? 'Terealisasi · $range' : 'Realized · $range';
+  String get closedLabel => _id ? 'Ditutup' : 'Closed';
+  String get totalAllTime => _id ? 'Total semua waktu' : 'Total all-time';
+  String get realizedAllTime => _id ? 'Terealisasi semua waktu' : 'All-time realized';
+  String get reportUnavailable => _id ? 'Laporan PnL belum bisa dimuat.' : 'The PnL report could not be loaded.';
+  String get retry => _id ? 'Coba lagi' : 'Retry';
   String get realizedHeroHint =>
       _id ? 'Terkunci saat trade ditutup, tidak ikut harga live' : 'Locked at close, does not follow the live price';
   String get closedTrades => _id ? 'Trade ditutup' : 'Closed trades';
@@ -35,10 +52,10 @@ class PnlStrings {
   String get statsUnavailable =>
       _id ? 'Rincian per alasan keluar belum bisa dimuat.' : 'The breakdown by exit reason could not be loaded.';
   String get partialNote => _id
-      ? 'Terealisasi juga menghitung TP sebagian di posisi yang masih terbuka, '
-            'jadi bisa lebih besar dari jumlah trade di bawah.'
-      : 'Realized also counts partial take-profits on positions that are still open, '
-            'so it can be larger than the sum below.';
+      ? 'Terealisasi semua waktu juga menghitung TP sebagian di posisi terbuka dan close di luar '
+            'rentang, jadi bisa lebih besar dari terealisasi rentang ini dan jumlah ledger.'
+      : 'All-time realized also counts partial take-profits on open positions and closes outside '
+            'the range, so it can be larger than this range realized and the ledger sum.';
   String get closedAt => _id ? 'Ditutup' : 'Closed';
   String get realizedShort => _id ? 'terealisasi' : 'realized';
 

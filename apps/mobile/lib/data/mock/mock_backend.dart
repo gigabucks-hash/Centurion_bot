@@ -413,9 +413,15 @@ class MockBackend
   }
 
   /// exit_stats(): closed positions of the current epoch grouped by exit reason.
-  List<Map<String, Object?>> exitStatsRows({String? strategyId}) {
+  /// `from`/`to` (0022) narrow the range the same way the report does.
+  List<Map<String, Object?>> exitStatsRows({String? strategyId, DateTime? from, DateTime? to}) {
     final by = <String, List<Position>>{};
-    for (final p in _positions.where((p) => !p.isOpen && (strategyId == null || p.strategyId == strategyId))) {
+    for (final p in _positions.where(
+      (p) =>
+          !p.isOpen &&
+          (strategyId == null || p.strategyId == strategyId) &&
+          _inRange(p.closedAt ?? p.openedAt, from, to),
+    )) {
       by.putIfAbsent(_exitReasonWire(p.exitReason), () => []).add(p);
     }
     return [
@@ -473,6 +479,55 @@ class MockBackend
       'server_now': _clock().toUtc().toIso8601String(),
     };
   }
+
+  /// 0022 `GET /stats/pnl`: snapshot (all-time) + range aggregates. The report
+  /// reads this instead of summing a page of ledger rows.
+  Map<String, Object?> pnlSummaryRow({PnlWindow window = PnlWindow.d7, String? strategyId}) {
+    final now = _clock();
+    final from = switch (window) {
+      PnlWindow.d1 => now.subtract(const Duration(hours: 24)),
+      PnlWindow.d7 => now.subtract(const Duration(days: 7)),
+      PnlWindow.d30 => now.subtract(const Duration(days: 30)),
+      PnlWindow.all => null,
+    };
+    final closed = _positions
+        .where(
+          (p) =>
+              !p.isOpen &&
+              (strategyId == null || p.strategyId == strategyId) &&
+              _inRange(p.closedAt ?? p.openedAt, from, null),
+        )
+        .toList();
+    final s = _summary();
+    final pnls = closed.map((p) => p.pnlLamports).toList();
+    final holds = closed.map((p) => (p.closedAt ?? now).difference(p.openedAt).inSeconds).toList();
+    final wins = pnls.where((p) => p > Lamports.zero).length;
+    final fees = sumLamports(closed.map((p) => p.costLamports.bps(p.soldBps).bps(p.feeBps)));
+    return {
+      'mode': 'practice',
+      'practice_epoch': _epoch,
+      'window': window.wire,
+      'from': from?.toUtc().toIso8601String(),
+      'to': null,
+      'unrealized_pnl_lamports': s.unrealizedPnlLamports.toWire(),
+      'realized_pnl_lamports': s.realizedPnlLamports.toWire(),
+      'total_pnl_lamports': s.totalPnlLamports.toWire(),
+      'realized_pnl_window_lamports': sumLamports(pnls).toWire(),
+      'closed_count': closed.length,
+      'win_count': wins,
+      'win_rate_pct': closed.isEmpty ? null : wins * 100 / closed.length,
+      'avg_hold_s': holds.isEmpty ? null : holds.reduce((a, b) => a + b) ~/ holds.length,
+      'fees_lamports': fees.toWire(),
+      'best_pnl_lamports': pnls.isEmpty ? null : pnls.reduce((a, b) => a > b ? a : b).toWire(),
+      'worst_pnl_lamports': pnls.isEmpty ? null : pnls.reduce((a, b) => a < b ? a : b).toWire(),
+      'as_of_seq': '$_eventSeq',
+      'ts': now.toUtc().toIso8601String(),
+    };
+  }
+
+  /// Half-open range `[from, to)` like the server (`>= from`, `< to`).
+  static bool _inRange(DateTime t, DateTime? from, DateTime? to) =>
+      (from == null || !t.isBefore(from)) && (to == null || t.isBefore(to));
 
   @override
   Stream<MarksMessage> watchMarks(String workspaceId, TradeMode mode) => _marks.stream.where(
@@ -690,13 +745,20 @@ class MockBackend
     PositionState? state,
     String? cursor,
     int limit = defaultPageLimit,
+    DateTime? from,
+    DateTime? to,
   }) async {
     await Future<void>.value(); // microtask: no timers left behind in widget tests
-    final all = _positions.where((p) => state == null || p.state == state).toList();
+    final closed = state == PositionState.closed;
+    final all = _positions
+        .where((p) => (state == null || p.state == state) && (!closed || _inRange(p.closedAt ?? p.openedAt, from, to)))
+        .toList();
+    // A closed report is newest by close time, not open time (0022).
+    final range = '${from?.toUtc().toIso8601String() ?? 'all'}:${to?.toUtc().toIso8601String() ?? 'now'}';
     return _page(
-      'positions:${state?.name ?? 'all'}',
+      'positions:${state?.name ?? 'all'}:$range',
       all,
-      (p) => p.openedAt,
+      (p) => closed ? (p.closedAt ?? p.openedAt) : p.openedAt,
       (p) => p.id,
       cursor: cursor,
       limit: limit,
@@ -1522,6 +1584,8 @@ class MockBackend
         openedAt: now.subtract(const Duration(hours: 1)),
         closedAt: now.subtract(const Duration(minutes: 41)),
         exitReason: 'Took profit: 40% at +20%',
+        lockedPnlLamports: _sol('0.062'),
+        lockedPnlPct: 31,
         practiceEpoch: _epoch,
         decimals: 6,
         tokenProgram: splTokenProgram,

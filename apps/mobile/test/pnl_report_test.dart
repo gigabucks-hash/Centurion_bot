@@ -130,5 +130,11 @@ void main() {
     expect(id.hold(19 * 60), '19 mnt');
     expect(en.hold(125 * 60), '2h 5m');
     expect(id.hold(125 * 60), '2 j 5 mnt');
+    expect(id.windowLabel(PnlWindow.all), 'Semua');
+    expect(en.windowLabel(PnlWindow.all), 'All');
+    expect(id.realizedFor('7D'), 'Terealisasi · 7D');
+    expect(en.realizedFor('7D'), 'Realized · 7D');
+    expect(id.closedLabel, 'Ditutup');
+    expect(en.closedLabel, 'Closed');
   });
 }

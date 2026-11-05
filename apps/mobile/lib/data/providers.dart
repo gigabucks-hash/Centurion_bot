@@ -132,12 +132,27 @@ final summaryProvider = StreamProvider<PortfolioSummary>(
 );
 
 /// `exit_stats()` aggregates for the active mode (closed trades only): count,
-/// realized pnl, win rate and average hold per exit reason. The PnL report uses
-/// this instead of re-adding the loaded rows, which may be paged.
-final exitStatsProvider = FutureProvider.autoDispose<List<ExitStat>>((ref) {
+/// realized pnl, win rate and average hold per exit reason. Keyed by the same
+/// range as the report, so the breakdown and the strip agree.
+final exitStatsProvider = FutureProvider.autoDispose.family<List<ExitStat>, ({DateTime? from, DateTime? to})>((
+  ref,
+  range,
+) {
   return ref
       .watch(centurionRpcProvider)
-      .exitStats(ref.watch(workspaceIdProvider), mode: ref.watch(workspaceModeProvider));
+      .exitStats(
+        ref.watch(workspaceIdProvider),
+        mode: ref.watch(workspaceModeProvider),
+        from: range.from,
+        to: range.to,
+      );
+});
+
+/// `GET /stats/pnl` (0022): one server-computed strip + range aggregates.
+final pnlSummaryProvider = FutureProvider.autoDispose.family<PnlSummary, PnlWindow>((ref, window) {
+  return ref
+      .watch(centurionRpcProvider)
+      .pnlSummary(ref.watch(workspaceIdProvider), mode: ref.watch(workspaceModeProvider), window: window);
 });
 
 final positionsProvider = StreamProvider<List<Position>>((ref) {

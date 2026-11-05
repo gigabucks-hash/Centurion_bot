@@ -181,6 +181,8 @@ class Position {
     Lamports? proceedsLamports,
     this.closedAt,
     this.exitReason,
+    this.lockedPnlLamports,
+    this.lockedPnlPct,
     this.soldBps = 0,
     this.exitPlan,
     this.feeBps = 125,
@@ -221,6 +223,11 @@ class Position {
   final DateTime? closedAt;
   final String? exitReason;
 
+  /// Closed rows (0022): the server's locked `pnl_lamports` / `pnl_pct`. Null
+  /// derives from proceeds − cost (mock/open rows); never re-derive when set.
+  final Lamports? lockedPnlLamports;
+  final double? lockedPnlPct;
+
   /// Share of the original size already sold, in basis points (0–10000).
   final int soldBps;
   final ExitPlanState? exitPlan;
@@ -254,11 +261,12 @@ class Position {
   double get fromPeakPct => -pctChange(peakPriceUsd, markPriceUsd);
   Duration holdAt(DateTime now) => (closedAt ?? now).difference(openedAt);
 
-  /// PnL: realized proceeds + mark-to-market of the remainder − cost.
-  Lamports get pnlLamports => proceedsLamports + valueLamports - costLamports;
+  /// PnL: realized proceeds + mark-to-market of the remainder − cost. A closed
+  /// row keeps the server's locked number instead of re-deriving it.
+  Lamports get pnlLamports => lockedPnlLamports ?? (proceedsLamports + valueLamports - costLamports);
 
   /// PnL % of cost basis (display number).
-  double get pnlPct => pnlLamports.ratioTo(costLamports) * 100;
+  double get pnlPct => lockedPnlPct ?? pnlLamports.ratioTo(costLamports) * 100;
 
   /// Estimated SOL received for selling [pct]% of the CURRENT remainder, after fees.
   Lamports estimateSell(int pct) =>
@@ -291,6 +299,8 @@ class Position {
       proceedsLamports: proceedsLamports ?? this.proceedsLamports,
       closedAt: closedAt ?? this.closedAt,
       exitReason: exitReason ?? this.exitReason,
+      lockedPnlLamports: lockedPnlLamports,
+      lockedPnlPct: lockedPnlPct,
       soldBps: soldBps ?? this.soldBps,
       exitPlan: exitPlan ?? this.exitPlan,
       feeBps: feeBps,
@@ -306,6 +316,18 @@ class Position {
 }
 
 enum EquityRange { d1, d7, d30, all }
+
+/// PnL report range (contracts 0022 `window`): the app's 1D/7D/30D/All choices.
+/// The server owns the range numbers; the enum only builds the query.
+enum PnlWindow {
+  d1('24h'),
+  d7('7d'),
+  d30('30d'),
+  all('all');
+
+  const PnlWindow(this.wire);
+  final String wire;
+}
 
 enum ActivityKind { found, passed, armed, expired, blocked, bought, sold, proposal, skipped, approved, paused, resumed }
 

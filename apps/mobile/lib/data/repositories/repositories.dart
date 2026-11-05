@@ -19,8 +19,16 @@ abstract interface class PortfolioRepository {
   Stream<List<Position>> watchPositions();
 
   /// `GET /positions?state=&cursor=&limit=` (1.1.4 keyset paging, newest first).
-  /// Throws [ApiException] `CURSOR_INVALID` for a malformed/foreign cursor.
-  Future<CursorPage<Position>> fetchPositionsPage({PositionState? state, String? cursor, int limit});
+  /// Closed reports add the 0022 range (`from`/`to`, same bounds as `window=`)
+  /// and are ordered by `closed_at` desc. Throws [ApiException]
+  /// `CURSOR_INVALID` for a malformed/foreign cursor.
+  Future<CursorPage<Position>> fetchPositionsPage({
+    PositionState? state,
+    String? cursor,
+    int limit,
+    DateTime? from,
+    DateTime? to,
+  });
 
   /// Equity curve for the Positions header (SPEC §6: 1D/7D/30D/All).
   Future<List<PnlPoint>> equityHistory(EquityRange range);

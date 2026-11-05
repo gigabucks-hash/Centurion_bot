@@ -26,6 +26,10 @@ abstract final class Rpc {
 
   /// View (select), replaces v1.0 `v_portfolio_summary`.
   static const portfolioLatest = 'portfolio_latest';
+
+  /// REST read `GET /workspaces/{ws}/stats/pnl` (0022), not an RPC. The mock
+  /// records it under this name so tests can assert the range params.
+  static const pnlSummary = 'stats/pnl';
 }
 
 /// Strategy status wire values for `set_strategy_status`.
@@ -311,6 +315,87 @@ class PortfolioLatest {
   }
 }
 
+/// 0022 `GET /stats/pnl` data. Every number is server-computed: the client
+/// never sums a page of rows to get a range total.
+class PnlSummary {
+  const PnlSummary({
+    required this.mode,
+    required this.practiceEpoch,
+    required this.window,
+    required this.from,
+    required this.to,
+    required this.unrealizedPnl,
+    required this.realizedPnl,
+    required this.totalPnl,
+    required this.realizedPnlWindow,
+    required this.closedCount,
+    required this.winCount,
+    required this.winRatePct,
+    required this.avgHoldS,
+    required this.fees,
+    required this.bestPnl,
+    required this.worstPnl,
+    required this.asOfSeq,
+    required this.ts,
+  });
+
+  final TradeMode mode;
+  final int? practiceEpoch;
+
+  /// Echo of the requested range; null when the client sent `from`/`to`.
+  final String? window;
+  final DateTime? from;
+  final DateTime? to;
+
+  /// `portfolio_latest` (current epoch, all-time): null when the snapshot is absent.
+  final Lamports? unrealizedPnl;
+  final Lamports? realizedPnl;
+  final Lamports? totalPnl;
+
+  /// Whole exits inside the range only; may legitimately differ from [realizedPnl]
+  /// (which also counts partial take-profits on still-open positions).
+  final Lamports realizedPnlWindow;
+  final int closedCount;
+  final int winCount;
+
+  /// Null when [closedCount] is 0 — never a fake 0 %.
+  final double? winRatePct;
+  final num? avgHoldS;
+
+  /// Reported context only: the swap fee is already inside sol_in/sol_out.
+  final Lamports fees;
+  final Lamports? bestPnl;
+  final Lamports? worstPnl;
+  final BigInt? asOfSeq;
+  final DateTime? ts;
+
+  static PnlSummary fromJson(Map<String, Object?> j) {
+    Lamports? l(Object? v) => v == null ? null : Lamports.parse(v as String);
+    DateTime? t(Object? v) => v == null ? null : DateTime.parse(v as String);
+    final win = j['win_rate_pct'];
+    return PnlSummary(
+      mode: Wire.modeOf(j['mode'] as String?) ?? TradeMode.practice,
+      practiceEpoch: Wire.intOf(j['practice_epoch']),
+      window: j['window'] as String?,
+      from: t(j['from']),
+      to: t(j['to']),
+      unrealizedPnl: l(j['unrealized_pnl_lamports']),
+      realizedPnl: l(j['realized_pnl_lamports']),
+      totalPnl: l(j['total_pnl_lamports']),
+      realizedPnlWindow: l(j['realized_pnl_window_lamports']) ?? Lamports.zero,
+      closedCount: Wire.intOf(j['closed_count']) ?? 0,
+      winCount: Wire.intOf(j['win_count']) ?? 0,
+      winRatePct: (win as num?)?.toDouble(),
+      avgHoldS: j['avg_hold_s'] as num?,
+      fees: l(j['fees_lamports']) ?? Lamports.zero,
+      bestPnl: l(j['best_pnl_lamports']),
+      worstPnl: l(j['worst_pnl_lamports']),
+      asOfSeq: Wire.seqOf(j['as_of_seq']),
+      ts: t(j['ts']),
+    );
+  }
+}
+
 /// One `exit_stats()` row (1.1.2 shape): `{exit_reason, count, pnl_lamports (string),
 /// avg_pnl_pct, win_rate_pct (0-100), avg_hold_s}`. Key is `exit_reason`, not `reason`.
 class ExitStat {
@@ -364,6 +449,15 @@ abstract interface class CenturionRpc {
 
   /// Read `portfolio_latest` for [mode] (current epoch).
   Future<PortfolioLatest> portfolioLatest(TradeMode mode);
+
+  /// `GET /workspaces/{ws}/stats/pnl?mode=&window=&strategy_id=` (0022).
+  /// Snapshot (unrealized/realized/total) plus range aggregates in one call.
+  Future<PnlSummary> pnlSummary(
+    String workspaceId, {
+    TradeMode? mode,
+    PnlWindow window = PnlWindow.d7,
+    String? strategyId,
+  });
 
   /// `exit_stats(p_workspace, p_strategy?, p_mode?, p_from?, p_to?)` (1.1.2 §8);
   /// current practice epoch only. Rows keyed by `exit_reason`.

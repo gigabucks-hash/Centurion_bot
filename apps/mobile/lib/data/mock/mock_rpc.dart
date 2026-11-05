@@ -101,6 +101,24 @@ class MockCenturionRpc implements CenturionRpc {
       if (to != null) 'p_to': to.toUtc().toIso8601String(),
     });
     if (workspaceId != MockBackend.workspaceId) throw ApiException.fromCode('NOT_FOUND');
-    return backend.exitStatsRows(strategyId: strategyId).map(ExitStat.fromJson).toList();
+    return backend.exitStatsRows(strategyId: strategyId, from: from, to: to).map(ExitStat.fromJson).toList();
+  }
+
+  @override
+  Future<PnlSummary> pnlSummary(
+    String workspaceId, {
+    TradeMode? mode,
+    PnlWindow window = PnlWindow.d7,
+    String? strategyId,
+  }) async {
+    _record(Rpc.pnlSummary, {
+      'workspace': workspaceId,
+      'mode': Wire.mode(mode ?? TradeMode.practice),
+      'window': window.wire,
+      'strategy_id': ?strategyId,
+    });
+    if (workspaceId != MockBackend.workspaceId) throw ApiException.fromCode('NOT_FOUND');
+    if (mode == TradeMode.real) throw ApiException.fromCode('REAL_SOL_DISABLED');
+    return PnlSummary.fromJson(backend.pnlSummaryRow(window: window, strategyId: strategyId));
   }
 }
