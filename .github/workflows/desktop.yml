@@ -107,3 +107,36 @@ jobs:
             apps/desktop/src-tauri/target/release/bundle/deb/*.deb
             apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
           retention-days: 30
+
+  # Unsigned Windows installers on main: .msi (WiX) and .exe (NSIS) as release candidates.
+  # The bundle config already ships windows.webviewInstallMode=downloadBootstrapper, so the
+  # installer pulls WebView2 on first run instead of embedding it.
+  windows-bundle:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [web, rust]
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@1.90
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+      - run: npm ci
+      - run: npm run sync:tokens
+      - name: tauri build (mock backend, unsigned)
+        run: npx tauri build --bundles nsis,msi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-${{ github.sha }}
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+          retention-days: 30
