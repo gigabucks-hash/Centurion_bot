@@ -105,7 +105,7 @@ void main() {
     expect(_text(tester, const Key('pnlReportUnrealized')).data, fmtPnl(unrealized, unit: true));
     expect(_text(tester, const Key('pnlReportTotal')).data, fmtPnl(total, unit: true));
     expect(_text(tester, const Key('pnlReportClosed')).data, '$closedCount');
-    expect(_text(tester, const Key('pnlReportWinRate')).data, '${winRate.round()}%');
+    expect(_text(tester, const Key('pnlReportWinRate')).data, fmtRatePct(winRate.toDouble()));
     expect(_text(tester, const Key('pnlReportAvgHold')).data, PnlStrings.of('id').hold(avgHold));
     expect(windowRealized, isNot(allTimeRealized), reason: 'partial TP on GLOW makes them differ');
 

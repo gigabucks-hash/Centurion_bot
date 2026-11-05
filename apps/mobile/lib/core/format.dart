@@ -50,6 +50,11 @@ String fmtPct(double v, {bool arrow = true}) {
   return arrow && p.arrow.isNotEmpty ? '${p.arrow} ${p.text}' : p.text;
 }
 
+/// A rate such as the win rate: one decimal, no sign and no arrow (`62,5%`).
+/// It is a share of closed trades, not a PnL, so the T-15 sign rule does not
+/// apply; null is handled by the caller as `—`.
+String fmtRatePct(double v) => '${formatDecimalAbs(Decimal.parse(v.toStringAsFixed(1)), 'id', minDp: 1, maxDp: 1)}%';
+
 String fmtTime(DateTime t) => _time.format(t);
 
 /// mm:ss for expiry timers; hours shown as `h:mm:ss`.

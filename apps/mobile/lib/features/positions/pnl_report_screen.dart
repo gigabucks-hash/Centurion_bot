@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/exit_reason_l10n.dart';
+import '../../core/format.dart';
 import '../../core/theme/centurion_theme.dart';
 import '../../core/widgets/app_icons.dart';
 import '../../core/widgets/common.dart';
@@ -240,7 +241,7 @@ class _SummaryCard extends StatelessWidget {
             _PairRow(
               left: _MiniValue(
                 label: s.winRate,
-                value: summary.winRatePct == null ? s.unavailable : '${summary.winRatePct!.round()}%',
+                value: summary.winRatePct == null ? s.unavailable : fmtRatePct(summary.winRatePct!),
                 valueKey: const Key('pnlReportWinRate'),
               ),
               right: _MiniValue(
@@ -460,7 +461,7 @@ class _StatRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: AppSpace.sHalf),
-                Text('${s.trades(stat.count)} · ${s.winRate} ${stat.winRatePct.round()}%', style: muted),
+                Text('${s.trades(stat.count)} · ${s.winRate} ${fmtRatePct(stat.winRatePct)}', style: muted),
               ],
             ),
           ),
