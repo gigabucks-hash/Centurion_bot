@@ -12,7 +12,7 @@ import { EquityChart } from "@/components/charts/EquityChart";
 import { OverviewFeed } from "@/components/OverviewFeed";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
 import { PnlReport } from "@/components/PnlReport";
-import { closedTradeCounts } from "@/lib/pnl-report";
+import { closedTradeCounts, pnlReport, pnlReportFromSummary } from "@/lib/pnl-report";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { CoinAvatar } from "@/components/CoinAvatar";
 
@@ -27,10 +27,13 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
   const modes = modesOf(all);
   const mode = portfolioMode(sp.mode, modes);
   const f = await getFmt(mode);
-  const [o, events, coins] = await Promise.all([
+  const [o, events, coins, summary] = await Promise.all([
     api.getOverview(mode),
     acrossModes(modes, async (m) => (await api.listRecentEvents(m, 30)).map((e) => ({ ...e, mode: e.mode ?? m }))),
     api.listCoins(mode),
+    // All-time summary so the card's closed count and win rate match its all-time realized value.
+    // A backend without 0022 (or a transient read error) falls back to the overview + strategy counters.
+    api.getPnlSummary({ mode, window: "all" }).catch(() => null),
   ]);
   events.sort((a, b) => b.ts - a.ts);
   const strategies = all;
@@ -40,6 +43,19 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
   const realizedPct = (o.realizedPnlSol / o.startingCashSol) * 100;
   // Closed trades come from the same mode's strategies; the PnL report never mixes modes.
   const closed = closedTradeCounts(strategies, mode);
+  const report = summary
+    ? pnlReportFromSummary(
+        {
+          realizedPnlSol: summary.realizedPnlSol,
+          unrealizedPnlSol: summary.unrealizedPnlSol,
+          totalPnlSol: summary.totalPnlSol,
+          closedCount: summary.closedCount,
+          winCount: summary.winCount,
+          winRatePct: summary.winRatePct,
+        },
+        o.openPositions,
+      )
+    : pnlReport({ realized: o.realizedPnlSol, unrealized: o.unrealizedPnlSol, openPositions: o.openPositions, trades: closed.trades, wins: closed.wins });
 
   return (
     <>
@@ -113,16 +129,7 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <PnlReport
-            realized={o.realizedPnlSol}
-            unrealized={o.unrealizedPnlSol}
-            openPositions={o.openPositions}
-            trades={closed.trades}
-            wins={closed.wins}
-            mode={mode}
-            t={t}
-            f={f}
-          />
+          <PnlReport report={report} mode={mode} t={t} f={f} href={mode === "real" ? "/pnl?mode=real" : "/pnl"} />
           <Card title={t("overview.activity")} action={<Link href="/activity" className="tap text-caption text-brand-primary hover:underline">{t("common.seeAll")}</Link>}>
             <OverviewFeed initial={events} names={names} />
           </Card>

@@ -453,6 +453,78 @@ export interface StatsFilter {
 }
 
 // ---------------------------------------------------------------------------
+// PnL report (0022)
+// ---------------------------------------------------------------------------
+
+/** 0022 report windows, shared by `GET /stats/pnl` and `GET /positions?state=closed`. */
+export type PnlWindow = "1h" | "24h" | "7d" | "30d" | "all";
+
+export interface PnlFilter {
+  mode: TradingMode;
+  strategyId?: string;
+  /** Default `7d` (the report default); `all` = no range. */
+  window?: PnlWindow;
+  /** Closed-trade ledger page size (newest closes first); default 50 for a page, 100 for the whole-list read. */
+  limit?: number;
+  /** Opaque keyset cursor from a previous page (closed ledger only). */
+  cursor?: string | null;
+}
+
+/**
+ * 0022 `GET /stats/pnl`, decoded at the API edge. Every money field is server-computed:
+ * `realizedPnlSol` is all-time for the current epoch, `realizedWindowSol` only the selected range,
+ * and `totalPnlSol` is the exact lamport sum (never re-added here).
+ */
+export interface PnlSummary {
+  mode: TradingMode;
+  practiceEpoch: number | null;
+  /** Range echo; null when the request used from/to. */
+  window: PnlWindow | null;
+  from: Timestamp | null;
+  to: Timestamp | null;
+  /** Mark-to-market of the open remainder (partial sells included). */
+  unrealizedPnlSol: Sol | null;
+  /** Closed-trade ledger, all-time (partial take-profits on still-open positions included). */
+  realizedPnlSol: Sol | null;
+  totalPnlSol: Sol | null;
+  /** Whole exits inside the range only; may differ from the all-time value above. */
+  realizedWindowSol: Sol | null;
+  closedCount: number;
+  winCount: number;
+  /** null when closedCount = 0 — never a fake 0 %. */
+  winRatePct: number | null;
+  avgHoldSeconds: number | null;
+  /** Reported context only: the swap fee is already inside solIn/solOut. */
+  feesSol: Sol | null;
+  bestPnlSol: Sol | null;
+  worstPnlSol: Sol | null;
+  asOfSeq: string | null;
+  ts: Timestamp | null;
+}
+
+/** One closed position (`GET /positions?state=closed`); its realized PnL is frozen at close. */
+export interface ClosedTrade {
+  id: string;
+  positionKey: string;
+  strategyId: string | null;
+  mode: TradingMode;
+  mint: Mint;
+  /** Coin symbol/logo are joined from the coin list at the page edge (the wire carries the mint only). */
+  symbol: string | null;
+  logoHash: string | null;
+  solInSol: Sol;
+  solOutSol: Sol;
+  /** Reported context (swap fee is already netted inside solIn/solOut); null when the wire omits it. */
+  feesSol: Sol | null;
+  pnlSol: Sol;
+  pnlPct: number | null;
+  holdSeconds: number | null;
+  exitReason: ExitReason | null;
+  openedAt: Timestamp;
+  closedAt: Timestamp;
+}
+
+// ---------------------------------------------------------------------------
 // Approvals (UX SPEC §3)
 // ---------------------------------------------------------------------------
 

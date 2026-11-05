@@ -6,7 +6,7 @@
  */
 import { lamportsToSol, type Actor, type AnyEvent, type EventEnvelope, type EventPage, type ExitReason, type Lamports, type Mode } from "@centurion/contracts/wire";
 import { APPROVAL_REJECT_REASONS, type ApprovalRejectReason, type ApprovalWire, type DecidedVia } from "@centurion/contracts/wire";
-import type { DecimalString, ErrorCode, ExitStatsRow, MarketCapFields, PositionWire, ProposalStatus, ProposalUpdated, TokenProgram } from "@centurion/contracts/wire";
+import type { DecimalString, ErrorCode, ExitStatsRow, MarketCapFields, PnlSummary as PnlSummaryWire, PositionWire, ProposalStatus, ProposalUpdated, TokenProgram } from "@centurion/contracts/wire";
 import { REAL_LOCKED_REASONS, type PaperProgress, type RealLockedReason, type StrategyRealGateFields } from "@centurion/contracts/wire";
 import { pctToFractionBps } from "@centurion/i18n/format";
 /** Contracts pin for apps/web (Apex, 3 Nov): @centurion/contracts 1.1.6 at commit 4e0d7f3 (+ additive c99b114 logo_hash). */
@@ -14,7 +14,7 @@ export const CONTRACTS_PIN = { version: "1.1.6", commit: "4e0d7f3" } as const;
 import { logoHashFromWire, logoHashOf, wireLogo } from "./media";
 import { safeSymbol } from "./untrusted";
 import { cmpSeq, maxSeq, minSeq, seqGt, seqLt, type Seq } from "./seq";
-import type { Approval, SkipReason, CoinMeta, CoinSummary, EventKind, ExitReasonStat, GuardCheck, OpenPosition, ScreenerState, Strategy, StrategySettings, TradeEvent } from "./types";
+import type { Approval, SkipReason, ClosedTrade, CoinMeta, CoinSummary, EventKind, ExitReasonStat, GuardCheck, OpenPosition, PnlSummary, ScreenerState, Strategy, StrategySettings, TradeEvent } from "./types";
 
 /** SOL (UI number) → lamports integer string. Rounds to the lamport; never emits an exponent. */
 export function solToLamports(sol: number): Lamports {
@@ -655,6 +655,46 @@ export function exitStatFromWire(w: ExitStatsRow): ExitReasonStat {
   return {
     reason: w.exit_reason, count: w.count, wins: Math.round((w.win_rate_pct / 100) * w.count), winRate: w.win_rate_pct / 100,
     avgPnlSol: w.count ? total / w.count : 0, avgPnlPct: w.avg_pnl_pct ?? 0, totalPnlSol: total, avgHoldSeconds: w.avg_hold_s,
+  };
+}
+
+/**
+ * 0022 `GET /stats/pnl` → view model. Money is decoded once (exact lamport strings → display SOL); a null
+ * portfolio value stays null so the card can say "not reported" instead of inventing 0.
+ */
+export function pnlSummaryFromWire(w: PnlSummaryWire): PnlSummary {
+  const sol = (l: string | null | undefined) => (l == null ? null : lamportsToSolNumber(l) ?? null);
+  return {
+    mode: w.mode, practiceEpoch: w.practice_epoch, window: w.window, from: w.from ? Date.parse(w.from) : null,
+    to: w.to ? Date.parse(w.to) : null,
+    unrealizedPnlSol: sol(w.unrealized_pnl_lamports),
+    realizedPnlSol: sol(w.realized_pnl_lamports),
+    totalPnlSol: sol(w.total_pnl_lamports),
+    realizedWindowSol: sol(w.realized_pnl_window_lamports),
+    closedCount: w.closed_count, winCount: w.win_count,
+    winRatePct: w.win_rate_pct, avgHoldSeconds: w.avg_hold_s,
+    feesSol: sol(w.fees_lamports),
+    bestPnlSol: sol(w.best_pnl_lamports), worstPnlSol: sol(w.worst_pnl_lamports),
+    asOfSeq: w.as_of_seq, ts: w.ts ? Date.parse(w.ts) : null,
+  };
+}
+
+/**
+ * 0022 closed `PositionWire` → ledger row. `pnl_lamports` is the server's realized result
+ * (`sol_out - sol_in`); never recompute it from the prices. Symbol/logo come from the coin join.
+ */
+export function closedTradeFromWire(w: PositionWire): ClosedTrade {
+  const solIn = lamportsToSolNumber(w.sol_in_lamports) ?? 0;
+  const pnl = lamportsToSolNumber(w.pnl_lamports) ?? 0;
+  return {
+    id: w.id, positionKey: w.position_key, strategyId: w.strategy_id, mode: w.mode, mint: w.mint,
+    symbol: null, logoHash: logoHashFromWire(w.logo_hash) ?? null,
+    solInSol: solIn, solOutSol: lamportsToSolNumber(w.sol_out_lamports) ?? solIn + pnl,
+    feesSol: lamportsToSolNumber(w.fees_lamports) ?? null,
+    pnlSol: pnl, pnlPct: w.pnl_pct ?? null, holdSeconds: w.hold_seconds ?? null,
+    exitReason: w.exit_reason ?? null,
+    openedAt: Date.parse(w.opened_at),
+    closedAt: Date.parse(w.closed_at ?? w.opened_at),
   };
 }
 

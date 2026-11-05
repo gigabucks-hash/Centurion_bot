@@ -1,8 +1,9 @@
 import { paginate } from "@/lib/paging";
 import type { DashboardApi } from "@/lib/api";
 import type { Approval, CoinSummary, CoinTrail, Strategy, TradeEvent } from "@/lib/types";
+import { pnlWindowHours } from "@/lib/pnl-report";
 import { safeName, safeSymbol } from "@/lib/untrusted";
-import { buildOverview, computeExitStats, coinSummaries, exitSamples, MOCK_NOW, recentEvents, trails } from "./data";
+import { buildOverview, closedTrades, computeExitStats, coinSummaries, exitSamples, MOCK_NOW, recentEvents, trails } from "./data";
 import * as store from "./store";
 
 const HOUR = 3_600_000;
@@ -90,6 +91,86 @@ export const mockApi: DashboardApi = {
     );
     return computeExitStats(rows).filter((r) => r.count > 0);
   },
+  /**
+   * 0022 `GET /stats/pnl`. The seeded ledger uses the fixed mock clock (`MOCK_NOW`), not `Date.now()`,
+   * so the window matches what the other mock screens show. `realized` is all-time, the window fields
+   * only count whole exits inside the range — exactly the backend split.
+   */
+  async getPnlSummary(filter) {
+    const window = filter.window ?? "7d";
+    const hours = pnlWindowHours(window);
+    const resetAt = practiceResetAt(filter.mode);
+    // Backend 0022 scope: the portfolio snapshot (unrealized/realized/total) is per workspace+mode and
+    // does NOT narrow with `strategy_id`; only the window numbers and the ledger do. Mirrored here so a
+    // bot filter cannot silently turn a workspace total into a strategy total.
+    const allRows = closedTrades.filter((t) => t.mode === filter.mode && (resetAt == null || t.closedAt >= resetAt));
+    const rows = filter.strategyId ? allRows.filter((t) => t.strategyId === filter.strategyId) : allRows;
+    const inWindow = hours == null ? rows : rows.filter((t) => t.closedAt >= MOCK_NOW - hours * HOUR);
+    const sum = (xs: typeof rows) => Math.round(xs.reduce((a, r) => a + r.pnlSol, 0) * 1e9) / 1e9;
+    const strategies = store.listStrategies().filter((s) => s.mode === filter.mode);
+    const unrealized = resetAt != null ? 0 : Math.round(strategies.reduce((a, s) => a + s.unrealizedPnlSol, 0) * 1e9) / 1e9;
+    const realized = sum(allRows);
+    const wins = inWindow.filter((r) => r.pnlSol > 0).length;
+    return {
+      mode: filter.mode,
+      practiceEpoch: store.practiceState().epoch,
+      window,
+      from: hours == null ? null : MOCK_NOW - hours * HOUR,
+      to: null,
+      unrealizedPnlSol: unrealized,
+      realizedPnlSol: realized,
+      totalPnlSol: Math.round((realized + unrealized) * 1e9) / 1e9,
+      realizedWindowSol: sum(inWindow),
+      closedCount: inWindow.length,
+      winCount: wins,
+      winRatePct: inWindow.length ? Math.round((wins / inWindow.length) * 10000) / 100 : null,
+      avgHoldSeconds: inWindow.length ? Math.round(inWindow.reduce((a, r) => a + r.holdSeconds, 0) / inWindow.length) : null,
+      feesSol: Math.round(inWindow.reduce((a, r) => a + r.feesSol, 0) * 1e9) / 1e9,
+      bestPnlSol: inWindow.length ? Math.max(...inWindow.map((r) => r.pnlSol)) : null,
+      worstPnlSol: inWindow.length ? Math.min(...inWindow.map((r) => r.pnlSol)) : null,
+      asOfSeq: null,
+      ts: MOCK_NOW,
+    };
+  },
+
+  /** 0022 `GET /positions?state=closed`: newest close first, realized locked at close. */
+  async listClosedTrades(filter) {
+    return (await mockApi.listClosedTradesPage({ ...filter, limit: filter.limit ?? 100 })).items;
+  },
+  async listClosedTradesPage(filter) {
+    const hours = pnlWindowHours(filter.window ?? "7d");
+    const resetAt = practiceResetAt(filter.mode);
+    const rows = closedTrades.filter(
+      (t) =>
+        t.mode === filter.mode &&
+        (!filter.strategyId || t.strategyId === filter.strategyId) &&
+        (resetAt == null || t.closedAt >= resetAt) &&
+        (hours == null || t.closedAt >= MOCK_NOW - hours * HOUR),
+    );
+    const p = paginate(rows, `positions:closed:${filter.mode}`, (t) => ({ t: t.closedAt, id: t.id }), { cursor: filter.cursor ?? null, limit: filter.limit ?? 50 });
+    return {
+      nextCursor: p.next_cursor,
+      items: p.items.map((t) => ({
+        id: t.id,
+        positionKey: t.id,
+        strategyId: t.strategyId,
+        mode: t.mode,
+        mint: t.mint,
+        symbol: safeSymbol(t.symbol),
+        logoHash: t.logoHash,
+        solInSol: t.solInSol,
+        solOutSol: t.solOutSol,
+        feesSol: t.feesSol,
+        pnlSol: t.pnlSol,
+        pnlPct: t.pnlPct,
+        holdSeconds: t.holdSeconds,
+        exitReason: t.reason,
+        openedAt: t.closedAt - t.holdSeconds * 1000,
+        closedAt: t.closedAt,
+      })),
+    };
+  },
+
   async listApprovals(mode) {
     return store.listApprovals(mode).map(cleanApproval);
   },

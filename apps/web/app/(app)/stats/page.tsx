@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { getApi } from "@/lib/api";
 import { listAllStrategies, modesOf, portfolioMode } from "@/lib/mode";
@@ -26,7 +27,11 @@ async function StatsBody({ searchParams }: { searchParams: PageProps<"/stats">["
   const total = stats.reduce((a, s) => a + s.count, 0);
   const filters = (
     <>
-    <PageHeader title={t("stats.title")} subtitle={t("stats.subtitle")} />
+    <PageHeader
+      title={t("stats.title")}
+      subtitle={t("stats.subtitle")}
+      actions={<Link href={mode === "real" ? "/pnl?mode=real" : "/pnl"} className="inline-flex h-9 items-center rounded-md border border-border-default px-3 text-label text-text-secondary hover:bg-bg-raised">{t("pnl.ledger")} →</Link>}
+    />
     <div className="mb-4 flex flex-wrap items-center gap-2">
       <StatsFilters strategies={strategies.map((s) => ({ id: s.id, name: s.name }))} />
       <span className="ml-auto"><PortfolioModeTabs mode={mode} modes={modes} href={(m) => (m === "practice" ? "/stats" : "/stats?mode=real")} t={t} /></span>

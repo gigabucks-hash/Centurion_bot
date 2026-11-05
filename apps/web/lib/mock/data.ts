@@ -396,12 +396,25 @@ export interface ClosedTrade {
   pnlPct: number;
   pnlSol: number;
   holdSeconds: number;
+  /** Report ledger join (the backend reads these from coins/position_wire). */
+  mint: string;
+  symbol: string;
+  logoHash: string | null;
+  solInSol: number;
+  solOutSol: number;
+  /** Swap + network fees, reported context only (never subtracted twice). */
+  feesSol: number;
 }
 
 const ledgerFromTrails: ClosedTrade[] = trails.flatMap((t) =>
   t.positions
     .filter((p) => p.status === "closed" && p.closedAt && p.exitReason)
-    .map((p) => ({ id: p.key, strategyId: p.strategyId, mode: t.mode, reason: p.exitReason!, closedAt: p.closedAt!, pnlPct: p.pnlPct, pnlSol: p.pnlSol, holdSeconds: Math.round((p.closedAt! - p.openedAt) / 1000) })),
+    .map((p) => ({
+      id: p.key, strategyId: p.strategyId, mode: t.mode, reason: p.exitReason!, closedAt: p.closedAt!,
+      pnlPct: p.pnlPct, pnlSol: p.pnlSol, holdSeconds: Math.round((p.closedAt! - p.openedAt) / 1000),
+      mint: t.coin.mint, symbol: t.coin.untrusted.symbol, logoHash: t.coin.logoHash ?? null,
+      solInSol: p.solIn, solOutSol: p.solOut, feesSol: round((p.solIn + p.solOut) * 0.0125, 6),
+    })),
 );
 
 export const closedTrades: ClosedTrade[] = [...ledgerFromTrails];
@@ -409,16 +422,25 @@ for (const strat of seedStrategies) {
   if (strat.status === "draft") continue;
   const have = ledgerFromTrails.filter((x) => x.strategyId === strat.id).length;
   const need = Math.max(0, strat.funnel.exited - have);
+  // A synthetic close still needs a coin surface for the ledger: prefer a coin the strategy screened,
+  // then any coin in the mode. Deterministic (seeded) so screenshots and tests stay stable.
+  const own = coinSummaries.filter((c) => c.strategyId === strat.id);
+  const pool = own.length ? own : coinSummaries.filter((c) => c.mode === strat.mode);
   for (let k = 0; k < need; k++) {
     const reason = pick(rng, weightedReasons);
     const p = reasonProfile[reason];
     const isWin = rng() < p.win;
     const pct = round(isWin ? between(rng, Math.max(1, p.pct[0]), Math.max(2, p.pct[1])) : between(rng, p.pct[0], Math.min(-0.5, p.pct[1])), 1);
     const solIn = strat.settings.sizing.tradeSol;
+    const pnlSol = round((solIn * pct) / 100, 4);
+    const solOut = round(solIn + pnlSol, 6);
+    const coin = pool.length ? pool[k % pool.length] : coinSummaries[k % coinSummaries.length];
     closedTrades.push({
       id: `${strat.id}.h${k}`, strategyId: strat.id, mode: strat.mode, reason,
       closedAt: MOCK_NOW - intBetween(rng, 1, 7 * 24 * 60) * MIN,
-      pnlPct: pct, pnlSol: round((solIn * pct) / 100, 4), holdSeconds: intBetween(rng, p.hold[0], p.hold[1]),
+      pnlPct: pct, pnlSol, holdSeconds: intBetween(rng, p.hold[0], p.hold[1]),
+      mint: coin.mint, symbol: coin.symbol, logoHash: coin.logoHash ?? null,
+      solInSol: solIn, solOutSol: solOut, feesSol: round((solIn + solOut) * 0.0125, 6),
     });
   }
 }

@@ -1,7 +1,7 @@
 // Run: npm test  (Node ≥ 22.18 strips TS types natively)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { closedTradeCounts, pnlReport } from "../pnl-report.ts";
+import { closedTradeCounts, parsePnlWindow, pnlReport, pnlReportFromSummary, pnlWindowHours } from "../pnl-report.ts";
 
 test("total PnL is realized + unrealized (never re-derived from positions)", () => {
   const r = pnlReport({ realized: 0.41, unrealized: -0.12, openPositions: 2, trades: 3, wins: 2 });
@@ -25,6 +25,41 @@ test("wins above trades are clamped; negative counts become zero", () => {
   assert.equal(r.total, -1);
 });
 
+test("summary path: the server total wins and is never re-added", () => {
+  const r = pnlReportFromSummary({ realizedPnlSol: 0.41, unrealizedPnlSol: -0.12, totalPnlSol: 0.28, closedCount: 3, winCount: 0, winRatePct: 0 }, 2);
+  assert.equal(r.total, 0.28, "0.28 is the server's exact lamport sum, not 0.29");
+  assert.equal(r.realized, 0.41);
+  assert.equal(r.unrealized, -0.12);
+  assert.equal(r.openPositions, 2);
+  assert.equal(r.winRatePct, 0, "an explicit 0 % is kept (closed trades, no wins)");
+});
+
+test("summary path: null portfolio values read as 0, null win rate stays null", () => {
+  const r = pnlReportFromSummary({ realizedPnlSol: null, unrealizedPnlSol: null, totalPnlSol: null, closedCount: 0, winCount: 0, winRatePct: null }, 1);
+  assert.equal(r.realized, 0);
+  assert.equal(r.unrealized, 0);
+  assert.equal(r.total, 0);
+  assert.equal(r.winRatePct, null);
+  assert.equal(r.hasClosed, false);
+});
+
+test("summary path clamps a bad win rate / win count", () => {
+  const r = pnlReportFromSummary({ realizedPnlSol: 0, unrealizedPnlSol: 0, totalPnlSol: 0, closedCount: 2, winCount: 9, winRatePct: 140 }, 0);
+  assert.equal(r.wins, 2);
+  assert.equal(r.winRatePct, 100);
+});
+
+test("report window parsing: default 7d, unknown → 7d, hours map", () => {
+  assert.equal(parsePnlWindow(undefined), "7d");
+  assert.equal(parsePnlWindow("1y"), "7d");
+  assert.equal(parsePnlWindow(["all"]), "all");
+  assert.equal(pnlWindowHours("1h"), 1);
+  assert.equal(pnlWindowHours("24h"), 24);
+  assert.equal(pnlWindowHours("7d"), 168);
+  assert.equal(pnlWindowHours("30d"), 720);
+  assert.equal(pnlWindowHours("all"), null);
+});
+
 test("closed-trade counts stay inside one mode and skip drafts", () => {
   const strategies = [
     { mode: "practice", status: "running", trades: 4, wins: 3 },
@@ -33,4 +68,28 @@ test("closed-trade counts stay inside one mode and skip drafts", () => {
   ];
   assert.deepEqual(closedTradeCounts(strategies, "practice"), { trades: 4, wins: 3 });
   assert.deepEqual(closedTradeCounts(strategies, "real"), { trades: 7, wins: 1 });
+});
+
+test("server summary keeps total exact and reports all-time vs range separately", async () => {
+  const { mockApi } = await import("../mock/index.ts");
+  const all = await mockApi.getPnlSummary({ mode: "practice", window: "all" });
+  assert.ok(all.realizedPnlSol != null && all.unrealizedPnlSol != null && all.totalPnlSol != null);
+  assert.equal(Math.round(all.totalPnlSol! * 1e9), Math.round(all.realizedPnlSol! * 1e9) + Math.round(all.unrealizedPnlSol! * 1e9));
+  // `realized` is all-time (partial TPs included); the range value only counts whole exits inside it.
+  assert.equal(all.realizedWindowSol, all.realizedPnlSol, "all = no cutoff");
+  const day = await mockApi.getPnlSummary({ mode: "practice", window: "24h" });
+  assert.ok(day.closedCount <= all.closedCount);
+});
+
+test("closed ledger pages by keyset: newest first, no duplicates, cursor ends", async () => {
+  const { mockApi } = await import("../mock/index.ts");
+  const first = await mockApi.listClosedTradesPage({ mode: "practice", window: "all", limit: 5 });
+  assert.ok(first.items.length <= 5);
+  for (let i = 1; i < first.items.length; i++) assert.ok(first.items[i - 1].closedAt >= first.items[i].closedAt);
+  if (first.nextCursor) {
+    const second = await mockApi.listClosedTradesPage({ mode: "practice", window: "all", limit: 5, cursor: first.nextCursor });
+    const seen = new Set(first.items.map((r) => r.id));
+    for (const r of second.items) assert.ok(!seen.has(r.id), "no row repeats across pages");
+    assert.ok(second.items.every((r) => r.closedAt <= first.items[first.items.length - 1].closedAt));
+  }
 });

@@ -8,9 +8,9 @@
  * (open item). The default build uses the in-process mock (lib/mock) and never calls this.
  */
 import { randomUUID } from "node:crypto";
-import type { AnyEvent, EventPage, ExitStatsRow, StrategyRealGateFields } from "@centurion/contracts/wire";
+import type { AnyEvent, EventPage, ExitStatsRow, PnlSummary as PnlSummaryWire, PositionWire, StrategyRealGateFields } from "@centurion/contracts/wire";
 import type { DashboardApi } from "./api";
-import { approvalFromWire, coinSummaryFromWire, realGateFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings } from "./contracts";
+import { approvalFromWire, closedTradeFromWire, coinSummaryFromWire, pnlSummaryFromWire, realGateFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings } from "./contracts";
 import { ApiError, toApiError } from "./errors";
 import { blankSettings } from "./strategy-schema";
 import type { Strategy, TradeEvent, TradingMode } from "./types";
@@ -103,6 +103,22 @@ export const httpApi: DashboardApi = {
   getExitStats: async (f) => {
     const q = new URLSearchParams({ mode: f.mode, ...(f.strategyId ? { strategy_id: f.strategyId } : {}), ...(f.windowHours ? { window: `${f.windowHours}h` } : {}) });
     return (await items<ExitStatsRow>(wsPath(`/stats/exit-reasons?${q}`))).map(exitStatFromWire);
+  },
+  /** 0022: the server computes realized/unrealized/total and the range's closed-trade stats in one call. */
+  getPnlSummary: async (f) => {
+    const q = new URLSearchParams({ mode: f.mode, window: f.window ?? "7d", ...(f.strategyId ? { strategy_id: f.strategyId } : {}) });
+    return pnlSummaryFromWire((await req<PnlSummaryWire>(wsPath(`/stats/pnl?${q}`))).data);
+  },
+  /** 0022 `GET /positions?state=closed` now carries pnl_lamports / pnl_pct / hold_seconds per close. */
+  listClosedTrades: async (f) => {
+    const q = new URLSearchParams({ mode: f.mode, state: "closed", ...(f.strategyId ? { strategy_id: f.strategyId } : {}), ...(f.window ? { window: f.window } : {}) });
+    const p = await page<PositionWire>(wsPath(`/positions?${q}`), { limit: f.limit ?? 100 });
+    return p.items.map(closedTradeFromWire);
+  },
+  listClosedTradesPage: async (f) => {
+    const q = new URLSearchParams({ mode: f.mode, state: "closed", ...(f.strategyId ? { strategy_id: f.strategyId } : {}), ...(f.window ? { window: f.window } : {}) });
+    const p = await page<PositionWire>(wsPath(`/positions?${q}`), { limit: f.limit ?? 50, cursor: f.cursor ?? null });
+    return { items: p.items.map(closedTradeFromWire), nextCursor: p.nextCursor };
   },
   listApprovals: async (mode) => (await items<ApprovalWire>(wsPath(`/approvals?mode=${mode}`))).map(approvalFromWire),
   decideApproval: async (id, d) => {

@@ -1,48 +1,65 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { Fmt } from "@/lib/format";
 import type { T } from "@/lib/i18n/core";
 import type { TradingMode } from "@/lib/types";
-import { pnlReport } from "@/lib/pnl-report";
-import { Pnl, StatStrip } from "@/components/ui";
+import type { PnlReportView } from "@/lib/pnl-report";
+import { Pnl, StatStrip, cn } from "@/components/ui";
 
 /**
- * PnL report (G1-blue): three cells in one bordered strip, plus the closed-trade ledger line.
- * Server component — `t` / `f` come from the page so formatting stays per mode (paper SOL).
+ * PnL report (G1-blue). Two shapes, one dataset:
+ * - `rows` (default): a vertical ledger for the dashboard's narrow column — a 3-cell strip clips
+ *   "−8.98 paper SOL" below ~420 px.
+ * - `strip`: the partitioned 3-cell strip for the full-width report page.
  *
- * Money is never recomputed here: realized / unrealized are the overview's own per-mode values;
- * the total is their sum so the card reconciles with the equity hero by construction.
+ * Money is never recomputed here: the caller passes the overview-derived view or
+ * `pnlReportFromSummary()` of `GET /stats/pnl`; the card only lays it out.
  */
-export function PnlReport({ realized, unrealized, openPositions, trades, wins, mode, t, f }: {
-  realized: number;
-  unrealized: number;
-  openPositions: number;
-  trades: number;
-  wins: number;
+export function PnlReport({ report: r, mode, t, f, href = "/pnl", layout = "rows", heading }: {
+  report: PnlReportView;
   mode: TradingMode;
   t: T;
   f: Fmt;
+  /** null hides the link (the full report page itself). */
+  href?: string | null;
+  layout?: "rows" | "strip";
+  /** Defaults to the section title; the report page passes "All time" so it does not repeat the H1. */
+  heading?: ReactNode;
 }) {
-  const r = pnlReport({ realized, unrealized, openPositions, trades, wins });
+  const items = [
+    { label: t("pnlReport.unrealized"), value: <Pnl sol={r.unrealized} mode={mode} unit />, hint: t("pnlReport.openHint", { n: r.openPositions }) },
+    {
+      label: t("pnlReport.realized"),
+      value: <Pnl sol={r.realized} mode={mode} unit />,
+      hint: r.hasClosed ? t("pnlReport.closedHint", { n: r.trades }) : t("pnlReport.noClosed"),
+    },
+    { label: t("pnlReport.total"), value: <Pnl sol={r.total} mode={mode} unit />, hint: t("pnlReport.totalHint") },
+  ];
   return (
     <section aria-label={t("pnlReport.title")} data-testid="pnl-report">
       <div className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="text-titleSm text-text-primary">{t("pnlReport.title")}</h2>
-        <Link href={mode === "real" ? "/stats?mode=real" : "/stats"} className="tap text-caption text-brand-primary hover:underline">
-          {t("pnlReport.full")} →
-        </Link>
+        <h2 className="text-titleSm text-text-primary">{heading ?? t("pnlReport.title")}</h2>
+        {href && (
+          <Link href={href} className="tap text-caption text-brand-primary hover:underline">
+            {t("pnlReport.full")} →
+          </Link>
+        )}
       </div>
-      <StatStrip
-        columns={3}
-        items={[
-          { label: t("pnlReport.total"), value: <Pnl sol={r.total} mode={mode} unit />, hint: t("pnlReport.totalHint") },
-          { label: t("pnlReport.unrealized"), value: <Pnl sol={r.unrealized} mode={mode} unit />, hint: t("pnlReport.openHint", { n: r.openPositions }) },
-          {
-            label: t("pnlReport.realized"),
-            value: <Pnl sol={r.realized} mode={mode} unit />,
-            hint: r.hasClosed ? t("pnlReport.closedHint", { n: r.trades }) : t("pnlReport.noClosed"),
-          },
-        ]}
-      />
+      {layout === "strip" ? (
+        <StatStrip columns={3} items={items} />
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-border-subtle bg-bg-surface">
+          {items.map((it, i) => (
+            <div key={it.label} className={cn("flex items-start justify-between gap-3 px-4 py-3", i > 0 && "border-t border-border-subtle")}>
+              <span className="min-w-0">
+                <span className="block text-overline uppercase tracking-wide text-text-tertiary">{it.label}</span>
+                <span className="mt-0.5 block text-caption text-text-tertiary">{it.hint}</span>
+              </span>
+              <span className="shrink-0 text-num">{it.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <p className="mt-2 text-caption text-text-tertiary">
         {r.winRatePct != null && <span className="text-text-secondary">{t("pnlReport.winRate", { pct: f.pct(r.winRatePct, 1, false), n: r.trades })} · </span>}
         {t("pnlReport.note")}

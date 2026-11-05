@@ -9,10 +9,13 @@
 import type {
   Approval,
   ApprovalDecision,
+  ClosedTrade,
   CoinSummary,
   CoinTrail,
   ExitReasonStat,
   Mint,
+  PnlFilter,
+  PnlSummary,
   PublishResult,
   StatsFilter,
   Strategy,
@@ -37,6 +40,12 @@ export interface DashboardApi {
   listCoinsPage(mode: TradingMode, o?: { cursor?: string | null; limit?: number }): Promise<{ items: CoinSummary[]; nextCursor: string | null }>;
   getCoinTrail(mint: Mint): Promise<CoinTrail | null>;
   getExitStats(filter: StatsFilter): Promise<ExitReasonStat[]>;
+  /** 0022 PnL report strip: realized (all-time + range), unrealized, total, closed counts. */
+  getPnlSummary(filter: PnlFilter): Promise<PnlSummary>;
+  /** 0022 realized per-trade ledger: closed positions newest first, each with pnl/pnl_pct/hold. */
+  listClosedTrades(filter: PnlFilter): Promise<ClosedTrade[]>;
+  /** Same ledger, one keyset page (50/page): newest close first, opaque `nextCursor` null on the last page. */
+  listClosedTradesPage(filter: PnlFilter): Promise<{ items: ClosedTrade[]; nextCursor: string | null }>;
   listApprovals(mode: TradingMode): Promise<Approval[]>;
   decideApproval(id: string, decision: ApprovalDecision): Promise<Approval>;
 }
