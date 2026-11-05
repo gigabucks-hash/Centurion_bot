@@ -11,6 +11,8 @@ import { PortfolioModeTabs } from "@/components/PortfolioModeTabs";
 import { EquityChart } from "@/components/charts/EquityChart";
 import { OverviewFeed } from "@/components/OverviewFeed";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
+import { PnlReport } from "@/components/PnlReport";
+import { closedTradeCounts } from "@/lib/pnl-report";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { CoinAvatar } from "@/components/CoinAvatar";
 
@@ -36,6 +38,8 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
   const latestClosed = coins.find((c) => c.status === "closed");
   const trail = latestClosed ? await api.getCoinTrail(latestClosed.mint) : null;
   const realizedPct = (o.realizedPnlSol / o.startingCashSol) * 100;
+  // Closed trades come from the same mode's strategies; the PnL report never mixes modes.
+  const closed = closedTradeCounts(strategies, mode);
 
   return (
     <>
@@ -109,6 +113,16 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
+          <PnlReport
+            realized={o.realizedPnlSol}
+            unrealized={o.unrealizedPnlSol}
+            openPositions={o.openPositions}
+            trades={closed.trades}
+            wins={closed.wins}
+            mode={mode}
+            t={t}
+            f={f}
+          />
           <Card title={t("overview.activity")} action={<Link href="/activity" className="tap text-caption text-brand-primary hover:underline">{t("common.seeAll")}</Link>}>
             <OverviewFeed initial={events} names={names} />
           </Card>
