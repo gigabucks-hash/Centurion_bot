@@ -5,7 +5,7 @@ import { closedTradeCounts, parsePnlWindow, pnlReport, pnlReportFromSummary, pnl
 
 test("total PnL is realized + unrealized (never re-derived from positions)", () => {
   const r = pnlReport({ realized: 0.41, unrealized: -0.12, openPositions: 2, trades: 3, wins: 2 });
-  assert.ok(Math.abs(r.total - 0.29) < 1e-9);
+  assert.ok(r.total != null && Math.abs(r.total - 0.29) < 1e-9);
   assert.equal(r.hasClosed, true);
   assert.ok(Math.abs(r.winRatePct! - 66.6666666) < 1e-3);
 });
@@ -34,13 +34,22 @@ test("summary path: the server total wins and is never re-added", () => {
   assert.equal(r.winRatePct, 0, "an explicit 0 % is kept (closed trades, no wins)");
 });
 
-test("summary path: null portfolio values read as 0, null win rate stays null", () => {
+test("summary path: an unreported value stays null (em dash), never an invented 0", () => {
   const r = pnlReportFromSummary({ realizedPnlSol: null, unrealizedPnlSol: null, totalPnlSol: null, closedCount: 0, winCount: 0, winRatePct: null }, 1);
-  assert.equal(r.realized, 0);
-  assert.equal(r.unrealized, 0);
-  assert.equal(r.total, 0);
+  assert.equal(r.realized, null);
+  assert.equal(r.unrealized, null);
+  assert.equal(r.total, null);
   assert.equal(r.winRatePct, null);
   assert.equal(r.hasClosed, false);
+});
+
+test("summary path: a total is only summed from two reported parts", () => {
+  const partial = pnlReportFromSummary({ realizedPnlSol: 0.4, unrealizedPnlSol: null, totalPnlSol: null, closedCount: 0, winCount: 0, winRatePct: null }, 0);
+  assert.equal(partial.total, null, "one missing part must not be read as 0");
+  const both = pnlReportFromSummary({ realizedPnlSol: 0.4, unrealizedPnlSol: -0.1, totalPnlSol: null, closedCount: 0, winCount: 0, winRatePct: null }, 0);
+  assert.ok(both.total != null && Math.abs(both.total - 0.3) < 1e-9);
+  const explicitZero = pnlReportFromSummary({ realizedPnlSol: 0, unrealizedPnlSol: 0, totalPnlSol: 0, closedCount: 0, winCount: 0, winRatePct: null }, 0);
+  assert.equal(explicitZero.total, 0, "a reported 0 is a real flat result, not null");
 });
 
 test("summary path clamps a bad win rate / win count", () => {

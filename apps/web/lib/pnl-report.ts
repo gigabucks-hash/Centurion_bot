@@ -52,9 +52,12 @@ export interface PnlReportInput {
 }
 
 export interface PnlReportView {
-  realized: number;
-  unrealized: number;
-  total: number;
+  /** null = the server did not report the figure; the card shows an em dash, never an invented 0. */
+  realized: number | null;
+  /** null = no mark-to-market (e.g. an unmarked open remainder); shown as an em dash. */
+  unrealized: number | null;
+  /** null = neither the server total nor both parts are known, so the total is not reported. */
+  total: number | null;
   openPositions: number;
   trades: number;
   wins: number;
@@ -93,10 +96,13 @@ export interface PnlSummaryInput {
  * Card view from the server's `GET /stats/pnl`: the server's total and win rate win, because they
  * cover partial take-profits on open positions that the strategy counters do not. `openPositions`
  * still comes from the overview (the summary carries no open count).
+ *
+ * A null money field means "not reported" (no data yet, or a legacy server), so it stays null and the
+ * card prints an em dash. Turning it into 0 would state a flat result the server never sent.
  */
 export function pnlReportFromSummary(s: PnlSummaryInput, openPositions = 0): PnlReportView {
-  const realized = s.realizedPnlSol ?? 0;
-  const unrealized = s.unrealizedPnlSol ?? 0;
+  const realized = s.realizedPnlSol ?? null;
+  const unrealized = s.unrealizedPnlSol ?? null;
   const trades = Math.max(0, Math.trunc(s.closedCount || 0));
   const wins = Math.min(trades, Math.max(0, Math.trunc(s.winCount || 0)));
   const winRatePct =
@@ -106,7 +112,8 @@ export function pnlReportFromSummary(s: PnlSummaryInput, openPositions = 0): Pnl
   return {
     realized,
     unrealized,
-    total: s.totalPnlSol ?? realized + unrealized,
+    // The server's lamport total wins when present; otherwise sum only two reported parts.
+    total: s.totalPnlSol ?? (realized != null && unrealized != null ? realized + unrealized : null),
     openPositions: Math.max(0, Math.trunc(openPositions || 0)),
     trades,
     wins,

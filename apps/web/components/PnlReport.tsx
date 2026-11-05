@@ -26,14 +26,17 @@ export function PnlReport({ report: r, mode, t, f, href = "/pnl", layout = "rows
   /** Defaults to the section title; the report page passes "All time" so it does not repeat the H1. */
   heading?: ReactNode;
 }) {
+  // A null money field is "not reported": show an em dash, never a 0.00 the server did not send.
+  const money = (v: number | null) =>
+    v == null ? <span className="num text-text-tertiary" data-testid="pnl-not-reported">—</span> : <Pnl sol={v} mode={mode} unit />;
   const items = [
-    { label: t("pnlReport.unrealized"), value: <Pnl sol={r.unrealized} mode={mode} unit />, hint: t("pnlReport.openHint", { n: r.openPositions }) },
+    { label: t("pnlReport.unrealized"), value: money(r.unrealized), hint: t("pnlReport.openHint", { n: r.openPositions }) },
     {
       label: t("pnlReport.realized"),
-      value: <Pnl sol={r.realized} mode={mode} unit />,
+      value: money(r.realized),
       hint: r.hasClosed ? t("pnlReport.closedHint", { n: r.trades }) : t("pnlReport.noClosed"),
     },
-    { label: t("pnlReport.total"), value: <Pnl sol={r.total} mode={mode} unit />, hint: t("pnlReport.totalHint") },
+    { label: t("pnlReport.total"), value: money(r.total), hint: t("pnlReport.totalHint") },
   ];
   return (
     <section aria-label={t("pnlReport.title")} data-testid="pnl-report">
