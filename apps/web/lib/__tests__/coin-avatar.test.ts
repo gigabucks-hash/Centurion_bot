@@ -40,7 +40,7 @@ test("identicon matches the UX reference script ux-solbot/visual/src/vectors.mjs
   const ref = "/workspace/ux-solbot/visual/src/vectors.mjs";
   let out: string;
   try {
-    out = execFileSync(process.execPath, [ref, JSON.stringify(VECTORS.map((v) => [v.mint, v.symbol]))], { encoding: "utf8" });
+    out = execFileSync(process.execPath, [ref, JSON.stringify(VECTORS.map((v) => [v.mint, v.symbol]))], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
   } catch {
     return t.skip("UX reference script not available");
   }
