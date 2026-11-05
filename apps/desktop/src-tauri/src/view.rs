@@ -280,6 +280,51 @@ pub struct ExitReasonStatView {
     pub avg_hold_s: Option<Num>,
 }
 
+/// `GET /stats/pnl` summary, ready for the report header. All lamports stay exact strings.
+#[derive(Debug, Clone, Serialize)]
+pub struct PnlSummaryView {
+    pub mode: Mode,
+    /// Practice epoch the all-time figures belong to (null in Real mode).
+    pub practice_epoch: Option<i64>,
+    pub window: Option<String>,
+    pub unrealized_pnl_lamports: Option<Lamports>,
+    pub realized_pnl_lamports: Option<Lamports>,
+    pub total_pnl_lamports: Option<Lamports>,
+    pub realized_pnl_window_lamports: Lamports,
+    pub closed_count: i64,
+    pub win_count: i64,
+    pub win_rate_pct: Option<Num>,
+    pub avg_hold_s: Option<Num>,
+    pub fees_lamports: Lamports,
+    pub best_pnl_lamports: Option<Lamports>,
+    pub worst_pnl_lamports: Option<Lamports>,
+}
+
+/// One closed trade: `pnl_lamports` / `pnl_pct` are locked at close (never mark-to-market).
+#[derive(Debug, Clone, Serialize)]
+pub struct ClosedTradeView {
+    pub id: String,
+    pub position_key: String,
+    pub mint: String,
+    pub logo_hash: Option<String>,
+    /// Trusted exit reason; null on a legacy closed row without one (UI shows "—").
+    pub exit_reason: Option<crate::model::ExitReason>,
+    pub closed_at: Option<IsoTs>,
+    pub sol_out_lamports: Option<Lamports>,
+    /// Frozen at close; null only on a legacy row (never recomputed here).
+    pub pnl_lamports: Option<Lamports>,
+    pub pnl_pct: Option<Num>,
+    pub hold_seconds: Option<i64>,
+}
+
+/// One IPC call for the PnL report window: header, per-exit-reason breakdown and the closed ledger.
+#[derive(Debug, Clone, Serialize)]
+pub struct PnlReportView {
+    pub summary: PnlSummaryView,
+    pub closed: Vec<ClosedTradeView>,
+    pub exit_stats: Vec<ExitReasonStatView>,
+}
+
 /// Strategy list entry (names + `rev` + status) for pause/resume with If-Match.
 #[derive(Debug, Clone, Serialize)]
 pub struct StrategyView {

@@ -823,6 +823,43 @@ impl Transport for HttpTransport {
             .await?;
         list(v)
     }
+
+    async fn pnl_summary(&self, window: &str) -> ApiResult<PnlSummary> {
+        let w = if ["1h", "24h", "7d", "30d", "all"].contains(&window) {
+            window
+        } else {
+            "7d"
+        };
+        let (_, _, v) = self
+            .raw(
+                Method::GET,
+                &self.p(&format!("/stats/pnl?mode=practice&window={w}")),
+                None,
+                &[],
+            )
+            .await?;
+        decode(v["data"].clone())
+    }
+
+    async fn closed_positions(&self, window: &str) -> ApiResult<Vec<ClosedPositionRow>> {
+        let w = if ["1h", "24h", "7d", "30d", "all"].contains(&window) {
+            window
+        } else {
+            "7d"
+        };
+        // One page is the report's ledger (100 rows); the report never sums these rows for realized.
+        let (_, _, v) = self
+            .raw(
+                Method::GET,
+                &self.p(&format!(
+                    "/positions?mode=practice&state=closed&window={w}&limit=100"
+                )),
+                None,
+                &[],
+            )
+            .await?;
+        decode(v.get("items").cloned().unwrap_or(Value::Array(vec![])))
+    }
 }
 
 /// 200 → applied strategy; 202 → `{data: {proposal: ApprovalWire, guard_change}}` (nothing applied).

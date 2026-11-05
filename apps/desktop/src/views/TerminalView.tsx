@@ -9,6 +9,7 @@ import { ActivityFeed } from "../components/ActivityFeed";
 import { ModeChrome } from "../components/ModeChrome";
 import { PositionsBar, PositionsSummary, PositionsTable } from "../components/PositionsTable";
 import { PnlReport } from "../components/PnlReport";
+import { PnlReportDialog } from "../components/PnlReportDialog";
 import { PriceChart } from "../components/PriceChart";
 import { SellConfirm } from "../components/SellConfirm";
 import { SettingsDialog } from "../components/SettingsDialog";
@@ -28,6 +29,7 @@ export function TerminalView() {
   const st = useTerm();
   const [quote, setQuote] = useState<SellQuote | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pnlOpen, setPnlOpen] = useState(false);
   const [realApprove, setRealApprove] = useState<PickView | null>(null);
   // Quick-look (C2 decided): which kind of row it shows; content stays live from the store.
   const [ql, setQl] = useState<{ kind: "signal" | "position"; mint: string } | null>(null);
@@ -163,8 +165,9 @@ export function TerminalView() {
       p: () => (popupSupported ? run(() => core.openApprovalWindow()) : setErr(POPUP_DISABLED_REASON)),
       ",": () => setSettingsOpen(true),
       c: () => setCenter((x) => (x === "coins" ? "chart" : "coins")),
+      r: () => setPnlOpen(true),
     },
-    !quote && !settingsOpen && !realApprove,
+    !quote && !settingsOpen && !realApprove && !pnlOpen,
   );
 
   const sc = st.settings.shortcuts;
@@ -228,7 +231,7 @@ export function TerminalView() {
         </section>
         <section className="panel area-positions">
           <header><span className="panel-title"><Icon glyph={Wallet} size={16} /> {t(st.mode === "real" ? "positions.title" : "positions.title_paper")}</span> <PositionsSummary positions={st.positions} /></header>
-          <PnlReport />
+          <PnlReport onOpen={() => setPnlOpen(true)} />
           <div className="body">
             <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onFocusRow={st.setCursor} onSell={(p) => sell(p)} now={now} />
           </div>
@@ -279,6 +282,7 @@ export function TerminalView() {
         />
       )}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {pnlOpen && <PnlReportDialog onClose={() => setPnlOpen(false)} />}
     </div>
   );
 }

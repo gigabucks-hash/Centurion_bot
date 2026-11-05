@@ -510,6 +510,69 @@ pub async fn get_exit_reason_stats(
         .collect())
 }
 
+/// PnL report (0022): `/stats/pnl` + closed ledger + per-exit-reason stats in one IPC call.
+/// The window is validated here; an unknown value falls back to the API default (`7d`).
+#[tauri::command(rename_all = "snake_case")]
+pub async fn get_pnl_report(
+    state: State<'_, AppState>,
+    window: String,
+) -> AppResult<PnlReportView> {
+    let w = if ["24h", "7d", "30d", "all"].contains(&window.as_str()) {
+        window
+    } else {
+        "7d".to_owned()
+    };
+    let summary = state.transport.pnl_summary(&w).await?;
+    let closed = state.transport.closed_positions(&w).await?;
+    let stats = state.transport.exit_reason_stats(&w).await?;
+    Ok(PnlReportView {
+        summary: PnlSummaryView {
+            mode: summary.mode,
+            practice_epoch: summary.practice_epoch,
+            window: summary.window,
+            unrealized_pnl_lamports: summary.unrealized_pnl_lamports,
+            realized_pnl_lamports: summary.realized_pnl_lamports,
+            total_pnl_lamports: summary.total_pnl_lamports,
+            realized_pnl_window_lamports: summary.realized_pnl_window_lamports,
+            closed_count: summary.closed_count,
+            win_count: summary.win_count,
+            win_rate_pct: summary.win_rate_pct,
+            avg_hold_s: summary.avg_hold_s,
+            fees_lamports: summary.fees_lamports,
+            best_pnl_lamports: summary.best_pnl_lamports,
+            worst_pnl_lamports: summary.worst_pnl_lamports,
+        },
+        closed: closed
+            .into_iter()
+            .map(|c| ClosedTradeView {
+                id: c.id,
+                position_key: c.position_key,
+                mint: c.mint,
+                logo_hash: c.logo_hash,
+                exit_reason: c.exit_reason,
+                closed_at: c.closed_at,
+                sol_out_lamports: c.sol_out_lamports,
+                pnl_lamports: c.pnl_lamports,
+                pnl_pct: c.pnl_pct,
+                hold_seconds: c.hold_seconds,
+            })
+            .collect(),
+        exit_stats: stats
+            .data
+            .iter()
+            .map(|x| ExitReasonStatView {
+                exit_reason: x.exit_reason,
+                label: crate::keys::exit_label(x.exit_reason).into(),
+                count: x.count,
+                pnl_lamports: x.pnl_lamports,
+                avg_pnl_pct: x.avg_pnl_pct,
+                win_rate_pct: x.win_rate_pct,
+                avg_hold_s: x.avg_hold_s,
+            })
+            .collect(),
+    })
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn open_chart_window<R: Runtime>(app: AppHandle<R>, mint: String) -> AppResult<()> {
     crate::windows::open_chart(&app, &mint)

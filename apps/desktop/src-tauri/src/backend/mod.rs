@@ -384,6 +384,13 @@ pub trait Transport: Send + Sync + 'static {
         &self,
         window: &str,
     ) -> impl Future<Output = ApiResult<ApiItem<Vec<ExitReasonStat>>>> + Send;
+    /// `GET /stats/pnl?mode=practice&window=` (0022): the PnL card/report summary.
+    fn pnl_summary(&self, window: &str) -> impl Future<Output = ApiResult<PnlSummary>> + Send;
+    /// `GET /positions?state=closed&window=` (0022): closed-trade ledger, newest close first.
+    fn closed_positions(
+        &self,
+        window: &str,
+    ) -> impl Future<Output = ApiResult<Vec<ClosedPositionRow>>> + Send;
 }
 
 /// Endpoint paths (Week-2 HTTP transport; asserted in tests so renames are caught).
@@ -392,6 +399,8 @@ pub mod paths {
     pub const POSITION_CLOSE: &str = "/positions/{id}/close";
     pub const COIN_TIMELINE: &str = "/coins/{mint}/timeline";
     pub const EXIT_REASON_STATS: &str = "/stats/exit-reasons";
+    pub const PNL_SUMMARY: &str = "/stats/pnl";
+    pub const POSITIONS: &str = "/positions";
     pub const PRACTICE_RESET: &str = "/practice/reset";
     pub const STRATEGY_PAUSE: &str = "/strategies/{id}/pause";
     pub const STRATEGY_RESUME: &str = "/strategies/{id}/resume";
@@ -547,6 +556,14 @@ impl Transport for ActiveTransport {
     }
     async fn exit_reason_stats(&self, window: &str) -> ApiResult<ApiItem<Vec<ExitReasonStat>>> {
         delegate!(self, t => t.exit_reason_stats(window).await)
+    }
+
+    async fn pnl_summary(&self, window: &str) -> ApiResult<PnlSummary> {
+        delegate!(self, t => t.pnl_summary(window).await)
+    }
+
+    async fn closed_positions(&self, window: &str) -> ApiResult<Vec<ClosedPositionRow>> {
+        delegate!(self, t => t.closed_positions(window).await)
     }
 }
 

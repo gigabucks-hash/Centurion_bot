@@ -1475,6 +1475,78 @@ pub struct CoinTimeline {
     pub items: Vec<EventEnvelope>,
     pub server_now: IsoTs,
 }
+/// `GET /stats/pnl` data (contracts 1.1.6 / 0022): one server-computed PnL card.
+///
+/// `realized` / `unrealized` / `total` come from `portfolio_latest` (all-time, current epoch);
+/// `realized_pnl_window_lamports` and the closed-trade stats only count whole exits inside the
+/// requested range. They may differ legitimately (partial take-profits on still-open positions).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PnlSummary {
+    pub mode: Mode,
+    #[serde(default)]
+    pub practice_epoch: Option<i64>,
+    /// Echo of the requested range (`24h`, `7d`, `30d`, `all`); null for from/to.
+    #[serde(default)]
+    pub window: Option<String>,
+    #[serde(default)]
+    pub from: Option<IsoTs>,
+    #[serde(default)]
+    pub to: Option<IsoTs>,
+    #[serde(default)]
+    pub unrealized_pnl_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub realized_pnl_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub total_pnl_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub realized_pnl_window_lamports: Lamports,
+    #[serde(default)]
+    pub closed_count: i64,
+    #[serde(default)]
+    pub win_count: i64,
+    /// null when `closed_count = 0` (never a fake 0 %).
+    #[serde(default)]
+    pub win_rate_pct: Option<Num>,
+    #[serde(default)]
+    pub avg_hold_s: Option<Num>,
+    /// Reported context only: the swap fee is already inside sol_in/sol_out.
+    #[serde(default)]
+    pub fees_lamports: Lamports,
+    #[serde(default)]
+    pub best_pnl_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub worst_pnl_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub as_of_seq: Option<String>,
+    #[serde(default)]
+    pub ts: Option<IsoTs>,
+}
+
+/// `GET /positions?state=closed&window=` row: the realized result is locked at close (`0022`).
+/// Only the report fields are decoded; the server sends the full position.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ClosedPositionRow {
+    pub id: String,
+    pub position_key: String,
+    pub mint: String,
+    #[serde(default)]
+    pub logo_hash: Option<String>,
+    #[serde(default)]
+    pub exit_reason: Option<ExitReason>,
+    #[serde(default)]
+    pub closed_at: Option<IsoTs>,
+    #[serde(default)]
+    pub sol_out_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub fees_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub pnl_lamports: Option<Lamports>,
+    #[serde(default)]
+    pub pnl_pct: Option<Num>,
+    #[serde(default)]
+    pub hold_seconds: Option<i64>,
+}
+
 /// `GET /stats/exit-reasons` row (shape not specified in the contract yet → minimal subset).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExitReasonStat {

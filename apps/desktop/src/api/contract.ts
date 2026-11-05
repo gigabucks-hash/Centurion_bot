@@ -279,6 +279,49 @@ export interface ExitReasonStatView {
   avg_hold_s: number | null;
 }
 
+/** PnL report range. `all` covers the current practice epoch. */
+export type PnlWindow = "24h" | "7d" | "30d" | "all";
+
+/** `GET /stats/pnl` (0022). Realized/unrealized/total are all-time; the window fields only count
+ *  whole exits in the selected range (partial take-profits on open positions may differ). */
+export interface PnlSummaryView {
+  mode: Mode;
+  /** Practice epoch of the all-time figures (null in Real mode). */
+  practice_epoch: number | null;
+  window: PnlWindow | null;
+  unrealized_pnl_lamports: Lamports | null;
+  realized_pnl_lamports: Lamports | null;
+  total_pnl_lamports: Lamports | null;
+  realized_pnl_window_lamports: Lamports;
+  closed_count: number;
+  win_count: number;
+  win_rate_pct: number | null;
+  avg_hold_s: number | null;
+  fees_lamports: Lamports;
+  best_pnl_lamports: Lamports | null;
+  worst_pnl_lamports: Lamports | null;
+}
+
+/** One closed trade; `pnl_lamports` / `pnl_pct` are locked at close (0022). Legacy rows may be null. */
+export interface ClosedTradeView {
+  id: Uuid;
+  position_key: string;
+  mint: string;
+  logo_hash: string | null;
+  exit_reason: ExitReason | null;
+  closed_at: IsoTs | null;
+  sol_out_lamports: Lamports | null;
+  pnl_lamports: Lamports | null;
+  pnl_pct: number | null;
+  hold_seconds: number | null;
+}
+
+export interface PnlReportView {
+  summary: PnlSummaryView;
+  closed: ClosedTradeView[];
+  exit_stats: ExitReasonStatView[];
+}
+
 export interface SyncStatus {
   workspace_id: Uuid;
   watermark: Int64String;
@@ -363,6 +406,8 @@ export interface CoreApi {
   resetPractice(): Promise<void>;
   coinTimeline(mint: string): Promise<TimelineItem[]>;
   exitReasonStats(): Promise<ExitReasonStatView[]>;
+  /** One call for the PnL report: summary + exit-reason breakdown + closed-trade ledger. */
+  pnlReport(window: PnlWindow): Promise<PnlReportView>;
   openChartWindow(mint: string): Promise<void>;
   openActivityWindow(): Promise<void>;
   openApprovalWindow(): Promise<void>;

@@ -8,10 +8,15 @@ import type {
   ActivityView,
   Actor,
   CandleView,
+  ClosedTradeView,
   CoreApi,
+  ExitReason,
+  ExitReasonStatView,
   Lamports,
   Mode,
   PickView,
+  PnlReportView,
+  PnlWindow,
   PositionView,
   ScreenedCoin,
   SellQuote,
@@ -67,6 +72,8 @@ let settings: Settings = {
 let seq = 18_000;
 let cash = START;
 let realized = 0n;
+/** Closed-trade ledger for the PnL report (locked at close; newest first). */
+const closedTrades: ClosedTradeView[] = [];
 let epoch = 1;
 const quotes = new Map<string, SellQuote>();
 
@@ -343,7 +350,23 @@ export const browserMockAdapter: CoreApi = {
     quotes.delete(nonce);
     if (!q) throw new Error("quote expired");
     const pos = positions.get(q.position_key);
-    if (pos) realized += BigInt(q.est_sol_out_lamports) - BigInt(pos.cost_lamports);
+    if (pos) {
+      const pnl = BigInt(q.est_sol_out_lamports) - BigInt(pos.cost_lamports);
+      realized += pnl;
+      const pct = BigInt(pos.cost_lamports) > 0n ? Number((pnl * 10_000n) / BigInt(pos.cost_lamports)) / 100 : null;
+      closedTrades.unshift({
+        id: pos.position_id ?? `${pos.key}:${Date.now()}`,
+        position_key: pos.key,
+        mint: pos.mint,
+        logo_hash: pos.logo_hash ?? null,
+        exit_reason: "manual" as ExitReason,
+        closed_at: new Date().toISOString(),
+        sol_out_lamports: q.est_sol_out_lamports,
+        pnl_lamports: pnl.toString(),
+        pnl_pct: pct,
+        hold_seconds: Math.max(0, Math.round((Date.now() - pos.opened_at_ms) / 1000)),
+      });
+    }
     positions.delete(q.position_key);
     cash += BigInt(q.est_sol_out_lamports);
     log("user", "position.closed", "info", q.mint, q.symbol, `Jual manual ${q.pct}%`);
@@ -405,6 +428,8 @@ export const browserMockAdapter: CoreApi = {
     }
     lastResetMs = now;
     positions.clear();
+    closedTrades.length = 0;
+    realized = 0n;
     cash = START;
     epoch += 1;
     emit(EVT.positions, []);
@@ -416,6 +441,72 @@ export const browserMockAdapter: CoreApi = {
   },
   async exitReasonStats() {
     return [];
+  },
+  async pnlReport(window: PnlWindow): Promise<PnlReportView> {
+    const acct = account();
+    const span: Record<PnlWindow, number | null> = { "24h": 86_400_000, "7d": 7 * 86_400_000, "30d": 30 * 86_400_000, all: null };
+    const back = span[window];
+    const now = Date.now();
+    const rows = closedTrades.filter((t) => back == null || Date.parse(t.closed_at ?? "") >= now - back);
+    // Mock rows are always complete; the guard keeps a legacy/null row out of the aggregates only.
+    const statsRows = rows.filter(
+      (t): t is ClosedTradeView & { pnl_lamports: string; exit_reason: ExitReason; hold_seconds: number } =>
+        t.pnl_lamports != null && t.exit_reason != null && t.hold_seconds != null,
+    );
+    let windowPnl = 0n;
+    let wins = 0;
+    let sumHold = 0;
+    let best: bigint | null = null, worst: bigint | null = null;
+    const groups = new Map<ExitReason, { count: number; pnl: bigint; pct: number; wins: number; hold: number }>();
+    for (const t of statsRows) {
+      const pnl = BigInt(t.pnl_lamports);
+      windowPnl += pnl;
+      if (pnl > 0n) wins += 1;
+      sumHold += t.hold_seconds;
+      best = best == null || pnl > best ? pnl : best;
+      worst = worst == null || pnl < worst ? pnl : worst;
+      const g = groups.get(t.exit_reason) ?? { count: 0, pnl: 0n, pct: 0, wins: 0, hold: 0 };
+      g.count += 1;
+      g.pnl += pnl;
+      g.pct += t.pnl_pct ?? 0;
+      g.wins += pnl > 0n ? 1 : 0;
+      g.hold += t.hold_seconds;
+      groups.set(t.exit_reason, g);
+    }
+    const r2 = (x: number) => Math.round(x * 100) / 100;
+    const count = statsRows.length;
+    const exit_stats: ExitReasonStatView[] = [...groups.entries()].map(([reason, g]) => ({
+      exit_reason: reason,
+      label: reason,
+      count: g.count,
+      pnl_lamports: g.pnl.toString(),
+      avg_pnl_pct: g.count ? r2(g.pct / g.count) : null,
+      win_rate_pct: g.count ? r2((g.wins * 100) / g.count) : null,
+      avg_hold_s: g.count ? r2(g.hold / g.count) : null,
+    }));
+    return {
+      summary: {
+        mode: MOCK_MODE,
+        practice_epoch: epoch,
+        window,
+        unrealized_pnl_lamports: acct.unrealized_pnl_lamports,
+        realized_pnl_lamports: acct.realized_pnl_lamports,
+        total_pnl_lamports:
+          acct.realized_pnl_lamports != null && acct.unrealized_pnl_lamports != null
+            ? (BigInt(acct.realized_pnl_lamports) + BigInt(acct.unrealized_pnl_lamports)).toString()
+            : null,
+        realized_pnl_window_lamports: windowPnl.toString(),
+        closed_count: count,
+        win_count: wins,
+        win_rate_pct: count ? r2((wins * 100) / count) : null,
+        avg_hold_s: count ? r2(sumHold / count) : null,
+        fees_lamports: "0",
+        best_pnl_lamports: best?.toString() ?? null,
+        worst_pnl_lamports: worst?.toString() ?? null,
+      },
+      closed: rows,
+      exit_stats,
+    };
   },
   async openChartWindow(mint) {
     window.open(`${location.pathname}#/chart?mint=${mint}`, "_blank", "width=900,height=560");

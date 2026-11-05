@@ -126,6 +126,26 @@ const MOCK_STALL_MIN_MOVE_PCT: f64 = 1.0;
 const NETWORK_FEE: i128 = 25_000;
 const SOL_USD: i64 = 150;
 
+/// PnL report range → milliseconds back from `now`; `None` = all time.
+fn window_ms(window: &str) -> Option<i64> {
+    match window {
+        "1h" => Some(3_600_000),
+        "24h" => Some(86_400_000),
+        "7d" => Some(7 * 86_400_000),
+        "30d" => Some(30 * 86_400_000),
+        _ => None,
+    }
+}
+
+/// `IsoTs` inside the report range (unknown window = 7d, like the API).
+fn in_window(now: i64, window: &str, ts: &IsoTs) -> bool {
+    let Some(t) = ts.ms() else { return false };
+    match window_ms(window) {
+        Some(d) => t >= now - d,
+        None => true,
+    }
+}
+
 /// Shallow-merge `extra`'s keys into the object `p`.
 fn merge(p: &mut serde_json::Value, extra: serde_json::Value) {
     if let (Some(o), serde_json::Value::Object(e)) = (p.as_object_mut(), extra) {
@@ -272,6 +292,9 @@ struct Pos {
     strategy_id: String,
     qty_raw: u128,
     cost: i128,
+    /// SOL actually spent to open the position (never reduced by partial sells) — the denominator
+    /// of `pnl_pct`, matching the backend's `sol_in_lamports`.
+    sol_in: i128,
     peak: Decimal,
     opened_ms: i64,
     untrusted: Untrusted,
@@ -1252,6 +1275,7 @@ impl Server {
                 strategy_id: sid.clone(),
                 qty_raw,
                 cost: BUY_LAMPORTS,
+                sol_in: BUY_LAMPORTS,
                 peak: mark,
                 opened_ms: opened,
                 untrusted: untrusted.clone(),
@@ -1335,17 +1359,23 @@ impl Server {
         if full {
             let p = self.positions.remove(key).unwrap();
             let pnl_total = p.realized + pnl;
-            let pnl_pct = if p.cost > 0 {
-                (Decimal::from_i128(pnl_total).unwrap() * Decimal::from(100)
-                    / Decimal::from_i128(p.cost).unwrap())
-                .round_dp(2)
+            // Backend definition: pnl_pct = pnl * 100 / sol_in (the full position cost), not the
+            // remaining cost basis — partial take-profits must not inflate the percentage.
+            let pnl_pct = if p.sol_in > 0 {
+                Some(
+                    (Decimal::from_i128(pnl_total).unwrap() * Decimal::from(100)
+                        / Decimal::from_i128(p.sol_in).unwrap())
+                    .round_dp(2)
+                    .to_f64()
+                    .unwrap_or(0.0),
+                )
             } else {
-                Decimal::ZERO
+                None
             };
             let epoch = self.epoch;
             self.emit("position.closed", actor, key, Some(&sid), Some(&ck), Some(&mint), json!({
                 "position_key": key, "position_id": pos_id, "rev": p.rev + 1, "practice_epoch": epoch, "exit_reason": rule, "exit_price_sol": Dec(exec), "sol_out_lamports": out.to_string(),
-                "pnl_lamports": pnl_total.to_string(), "pnl_pct": pnl_pct.to_f64(), "hold_seconds": (now - p.opened_ms) / 1000}), u);
+                "pnl_lamports": pnl_total.to_string(), "pnl_pct": pnl_pct, "hold_seconds": (now - p.opened_ms) / 1000}), u);
         } else {
             let p = self.positions.get_mut(key).unwrap();
             p.qty_raw -= sell_raw;
@@ -2154,11 +2184,16 @@ impl Transport for MockTransport {
         })
     }
 
-    async fn exit_reason_stats(&self, _window: &str) -> ApiResult<ApiItem<Vec<ExitReasonStat>>> {
+    async fn exit_reason_stats(&self, window: &str) -> ApiResult<ApiItem<Vec<ExitReasonStat>>> {
         let s = self.inner.lock().unwrap();
+        let now = s.now();
         // (reason, count, pnl, sum pnl_pct, wins, sum hold_s)
         let mut agg: Vec<(ExitReason, i64, i128, f64, i64, i64)> = Vec::new();
-        for e in s.log.iter().filter(|e| e.kind == "position.closed") {
+        for e in s
+            .log
+            .iter()
+            .filter(|e| e.kind == "position.closed" && in_window(now, window, &e.ts))
+        {
             let Ok(c) = serde_json::from_value::<PositionClosed>(e.payload.clone()) else {
                 continue;
             };
@@ -2197,6 +2232,91 @@ impl Transport for MockTransport {
             data,
             server_now: IsoTs::from_ms(s.now()),
         })
+    }
+
+    async fn pnl_summary(&self, window: &str) -> ApiResult<PnlSummary> {
+        let s = self.inner.lock().unwrap();
+        let now = s.now();
+        let cost: i128 = s.positions.values().map(|p| p.cost).sum();
+        let value: i128 = s.positions.values().map(|p| s.value_of(p)).sum();
+        let unrealized = value - cost;
+        let mut realized_window = 0i128;
+        let (mut count, mut wins) = (0i64, 0i64);
+        let mut sum_hold = 0i64;
+        let (mut best, mut worst): (Option<i128>, Option<i128>) = (None, None);
+        for e in s.log.iter().filter(|e| e.kind == "position.closed") {
+            if !in_window(now, window, &e.ts) {
+                continue;
+            }
+            let Ok(c) = serde_json::from_value::<PositionClosed>(e.payload.clone()) else {
+                continue;
+            };
+            realized_window += c.pnl_lamports.0;
+            count += 1;
+            wins += i64::from(c.pnl_lamports.0 > 0);
+            sum_hold += c.hold_seconds;
+            best = Some(best.map_or(c.pnl_lamports.0, |b| b.max(c.pnl_lamports.0)));
+            worst = Some(worst.map_or(c.pnl_lamports.0, |w| w.min(c.pnl_lamports.0)));
+        }
+        let r2 = |x: f64| (x * 100.0).round() / 100.0;
+        let total = s.realized + unrealized;
+        Ok(PnlSummary {
+            mode: Mode::Practice,
+            practice_epoch: Some(s.epoch),
+            window: Some(window.to_owned()),
+            from: None,
+            to: None,
+            unrealized_pnl_lamports: Some(Lamports(unrealized)),
+            realized_pnl_lamports: Some(Lamports(s.realized)),
+            total_pnl_lamports: Some(Lamports(total)),
+            realized_pnl_window_lamports: Lamports(realized_window),
+            closed_count: count,
+            win_count: wins,
+            win_rate_pct: (count > 0).then(|| r2(wins as f64 * 100.0 / count as f64)),
+            avg_hold_s: (count > 0).then(|| r2(sum_hold as f64 / count as f64)),
+            fees_lamports: Lamports(0),
+            best_pnl_lamports: best.map(Lamports),
+            worst_pnl_lamports: worst.map(Lamports),
+            as_of_seq: Some(s.seq.to_string()),
+            ts: Some(IsoTs::from_ms(now)),
+        })
+    }
+
+    async fn closed_positions(&self, window: &str) -> ApiResult<Vec<ClosedPositionRow>> {
+        let s = self.inner.lock().unwrap();
+        let now = s.now();
+        let mut rows: Vec<ClosedPositionRow> = s
+            .log
+            .iter()
+            .filter(|e| e.kind == "position.closed" && in_window(now, window, &e.ts))
+            .filter_map(|e| {
+                let c = serde_json::from_value::<PositionClosed>(e.payload.clone()).ok()?;
+                Some(ClosedPositionRow {
+                    id: e.payload["position_id"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_owned(),
+                    position_key: c.position_key,
+                    mint: e.mint.clone().unwrap_or_default(),
+                    logo_hash: e.logo_hash.clone(),
+                    exit_reason: Some(c.exit_reason),
+                    closed_at: Some(e.ts.clone()),
+                    sol_out_lamports: Some(c.sol_out_lamports),
+                    fees_lamports: None,
+                    pnl_lamports: Some(c.pnl_lamports),
+                    pnl_pct: c.pnl_pct,
+                    hold_seconds: Some(c.hold_seconds),
+                })
+            })
+            .collect();
+        rows.sort_by(|a, b| {
+            let (am, bm) = (
+                a.closed_at.as_ref().and_then(|x| x.ms()).unwrap_or(0),
+                b.closed_at.as_ref().and_then(|x| x.ms()).unwrap_or(0),
+            );
+            bm.cmp(&am)
+        });
+        Ok(rows)
     }
 }
 
@@ -2707,6 +2827,7 @@ mod tests {
             strategy_id: "s".into(),
             qty_raw: 1,
             cost: 1,
+            sol_in: 1,
             peak: refp,
             opened_ms: opened,
             untrusted: Untrusted::default(),

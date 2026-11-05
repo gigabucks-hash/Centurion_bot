@@ -1,0 +1,61 @@
+import type { ClosedTradeView, PnlSummaryView, PnlWindow } from "../api/contract";
+
+/** Report ranges, in the order the segment shows them (the API also accepts `1h`). */
+export const PNL_RANGES: readonly PnlWindow[] = ["24h", "7d", "30d", "all"];
+
+export type PnlSortKey = "closed" | "pnl" | "pct" | "hold";
+export type SortDir = "asc" | "desc";
+
+type Summary = Pick<
+  PnlSummaryView,
+  "total_pnl_lamports" | "realized_pnl_lamports" | "unrealized_pnl_lamports"
+>;
+
+/**
+ * All-time total, exact. The server sends it pre-added; only fall back to a BigInt sum when it is
+ * missing (never `Number(lamports)`). Null when either leg is unknown.
+ */
+export function pnlTotal(sum: Summary): string | null {
+  if (sum.total_pnl_lamports != null) return sum.total_pnl_lamports;
+  if (sum.realized_pnl_lamports == null || sum.unrealized_pnl_lamports == null) return null;
+  return (BigInt(sum.realized_pnl_lamports) + BigInt(sum.unrealized_pnl_lamports)).toString();
+}
+
+/** true/false when checkable; null when a leg is unknown (never guess). */
+export function pnlReconciles(sum: Summary): boolean | null {
+  const total = pnlTotal(sum);
+  if (total == null || sum.realized_pnl_lamports == null || sum.unrealized_pnl_lamports == null) return null;
+  return BigInt(total) === BigInt(sum.realized_pnl_lamports) + BigInt(sum.unrealized_pnl_lamports);
+}
+
+const ms = (iso: string | null | undefined) => {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? t : null;
+};
+
+/** Newest close first (server order) unless a column is chosen; null values always sort last. */
+export function sortClosed(rows: readonly ClosedTradeView[], key: PnlSortKey, dir: SortDir): ClosedTradeView[] {
+  const sign = dir === "asc" ? 1 : -1;
+  const value = (r: ClosedTradeView): bigint | number | null => {
+    if (key === "closed") return ms(r.closed_at);
+    if (key === "pnl") return r.pnl_lamports == null ? null : BigInt(r.pnl_lamports);
+    if (key === "pct") return r.pnl_pct;
+    return r.hold_seconds;
+  };
+  const cmp = (a: bigint | number, b: bigint | number) =>
+    typeof a === "bigint" || typeof b === "bigint" ? (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0) : a < b ? -1 : a > b ? 1 : 0;
+  return rows
+    .map((row, i) => ({ row, i }))
+    .sort(({ row: a, i: ai }, { row: b, i: bi }) => {
+      const av = value(a);
+      const bv = value(b);
+      if (av == null || bv == null) {
+        if (av == null && bv == null) return ai - bi;
+        return av == null ? 1 : -1; // nulls last, independent of direction
+      }
+      const c = cmp(av, bv) * sign;
+      return c !== 0 ? c : ai - bi; // stable for equal values
+    })
+    .map((x) => x.row);
+}
