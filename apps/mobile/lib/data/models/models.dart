@@ -183,6 +183,8 @@ class Position {
     this.exitReason,
     this.lockedPnlLamports,
     this.lockedPnlPct,
+    this.feesLamports,
+    this.exitPriceUsd,
     this.soldBps = 0,
     this.exitPlan,
     this.feeBps = 125,
@@ -227,6 +229,14 @@ class Position {
   /// derives from proceeds − cost (mock/open rows); never re-derive when set.
   final Lamports? lockedPnlLamports;
   final double? lockedPnlPct;
+
+  /// Wire `fees_lamports`: REPORTED context on the closed receipt. The swap fee
+  /// is already netted inside `sol_in`/`sol_out`, so it is never subtracted from
+  /// PnL again. Null = the row did not carry it → render an em dash.
+  final Lamports? feesLamports;
+
+  /// Wire `exit_price_sol` (closed rows): the price the remainder left at.
+  final Decimal? exitPriceUsd;
 
   /// Share of the original size already sold, in basis points (0–10000).
   final int soldBps;
@@ -279,6 +289,8 @@ class Position {
     Lamports? proceedsLamports,
     DateTime? closedAt,
     String? exitReason,
+    Lamports? feesLamports,
+    Decimal? exitPriceUsd,
     int? soldBps,
     ExitPlanState? exitPlan,
     int? rev,
@@ -301,6 +313,8 @@ class Position {
       exitReason: exitReason ?? this.exitReason,
       lockedPnlLamports: lockedPnlLamports,
       lockedPnlPct: lockedPnlPct,
+      feesLamports: feesLamports ?? this.feesLamports,
+      exitPriceUsd: exitPriceUsd ?? this.exitPriceUsd,
       soldBps: soldBps ?? this.soldBps,
       exitPlan: exitPlan ?? this.exitPlan,
       feeBps: feeBps,

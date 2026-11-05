@@ -18,12 +18,25 @@ pin() { # <app copy> <expected sha256> <label> <restore command>
   fi
 }
 
-# @centurion/i18n 0.4.11 @ 714beb2 (verbatim ARB; then flutter gen-l10n).
-I18N_PIN=714beb2
-pin lib/l10n/app_en.arb afc446840b81ef64c4a31014507c60a68d1ade00c449d74da086dc811cfd9085 "i18n 0.4.11 ($I18N_PIN)" \
-  "git show $I18N_PIN:packages/i18n/arb/app_en.arb > lib/l10n/app_en.arb"
-pin lib/l10n/app_id.arb cb68043ac0a2ef4ca591960072c45de8e35003b560c87c7b98d14eb45b19dd47 "i18n 0.4.11 ($I18N_PIN)" \
-  "git show $I18N_PIN:packages/i18n/arb/app_id.arb > lib/l10n/app_id.arb"
+pin_text() { # text pin: ignore CR so a Windows working tree verifies too (CI checks out LF)
+  local got
+  got="$(tr -d '\r' < "$1" | sha256sum | cut -d' ' -f1)"
+  if [[ "$got" != "$2" ]]; then
+    echo "::error::$1 is not $3 (sha256 $got)" >&2
+    echo "  restore: $4" >&2
+    fail=1
+  else
+    echo "ok  $1 == $3"
+  fi
+}
+
+# @centurion/i18n 0.4.11 @ 714beb2 plus the mobile PnL keys (pnl.*, added 2026-11-06). The vendored copy is
+# still a verbatim copy, so the monorepo ARB is the source of truth: restore from packages/i18n/arb, never from
+# the 0.4.11 tag (it does not have the PnL keys). Then run `flutter gen-l10n`.
+pin_text lib/l10n/app_en.arb fc1ee202c45c95c69aa23a12646ada94aba02698b797b3e1ba1c2648fff43a64 "i18n 0.4.11 + pnl keys" \
+  "cp ../../packages/i18n/arb/app_en.arb lib/l10n/app_en.arb"
+pin_text lib/l10n/app_id.arb 1d896a4ca6ba3a0945d639401abd8f2a110043a30d998a2619cd6ba4c03babec "i18n 0.4.11 + pnl keys" \
+  "cp ../../packages/i18n/arb/app_id.arb lib/l10n/app_id.arb"
 
 # design-tokens 0.3.4 (5234c44): G1-blue palette. Copied verbatim; the 0.3.x generator header already says
 # "Centurion Trade (@centurion/design-tokens)", so no rename edit is needed.

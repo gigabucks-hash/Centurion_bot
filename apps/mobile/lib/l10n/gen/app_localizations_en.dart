@@ -3088,4 +3088,159 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get walletWithdrawFailReasonWithdrawSimulationFailed => 'the safety simulation failed';
+
+  @override
+  String get pnlTitle => 'PnL';
+
+  @override
+  String get pnlUnrealized => 'Unrealized PnL';
+
+  @override
+  String get pnlRealized => 'Realized PnL';
+
+  @override
+  String get pnlTotal => 'Total PnL';
+
+  @override
+  String get pnlUnrealizedHint => 'Mark-to-market of open positions';
+
+  @override
+  String get pnlRealizedHint => 'From take-profits and closed trades';
+
+  @override
+  String get pnlTotalHint => 'Realized + unrealized';
+
+  @override
+  String get pnlViewReport => 'View report';
+
+  @override
+  String pnlOpenCount(int count) {
+    return '$count open';
+  }
+
+  @override
+  String get pnlReportTitle => 'PnL report';
+
+  @override
+  String get pnlReportEyebrow => 'PNL REPORT';
+
+  @override
+  String pnlRealizedFor(String range) {
+    return 'Realized · $range';
+  }
+
+  @override
+  String get pnlClosed => 'Closed';
+
+  @override
+  String get pnlTotalAllTime => 'Total all-time';
+
+  @override
+  String get pnlRealizedAllTime => 'All-time realized';
+
+  @override
+  String get pnlReportUnavailable => 'The PnL report could not be loaded.';
+
+  @override
+  String get pnlRealizedHeroHint => 'Locked at close, does not follow the live price';
+
+  @override
+  String get pnlClosedTrades => 'Closed trades';
+
+  @override
+  String get pnlByExitReason => 'By exit reason';
+
+  @override
+  String get pnlWinRate => 'Win rate';
+
+  @override
+  String get pnlAvgHold => 'Avg hold';
+
+  @override
+  String get pnlStatsUnavailable => 'The breakdown by exit reason could not be loaded.';
+
+  @override
+  String get pnlPartialNote =>
+      'All-time realized also counts partial take-profits on open positions and closes outside the range, so it can be larger than this range realized and the ledger sum.';
+
+  @override
+  String get pnlRealizedShort => 'realized';
+
+  @override
+  String pnlHoldSeconds(int count) {
+    return '${count}s';
+  }
+
+  @override
+  String pnlHoldMinutes(int count) {
+    return '${count}m';
+  }
+
+  @override
+  String pnlHoldHours(int hours, int minutes) {
+    return '${hours}h ${minutes}m';
+  }
+
+  @override
+  String pnlTrades(int count) {
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count trades', one: '1 trade');
+    return '$_temp0';
+  }
+
+  @override
+  String get pnlEmptyTitle => 'No closed trades yet';
+
+  @override
+  String get pnlEmptyBody => 'Realized PnL appears here once a position closes. Unrealized PnL stays on the PnL card.';
+
+  @override
+  String get pnlEmptyAction => 'See open positions';
+
+  @override
+  String get pnlReceiptSolIn => 'SOL in';
+
+  @override
+  String get pnlReceiptSolOut => 'SOL out';
+
+  @override
+  String get pnlReceiptFees => 'Fees (reported)';
+
+  @override
+  String get pnlReceiptHold => 'Hold';
+
+  @override
+  String get pnlReceiptEntryExit => 'Entry → exit';
+
+  @override
+  String get pnlReceiptExitReason => 'Exit reason';
+
+  @override
+  String get pnlReceiptBot => 'Bot';
+
+  @override
+  String get pnlReceiptSize => 'Size';
+
+  @override
+  String get pnlReceiptSold => 'Sold';
+
+  @override
+  String get pnlReceiptToken => 'Token';
+
+  @override
+  String get pnlReceiptMint => 'Mint';
+
+  @override
+  String get pnlSell => 'Sell';
+
+  @override
+  String get pnlNoSellNote => 'Sell is never available from a notification.';
+
+  @override
+  String get pnlPositionsTitle => 'Positions';
+
+  @override
+  String get pnlPositionNotFound => 'Position not found';
+
+  @override
+  String get pnlReceiptEntryNow => 'Entry → now';
 }

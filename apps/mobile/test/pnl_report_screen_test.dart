@@ -14,7 +14,8 @@ import 'package:centurion_mobile/data/api/centurion_rpc.dart';
 import 'package:centurion_mobile/data/mock/mock_backend.dart';
 import 'package:centurion_mobile/data/models/models.dart';
 import 'package:centurion_mobile/data/providers.dart';
-import 'package:centurion_mobile/features/positions/pnl_strings.dart';
+import 'package:centurion_mobile/core/l10n_format.dart' show formatHold;
+import 'package:centurion_mobile/l10n/gen/app_localizations.dart';
 
 /// Real mock backend (deterministic seed), no post-first-frame tick: the same
 /// data the app ships in the demo build.
@@ -106,7 +107,10 @@ void main() {
     expect(_text(tester, const Key('pnlReportTotal')).data, fmtPnl(total, unit: true));
     expect(_text(tester, const Key('pnlReportClosed')).data, '$closedCount');
     expect(_text(tester, const Key('pnlReportWinRate')).data, fmtRatePct(winRate.toDouble()));
-    expect(_text(tester, const Key('pnlReportAvgHold')).data, PnlStrings.of('id').hold(avgHold));
+    expect(
+      _text(tester, const Key('pnlReportAvgHold')).data,
+      formatHold(lookupAppLocalizations(const Locale('id')), avgHold),
+    );
     expect(windowRealized, isNot(allTimeRealized), reason: 'partial TP on GLOW makes them differ');
 
     // Reconciliation note: all-time realized includes partial TPs outside the ledger.

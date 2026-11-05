@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/exit_reason_l10n.dart';
 import '../../core/format.dart';
+import '../../core/l10n_format.dart' show dash, formatHold;
 import '../../core/theme/centurion_theme.dart';
 import '../../core/widgets/app_icons.dart';
 import '../../core/widgets/coin_avatar.dart';
@@ -13,19 +14,11 @@ import '../../data/models/models.dart';
 import '../../data/repositories/repositories.dart';
 import '../../data/providers.dart';
 import '../../l10n/gen/app_localizations.dart';
-import 'pnl_strings.dart';
 import 'widgets/closed_trade_row.dart';
 import 'widgets/equity_card.dart';
 import 'widgets/exit_progress_bar.dart';
 import 'widgets/pnl_report_card.dart';
 import 'widgets/sell_sheet.dart';
-
-/// "26 mnt" / "1 j 5 mnt".
-String fmtHold(Duration d) {
-  if (d.inMinutes < 1) return '${d.inSeconds} dtk';
-  if (d.inHours < 1) return '${d.inMinutes} mnt';
-  return '${d.inHours} j ${d.inMinutes % 60} mnt';
-}
 
 final _strategyNamesProvider = Provider<Map<String, String>>(
   (ref) => {for (final s in ref.watch(strategiesProvider).valueOrNull ?? const <Strategy>[]) s.id: s.name},
@@ -70,11 +63,15 @@ class _PositionsScreenState extends ConsumerState<PositionsScreen> {
     final open = positions.valueOrNull?.where((p) => p.isOpen).length ?? 0;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Positions'),
+        title: Text(AppLocalizations.of(context).navPositions),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: AppSpace.s4),
-            child: Text('$open open', key: const Key('openCount'), style: Theme.of(context).textTheme.labelLarge),
+            child: Text(
+              AppLocalizations.of(context).positionsOpenCount(open),
+              key: const Key('openCount'),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
           ),
         ],
       ),
@@ -124,7 +121,7 @@ class _PositionsScreenState extends ConsumerState<PositionsScreen> {
                       SliverToBoxAdapter(
                         child: SectionHeader(
                           AppLocalizations.of(context).coinTrailStepClosed,
-                          action: PnlStrings.of(Localizations.localeOf(context).languageCode).viewReport,
+                          action: AppLocalizations.of(context).pnlViewReport,
                           onAction: () => context.push('/pnl'),
                         ),
                       ),
@@ -161,6 +158,7 @@ class PositionCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = position;
     final names = ref.watch(_strategyNamesProvider);
+    final l = AppLocalizations.of(context);
     final tt = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     return Card(
@@ -216,7 +214,7 @@ class PositionCard extends ConsumerWidget {
                         Text(exitCaption(p), style: tt.bodySmall),
                         Text(
                           '${fmtUsd(p.entryPriceUsd)} → ${fmtUsd(p.markPriceUsd)} · '
-                          '${fmtHold(p.holdAt(DateTime.now()))}',
+                          '${formatHold(l, p.holdAt(DateTime.now()).inSeconds)}',
                           style: AppText.num(11, color: cs.onSurfaceVariant),
                         ),
                       ],
@@ -226,7 +224,7 @@ class PositionCard extends ConsumerWidget {
                     key: Key('sell_${p.id}'),
                     style: AppButtons.secondary(context),
                     onPressed: () => showSellSheet(context, p),
-                    child: const Text('Sell'),
+                    child: Text(l.pnlSell),
                   ),
                 ],
               ),
@@ -248,117 +246,179 @@ class PositionDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(positionByIdProvider(positionId));
     final names = ref.watch(_strategyNamesProvider);
+    final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(value.valueOrNull == null ? 'Posisi' : '\$${value.valueOrNull!.symbol}')),
+      appBar: AppBar(title: Text(value.valueOrNull == null ? l.pnlPositionsTitle : '\$${value.valueOrNull!.symbol}')),
       body: AsyncBody(
         value: value,
         data: (p) {
-          if (p == null) return const EmptyState(icon: AppIcons.searchOff, text: 'Posisi tidak ditemukan');
+          if (p == null) return EmptyState(icon: AppIcons.searchOff, text: l.pnlPositionNotFound);
           final tt = Theme.of(context).textTheme;
           final cs = Theme.of(context).colorScheme;
-          final s = PnlStrings.of(Localizations.localeOf(context).languageCode);
-          final l = AppLocalizations.of(context);
           final now = DateTime.now();
           return ListView(
             padding: const EdgeInsets.all(AppSpace.s4),
             children: [
-              Row(
-                children: [
-                  ModeChip(p.mode),
-                  const SizedBox(width: AppSpace.s2),
-                  Expanded(
-                    child: Text(
-                      names[p.strategyId] ?? p.strategyId,
-                      style: tt.bodyMedium,
-                      overflow: TextOverflow.ellipsis,
+              if (p.isOpen) ...[
+                Row(
+                  children: [
+                    ModeChip(p.mode),
+                    const SizedBox(width: AppSpace.s2),
+                    Expanded(
+                      child: Text(
+                        names[p.strategyId] ?? p.strategyId,
+                        style: tt.bodyMedium,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  PnlText(p.pnlLamports, size: 18, unit: true),
-                ],
-              ),
-              const SizedBox(height: AppSpace.s2),
-              Wrap(
-                spacing: AppSpace.s4,
-                runSpacing: AppSpace.s1,
-                children: [
-                  _Kv('Size', '${fmtSol(p.sizeLamports)} SOL'),
-                  _Kv('Entry → now', '${fmtUsd(p.entryPriceUsd)} → ${fmtUsd(p.markPriceUsd)}'),
-                  _Kv('Hold', fmtHold(p.holdAt(now))),
-                  _Kv('Terjual', '${p.soldPct.round()}%'),
-                  // 1.1.2: raw qty scaled by the mint's `decimals` (never assumed).
-                  if (p.qtyRaw != null) _Kv('Token', fmtTokenQty(p.qtyRaw!, p.decimals), key: Key('qty_${p.id}')),
-                  _Kv('Mint', shortMint(p.mint)),
-                ],
-              ),
-              const SizedBox(height: AppSpace.s4),
-              if (p.exitPlan != null) ...[
-                Text('Exit plan · ${p.exitPlan!.name}', style: tt.titleSmall),
-                const SizedBox(height: AppSpace.s2),
-                ExitLadder(position: p),
-                const SizedBox(height: AppSpace.s3),
-                if (p.isOpen) _NextAction(position: p, now: now),
-              ],
-              if (!p.isOpen)
-                Card(
-                  key: const Key('realizedPnl'),
-                  margin: EdgeInsets.zero,
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpace.s3),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(s.realized, style: tt.titleSmall),
-                                  const SizedBox(height: AppSpace.sHalf),
-                                  Text(s.realizedHeroHint, style: tt.labelSmall!.copyWith(color: cs.onSurfaceVariant)),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                PnlText(p.pnlLamports, size: 20, unit: true),
-                                const SizedBox(height: AppSpace.sHalf),
-                                Text(
-                                  fmtPct(p.pnlPct, arrow: false),
-                                  style: AppText.num(12, color: context.pnlColor(p.pnlPct)),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpace.s2),
-                        Text(
-                          '${p.exitReason == null ? l.coinTrailStepClosed : exitReasonLabel(l, p.exitReason!)}'
-                          '${p.closedAt == null ? '' : ' · ${s.closedAt} ${fmtTime(p.closedAt!)} WIB'}',
-                          style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
+                    PnlText(p.pnlLamports, size: 18, unit: true),
+                  ],
                 ),
-              const SizedBox(height: AppSpace.s4),
-              if (p.isOpen)
+                const SizedBox(height: AppSpace.s2),
+                Wrap(
+                  spacing: AppSpace.s4,
+                  runSpacing: AppSpace.s1,
+                  children: [
+                    _Kv(l.pnlReceiptSize, fmtSol(p.sizeLamports, unit: true)),
+                    _Kv(l.pnlReceiptEntryNow, '${fmtUsd(p.entryPriceUsd)} → ${fmtUsd(p.markPriceUsd)}'),
+                    _Kv(l.pnlReceiptHold, formatHold(l, p.holdAt(now).inSeconds)),
+                    _Kv(l.pnlReceiptSold, '${p.soldPct.round()}%'),
+                    // 1.1.2: raw qty scaled by the mint's `decimals` (never assumed).
+                    if (p.qtyRaw != null)
+                      _Kv(l.pnlReceiptToken, fmtTokenQty(p.qtyRaw!, p.decimals), key: Key('qty_${p.id}')),
+                    _Kv(l.pnlReceiptMint, shortMint(p.mint)),
+                  ],
+                ),
+                const SizedBox(height: AppSpace.s4),
+                if (p.exitPlan != null) ...[
+                  Text('Exit plan · ${p.exitPlan!.name}', style: tt.titleSmall),
+                  const SizedBox(height: AppSpace.s2),
+                  ExitLadder(position: p),
+                  const SizedBox(height: AppSpace.s3),
+                  _NextAction(position: p, now: now),
+                ],
+                const SizedBox(height: AppSpace.s4),
                 FilledButton.tonal(
                   key: const Key('detailSell'),
                   onPressed: () => showSellSheet(context, p),
-                  child: const Text('Sell'),
+                  child: Text(l.pnlSell),
                 ),
-              const SizedBox(height: AppSpace.s2),
-              Text(
-                'Sell tidak pernah tersedia dari notifikasi.',
-                style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
+                const SizedBox(height: AppSpace.s2),
+                Text(
+                  l.pnlNoSellNote,
+                  style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ),
+              ] else
+                _ClosedReceipt(position: p, bot: names[p.strategyId] ?? p.strategyId, now: now),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Receipt for a closed position: realized result first, then the trade facts
+/// the server reports. `fees` is context only (already netted in SOL in/out);
+/// a missing value is an em dash, never zero.
+class _ClosedReceipt extends StatelessWidget {
+  const _ClosedReceipt({required this.position, required this.bot, required this.now});
+  final Position position;
+  final String bot;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = position;
+    final l = AppLocalizations.of(context);
+    final tt = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+    final muted = tt.labelSmall!.copyWith(color: cs.onSurfaceVariant);
+    final exitReason = p.exitReason == null ? l.coinTrailStepClosed : exitReasonLabel(l, p.exitReason!);
+    return Card(
+      key: const Key('realizedPnl'),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpace.s3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CoinAvatar(mint: p.mint, symbol: p.symbol, logoHash: p.logoHash, logoUrl: p.logoUrl),
+                const SizedBox(width: AppSpace.s3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text('\$${p.symbol}', style: tt.titleMedium, overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(width: AppSpace.s2),
+                          ModeChip(p.mode),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpace.sHalf),
+                      Text(
+                        bot,
+                        style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.s3),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l.pnlRealized, style: tt.titleSmall),
+                      const SizedBox(height: AppSpace.sHalf),
+                      Text(l.pnlRealizedHeroHint, style: muted),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    PnlText(p.pnlLamports, size: 20, unit: true),
+                    const SizedBox(height: AppSpace.sHalf),
+                    Text(fmtPct(p.pnlPct, arrow: false), style: AppText.num(12, color: context.pnlColor(p.pnlPct))),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.s3),
+            Divider(height: 1, color: cs.outlineVariant),
+            const SizedBox(height: AppSpace.s3),
+            Wrap(
+              spacing: AppSpace.s4,
+              runSpacing: AppSpace.s2,
+              children: [
+                _Kv(l.pnlReceiptSolIn, fmtSol(p.costLamports, unit: true)),
+                _Kv(l.pnlReceiptSolOut, fmtSol(p.proceedsLamports, unit: true)),
+                _Kv(l.pnlReceiptFees, p.feesLamports == null ? dash : fmtSol(p.feesLamports!, unit: true)),
+                _Kv(l.pnlReceiptHold, formatHold(l, p.holdAt(now).inSeconds)),
+                _Kv(
+                  l.pnlReceiptEntryExit,
+                  '${fmtUsd(p.entryPriceUsd)} → ${p.exitPriceUsd == null ? dash : fmtUsd(p.exitPriceUsd!)}',
+                ),
+                _Kv(l.pnlReceiptExitReason, exitReason),
+                _Kv(l.pnlReceiptBot, bot),
+                _Kv(l.pnlClosed, p.closedAt == null ? dash : '${fmtTime(p.closedAt!)} WIB'),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

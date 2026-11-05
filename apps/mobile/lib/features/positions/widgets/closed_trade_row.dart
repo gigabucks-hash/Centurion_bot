@@ -7,7 +7,6 @@ import '../../../core/widgets/coin_avatar.dart';
 import '../../../core/widgets/common.dart';
 import '../../../data/models/models.dart';
 import '../../../l10n/gen/app_localizations.dart';
-import '../pnl_strings.dart';
 
 /// One closed trade with its locked-in (realized) PnL.
 ///
@@ -28,13 +27,12 @@ class ClosedTradeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = position;
     final l = AppLocalizations.of(context);
-    final s = PnlStrings.of(Localizations.localeOf(context).languageCode);
     final muted = Theme.of(
       context,
     ).textTheme.labelSmall!.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
     final reason = p.exitReason == null ? l.coinTrailStepClosed : exitReasonLabel(l, p.exitReason!);
     final subtitle = showClosedAt && p.closedAt != null
-        ? '$reason · ${s.closedAt} ${fmtTime(p.closedAt!)} WIB'
+        ? '$reason · ${l.pnlClosed} ${fmtTime(p.closedAt!)} WIB'
         : reason;
     return ListTile(
       key: Key('closed_${p.id}'),
@@ -53,7 +51,7 @@ class ClosedTradeRow extends StatelessWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
-              child: Text('${fmtPct(p.pnlPct, arrow: false)} · ${s.realizedShort}', style: muted),
+              child: Text('${fmtPct(p.pnlPct, arrow: false)} · ${l.pnlRealizedShort}', style: muted),
             ),
           ],
         ),

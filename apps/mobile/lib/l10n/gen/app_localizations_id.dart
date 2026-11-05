@@ -2985,4 +2985,160 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get walletWithdrawFailReasonWithdrawSimulationFailed => 'simulasi keamanan gagal';
+
+  @override
+  String get pnlTitle => 'PnL';
+
+  @override
+  String get pnlUnrealized => 'PnL belum terealisasi';
+
+  @override
+  String get pnlRealized => 'PnL terealisasi';
+
+  @override
+  String get pnlTotal => 'Total PnL';
+
+  @override
+  String get pnlUnrealizedHint => 'Mark-to-market posisi terbuka';
+
+  @override
+  String get pnlRealizedHint => 'Dari TP dan trade yang sudah ditutup';
+
+  @override
+  String get pnlTotalHint => 'Terealisasi + belum terealisasi';
+
+  @override
+  String get pnlViewReport => 'Lihat laporan';
+
+  @override
+  String pnlOpenCount(int count) {
+    return '$count terbuka';
+  }
+
+  @override
+  String get pnlReportTitle => 'Laporan PnL';
+
+  @override
+  String get pnlReportEyebrow => 'LAPORAN PNL';
+
+  @override
+  String pnlRealizedFor(String range) {
+    return 'Terealisasi · $range';
+  }
+
+  @override
+  String get pnlClosed => 'Ditutup';
+
+  @override
+  String get pnlTotalAllTime => 'Total semua waktu';
+
+  @override
+  String get pnlRealizedAllTime => 'Terealisasi semua waktu';
+
+  @override
+  String get pnlReportUnavailable => 'Laporan PnL belum bisa dimuat.';
+
+  @override
+  String get pnlRealizedHeroHint => 'Terkunci saat trade ditutup, tidak ikut harga live';
+
+  @override
+  String get pnlClosedTrades => 'Trade ditutup';
+
+  @override
+  String get pnlByExitReason => 'Per alasan keluar';
+
+  @override
+  String get pnlWinRate => 'Rasio menang';
+
+  @override
+  String get pnlAvgHold => 'Rata-rata tahan';
+
+  @override
+  String get pnlStatsUnavailable => 'Rincian per alasan keluar belum bisa dimuat.';
+
+  @override
+  String get pnlPartialNote =>
+      'Terealisasi semua waktu juga menghitung TP sebagian di posisi terbuka dan close di luar rentang, jadi bisa lebih besar dari terealisasi rentang ini dan jumlah ledger.';
+
+  @override
+  String get pnlRealizedShort => 'terealisasi';
+
+  @override
+  String pnlHoldSeconds(int count) {
+    return '$count dtk';
+  }
+
+  @override
+  String pnlHoldMinutes(int count) {
+    return '$count mnt';
+  }
+
+  @override
+  String pnlHoldHours(int hours, int minutes) {
+    return '$hours j $minutes mnt';
+  }
+
+  @override
+  String pnlTrades(int count) {
+    String _temp0 = intl.Intl.pluralLogic(count, locale: localeName, other: '$count trade');
+    return '$_temp0';
+  }
+
+  @override
+  String get pnlEmptyTitle => 'Belum ada trade ditutup';
+
+  @override
+  String get pnlEmptyBody =>
+      'PnL terealisasi muncul di sini setelah posisi ditutup. PnL belum terealisasi tetap terlihat di kartu PnL.';
+
+  @override
+  String get pnlEmptyAction => 'Lihat posisi terbuka';
+
+  @override
+  String get pnlReceiptSolIn => 'SOL masuk';
+
+  @override
+  String get pnlReceiptSolOut => 'SOL keluar';
+
+  @override
+  String get pnlReceiptFees => 'Biaya (dilaporkan)';
+
+  @override
+  String get pnlReceiptHold => 'Durasi tahan';
+
+  @override
+  String get pnlReceiptEntryExit => 'Masuk → keluar';
+
+  @override
+  String get pnlReceiptExitReason => 'Alasan keluar';
+
+  @override
+  String get pnlReceiptBot => 'Bot';
+
+  @override
+  String get pnlReceiptSize => 'Ukuran';
+
+  @override
+  String get pnlReceiptSold => 'Terjual';
+
+  @override
+  String get pnlReceiptToken => 'Token';
+
+  @override
+  String get pnlReceiptMint => 'Mint';
+
+  @override
+  String get pnlSell => 'Jual';
+
+  @override
+  String get pnlNoSellNote => 'Sell tidak pernah tersedia dari notifikasi.';
+
+  @override
+  String get pnlPositionsTitle => 'Posisi';
+
+  @override
+  String get pnlPositionNotFound => 'Posisi tidak ditemukan';
+
+  @override
+  String get pnlReceiptEntryNow => 'Masuk → sekarang';
 }

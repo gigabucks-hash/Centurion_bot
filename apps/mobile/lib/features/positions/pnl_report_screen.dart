@@ -6,6 +6,7 @@ import '../../core/exit_reason_l10n.dart';
 import '../../core/format.dart';
 import '../../core/theme/centurion_theme.dart';
 import '../../core/widgets/app_icons.dart';
+import '../../core/l10n_format.dart' show dash, formatHold;
 import '../../core/widgets/common.dart';
 import '../../core/widgets/page_footer.dart';
 import '../../data/api/cursor_page.dart';
@@ -13,7 +14,7 @@ import '../../data/api/centurion_rpc.dart';
 import '../../data/models/models.dart';
 import '../../data/providers.dart';
 import '../../l10n/gen/app_localizations.dart';
-import 'pnl_strings.dart';
+
 import 'widgets/closed_trade_row.dart';
 
 /// PnL report: the `GET /stats/pnl` strip (unrealized, realized for the range,
@@ -97,7 +98,7 @@ class _PnlReportScreenState extends ConsumerState<PnlReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final s = PnlStrings.of(Localizations.localeOf(context).languageCode);
+    final s = AppLocalizations.of(context);
     final report = ref.watch(pnlSummaryProvider(_window));
 
     final summary = report.valueOrNull;
@@ -111,7 +112,7 @@ class _PnlReportScreenState extends ConsumerState<PnlReportScreen> {
         leading: IconButton(
           key: const Key('pnlBack'),
           icon: const Icon(AppIcons.back),
-          tooltip: s.back,
+          tooltip: s.commonActionBack,
           onPressed: () {
             final nav = Navigator.of(context);
             if (nav.canPop()) {
@@ -121,7 +122,7 @@ class _PnlReportScreenState extends ConsumerState<PnlReportScreen> {
             }
           },
         ),
-        title: Text(s.reportTitle),
+        title: Text(s.pnlReportTitle),
       ),
       body: report.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -131,7 +132,7 @@ class _PnlReportScreenState extends ConsumerState<PnlReportScreen> {
     );
   }
 
-  Widget _body(PnlStrings s, PnlSummary pnl) {
+  Widget _body(AppLocalizations s, PnlSummary pnl) {
     final paged = _closedPages.state;
     final range = (from: pnl.from, to: pnl.to);
     final stats = ref.watch(exitStatsProvider(range));
@@ -160,7 +161,7 @@ class _PnlReportScreenState extends ConsumerState<PnlReportScreen> {
                 SliverToBoxAdapter(child: _EmptyClosed(strings: s))
               else ...[
                 SliverToBoxAdapter(
-                  child: SectionHeader('${s.closedTrades} · ${pnl.closedCount}${paged.done ? '' : '+'}'),
+                  child: SectionHeader('${s.pnlClosedTrades} · ${pnl.closedCount}${paged.done ? '' : '+'}'),
                 ),
                 SliverList.builder(
                   itemCount: closed.length + 1,
@@ -189,7 +190,7 @@ class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.summary, required this.strings, required this.window, required this.onWindow});
 
   final PnlSummary summary;
-  final PnlStrings strings;
+  final AppLocalizations strings;
   final PnlWindow window;
   final ValueChanged<PnlWindow> onWindow;
 
@@ -210,7 +211,7 @@ class _SummaryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(child: Text(s.reportEyebrow, style: AppText.eyebrow(cs.primary))),
+                Expanded(child: Text(s.pnlReportEyebrow, style: AppText.eyebrow(cs.primary))),
                 ModeChip(summary.mode),
               ],
             ),
@@ -221,20 +222,20 @@ class _SummaryCard extends StatelessWidget {
                 for (final w in PnlWindow.values)
                   ChoiceChip(
                     key: Key('pnlWindow_${w.name}'),
-                    label: Text(s.windowLabel(w)),
+                    label: Text(_windowLabel(s, w)),
                     selected: w == window,
                     visualDensity: VisualDensity.compact,
                     onSelected: (_) => onWindow(w),
                   ),
               ],
             ),
-            Text(s.unrealized, style: label),
+            Text(s.pnlUnrealized, style: label),
             const SizedBox(height: AppSpace.s1),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
               child: summary.unrealizedPnl == null
-                  ? Text(s.unavailable, key: const Key('pnlReportUnrealized'), style: muted)
+                  ? Text(dash, key: const Key('pnlReportUnrealized'), style: muted)
                   : PnlText(summary.unrealizedPnl!, key: const Key('pnlReportUnrealized'), size: 40, unit: true),
             ),
             const SizedBox(height: AppSpace.s3),
@@ -242,40 +243,40 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: AppSpace.s2),
             _PairRow(
               left: _MiniPnl(
-                label: s.realizedFor(s.windowLabel(window)),
+                label: s.pnlRealizedFor(_windowLabel(s, window)),
                 value: summary.realizedPnlWindow,
                 valueKey: const Key('pnlReportRealized'),
               ),
               right: _MiniValue(
-                label: s.closedLabel,
+                label: s.pnlClosed,
                 value: '${summary.closedCount}',
                 valueKey: const Key('pnlReportClosed'),
               ),
             ),
             const SizedBox(height: AppSpace.s1),
-            Text(s.partialNote, style: muted),
+            Text(s.pnlPartialNote, style: muted),
             const SizedBox(height: AppSpace.s2),
             Divider(height: 1, thickness: 1, color: cs.outlineVariant),
             const SizedBox(height: AppSpace.s2),
             _PairRow(
               left: _MiniValue(
-                label: s.winRate,
-                value: summary.winRatePct == null ? s.unavailable : fmtRatePct(summary.winRatePct!),
+                label: s.pnlWinRate,
+                value: summary.winRatePct == null ? dash : fmtRatePct(summary.winRatePct!),
                 valueKey: const Key('pnlReportWinRate'),
               ),
               right: _MiniValue(
-                label: s.avgHold,
-                value: summary.avgHoldS == null ? s.unavailable : s.hold(summary.avgHoldS!),
+                label: s.pnlAvgHold,
+                value: summary.avgHoldS == null ? dash : formatHold(s, summary.avgHoldS!),
                 valueKey: const Key('pnlReportAvgHold'),
               ),
             ),
             const SizedBox(height: AppSpace.s3),
             Divider(height: 1, thickness: 1, color: cs.outlineVariant),
             const SizedBox(height: AppSpace.s2),
-            _TotalRow(label: s.totalAllTime, value: summary.totalPnl, valueKey: const Key('pnlReportTotal')),
+            _TotalRow(label: s.pnlTotalAllTime, value: summary.totalPnl, valueKey: const Key('pnlReportTotal')),
             const SizedBox(height: AppSpace.s1),
             _TotalRow(
-              label: s.realizedAllTime,
+              label: s.pnlRealizedAllTime,
               value: summary.realizedPnl,
               valueKey: const Key('pnlReportRealizedAllTime'),
             ),
@@ -328,11 +329,7 @@ class _MiniPnl extends StatelessWidget {
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: value == null
-                ? Text(
-                    PnlStrings.of(Localizations.localeOf(context).languageCode).unavailable,
-                    key: valueKey,
-                    style: AppText.num(17),
-                  )
+                ? Text(dash, key: valueKey, style: AppText.num(17))
                 : PnlText(value!, key: valueKey, size: 17, unit: true),
           ),
         ],
@@ -394,11 +391,7 @@ class _TotalRow extends StatelessWidget {
         ),
         const SizedBox(width: AppSpace.s2),
         value == null
-            ? Text(
-                PnlStrings.of(Localizations.localeOf(context).languageCode).unavailable,
-                key: valueKey,
-                style: AppText.num(15),
-              )
+            ? Text(dash, key: valueKey, style: AppText.num(15))
             : PnlText(value!, key: valueKey, size: 15, unit: true),
       ],
     );
@@ -409,7 +402,7 @@ class _ExitStatsSection extends StatelessWidget {
   const _ExitStatsSection({required this.stats, required this.strings});
 
   final AsyncValue<List<ExitStat>> stats;
-  final PnlStrings strings;
+  final AppLocalizations strings;
 
   @override
   Widget build(BuildContext context) {
@@ -419,7 +412,7 @@ class _ExitStatsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(s.byExitReason),
+        SectionHeader(s.pnlByExitReason),
         Card(
           margin: EdgeInsets.zero,
           child: switch (stats) {
@@ -434,7 +427,7 @@ class _ExitStatsSection extends StatelessWidget {
             AsyncError() => Padding(
               padding: const EdgeInsets.all(AppSpace.s3),
               child: Text(
-                s.statsUnavailable,
+                s.pnlStatsUnavailable,
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall!.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -455,7 +448,7 @@ class _StatRow extends StatelessWidget {
   const _StatRow({required this.stat, required this.strings});
 
   final ExitStat stat;
-  final PnlStrings strings;
+  final AppLocalizations strings;
 
   @override
   Widget build(BuildContext context) {
@@ -480,7 +473,7 @@ class _StatRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: AppSpace.sHalf),
-                Text('${s.trades(stat.count)} · ${s.winRate} ${fmtRatePct(stat.winRatePct)}', style: muted),
+                Text('${s.pnlTrades(stat.count)} · ${s.pnlWinRate} ${fmtRatePct(stat.winRatePct)}', style: muted),
               ],
             ),
           ),
@@ -490,7 +483,7 @@ class _StatRow extends StatelessWidget {
             children: [
               PnlText(stat.pnl, size: 14, unit: true),
               const SizedBox(height: AppSpace.sHalf),
-              Text('${s.avgHold} ${s.hold(stat.avgHoldS)}', style: muted),
+              Text('${s.pnlAvgHold} ${formatHold(s, stat.avgHoldS)}', style: muted),
             ],
           ),
         ],
@@ -502,7 +495,7 @@ class _StatRow extends StatelessWidget {
 class _EmptyClosed extends StatelessWidget {
   const _EmptyClosed({required this.strings});
 
-  final PnlStrings strings;
+  final AppLocalizations strings;
 
   @override
   Widget build(BuildContext context) {
@@ -520,15 +513,15 @@ class _EmptyClosed extends StatelessWidget {
             children: [
               Icon(AppIcons.closed, size: 40, color: muted),
               const SizedBox(height: AppSpace.s3),
-              Text(s.emptyTitle, style: text.titleMedium, textAlign: TextAlign.center),
+              Text(s.pnlEmptyTitle, style: text.titleMedium, textAlign: TextAlign.center),
               const SizedBox(height: AppSpace.s1),
               Text(
-                s.emptyBody,
+                s.pnlEmptyBody,
                 style: text.bodySmall!.copyWith(color: muted),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpace.s2),
-              TextButton(onPressed: () => context.go('/positions'), child: Text(s.emptyAction)),
+              TextButton(onPressed: () => context.go('/positions'), child: Text(s.pnlEmptyAction)),
             ],
           ),
         ),
@@ -539,7 +532,7 @@ class _EmptyClosed extends StatelessWidget {
 
 class _ReportError extends StatelessWidget {
   const _ReportError({required this.strings, required this.onRetry});
-  final PnlStrings strings;
+  final AppLocalizations strings;
   final VoidCallback onRetry;
 
   @override
@@ -547,12 +540,20 @@ class _ReportError extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpace.s6),
       children: [
-        Text(strings.reportUnavailable, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+        Text(strings.pnlReportUnavailable, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
         const SizedBox(height: AppSpace.s2),
         Center(
-          child: TextButton(onPressed: onRetry, child: Text(strings.retry)),
+          child: TextButton(onPressed: onRetry, child: Text(strings.commonActionRetry)),
         ),
       ],
     );
   }
 }
+
+/// 1D/7D/30D stay numeric; only All is localized (common.range.all).
+String _windowLabel(AppLocalizations s, PnlWindow w) => switch (w) {
+  PnlWindow.d1 => '1D',
+  PnlWindow.d7 => '7D',
+  PnlWindow.d30 => '30D',
+  PnlWindow.all => s.commonRangeAll,
+};

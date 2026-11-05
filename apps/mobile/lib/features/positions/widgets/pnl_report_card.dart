@@ -4,7 +4,7 @@ import '../../../core/theme/centurion_theme.dart';
 import '../../../core/widgets/app_icons.dart';
 import '../../../core/widgets/common.dart';
 import '../../../data/models/models.dart';
-import '../pnl_strings.dart';
+import '../../../l10n/gen/app_localizations.dart';
 
 /// PnL card (G1-blue): unrealized vs realized vs total, from the server summary.
 ///
@@ -26,7 +26,7 @@ class PnlReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = PnlStrings.of(Localizations.localeOf(context).languageCode);
+    final s = AppLocalizations.of(context);
     final text = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     final muted = text.labelSmall!.copyWith(color: cs.onSurfaceVariant);
@@ -37,8 +37,8 @@ class PnlReportCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text(s.cardTitle, style: text.titleMedium)),
-              Text(s.openCount(summary.openPositions), key: const Key('pnlOpenCount'), style: muted),
+              Expanded(child: Text(s.pnlTitle, style: text.titleMedium)),
+              Text(s.pnlOpenCount(summary.openPositions), key: const Key('pnlOpenCount'), style: muted),
               if (onTap != null) ...[
                 const SizedBox(width: AppSpace.s1),
                 Icon(AppIcons.chevronRight, size: 16, color: cs.primary),
@@ -53,13 +53,13 @@ class PnlReportCard extends StatelessWidget {
                 Expanded(
                   child: _Cell(
                     key: const Key('pnlUnrealized'),
-                    label: s.unrealized,
+                    label: s.pnlUnrealized,
                     value: summary.unrealizedPnlLamports,
                   ),
                 ),
                 VerticalDivider(width: 1, thickness: 1, color: cs.outlineVariant),
                 Expanded(
-                  child: _Cell(key: const Key('pnlRealized'), label: s.realized, value: summary.realizedPnlLamports),
+                  child: _Cell(key: const Key('pnlRealized'), label: s.pnlRealized, value: summary.realizedPnlLamports),
                 ),
               ],
             ),
@@ -74,8 +74,8 @@ class PnlReportCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(s.total, style: text.titleSmall),
-                    Text(s.totalHint, style: muted),
+                    Text(s.pnlTotal, style: text.titleSmall),
+                    Text(s.pnlTotalHint, style: muted),
                   ],
                 ),
               ),
@@ -87,7 +87,7 @@ class PnlReportCard extends StatelessWidget {
             const SizedBox(height: AppSpace.s2),
             Row(
               children: [
-                Text(s.viewReport, style: text.labelLarge!.copyWith(color: cs.primary)),
+                Text(s.pnlViewReport, style: text.labelLarge!.copyWith(color: cs.primary)),
                 const SizedBox(width: AppSpace.sHalf),
                 Icon(AppIcons.chevronRight, size: 14, color: cs.primary),
               ],

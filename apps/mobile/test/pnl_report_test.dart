@@ -3,8 +3,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:centurion_mobile/core/theme/centurion_theme.dart';
+import 'package:centurion_mobile/core/l10n_format.dart' show formatHold;
 import 'package:centurion_mobile/data/models/models.dart';
-import 'package:centurion_mobile/features/positions/pnl_strings.dart';
 import 'package:centurion_mobile/features/positions/widgets/pnl_report_card.dart';
 import 'package:centurion_mobile/l10n/gen/app_localizations.dart';
 
@@ -117,24 +117,29 @@ void main() {
     expect(realized.style?.color, TradeColors.dark.loss);
   });
 
-  test('PnlStrings: EN and ID copy never silently fall back to the other locale', () {
-    final id = PnlStrings.of('id');
-    final en = PnlStrings.of('en');
-    expect(id.realized, 'PnL terealisasi');
-    expect(en.realized, 'Realized PnL');
-    expect(id.viewReport, 'Lihat laporan');
-    expect(en.viewReport, 'View report');
-    expect(en.hold(45), '45s');
-    expect(id.hold(45), '45 dtk');
-    expect(en.hold(19 * 60), '19m');
-    expect(id.hold(19 * 60), '19 mnt');
-    expect(en.hold(125 * 60), '2h 5m');
-    expect(id.hold(125 * 60), '2 j 5 mnt');
-    expect(id.windowLabel(PnlWindow.all), 'Semua');
-    expect(en.windowLabel(PnlWindow.all), 'All');
-    expect(id.realizedFor('7D'), 'Terealisasi · 7D');
-    expect(en.realizedFor('7D'), 'Realized · 7D');
-    expect(id.closedLabel, 'Ditutup');
-    expect(en.closedLabel, 'Closed');
+  test('ARB PnL copy: EN and ID never silently fall back to the other locale', () {
+    final id = lookupAppLocalizations(const Locale('id'));
+    final en = lookupAppLocalizations(const Locale('en'));
+    expect(id.pnlRealized, 'PnL terealisasi');
+    expect(en.pnlRealized, 'Realized PnL');
+    expect(id.pnlViewReport, 'Lihat laporan');
+    expect(en.pnlViewReport, 'View report');
+    expect(formatHold(en, 45), '45s');
+    expect(formatHold(id, 45), '45 dtk');
+    expect(formatHold(en, 19 * 60), '19m');
+    expect(formatHold(id, 19 * 60), '19 mnt');
+    expect(formatHold(en, 125 * 60), '2h 5m');
+    expect(formatHold(id, 125 * 60), '2 j 5 mnt');
+    expect(id.commonRangeAll, 'Semua');
+    expect(en.commonRangeAll, 'All');
+    expect(id.pnlRealizedFor('7D'), 'Terealisasi · 7D');
+    expect(en.pnlRealizedFor('7D'), 'Realized · 7D');
+    expect(id.pnlClosed, 'Ditutup');
+    expect(en.pnlClosed, 'Closed');
+    expect(id.pnlReceiptFees, 'Biaya (dilaporkan)');
+    expect(en.pnlReceiptFees, 'Fees (reported)');
+    expect(id.pnlTrades(2), '2 trade');
+    expect(en.pnlTrades(1), '1 trade');
+    expect(en.pnlTrades(2), '2 trades');
   });
 }

@@ -4807,6 +4807,288 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'the safety simulation failed'**
   String get walletWithdrawFailReasonWithdrawSimulationFailed;
+
+  /// pnl.title — PnL card title
+  ///
+  /// In en, this message translates to:
+  /// **'PnL'**
+  String get pnlTitle;
+
+  /// pnl.unrealized — label of the mark-to-market cell
+  ///
+  /// In en, this message translates to:
+  /// **'Unrealized PnL'**
+  String get pnlUnrealized;
+
+  /// pnl.realized — label of the locked-in cell
+  ///
+  /// In en, this message translates to:
+  /// **'Realized PnL'**
+  String get pnlRealized;
+
+  /// pnl.total — label of the realized + unrealized total
+  ///
+  /// In en, this message translates to:
+  /// **'Total PnL'**
+  String get pnlTotal;
+
+  /// pnl.unrealized.hint
+  ///
+  /// In en, this message translates to:
+  /// **'Mark-to-market of open positions'**
+  String get pnlUnrealizedHint;
+
+  /// pnl.realized.hint
+  ///
+  /// In en, this message translates to:
+  /// **'From take-profits and closed trades'**
+  String get pnlRealizedHint;
+
+  /// pnl.total.hint
+  ///
+  /// In en, this message translates to:
+  /// **'Realized + unrealized'**
+  String get pnlTotalHint;
+
+  /// pnl.view_report — card link to the report
+  ///
+  /// In en, this message translates to:
+  /// **'View report'**
+  String get pnlViewReport;
+
+  /// pnl.open_count — open positions on the card
+  ///
+  /// In en, this message translates to:
+  /// **'{count} open'**
+  String pnlOpenCount(int count);
+
+  /// pnl.report.title
+  ///
+  /// In en, this message translates to:
+  /// **'PnL report'**
+  String get pnlReportTitle;
+
+  /// pnl.report.eyebrow — uppercase eyebrow above the strip
+  ///
+  /// In en, this message translates to:
+  /// **'PNL REPORT'**
+  String get pnlReportEyebrow;
+
+  /// pnl.realized.range — range realized cell, {range} = 1D/7D/30D/All
+  ///
+  /// In en, this message translates to:
+  /// **'Realized · {range}'**
+  String pnlRealizedFor(String range);
+
+  /// pnl.closed — closed count / closed-at label
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get pnlClosed;
+
+  /// pnl.total_all_time — reconciliation footer
+  ///
+  /// In en, this message translates to:
+  /// **'Total all-time'**
+  String get pnlTotalAllTime;
+
+  /// pnl.realized_all_time — reconciliation footer (includes partial take-profits)
+  ///
+  /// In en, this message translates to:
+  /// **'All-time realized'**
+  String get pnlRealizedAllTime;
+
+  /// pnl.report.unavailable — report error body
+  ///
+  /// In en, this message translates to:
+  /// **'The PnL report could not be loaded.'**
+  String get pnlReportUnavailable;
+
+  /// pnl.realized.hint_locked — closed detail receipt
+  ///
+  /// In en, this message translates to:
+  /// **'Locked at close, does not follow the live price'**
+  String get pnlRealizedHeroHint;
+
+  /// pnl.closed_trades — ledger section header
+  ///
+  /// In en, this message translates to:
+  /// **'Closed trades'**
+  String get pnlClosedTrades;
+
+  /// pnl.by_exit_reason — exit_stats() breakdown header
+  ///
+  /// In en, this message translates to:
+  /// **'By exit reason'**
+  String get pnlByExitReason;
+
+  /// pnl.win_rate
+  ///
+  /// In en, this message translates to:
+  /// **'Win rate'**
+  String get pnlWinRate;
+
+  /// pnl.avg_hold
+  ///
+  /// In en, this message translates to:
+  /// **'Avg hold'**
+  String get pnlAvgHold;
+
+  /// pnl.stats_unavailable — exit_stats() error row
+  ///
+  /// In en, this message translates to:
+  /// **'The breakdown by exit reason could not be loaded.'**
+  String get pnlStatsUnavailable;
+
+  /// pnl.partial_note — reconciliation note, shown for every range
+  ///
+  /// In en, this message translates to:
+  /// **'All-time realized also counts partial take-profits on open positions and closes outside the range, so it can be larger than this range realized and the ledger sum.'**
+  String get pnlPartialNote;
+
+  /// pnl.realized.short — ledger row suffix
+  ///
+  /// In en, this message translates to:
+  /// **'realized'**
+  String get pnlRealizedShort;
+
+  /// pnl.hold.seconds — hold under a minute
+  ///
+  /// In en, this message translates to:
+  /// **'{count}s'**
+  String pnlHoldSeconds(int count);
+
+  /// pnl.hold.minutes — hold under an hour
+  ///
+  /// In en, this message translates to:
+  /// **'{count}m'**
+  String pnlHoldMinutes(int count);
+
+  /// pnl.hold.hours — hold of an hour or more
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h {minutes}m'**
+  String pnlHoldHours(int hours, int minutes);
+
+  /// pnl.trades — count of closed trades in an exit-reason row
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 trade} other{{count} trades}}'**
+  String pnlTrades(int count);
+
+  /// pnl.empty.title
+  ///
+  /// In en, this message translates to:
+  /// **'No closed trades yet'**
+  String get pnlEmptyTitle;
+
+  /// pnl.empty.body
+  ///
+  /// In en, this message translates to:
+  /// **'Realized PnL appears here once a position closes. Unrealized PnL stays on the PnL card.'**
+  String get pnlEmptyBody;
+
+  /// pnl.empty.action
+  ///
+  /// In en, this message translates to:
+  /// **'See open positions'**
+  String get pnlEmptyAction;
+
+  /// pnl.receipt.sol_in — closed detail: cost basis (sol_in_lamports)
+  ///
+  /// In en, this message translates to:
+  /// **'SOL in'**
+  String get pnlReceiptSolIn;
+
+  /// pnl.receipt.sol_out — closed detail: proceeds (sol_out_lamports)
+  ///
+  /// In en, this message translates to:
+  /// **'SOL out'**
+  String get pnlReceiptSolOut;
+
+  /// pnl.receipt.fees — reported context, never re-subtracted from PnL
+  ///
+  /// In en, this message translates to:
+  /// **'Fees (reported)'**
+  String get pnlReceiptFees;
+
+  /// pnl.receipt.hold — closed detail hold label
+  ///
+  /// In en, this message translates to:
+  /// **'Hold'**
+  String get pnlReceiptHold;
+
+  /// pnl.receipt.entry_exit — entry price → exit price
+  ///
+  /// In en, this message translates to:
+  /// **'Entry → exit'**
+  String get pnlReceiptEntryExit;
+
+  /// pnl.receipt.exit_reason
+  ///
+  /// In en, this message translates to:
+  /// **'Exit reason'**
+  String get pnlReceiptExitReason;
+
+  /// pnl.receipt.bot — strategy that owned the position
+  ///
+  /// In en, this message translates to:
+  /// **'Bot'**
+  String get pnlReceiptBot;
+
+  /// pnl.receipt.size — open detail: remaining cost basis
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get pnlReceiptSize;
+
+  /// pnl.receipt.sold — open detail: share already sold
+  ///
+  /// In en, this message translates to:
+  /// **'Sold'**
+  String get pnlReceiptSold;
+
+  /// pnl.receipt.token — open detail: raw token amount
+  ///
+  /// In en, this message translates to:
+  /// **'Token'**
+  String get pnlReceiptToken;
+
+  /// pnl.receipt.mint — open detail: mint address
+  ///
+  /// In en, this message translates to:
+  /// **'Mint'**
+  String get pnlReceiptMint;
+
+  /// pnl.sell — sell button on the open position detail
+  ///
+  /// In en, this message translates to:
+  /// **'Sell'**
+  String get pnlSell;
+
+  /// pnl.no_sell_note — safety note under the sell button
+  ///
+  /// In en, this message translates to:
+  /// **'Sell is never available from a notification.'**
+  String get pnlNoSellNote;
+
+  /// pnl.positions_title — detail app bar fallback
+  ///
+  /// In en, this message translates to:
+  /// **'Positions'**
+  String get pnlPositionsTitle;
+
+  /// pnl.position_not_found — detail empty state
+  ///
+  /// In en, this message translates to:
+  /// **'Position not found'**
+  String get pnlPositionNotFound;
+
+  /// pnl.receipt.entry_now — open detail: entry price → current mark
+  ///
+  /// In en, this message translates to:
+  /// **'Entry → now'**
+  String get pnlReceiptEntryNow;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

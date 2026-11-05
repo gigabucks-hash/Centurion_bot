@@ -6,6 +6,7 @@ import 'package:centurion_mobile/app/app.dart';
 import 'package:centurion_mobile/core/approval_guard.dart';
 import 'package:centurion_mobile/core/format.dart';
 import 'package:centurion_mobile/core/feature_flags.dart';
+import 'package:centurion_mobile/core/widgets/coin_avatar.dart';
 import 'package:centurion_mobile/core/widgets/common.dart';
 import 'package:centurion_mobile/data/api/api_exception.dart';
 import 'package:centurion_mobile/data/api/settings_keys.dart';
@@ -196,8 +197,8 @@ void main() {
     await tester.pumpWidget(_app(b, '/positions'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('Positions'), findsOneWidget);
-    expect(find.text('4 open'), findsOneWidget);
+    expect(find.text('Posisi'), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('openCount'))).data, '4 terbuka');
     expect(find.byKey(const Key('equityCard')), findsOneWidget);
     expect(find.byType(ExitProgressBar), findsWidgets);
     // Lainnya tab is the selected destination (wireframe 12).
@@ -242,6 +243,32 @@ void main() {
     expect(find.text('Sekarang'), findsOneWidget);
     expect(find.text('Stop loss'), findsOneWidget);
     expect(find.textContaining('Berikutnya: TP2 di +100%'), findsOneWidget);
+    b.dispose();
+  });
+
+  testWidgets('closed detail is a receipt: logo, SOL in/out, fees, hold, entry→exit, reason, bot', (tester) async {
+    await _phone(tester);
+    final b = MockBackend();
+    await tester.pumpWidget(_app(b, '/positions/ck099.0'));
+    await tester.pump();
+    expect(find.byKey(const Key('realizedPnl')), findsOneWidget);
+    expect(find.byType(CoinAvatar), findsOneWidget);
+    expect(find.text('PnL terealisasi'), findsOneWidget);
+    expect(find.text('SOL masuk'), findsOneWidget);
+    expect(find.text('SOL keluar'), findsOneWidget);
+    expect(find.text('Biaya (dilaporkan)'), findsOneWidget);
+    expect(find.text('0,200 SOL'), findsOneWidget);
+    expect(find.text('0,262 SOL'), findsOneWidget);
+    expect(find.text('Durasi tahan'), findsOneWidget);
+    expect(find.text('19 mnt'), findsOneWidget);
+    expect(find.text('Masuk → keluar'), findsOneWidget);
+    expect(find.textContaining('→'), findsWidgets);
+    expect(find.text('Alasan keluar'), findsOneWidget);
+    expect(find.text('Took profit: 40% at +20%'), findsOneWidget);
+    expect(find.text('Bot'), findsOneWidget);
+    expect(find.text('New Pairs Scout'), findsWidgets);
+    expect(find.text('Ditutup'), findsOneWidget);
+    expect(find.text('Sell'), findsNothing);
     b.dispose();
   });
 

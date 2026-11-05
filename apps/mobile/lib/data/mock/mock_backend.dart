@@ -254,12 +254,16 @@ class MockBackend
         ? null
         : (full ? BigInt.zero : p.qtyRaw! - p.qtyRaw! * BigInt.from(r.fractionBps) ~/ BigInt.from(10000));
     final rev = p.rev + 1;
+    // Reported context only: the swap fee is already inside the proceeds.
+    final fee = p.costLamports.bps(soldNowBps).bps(p.feeBps);
     _positions[i] = p.copyWith(
       proceedsLamports: p.proceedsLamports + proceeds,
       soldBps: full ? 10000 : p.soldBps + soldNowBps,
       state: full ? PositionState.closed : null,
       closedAt: full ? _clock() : null,
       exitReason: full ? 'You sold 100% manually' : null,
+      feesLamports: (p.feesLamports ?? Lamports.zero) + fee,
+      exitPriceUsd: full ? p.markPriceUsd : null,
       rev: rev,
       qtyRaw: qtyLeft,
     );
@@ -1230,6 +1234,7 @@ class MockBackend
       next = next.copyWith(
         proceedsLamports: next.proceedsLamports + proceeds,
         soldBps: next.soldBps + sellBps,
+        feesLamports: (next.feesLamports ?? Lamports.zero) + next.costLamports.bps(sellBps).bps(next.feeBps),
         exitPlan: plan.copyWith(rungs: rungs, trailArmed: true),
       );
       final msg = 'Took profit: ${(sellBps / 100).round()}% at +${rung.gainPct.round()}%';
@@ -1277,6 +1282,8 @@ class MockBackend
         proceedsLamports: next.proceedsLamports + sellAt(rest),
         soldBps: 10000,
         closedAt: now,
+        feesLamports: (next.feesLamports ?? Lamports.zero) + next.costLamports.bps(rest).bps(next.feeBps),
+        exitPriceUsd: mark,
         exitReason: stop,
       );
       _emitEvent(
@@ -1586,6 +1593,8 @@ class MockBackend
         exitReason: 'Took profit: 40% at +20%',
         lockedPnlLamports: _sol('0.062'),
         lockedPnlPct: 31,
+        feesLamports: _sol('0.0025'),
+        exitPriceUsd: _d('0.00053'),
         practiceEpoch: _epoch,
         decimals: 6,
         tokenProgram: splTokenProgram,

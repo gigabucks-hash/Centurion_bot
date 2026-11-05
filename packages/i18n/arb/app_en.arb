@@ -4346,5 +4346,226 @@
   "walletWithdrawFailReasonWithdrawSimulationFailed": "the safety simulation failed",
   "@walletWithdrawFailReasonWithdrawSimulationFailed": {
     "description": "real.withdraw.failed reason_code=withdraw_simulation_failed (Backend enum, Rev 4.8); lower-case, used mid-sentence in N-42"
+  },
+  "pnlTitle": "PnL",
+  "@pnlTitle": {
+    "description": "pnl.title — PnL card title"
+  },
+  "pnlUnrealized": "Unrealized PnL",
+  "@pnlUnrealized": {
+    "description": "pnl.unrealized — label of the mark-to-market cell"
+  },
+  "pnlRealized": "Realized PnL",
+  "@pnlRealized": {
+    "description": "pnl.realized — label of the locked-in cell"
+  },
+  "pnlTotal": "Total PnL",
+  "@pnlTotal": {
+    "description": "pnl.total — label of the realized + unrealized total"
+  },
+  "pnlUnrealizedHint": "Mark-to-market of open positions",
+  "@pnlUnrealizedHint": {
+    "description": "pnl.unrealized.hint"
+  },
+  "pnlRealizedHint": "From take-profits and closed trades",
+  "@pnlRealizedHint": {
+    "description": "pnl.realized.hint"
+  },
+  "pnlTotalHint": "Realized + unrealized",
+  "@pnlTotalHint": {
+    "description": "pnl.total.hint"
+  },
+  "pnlViewReport": "View report",
+  "@pnlViewReport": {
+    "description": "pnl.view_report — card link to the report"
+  },
+  "pnlOpenCount": "{count} open",
+  "@pnlOpenCount": {
+    "description": "pnl.open_count — open positions on the card",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pnlReportTitle": "PnL report",
+  "@pnlReportTitle": {
+    "description": "pnl.report.title"
+  },
+  "pnlReportEyebrow": "PNL REPORT",
+  "@pnlReportEyebrow": {
+    "description": "pnl.report.eyebrow — uppercase eyebrow above the strip"
+  },
+  "pnlRealizedFor": "Realized · {range}",
+  "@pnlRealizedFor": {
+    "description": "pnl.realized.range — range realized cell, {range} = 1D/7D/30D/All",
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "pnlClosed": "Closed",
+  "@pnlClosed": {
+    "description": "pnl.closed — closed count / closed-at label"
+  },
+  "pnlTotalAllTime": "Total all-time",
+  "@pnlTotalAllTime": {
+    "description": "pnl.total_all_time — reconciliation footer"
+  },
+  "pnlRealizedAllTime": "All-time realized",
+  "@pnlRealizedAllTime": {
+    "description": "pnl.realized_all_time — reconciliation footer (includes partial take-profits)"
+  },
+  "pnlReportUnavailable": "The PnL report could not be loaded.",
+  "@pnlReportUnavailable": {
+    "description": "pnl.report.unavailable — report error body"
+  },
+  "pnlRealizedHeroHint": "Locked at close, does not follow the live price",
+  "@pnlRealizedHeroHint": {
+    "description": "pnl.realized.hint_locked — closed detail receipt"
+  },
+  "pnlClosedTrades": "Closed trades",
+  "@pnlClosedTrades": {
+    "description": "pnl.closed_trades — ledger section header"
+  },
+  "pnlByExitReason": "By exit reason",
+  "@pnlByExitReason": {
+    "description": "pnl.by_exit_reason — exit_stats() breakdown header"
+  },
+  "pnlWinRate": "Win rate",
+  "@pnlWinRate": {
+    "description": "pnl.win_rate"
+  },
+  "pnlAvgHold": "Avg hold",
+  "@pnlAvgHold": {
+    "description": "pnl.avg_hold"
+  },
+  "pnlStatsUnavailable": "The breakdown by exit reason could not be loaded.",
+  "@pnlStatsUnavailable": {
+    "description": "pnl.stats_unavailable — exit_stats() error row"
+  },
+  "pnlPartialNote": "All-time realized also counts partial take-profits on open positions and closes outside the range, so it can be larger than this range realized and the ledger sum.",
+  "@pnlPartialNote": {
+    "description": "pnl.partial_note — reconciliation note, shown for every range"
+  },
+  "pnlRealizedShort": "realized",
+  "@pnlRealizedShort": {
+    "description": "pnl.realized.short — ledger row suffix"
+  },
+  "pnlHoldSeconds": "{count}s",
+  "@pnlHoldSeconds": {
+    "description": "pnl.hold.seconds — hold under a minute",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pnlHoldMinutes": "{count}m",
+  "@pnlHoldMinutes": {
+    "description": "pnl.hold.minutes — hold under an hour",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pnlHoldHours": "{hours}h {minutes}m",
+  "@pnlHoldHours": {
+    "description": "pnl.hold.hours — hold of an hour or more",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "pnlTrades": "{count, plural, =1{1 trade} other{{count} trades}}",
+  "@pnlTrades": {
+    "description": "pnl.trades — count of closed trades in an exit-reason row",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "pnlEmptyTitle": "No closed trades yet",
+  "@pnlEmptyTitle": {
+    "description": "pnl.empty.title"
+  },
+  "pnlEmptyBody": "Realized PnL appears here once a position closes. Unrealized PnL stays on the PnL card.",
+  "@pnlEmptyBody": {
+    "description": "pnl.empty.body"
+  },
+  "pnlEmptyAction": "See open positions",
+  "@pnlEmptyAction": {
+    "description": "pnl.empty.action"
+  },
+  "pnlReceiptSolIn": "SOL in",
+  "@pnlReceiptSolIn": {
+    "description": "pnl.receipt.sol_in — closed detail: cost basis (sol_in_lamports)"
+  },
+  "pnlReceiptSolOut": "SOL out",
+  "@pnlReceiptSolOut": {
+    "description": "pnl.receipt.sol_out — closed detail: proceeds (sol_out_lamports)"
+  },
+  "pnlReceiptFees": "Fees (reported)",
+  "@pnlReceiptFees": {
+    "description": "pnl.receipt.fees — reported context, never re-subtracted from PnL"
+  },
+  "pnlReceiptHold": "Hold",
+  "@pnlReceiptHold": {
+    "description": "pnl.receipt.hold — closed detail hold label"
+  },
+  "pnlReceiptEntryExit": "Entry → exit",
+  "@pnlReceiptEntryExit": {
+    "description": "pnl.receipt.entry_exit — entry price → exit price"
+  },
+  "pnlReceiptExitReason": "Exit reason",
+  "@pnlReceiptExitReason": {
+    "description": "pnl.receipt.exit_reason"
+  },
+  "pnlReceiptBot": "Bot",
+  "@pnlReceiptBot": {
+    "description": "pnl.receipt.bot — strategy that owned the position"
+  },
+  "pnlReceiptSize": "Size",
+  "@pnlReceiptSize": {
+    "description": "pnl.receipt.size — open detail: remaining cost basis"
+  },
+  "pnlReceiptSold": "Sold",
+  "@pnlReceiptSold": {
+    "description": "pnl.receipt.sold — open detail: share already sold"
+  },
+  "pnlReceiptToken": "Token",
+  "@pnlReceiptToken": {
+    "description": "pnl.receipt.token — open detail: raw token amount"
+  },
+  "pnlReceiptMint": "Mint",
+  "@pnlReceiptMint": {
+    "description": "pnl.receipt.mint — open detail: mint address"
+  },
+  "pnlSell": "Sell",
+  "@pnlSell": {
+    "description": "pnl.sell — sell button on the open position detail"
+  },
+  "pnlNoSellNote": "Sell is never available from a notification.",
+  "@pnlNoSellNote": {
+    "description": "pnl.no_sell_note — safety note under the sell button"
+  },
+  "pnlPositionsTitle": "Positions",
+  "@pnlPositionsTitle": {
+    "description": "pnl.positions_title — detail app bar fallback"
+  },
+  "pnlPositionNotFound": "Position not found",
+  "@pnlPositionNotFound": {
+    "description": "pnl.position_not_found — detail empty state"
+  },
+  "pnlReceiptEntryNow": "Entry → now",
+  "@pnlReceiptEntryNow": {
+    "description": "pnl.receipt.entry_now — open detail: entry price → current mark"
   }
 }

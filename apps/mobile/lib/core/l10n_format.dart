@@ -8,6 +8,7 @@ import 'package:decimal/decimal.dart';
 
 import '../data/money.dart';
 import 'theme/app_tokens.dart' show TradeColors;
+import '../l10n/gen/app_localizations.dart';
 
 const _nbsp = '\u00A0';
 const _minus = '\u2212';
@@ -99,6 +100,16 @@ String formatTime(DateTime t, String loc, {String zone = 'WIB'}) {
 
 /// `format.mjs` DASH: every null-safe formatter renders a missing value as this.
 const dash = '—';
+
+/// Hold duration in words: "45s" / "19m" / "2h 5m" (id: "45 dtk" / "19 mnt" / "2 j 5 mnt").
+/// Units come from the ARB, so an EN screen never shows Indonesian units.
+String formatHold(AppLocalizations l, num seconds) {
+  final total = seconds.isFinite && seconds > 0 ? seconds.toInt() : 0;
+  if (total < 60) return l.pnlHoldSeconds(total);
+  final minutes = total ~/ 60;
+  if (minutes < 60) return l.pnlHoldMinutes(minutes);
+  return l.pnlHoldHours(minutes ~/ 60, minutes % 60);
+}
 
 /// Compact number (Intl compact, max 1 dp): en "8.4K" / "1.2M"; id "8,4 rb" / "1,2 jt".
 String formatCompact(Decimal v, String loc) {
