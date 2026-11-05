@@ -87,8 +87,8 @@ export function limitParam(ctx: Ctx, d: number, max: number): number {
 
 const WINDOWS: Record<string, number | null> = { "1h": 3600, "24h": 86400, "7d": 604800, "30d": 2592000, all: null };
 
-/** `window=1h|24h|7d|30d|all` (default 24h) or explicit `from`/`to` (RFC 3339). */
-export function timeRange(ctx: Ctx): { from: string | null; to: string | null } {
+/** `window=1h|24h|7d|30d|all` (default 24h, or `def` where a report has its own default) or explicit `from`/`to` (RFC 3339). */
+export function timeRange(ctx: Ctx, def: string = "24h"): { from: string | null; to: string | null } {
   const q = ctx.url.searchParams;
   const iso = (k: string) => {
     const v = q.get(k);
@@ -100,7 +100,7 @@ export function timeRange(ctx: Ctx): { from: string | null; to: string | null } 
   const from = iso("from");
   const to = iso("to");
   if (from || to) return { from, to };
-  const w = q.get("window") ?? "24h";
+  const w = q.get("window") ?? def;
   if (!(w in WINDOWS)) throw new ApiError("VALIDATION_FAILED", { field: "window", allowed: Object.keys(WINDOWS) });
   const secs = WINDOWS[w];
   return { from: secs == null ? null : new Date(Date.now() - secs * 1000).toISOString(), to: null };

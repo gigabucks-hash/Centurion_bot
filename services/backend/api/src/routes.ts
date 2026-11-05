@@ -8,7 +8,7 @@ import {
 } from "./rules.ts";
 import {
   APPROVAL_COLUMNS, EVENT_COLUMNS, approvalWire, cursorCols, decodeCursor, encodeCursor, pageOf, eventWire, exitStatsWire,
-  portfolioWire, workspaceWire, type EventRow,
+  pnlSummaryWire, portfolioWire, workspaceWire, type EventRow,
 } from "./wire.ts";
 import { streamEvents } from "./sse.ts";
 import { registerStrategies } from "./routes_strategies.ts";
@@ -109,20 +109,29 @@ export function buildRouter(d: Deps): Router {
     const cur = decodeCursor(q.get("cursor"));
     if (cur === "bad") throw new ApiError("CURSOR_INVALID", { field: "cursor" });
     const limit = limitParam(ctx, 50, 100);
+    // 0022: the PnL report filters the closed ledger by close time. `window`/`from`/`to` are optional:
+    // without them the list keeps its historical "everything, newest first" behaviour. For closed rows the
+    // range and the order are on `closed_at` (a report is ordered by when the trade closed, not opened).
+    const ranged = q.has("window") || q.has("from") || q.has("to");
+    const { from, to } = ranged ? timeRange(ctx) : { from: null, to: null };
+    const byClosed = state === "closed";
+    const sortCol = byClosed ? "coalesce(p.closed_at, p.opened_at)" : "p.opened_at";
     const rows = await asUser(d.db, p.claims, async (c) => {
       await requireMember(c, ws);
       const res = await c.query(
         `select public.position_wire(p) || ${LOGO_HASH_OF_P} as w, p.id,
-                to_char(p.opened_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cur_ts
+                to_char(${sortCol} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cur_ts
            from public.positions p
           where p.workspace_id = $1 and p.mode = $2::public.trade_mode
             and ($3::text is null or p.status::text = $3)
             and ($4::uuid is null or p.strategy_id = $4)
             and p.practice_epoch = coalesce($5::int, (select practice_epoch from public.workspaces where id = $1))
-            and ($6::timestamptz is null or (p.opened_at, p.id) < ($6::timestamptz, $7::uuid))
-          order by p.opened_at desc, p.id desc
-          limit $8`,
-        [ws, mode, state, strategy, epoch, cur?.ts ?? null, cur?.id ?? null, limit + 1],
+            and ($6::timestamptz is null or ${sortCol} >= $6)
+            and ($7::timestamptz is null or ${sortCol} < $7)
+            and ($8::timestamptz is null or (${sortCol}, p.id) < ($8::timestamptz, $9::uuid))
+          order by ${sortCol} desc, p.id desc
+          limit $10`,
+        [ws, mode, state, strategy, epoch, from, to, cur?.ts ?? null, cur?.id ?? null, limit + 1],
       );
       return res.rows as { w: Record<string, unknown>; cur_ts: string; id: string }[];
     });
@@ -312,6 +321,70 @@ export function buildRouter(d: Deps): Router {
       return res.rows as Record<string, unknown>[];
     });
     send(ctx, 200, { items: rows.map(exitStatsWire), next_cursor: null });
+  });
+
+  /**
+   * 0022: PnL card/report summary. One call for the strip the apps render.
+   * - unrealized / realized / total come from portfolio_latest (current mode + practice epoch, all-time).
+   * - realized_pnl_window_lamports and the closed-trade stats come from pnl_summary() over the range,
+   *   default 7d (the report default). The two realized numbers may legitimately differ: the portfolio
+   *   value also includes partial take-profits on positions that are still open and closes outside the
+   *   range; the windowed value only counts whole exits inside it.
+   */
+  r.add("GET", "/v1/workspaces/:ws/stats/pnl", async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "read");
+    const ws = uuidParam(ctx, "ws");
+    const mode = modeParam(ctx);
+    const q = ctx.url.searchParams;
+    const strategy = q.get("strategy_id");
+    if (strategy !== null && !/^[0-9a-f-]{36}$/i.test(strategy)) throw new ApiError("VALIDATION_FAILED", { field: "strategy_id" });
+    const { from, to } = timeRange(ctx, "7d");
+    const window = q.has("from") || q.has("to") ? null : (q.get("window") ?? "7d");
+    const out = await asUser(d.db, p.claims, async (c) => {
+      await requireMember(c, ws);
+      const s = await c.query(
+        "select * from public.pnl_summary($1, $2, $3::public.trade_mode, $4, $5)",
+        [ws, strategy, mode, from, to],
+      );
+      const pf = await c.query(
+        "select * from public.portfolio_latest where workspace_id = $1 and mode = $2::public.trade_mode",
+        [ws, mode],
+      );
+      const w = await c.query("select practice_epoch from public.workspaces where id = $1", [ws]);
+      return {
+        summary: (s.rows[0] ?? {}) as Record<string, unknown>,
+        portfolio: (pf.rows[0] ?? null) as Record<string, unknown> | null,
+        epoch: (w.rows[0]?.practice_epoch ?? null) as number | null,
+      };
+    });
+    const summary = pnlSummaryWire(out.summary);
+    const pf = out.portfolio ? portfolioWire(out.portfolio) : null;
+    const realized = pf?.realized_pnl_lamports ?? null;
+    const unrealized = pf?.unrealized_pnl_lamports ?? null;
+    const total = realized !== null && unrealized !== null ? (BigInt(realized) + BigInt(unrealized)).toString() : null;
+    send(ctx, 200, {
+      data: {
+        mode,
+        practice_epoch: out.epoch,
+        window,
+        from,
+        to,
+        unrealized_pnl_lamports: unrealized,
+        realized_pnl_lamports: realized,
+        total_pnl_lamports: total,
+        realized_pnl_window_lamports: summary.realized_pnl_lamports,
+        closed_count: summary.closed_count,
+        win_count: summary.win_count,
+        win_rate_pct: summary.win_rate_pct,
+        avg_hold_s: summary.avg_hold_s,
+        fees_lamports: summary.fees_lamports,
+        best_pnl_lamports: summary.best_pnl_lamports,
+        worst_pnl_lamports: summary.worst_pnl_lamports,
+        as_of_seq: pf?.as_of_seq ?? null,
+        ts: pf?.ts ?? null,
+      },
+    });
   });
 
   // ---- events (REST page + SSE) -----------------------------------------------------------------

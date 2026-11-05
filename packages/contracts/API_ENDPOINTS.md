@@ -262,7 +262,7 @@ body returned a raw Postgres timestamp before). Once per 24 h: `429 RESET_COOLDO
 |---|---|---|---|
 | GET | `/coins?mode=&strategy_id=&window=`, `/coins/{mint}`, `/coins/{mint}/timeline?mode=&strategy_id=` | read | `CoinWire`: coin carries `decimals` (integer, from the mint account; never assume 6), `token_program`, `quote_mint` (null = SOL), and (1.1.4) `market_cap_lamports` / `mcap_usd` / `mcap_as_of` (below); timeline = events by `mint`, seq ordered |
 | GET | `/picks?mode=&strategy_id=&stage=`, `/picks/{id}` | read | `PickWire`; market cap as of the pick (fields below) |
-| GET | `/positions?mode=&state=open\|closed&strategy_id=&window=&epoch=`, `/positions/{id}` | read | `PositionWire` (= SQL `position_wire()`): `rev`, `practice_epoch`, `qty_raw`, `decimals`, `token_program`, `cost_basis_lamports`, ... |
+| GET | `/positions?mode=&state=open\|closed&strategy_id=&window=&epoch=`, `/positions/{id}` | read | `PositionWire` (= SQL `position_wire()`): `rev`, `practice_epoch`, `qty_raw`, `decimals`, `token_program`, `cost_basis_lamports`, `sol_in_lamports`, `sol_out_lamports`, `fees_lamports`, `exit_reason`, `opened_at`, `closed_at`, `logo_hash`/`logo_url`, and (0022) the realized result of a closed trade: `pnl_lamports`, `pnl_pct`, `hold_seconds` (all null while `status=open`). `window`/`from`/`to` filter and order by `closed_at` when `state=closed` (report ledger: newest close first) and by `opened_at` otherwise; without them the list is unfiltered; `state=closed` remains newest `closed_at` first, other lists remain newest `opened_at` first. |
 | POST | `/positions/{id}/close/preview` | read | 1.1.5 sell quote, no side effects. Body `{fraction_bps?: 1-10000 (default 10000), max_slippage_bps?: 0-10000 (default 500)}` (unknown fields 422). `200 {data: ClosePreview}` = `{position_id, mint, fraction_bps, qty_raw (tokens sold), decimals, token_program, est_network_fee_lamports, priority_fee_lamports, swap_fee_bps, max_slippage_bps, expected_out_lamports, min_out_lamports, total_max_lamports (= est_network_fee_lamports), quote_ts, quote_expires_at (+15 s)}`. `expected_out_lamports` = CPMM SOL out minus the swap fee (taken from SOL out); `min_out_lamports` = that x (1 - max slippage), floored. Pool missing or older than 30 s -> `409 POOL_STALE {reason}`; closed position -> 422 |
 | POST | `/positions/{id}/close` | trade | Manual sell, practice only. Headers `If-Match: "<position rev>"` (or body `expected_rev`) + `Idempotency-Key`. Body `{fraction_bps?: 1-10000 (default 10000 = all)}`. SQL `close_position()`. `200 ClosePositionResponse {position (rev at request time), order: OrderWire, order_id, fill: null\|FillWire (only if the simulated fill completed synchronously), job_id (int64 string, if async), status: queued\|filled\|failed, replayed, server_now}`. Then `order.submitted` -> `fill.simulated` + `position.updated` (partial, new rev) or `position.closed` (`exit_reason: manual`) + `order.filled`; or `order.failed`. Errors `404 NOT_FOUND`, `403 FORBIDDEN_ROLE`, `403 MODE_NOT_ALLOWED`, `422 INVALID_FRACTION`, `409 POSITION_ALREADY_CLOSED`, `428 PRECONDITION_REQUIRED`, `409 VERSION_CONFLICT {current_rev, base_rev, current}`, `422 IDEMPOTENCY_KEY_REUSED`. `sell_pct` is gone everywhere. |
 | GET | `/orders/{id}`, `/jobs/{job_id}` | read | `OrderWire`, `JobWire` (poll if you do not consume the stream) |
@@ -422,6 +422,7 @@ Server verification, in order (any failure -> no state change, audit row with `p
 | GET | `/portfolio/equity?mode=&window=72h&step=5m` | read | series from snapshots |
 | GET | `/stats/strategies?mode=&window=` | read | pnl, win rate, max drawdown, avg hold |
 | GET | `/stats/exit-reasons?mode=&strategy_id=&window=` | read | SQL `exit_stats()`, same filters as `/positions`; current practice epoch only; `practice_reset` closes excluded. Items: `ExitStatsRow` (below) |
+| GET | `/stats/pnl?mode=&strategy_id=&window=&from=&to=` | read | **0022 PnL card/report.** One row (below): `unrealized_pnl_lamports`, `realized_pnl_lamports` (portfolio snapshot, all-time current epoch), `total_pnl_lamports` (exact lamport sum), `realized_pnl_window_lamports` + closed-trade stats for the range. Default `window=7d` (report default); `window=all` or `from`/`to` allowed. SQL `pnl_summary()`; same filters as `exit_stats()`. |
 
 `portfolio_latest` columns (view, current epoch; also the `portfolio.snapshot` payload minus `drawdown_pct`):
 | column | wire type | notes |
@@ -445,6 +446,37 @@ Server verification, in order (any failure -> no state change, audit row with `p
 | `avg_pnl_pct` | number \| null | 2 dp |
 | `win_rate_pct` | number | 0-100, 2 dp |
 | `avg_hold_s` | integer | seconds |
+
+`GET /stats/pnl` data (0022; every count/lamport is server-computed, never a client sum of a page):
+| field | wire type | notes |
+|---|---|---|
+| `mode`, `practice_epoch` | `Mode`, integer | scope of every number |
+| `window`, `from`, `to` | string \| null, IsoTs \| null, IsoTs \| null | echo of the range (`window` null when `from`/`to` used) |
+| `unrealized_pnl_lamports` | lamport string \| null | `portfolio_latest.unrealized_pnl_lamports` |
+| `realized_pnl_lamports` | lamport string \| null | `portfolio_latest.realized_pnl_lamports` (includes partial take-profits on still-open positions) |
+| `total_pnl_lamports` | lamport string \| null | `realized + unrealized`, integer lamports |
+| `realized_pnl_window_lamports` | lamport string | closed positions inside the range only; may differ from `realized_pnl_lamports` (reconciliation note in the UI) |
+| `closed_count`, `win_count` | integer | closed positions in the range |
+| `win_rate_pct` | number \| null | null when `closed_count = 0`; never a fake `0` |
+| `avg_hold_s` | integer \| null | weighted by position, null when no closes |
+| `fees_lamports` | lamport string | `sum(fees_lamports)` of those closes, reported context only |
+| `best_pnl_lamports`, `worst_pnl_lamports` | lamport string \| null | null when no closes |
+| `as_of_seq`, `ts` | int64 string \| null, IsoTs \| null | snapshot the realized/unrealized values came from |
+
+**Scope (0022).** `unrealized_pnl_lamports`, `realized_pnl_lamports` and `total_pnl_lamports` are the
+workspace+mode snapshot for the current practice epoch and do **not** narrow with `strategy_id`;
+`realized_pnl_window_lamports`, the closed-trade counts and the ledger do. When a bot filter is active, label
+the three snapshot cells workspace-wide (or keep the card unfiltered) instead of mixing scopes in one strip.
+
+**Realized PnL — one definition (0022).** `pnl_lamports = sol_out_lamports - sol_in_lamports`, on a
+`closed` position only; `pnl_pct = round(pnl * 100 / sol_in, 2)` (null when `sol_in = 0`);
+`hold_seconds = closed_at - opened_at`. Same expression in `position_wire()`, `position.closed` and
+`exit_stats()`/`pnl_summary()`, so the receipt, the toast and the report cannot disagree.
+
+`fees_lamports` is **reported context and is never subtracted again**: the sell-side swap fee is already
+netted out of `sol_out_lamports` and the buy-side swap fee is already inside `sol_in_lamports`, so
+subtracting the whole column double-counts it. Network fees are the only component not yet inside the two
+cash columns; label the number `PnL` (not "net of fees") until the executor books them.
 
 ### 4.8 Guard changes and audit
 | Method | Path | Scope | Notes |

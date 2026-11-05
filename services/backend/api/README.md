@@ -13,12 +13,13 @@ Implements `packages/contracts/API_ENDPOINTS.md` / `EVENTS_SCHEMA.md` (contracts
 |---|---|
 | `GET /healthz`, `/readyz` | `{mode:"practice", real_enabled:false, modes_enabled, live_executor:"disabled", contracts_version, server_now}` |
 | `GET /v1/workspaces/{ws}` | `WorkspaceWire` (`rev`, `practice_epoch`), `ETag` |
-| `GET /v1/workspaces/{ws}/positions[?state&strategy_id&epoch&limit&cursor]`, `/positions/{id}` | `position_wire()`; keyset cursor |
+| `GET /v1/workspaces/{ws}/positions[?state&strategy_id&window|from&to&epoch&limit&cursor]`, `/positions/{id}` | `position_wire()`; keyset cursor. Closed rows carry `pnl_lamports`, `pnl_pct`, `hold_seconds`; with `state=closed` a `window`/`from`/`to` filters and orders by `closed_at` |
 | `POST /v1/workspaces/{ws}/positions/{id}/close` | `If-Match`/`expected_rev`, `Idempotency-Key`, `{fraction_bps}` -> `close_position()` |
 | `GET /v1/workspaces/{ws}/approvals[?status&kind]`, `/approvals/{id}` | detail mints a `decision_token` for members with `trade` |
 | `POST /v1/workspaces/{ws}/approvals/{id}/decision` | `If-Match`/`expected_rev`, `Idempotency-Key` -> `decide_approval()` |
 | `GET /v1/workspaces/{ws}/portfolio/overview` | `portfolio_latest` |
 | `GET /v1/workspaces/{ws}/stats/exit-reasons[?strategy_id&window|from&to]` | `exit_stats()` rows |
+| `GET /v1/workspaces/{ws}/stats/pnl[?strategy_id&window|from&to]` | PnL card/report: unrealized, realized, total, windowed realized + closed count / win rate / avg hold / fees (default `window=7d`) |
 | `GET /v1/workspaces/{ws}/events[?after_seq|before_seq&types&limit]` | seq strings, `next_after_seq`, `safe_seq` |
 | `GET /v1/workspaces/{ws}/events/stream[?after_seq&include=marks,clock]` | SSE; `id:` = seq string; `Last-Event-ID` resume |
 | `POST /v1/workspaces/{ws}/practice/reset`, `GET .../practice/resets` | `Idempotency-Key`; `reset_practice()`; `429 RESET_COOLDOWN {next_allowed_at}` + `Retry-After` |

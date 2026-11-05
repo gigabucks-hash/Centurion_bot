@@ -13,6 +13,14 @@ placeholder e-mails `@wallet.centurion.invalid`. SIWS legacy statement v1 text i
 (practice). ...` (v2 `Sign in to Centurion Trade` unchanged; v1 transition window unchanged). Older entries below were
 rewritten in place to the new names. Clients import `@centurion/contracts` / `@centurion/contracts/wire`.
 
+- **PnL card/report (additive, migration `0022_pnl_report.sql`; no version bump):** `PositionWire` closed rows
+  now carry `pnl_lamports`, `pnl_pct`, `hold_seconds` (null while open), so the closed ledger and the receipt
+  show a realized result without recomputing it client-side. One new read route `GET
+  /stats/pnl?window=&strategy_id=` (default `7d`) returns unrealized, all-time realized, exact total, windowed
+  realized, closed count, win rate, avg hold, fees and best/worst in one row. `GET /positions` finally honours
+  the documented `window`/`from`/`to` filters (it did not before) and orders a closed list by `closed_at`.
+  Realized definition is `sol_out - sol_in`, the same expression `exit_stats()` already used; `fees_lamports`
+  is reported context and is no longer subtracted a second time in `position.closed`. See API_ENDPOINTS 4.4/4.7.
 - **Coin logos (additive):** `logo_hash: string | null` + `logo_url: LogoUrl | null` on coin, pick and position wires;
   `logo_url` on approvals/proposals and on every event envelope that carries a mint. TS helpers `LOGO_SIZES`
   (48/64/96/128/192), `LogoSize`, `LogoFormat`, `logoSizeFor(px, dpr)`, `logoUrlFor(url, size, fmt)`. New route

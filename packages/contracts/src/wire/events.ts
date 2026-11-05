@@ -314,6 +314,12 @@ export interface PositionWire {
   cost_basis_lamports: Lamports; sol_in_lamports: Lamports; sol_out_lamports: Lamports; fees_lamports: Lamports;
   avg_entry_price_sol: DecimalString | null; peak_price_sol: DecimalString | null; exit_price_sol: DecimalString | null;
   exit_reason: ExitReason | null; opened_at: IsoTs; closed_at: IsoTs | null;
+  /** 0022 (additive): realized result of a closed trade (`sol_out - sol_in`); null while open. Never recompute client-side. */
+  pnl_lamports?: Lamports | null;
+  /** 0022 (additive): `round(pnl * 100 / sol_in, 2)`; null while open or when `sol_in` is 0. */
+  pnl_pct?: number | null;
+  /** 0022 (additive): `closed_at - opened_at` in seconds; null while open. */
+  hold_seconds?: number | null;
 }
 export interface PositionOpened {
   position_key: string; position_id: Uuid; rev: number; practice_epoch: number; mint: Base58;
@@ -331,6 +337,27 @@ export interface PositionClosed {
   position_key: string; position_id: Uuid; rev: number; practice_epoch: number;
   exit_reason: ExitReason; exit_price_sol: DecimalString; sol_out_lamports: Lamports;
   pnl_lamports: Lamports; pnl_pct: number | null; hold_seconds: number;
+}
+/** 0022 `GET /stats/pnl` data: one card/report strip, server-computed. */
+export interface PnlSummary {
+  mode: Mode; practice_epoch: number | null;
+  /** Range echo. `window` is null when the client used `from`/`to`. */
+  window: "1h" | "24h" | "7d" | "30d" | "all" | null; from: IsoTs | null; to: IsoTs | null;
+  /** portfolio_latest: mark-to-market of the open remainder. */
+  unrealized_pnl_lamports: Lamports | null;
+  /** portfolio_latest: all-time realized for the current epoch, partial take-profits included. */
+  realized_pnl_lamports: Lamports | null;
+  /** Exact lamport sum `realized + unrealized` (do not re-add on the client). */
+  total_pnl_lamports: Lamports | null;
+  /** Closed positions inside the range only; may differ from `realized_pnl_lamports`. */
+  realized_pnl_window_lamports: Lamports;
+  closed_count: number; win_count: number;
+  /** null when `closed_count = 0` — never a fake 0. */
+  win_rate_pct: number | null; avg_hold_s: number | null;
+  /** Reported context; the swap fee is already inside sol_in/sol_out, never subtract it again. */
+  fees_lamports: Lamports;
+  best_pnl_lamports: Lamports | null; worst_pnl_lamports: Lamports | null;
+  as_of_seq: string | null; ts: IsoTs | null;
 }
 export interface FillSimulated extends FillWire { position_key: string; position_id: Uuid; order_id: Uuid | null; mark_price_sol?: DecimalString; fee_bps?: number }
 export interface ExitTriggered { position_key: string; rule: ExitReason; rule_index: number; sell_portion_pct: number; trigger_price_sol: DecimalString; detail: string }

@@ -146,6 +146,23 @@ export function exitStatsWire(r: Record<string, unknown>) {
   };
 }
 
+/**
+ * 0022 `pnl_summary()`: closed-trade aggregate for the PnL report strip.
+ * `win_rate_pct` / `avg_hold_s` / best / worst stay null with zero closed trades (no invented 0 %).
+ */
+export function pnlSummaryWire(r: Record<string, unknown>) {
+  return {
+    closed_count: num(r.closed_count) ?? 0,
+    win_count: num(r.win_count) ?? 0,
+    win_rate_pct: num(r.win_rate_pct),
+    realized_pnl_lamports: str(r.realized_pnl_lamports) ?? "0",
+    fees_lamports: str(r.fees_lamports) ?? "0",
+    avg_hold_s: num(r.avg_hold_s),
+    best_pnl_lamports: str(r.best_pnl_lamports),
+    worst_pnl_lamports: str(r.worst_pnl_lamports),
+  };
+}
+
 export function workspaceWire(r: Record<string, unknown>) {
   return {
     id: r.id,

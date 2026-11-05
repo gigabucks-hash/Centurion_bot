@@ -3,20 +3,26 @@
 Approved request: show a PnL card/report on every platform, with unrealized PnL while a trade is open
 and realized PnL once it is closed.
 
-## One definition, no new API
+## One definition, no new client-side maths
 
-Nothing was added to the wire contract: the numbers already exist and are authoritative.
+The card can be built from numbers that already existed; the two gaps that were server-side are now closed by
+migration `0022_pnl_report.sql` (additive, no contract bump).
 
 | Number | Source | Meaning |
 |---|---|---|
-| Unrealized | `overview.unrealized_pnl_lamports` / `unrealizedPnlSol` / `unrealized_pnl_lamports` | Mark-to-market of the open remainder, partial sells included |
-| Realized | `overview.realized_pnl_lamports` / `realizedPnlSol` / `realized_pnl_lamports` | Closed-trade ledger: take-profits + fully closed trades, net of fees |
-| Total | realized + unrealized | Exactly the delta the equity hero shows |
-| Per trade | closed position `pnl_lamports` + `pnl_pct` | Locked at close; it must not change with price |
+| Unrealized | `overview.unrealized_pnl_lamports` / `unrealizedPnlSol` / `unrealized_pnl_lamports`, or `GET /stats/pnl` | Mark-to-market of the open remainder, partial sells included |
+| Realized | `overview.realized_pnl_lamports` / `get /stats/pnl` `realized_pnl_lamports` | Closed-trade ledger: take-profits + fully closed trades, net of swap fees |
+| Total | realized + unrealized (`/stats/pnl` returns it already summed) | Exactly the delta the equity hero shows |
+| Per trade | closed position `pnl_lamports` + `pnl_pct` (REST, 0022) | Locked at close; it must not change with price |
+| Range report | `GET /stats/pnl?window=7d` + `GET /positions?state=closed&window=7d` | Windowed realized, closed count, win rate, avg hold; ledger ordered by `closed_at` |
 
 Rules:
 
 - Never recompute realized from the open position list — closed trades are not in that list.
+- Never sum a paginated page to get realized for a range: `/stats/pnl` computes it in SQL. The range value and
+  the all-time snapshot value may differ (partial take-profits on open positions, closes outside the range);
+  say so, do not "fix" it.
+- `fees_lamports` is reported context, not a second subtraction: the swap fee is already inside `sol_in`/`sol_out`.
 - The total is an exact BigInt/lamport sum, not a float round-trip.
 - Realized and unrealized are per mode (Paper / Real). Never add the two modes together.
 - Loss is never profit-toned. Exact zero stays neutral (`0,00`, no arrow) per T-15.
@@ -27,14 +33,17 @@ Rules:
 
 | Platform | Surface | Shape |
 |---|---|---|
-| Mobile | Portfolio home | Flat card `PnlReportCard`: unrealized + realized rows, total, open-position count |
+| Mobile | Portfolio home | Flat card `PnlReportCard`: unrealized + realized, total, open-position count; tap opens `/pnl` |
 | Mobile | Positions | Same card under the equity card; closed rows and the closed detail show `terealisasi` / `Realized PnL` |
-| Web | Dashboard | `PnlReport`: 3-cell partitioned strip (total / unrealized / realized) + closed-trade ledger line, link to the full exit report (`/stats`) |
+| Mobile | `/pnl` report | 1D/7D/30D/All chips, server strip (realized·range, closed, win rate, avg hold, fees), all-time footer, range ledger with logos |
+| Web | Dashboard | `PnlReport`: 3-cell partitioned strip (unrealized / realized / total) + closed-trade line; "Full report" link |
+| Web | `/pnl` report | Bot + range filters (1D/7D/30D/All, default 7D), all-time card, 5-cell range strip, reconciliation note, keyset ledger 50/page with entry→exit and reported fees |
 | Web | Coin trail | Closed position's stat cell is labelled `Realized` |
-| Desktop | Positions panel | `PnlReport` strip above the table (total / unrealized / realized), fed by `portfolio.snapshot` |
+| Desktop | Positions panel | `PnlReport` strip above the table (unrealized / realized / total), fed by `portfolio.snapshot` |
+| Desktop | PnL report dialog | Range chips, server strip, reconciliation + fees note, closed ledger newest first |
 
-The full closed-trade report already exists on web at `/stats` (closed count, win rate, total realized,
-breakdown per exit reason); the PnL card links to it rather than duplicating it.
+The legacy `/stats` exit-reason breakdown stays as the exit-reason view; `/pnl` is the money view and
+links to it instead of duplicating the breakdown.
 
 ## Desktop plumbing
 
@@ -42,6 +51,14 @@ breakdown per exit reason); the PnL card links to it rather than duplicating it.
 snapshot was copied into the UI `Account` view. It is now passed through
 (`state.rs::set_portfolio` → `view::Account.realized_pnl_lamports` → `Account` in `contract.ts`).
 The browser mock tracks realized on each mock sell. No DB or API change.
+
+## Backend (0022)
+
+`GET /stats/pnl` is the one call a card needs: `unrealized_pnl_lamports`, `realized_pnl_lamports` (portfolio,
+all-time), `total_pnl_lamports`, plus the range's `realized_pnl_window_lamports`, `closed_count`, `win_rate_pct`,
+`avg_hold_s`, `fees_lamports`, best/worst. `GET /positions?state=closed&window=7d` now filters by `closed_at`
+and returns each closed row's `pnl_lamports`, `pnl_pct`, `hold_seconds`. Definition: `sol_out - sol_in`; fees
+are reported, never subtracted twice. Tests: `api/test/pnl.test.ts`.
 
 ## Verification
 
