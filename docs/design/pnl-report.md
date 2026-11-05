@@ -35,7 +35,7 @@ Rules:
 |---|---|---|
 | Mobile | Portfolio home | Flat card `PnlReportCard`: unrealized + realized, total, open-position count; tap opens `/pnl` |
 | Mobile | Positions | Same card under the equity card; closed rows and the closed detail show `terealisasi` / `Realized PnL` |
-| Mobile | `/pnl` report | 1D/7D/30D/All chips, server strip (realized·range, closed, win rate, avg hold, fees), all-time footer, range ledger with logos |
+| Mobile | `/pnl` report | 1D/7D/30D/All chips, unrealized hero then the range group (realized·range, closed, win rate, avg hold) and the all-time total/realized footer, ledger with logos |
 | Web | Dashboard | `PnlReport`: 3-cell partitioned strip (unrealized / realized / total) + closed-trade line; "Full report" link |
 | Web | `/pnl` report | Bot + range filters (1D/7D/30D/All, default 7D), all-time card, 5-cell range strip, reconciliation note, keyset ledger 50/page with entry→exit and reported fees |
 | Web | Coin trail | Closed position's stat cell is labelled `Realized` |
