@@ -2,7 +2,7 @@
 import { ApiError } from "./errors.ts";
 import type { Ctx } from "./http.ts";
 import type { Principal } from "./jwt.ts";
-import { decodeCursor, type CursorIdKind } from "./wire.ts";
+import { decodeCursor, type CursorIdKind, type Cursor, type CursorRange } from "./wire.ts";
 
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -137,8 +137,44 @@ export function requireApp(p: Principal): void {
 }
 
 /** `?cursor=` (opaque keyset cursor from a previous page); malformed -> 400 CURSOR_INVALID. */
-export function cursorParam(ctx: Ctx, kind: CursorIdKind = "uuid"): { ts: string; id: string } | null {
+export function cursorParam(ctx: Ctx, kind: CursorIdKind = "uuid"): Cursor | null {
   const c = decodeCursor(ctx.url.searchParams.get("cursor"), kind);
   if (c === "bad") throw new ApiError("CURSOR_INVALID", { field: "cursor" });
   return c;
+}
+
+/**
+ * Resolve the stable `[from, to)` a ranged keyset walk is pinned to, and reject a cursor replayed
+ * against another range. A relative `window` is resolved once (page 1) and carried inside the cursor,
+ * so page 2 cannot silently move its lower bound and drop the oldest rows.
+ *
+ * `def`: `undefined` = 24h default, `null` = unbounded unless the request asks, else that window.
+ */
+export function pagedRange(
+  ctx: Ctx,
+  cur: Cursor | null,
+  def?: string | null,
+): { range: CursorRange; window: string | null } {
+  const q = ctx.url.searchParams;
+  const hasExplicit = q.has("from") || q.has("to");
+  const requestedWindow = q.has("window") ? (q.get("window") ?? "") : null;
+  const asked = requestedWindow !== null || hasExplicit;
+  const current: CursorRange =
+    def === null && !asked ? { from: null, to: null } : timeRange(ctx, def ?? "24h");
+  const frozen = cur?.range ?? null;
+
+  if (frozen) {
+    if (hasExplicit) {
+      if (current.from !== frozen.from || current.to !== frozen.to) {
+        throw new ApiError("CURSOR_INVALID", { field: "cursor", reason: "cursor belongs to another range" });
+      }
+    } else if (requestedWindow !== null && requestedWindow !== (cur?.window ?? null)) {
+      throw new ApiError("CURSOR_INVALID", { field: "cursor", reason: "cursor belongs to another range" });
+    }
+    return { range: frozen, window: cur?.window ?? null };
+  }
+
+  // Page 1 (or a legacy 2-part cursor): freeze what this request resolves to.
+  const window = hasExplicit ? null : (requestedWindow ?? (typeof def === "string" ? def : null));
+  return { range: current, window };
 }

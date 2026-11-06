@@ -1,6 +1,8 @@
-# `buys_paused` decisions (paper-only; no implementation)
+# `buys_paused` decisions (paper-only; A/A/A chosen and implemented)
 
 The existing approval trigger already rejects buys with `409 BUYS_PAUSED`. These are the three choices needed before extending the ingest/paper path. No trading gate is changed by this document.
+
+**Chosen: A / A / A** (see the bottom of this file). Implemented for the paper ingest demo path in `crates/ingest/src/settings.rs` + `crates/ingest/src/pipeline.rs`; the API/approval path is unchanged.
 
 ## 1. Event vocabulary
 
@@ -26,4 +28,4 @@ The existing approval trigger already rejects buys with `409 BUYS_PAUSED`. These
 | B — `db::PgRepo` owns settings | Read through the repository abstraction | One backend data-access owner; easier to share later | `PgRepo` is not implemented yet; couples this change to week-2 persistence work |
 | C — API owns cached state | API reads/writes and publishes a cache/NOTIFY; ingest consumes it | Centralized policy and no duplicate query | Requires a new NOTIFY/cache protocol and reconnect semantics |
 
-**Current recommendation:** A/A/A for paper, with a separate Phase-7 decision to fail closed before any real execution. Boss should choose explicitly before implementation.
+**Chosen and implemented (paper path): A/A/A**, with a separate Phase-7 decision to fail closed before any real execution. See [`BUYS_PAUSED_ENGINE.md`](BUYS_PAUSED_ENGINE.md) for the implemented modules and tests.

@@ -168,6 +168,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         stats: Stats::default(),
         marks: marks_sink(&cfg).await,
         sol_usd: cfg.marks_sol_usd,
+        buys_paused: ingest::settings::spawn_buys_paused_watch(
+            cfg.database_url.expose(),
+            &cfg.workspace_id,
+        ),
     };
 
     loop {

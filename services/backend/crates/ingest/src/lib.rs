@@ -7,4 +7,5 @@ pub mod curve;
 pub mod marks;
 pub mod meter;
 pub mod pipeline;
+pub mod settings;
 pub mod source;

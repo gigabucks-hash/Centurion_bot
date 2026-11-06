@@ -10,6 +10,7 @@ use guard::{assess, GuardConfig, GuardDataSource, GuardInput, Verdict};
 use papersim::{Executor, Order, Side};
 use screener::{evaluate, RuleSet};
 use serde_json::json;
+use tokio::sync::watch;
 
 use crate::marks::{MarkBuilder, MarkPublisher};
 use crate::source::{IngestEvent, NewCoin, TradeTick};
@@ -43,6 +44,10 @@ pub struct Pipeline {
     pub marks: Option<MarkSink>,
     /// SOL/USD reference for the indicative `mcap_usd` (same `MARKS_SOL_USD` the marks use). `None` = no USD.
     pub sol_usd: Option<f64>,
+    /// Workspace "Stop buys" switch (`agent_settings.buys_paused`, docs/BUYS_PAUSED_OPTIONS.md A/A/A).
+    /// `Some(true)` suppresses the paper buy and emits `order.failed` + `BUYS_PAUSED`; the pick stays
+    /// `Passed`. `None` = no switch configured (paper fail-open; a real executor needs fail-closed).
+    pub buys_paused: Option<watch::Receiver<bool>>,
 }
 
 /// `market_cap_lamports` (integer string), `mcap_usd` (decimal string, display-only, = the screener's
@@ -325,6 +330,27 @@ impl Pipeline {
                 self.repo.upsert_pick(&pick).await?;
                 return Ok(());
             };
+            // Stop buys: the pick was valid, so it stays `Passed`; nothing executes and the operator sees
+            // an order failure with a stable reason instead of a silent drop. Checked after decimals (the
+            // failure wire needs them) and before the pool branch, so "paused" wins over pool staleness.
+            if self.buys_paused.as_ref().is_some_and(|r| *r.borrow()) {
+                tracing::info!(mint = %c.mint, "paper buy suppressed: buys paused");
+                let p = papersim::order_failed(
+                    &order_id,
+                    None,
+                    &c.mint.to_string(),
+                    &order,
+                    decimals,
+                    common::ErrorCode::BuysPaused,
+                    "buys are paused for this workspace".into(),
+                    c.pool.as_ref(),
+                    c.quote_mint.as_deref(),
+                    server_now(),
+                );
+                self.order_failed(&ck, &c, p).await?;
+                self.repo.upsert_pick(&pick).await?;
+                return Ok(());
+            }
             let Some(pool) = c.pool else {
                 // no usable pool (non-SOL quote, or not fetched / stale): report, never convert
                 let code = papersim::no_pool_reason(c.quote_mint.as_deref());
@@ -438,6 +464,7 @@ pub(crate) mod tests {
             stats: Stats::default(),
             marks: None,
             sol_usd: None,
+            buys_paused: None,
         };
         let (tx, mut rx) = mpsc::channel(64);
         let (_stx, srx) = watch::channel(false);
@@ -499,6 +526,7 @@ pub(crate) mod tests {
             stats: Stats::default(),
             marks: None,
             sol_usd: None,
+            buys_paused: None,
         }
     }
 
@@ -574,6 +602,78 @@ pub(crate) mod tests {
         assert_eq!(pl["result"]["tradeable"], false);
         let d = events_of(&repo, "coin.detected").await;
         assert_eq!(d[0]["payload"]["quote_mint"], PUMP_QUOTE);
+    }
+
+    #[tokio::test]
+    async fn buys_paused_suppresses_the_buy_but_keeps_the_pick_passed() {
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        let (_tx, rx) = watch::channel(true);
+        p.buys_paused = Some(rx);
+        let c = passing_coin();
+        let ck = CoinKey::derive(&p.strategy_id, &c.mint);
+        p.process(IngestEvent::NewCoin(Box::new(c)))
+            .await
+            .expect("process");
+
+        assert_eq!(p.stats.bought, 0, "nothing is executed while paused");
+        assert_eq!(p.stats.order_failed, 1);
+        assert!(repo.fills().await.is_empty(), "no fill row");
+        assert!(
+            events_of(&repo, "position.opened").await.is_empty(),
+            "no position is opened"
+        );
+
+        let f = events_of(&repo, "order.failed").await;
+        assert_eq!(f.len(), 1);
+        let pl = &f[0]["payload"];
+        assert_eq!(pl["reason_code"], "BUYS_PAUSED");
+        assert_eq!(pl["side"], "buy");
+        assert_eq!(pl["amount_lamports"], "250000000");
+        assert_eq!(pl["mode"], "practice");
+        assert!(pl["server_now"].is_string());
+        assert!(
+            f[0]["untrusted"]["symbol"].is_string(),
+            "symbol still travels as untrusted"
+        );
+        common::units::assert_wire_numbers(&f[0]);
+
+        let pick = repo.get_pick(&ck).await.expect("pick");
+        assert_eq!(
+            pick.stage,
+            PickStage::Passed,
+            "the valid pick is not marked Bought"
+        );
+
+        // Unpaused: the same coin fills on a fresh pipeline.
+        let repo2 = Arc::new(MemoryRepo::new());
+        let mut p2 = pipeline(repo2.clone());
+        let (_tx2, rx2) = watch::channel(false);
+        p2.buys_paused = Some(rx2);
+        p2.process(IngestEvent::NewCoin(Box::new(passing_coin())))
+            .await
+            .expect("process");
+        assert_eq!(p2.stats.bought, 1, "unpaused buys fill");
+        assert_eq!(repo2.fills().await.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn buys_paused_wins_over_a_missing_pool() {
+        let repo = Arc::new(MemoryRepo::new());
+        let mut p = pipeline(repo.clone());
+        let (_tx, rx) = watch::channel(true);
+        p.buys_paused = Some(rx);
+        let mut c = passing_coin();
+        c.pool = None;
+        p.process(IngestEvent::NewCoin(Box::new(c)))
+            .await
+            .expect("process");
+        let f = events_of(&repo, "order.failed").await;
+        assert_eq!(f.len(), 1);
+        assert_eq!(
+            f[0]["payload"]["reason_code"], "BUYS_PAUSED",
+            "the operator's pause is the reported reason, not POOL_STALE"
+        );
     }
 
     #[tokio::test]

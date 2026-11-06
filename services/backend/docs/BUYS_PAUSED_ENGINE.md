@@ -1,6 +1,6 @@
-# `agent_settings.buys_paused` in the Rust engine — design (not implemented)
+# `agent_settings.buys_paused` in the Rust engine — implementation note
 
-Status: **design only**. The paper buy path is intentionally unchanged. This note records the exact
+Status: **implemented for the paper ingest demo path**. The API/approval path remains unchanged, and real-money execution is still disabled. This note records the exact
 place and shape of the change so it can be implemented without guessing.
 
 ## Why this is not implemented yet
@@ -89,7 +89,7 @@ automatic on the next poll.
 Alternative if Product prefers a visible "skipped" state: add `PickStage::Paused` plus a
 `pick.paused` event. That is a contracts + SQL + mobile change; do not do it inside this fix.
 
-### 3. Tests
+### 3. Tests (implemented)
 
 - Unit (`crates/ingest/src/pipeline.rs` tests, `MemoryRepo` + `PaperExecutor`):
   1. set the watch to `true`, process one `NewCoin`, assert `stats.bought == 0`, exactly one
@@ -100,7 +100,7 @@ Alternative if Product prefers a visible "skipped" state: add `PickStage::Paused
   existing Postgres API tests (Rust CI has no Postgres service).
 - No live path: `PaperExecutor` and `Mode::Practice` stay unchanged; `live-execution` stays off.
 
-## Decisions needed before implementation
+## Decisions (chosen: A/A/A, covering the paper path)
 
 Short option table for Boss: [`BUYS_PAUSED_OPTIONS.md`](BUYS_PAUSED_OPTIONS.md).
 
@@ -110,3 +110,9 @@ Short option table for Boss: [`BUYS_PAUSED_OPTIONS.md`](BUYS_PAUSED_OPTIONS.md).
 3. Owner of the `PgRepo`/settings client: `db::Repo` is still trait-only; a direct
    `tokio_postgres` poller in `ingest` avoids blocking week-2 `PgRepo` work but adds a second
    settings reader alongside the API.
+
+Implemented files: `crates/ingest/src/settings.rs` (poller + uuid check), `Pipeline.buys_paused`
+and the paused branch in `crates/ingest/src/pipeline.rs`, wiring in `crates/ingest/src/main.rs`.
+The poller is off when `DATABASE_URL` is unset or the workspace id is not a uuid (`local-dev`,
+`example`), which keeps the paper replay path unchanged. Real execution must add the fail-closed
+gate before it may reuse this switch.

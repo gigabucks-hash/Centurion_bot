@@ -177,24 +177,56 @@ export function workspaceWire(r: Record<string, unknown>) {
   };
 }
 
-/** Opaque keyset cursor `(opened_at, id)`; `ts` keeps the DB's microseconds so ties never skip rows. */
-export function encodeCursor(ts: string, id: unknown): string {
-  return Buffer.from(`${ts}|${String(id)}`).toString("base64url");
+/** Time bounds a keyset walk is pinned to (`null` = open-ended). */
+export interface CursorRange {
+  from: string | null;
+  to: string | null;
+}
+
+/**
+ * Opaque keyset cursor `(opened_at, id)`; `ts` keeps the DB's microseconds so ties never skip rows.
+ * A ranged page also freezes its bounds and the `window` it came from, so page 2 cannot silently shift
+ * a relative window (`window=7d` recomputed later drops the oldest rows) and a cursor cannot be replayed
+ * against another range.
+ */
+export function encodeCursor(ts: string, id: unknown, range?: CursorRange | null, window?: string | null): string {
+  const base = `${ts}|${String(id)}`;
+  if (!range) return Buffer.from(base).toString("base64url");
+  return Buffer.from(`${base}|${range.from ?? ""}|${range.to ?? ""}|${window ?? ""}`).toString("base64url");
 }
 const CURSOR_ID = {
-  uuid: /^[0-9a-f-]{36}$/,
+  // canonical 8-4-4-4-12 hex only: a 36-character run of hyphens passed the old check and reached `$9::uuid`.
+  uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
   int: /^\d{1,19}$/,
   mint: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
 } as const;
 export type CursorIdKind = keyof typeof CURSOR_ID;
 
-export function decodeCursor(c: string | null, kind: CursorIdKind = "uuid"): { ts: string; id: string } | null | "bad" {
+export const CURSOR_WINDOWS = new Set(["1h", "24h", "7d", "30d", "all"]);
+
+export interface Cursor {
+  ts: string;
+  id: string;
+  /** Range frozen on page 1; `null` for a cursor that is not range-bound. */
+  range: CursorRange | null;
+  /** `window` key the frozen range came from; `null` for explicit `from`/`to` or an unbounded list. */
+  window: string | null;
+}
+
+export function decodeCursor(c: string | null, kind: CursorIdKind = "uuid"): Cursor | null | "bad" {
   if (!c) return null;
-  if (c.length > 200) return "bad";
+  // ts + id + from + to + window, each part bounded; the cap keeps a forged cursor from being huge.
+  if (c.length > 320) return "bad";
   const s = Buffer.from(c, "base64url").toString("utf8");
-  const m = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?Z)\|(.+)$/.exec(s);
-  if (!m?.[1] || !m[2] || !CURSOR_ID[kind].test(m[2]) || Number.isNaN(Date.parse(m[1]))) return "bad";
-  return { ts: m[1], id: m[2] };
+  const parts = s.split("|");
+  if (parts.length !== 2 && parts.length !== 5) return "bad";
+  const [ts, id, from = "", to = "", w = ""] = parts;
+  if (!ts || !id || !CURSOR_ID[kind].test(id) || Number.isNaN(Date.parse(ts))) return "bad";
+  if (parts.length === 2) return { ts, id, range: null, window: null };
+  if (w && !CURSOR_WINDOWS.has(w)) return "bad";
+  if (from && Number.isNaN(Date.parse(from))) return "bad";
+  if (to && Number.isNaN(Date.parse(to))) return "bad";
+  return { ts, id, range: { from: from || null, to: to || null }, window: w || null };
 }
 
 /** SQL select-list fragment for the keyset columns (`cur_ts` keeps microseconds). */
@@ -202,9 +234,21 @@ export function cursorCols(tsExpr: string, idExpr: string): string {
   return `to_char(${tsExpr} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cur_ts, (${idExpr})::text as cur_id`;
 }
 
-/** Rows were fetched with `limit + 1`; returns the page and the next cursor. */
-export function pageOf<R extends { cur_ts: string; cur_id: string }, T>(rows: R[], limit: number, map: (r: R) => T): { items: T[]; next_cursor: string | null } {
+/**
+ * Rows were fetched with `limit + 1`; returns the page and the next cursor. Pass `range` (and the
+ * `window` it came from) for a ranged list so the next page reuses the exact same bounds and echoes them
+ * as `range_from`/`range_to` (additive; clients that ignore them are unaffected).
+ */
+export function pageOf<R extends { cur_ts: string; cur_id: string }, T>(
+  rows: R[],
+  limit: number,
+  map: (r: R) => T,
+  range?: CursorRange | null,
+  window?: string | null,
+): { items: T[]; next_cursor: string | null; range_from?: string | null; range_to?: string | null } {
   const page = rows.slice(0, limit);
   const last = page.at(-1);
-  return { items: page.map(map), next_cursor: rows.length > limit && last ? encodeCursor(last.cur_ts, last.cur_id) : null };
+  const next = rows.length > limit && last ? encodeCursor(last.cur_ts, last.cur_id, range ?? null, window ?? null) : null;
+  if (!range) return { items: page.map(map), next_cursor: next };
+  return { items: page.map(map), next_cursor: next, range_from: range.from, range_to: range.to };
 }

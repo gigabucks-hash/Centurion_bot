@@ -109,6 +109,16 @@ test("closed ledger keyset page: cursor seek uses the same index, no Sort", asyn
   assert.ok(!all.some((n) => n["Node Type"] === "Sort"), "cursor page must not sort");
 });
 
+test("F4: page 2 (frozen from + cursor) still seeks the sort index, no Sort", async () => {
+  const from = new Date(Date.parse("2026-01-01T00:00:00Z"));
+  const cursorTs = new Date(Date.parse("2026-01-01T05:00:00Z"));
+  const plan = await explainAsOwner(LEDGER, [WS, "practice", "closed", null, null, from, null, cursorTs, "60000000-0000-0000-0000-0000000000b1", 51]);
+  const all = nodes(plan);
+  const indexes = all.flatMap((n) => (n["Index Name"] ? [n["Index Name"]] : []));
+  assert.ok(indexes.includes(SORT_INDEX), `frozen-range page must use ${SORT_INDEX}, used: ${indexes.join(", ")}`);
+  assert.ok(!all.some((n) => n["Node Type"] === "Sort"), "the frozen lower bound must not force a sort");
+});
+
 test("closed ledger with strategy filter and window keeps index order", async () => {
   const from = new Date(Date.parse("2026-01-01T00:00:00Z"));
   const to = new Date(Date.parse("2026-01-02T00:00:00Z"));

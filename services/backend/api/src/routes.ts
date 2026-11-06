@@ -4,10 +4,10 @@ import { asService, asUser, requireMember, type Db, type Tx } from "./db.ts";
 import { Router, readJson, send, type Ctx } from "./http.ts";
 import { authenticate, type Deps } from "./deps.ts";
 import {
-  cursorParam, expectedRev, idempotencyKey, limitParam, modeParam, requireRev, requireScope, seqParam, timeRange, uuidParam,
+  cursorParam, expectedRev, idempotencyKey, limitParam, modeParam, pagedRange, requireRev, requireScope, seqParam, timeRange, uuidParam,
 } from "./rules.ts";
 import {
-  APPROVAL_COLUMNS, EVENT_COLUMNS, approvalWire, cursorCols, decodeCursor, encodeCursor, pageOf, eventWire, exitStatsWire,
+  APPROVAL_COLUMNS, EVENT_COLUMNS, approvalWire, cursorCols, decodeCursor, pageOf, eventWire, exitStatsWire,
   pnlSummaryWire, portfolioWire, workspaceWire, type EventRow,
 } from "./wire.ts";
 import { streamEvents } from "./sse.ts";
@@ -113,7 +113,8 @@ export function buildRouter(d: Deps): Router {
     // without them the list keeps its historical "everything, newest first" behaviour. For closed rows the
     // range and the order are on `closed_at` (a report is ordered by when the trade closed, not opened).
     const ranged = q.has("window") || q.has("from") || q.has("to");
-    const { from, to } = ranged ? timeRange(ctx) : { from: null, to: null };
+    const pinned = pagedRange(ctx, cur, null);
+    const { from, to } = pinned.range;
     const byClosed = state === "closed";
     const sortCol = byClosed ? "coalesce(p.closed_at, p.opened_at)" : "p.opened_at";
     const rows = await asUser(d.db, p.claims, async (c) => {
@@ -135,12 +136,15 @@ export function buildRouter(d: Deps): Router {
       );
       return res.rows as { w: Record<string, unknown>; cur_ts: string; id: string }[];
     });
-    const page = rows.slice(0, limit);
-    const last = page.at(-1);
-    send(ctx, 200, {
-      items: page.map((x) => withLogo(x.w)),
-      next_cursor: rows.length > limit && last ? encodeCursor(last.cur_ts, last.id) : null,
-    });
+    const pinnedWalk = ranged || cur?.range != null;
+    const paged = pageOf(
+      rows.map((x) => ({ ...x, cur_id: x.id })),
+      limit,
+      (x) => withLogo(x.w),
+      pinnedWalk ? pinned.range : undefined,
+      pinnedWalk ? pinned.window : undefined,
+    );
+    send(ctx, 200, paged);
   });
 
   r.add("GET", "/v1/workspaces/:ws/positions/:id", async (ctx) => {
