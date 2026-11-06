@@ -78,6 +78,33 @@ Position _oldClosed(MockBackend b) {
   );
 }
 
+/// A closed row [age] before the mock clock, for range-boundary tests.
+Position _closedAgo(MockBackend b, {required String id, required String symbol, required Duration age}) {
+  final closedAt = b.serverNow.subtract(age);
+  return Position(
+    id: id,
+    strategyId: 'stg_newpairs',
+    symbol: symbol,
+    mint: MockBackend.mockMint(symbol),
+    mode: TradeMode.practice,
+    state: PositionState.closed,
+    costLamports: Lamports.fromSol('0.1'),
+    proceedsLamports: Lamports.fromSol('0.12'),
+    soldBps: 10000,
+    entryPriceUsd: Decimal.parse('0.0002'),
+    markPriceUsd: Decimal.parse('0.00025'),
+    peakPriceUsd: Decimal.parse('0.00026'),
+    openedAt: closedAt.subtract(const Duration(hours: 3)),
+    closedAt: closedAt,
+    exitReason: 'Took profit: exit plan complete',
+    lockedPnlLamports: Lamports.fromSol('0.02'),
+    lockedPnlPct: 20,
+    practiceEpoch: b.epoch,
+    decimals: 6,
+    qtyRaw: BigInt.zero,
+  );
+}
+
 void main() {
   testWidgets('PnL report: 7D strip is the server summary, not a sum of ledger rows', (tester) async {
     await _phone(tester);
@@ -165,6 +192,48 @@ void main() {
     await _settle(tester);
     await _settle(tester);
     expect(_text(tester, const Key('pnlReportClosed')).data, '2');
+  });
+
+  testWidgets('PnL report: 1h window is wired end to end and the ledger follows it', (tester) async {
+    await _phone(tester);
+    final b = MockBackend();
+    addTearDown(b.dispose);
+    // Seed has FERN closed 41 min ago; this one sits between 1h and 7D.
+    b.debugAddPosition(_closedAgo(b, id: 'ck_2h.0', symbol: 'TWO', age: const Duration(hours: 2)));
+    expect(PnlWindow.h1.wire, '1h');
+    expect(b.pnlSummaryRow(window: PnlWindow.h1)['closed_count'], 1);
+    expect(b.pnlSummaryRow(window: PnlWindow.d7)['closed_count'], 2);
+
+    await tester.pumpWidget(_app(b));
+    await _settle(tester);
+    expect(tester.widget<ChoiceChip>(find.byKey(const Key('pnlWindow_d7'))).selected, isTrue);
+    expect(find.byKey(const Key('closed_ck_2h.0')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('pnlWindow_h1')));
+    await _settle(tester);
+    await _settle(tester);
+
+    expect(tester.widget<ChoiceChip>(find.byKey(const Key('pnlWindow_h1'))).selected, isTrue);
+    expect(_text(tester, const Key('pnlReportClosed')).data, '1');
+    expect(find.text('Trade ditutup · 1'), findsOneWidget);
+    expect(find.textContaining('1h'), findsWidgets); // realized-for label
+    expect(find.byKey(const Key('closed_ck_2h.0')), findsNothing);
+    expect(find.byKey(const Key('closed_ck099.0')), findsOneWidget);
+  });
+
+  testWidgets('PnL report: /pnl?window=1h deep link starts on 1h', (tester) async {
+    await _phone(tester);
+    final b = MockBackend();
+    addTearDown(b.dispose);
+    b.debugAddPosition(_closedAgo(b, id: 'ck_2h.0', symbol: 'TWO', age: const Duration(hours: 2)));
+
+    await tester.pumpWidget(_app(b, location: '/pnl?window=1h'));
+    await _settle(tester);
+    await _settle(tester);
+
+    expect(tester.widget<ChoiceChip>(find.byKey(const Key('pnlWindow_h1'))).selected, isTrue);
+    expect(_text(tester, const Key('pnlReportClosed')).data, '1');
+    expect(find.byKey(const Key('closed_ck_2h.0')), findsNothing);
   });
 
   testWidgets('PnL report: /pnl?window=30d opens on 30D and pages that range', (tester) async {

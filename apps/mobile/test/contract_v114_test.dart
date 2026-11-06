@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -99,6 +100,33 @@ void main() {
       calls = [];
       await c.loadMore();
       expect(calls, isEmpty, reason: 'done: no more fetches');
+    });
+
+    test('PagedListController drops a loadMore page from the previous range (N2)', () async {
+      final stalePage = Completer<CursorPage<int>>();
+      var range = 'old';
+      Future<CursorPage<int>> fetch({String? cursor, int limit = defaultPageLimit}) {
+        if (range == 'old') {
+          if (cursor == null) return Future.value(const CursorPage(items: [30, 29], nextCursor: 'old'));
+          return stalePage.future;
+        }
+        return Future.value(const CursorPage(items: [7, 6], nextCursor: 'new'));
+      }
+
+      final c = PagedListController<int>(fetch, idOf: (i) => '$i');
+      await c.refresh();
+      expect(c.state.nextCursor, 'old');
+      final inFlight = c.loadMore();
+      range = 'new';
+      await c.refresh();
+      expect(c.state.items, [7, 6]);
+
+      // The old range's page arrives late: rows and cursor must both be dropped.
+      stalePage.complete(const CursorPage(items: [28], nextCursor: 'stale'));
+      await inFlight;
+      expect(c.state.items, [7, 6]);
+      expect(c.state.nextCursor, 'new');
+      expect(c.state.loading, isFalse);
     });
 
     test('mergeHeadAndPages: head wins, sorted', () {

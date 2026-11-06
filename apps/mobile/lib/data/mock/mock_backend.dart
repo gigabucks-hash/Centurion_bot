@@ -495,6 +495,7 @@ class MockBackend
   Map<String, Object?> pnlSummaryRow({PnlWindow window = PnlWindow.d7, String? strategyId}) {
     final now = _clock();
     final from = switch (window) {
+      PnlWindow.h1 => now.subtract(const Duration(hours: 1)),
       PnlWindow.d1 => now.subtract(const Duration(hours: 24)),
       PnlWindow.d7 => now.subtract(const Duration(days: 7)),
       PnlWindow.d30 => now.subtract(const Duration(days: 30)),

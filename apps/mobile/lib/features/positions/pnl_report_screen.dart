@@ -43,7 +43,7 @@ class _PnlReportScreenState extends ConsumerState<PnlReportScreen> {
   bool _syncScheduled = false;
   bool _queryRead = false;
 
-  /// `/pnl?window=24h|7d|30d|all` (web parity; `range=` and `1d` accepted).
+  /// `/pnl?window=1h|24h|7d|30d|all` (web parity; `range=` and `1d` accepted).
   /// Read once, before the first build, so the first request is already right.
   @override
   void didChangeDependencies() {
@@ -52,6 +52,7 @@ class _PnlReportScreenState extends ConsumerState<PnlReportScreen> {
     _queryRead = true;
     final q = GoRouterState.of(context).uri.queryParameters;
     _window = switch (q['window'] ?? q['range']) {
+      '1h' => PnlWindow.h1,
       '24h' || '1d' => PnlWindow.d1,
       '7d' => PnlWindow.d7,
       '30d' => PnlWindow.d30,
@@ -81,6 +82,8 @@ class _PnlReportScreenState extends ConsumerState<PnlReportScreen> {
     _from = summary.from;
     _to = summary.to;
     _ledgerReady = true;
+    // New generation: a loadMore() still in flight for the previous range is
+    // discarded instead of being appended to this range's ledger (N2).
     _closedPages.refresh();
   }
 
@@ -552,6 +555,7 @@ class _ReportError extends StatelessWidget {
 
 /// 1D/7D/30D stay numeric; only All is localized (common.range.all).
 String _windowLabel(AppLocalizations s, PnlWindow w) => switch (w) {
+  PnlWindow.h1 => '1h',
   PnlWindow.d1 => '1D',
   PnlWindow.d7 => '7D',
   PnlWindow.d30 => '30D',

@@ -344,9 +344,10 @@ class Position {
 
 enum EquityRange { d1, d7, d30, all }
 
-/// PnL report range (contracts 0022 `window`): the app's 1D/7D/30D/All choices.
+/// PnL report range (contracts 0022 `window`): the app's 1h/1D/7D/30D/All choices.
 /// The server owns the range numbers; the enum only builds the query.
 enum PnlWindow {
+  h1('1h'),
   d1('24h'),
   d7('7d'),
   d30('30d'),

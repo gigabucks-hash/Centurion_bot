@@ -51,6 +51,10 @@ class PagedState<T> {
 
 /// Accumulates pages. On `CURSOR_INVALID` (e.g. the list was reset server-side)
 /// it restarts from the first page once instead of surfacing an error.
+///
+/// Every request captures the controller's generation. `refresh()` bumps it, so a
+/// `loadMore()` that was in flight for the previous range/filter can never append
+/// its rows or its `next_cursor` to the new state (N2 paging race).
 class PagedListController<T> {
   PagedListController(this._fetch, {required this.idOf, this.limit = defaultPageLimit, this.onChanged});
   final PageFetcher<T> _fetch;
@@ -61,6 +65,9 @@ class PagedListController<T> {
   PagedState<T> _state = PagedState<T>();
   PagedState<T> get state => _state;
   bool _disposed = false;
+  int _generation = 0;
+
+  bool _current(int generation) => !_disposed && generation == _generation;
 
   void _set(PagedState<T> s) {
     if (_disposed) return;
@@ -69,19 +76,22 @@ class PagedListController<T> {
   }
 
   Future<void> refresh() async {
+    final generation = ++_generation;
     _set(PagedState<T>(loading: true));
-    await _load(null, restartOnInvalid: false);
+    await _load(null, restartOnInvalid: false, generation: generation);
   }
 
   Future<void> loadMore() async {
     if (_state.loading || _state.done) return;
+    final generation = _generation;
     _set(_state.copyWith(loading: true, nextCursor: _state.nextCursor));
-    await _load(_state.nextCursor, restartOnInvalid: true);
+    await _load(_state.nextCursor, restartOnInvalid: true, generation: generation);
   }
 
-  Future<void> _load(String? cursor, {required bool restartOnInvalid}) async {
+  Future<void> _load(String? cursor, {required bool restartOnInvalid, required int generation}) async {
     try {
       final page = await _fetch(cursor: cursor, limit: limit);
+      if (!_current(generation)) return; // stale: range changed while in flight
       final seen = {for (final i in (cursor == null ? <T>[] : _state.items)) idOf(i)};
       final merged = [
         if (cursor != null) ..._state.items,
@@ -90,9 +100,11 @@ class PagedListController<T> {
       ];
       _set(PagedState(items: merged, nextCursor: page.nextCursor, done: !page.hasMore));
     } on ApiException catch (e) {
+      if (!_current(generation)) return;
       if (restartOnInvalid && e.code == ApiErrorCode.cursorInvalid) {
+        final retry = ++_generation;
         _set(PagedState<T>(loading: true));
-        await _load(null, restartOnInvalid: false);
+        await _load(null, restartOnInvalid: false, generation: retry);
         return;
       }
       _set(_state.copyWith(loading: false, nextCursor: _state.nextCursor, error: e));
