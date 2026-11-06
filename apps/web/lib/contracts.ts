@@ -659,7 +659,8 @@ export const pctToBps = (pct: number): number => pctToFractionBps(pct);
 /** PositionWire (contract) + mock display extras (symbol, strategy name, mark, PnL, sold share). */
 export type PositionWireView = PositionWire & {
   untrusted: { symbol?: string }; strategy_name: string;
-  mark_price_sol: DecimalString; unrealized_pnl_lamports: Lamports; pnl_pct: number; sold_bps: number;
+  /** 0025 additive marks: null/absent when the server has no pool observation (never 0). */
+  mark_price_sol?: DecimalString | null; unrealized_pnl_lamports?: Lamports | null; pnl_pct?: number | null; sold_bps: number;
   stop_loss_pct: number; peak_trail_pct: number;
 };
 
@@ -685,15 +686,25 @@ export function positionToWire(p: OpenPosition, workspaceId: string): PositionWi
 }
 
 export function positionFromWire(w: PositionWireView): OpenPosition {
+  const solIn = lamportsToSolNumber(w.sol_in_lamports) ?? 0;
+  const entry = w.avg_entry_price_sol != null ? Number(w.avg_entry_price_sol) : null;
+  const mark = w.mark_price_sol != null ? Number(w.mark_price_sol) : null;
+  const unreal = lamportsToSolNumber(w.unrealized_pnl_lamports);
+  // 0025: a known mark+PnL drives the row; anything missing keeps the em dash instead of a fabricated 0.
+  const known = mark != null && Number.isFinite(mark) && unreal != null;
   return {
     key: w.position_key, strategyId: w.strategy_id ?? "", strategyName: w.strategy_name, mode: w.mode, mint: w.mint,
     logoHash: logoHashFromWire(w.logo_hash),
     symbol: safeSymbol(w.untrusted.symbol ?? ""),
-    solIn: lamportsToSolNumber(w.sol_in_lamports) ?? 0,
-    entryPriceUsd: Number(w.avg_entry_price_sol ?? "0") * MOCK_SOL_USD, nowPriceUsd: Number(w.mark_price_sol) * MOCK_SOL_USD,
-    pnlSol: lamportsToSolNumber(w.unrealized_pnl_lamports) ?? 0, pnlPct: w.pnl_pct, openedAt: Date.parse(w.opened_at),
+    solIn,
+    entryPriceUsd: entry != null && Number.isFinite(entry) ? entry * MOCK_SOL_USD : 0,
+    nowPriceUsd: mark != null && Number.isFinite(mark) ? mark * MOCK_SOL_USD : 0,
+    pnlSol: unreal ?? 0,
+    pnlPct: w.pnl_pct ?? (known && solIn > 0 ? (unreal! / solIn) * 100 : 0),
+    openedAt: Date.parse(w.opened_at),
     soldPct: w.sold_bps / 100, stopLossPct: w.stop_loss_pct, trailingPct: w.peak_trail_pct,
     rev: w.rev, decimals: w.decimals, tokenProgram: w.token_program, practiceEpoch: w.practice_epoch,
+    ...(known ? {} : { markUnknown: true }),
   };
 }
 

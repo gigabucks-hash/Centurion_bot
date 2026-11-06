@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { PnlSummary as PnlSummaryWire, PositionWire } from "@centurion/contracts/wire";
-import { closedTradeFromWire, pnlSummaryFromWire } from "../contracts.ts";
+import { closedTradeFromWire, pnlSummaryFromWire, positionFromWire, type PositionWireView } from "../contracts.ts";
 
 test("PnL summary: lamport strings decode once, null portfolio stays null", () => {
   const s = pnlSummaryFromWire({
@@ -69,4 +69,23 @@ test("F1: a closed row with missing money stays null (em dash), never 0", () => 
   assert.equal(t.solInSol, null);
   assert.equal(t.solOutSol, null, "out is not inferred when in/pnl are missing");
   assert.equal(t.feesSol, null);
+});
+
+test("0025 open marks: known mark+PnL fills the row, missing stays markUnknown (em dash)", () => {
+  const base = {
+    position_key: "pick.1", strategy_id: "s1", mode: "practice", mint: "M1",
+    untrusted: { symbol: "ORBIT" }, strategy_name: "Bot", logo_hash: null,
+    sol_in_lamports: "250000000", avg_entry_price_sol: "0.000000001", opened_at: "2026-11-05T00:00:00.000Z",
+    sold_bps: 0, stop_loss_pct: 12, peak_trail_pct: 8, rev: 1, decimals: 6, token_program: "spl-token",
+    practice_epoch: 1, mark_price_sol: "0.0000000012", unrealized_pnl_lamports: "50000000", pnl_pct: 20,
+  } as unknown as PositionWireView;
+  const known = positionFromWire(base);
+  assert.equal(known.markUnknown, undefined);
+  assert.equal(known.pnlSol, 0.05, "exact server PnL");
+  assert.equal(known.pnlPct, 20);
+
+  const missing = positionFromWire({ ...base, mark_price_sol: null, unrealized_pnl_lamports: null, pnl_pct: null } as PositionWireView);
+  assert.equal(missing.markUnknown, true, "no mark -> em dash, not 0");
+  const noPnl = positionFromWire({ ...base, unrealized_pnl_lamports: null } as PositionWireView);
+  assert.equal(noPnl.markUnknown, true, "mark without PnL still cannot show a number");
 });

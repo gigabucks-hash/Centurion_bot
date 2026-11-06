@@ -12,7 +12,7 @@
 import { randomUUID } from "node:crypto";
 import type { AnyEvent, EventPage, ExitStatsRow, PnlSummary as PnlSummaryWire, PositionWire, StrategyRealGateFields } from "@centurion/contracts/wire";
 import type { DashboardApi } from "./api";
-import { approvalFromWire, closedTradeFromWire, coinSummaryFromWire, pnlSummaryFromWire, realGateFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings, lamportsToSolNumber } from "./contracts";
+import { approvalFromWire, closedTradeFromWire, coinSummaryFromWire, pnlSummaryFromWire, realGateFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings, lamportsToSolNumber, MOCK_SOL_USD } from "./contracts";
 import { ACCESS_COOKIE, WORKSPACE_COOKIE } from "./auth/cookies";
 import { ApiError, toApiError } from "./errors";
 import { blankSettings } from "./strategy-schema";
@@ -145,17 +145,32 @@ interface RawPosition {
   id: string; position_key: string; strategy_id: string | null; mint: string; mode: TradingMode; status: string; rev: number;
   practice_epoch: number; decimals: number | null; token_program: OpenPosition["tokenProgram"]; sol_in_lamports: string | null;
   avg_entry_price_sol: string | null; opened_at: string; pnl_lamports?: string | null; pnl_pct?: number | null;
+  /** 0025 additive fields: SQL `position_wire` for open rows; absent on older servers. */
+  mark_price_sol?: string | null; unrealized_pnl_lamports?: string | null; as_of?: string | null; sold_bps?: number | null;
 }
 
-/** Only realtime/portfolio-derived display fields are missing from the API today; they stay unset (em dash), not 0. */
+/**
+ * 0025: per-row marks drive price + unrealized PnL when present. A missing mark (or PnL) stays `markUnknown`
+ * so the row renders an em dash; it is never coerced to 0. Exit-plan values are not on this wire yet.
+ */
 function positionView(r: RawPosition, strategyName: string, symbol: string): OpenPosition {
   const solIn = lamportsToSolNumber(r.sol_in_lamports) ?? 0;
+  const entry = r.avg_entry_price_sol != null ? Number(r.avg_entry_price_sol) : null;
+  const mark = r.mark_price_sol != null ? Number(r.mark_price_sol) : null;
+  const unreal = lamportsToSolNumber(r.unrealized_pnl_lamports);
+  const known = mark != null && Number.isFinite(mark) && unreal != null;
   return {
     key: r.position_key, strategyId: r.strategy_id ?? "", strategyName, mode: r.mode, mint: r.mint, symbol,
-    solIn, entryPriceUsd: 0,
-    nowPriceUsd: 0, pnlSol: 0, pnlPct: 0, openedAt: Date.parse(r.opened_at), soldPct: 0,
+    solIn,
+    // No trustworthy SOL/USD on this wire: keep the USD price cell an em dash, but show the exact SOL PnL.
+    entryPriceUsd: entry != null && Number.isFinite(entry) ? entry * MOCK_SOL_USD : 0,
+    nowPriceUsd: mark != null && Number.isFinite(mark) ? mark * MOCK_SOL_USD : 0,
+    pnlSol: unreal ?? 0,
+    pnlPct: r.pnl_pct ?? (known && solIn > 0 ? (unreal! / solIn) * 100 : 0),
+    openedAt: Date.parse(r.opened_at), soldPct: (r.sold_bps ?? 0) / 100,
     rev: r.rev, decimals: r.decimals, tokenProgram: r.token_program, practiceEpoch: r.practice_epoch,
-    stopLossPct: 0, trailingPct: 0, markUnknown: true,
+    stopLossPct: 0, trailingPct: 0, priceUnknown: true,
+    ...(known ? {} : { markUnknown: true }),
   };
 }
 

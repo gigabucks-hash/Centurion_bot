@@ -222,7 +222,7 @@ const PositionRow = memo(function PositionRow({ r, focused, holdS, onFocus, onSe
       </th>
       <td className="whitespace-nowrap px-4 text-text-secondary"><span className="inline-flex items-center gap-2">{r.strategyName} <ModeBadge mode={r.mode} /></span></td>
       <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.sol(r.solIn * remaining, { unit: false })}</td>
-      <td className="num whitespace-nowrap px-4 text-right text-numSm text-text-secondary">{r.markUnknown ? "—" : f.usd(r.entryPriceUsd)} → {r.markUnknown ? "—" : f.usd(r.nowPriceUsd)}</td>
+      <td className="num whitespace-nowrap px-4 text-right text-numSm text-text-secondary">{(r.priceUnknown || r.markUnknown) ? "—" : f.usd(r.entryPriceUsd)} → {(r.priceUnknown || r.markUnknown) ? "—" : f.usd(r.nowPriceUsd)}</td>
       <td className="whitespace-nowrap px-4 text-right"><Pnl sol={r.markUnknown ? null : r.pnlSol * remaining} mode={r.mode} /></td>
       <td className="whitespace-nowrap px-4 text-right"><Pnl pct={r.markUnknown ? null : r.pnlPct} mode={r.mode} /></td>
       <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.duration(holdS)}</td>

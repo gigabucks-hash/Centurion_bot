@@ -401,8 +401,10 @@ export interface OpenPosition {
   /** Strategy exit plan, for the "next action" line. */
   stopLossPct: number;
   trailingPct: number;
-  /** http mode: the API reports no per-row mark price yet, so PnL/price render an em dash (never a fake 0). */
+  /** 0025: the server had no mark+PnL for this row, so both render an em dash (never a fake 0). */
   markUnknown?: boolean;
+  /** http mode has no SOL/USD rate, so the price cell stays an em dash even when the SOL mark is known. */
+  priceUnknown?: boolean;
 }
 
 export interface CoinSummary {
