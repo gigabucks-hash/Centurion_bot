@@ -2,6 +2,32 @@
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
+## 0.4.12 · 6 Nov 2026 · publish receipt + markets keys ke ARB (+114, ARB-only)
+
+975 key ARB (+114, 0 dihapus, 0 rename). `arb/app_en.arb` + `arb/app_id.arb` = 975 key
+(861 → 975). `en.json`/`id.json` tetap 786 key: keduanya katalog Web/Desktop dengan penamaan
+dotted sendiri (`receipt.*`), dan key receipt Flutter (`pnlReceipt*`) memang tidak pernah ada di sana.
+Konsumen Web/Desktop menerima copy lewat katalog lokalnya (B10.1), bukan rilis ini.
+
+### Ditambahkan (114, ARB-only)
+| Grup | Jumlah | Key |
+|---|---|---|
+| Receipt labels | 11 | `pnlReceipt{Title,ClosedAt,FeesHint,EntryExitValue,EntryExitValueDates,EntryExitTime,EntryExitTimeDates,Units,Provenance,ViewBot,Back}` |
+| Receipt exit-reason explanations | 14 | `pnlReceiptWhy{SellFloor,ProfitTarget,LossGuard,PeakTrail,MaxHold,Idle,SellPressure,NoNewHigh,RugDetected,DrawdownHalt,Manual,StrategyRetired,PracticeReset,Stall}` |
+| Markets P0 | 75 | `markets*` (tab, window, live/stale, columns, guard, empty, error, rate-limit, a11y, filter, age) |
+| Markets P1 | 14 | `marketsMcapSource`, `marketsDetail{MarketOnly,Breadcrumb,Tradeable,NotTradeable,SendToReview,Sent,NoStrategies,FirstSeen,Migrated,Venue,Mcap,ChartUnavailable,Back}` |
+
+Sumber copy: `docs/design/receipt-implementation-review.md` §5 dan
+`docs/design/receipt-and-discovery.md` B10 (89 key = 75 P0 + 14 P1, 0 duplikat).
+Tidak ada key lama yang berubah. Metadata ARB hanya di template EN (ID tanpa `@`), sesuai kebiasaan paket.
+
+### Gate
+- ICU parse EN+ID: 1950 pesan, **0 error**; paritas placeholder EN/ID dan metadata 0 error.
+- `flutter gen-l10n` pada salinan ARB: exit 0, 975 key, plural `marketsNewRowsAnnounce` menghasilkan
+  `one`/`other` dengan `int count` (tanpa `#`).
+- `npm test` (`format.test.mjs`): 10/10.
+- `flutter analyze`/`flutter test` dan sinkronisasi ARB vendored + pin `apps/mobile` adalah tugas Mobile berikutnya.
+
 ## 0.4.11 · 3 Nov 2026 · hapus 2 key deprecated (**BREAKING** untuk pembaca key ini; tidak ada pembaca tersisa)
 786 key (−2, 0 ditambah, 0 rename, copy lain tidak berubah). Hanya `en.json`, `id.json`, `arb/`, `key-migrations.json`, `REPORT.md` dan test Flutter yang berubah.
 

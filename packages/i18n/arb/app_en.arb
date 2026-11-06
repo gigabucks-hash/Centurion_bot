@@ -4808,5 +4808,717 @@
   "pnlReceiptEntryNow": "Entry → now",
   "@pnlReceiptEntryNow": {
     "description": "pnl.receipt.entry_now — open detail: entry price → current mark"
+  },
+  "pnlReceiptTitle": "Closed trade",
+  "@pnlReceiptTitle": {
+    "description": "pnl.receipt.title — receipt semantic title / screen label"
+  },
+  "pnlReceiptClosedAt": "Closed {time} WIB",
+  "@pnlReceiptClosedAt": {
+    "description": "pnl.receipt.closed_at — chip time; time already formatted WIB",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "pnlReceiptFeesHint": "Swap fees are already included in SOL in and SOL out",
+  "@pnlReceiptFeesHint": {
+    "description": "pnl.receipt.fees_hint — fees are context, never subtracted again"
+  },
+  "pnlReceiptEntryExitValue": "{entry} → {exit}",
+  "@pnlReceiptEntryExitValue": {
+    "description": "pnl.receipt.entry_exit_value — entry and exit price",
+    "placeholders": {
+      "entry": {
+        "type": "String"
+      },
+      "exit": {
+        "type": "String"
+      }
+    }
+  },
+  "pnlReceiptEntryExitValueDates": "{entry_date} · {entry_time} → {exit_date} · {exit_time}",
+  "@pnlReceiptEntryExitValueDates": {
+    "description": "pnl.receipt.entry_exit_value_dates — cross-day price line",
+    "placeholders": {
+      "entry_date": {
+        "type": "String"
+      },
+      "entry_time": {
+        "type": "String"
+      },
+      "exit_date": {
+        "type": "String"
+      },
+      "exit_time": {
+        "type": "String"
+      }
+    }
+  },
+  "pnlReceiptEntryExitTime": "{entry} → {exit} WIB",
+  "@pnlReceiptEntryExitTime": {
+    "description": "pnl.receipt.entry_exit_time — same-day times",
+    "placeholders": {
+      "entry": {
+        "type": "String"
+      },
+      "exit": {
+        "type": "String"
+      }
+    }
+  },
+  "pnlReceiptEntryExitTimeDates": "{entry_date} · {entry_time} → {exit_date} · {exit_time} WIB",
+  "@pnlReceiptEntryExitTimeDates": {
+    "description": "pnl.receipt.entry_exit_time_dates — cross-day times",
+    "placeholders": {
+      "entry_date": {
+        "type": "String"
+      },
+      "entry_time": {
+        "type": "String"
+      },
+      "exit_date": {
+        "type": "String"
+      },
+      "exit_time": {
+        "type": "String"
+      }
+    }
+  },
+  "pnlReceiptUnits": "Amounts in {unit} · times in WIB (GMT+7)",
+  "@pnlReceiptUnits": {
+    "description": "pnl.receipt.units — unit and timezone note",
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "pnlReceiptProvenance": "Server-reported · not recalculated",
+  "@pnlReceiptProvenance": {
+    "description": "pnl.receipt.provenance — values come from the server"
+  },
+  "pnlReceiptViewBot": "View bot",
+  "@pnlReceiptViewBot": {
+    "description": "pnl.receipt.view_bot — only action when strategy_id exists"
+  },
+  "pnlReceiptBack": "Back to closed trades",
+  "@pnlReceiptBack": {
+    "description": "pnl.receipt.back — back control accessibility label"
+  },
+  "pnlReceiptWhySellFloor": "The floor price you set was hit",
+  "@pnlReceiptWhySellFloor": {
+    "description": "pnl.receipt.why.sell_floor"
+  },
+  "pnlReceiptWhyProfitTarget": "The take-profit target was hit",
+  "@pnlReceiptWhyProfitTarget": {
+    "description": "pnl.receipt.why.profit_target"
+  },
+  "pnlReceiptWhyLossGuard": "The stop-loss limit was hit",
+  "@pnlReceiptWhyLossGuard": {
+    "description": "pnl.receipt.why.loss_guard"
+  },
+  "pnlReceiptWhyPeakTrail": "Price fell from its peak by the trail margin",
+  "@pnlReceiptWhyPeakTrail": {
+    "description": "pnl.receipt.why.peak_trail"
+  },
+  "pnlReceiptWhyMaxHold": "The maximum holding time ran out",
+  "@pnlReceiptWhyMaxHold": {
+    "description": "pnl.receipt.why.max_hold"
+  },
+  "pnlReceiptWhyIdle": "The coin stopped moving, so the bot exited",
+  "@pnlReceiptWhyIdle": {
+    "description": "pnl.receipt.why.idle"
+  },
+  "pnlReceiptWhySellPressure": "Sell pressure crossed the exit threshold",
+  "@pnlReceiptWhySellPressure": {
+    "description": "pnl.receipt.why.sell_pressure"
+  },
+  "pnlReceiptWhyNoNewHigh": "No new high within the time window",
+  "@pnlReceiptWhyNoNewHigh": {
+    "description": "pnl.receipt.why.no_new_high"
+  },
+  "pnlReceiptWhyRugDetected": "Guard detected rug risk and exited",
+  "@pnlReceiptWhyRugDetected": {
+    "description": "pnl.receipt.why.rug_detected"
+  },
+  "pnlReceiptWhyDrawdownHalt": "The workspace drawdown limit was hit",
+  "@pnlReceiptWhyDrawdownHalt": {
+    "description": "pnl.receipt.why.drawdown_halt"
+  },
+  "pnlReceiptWhyManual": "You closed this trade manually",
+  "@pnlReceiptWhyManual": {
+    "description": "pnl.receipt.why.manual"
+  },
+  "pnlReceiptWhyStrategyRetired": "The bot was retired, so the position was closed",
+  "@pnlReceiptWhyStrategyRetired": {
+    "description": "pnl.receipt.why.strategy_retired"
+  },
+  "pnlReceiptWhyPracticeReset": "The paper account was reset",
+  "@pnlReceiptWhyPracticeReset": {
+    "description": "pnl.receipt.why.practice_reset"
+  },
+  "pnlReceiptWhyStall": "Price stalled on the exit rule",
+  "@pnlReceiptWhyStall": {
+    "description": "pnl.receipt.why.stall"
+  },
+  "marketsTitle": "Markets",
+  "@marketsTitle": {
+    "description": "markets.title"
+  },
+  "marketsTablist": "Market tabs",
+  "@marketsTablist": {
+    "description": "markets.tablist"
+  },
+  "marketsTabTrending": "Trending",
+  "@marketsTabTrending": {
+    "description": "markets.tab.trending"
+  },
+  "marketsTabNew": "New pairs",
+  "@marketsTabNew": {
+    "description": "markets.tab.new"
+  },
+  "marketsTabGraduated": "Graduated",
+  "@marketsTabGraduated": {
+    "description": "markets.tab.graduated"
+  },
+  "marketsTabCount": "{tab}, {count} listed",
+  "@marketsTabCount": {
+    "description": "markets.tab_count",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      },
+      "tab": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsSubtitle": "Live on-chain feed · {count} listed in {range}",
+  "@marketsSubtitle": {
+    "description": "markets.subtitle",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      },
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsWindow15m": "15m",
+  "@marketsWindow15m": {
+    "description": "markets.window.15m"
+  },
+  "marketsWindow1h": "1h",
+  "@marketsWindow1h": {
+    "description": "markets.window.1h"
+  },
+  "marketsWindow6h": "6h",
+  "@marketsWindow6h": {
+    "description": "markets.window.6h"
+  },
+  "marketsWindow24h": "24h",
+  "@marketsWindow24h": {
+    "description": "markets.window.24h"
+  },
+  "marketsWindowLabel": "Time window",
+  "@marketsWindowLabel": {
+    "description": "markets.window_label"
+  },
+  "marketsLive": "Live",
+  "@marketsLive": {
+    "description": "markets.live"
+  },
+  "marketsStale": "Stale · {age}",
+  "@marketsStale": {
+    "description": "markets.stale",
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsOffline": "Live feed offline",
+  "@marketsOffline": {
+    "description": "markets.offline"
+  },
+  "marketsUpdated": "Updated {age}",
+  "@marketsUpdated": {
+    "description": "markets.updated",
+    "placeholders": {
+      "age": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsUpdatedNow": "Updated now",
+  "@marketsUpdatedNow": {
+    "description": "markets.updated_now"
+  },
+  "marketsCaption": "{tab}, {range} window",
+  "@marketsCaption": {
+    "description": "markets.caption",
+    "placeholders": {
+      "range": {
+        "type": "String"
+      },
+      "tab": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsTrendingNote": "Ranked by market-cap growth, screening activity and recent migration. No trade-volume data yet.",
+  "@marketsTrendingNote": {
+    "description": "markets.trending_note"
+  },
+  "marketsGraduatedNote": "Graduated = moved from the bonding curve to an AMM pool.",
+  "@marketsGraduatedNote": {
+    "description": "markets.graduated_note"
+  },
+  "marketsNewChip": "New",
+  "@marketsNewChip": {
+    "description": "markets.new_chip"
+  },
+  "marketsVenueCurve": "Curve",
+  "@marketsVenueCurve": {
+    "description": "markets.venue.curve"
+  },
+  "marketsVenueAmm": "AMM",
+  "@marketsVenueAmm": {
+    "description": "markets.venue.amm"
+  },
+  "marketsColRank": "#",
+  "@marketsColRank": {
+    "description": "markets.col.rank"
+  },
+  "marketsColCoin": "Coin",
+  "@marketsColCoin": {
+    "description": "markets.col.coin"
+  },
+  "marketsColAge": "Age",
+  "@marketsColAge": {
+    "description": "markets.col.age"
+  },
+  "marketsColGraduatedAge": "Graduated",
+  "@marketsColGraduatedAge": {
+    "description": "markets.col.graduated_age"
+  },
+  "marketsColVenue": "Venue",
+  "@marketsColVenue": {
+    "description": "markets.col.venue"
+  },
+  "marketsColMcap": "Mcap",
+  "@marketsColMcap": {
+    "description": "markets.col.mcap"
+  },
+  "marketsColChange": "Change",
+  "@marketsColChange": {
+    "description": "markets.col.change"
+  },
+  "marketsColActivity": "Activity",
+  "@marketsColActivity": {
+    "description": "markets.col.activity"
+  },
+  "marketsColGuard": "Guard",
+  "@marketsColGuard": {
+    "description": "markets.col.guard"
+  },
+  "marketsActivityHint": "Our screening events in this window, not market trades",
+  "@marketsActivityHint": {
+    "description": "markets.activity_hint"
+  },
+  "marketsMcapIndicative": "≈ indicative",
+  "@marketsMcapIndicative": {
+    "description": "markets.mcap_indicative"
+  },
+  "marketsMcapAsOf": "As of {time}",
+  "@marketsMcapAsOf": {
+    "description": "markets.mcap_as_of",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsMcapSource": "Source: {source}",
+  "@marketsMcapSource": {
+    "description": "markets.mcap_source",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsGuardPassed": "Passed {score}",
+  "@marketsGuardPassed": {
+    "description": "markets.guard_passed",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsGuardFailed": "Guard failed",
+  "@marketsGuardFailed": {
+    "description": "markets.guard_failed"
+  },
+  "marketsGuardNotEvaluated": "Not evaluated",
+  "@marketsGuardNotEvaluated": {
+    "description": "markets.guard_not_evaluated"
+  },
+  "marketsGuardNotEvaluatedHint": "Guard has not scored this coin",
+  "@marketsGuardNotEvaluatedHint": {
+    "description": "markets.guard_not_evaluated_hint"
+  },
+  "marketsEmptyNew": "No new pairs in the last {range}",
+  "@marketsEmptyNew": {
+    "description": "markets.empty.new",
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsEmptyGraduated": "No graduations in the last {range}",
+  "@marketsEmptyGraduated": {
+    "description": "markets.empty.graduated",
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsEmptyTrending": "Not enough data to rank yet",
+  "@marketsEmptyTrending": {
+    "description": "markets.empty.trending"
+  },
+  "marketsEmptyFiltered": "No markets match these filters",
+  "@marketsEmptyFiltered": {
+    "description": "markets.empty_filtered"
+  },
+  "marketsClearFilters": "Clear filters",
+  "@marketsClearFilters": {
+    "description": "markets.clear_filters"
+  },
+  "marketsWiden": "Widen to 24h",
+  "@marketsWiden": {
+    "description": "markets.widen"
+  },
+  "marketsRefresh": "Refresh",
+  "@marketsRefresh": {
+    "description": "markets.refresh"
+  },
+  "marketsRetry": "Retry",
+  "@marketsRetry": {
+    "description": "markets.retry"
+  },
+  "marketsLoadMore": "Load more",
+  "@marketsLoadMore": {
+    "description": "markets.load_more"
+  },
+  "marketsLoadingMore": "Loading more…",
+  "@marketsLoadingMore": {
+    "description": "markets.loading_more"
+  },
+  "marketsLoading": "Loading markets…",
+  "@marketsLoading": {
+    "description": "markets.loading"
+  },
+  "marketsErrorTitle": "Markets could not be loaded",
+  "@marketsErrorTitle": {
+    "description": "markets.error.title"
+  },
+  "marketsErrorBody": "The feed did not answer. Check your connection and try again.",
+  "@marketsErrorBody": {
+    "description": "markets.error.body"
+  },
+  "marketsFeedDown": "Live feed offline · showing last data from {time}",
+  "@marketsFeedDown": {
+    "description": "markets.feed_down",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsRateLimited": "Feed rate-limited · retrying in {seconds}s",
+  "@marketsRateLimited": {
+    "description": "markets.rate_limited",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "marketsRateLimitedUnknown": "Feed rate-limited · retrying shortly",
+  "@marketsRateLimitedUnknown": {
+    "description": "markets.rate_limited_unknown"
+  },
+  "marketsOfflineCached": "You’re offline · showing cached rows from {time}",
+  "@marketsOfflineCached": {
+    "description": "markets.offline_cached",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsStaleRow": "Stale",
+  "@marketsStaleRow": {
+    "description": "markets.stale_row"
+  },
+  "marketsNewRows": "{count} new",
+  "@marketsNewRows": {
+    "description": "markets.new_rows",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "marketsNewRowsAction": "{count} new · tap to refresh",
+  "@marketsNewRowsAction": {
+    "description": "markets.new_rows_action",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "marketsNewRowsAnnounce": "{count, plural, =1{1 new pair} other{{count} new pairs}}",
+  "@marketsNewRowsAnnounce": {
+    "description": "markets.new_rows_announce — plural without #",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "marketsRowOpen": "Open {symbol}",
+  "@marketsRowOpen": {
+    "description": "markets.row_open",
+    "placeholders": {
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsRowA11y": "{symbol}, {age}, market cap {mcap}, {venue}, {guard}",
+  "@marketsRowA11y": {
+    "description": "markets.row_a11y",
+    "placeholders": {
+      "age": {
+        "type": "String"
+      },
+      "guard": {
+        "type": "String"
+      },
+      "mcap": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      },
+      "venue": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsRowA11yRank": "Rank {rank}, {symbol}, {age}, market cap {mcap}, {venue}, {guard}",
+  "@marketsRowA11yRank": {
+    "description": "markets.row_a11y_rank",
+    "placeholders": {
+      "age": {
+        "type": "String"
+      },
+      "guard": {
+        "type": "String"
+      },
+      "mcap": {
+        "type": "String"
+      },
+      "rank": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      },
+      "venue": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsRowA11yCompact": "{symbol}, {age}, market cap {mcap}, change {change}, activity {activity}, {guard}",
+  "@marketsRowA11yCompact": {
+    "description": "markets.row_a11y_compact",
+    "placeholders": {
+      "activity": {
+        "type": "String"
+      },
+      "age": {
+        "type": "String"
+      },
+      "change": {
+        "type": "String"
+      },
+      "guard": {
+        "type": "String"
+      },
+      "mcap": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsFilterTitle": "Filter markets",
+  "@marketsFilterTitle": {
+    "description": "markets.filter.title"
+  },
+  "marketsFilterLaunchpadAll": "All launchpads",
+  "@marketsFilterLaunchpadAll": {
+    "description": "markets.filter.launchpad_all"
+  },
+  "marketsHideFailed": "Hide guard-failed",
+  "@marketsHideFailed": {
+    "description": "markets.hide_failed"
+  },
+  "marketsShowNotTradeable": "Show not tradeable ({count})",
+  "@marketsShowNotTradeable": {
+    "description": "markets.show_not_tradeable",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "marketsTooltipScore": "Market-cap growth + screening activity + recent migration",
+  "@marketsTooltipScore": {
+    "description": "markets.tooltip_score"
+  },
+  "marketsAgeNow": "now",
+  "@marketsAgeNow": {
+    "description": "markets.age.now"
+  },
+  "marketsAgeSeconds": "{count}s",
+  "@marketsAgeSeconds": {
+    "description": "markets.age.seconds",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "marketsAgeMinutes": "{count}m",
+  "@marketsAgeMinutes": {
+    "description": "markets.age.minutes",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "marketsAgeHours": "{count}h",
+  "@marketsAgeHours": {
+    "description": "markets.age.hours",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "marketsAgeHoursMinutes": "{hours}h {minutes}m",
+  "@marketsAgeHoursMinutes": {
+    "description": "markets.age.hours_minutes",
+    "placeholders": {
+      "hours": {
+        "type": "int",
+        "format": "decimalPattern"
+      },
+      "minutes": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "marketsAgeDays": "{count}d",
+  "@marketsAgeDays": {
+    "description": "markets.age.days",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "marketsDetailMarketOnly": "Never screened by a bot",
+  "@marketsDetailMarketOnly": {
+    "description": "markets.detail.market_only"
+  },
+  "marketsDetailBreadcrumb": "Markets / {symbol}",
+  "@marketsDetailBreadcrumb": {
+    "description": "markets.detail.breadcrumb",
+    "placeholders": {
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
+  "marketsDetailTradeable": "Tradeable",
+  "@marketsDetailTradeable": {
+    "description": "markets.detail.tradeable"
+  },
+  "marketsDetailNotTradeable": "Not tradeable right now",
+  "@marketsDetailNotTradeable": {
+    "description": "markets.detail.not_tradeable"
+  },
+  "marketsDetailSendToReview": "Send to bot review",
+  "@marketsDetailSendToReview": {
+    "description": "markets.detail.send_to_review"
+  },
+  "marketsDetailSent": "Sent to bot review",
+  "@marketsDetailSent": {
+    "description": "markets.detail.sent"
+  },
+  "marketsDetailNoStrategies": "Create a bot to review this coin",
+  "@marketsDetailNoStrategies": {
+    "description": "markets.detail.no_strategies"
+  },
+  "marketsDetailFirstSeen": "First seen",
+  "@marketsDetailFirstSeen": {
+    "description": "markets.detail.first_seen"
+  },
+  "marketsDetailMigrated": "Graduated",
+  "@marketsDetailMigrated": {
+    "description": "markets.detail.migrated"
+  },
+  "marketsDetailVenue": "Venue",
+  "@marketsDetailVenue": {
+    "description": "markets.detail.venue"
+  },
+  "marketsDetailMcap": "Market cap",
+  "@marketsDetailMcap": {
+    "description": "markets.detail.mcap"
+  },
+  "marketsDetailChartUnavailable": "Chart unavailable for this coin yet",
+  "@marketsDetailChartUnavailable": {
+    "description": "markets.detail.chart_unavailable"
+  },
+  "marketsDetailBack": "Back to markets",
+  "@marketsDetailBack": {
+    "description": "markets.detail.back"
   }
 }

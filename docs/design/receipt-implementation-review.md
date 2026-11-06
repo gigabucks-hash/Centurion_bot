@@ -122,9 +122,11 @@ Present already: `pnlRealized`, `pnlRealizedHeroHint`, `pnlClosed`, `pnlReceiptS
 | `practice_reset` | `pnlReceiptWhyPracticeReset` | The paper account was reset | Akun paper direset |
 | `stall` | `pnlReceiptWhyStall` | Price stalled on the exit rule | Harga mandek pada aturan keluar |
 
-Delivery: edit `packages/i18n/arb/app_en.arb` and `app_id.arb` (source of truth), copy both into
-`apps/mobile/lib/l10n/`, and update the two pins in `apps/mobile/tool/ci_check_vendored.sh:37-40` in the
-same change. One hand-edited copy fails the ARB gate.
+Delivery: published in `packages/i18n` 0.4.12 — `arb/app_en.arb` + `app_id.arb` now carry all 25 keys
+(ARB 975 strings, EN/ID parity). Mobile still reads the vendored `apps/mobile/lib/l10n` copy, so the next
+mobile change copies both ARBs into `apps/mobile/lib/l10n/` and updates the two pins in
+`apps/mobile/tool/ci_check_vendored.sh:37-40` in the same change. One hand-edited copy fails the ARB gate.
+Do not re-add these keys to the package.
 
 Desktop has all 14 `pnl.receipt.why.*` keys in EN/ID (`apps/desktop/src/i18n/local.ts:106-119,222-235`).
 
@@ -199,7 +201,8 @@ existing rows. Ages come from server `as_of` + `skewFrom(server_now)`, never arr
 
 ## 7. D1 visual direction — 5-cell KPI strip
 
-Accepted measurements (dark, EN + ID; `measure.json` in `Shared\centurion-work\pnl-web\v1.1-fix`):
+Accepted measurements on `main = cc77fb7` (dark, EN + ID; `measure.json` + PNGs in
+`Shared\centurion-work\pnl-web\cc77fb7`; method in §11):
 
 | viewport | layout | strip width | clipped cells | evidence |
 |---|---|---:|---|---|
@@ -225,9 +228,13 @@ Direction:
 
 ## 8. D2 visual direction — closed ledger at 1280
 
-Current measured state: table **1030 / 1030**, overflow **0** at 1280 and 1440 (EN + ID); at 1024 the
-table is 970 (EN) / 1011 (ID) against 774, so it scrolls and the hint is visible. That is the intended
-progression.
+Current measured state on `main = cc77fb7` (dark, EN + ID; `measure.json` in
+`Shared\centurion-work\pnl-web\cc77fb7`): table **1030 / 1030**, overflow **0** at 1280 and 1440; at 1024
+the table is 983 (EN) / 1013 (ID) against 774, so it scrolls by **209 / 239 px** and the hint is visible.
+That part of the progression is correct. Two implementation gaps remain against this direction: the row
+renders **69 px**, not 52 (the `py-3` cell padding plus the 44 px coin link overrides `h-[52px]`), and the
+Coin column is **not sticky** at 1024 (`sm:static` removes it exactly where overflow starts). Full numbers
+in §11.
 
 Direction:
 
@@ -309,20 +316,90 @@ Web:
 - **Backend:** unchanged by this review. Discovery still needs `capabilities`, `rank_position`,
   `weights_version`, weights/inputs and `price_change_since_migration_pct` (B11); `capabilities` must be
   authoritative for columns.
-- **Lead:** commit only `docs/design/receipt-and-discovery.md` and
-  `docs/design/receipt-implementation-review.md` from this scope. The app tree is dirty with other
-  owners’ work; do not bundle it into the docs commit.
+- **Lead:** commit `packages/i18n` 0.4.12 (six paths: `package.json`, `CHANGELOG.md`, `README.md`,
+  `key-migrations.json`, `arb/app_en.arb`, `arb/app_id.arb`) and the two `docs/design` docs from this
+  scope. The app tree is dirty with other owners’ work; do not bundle it into this commit.
 
-Gate run for this review:
+Gate run for this pass:
 
 | gate | result |
 |---|---|
-| `git status --porcelain -- docs/design` | only the two design docs |
-| `git diff --check -- docs/design` | clean |
-| B10 key extraction | 89 keys, 0 duplicates, 75 P0 + 14 P1 |
-| app/package/token/contract changes from UX | none |
-| evidence | code review of the snapshot + existing D1/D2 screenshots and `measure.json`; no device/emulator/live backend |
+| `git status --short -- packages/i18n docs/design` | 8 paths (6 package + 2 design docs), no app code |
+| `git diff --check -- packages/i18n docs/design` | clean |
+| ARB keys | 975 EN + 975 ID; +114 (25 receipt, 89 markets), 0 duplicates |
+| ICU parse / `flutter gen-l10n` / `npm test` | 0 errors / exit 0 / 10 of 10 |
+| D1 + D2 evidence | §11 tables, measured on `cc77fb7` |
+| vendored `apps/mobile/lib/l10n` + pins | untouched |
+| evidence limits | snapshot archive of `cc77fb7` + local Chrome; no device/emulator/live backend |
 
 Limits: this is a code-and-evidence review, not a runtime pass on desktop/mobile. Mobile receipt fixes
 still need a widget/golden run after the ARB lands; desktop needs the dialog screenshots at the receipt
 state, not only the ledger.
+
+## 11. Evidence re-run on `cc77fb7` (6 Nov 2026)
+
+Method: pristine tree from `git archive cc77fb7` (the shared worktree is dirty with other owners’ work),
+local `next dev` (Turbopack, mock data), `CENTURION_AUTH_GATE=0` (screenshot-only, no session), locale set
+through `POST /api/locale`, Chrome at 1024/1280/1440 × EN/ID, `/pnl?window=7d` with 50 closed rows.
+Measured `scrollWidth − clientWidth` on the document, the 5-cell strip, and the ledger scroll container.
+No app code was edited. Raw runs and PNGs:
+`C:\Users\H P\OpenBot\Shared\centurion-work\pnl-web\cc77fb7\` (`measure.json`, `pnl-{en,id}-{1024,1280,1440}.png`).
+The older `v1.1-fix` folder is uncommitted-tree evidence; do not mix it with these numbers.
+
+### 11.1 D1 — 5-cell KPI strip
+
+| viewport | locale | layout | strip `scrollWidth` / `clientWidth` | diff | cell widths | clipped values | doc diff |
+|---:|---|---|---:|---:|---|---:|---:|
+| 1024 | EN | 3 + 2 | 774 / 774 | **0** | 257, 257, 257, 387, 387 | 0 | 0 |
+| 1024 | ID | 3 + 2 | 774 / 774 | **0** | 257, 257, 257, 387, 387 | 0 | 0 |
+| 1280 | EN | 5 across | 1030 / 1030 | **0** | 205 × 5 | 0 | 0 |
+| 1280 | ID | 5 across | 1030 / 1030 | **0** | 205 × 5 | 0 | 0 |
+| 1440 | EN | 5 across | 1190 / 1190 | **0** | 237 × 5 | 0 | 0 |
+| 1440 | ID | 5 across | 1190 / 1190 | **0** | 237 × 5 | 0 | 0 |
+
+All five cells stay inside the strip at every width; no value node overflows. Cell height grows when the
+unit wraps: 108 px at 1024, 142 px EN / 158 px ID at 1280, 142 px at 1440. **D1 passes** the direction in
+§7 on this commit.
+
+### 11.2 D2 — closed ledger
+
+| viewport | locale | wrapper `clientWidth` | table / `scrollWidth` | diff | hint | Coin sticky | row height |
+|---:|---|---:|---:|---:|---|---|---:|
+| 1024 | EN | 774 | 983 | **209** | visible | no | 69 |
+| 1024 | ID | 774 | 1013 | **239** | visible | no | 69 |
+| 1280 | EN | 1030 | 1030 | **0** | hidden | no | 69 |
+| 1280 | ID | 1030 | 1030 | **0** | hidden | no | 69 |
+| 1440 | EN | 1190 | 1190 | **0** | hidden | no | 69 |
+| 1440 | ID | 1190 | 1190 | **0** | hidden | no | 69 |
+
+Page-level `scrollWidth − clientWidth` is **0** in all six runs: the 1024 overflow stays inside the table
+scroll container, so the page itself never scrolls sideways. Dense horizontal padding is 6 px.
+
+Gaps against §8, all in `apps/web` (not fixed by this UX pass):
+
+1. **Row height 69 px, not 52.** `Table.tsx:93` sets `h-[52px]`, but the cells keep `py-3`
+   (`Table.tsx:95-105`) and the coin link has `min-h-11` — 44 px of content plus 24 px padding.
+2. **Coin column not sticky at 1024.** `Table.tsx:85,103` adds `sticky left-0` and then removes it with
+   `sm:static`, so stickiness disappears from 640 px up, exactly where the overflow begins.
+3. **Hint is breakpoint-only, not measured.** `page.tsx:169` uses `hidden sm:inline xl:hidden`. It matches
+   the current data by luck; a long bot name at 1280 fits today only because the table is at 1030/1030, and
+   the direction asks for a `ResizeObserver` measurement instead.
+4. **No right-edge fade at 1024.** `Table.tsx:80` keeps the mask only below `sm` (`sm:[mask-image:none]`).
+5. **Scroll container is a plain div.** `Table.tsx:80` has no `role="region"`, `tabIndex=0`, or
+   `aria-describedby` back to the hint.
+
+The ledger’s null/zero formatting and the 1024 hint copy were verified visually in the same PNGs; the
+remaining D2 gaps are layout/a11y, not money formatting.
+
+### 11.3 i18n publish gates (`@centurion/i18n` 0.4.12)
+
+| gate | result |
+|---|---|
+| ARB keys | **975 EN + 975 ID** (+114: 25 receipt = 11 labels + 14 `pnlReceiptWhy*`; 89 markets = 75 P0 + 14 P1), 0 duplicates |
+| ARB ↔ design docs | 114/114 canonical keys and EN/ID strings match §5 + B10, **0 mismatches** |
+| `en.json` / `id.json` | unchanged at 786 (Web/Desktop catalogs; receipt keys are Flutter-only and the markets copy still lives in the consumer files per B10.1) |
+| ICU parse, EN + ID | 1950 messages, **0 errors**; placeholder parity EN/ID and ARB metadata **0 errors** |
+| `flutter gen-l10n` | **exit 0** on a copy of both ARBs; 975 keys; `marketsNewRowsAnnounce` emits `one`/`other` with `int count` (no `#`) |
+| `npm test` (`format.test.mjs`) | 10/10 pass |
+| `git diff --check -- packages/i18n docs/design` | clean |
+| vendored `apps/mobile/lib/l10n` + pins | untouched (next mobile change) |

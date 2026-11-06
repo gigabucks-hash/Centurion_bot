@@ -585,7 +585,7 @@ slice; `P1` ships with the market-only detail or the polish pass.
 | `markets.feed_down` | `marketsFeedDown` | Live feed offline · showing last data from {time} | Feed langsung terputus · menampilkan data terakhir {time} | P0 |
 | `markets.rate_limited` | `marketsRateLimited` | Feed rate-limited · retrying in {seconds}s | Feed kena rate limit · coba lagi {seconds}d | P0 |
 | `markets.rate_limited_unknown` | `marketsRateLimitedUnknown` | Feed rate-limited · retrying shortly | Feed kena rate limit · segera dicoba lagi | P0 |
-| `markets.offline_cached` | `marketsOfflineCached` | You're offline · showing cached rows from {time} | Kamu offline · menampilkan baris cache dari {time} | P0 |
+| `markets.offline_cached` | `marketsOfflineCached` | You’re offline · showing cached rows from {time} | Kamu offline · menampilkan baris cache dari {time} | P0 |
 | `markets.stale_row` | `marketsStaleRow` | Stale | Basi | P0 |
 | `markets.new_rows` | `marketsNewRows` | {count} new | {count} baru | P0 |
 | `markets.new_rows_action` | `marketsNewRowsAction` | {count} new · tap to refresh | {count} baru · ketuk untuk memuat | P0 |
@@ -630,9 +630,9 @@ Indonesian literals inside an English UI.
 | Desktop | `apps/desktop/src/i18n/local.ts` | flat dotted keys, `"markets.title"` |
 | Flutter | `packages/i18n/arb/app_en.arb`, `app_id.arb` + vendored `apps/mobile/lib/l10n/*` | lowerCamel identifier, e.g. `marketsTabTrending` |
 
-`packages/i18n` is generated. UX publishes the next package version; mobile updates the vendored
-copies and the `apps/mobile/tool/ci_check_vendored.sh` pin in the same change. Until then, do not
-hand-edit the ARB files and do not hardcode the new strings.
+`packages/i18n` 0.4.12 carries all keys above in `arb/app_en.arb` + `arb/app_id.arb` (975 strings each).
+Mobile still updates its vendored copies and the `apps/mobile/tool/ci_check_vendored.sh` pin in the next
+mobile change; until that lands, do not hardcode the new strings in the app.
 
 ## B11. Data request to Backend
 
