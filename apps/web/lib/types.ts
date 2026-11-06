@@ -269,8 +269,12 @@ export interface Position {
   strategyId: string;
   mint: Mint;
   status: PositionStatus;
+  /** Mock/display USD entry (NaN when only the SOL price is known). */
   entryPriceUsd: number;
   exitPriceUsd?: number;
+  /** SOL per whole token (contract `avg_entry_price_sol` / `exit_price_sol`); null = not reported. */
+  entryPriceSol?: number | null;
+  exitPriceSol?: number | null;
   solIn: Sol;
   solOut: Sol;
   peakGainPct: number;
@@ -280,6 +284,8 @@ export interface Position {
   exitReason?: ExitReason;
   pnlSol: Sol;
   pnlPct: number;
+  /** The API has no mark for this row yet: render an em dash, never a fabricated 0. */
+  markUnknown?: boolean;
 }
 
 export type ActorKind = WireActor;

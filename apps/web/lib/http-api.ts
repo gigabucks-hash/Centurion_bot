@@ -16,7 +16,7 @@ import { approvalFromWire, closedTradeFromWire, coinSummaryFromWire, pnlSummaryF
 import { ACCESS_COOKIE, WORKSPACE_COOKIE } from "./auth/cookies";
 import { ApiError, toApiError } from "./errors";
 import { blankSettings } from "./strategy-schema";
-import type { CoinSummary, EquityPoint, OpenPosition, Strategy, TradeEvent, TradingMode, WorkspaceOverview } from "./types";
+import type { CoinSummary, CoinMeta, CoinTrail, EquityPoint, OpenPosition, Position, Strategy, TradeEvent, TradingMode, WorkspaceOverview } from "./types";
 
 const base = () => (process.env.API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, "");
 
@@ -127,8 +127,18 @@ interface PickRow { mint: string; strategy_id: string; stage: string; created_at
 interface RawCoin {
   mint: string; venue: CoinWire["venue"]; launchpad: string | null; decimals: number | null; token_program: CoinWire["token_program"];
   quote_mint: string | null; untrusted?: { symbol?: string; name?: string }; logo_hash?: string | null;
+  first_seen_at?: string | null;
   market_cap_lamports?: string | null; mcap_usd?: string | null; mcap_as_of?: string | null; mcap_source?: string | null;
   last_seen?: string | null;
+  /** 1.1.6 additive on ScreenerResult: absent on today's `/coins` wire; pass through when the server adds it. */
+  tradeable?: boolean; skip_reason?: string | null;
+}
+
+/** GET /coins/:mint/timeline item (contract envelope + the fields the trail decoder reads). */
+interface TimelinePage {
+  items?: AnyEvent[];
+  next_after_seq?: string | null;
+  safe_seq?: string | null;
 }
 
 interface RawPosition {
@@ -232,8 +242,90 @@ export const httpApi: DashboardApi = {
     ]);
     return { items: coinRows(p.items, picks, strategies, mode), nextCursor: p.nextCursor };
   },
-  /** Coin detail trail needs the backend's `/coins/:mint/timeline` decoder; not wired yet (returns no trail). */
-  getCoinTrail: async () => null,
+  /**
+   * Coin detail (contracts 1.1.6): `/coins/:mint` for metadata, `/coins/:mint/timeline?mode=` for the decoded events,
+   * `/strategies` for the name and `/positions/:id` for the fills referenced by those events. Both modes are probed
+   * because a coin's strategy decides its mode and `/coins/:mint` carries no mode.
+   * There is no price series endpoint: `prices` stays empty so the chart shows its honest "no price" state.
+   */
+  getCoinTrail: async (mint) => {
+    let coin: RawCoin;
+    try {
+      coin = (await req<RawCoin>(await wsPath(`/coins/${encodeURIComponent(mint)}`))).data;
+    } catch (e) {
+      if (e instanceof ApiError && e.code === "NOT_FOUND") return null;
+      throw e;
+    }
+    const timeline = async (mode: TradingMode): Promise<AnyEvent[]> => {
+      try {
+        const { data } = await req<TimelinePage>(await wsPath(`/coins/${encodeURIComponent(mint)}/timeline?mode=${mode}&limit=500`));
+        return Array.isArray(data.items) ? data.items : [];
+      } catch (e) {
+        if (e instanceof ApiError && (e.code === "NOT_FOUND" || e.code === "VALIDATION_FAILED")) return [];
+        throw e;
+      }
+    };
+    const [practiceEvents, realEvents] = await Promise.all([timeline("practice"), timeline("real")]);
+    const newest = (rows: AnyEvent[]) => rows.reduce((m, e) => Math.max(m, Date.parse(e.ts) || 0), 0);
+    const mode: TradingMode = realEvents.length > 0 && newest(realEvents) > newest(practiceEvents) ? "real" : practiceEvents.length ? "practice" : realEvents.length ? "real" : "practice";
+    const envelopes = mode === "real" ? realEvents : practiceEvents;
+
+    const strategyId = [...envelopes].reverse().find((e) => typeof e.strategy_id === "string")?.strategy_id ?? "";
+    const [strategies, positions] = await Promise.all([
+      strategyId ? items<StrategyWire>(await wsPath(`/strategies?mode=${mode}`)).catch(() => []) : Promise.resolve([] as StrategyWire[]),
+      trailPositions(envelopes),
+    ]);
+
+    // Score + screener state from the contract payloads; never inferred from a pick status.
+    let score: CoinTrail["score"];
+    let screenerState: CoinTrail["screenerState"];
+    let quoteMint: string | null = coin.quote_mint;
+    let coinTradeable: boolean | undefined = coin.tradeable;
+    let coinSkipReason: string | null = coin.skip_reason ?? null;
+    for (const e of envelopes) {
+      const p = (e.payload ?? {}) as {
+        score?: number | { score?: number; score_threshold?: number; tradeable?: boolean; skip_reason?: string | null };
+        score_threshold?: number;
+        tradeable?: boolean;
+        skip_reason?: string | null;
+        quote_mint?: string | null;
+        summary?: string;
+      };
+      if (e.type === "screener.scored") {
+        const s = typeof p.score === "number" ? p.score : p.score?.score;
+        const mark = typeof p.score === "number" ? p.score_threshold : p.score?.score_threshold;
+        if (typeof s === "number" && typeof mark === "number") score = { value: s, passMark: mark };
+        const t = typeof p.tradeable === "boolean" ? p.tradeable : p.score && typeof p.score === "object" ? p.score.tradeable : undefined;
+        const skip = p.skip_reason ?? (p.score && typeof p.score === "object" ? p.score.skip_reason : null);
+        if (typeof t === "boolean") coinTradeable = t;
+        if (skip) coinSkipReason = skip;
+        if (typeof p.quote_mint === "string") quoteMint = p.quote_mint;
+      }
+      if (e.type === "pick.created") {
+        const s = p.score && typeof p.score === "object" ? p.score : undefined;
+        if (s && typeof s.score === "number" && typeof s.score_threshold === "number") score = { value: s.score, passMark: s.score_threshold };
+      }
+    }
+    if (coinTradeable === false && coinSkipReason === "UNSUPPORTED_QUOTE_MINT") screenerState = "UNSUPPORTED_QUOTE_MINT";
+    if (!screenerState && envelopes.some((e) => {
+      const p = (e.payload ?? {}) as { tradeable?: boolean; skip_reason?: string | null };
+      return e.type === "screener.scored" && p.tradeable === false && p.skip_reason === "UNSUPPORTED_QUOTE_MINT";
+    })) screenerState = "UNSUPPORTED_QUOTE_MINT";
+
+    const name = strategies.find((s) => s.id === strategyId)?.name ?? "";
+    return {
+      coin: coinMetaFromRaw(coin),
+      strategyId,
+      strategyName: name,
+      mode,
+      ...(score ? { score } : {}),
+      ...(screenerState ? { screenerState } : {}),
+      ...(quoteMint && quoteMint !== "So11111111111111111111111111111111111111112" ? { quoteSymbol: `${quoteMint.slice(0, 4)}…${quoteMint.slice(-4)}` } : {}),
+      positions,
+      events: envelopes.map((e) => envelopeToTradeEvent(e)).filter((e): e is TradeEvent => e != null),
+      prices: [],
+    };
+  },
 
   getExitStats: async (f) => {
     const q = new URLSearchParams({ mode: f.mode, ...(f.strategyId ? { strategy_id: f.strategyId } : {}), ...(f.windowHours ? { window: `${f.windowHours}h` } : {}) });
@@ -292,8 +384,9 @@ function coinRows(rows: RawCoin[], picks: PickRow[], strategies: StrategyWire[],
     const pick = latest.get(r.mint);
     const w = {
       mint: r.mint, venue: r.venue, launchpad: r.launchpad, decimals: r.decimals, token_program: r.token_program, quote_mint: r.quote_mint,
-      // The API does not flag tradeability on the screener row yet; a missing flag must not look untradeable.
-      tradeable: true, skip_reason: null,
+      // 1.1.6 `ScreenerResult.tradeable/skip_reason`: pass the wire flag through when the server sends it. Today's
+      // `/coins` has no such field, so a missing flag stays tradeable (never inferred from pick status or quote mint).
+      tradeable: r.tradeable ?? true, skip_reason: r.skip_reason ?? null,
       untrusted: r.untrusted ?? {},
       strategy_id: pick?.strategy_id ?? "", strategy_name: names.get(pick?.strategy_id ?? "") ?? "",
       mode, status: pick?.stage === "rejected" ? "rejected" : "watching",
@@ -303,4 +396,73 @@ function coinRows(rows: RawCoin[], picks: PickRow[], strategies: StrategyWire[],
     } as unknown as CoinWire;
     return coinSummaryFromWire(w);
   });
+}
+
+/** Coins/positions carry u64/u128 values as decimal strings; display numbers come only from `lamportsToSolNumber`. */
+const decOrNull = (v: string | null | undefined): number | null => {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+function coinMetaFromRaw(r: RawCoin): CoinMeta {
+  const symbol = r.untrusted?.symbol ?? "";
+  return {
+    mint: r.mint,
+    untrusted: { symbol, name: r.untrusted?.name ?? symbol },
+    logoHash: typeof r.logo_hash === "string" ? r.logo_hash : null,
+    launchpad: r.launchpad ?? "",
+    venue: r.venue as CoinMeta["venue"],
+    createdAt: r.first_seen_at ? Date.parse(r.first_seen_at) : 0,
+    decimals: r.decimals,
+    tokenProgram: r.token_program,
+    quoteMint: r.quote_mint,
+    tradeable: r.tradeable ?? true,
+    skipReason: (r.skip_reason as CoinMeta["skipReason"]) ?? null,
+  };
+}
+
+function trailPositionFromWire(w: PositionWire): Position {
+  const solIn = lamportsToSolNumber(w.sol_in_lamports) ?? 0;
+  const fees = lamportsToSolNumber(w.fees_lamports) ?? 0;
+  const entry = decOrNull(w.avg_entry_price_sol);
+  const peak = decOrNull(w.peak_price_sol);
+  return {
+    key: w.position_key,
+    strategyId: w.strategy_id ?? "",
+    mint: w.mint,
+    status: w.status,
+    entryPriceSol: entry,
+    exitPriceSol: decOrNull(w.exit_price_sol),
+    entryPriceUsd: NaN,
+    solIn: lamportsToSolNumber(w.sol_in_lamports) ?? NaN,
+    solOut: lamportsToSolNumber(w.sol_out_lamports) ?? NaN,
+    peakGainPct: entry != null && entry > 0 && peak != null ? (peak / entry - 1) * 100 : NaN,
+    feeBps: solIn > 0 ? (fees / solIn) * 10_000 : NaN,
+    openedAt: Date.parse(w.opened_at),
+    ...(w.closed_at ? { closedAt: Date.parse(w.closed_at) } : {}),
+    ...(w.exit_reason ? { exitReason: w.exit_reason } : {}),
+    pnlSol: lamportsToSolNumber(w.pnl_lamports) ?? NaN,
+    pnlPct: w.pnl_pct ?? NaN,
+    markUnknown: w.status === "open",
+  };
+}
+
+/** The trail's events reference positions by id; fetch exactly those rows (no workspace-wide scan). */
+async function trailPositions(envelopes: AnyEvent[]): Promise<Position[]> {
+  const ids = new Set<string>();
+  for (const e of envelopes) {
+    const p = (e.payload ?? {}) as { position_id?: unknown };
+    if (typeof p.position_id === "string") ids.add(p.position_id);
+  }
+  const rows = await Promise.all(
+    [...ids].slice(0, 20).map(async (id) => {
+      try {
+        return (await req<PositionWire>(await wsPath(`/positions/${encodeURIComponent(id)}`))).data;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return rows.filter((r): r is PositionWire => r != null).map(trailPositionFromWire);
 }

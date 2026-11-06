@@ -94,11 +94,64 @@ export function tradeEventToEnvelope(e: TradeEvent, ctx: { workspaceId: string; 
   };
 }
 
+/** Real contract payloads carry their own field names (PositionOpened.fill, PositionClosed.sol_out_lamports, …). */
+interface DecodedPayload extends Partial<FeedPayload> {
+  tradeable?: boolean;
+  skip_reason?: string | null;
+  fill?: { sol_lamports?: Lamports };
+  sol_out_lamports?: Lamports;
+  sol_in_lamports?: Lamports;
+  exit_price_sol?: string;
+  trigger_price_sol?: string;
+  exec_price_sol?: string;
+  sell_portion_pct?: number;
+  rule?: ExitReason;
+  detail?: string;
+  reasons?: string[];
+  result?: { checks?: DecodedCheck[]; score?: number; score_threshold?: number; tradeable?: boolean; skip_reason?: string | null };
+  checks?: DecodedCheck[];
+}
+
+interface DecodedCheck {
+  id?: string; name?: string; class?: string; status?: string; passed?: boolean; measured?: number | null; points?: number; reason?: string; weight?: number;
+}
+
+const FALLBACK_MESSAGE: Record<string, string> = {
+  "screener.scored": "Screened",
+  "guard.result": "Guard checked",
+  "entry.armed": "Entry armed",
+  "entry.expired": "Entry expired",
+  "proposal.created": "Approval needed",
+  "proposal.approved": "Approved",
+  "proposal.rejected": "Skipped",
+  "proposal.expired": "Expired",
+  "position.opened": "Bought",
+  "position.closed": "Sold",
+  "exit.triggered": "Exit triggered",
+};
+
+/** Maps contract checks (PASS/WARN/FAIL) and screener checks (passed + class) to the feed's check rows. */
+function checksFromPayload(p: DecodedPayload): TradeEvent["checks"] | undefined {
+  const rows = p.checks ?? p.result?.checks;
+  if (!Array.isArray(rows) || rows.length === 0) return undefined;
+  return rows.map((c) => ({
+    name: String(c.id ?? c.name ?? ""),
+    passed: typeof c.passed === "boolean" ? c.passed : c.status === "PASS",
+    hard: c.class === "hard",
+    measured: c.measured == null ? "—" : String(c.measured),
+    threshold: c.reason ?? (c.points != null ? `${c.points} pt` : ""),
+  }));
+}
+
 /** Returns null for unknown event types (clients must ignore them). */
 export function envelopeToTradeEvent(env: AnyEvent | EventEnvelope<string, FeedPayload>): TradeEvent | null {
   const kind = TYPE_TO_KIND[env.type];
   if (!kind) return null;
-  const p = (env.payload ?? {}) as Partial<FeedPayload> & { pnl_lamports?: Lamports; exit_reason?: ExitReason; pnl_pct?: number };
+  const p = (env.payload ?? {}) as DecodedPayload;
+  const sk = p.skip_reason ?? p.result?.skip_reason ?? null;
+  const tradeable = typeof p.tradeable === "boolean" ? p.tradeable : p.result?.tradeable;
+  // exit.triggered is a planned sell; a 100% trigger is the final exit, not a partial take-profit.
+  const partial = p.partial ?? (env.type === "exit.triggered" ? (typeof p.sell_portion_pct === "number" ? p.sell_portion_pct < 100 : true) : undefined);
   return {
     id: env.id,
     seq: env.seq,
@@ -113,15 +166,17 @@ export function envelopeToTradeEvent(env: AnyEvent | EventEnvelope<string, FeedP
     logoHash: logoHashOf(env as { logo_hash?: unknown; logo_url?: unknown }, env.mint),
     // Untrusted token metadata is display-only text, never markup.
     symbol: typeof env.untrusted?.symbol === "string" ? safeSymbol(env.untrusted.symbol) || undefined : undefined,
-    message: p.summary ?? env.type,
-    reason: p.reason,
-    ...(p.reason_code ? { reasonCode: p.reason_code } : {}),
-    solAmount: lamportsToSolNumber(p.sol_lamports),
+    message: p.summary ?? FALLBACK_MESSAGE[env.type] ?? env.type,
+    reason: p.reason ?? p.detail ?? (Array.isArray(p.reasons) && p.reasons.length ? p.reasons.join(" · ") : undefined),
+    ...(p.reason_code || (tradeable === false && sk) ? { reasonCode: p.reason_code ?? sk ?? undefined } : {}),
+    // position.opened carries the SOL spent inside `fill`; position.closed carries the SOL returned at the top level.
+    solAmount: lamportsToSolNumber(p.sol_lamports ?? p.fill?.sol_lamports),
     pnlSol: lamportsToSolNumber(p.pnl_lamports),
-    pctChange: p.pnl_pct,
+    pctChange: p.pnl_pct ?? undefined,
     priceUsd: p.price_usd != null ? Number(p.price_usd) : undefined,
-    partial: p.partial ?? (env.type === "exit.triggered" ? true : undefined),
-    exitReason: p.exit_reason,
+    partial,
+    exitReason: p.exit_reason ?? p.rule,
+    checks: checksFromPayload(p),
     rev: p.rev,
   };
 }

@@ -7,13 +7,14 @@
  * - Writes carry an Idempotency-Key; retries reuse the same key.
  */
 import { pctToFractionBps } from "@centurion/i18n/format";
-import type { ConflictError, GuardChangeProposed, MarkMessage, ProposalUpdated, ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof } from "@centurion/contracts/wire";
+import type { ConflictError, GuardChangeProposed, MarkMessage, ProposalUpdated, ApprovalDecisionRequest, ApprovalDecisionResponse, ClosePositionResponse, ConfirmationProof, AnyEvent } from "@centurion/contracts/wire";
 import { observeServerNow } from "./clock";
 import { readMigrated } from "./legacy-storage";
 import { approvalFromWire, coinSummaryFromWire, type CoinWireWithMcap, payloadHash, positionFromWire, type PositionWireView, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire, type ApprovalRejectReason, type WireSettings } from "./contracts";
 import { ApiError, toApiError } from "./errors";
 import type { Approval, CoinSummary, ConnectionState, OpenPosition, PublishResult, StrategySettings, TradeEvent, TradingMode } from "./types";
 import { createRealtime } from "./realtime";
+import { parseSeq } from "./seq";
 
 /** Window event fired after an approval change so other UI (nav badge) can refresh. */
 export const APPROVALS_CHANGED = "centurion:approvals-changed";
@@ -171,6 +172,21 @@ export async function setStrategyModeClient(strategyId: string, mode: TradingMod
   return { mode: data.mode, rev: data.rev };
 }
 
+/**
+ * Pause/resume a strategy through the REAL endpoint in both data sources:
+ * `POST /strategies/{id}/pause|resume` with `If-Match: "<rev>"` + Idempotency-Key (contracts 1.1.6 backend route).
+ * Mock mode answers the same wire shape from this app's BFF; http mode is proxied to the paper API.
+ */
+export async function pauseStrategyClient(strategyId: string, rev: number): Promise<{ status: string; rev: number }> {
+  const { data } = await request<StrategyWire>(`/strategies/${encodeURIComponent(strategyId)}/pause`, { body: {}, headers: { "If-Match": `"${rev}"` } });
+  return { status: data.status, rev: data.rev };
+}
+
+export async function resumeStrategyClient(strategyId: string, rev: number): Promise<{ status: string; rev: number }> {
+  const { data } = await request<StrategyWire>(`/strategies/${encodeURIComponent(strategyId)}/resume`, { body: {}, headers: { "If-Match": `"${rev}"` } });
+  return { status: data.status, rev: data.rev };
+}
+
 export interface StrategyWire {
   id: string;
   rev: number;
@@ -302,7 +318,16 @@ export const revokeDeviceClient = async () => (await request<unknown>(`/api/v1/d
 export const PROPOSAL_UPDATED = "centurion:proposal-updated";
 
 export function subscribeActivity(mode: TradingMode, onEvent: (e: TradeEvent) => void, onStatus: (s: ConnectionState) => void, onMark?: (m: MarkMessage) => void): () => void {
-  return createRealtime({ workspaceId: WS, mode }).subscribe({
+  return createRealtime({
+    workspaceId: WS,
+    mode,
+    catchUp: async (after) => {
+      const res = await fetch(`${base}/events?mode=${mode}&after_seq=${encodeURIComponent(after)}&limit=200`, { cache: "no-store" });
+      if (!res.ok) return { items: [], next: null };
+      const json = (await res.json().catch(() => ({}))) as { items?: AnyEvent[]; next_after_seq?: string | null };
+      return { items: Array.isArray(json.items) ? json.items : [], next: parseSeq(json.next_after_seq ?? null) };
+    },
+  }).subscribe({
     onEvent,
     onStatus,
     onMark,

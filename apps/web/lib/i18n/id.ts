@@ -39,6 +39,12 @@ export const id: PartialMessages = {
     progress: "Rekam jejak Paper",
     realSellNote: "Jual manual posisi Real belum tersedia; rencana exit tetap berjalan.",
     defaultPaper: "Strategi baru selalu mulai di Paper.",
+    modeEndpointMissing: "API paper belum punya endpoint untuk memindahkan strategi antara Paper dan Real. Tombolnya nonaktif sampai Backend menambah `POST /v1/workspaces/:ws/strategies/:id/mode` (atau field `mode` di PATCH) dengan If-Match dan cek gate Real.",
+  },
+  strategies: {
+    pause: "Jeda", resume: "Lanjutkan",
+    pausedToast: "{name} dijeda. Tidak ada entry baru; posisi terbuka tetap mengikuti rencana exit.",
+    resumedToast: "{name} dilanjutkan.",
   },
   portfolio: {
     label: "Saldo yang ditampilkan",

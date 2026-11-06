@@ -27,8 +27,18 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
   const mode = trail.mode;
   const { coin, positions, events } = trail;
   const pos = positions[0];
-  const ordered = [...events].sort((a, b) => a.ts - b.ts);
-  const holdS = pos ? Math.round(((pos.closedAt ?? ordered[ordered.length - 1].ts) - pos.openedAt) / 1000) : 0;
+  // Invalid wire timestamps never reach Intl (which would throw): they sort last and render an em dash.
+  const ordered = [...events].sort((a, b) => (Number.isFinite(a.ts) ? a.ts : Infinity) - (Number.isFinite(b.ts) ? b.ts : Infinity));
+  const lastEventTs = ordered.length ? ordered[ordered.length - 1].ts : undefined;
+  const holdEnd = pos?.closedAt ?? (lastEventTs != null && Number.isFinite(lastEventTs) ? lastEventTs : pos?.openedAt);
+  const holdS = pos && holdEnd != null ? Math.max(0, Math.round((holdEnd - pos.openedAt) / 1000)) : undefined;
+  const priceLabel = (sol?: number | null, usd?: number | null) =>
+    sol != null && Number.isFinite(sol) ? `${f.sol(sol, { unit: false })} SOL`
+      : usd != null && Number.isFinite(usd) ? f.usd(usd)
+        : "—";
+  const numOrNull = (v: number | null | undefined) => (v != null && Number.isFinite(v) ? v : null);
+  const entryLabel = priceLabel(pos?.entryPriceSol, pos?.entryPriceUsd);
+  const exitLabel = priceLabel(pos?.exitPriceSol, pos?.exitPriceUsd);
 
   const notTradeable = trail.screenerState === NOT_TRADEABLE || trail.events.some((e) => e.reasonCode === NOT_TRADEABLE);
   return (
@@ -42,7 +52,7 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
             <Badge>{coin.launchpad}</Badge>
             <Badge>{coin.venue}</Badge>
             {notTradeable && <NotTradeableChip label={t("screener.notTradeable")} />}
-            <span>{t("trail.strategy", { name: trail.strategyName })}</span>
+            <span>{t("trail.strategy", { name: trail.strategyName || "—" })}</span>
             <Mcap m={trail.mcap} t={t} locale={t.locale} time={f.dateTime} />
           </span>
         }
@@ -74,9 +84,9 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
       <StatStrip
         items={[
           { label: t("trail.score"), value: trail.score ? `${trail.score.value} / ${trail.score.passMark}` : "—", tone: trail.score && trail.score.value >= trail.score.passMark ? "profit" : "warning" },
-          { label: t("trail.size"), value: pos ? <>{f.sol(pos.solIn, { unit: false })}<span className="text-caption font-normal"> {t(mode === "practice" ? "overview.paperSol" : "overview.realSol")}</span></> : "—", hint: pos ? t("trail.fee", { bps: pos.feeBps }) : t("trail.notEntered") },
-          { label: pos?.status === "open" ? t("trail.unrealized") : t("trail.realized"), value: pos ? <Pnl mode={mode} sol={pos.pnlSol} unit /> : "—", hint: pos ? t("trail.peak", { pct: f.num(pos.pnlPct, 1), peak: f.num(pos.peakGainPct, 1) }) : undefined },
-          { label: t("trail.hold"), value: pos ? f.duration(holdS) : "—", hint: pos?.exitReason ? t(`exitReason.${pos.exitReason}`) : pos ? t("trail.stillOpen") : undefined },
+          { label: t("trail.size"), value: pos && Number.isFinite(pos.solIn) ? <>{f.sol(pos.solIn, { unit: false })}<span className="text-caption font-normal"> {t(mode === "practice" ? "overview.paperSol" : "overview.realSol")}</span></> : "—", hint: pos ? (Number.isFinite(pos.feeBps) ? t("trail.fee", { bps: pos.feeBps }) : undefined) : t("trail.notEntered") },
+          { label: pos?.status === "open" ? t("trail.unrealized") : t("trail.realized"), value: pos ? <Pnl mode={mode} sol={numOrNull(pos.pnlSol)} unit /> : "—", hint: pos && numOrNull(pos.pnlPct) != null && numOrNull(pos.peakGainPct) != null ? t("trail.peak", { pct: f.num(pos.pnlPct, 1), peak: f.num(pos.peakGainPct, 1) }) : undefined },
+          { label: t("trail.hold"), value: pos && holdS != null ? f.duration(holdS) : "—", hint: pos?.exitReason ? t(`exitReason.${pos.exitReason}`) : pos ? t("trail.stillOpen") : undefined },
         ]}
       />
 
@@ -86,7 +96,7 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
         {trail.prices.length > 1 ? <PriceChart prices={trail.prices} events={ordered} /> : <p className="text-body text-text-secondary">{t("trail.noPrice")}</p>}
         {pos && (
           <p className="num mt-2 text-caption text-text-secondary">
-            {t("trail.entryExit", { entry: f.usd(pos.entryPriceUsd) })}{pos.exitPriceUsd ? t("trail.exitAt", { exit: f.usd(pos.exitPriceUsd) }) : ""}
+            {t("trail.entryExit", { entry: entryLabel })}{exitLabel !== "—" ? t("trail.exitAt", { exit: exitLabel }) : ""}
           </p>
         )}
       </Card>
@@ -99,7 +109,7 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
                 <span className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-bg-surface ${eventKindMeta[e.kind].dot}`} aria-hidden />
                 <div className="flex flex-wrap items-center gap-2 text-overline uppercase tracking-wide text-text-tertiary">
                   <span>{t(`actor.${e.actor}`)} · {t(`kind.${e.kind}`)}</span>
-                  <span className="num normal-case">{f.time(e.ts)}</span>
+                  <span className="num normal-case">{Number.isFinite(e.ts) ? f.time(e.ts) : "—"}</span>
                   {e.rev != null && <span className="normal-case">rev {e.rev}</span>}
                 </div>
                 <p className="mt-0.5 text-body font-semibold"><EventTitle e={e} /> {e.pnlSol != null && <Pnl mode={mode} sol={e.pnlSol} className="ml-1 text-caption font-normal" />}</p>
@@ -111,7 +121,7 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
                         {c.passed ? <Check size={12} className="text-semantic-profit" aria-label={t("trail.passed")} /> : <X size={12} className="text-semantic-loss" aria-label={t("trail.failed")} />}
                         <span>{c.name}</span>
                         {c.hard && <span className="text-overline uppercase text-text-tertiary">{t("trail.hard")}</span>}
-                        <span className="num ml-auto text-text-secondary">{c.measured} <span className="text-text-tertiary">({c.threshold})</span></span>
+                        <span className="num ml-auto text-text-secondary">{c.measured}{c.threshold ? <span className="text-text-tertiary"> ({c.threshold})</span> : null}</span>
                       </li>
                     ))}
                   </ul>
@@ -130,9 +140,9 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
               minWidth={280}
               columns={[
                 { key: "k", header: "#", cell: (p) => <span className="num text-caption">{p.key.split(".").pop()}</span> },
-                { key: "in", header: t("trail.colIn"), numeric: true, cell: (p) => f.num(p.solIn, 3) },
-                { key: "out", header: t("trail.colOut"), numeric: true, cell: (p) => f.num(p.solOut, 3) },
-                { key: "pnl", header: t("trail.colPnl"), numeric: true, cell: (p) => <Pnl mode={mode} sol={p.pnlSol} /> },
+                { key: "in", header: t("trail.colIn"), numeric: true, cell: (p) => (Number.isFinite(p.solIn) ? f.num(p.solIn, 3) : "—") },
+                { key: "out", header: t("trail.colOut"), numeric: true, cell: (p) => (Number.isFinite(p.solOut) ? f.num(p.solOut, 3) : "—") },
+                { key: "pnl", header: t("trail.colPnl"), numeric: true, cell: (p) => <Pnl mode={mode} sol={numOrNull(p.pnlSol)} /> },
               ]}
             />
           )}

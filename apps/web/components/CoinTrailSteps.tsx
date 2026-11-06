@@ -29,7 +29,7 @@ export function trailNodes(tr: T, t: CoinTrail, f: Fmt): Node[] {
     { id: "buy", label: tr("trail.node.buy"), value: bought?.solAmount ? f.sol(bought.solAmount) : "—", tone: "brand", reached: !!bought },
     { id: "tp", label: tr("trail.node.tp"), value: tp?.pctChange ? signed(f, tp.pctChange) : "—", tone: "profit", reached: !!tp },
     { id: "exit", label: exit?.exitReason ? tr(`exitReason.${exit.exitReason}`) : tr("trail.node.exit"), value: exit?.pctChange != null ? signed(f, exit.pctChange) : "—", tone: pnlTone(exit?.pctChange), reached: !!exit },
-    { id: "closed", label: tr("trail.node.closed"), value: pos?.status === "closed" ? `${signed(f, pos.pnlPct)} · ${f.duration(Math.round(((pos.closedAt ?? 0) - pos.openedAt) / 1000))}` : pos ? tr("trail.node.open") : "—", tone: pnlTone(pos?.pnlPct), reached: pos?.status === "closed" },
+    { id: "closed", label: tr("trail.node.closed"), value: pos?.status === "closed" ? `${Number.isFinite(pos.pnlPct) ? signed(f, pos.pnlPct) : "—"}${pos.closedAt != null ? ` · ${f.duration(Math.max(0, Math.round((pos.closedAt - pos.openedAt) / 1000)))}` : ""}` : pos ? tr("trail.node.open") : "—", tone: pnlTone(Number.isFinite(pos?.pnlPct) ? pos?.pnlPct : null), reached: pos?.status === "closed" },
   ];
 }
 

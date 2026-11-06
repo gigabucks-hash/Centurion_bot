@@ -293,6 +293,24 @@ export function setStrategyMode(id: string, mode: TradingMode, expectedRev: numb
   return { ...s };
 }
 
+/**
+ * Mock of the backend's `POST /strategies/{id}/pause|resume` → `set_strategy_status()`: expected rev is required
+ * (`428 PRECONDITION_REQUIRED`), a stale rev is `409 STRATEGY_REV_CONFLICT` with merge data, archived strategies are
+ * retired, and an idempotent repeat of the same status does not bump the rev. Paper only; no wallet or chain access.
+ */
+export function setStrategyStatus(id: string, status: "running" | "paused", expectedRev: number | null, now = Date.now()): Strategy {
+  const s = state().strategies.find((x) => x.id === id);
+  if (!s) throw wireErr("NOT_FOUND");
+  if (s.status === "archived") throw wireErr("STRATEGY_RETIRED");
+  if (expectedRev == null) throw wireErr("PRECONDITION_REQUIRED");
+  if (expectedRev !== s.rev) throw wireErr("STRATEGY_REV_CONFLICT", undefined, conflictBody(s, expectedRev));
+  if (s.status === status) return { ...s };
+  s.status = status;
+  s.rev += 1;
+  s.updatedAt = now;
+  return { ...s };
+}
+
 function conflictBody(s: Strategy, baseRev: number) {
   const st = state();
   const lc = st.lastChange?.[s.id];

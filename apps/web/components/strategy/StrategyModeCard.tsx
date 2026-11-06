@@ -21,7 +21,7 @@ export const REAL_SWITCH_HOLD_MS = 2500;
  * - To Real: dialog + 2.5 s hold (explicit, never a bare toggle). To Paper: immediate + toast.
  * - 403 MODE_NOT_ALLOWED ("strategy not approved for Real") and 409 rev conflicts are shown inline and refresh the page.
  */
-export function StrategyModeCard({ strategy }: { strategy: Pick<Strategy, "id" | "name" | "mode" | "rev" | "realLocked" | "realLockedReason" | "paperProgress" | "status"> }) {
+export function StrategyModeCard({ strategy, modeSwitchAvailable = true }: { strategy: Pick<Strategy, "id" | "name" | "mode" | "rev" | "realLocked" | "realLockedReason" | "paperProgress" | "status">; modeSwitchAvailable?: boolean }) {
   const t = useT();
   const toast = useToast();
   const router = useRouter();
@@ -31,9 +31,12 @@ export function StrategyModeCard({ strategy }: { strategy: Pick<Strategy, "id" |
   const cancelRef = useRef<HTMLButtonElement>(null);
   const { mode, realLocked, paperProgress: p } = strategy;
   const reason = t.ux(`strategy.real_locked_reason.${strategy.realLockedReason ?? "other"}` as never);
-  const realDisabled = realLocked || strategy.status === "archived";
+  // No contract route exists to change a strategy's mode yet: in http mode the mock mutation is never used.
+  const switchBlocked = !modeSwitchAvailable;
+  const realDisabled = realLocked || strategy.status === "archived" || switchBlocked;
 
   async function go(target: TradingMode, holdMs = 0) {
+    if (switchBlocked) return;
     setBusy(true);
     setErr(null);
     try {
@@ -56,13 +59,13 @@ export function StrategyModeCard({ strategy }: { strategy: Pick<Strategy, "id" |
         type="button"
         role="radio"
         aria-checked={mode === m}
-        aria-disabled={disabled || undefined}
-        aria-label={disabled ? t.ux("strategy.real_locked.a11y", { reason }) : undefined}
-        title={disabled ? reason : undefined}
-        onClick={() => (m === mode || disabled || busy ? undefined : m === "real" ? setOpen(true) : go("practice"))}
+        aria-disabled={disabled || switchBlocked || undefined}
+        aria-label={disabled ? t.ux("strategy.real_locked.a11y", { reason }) : switchBlocked ? t("strategyMode.modeEndpointMissing") : undefined}
+        title={disabled ? reason : switchBlocked ? t("strategyMode.modeEndpointMissing") : undefined}
+        onClick={() => (switchBlocked || m === mode || disabled || busy ? undefined : m === "real" ? setOpen(true) : go("practice"))}
         className={cn(
           "inline-flex h-8 items-center gap-1 rounded-full px-3 text-label font-semibold transition duration-fast sm:px-4",
-          mode === m ? (m === "practice" ? "bg-mode-practice text-mode-onPractice" : "bg-mode-real text-mode-onReal") : disabled ? "cursor-not-allowed text-text-tertiary" : "text-text-secondary hover:text-text-primary",
+          mode === m ? (m === "practice" ? "bg-mode-practice text-mode-onPractice" : "bg-mode-real text-mode-onReal") : disabled || switchBlocked ? "cursor-not-allowed text-text-tertiary" : "text-text-secondary hover:text-text-primary",
         )}
       >
         {disabled && <Lock size={12} aria-hidden />}
@@ -95,6 +98,7 @@ export function StrategyModeCard({ strategy }: { strategy: Pick<Strategy, "id" |
         </div>
         <div className="min-w-0 flex-1 text-caption text-text-secondary">
           {mode === "practice" ? <p>{t.ux("strategy.mode.paper_desc")}</p> : <p>{t("strategyMode.realRules")}</p>}
+          {switchBlocked && <p role="note" className="mt-2 text-caption text-semantic-warning">{t("strategyMode.modeEndpointMissing")}</p>}
           {mode === "practice" && realLocked && (
             <>
               <p className="mt-1">{t.ux("strategy.real_locked.explain")}</p>
@@ -113,7 +117,7 @@ export function StrategyModeCard({ strategy }: { strategy: Pick<Strategy, "id" |
       <Dialog open={open} onClose={() => setOpen(false)} title={t("strategyMode.toRealTitle", { name: strategy.name })} accent="real" initialFocusRef={cancelRef}>
         <p className="text-body text-text-secondary">{t("strategyMode.toRealBody")}</p>
         <p className="mt-3 text-caption text-text-secondary">{t("strategyMode.realRules")}</p>
-        <p className="mt-3 text-caption text-semantic-warning">{t("strategyMode.mockNote")}</p>
+        {modeSwitchAvailable && <p className="mt-3 text-caption text-semantic-warning">{t("strategyMode.mockNote")}</p>}
         {err && <p role="alert" className="mt-2 text-caption text-semantic-loss">{err}</p>}
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <HoldButton durationMs={REAL_SWITCH_HOLD_MS} onConfirm={(ms) => go("real", ms)} disabled={busy} hint={t("mode.holdHint")}>

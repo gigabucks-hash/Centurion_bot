@@ -11,6 +11,7 @@ import { Badge, Card, EmptyState, PageHeader, Pnl, Sparkline } from "@/component
 import { ApprovalModeBadge, StatusBadge, StrategyModeChips } from "@/components/domain";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { Funnel } from "@/components/Funnel";
+import { StrategyStatusActions } from "@/components/strategy/StrategyStatusActions";
 
 export const metadata: Metadata = { title: "Strategies" };
 
@@ -70,6 +71,7 @@ async function List({ all, filter }: { all: Strategy[]; filter: Filter }) {
             <div className="mt-4 flex items-center gap-2 border-t border-border-subtle pt-3">
               <Link href={`/strategies/${s.id}/edit`} className={linkBtn}><Pencil size={13} /> {t("strategies.edit")}</Link>
               <Link href={`/strategies/new?from=${s.id}`} className={linkBtn}><Copy size={13} /> {t("strategies.duplicate")}</Link>
+              <StrategyStatusActions id={s.id} name={s.name} status={s.status} rev={s.rev} />
               <span className="ml-auto text-caption text-text-tertiary">{t("strategies.updated", { time: f.dateTime(s.updatedAt) })}</span>
             </div>
           </Card>
