@@ -386,11 +386,12 @@ pub trait Transport: Send + Sync + 'static {
     ) -> impl Future<Output = ApiResult<ApiItem<Vec<ExitReasonStat>>>> + Send;
     /// `GET /stats/pnl?mode=practice&window=` (0022): the PnL card/report summary.
     fn pnl_summary(&self, window: &str) -> impl Future<Output = ApiResult<PnlSummary>> + Send;
-    /// `GET /positions?state=closed&window=` (0022): closed-trade ledger, newest close first.
+    /// `GET /positions?state=closed&from&to&cursor&limit` (0022): closed-trade ledger, newest close
+    /// first. F4: `from`/`to` are absolute bounds resolved once by the first page.
     fn closed_positions(
         &self,
-        window: &str,
-    ) -> impl Future<Output = ApiResult<Vec<ClosedPositionRow>>> + Send;
+        query: ClosedQuery,
+    ) -> impl Future<Output = ApiResult<ClosedPage>> + Send;
 }
 
 /// Endpoint paths (Week-2 HTTP transport; asserted in tests so renames are caught).
@@ -562,8 +563,8 @@ impl Transport for ActiveTransport {
         delegate!(self, t => t.pnl_summary(window).await)
     }
 
-    async fn closed_positions(&self, window: &str) -> ApiResult<Vec<ClosedPositionRow>> {
-        delegate!(self, t => t.closed_positions(window).await)
+    async fn closed_positions(&self, query: ClosedQuery) -> ApiResult<ClosedPage> {
+        delegate!(self, t => t.closed_positions(query).await)
     }
 }
 

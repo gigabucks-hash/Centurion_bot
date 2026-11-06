@@ -327,6 +327,8 @@ table.positions tr.cursor td:last-child { background: var(--color-brand-primaryC
 
 /* PnL report window: summary strip, per-exit table and the closed ledger (realized is locked at close). */
 .pnl-modal { width: min(1120px, 96vw); max-height: 86vh; display: flex; flex-direction: column; padding: 0; }
+/* Receipt drill-down: A3's 760 px dialog; the ledger keeps the wider 1120 px table. */
+.pnl-modal.pnl-modal-receipt { width: min(760px, 92vw); }
 .pnl-modal .pnl-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border-subtle); }
 .pnl-modal .pnl-head h3 { margin: 0; display: flex; align-items: center; gap: var(--space-2); }
 .pnl-modal .icon-btn { width: auto; min-height: 24px; padding: 0 var(--space-1); }
@@ -357,6 +359,30 @@ table.positions tr.cursor td:last-child { background: var(--color-brand-primaryC
 .pnl-modal .pnl-ledger-hint { font-weight: 400; }
 .pnl-modal .pnl-empty { display: flex; flex-direction: column; gap: 2px; padding: var(--space-4); border: 1px dashed var(--color-border-default); border-radius: var(--radius-sm); text-align: center; }
 .pnl-modal .pnl-note { margin: var(--space-2) 0 0; font-size: var(--text-caption); }
+/* Closed-trade receipt (drill-down inside the same dialog, UX A3): max 560 px, flat dividers. */
+.pnl-modal .pnl-receipt-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.pnl-modal .pnl-back { display: inline-flex; align-items: center; gap: 6px; width: auto; }
+.pnl-modal .pnl-receipt-sym { color: var(--color-text-secondary); font-weight: 600; }
+.pnl-modal .pnl-receipt { width: 100%; max-width: 560px; margin: 0 auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); overflow: auto; }
+.pnl-modal .pnl-receipt section { display: flex; flex-direction: column; gap: 2px; padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border-subtle); }
+.pnl-modal .pnl-receipt-id { flex-direction: row; align-items: center; gap: var(--space-3); }
+.pnl-modal .pnl-receipt-idtext { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pnl-modal .pnl-receipt-idtext > b { font-size: 18px; }
+.pnl-modal .pnl-receipt-value { font-size: 28px; font-weight: 600; line-height: 1.15; }
+.pnl-modal .pnl-receipt-pct { font-size: var(--text-numSm); }
+.pnl-modal .pnl-receipt-hint { font-size: var(--text-caption); }
+.pnl-modal .pnl-receipt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
+.pnl-modal .pnl-receipt-grid > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pnl-modal .pnl-receipt-grid .num { font-size: var(--text-caption); }
+.pnl-modal .pnl-receipt-line .num { font-size: var(--text-caption); overflow-wrap: anywhere; }
+.pnl-modal .pnl-receipt-reason b { font-weight: 600; }
+.pnl-modal .pnl-receipt-unit,
+.pnl-modal .pnl-receipt-prov { font-size: var(--text-caption); color: var(--color-text-tertiary); }
+.pnl-modal .pnl-receipt-actions { display: flex; justify-content: flex-end; }
+.pnl-modal .pnl-more { display: flex; justify-content: center; padding: var(--space-2) 0; }
+.pnl-modal .pnl-closed tbody tr { cursor: pointer; }
+.pnl-modal .pnl-closed tbody tr:hover { background: var(--color-bg-hover, var(--color-bg-overlay)); }
+.pnl-modal .pnl-closed tbody tr:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -2px; }
 @media (max-width: 760px) {
   .pnl-modal .pnl-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pnl-modal .pnl-report-cell:nth-child(3), .pnl-modal .pnl-report-cell:nth-child(5) { border-left: 0; }

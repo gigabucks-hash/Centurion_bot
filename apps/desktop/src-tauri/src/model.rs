@@ -1548,12 +1548,39 @@ pub struct ClosedPositionRow {
     /// Reported context only; the swap fee is already inside sol_in/sol_out.
     #[serde(default)]
     pub fees_lamports: Option<Lamports>,
+    /// Server-reported entry/exit prices in SOL (receipt); null on a legacy row.
+    #[serde(default)]
+    pub avg_entry_price_sol: Option<Dec>,
+    #[serde(default)]
+    pub exit_price_sol: Option<Dec>,
     #[serde(default)]
     pub pnl_lamports: Option<Lamports>,
     #[serde(default)]
     pub pnl_pct: Option<Num>,
     #[serde(default)]
     pub hold_seconds: Option<i64>,
+}
+
+/// One closed-ledger page request. F4: when `from`/`to` are set they are the absolute bounds
+/// resolved on the first page; the relative `window` is then ignored so a later page cannot move
+/// the boundary. `window` is only a fallback for callers without a pinned range.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ClosedQuery {
+    pub window: Option<String>,
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub cursor: Option<String>,
+    /// Server clamps to 1..=100; the report always asks for 50.
+    pub limit: usize,
+}
+
+/// `GET /positions?state=closed` page: rows + the opaque cursor for the next page.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ClosedPage {
+    #[serde(default)]
+    pub items: Vec<ClosedPositionRow>,
+    #[serde(default)]
+    pub next_cursor: Option<String>,
 }
 
 /// `GET /stats/exit-reasons` row (shape not specified in the contract yet → minimal subset).

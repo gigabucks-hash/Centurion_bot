@@ -459,26 +459,28 @@ fn list<T: DeserializeOwned>(v: Value) -> ApiResult<ApiItem<Vec<T>>> {
 /// Most pages one list read follows (100 items each); a longer list is truncated rather than looping forever.
 const MAX_PAGES: usize = 20;
 
+/// Percent-encode one query value (`:`/`+` in an RFC 3339 timestamp must not be read as separators).
+fn pct_encode(s: &str) -> String {
+    s.bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) {
+                (b as char).to_string()
+            } else {
+                format!("%{b:02X}")
+            }
+        })
+        .collect()
+}
+
 /// `path` + `cursor=` (opaque, percent-encoded).
 fn with_cursor(path: &str, cursor: Option<&str>) -> String {
     match cursor {
         None => path.to_owned(),
-        Some(c) => {
-            let enc: String = c
-                .bytes()
-                .map(|b| {
-                    if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) {
-                        (b as char).to_string()
-                    } else {
-                        format!("%{b:02X}")
-                    }
-                })
-                .collect();
-            format!(
-                "{path}{}cursor={enc}",
-                if path.contains('?') { '&' } else { '?' }
-            )
-        }
+        Some(c) => format!(
+            "{path}{}cursor={}",
+            if path.contains('?') { '&' } else { '?' },
+            pct_encode(c)
+        ),
     }
 }
 
@@ -841,24 +843,38 @@ impl Transport for HttpTransport {
         decode(v["data"].clone())
     }
 
-    async fn closed_positions(&self, window: &str) -> ApiResult<Vec<ClosedPositionRow>> {
-        let w = if ["1h", "24h", "7d", "30d", "all"].contains(&window) {
-            window
+    async fn closed_positions(&self, q: ClosedQuery) -> ApiResult<ClosedPage> {
+        let limit = q.limit.clamp(1, 100);
+        // F4: absolute `from`/`to` beat `window`; both are echoed back from the first page and never
+        // recomputed here. `window` remains the fallback for a caller that has no pinned range.
+        let mut path = String::from("/positions?mode=practice&state=closed");
+        if q.from.is_some() || q.to.is_some() {
+            if let Some(f) = q.from.as_deref() {
+                path.push_str(&format!("&from={}", pct_encode(f)));
+            }
+            if let Some(t) = q.to.as_deref() {
+                path.push_str(&format!("&to={}", pct_encode(t)));
+            }
         } else {
-            "7d"
-        };
-        // One page is the report's ledger (100 rows); the report never sums these rows for realized.
-        let (_, _, v) = self
-            .raw(
-                Method::GET,
-                &self.p(&format!(
-                    "/positions?mode=practice&state=closed&window={w}&limit=100"
-                )),
-                None,
-                &[],
-            )
-            .await?;
-        decode(v.get("items").cloned().unwrap_or(Value::Array(vec![])))
+            let w =
+                if ["1h", "24h", "7d", "30d", "all"].contains(&q.window.as_deref().unwrap_or("")) {
+                    q.window.as_deref().unwrap_or("7d")
+                } else {
+                    "7d"
+                };
+            path.push_str(&format!("&window={w}"));
+        }
+        path.push_str(&format!("&limit={limit}"));
+        let path = with_cursor(&path, q.cursor.as_deref());
+        let (_, _, v) = self.raw(Method::GET, &self.p(&path), None, &[]).await?;
+        let items: Vec<ClosedPositionRow> =
+            decode(v.get("items").cloned().unwrap_or(Value::Array(vec![])))?;
+        let next_cursor = v
+            .get("next_cursor")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned);
+        Ok(ClosedPage { items, next_cursor })
     }
 }
 

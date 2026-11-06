@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { X as XGlyph } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, X as XGlyph } from "lucide-react";
 import { core, type ClosedTradeView, type PnlReportView, type PnlWindow } from "../api";
 import { errorText, localTime, LOCALES, pnlLamports, pnlPercent, pnlText, solText, TONE_CLASS, useLang, useT } from "../i18n";
 import { useHotkeys } from "../hooks/useHotkeys";
@@ -7,7 +7,21 @@ import { useTerm } from "../state/store";
 import { CoinAvatar } from "./CoinAvatar";
 import { Icon } from "./Icon";
 import { shortMint } from "./format";
-import { PNL_RANGES, entryExitText, pnlReconciles, pnlTotal, sortClosed, type PnlSortKey, type SortDir } from "./pnlReportView";
+import {
+  PNL_RANGES,
+  entryExitText,
+  entryExitTimeText,
+  pnlPageArgs,
+  pnlReconciles,
+  pnlTotal,
+  receiptPct,
+  receiptPrice,
+  receiptSol,
+  sortClosed,
+  wibDateTimeText,
+  type PnlSortKey,
+  type SortDir,
+} from "./pnlReportView";
 
 /** Realized PnL is locked at close; unrealized still follows the mark. Server numbers only. */
 function holdText(seconds: number | null, t: ReturnType<typeof useT>) {
@@ -24,8 +38,11 @@ function holdText(seconds: number | null, t: ReturnType<typeof useT>) {
  * closed-trade ledger. The numbers come from `/stats/pnl` + `/positions?state=closed`; the client
  * never re-adds rows to invent realized. The all-time equation is shown so the range figure and the
  * ledger can legitimately differ (partial take-profits, closes outside the range).
+ *
+ * A closed row opens the receipt drill-down (UX `receipt-and-discovery` A3): the dialog body is
+ * replaced, `Esc` goes back to the ledger, and every value is server-reported (no local PnL math).
  */
-export function PnlReportDialog({ onClose }: { onClose: () => void }) {
+export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; onViewBot?: (strategyId: string) => void }) {
   const t = useT();
   const lang = useLang();
   const st = useTerm();
@@ -35,13 +52,24 @@ export function PnlReportDialog({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: PnlSortKey; dir: SortDir }>({ key: "closed", dir: "desc" });
-  useHotkeys({ escape: onClose });
+  const [selected, setSelected] = useState<ClosedTradeView | null>(null);
+  const [more, setMore] = useState(false);
+  const [pageErr, setPageErr] = useState<string | null>(null);
+  const ledgerRef = useRef<HTMLDivElement | null>(null);
+  const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+  const restore = useRef<{ key: string; scroll: number } | null>(null);
+
+  const back = () => setSelected(null);
+  useHotkeys({ escape: () => (selected ? back() : onClose()) });
 
   useEffect(() => {
     let live = true;
     setLoading(true);
     setError(null);
     setData(null);
+    setSelected(null);
+    setPageErr(null);
+    restore.current = null;
     core
       .pnlReport(range)
       .then((d) => {
@@ -58,6 +86,17 @@ export function PnlReportDialog({ onClose }: { onClose: () => void }) {
       live = false;
     };
   }, [range, lang]);
+
+  // Returning from the receipt restores the ledger's scroll offset and keyboard focus (A3).
+  useEffect(() => {
+    if (selected != null || !restore.current) return;
+    const { key, scroll } = restore.current;
+    restore.current = null;
+    requestAnimationFrame(() => {
+      if (ledgerRef.current) ledgerRef.current.scrollTop = scroll;
+      rowRefs.current.get(key)?.focus();
+    });
+  }, [selected]);
 
   // Closed rows carry the mint only; resolve the symbol from anything this session already knows.
   const symbols = useMemo(() => {
@@ -79,10 +118,14 @@ export function PnlReportDialog({ onClose }: { onClose: () => void }) {
     if (pct == null) return "—";
     return new Intl.NumberFormat(LOCALES[lang], { style: "percent", maximumFractionDigits: 1 }).format(pct / 100);
   };
-  const reason = (r: string) => {
-    const key = `exit_reason.${r}`;
+  // Null/unknown exit reasons show the localized Closed, never a raw enum or snake_case (A8).
+  const reason = (r: string | null) =>
+    r == null ? t("pnl.closed") : t(`exit_reason.${r}`, undefined, "pnl.closed");
+  const why = (r: string | null) => {
+    if (r == null) return null;
+    const key = `pnl.receipt.why.${r}`;
     const copy = t(key);
-    return copy === key ? r : copy;
+    return copy === key ? null : copy;
   };
   const money = (raw: string | null | undefined) => pnlText(pnlLamports(raw, lang, paper));
   const moneyTone = (raw: string | null | undefined) => {
@@ -97,6 +140,29 @@ export function PnlReportDialog({ onClose }: { onClose: () => void }) {
   const sum = data?.summary;
   const mode = sum?.mode ?? (paper ? "practice" : "real");
   const rangeLabel = t(`pnl.report.range.${range}`);
+  const rowKey = (r: ClosedTradeView) => `${r.id}:${r.closed_at ?? r.position_key}`;
+  const symOf = (r: ClosedTradeView) => symbols.get(r.mint) ?? shortMint(r.mint);
+  const openReceipt = (r: ClosedTradeView) => {
+    restore.current = { key: rowKey(r), scroll: ledgerRef.current?.scrollTop ?? 0 };
+    setSelected(r);
+  };
+  const loadMore = async () => {
+    if (!sum || !data?.next_cursor) return;
+    setMore(true);
+    setPageErr(null);
+    try {
+      // F4: absolute `from`/`to` from the first page; never a recomputed relative window.
+      const page = await core.pnlReportPage(pnlPageArgs(sum, data.next_cursor));
+      setData((d) =>
+        d ? { ...d, closed: [...d.closed, ...page.items], next_cursor: page.next_cursor } : d,
+      );
+    } catch (e) {
+      setPageErr(errorText(e, lang));
+    } finally {
+      setMore(false);
+    }
+  };
+
   const cell = (key: string, label: string, value: string, hint: string | null, tone = "") => (
     <div className="pnl-report-cell" data-cell={key} key={key}>
       <span className="pnl-k">{label}</span>
@@ -117,149 +183,260 @@ export function PnlReportDialog({ onClose }: { onClose: () => void }) {
     </th>
   );
 
-  return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t("pnl.report.title")} data-testid="pnl-report-dialog">
-      <div className="modal pnl-modal">
-        <header className="pnl-head">
-          <h3>
-            {t("pnl.report.title")}{" "}
-            <span className="chip">{t(mode === "practice" ? "mode.practice.label" : "mode.real.label")}</span>
-            {mode === "practice" && sum?.practice_epoch != null && (
-              <span className="chip" data-testid="pnl-epoch">{t("pnl.report.epoch", { epoch: sum.practice_epoch })}</span>
+  const receipt = selected ? (
+    (() => {
+      const sym = symOf(selected);
+      const entry = receiptSol(selected.sol_in_lamports, LOCALES[lang]);
+      const out = receiptSol(selected.sol_out_lamports, LOCALES[lang]);
+      const fees = receiptSol(selected.fees_lamports, LOCALES[lang]);
+      const pnl = receiptSol(selected.pnl_lamports, LOCALES[lang]);
+      const pct = receiptPct(selected.pnl_pct, LOCALES[lang]);
+      const pnlTone = moneyTone(selected.pnl_lamports);
+      const pctTone = selected.pnl_pct == null ? "muted" : selected.pnl_pct > 0 ? "pos" : selected.pnl_pct < 0 ? "neg" : "";
+      const close = wibDateTimeText(selected.closed_at, LOCALES[lang]);
+      const knownBot = selected.strategy_id != null && bots.has(selected.strategy_id);
+      const unit = paper ? "paper SOL" : "SOL";
+      const explain = why(selected.exit_reason);
+      return (
+        <div className="pnl-receipt" data-testid="pnl-receipt">
+          <section className="pnl-receipt-id">
+            <CoinAvatar mint={selected.mint} symbol={sym} logoHash={selected.logo_hash} size={32} />
+            <div className="pnl-receipt-idtext">
+              <b>${sym}</b>
+              <div className="row" style={{ gap: 6 }}>
+                <span className="chip">{t("pnl.closed")}</span>
+                <span className="dim" aria-label={t("pnl.receipt.closed_at", { time: close.replace(/ WIB$/, "") })}>{close}</span>
+              </div>
+              <div className="dim">{t("pnl.receipt.bot")}: {botText(selected.strategy_id)}</div>
+            </div>
+          </section>
+
+          <section className="pnl-receipt-hero">
+            <span className="pnl-k">{t("pnl.realized")}</span>
+            <span className={`num pnl-receipt-value ${pnlTone}`}>{pnl}</span>
+            <span className={`num pnl-receipt-pct ${pctTone}`}>{pct}</span>
+            <span className="dim pnl-receipt-hint">{t("pnl.realized_hint")}</span>
+          </section>
+
+          <section className="pnl-receipt-grid">
+            <div><span className="pnl-k">{t("pnl.receipt.sol_in")}</span><span className="num">{entry}</span></div>
+            <div><span className="pnl-k">{t("pnl.receipt.sol_out")}</span><span className="num">{out}</span></div>
+            <div><span className="pnl-k" title={t("pnl.receipt.fees_hint")}>{t("pnl.receipt.fees")}</span><span className="num">{fees}</span></div>
+            <div><span className="pnl-k">{t("pnl.receipt.hold")}</span><span className="num">{holdText(selected.hold_seconds, t)}</span></div>
+          </section>
+
+          <section className="pnl-receipt-line">
+            <span className="pnl-k">{t("pnl.receipt.entry_exit")}</span>
+            <span className="num">{receiptPrice(selected.avg_entry_price_sol, selected.exit_price_sol, LOCALES[lang])}</span>
+            <span className="num muted">{entryExitTimeText(selected.opened_at, selected.closed_at, LOCALES[lang])}</span>
+          </section>
+
+          <section className="pnl-receipt-reason" data-testid="pnl-receipt-reason">
+            <b>{reason(selected.exit_reason)}</b>
+            {explain && <span className="dim">{explain}</span>}
+          </section>
+
+          <div className="pnl-receipt-unit dim">{t("pnl.receipt.units", { unit })}</div>
+          <div className="pnl-receipt-prov dim">{t("pnl.receipt.provenance")}</div>
+          <div className="pnl-receipt-actions">
+            {knownBot && onViewBot && (
+              <button className="sm" onClick={() => onViewBot(selected.strategy_id!)}>
+                {t("pnl.receipt.view_bot")}
+              </button>
             )}
-          </h3>
-          <button className="ghost icon-btn" autoFocus onClick={onClose} aria-label={t("pnl.report.close")} title={t("pnl.report.close")}>
+          </div>
+        </div>
+      );
+    })()
+  ) : null;
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={t(selected ? "pnl.receipt.title" : "pnl.report.title")} data-testid="pnl-report-dialog">
+      <div className={`modal pnl-modal${selected ? " pnl-modal-receipt" : ""}`}>
+        <header className="pnl-head">
+          {selected ? (
+            <div className="pnl-receipt-head">
+              <button className="ghost sm pnl-back" onClick={back} aria-label={t("pnl.receipt.back")} title={t("pnl.receipt.back")}>
+                <Icon glyph={ArrowLeft} size={16} /> {t("pnl.receipt.title")}
+              </button>
+              <span className="pnl-receipt-sym">${symOf(selected)}</span>
+            </div>
+          ) : (
+            <h3>
+              {t("pnl.report.title")}{" "}
+              <span className="chip">{t(mode === "practice" ? "mode.practice.label" : "mode.real.label")}</span>
+              {mode === "practice" && sum?.practice_epoch != null && (
+                <span className="chip" data-testid="pnl-epoch">{t("pnl.report.epoch", { epoch: sum.practice_epoch })}</span>
+              )}
+            </h3>
+          )}
+          <button className="ghost icon-btn" onClick={onClose} aria-label={t("pnl.report.close")} title={t("pnl.report.close")} autoFocus={!selected}>
             <Icon glyph={XGlyph} size={18} />
           </button>
         </header>
 
-        <div className="seg pnl-ranges" role="tablist" aria-label={t("pnl.report.range")}>
-          {PNL_RANGES.map((r) => (
-            <button key={r} role="tab" aria-selected={range === r} className={`sm${range === r ? " on" : ""}`} onClick={() => setRange(r)}>
-              {t(`pnl.report.range.${r}`)}
-            </button>
-          ))}
-        </div>
+        {!selected && (
+          <div className="seg pnl-ranges" role="tablist" aria-label={t("pnl.report.range")}>
+            {PNL_RANGES.map((r) => (
+              <button key={r} role="tab" aria-selected={range === r} className={`sm${range === r ? " on" : ""}`} onClick={() => setRange(r)}>
+                {t(`pnl.report.range.${r}`)}
+              </button>
+            ))}
+          </div>
+        )}
 
         {error ? (
           <div className="pnl-state neg" role="alert">{error}</div>
         ) : loading && !data ? (
           <div className="pnl-state muted" role="status">{t("pnl.report.loading")}</div>
         ) : data && sum ? (
-          <div className="pnl-body">
-            <div className="pnl-summary" data-testid="pnl-summary">
-              {cell(
-                "unrealized",
-                t("pnl.report.unrealized"),
-                money(sum.unrealized_pnl_lamports),
-                t("pnl.report.open_count", { count: st.positions.length }),
-                moneyTone(sum.unrealized_pnl_lamports),
-              )}
-              {cell(
-                "realized-window",
-                t("pnl.report.realized_window", { range: rangeLabel }),
-                money(sum.realized_pnl_window_lamports),
-                t("pnl.report.closed_count", { count: sum.closed_count }),
-                moneyTone(sum.realized_pnl_window_lamports),
-              )}
-              {cell("closed", t("pnl.report.closed"), String(sum.closed_count), sum.closed_count ? t("pnl.report.closed_wins", { wins: sum.win_count, count: sum.closed_count }) : null)}
-              {cell("win-rate", t("pnl.report.win_rate"), pctText(sum.win_rate_pct), t("pnl.report.closed_count", { count: sum.closed_count }))}
-              {cell("avg-hold", t("pnl.report.avg_hold"), holdText(sum.avg_hold_s, t), rangeLabel)}
-            </div>
+          selected ? (
+            receipt
+          ) : (
+            <div className="pnl-body">
+              <div className="pnl-summary" data-testid="pnl-summary">
+                {cell(
+                  "unrealized",
+                  t("pnl.report.unrealized"),
+                  money(sum.unrealized_pnl_lamports),
+                  t("pnl.report.open_count", { count: st.positions.length }),
+                  moneyTone(sum.unrealized_pnl_lamports),
+                )}
+                {cell(
+                  "realized-window",
+                  t("pnl.report.realized_window", { range: rangeLabel }),
+                  money(sum.realized_pnl_window_lamports),
+                  t("pnl.report.closed_count", { count: sum.closed_count }),
+                  moneyTone(sum.realized_pnl_window_lamports),
+                )}
+                {cell("closed", t("pnl.report.closed"), String(sum.closed_count), sum.closed_count ? t("pnl.report.closed_wins", { wins: sum.win_count, count: sum.closed_count }) : null)}
+                {cell("win-rate", t("pnl.report.win_rate"), pctText(sum.win_rate_pct), t("pnl.report.closed_count", { count: sum.closed_count }))}
+                {cell("avg-hold", t("pnl.report.avg_hold"), holdText(sum.avg_hold_s, t), rangeLabel)}
+              </div>
 
-            <div className="pnl-recon" data-testid="pnl-recon">
-              <span>
-                {t("pnl.report.reconcile", {
-                  unrealized: money(sum.unrealized_pnl_lamports),
-                  realized: money(sum.realized_pnl_lamports),
-                  total: money(pnlTotal(sum)),
-                })}
-              </span>
-              {pnlReconciles(sum) === false && (
-                <span className="neg" role="alert">{t("pnl.report.reconcile_bad")}</span>
-              )}
-              <span className="dim">{t("pnl.report.reconcile_note", { range: rangeLabel })}</span>
-            </div>
-
-            <div className="pnl-meta" data-testid="pnl-report-meta">
-              <span>{t("pnl.report.best")}: <b className={`num ${moneyTone(sum.best_pnl_lamports)}`}>{money(sum.best_pnl_lamports)}</b></span>
-              <span>{t("pnl.report.worst")}: <b className={`num ${moneyTone(sum.worst_pnl_lamports)}`}>{money(sum.worst_pnl_lamports)}</b></span>
-              <span title={t("pnl.report.fees_hint")}>{t("pnl.report.fees_reported")}: <b className="num">{solText(sum.fees_lamports, lang, paper)}</b></span>
-            </div>
-
-            <h4>{t("pnl.report.by_exit")}</h4>
-            {data.exit_stats.length ? (
-              <table className="pnl-table pnl-exits">
-                <thead>
-                  <tr><th>{t("pnl.report.exit_reason")}</th><th>{t("pnl.report.trades")}</th><th className="num">{t("pnl.report.realized_short")}</th><th>{t("pnl.report.win_rate")}</th><th>{t("pnl.report.avg_hold")}</th></tr>
-                </thead>
-                <tbody>
-                  {data.exit_stats.map((x) => {
-                    const p = pnlLamports(x.pnl_lamports, lang, paper);
-                    return (
-                      <tr key={x.exit_reason}>
-                        <td>{reason(x.exit_reason)}</td>
-                        <td className="num">{x.count}</td>
-                        <td className={`num ${p ? TONE_CLASS[p.tone] : "muted"}`}>{pnlText(p)}</td>
-                        <td className="num">{x.win_rate_pct == null ? "—" : pctText(x.win_rate_pct)}</td>
-                        <td className="num">{x.avg_hold_s == null ? "—" : holdText(x.avg_hold_s, t)}</td>
-                      </tr>
-                    );
+              <div className="pnl-recon" data-testid="pnl-recon">
+                <span>
+                  {t("pnl.report.reconcile", {
+                    unrealized: money(sum.unrealized_pnl_lamports),
+                    realized: money(sum.realized_pnl_lamports),
+                    total: money(pnlTotal(sum)),
                   })}
-                </tbody>
-              </table>
-            ) : (
-              <p className="dim">{t("pnl.report.no_exits")}</p>
-            )}
+                </span>
+                {pnlReconciles(sum) === false && (
+                  <span className="neg" role="alert">{t("pnl.report.reconcile_bad")}</span>
+                )}
+                <span className="dim">{t("pnl.report.reconcile_note", { range: rangeLabel })}</span>
+              </div>
 
-            <h4>{t("pnl.report.closed_trades")} <span className="dim num">{sum.closed_count}{data.closed.length < sum.closed_count ? "+" : ""}</span> <span className="dim pnl-ledger-hint">{t("pnl.report.ledger_hint")}</span></h4>
-            {rows.length ? (
-              <div className="pnl-ledger" data-testid="pnl-ledger">
-                <table className="pnl-table pnl-closed">
+              <div className="pnl-meta" data-testid="pnl-report-meta">
+                <span>{t("pnl.report.best")}: <b className={`num ${moneyTone(sum.best_pnl_lamports)}`}>{money(sum.best_pnl_lamports)}</b></span>
+                <span>{t("pnl.report.worst")}: <b className={`num ${moneyTone(sum.worst_pnl_lamports)}`}>{money(sum.worst_pnl_lamports)}</b></span>
+                <span title={t("pnl.report.fees_hint")}>{t("pnl.report.fees_reported")}: <b className="num">{solText(sum.fees_lamports, lang, paper)}</b></span>
+              </div>
+
+              <h4>{t("pnl.report.by_exit")}</h4>
+              {data.exit_stats.length ? (
+                <table className="pnl-table pnl-exits">
                   <thead>
-                    <tr>
-                      <th>{t("pnl.report.coin")}</th>
-                      {th("pnl", t("pnl.report.realized_short"))}
-                      {th("pct", "%")}
-                      <th className="num">{t("pnl.report.sol_in")}</th>
-                      <th className="num">{t("pnl.report.sol_out")}</th>
-                      <th className="num" title={t("pnl.report.fees_hint")}>{t("pnl.report.fees_reported")}</th>
-                      <th>{t("pnl.report.bot")}</th>
-                      <th>{t("pnl.report.exit_reason")}</th>
-                      {th("closed", t("pnl.report.entry_exit"))}
-                      {th("hold", t("pnl.report.hold"))}
-                    </tr>
+                    <tr><th>{t("pnl.report.exit_reason")}</th><th>{t("pnl.report.trades")}</th><th className="num">{t("pnl.report.realized_short")}</th><th>{t("pnl.report.win_rate")}</th><th>{t("pnl.report.avg_hold")}</th></tr>
                   </thead>
                   <tbody>
-                    {rows.map((r: ClosedTradeView) => {
-                      const sym = symbols.get(r.mint) ?? shortMint(r.mint);
-                      const p = pnlLamports(r.pnl_lamports, lang, paper);
-                      const pct = pnlPercent(r.pnl_pct, lang);
+                    {data.exit_stats.map((x) => {
+                      const p = pnlLamports(x.pnl_lamports, lang, paper);
                       return (
-                        <tr key={`${r.id}:${r.closed_at ?? r.position_key}`} data-row="closed-trade" data-mint={r.mint}>
-                          <td><span className="coin-sym" title={r.mint}><CoinAvatar mint={r.mint} symbol={sym} logoHash={r.logo_hash} size={20} /><b>${sym}</b></span></td>
-                          <td className={`num ${p ? TONE_CLASS[p.tone] : "muted"}`}>{p ? pnlText(p) : "—"}</td>
-                          <td className={`num ${pct ? TONE_CLASS[pct.tone] : "muted"}`}>{pct ? pnlText(pct) : "—"}</td>
-                          <td className="num">{r.sol_in_lamports == null ? "—" : solText(r.sol_in_lamports, lang, paper)}</td>
-                          <td className="num">{r.sol_out_lamports == null ? "—" : solText(r.sol_out_lamports, lang, paper)}</td>
-                          <td className="num" title={t("pnl.report.fees_hint")}>{r.fees_lamports == null ? "—" : solText(r.fees_lamports, lang, paper)}</td>
-                          <td className="col-bot" title={r.strategy_id ?? undefined}><span className="bot-name">{botText(r.strategy_id)}</span></td>
-                          <td>{r.exit_reason ? reason(r.exit_reason) : "—"}</td>
-                          <td className="num muted" title={r.closed_at ? localTime(r.closed_at, lang) : undefined} data-entry-exit>{entryExitText(r.opened_at, r.closed_at, LOCALES[lang])}</td>
-                          <td className="num muted">{holdText(r.hold_seconds, t)}</td>
+                        <tr key={x.exit_reason}>
+                          <td>{reason(x.exit_reason)}</td>
+                          <td className="num">{x.count}</td>
+                          <td className={`num ${p ? TONE_CLASS[p.tone] : "muted"}`}>{pnlText(p)}</td>
+                          <td className="num">{x.win_rate_pct == null ? "—" : pctText(x.win_rate_pct)}</td>
+                          <td className="num">{x.avg_hold_s == null ? "—" : holdText(x.avg_hold_s, t)}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
-              </div>
-            ) : (
-              <div className="pnl-empty">
-                <b>{t("pnl.report.empty.title")}</b>
-                <span className="dim">{t("pnl.report.empty.body")}</span>
-              </div>
-            )}
-          </div>
+              ) : (
+                <p className="dim">{t("pnl.report.no_exits")}</p>
+              )}
+
+              <h4>{t("pnl.report.closed_trades")} <span className="dim num">{sum.closed_count}{data.next_cursor ? "+" : ""}</span> <span className="dim pnl-ledger-hint">{t("pnl.report.ledger_hint")}</span></h4>
+              {rows.length ? (
+                <>
+                  <div className="pnl-ledger" data-testid="pnl-ledger" ref={ledgerRef}>
+                    <table className="pnl-table pnl-closed">
+                      <thead>
+                        <tr>
+                          <th>{t("pnl.report.coin")}</th>
+                          {th("pnl", t("pnl.report.realized_short"))}
+                          {th("pct", "%")}
+                          <th className="num">{t("pnl.report.sol_in")}</th>
+                          <th className="num">{t("pnl.report.sol_out")}</th>
+                          <th className="num" title={t("pnl.report.fees_hint")}>{t("pnl.report.fees_reported")}</th>
+                          <th>{t("pnl.report.bot")}</th>
+                          <th>{t("pnl.report.exit_reason")}</th>
+                          {th("closed", t("pnl.report.entry_exit"))}
+                          {th("hold", t("pnl.report.hold"))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((r: ClosedTradeView) => {
+                          const sym = symOf(r);
+                          const p = pnlLamports(r.pnl_lamports, lang, paper);
+                          const pct = pnlPercent(r.pnl_pct, lang);
+                          const key = rowKey(r);
+                          return (
+                            <tr
+                              key={key}
+                              tabIndex={0}
+                              role="button"
+                              aria-label={`$${sym} ${t("pnl.receipt.title")}`}
+                              data-row="closed-trade"
+                              data-mint={r.mint}
+                              ref={(el) => {
+                                if (el) rowRefs.current.set(key, el);
+                                else rowRefs.current.delete(key);
+                              }}
+                              onClick={() => openReceipt(r)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  openReceipt(r);
+                                }
+                              }}
+                            >
+                              <td><span className="coin-sym" title={r.mint}><CoinAvatar mint={r.mint} symbol={sym} logoHash={r.logo_hash} size={20} /><b>${sym}</b></span></td>
+                              <td className={`num ${p ? TONE_CLASS[p.tone] : "muted"}`}>{p ? pnlText(p) : "—"}</td>
+                              <td className={`num ${pct ? TONE_CLASS[pct.tone] : "muted"}`}>{pct ? pnlText(pct) : "—"}</td>
+                              <td className="num">{r.sol_in_lamports == null ? "—" : solText(r.sol_in_lamports, lang, paper)}</td>
+                              <td className="num">{r.sol_out_lamports == null ? "—" : solText(r.sol_out_lamports, lang, paper)}</td>
+                              <td className="num" title={t("pnl.report.fees_hint")}>{r.fees_lamports == null ? "—" : solText(r.fees_lamports, lang, paper)}</td>
+                              <td className="col-bot" title={r.strategy_id ?? undefined}><span className="bot-name">{botText(r.strategy_id)}</span></td>
+                              <td>{reason(r.exit_reason)}</td>
+                              <td className="num muted" title={r.closed_at ? localTime(r.closed_at, lang) : undefined} data-entry-exit>{entryExitText(r.opened_at, r.closed_at, LOCALES[lang])}</td>
+                              <td className="num muted">{holdText(r.hold_seconds, t)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {data.next_cursor && (
+                    <div className="pnl-more">
+                      <button className="sm" disabled={more} onClick={loadMore}>
+                        {more ? t("pnl.report.loading_more") : t("pnl.report.load_more")}
+                      </button>
+                    </div>
+                  )}
+                  {pageErr && <div className="neg" role="alert">{pageErr}</div>}
+                </>
+              ) : (
+                <div className="pnl-empty">
+                  <b>{t("pnl.report.empty.title")}</b>
+                  <span className="dim">{t("pnl.report.empty.body")}</span>
+                </div>
+              )}
+            </div>
+          )
         ) : null}
       </div>
     </div>

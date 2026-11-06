@@ -29,7 +29,18 @@ export function TerminalView() {
   const st = useTerm();
   const [quote, setQuote] = useState<SellQuote | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsFocus, setSettingsFocus] = useState<string | null>(null);
   const [pnlOpen, setPnlOpen] = useState(false);
+  // Receipt → View bot: close the PnL drill-down, open Settings scrolled to that strategy row.
+  const viewBot = (strategyId: string) => {
+    setPnlOpen(false);
+    setSettingsFocus(strategyId);
+    setSettingsOpen(true);
+  };
+  const openSettings = () => {
+    setSettingsFocus(null);
+    setSettingsOpen(true);
+  };
   const [realApprove, setRealApprove] = useState<PickView | null>(null);
   // Quick-look (C2 decided): which kind of row it shows; content stays live from the store.
   const [ql, setQl] = useState<{ kind: "signal" | "position"; mint: string } | null>(null);
@@ -163,7 +174,7 @@ export function TerminalView() {
       "shift+x": () => sell(cursorPos),
       l: () => run(() => core.openActivityWindow()),
       p: () => (popupSupported ? run(() => core.openApprovalWindow()) : setErr(POPUP_DISABLED_REASON)),
-      ",": () => setSettingsOpen(true),
+      ",": () => openSettings(),
       c: () => setCenter((x) => (x === "coins" ? "chart" : "coins")),
       r: () => setPnlOpen(true),
     },
@@ -179,7 +190,7 @@ export function TerminalView() {
         <span style={{ marginLeft: "auto" }} className="dim">
           <kbd>J/K</kbd> nav <kbd>A</kbd> approve <kbd>S</kbd> skip <kbd>X</kbd> pilih <kbd>⇧A</kbd> approve terpilih <kbd>⇧X</kbd> sell <kbd>Space</kbd> quick-look <kbd>↵</kbd> chart <kbd>L</kbd> feed <kbd>C</kbd> koin <kbd>P</kbd> popup
         </span>
-        <button className="ghost" onClick={() => setSettingsOpen(true)}><Icon glyph={SettingsGlyph} size={16} /> Settings<kbd>,</kbd></button>
+        <button className="ghost" onClick={openSettings}><Icon glyph={SettingsGlyph} size={16} /> Settings<kbd>,</kbd></button>
       </ModeChrome>
       <div className="grid">
         <section className="panel area-queue">
@@ -281,8 +292,8 @@ export function TerminalView() {
           }}
         />
       )}
-      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
-      {pnlOpen && <PnlReportDialog onClose={() => setPnlOpen(false)} />}
+      {settingsOpen && <SettingsDialog onClose={() => { setSettingsOpen(false); setSettingsFocus(null); }} focusStrategyId={settingsFocus} />}
+      {pnlOpen && <PnlReportDialog onClose={() => setPnlOpen(false)} onViewBot={viewBot} />}
     </div>
   );
 }

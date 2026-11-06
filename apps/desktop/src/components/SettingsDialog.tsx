@@ -1,5 +1,5 @@
 import { popupSupported, POPUP_DISABLED_REASON } from "./platform";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Settings as SettingsGlyph } from "lucide-react";
 import { core, type PatchOutcome, type Settings } from "../api";
 import { useTerm } from "../state/store";
@@ -65,10 +65,17 @@ function StrategyMode({ s }: { s: StrategyView }) {
  * if another device changed it meanwhile the backend answers 409 → conflict toast + this list
  * refreshes from the server's `current` resource, and the user can retry on the new rev.
  */
-function StrategiesSection() {
+function StrategiesSection({ focusStrategyId }: { focusStrategyId?: string | null }) {
   const strategies = useTerm((s) => s.strategies);
   const t = useT();
   const lang = useLang();
+  const focusRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!focusStrategyId || !focusRef.current) return;
+    // `View bot` from a receipt lands here: scroll the row into view and focus it, never a write.
+    focusRef.current.scrollIntoView({ block: "center" });
+    focusRef.current.focus();
+  }, [focusStrategyId, strategies.length]);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const toggle = async (id: string, paused: boolean, rev: number) => {
@@ -105,7 +112,13 @@ function StrategiesSection() {
       <div className="muted">{t("strategy.list.title")} · {t("strategy.mode.paper")}</div>
       <div className="dim" style={{ fontSize: "var(--d-small)" }}>{t("strategy.mode.scope_note")} {t("strategy.approval.hold_note")}</div>
       {strategies.map((s) => (
-        <div className="toggle-row" key={s.id}>
+        <div
+          className="toggle-row"
+          key={s.id}
+          data-strategy-id={s.id}
+          tabIndex={s.id === focusStrategyId ? -1 : undefined}
+          ref={s.id === focusStrategyId ? focusRef : undefined}
+        >
           {/* name is server text, rendered as plain text */}
           <span>{s.name} <span className="dim num">rev {s.rev} · {STATUS_KEY[s.status] ? t(STATUS_KEY[s.status]) : "—"}</span></span>
           <span className="row" style={{ gap: 4 }}>
@@ -195,7 +208,7 @@ function PracticeResetSection() {
 }
 
 /** Desktop settings: theme, density, opt-in approval popup, global shortcuts (open-only, never trade). */
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsDialog({ onClose, focusStrategyId }: { onClose: () => void; focusStrategyId?: string | null }) {
   const current = useTerm((s) => s.settings);
   const setSettings = useTerm((s) => s.setSettings);
   const [cfg, setCfg] = useState<Settings>(current);
@@ -269,7 +282,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         <div className="dim" style={{ marginTop: 8, fontSize: "var(--d-small)" }}>
           Global shortcut hanya membuka UI — tidak pernah approve, skip, atau sell langsung.
         </div>
-        <StrategiesSection />
+        <StrategiesSection focusStrategyId={focusStrategyId} />
         <SessionSection />
         <PracticeResetSection />
         {err && <div className="neg" style={{ marginTop: 8 }}>{err}</div>}

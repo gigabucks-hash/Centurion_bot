@@ -77,6 +77,35 @@ const closedTrades: ClosedTradeView[] = [];
 let epoch = 1;
 const quotes = new Map<string, SellQuote>();
 
+const PNL_SPAN: Record<PnlWindow, number | null> = { "24h": 86_400_000, "7d": 7 * 86_400_000, "30d": 30 * 86_400_000, all: null };
+const PAGE_SIZE = 50;
+
+/** Rows inside a frozen absolute range; without one, fall back to the relative window. */
+function closedRows(window: PnlWindow, from: string | null, to: string | null): ClosedTradeView[] {
+  const f = from ? Date.parse(from) : PNL_SPAN[window] == null ? null : Date.now() - PNL_SPAN[window]!;
+  const t = to ? Date.parse(to) : null;
+  return closedTrades.filter((x) => {
+    const ts = Date.parse(x.closed_at ?? "");
+    if (!Number.isFinite(ts)) return false;
+    return (f == null || ts >= f) && (t == null || ts <= t);
+  });
+}
+
+function sortByClose(rows: ClosedTradeView[]): ClosedTradeView[] {
+  return rows
+    .slice()
+    .sort((a, b) => (Date.parse(b.closed_at ?? "0") - Date.parse(a.closed_at ?? "0")) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
+}
+
+/** Index cursor (`m:<offset>`): good enough for the browser preview; Tauri uses a real keyset cursor. */
+function closedPage(window: PnlWindow, from: string | null, to: string | null, cursor: string | null) {
+  const rows = sortByClose(closedRows(window, from, to));
+  const start = cursor?.startsWith("m:") ? Math.max(0, Number(cursor.slice(2)) || 0) : 0;
+  const items = rows.slice(start, start + PAGE_SIZE);
+  const next_cursor = start + PAGE_SIZE < rows.length ? `m:${start + PAGE_SIZE}` : null;
+  return { items, next_cursor };
+}
+
 const fakeMint = () =>
   Array.from({ length: 44 }, () => "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"[Math.floor(Math.random() * 58)]).join("");
 
@@ -369,6 +398,8 @@ export const browserMockAdapter: CoreApi = {
         sol_in_lamports: pos.cost_lamports,
         sol_out_lamports: q.est_sol_out_lamports,
         fees_lamports: fees.toString(),
+        avg_entry_price_sol: pos.entry_price_sol,
+        exit_price_sol: pos.last_price_sol,
         pnl_lamports: pnl.toString(),
         pnl_pct: pct,
         hold_seconds: Math.max(0, Math.round((Date.now() - pos.opened_at_ms) / 1000)),
@@ -454,7 +485,11 @@ export const browserMockAdapter: CoreApi = {
     const span: Record<PnlWindow, number | null> = { "24h": 86_400_000, "7d": 7 * 86_400_000, "30d": 30 * 86_400_000, all: null };
     const back = span[window];
     const now = Date.now();
-    const rows = closedTrades.filter((t) => back == null || Date.parse(t.closed_at ?? "") >= now - back);
+    // F4: freeze the absolute boundary once; later pages reuse it instead of recomputing "now − 7d".
+    const from = back == null ? null : new Date(now - back).toISOString();
+    const to = null;
+    const rows = closedRows(window, from, to);
+    const page = closedPage(window, from, to, null);
     // Mock rows are always complete; the guard keeps a legacy/null row out of the aggregates only.
     const statsRows = rows.filter(
       (t): t is ClosedTradeView & { pnl_lamports: string; exit_reason: ExitReason; hold_seconds: number } =>
@@ -498,6 +533,8 @@ export const browserMockAdapter: CoreApi = {
         mode: MOCK_MODE,
         practice_epoch: epoch,
         window,
+        from,
+        to,
         unrealized_pnl_lamports: acct.unrealized_pnl_lamports,
         realized_pnl_lamports: acct.realized_pnl_lamports,
         total_pnl_lamports:
@@ -513,9 +550,13 @@ export const browserMockAdapter: CoreApi = {
         best_pnl_lamports: best?.toString() ?? null,
         worst_pnl_lamports: worst?.toString() ?? null,
       },
-      closed: rows,
+      closed: page.items,
+      next_cursor: page.next_cursor,
       exit_stats,
     };
+  },
+  async pnlReportPage({ window, from, to, cursor }) {
+    return closedPage(window ?? "all", from, to, cursor);
   },
   async openChartWindow(mint) {
     window.open(`${location.pathname}#/chart?mint=${mint}`, "_blank", "width=900,height=560");

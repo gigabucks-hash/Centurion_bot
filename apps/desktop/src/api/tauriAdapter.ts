@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { AuthView, StopResult, CandleView, CoreApi, PatchOutcome, ExitReasonStatView, PnlReportView, PnlWindow, SellQuote, Settings, Snapshot, StrategyView, TimelineItem } from "./contract";
+import type { AuthView, StopResult, CandleView, ClosedPageView, CoreApi, PatchOutcome, ExitReasonStatView, PnlReportView, PnlWindow, SellQuote, Settings, Snapshot, StrategyView, TimelineItem } from "./contract";
 
 /** Thin typed wrapper over Tauri IPC. Commands use snake_case args (`#[tauri::command(rename_all = "snake_case")]`). */
 export const tauriAdapter: CoreApi = {
@@ -17,6 +17,7 @@ export const tauriAdapter: CoreApi = {
   coinTimeline: (mint) => invoke<TimelineItem[]>("get_coin_timeline", { mint }),
   exitReasonStats: () => invoke<ExitReasonStatView[]>("get_exit_reason_stats"),
   pnlReport: (window: PnlWindow) => invoke<PnlReportView>("get_pnl_report", { window }),
+  pnlReportPage: ({ window, from, to, cursor }) => invoke<ClosedPageView>("get_pnl_page", { window, from, to, cursor }),
   openChartWindow: (mint) => invoke<void>("open_chart_window", { mint }),
   openActivityWindow: () => invoke<void>("open_activity_window"),
   openApprovalWindow: () => invoke<void>("open_approval_window"),

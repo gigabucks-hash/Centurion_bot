@@ -510,8 +510,10 @@ pub async fn get_exit_reason_stats(
         .collect())
 }
 
-/// PnL report (0022): `/stats/pnl` + closed ledger + per-exit-reason stats in one IPC call.
+/// PnL report (0022): `/stats/pnl` + first closed-ledger page + per-exit-reason stats in one IPC call.
 /// The window is validated here; an unknown value falls back to the API default (`7d`).
+/// F4: the server's absolute `from`/`to` are pinned here and echoed to the UI; `get_pnl_page`
+/// reuses them instead of rebuilding a relative window.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn get_pnl_report(
     state: State<'_, AppState>,
@@ -523,13 +525,26 @@ pub async fn get_pnl_report(
         "7d".to_owned()
     };
     let summary = state.transport.pnl_summary(&w).await?;
-    let closed = state.transport.closed_positions(&w).await?;
+    let (from, to) = pnl_range(&w, &summary);
+    let cursor = None;
+    let page = state
+        .transport
+        .closed_positions(ClosedQuery {
+            window: (from.is_none() && to.is_none()).then_some(w.clone()),
+            from: from.as_ref().map(|x| x.0.clone()),
+            to: to.as_ref().map(|x| x.0.clone()),
+            cursor,
+            limit: PNL_PAGE_SIZE,
+        })
+        .await?;
     let stats = state.transport.exit_reason_stats(&w).await?;
     Ok(PnlReportView {
         summary: PnlSummaryView {
             mode: summary.mode,
             practice_epoch: summary.practice_epoch,
             window: summary.window,
+            from,
+            to,
             unrealized_pnl_lamports: summary.unrealized_pnl_lamports,
             realized_pnl_lamports: summary.realized_pnl_lamports,
             total_pnl_lamports: summary.total_pnl_lamports,
@@ -542,25 +557,8 @@ pub async fn get_pnl_report(
             best_pnl_lamports: summary.best_pnl_lamports,
             worst_pnl_lamports: summary.worst_pnl_lamports,
         },
-        closed: closed
-            .into_iter()
-            .map(|c| ClosedTradeView {
-                id: c.id,
-                position_key: c.position_key,
-                mint: c.mint,
-                logo_hash: c.logo_hash,
-                strategy_id: c.strategy_id,
-                exit_reason: c.exit_reason,
-                opened_at: c.opened_at,
-                closed_at: c.closed_at,
-                sol_in_lamports: c.sol_in_lamports,
-                sol_out_lamports: c.sol_out_lamports,
-                fees_lamports: c.fees_lamports,
-                pnl_lamports: c.pnl_lamports,
-                pnl_pct: c.pnl_pct,
-                hold_seconds: c.hold_seconds,
-            })
-            .collect(),
+        closed: page.items.into_iter().map(closed_view).collect(),
+        next_cursor: page.next_cursor,
         exit_stats: stats
             .data
             .iter()
@@ -574,6 +572,79 @@ pub async fn get_pnl_report(
                 avg_hold_s: x.avg_hold_s,
             })
             .collect(),
+    })
+}
+
+/// Ledger page size. One page is 50 closes; `next_cursor` drives "Load more".
+const PNL_PAGE_SIZE: usize = 50;
+
+/// F4: absolute bounds for the report. `from` is the server echo; if an old server omits it, derive
+/// it once from the reported `ts` and the requested window. `to` falls back to `ts` so rows added
+/// while the user pages cannot shift the boundary.
+fn pnl_range(window: &str, summary: &PnlSummary) -> (Option<IsoTs>, Option<IsoTs>) {
+    let to = summary.to.clone().or_else(|| summary.ts.clone());
+    let span = match window {
+        "24h" => Some(86_400_000i64),
+        "7d" => Some(7 * 86_400_000),
+        "30d" => Some(30 * 86_400_000),
+        _ => None,
+    };
+    let from = summary
+        .from
+        .clone()
+        .or_else(|| match (span, to.as_ref().and_then(|t| t.ms())) {
+            (Some(d), Some(t)) => Some(IsoTs::from_ms(t - d)),
+            _ => None,
+        });
+    (from, to)
+}
+
+fn closed_view(c: ClosedPositionRow) -> ClosedTradeView {
+    ClosedTradeView {
+        id: c.id,
+        position_key: c.position_key,
+        mint: c.mint,
+        logo_hash: c.logo_hash,
+        strategy_id: c.strategy_id,
+        exit_reason: c.exit_reason,
+        opened_at: c.opened_at,
+        closed_at: c.closed_at,
+        sol_in_lamports: c.sol_in_lamports,
+        sol_out_lamports: c.sol_out_lamports,
+        fees_lamports: c.fees_lamports,
+        avg_entry_price_sol: c.avg_entry_price_sol,
+        exit_price_sol: c.exit_price_sol,
+        pnl_lamports: c.pnl_lamports,
+        pnl_pct: c.pnl_pct,
+        hold_seconds: c.hold_seconds,
+    }
+}
+
+/// Next closed-ledger page. `from`/`to` must be the values echoed by `get_pnl_report`; a relative
+/// `window` is only used when the caller has no pinned range (never recomputed per page).
+#[tauri::command(rename_all = "snake_case")]
+pub async fn get_pnl_page(
+    state: State<'_, AppState>,
+    window: Option<String>,
+    from: Option<String>,
+    to: Option<String>,
+    cursor: Option<String>,
+) -> AppResult<ClosedPageView> {
+    let w = window.filter(|x| ["24h", "7d", "30d", "all"].contains(&x.as_str()));
+    let pinned = from.is_some() || to.is_some();
+    let page = state
+        .transport
+        .closed_positions(ClosedQuery {
+            window: (!pinned).then(|| w.unwrap_or_else(|| "7d".to_owned())),
+            from,
+            to,
+            cursor: cursor.filter(|c| !c.is_empty()),
+            limit: PNL_PAGE_SIZE,
+        })
+        .await?;
+    Ok(ClosedPageView {
+        items: page.items.into_iter().map(closed_view).collect(),
+        next_cursor: page.next_cursor,
     })
 }
 

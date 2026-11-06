@@ -289,6 +289,9 @@ export interface PnlSummaryView {
   /** Practice epoch of the all-time figures (null in Real mode). */
   practice_epoch: number | null;
   window: PnlWindow | null;
+  /** Absolute range the server resolved for this report; reuse for later ledger pages (F4). */
+  from: IsoTs | null;
+  to: IsoTs | null;
   unrealized_pnl_lamports: Lamports | null;
   realized_pnl_lamports: Lamports | null;
   total_pnl_lamports: Lamports | null;
@@ -318,6 +321,9 @@ export interface ClosedTradeView {
   sol_out_lamports: Lamports | null;
   /** Reported context only; never subtracted again (swap fees are already in SOL in/out). */
   fees_lamports: Lamports | null;
+  /** Server-reported prices in SOL; null on a legacy row (never re-derived). */
+  avg_entry_price_sol: DecimalString | null;
+  exit_price_sol: DecimalString | null;
   pnl_lamports: Lamports | null;
   pnl_pct: number | null;
   hold_seconds: number | null;
@@ -326,7 +332,15 @@ export interface ClosedTradeView {
 export interface PnlReportView {
   summary: PnlSummaryView;
   closed: ClosedTradeView[];
+  /** Keyset cursor for the next ledger page (null on the last page). */
+  next_cursor: string | null;
   exit_stats: ExitReasonStatView[];
+}
+
+/** One keyset page of the closed ledger; the range is the frozen `summary.from/to`. */
+export interface ClosedPageView {
+  items: ClosedTradeView[];
+  next_cursor: string | null;
 }
 
 export interface SyncStatus {
@@ -415,6 +429,8 @@ export interface CoreApi {
   exitReasonStats(): Promise<ExitReasonStatView[]>;
   /** One call for the PnL report: summary + exit-reason breakdown + closed-trade ledger. */
   pnlReport(window: PnlWindow): Promise<PnlReportView>;
+  /** Next ledger page; `from`/`to` are the frozen range from the first report, never a recomputed window. */
+  pnlReportPage(args: { window: PnlWindow | null; from: IsoTs | null; to: IsoTs | null; cursor: string }): Promise<ClosedPageView>;
   openChartWindow(mint: string): Promise<void>;
   openActivityWindow(): Promise<void>;
   openApprovalWindow(): Promise<void>;

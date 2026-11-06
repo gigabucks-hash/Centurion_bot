@@ -297,6 +297,8 @@ struct Pos {
     sol_in: i128,
     /// Swap + network fees reported so far ("Fees (reported)"; already inside cost/sol_out).
     fees: i128,
+    /// Server-reported average entry price (fill price at open); the receipt rejects client math.
+    entry_price: Decimal,
     peak: Decimal,
     opened_ms: i64,
     untrusted: Untrusted,
@@ -1279,6 +1281,7 @@ impl Server {
                 cost: BUY_LAMPORTS,
                 sol_in: BUY_LAMPORTS,
                 fees: swap_fee + NETWORK_FEE,
+                entry_price: exec,
                 peak: mark,
                 opened_ms: opened,
                 untrusted: untrusted.clone(),
@@ -1379,7 +1382,7 @@ impl Server {
             let fees_total = p.fees + swap_fee + NETWORK_FEE;
             self.emit("position.closed", actor, key, Some(&sid), Some(&ck), Some(&mint), json!({
                 "position_key": key, "position_id": pos_id, "rev": p.rev + 1, "practice_epoch": epoch, "exit_reason": rule, "exit_price_sol": Dec(exec), "sol_out_lamports": out.to_string(),
-                "sol_in_lamports": p.sol_in.to_string(), "fees_lamports": fees_total.to_string(), "opened_at": IsoTs::from_ms(p.opened_ms),
+                "sol_in_lamports": p.sol_in.to_string(), "avg_entry_price_sol": Dec(p.entry_price), "fees_lamports": fees_total.to_string(), "opened_at": IsoTs::from_ms(p.opened_ms),
                 "pnl_lamports": pnl_total.to_string(), "pnl_pct": pnl_pct, "hold_seconds": (now - p.opened_ms) / 1000}), u);
         } else {
             let p = self.positions.get_mut(key).unwrap();
@@ -2275,8 +2278,8 @@ impl Transport for MockTransport {
             mode: Mode::Practice,
             practice_epoch: Some(s.epoch),
             window: Some(window.to_owned()),
-            from: None,
-            to: None,
+            from: window_ms(window).map(|d| IsoTs::from_ms(now - d)),
+            to: Some(IsoTs::from_ms(now)),
             unrealized_pnl_lamports: Some(Lamports(unrealized)),
             realized_pnl_lamports: Some(Lamports(s.realized)),
             total_pnl_lamports: Some(Lamports(total)),
@@ -2293,13 +2296,34 @@ impl Transport for MockTransport {
         })
     }
 
-    async fn closed_positions(&self, window: &str) -> ApiResult<Vec<ClosedPositionRow>> {
+    async fn closed_positions(&self, q: ClosedQuery) -> ApiResult<ClosedPage> {
         let s = self.inner.lock().unwrap();
         let now = s.now();
+        // F4: absolute bounds win; without them the relative window is resolved once here.
+        let from_ms = q
+            .from
+            .as_deref()
+            .and_then(|f| IsoTs(f.to_owned()).ms())
+            .or_else(|| window_ms(q.window.as_deref().unwrap_or("7d")).map(|d| now - d));
+        let to_ms = q.to.as_deref().and_then(|t| IsoTs(t.to_owned()).ms());
         let mut rows: Vec<ClosedPositionRow> = s
             .log
             .iter()
-            .filter(|e| e.kind == "position.closed" && in_window(now, window, &e.ts))
+            .filter(|e| e.kind == "position.closed")
+            .filter(|e| match e.ts.ms() {
+                Some(t) => {
+                    let in_from = match from_ms {
+                        Some(f) => t >= f,
+                        None => true,
+                    };
+                    let in_to = match to_ms {
+                        Some(to) => t <= to,
+                        None => true,
+                    };
+                    in_from && in_to
+                }
+                None => false,
+            })
             .filter_map(|e| {
                 let c = serde_json::from_value::<PositionClosed>(e.payload.clone()).ok()?;
                 let num = |k: &str| {
@@ -2307,6 +2331,12 @@ impl Transport for MockTransport {
                         .as_str()
                         .and_then(|x| x.parse::<i128>().ok())
                         .map(Lamports)
+                };
+                let dec = |k: &str| {
+                    e.payload[k]
+                        .as_str()
+                        .and_then(|x| Decimal::from_str(x).ok())
+                        .map(Dec)
                 };
                 Some(ClosedPositionRow {
                     id: e.payload["position_id"]
@@ -2323,20 +2353,50 @@ impl Transport for MockTransport {
                     sol_in_lamports: num("sol_in_lamports"),
                     sol_out_lamports: Some(c.sol_out_lamports),
                     fees_lamports: num("fees_lamports"),
+                    avg_entry_price_sol: dec("avg_entry_price_sol"),
+                    exit_price_sol: dec("exit_price_sol").or(Some(c.exit_price_sol)),
                     pnl_lamports: Some(c.pnl_lamports),
                     pnl_pct: c.pnl_pct,
                     hold_seconds: Some(c.hold_seconds),
                 })
             })
             .collect();
+        // Keyset: close time desc, then id desc (stable for tied timestamps).
         rows.sort_by(|a, b| {
             let (am, bm) = (
                 a.closed_at.as_ref().and_then(|x| x.ms()).unwrap_or(0),
                 b.closed_at.as_ref().and_then(|x| x.ms()).unwrap_or(0),
             );
-            bm.cmp(&am)
+            bm.cmp(&am).then_with(|| b.id.cmp(&a.id))
         });
-        Ok(rows)
+        // Cursor is opaque to the UI (`c:<ms>:<id>`); an unparsable one restarts at page 1.
+        let after = q.cursor.as_deref().and_then(|c| {
+            let rest = c.strip_prefix("c:")?;
+            let (ms, id) = rest.split_once(':')?;
+            Some((ms.parse::<i64>().ok()?, id.to_owned()))
+        });
+        if let Some((cms, cid)) = after {
+            rows.retain(|r| {
+                let ms = r.closed_at.as_ref().and_then(|x| x.ms()).unwrap_or(0);
+                ms < cms || (ms == cms && r.id < cid)
+            });
+        }
+        let limit = q.limit.clamp(1, 100);
+        let next_cursor = if rows.len() > limit {
+            rows.truncate(limit);
+            rows.last().and_then(|r| {
+                r.closed_at
+                    .as_ref()
+                    .and_then(|x| x.ms())
+                    .map(|ms| format!("c:{ms}:{}", r.id))
+            })
+        } else {
+            None
+        };
+        Ok(ClosedPage {
+            items: rows,
+            next_cursor,
+        })
     }
 }
 
@@ -2849,6 +2909,7 @@ mod tests {
             cost: 1,
             sol_in: 1,
             fees: 0,
+            entry_price: Decimal::ZERO,
             peak: refp,
             opened_ms: opened,
             untrusted: Untrusted::default(),

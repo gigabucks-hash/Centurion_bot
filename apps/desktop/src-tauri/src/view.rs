@@ -287,6 +287,9 @@ pub struct PnlSummaryView {
     /// Practice epoch the all-time figures belong to (null in Real mode).
     pub practice_epoch: Option<i64>,
     pub window: Option<String>,
+    /// Absolute range the server resolved for this report (F4); later pages reuse it verbatim.
+    pub from: Option<IsoTs>,
+    pub to: Option<IsoTs>,
     pub unrealized_pnl_lamports: Option<Lamports>,
     pub realized_pnl_lamports: Option<Lamports>,
     pub total_pnl_lamports: Option<Lamports>,
@@ -318,6 +321,9 @@ pub struct ClosedTradeView {
     pub sol_out_lamports: Option<Lamports>,
     /// Reported context only; never subtracted again (swap fees are already netted).
     pub fees_lamports: Option<Lamports>,
+    /// Server-reported entry/exit prices in SOL (receipt #12); null on a legacy row.
+    pub avg_entry_price_sol: Option<Dec>,
+    pub exit_price_sol: Option<Dec>,
     /// Frozen at close; null only on a legacy row (never recomputed here).
     pub pnl_lamports: Option<Lamports>,
     pub pnl_pct: Option<Num>,
@@ -329,7 +335,16 @@ pub struct ClosedTradeView {
 pub struct PnlReportView {
     pub summary: PnlSummaryView,
     pub closed: Vec<ClosedTradeView>,
+    /// Keyset cursor for the next ledger page; null on the last page.
+    pub next_cursor: Option<String>,
     pub exit_stats: Vec<ExitReasonStatView>,
+}
+
+/// One page of the closed ledger; the range is the `from`/`to` frozen by the first report.
+#[derive(Debug, Clone, Serialize)]
+pub struct ClosedPageView {
+    pub items: Vec<ClosedTradeView>,
+    pub next_cursor: Option<String>,
 }
 
 /// Strategy list entry (names + `rev` + status) for pause/resume with If-Match.

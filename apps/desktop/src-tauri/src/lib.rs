@@ -125,6 +125,7 @@ pub fn run() {
             commands::get_coin_timeline,
             commands::get_exit_reason_stats,
             commands::get_pnl_report,
+            commands::get_pnl_page,
             commands::stop_trading,
         ])
         .run(tauri::generate_context!())
