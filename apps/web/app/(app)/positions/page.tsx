@@ -3,7 +3,6 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { getApi } from "@/lib/api";
 import { listAllStrategies, modesOf } from "@/lib/mode";
-import { listOpenPositions } from "@/lib/mock/store";
 import { safeSymbol } from "@/lib/untrusted";
 import { PageHeader } from "@/components/ui";
 import { PositionsBoard } from "@/components/positions/PositionsBoard";
@@ -13,10 +12,11 @@ export const metadata: Metadata = { title: "Positions" };
 
 async function Body() {
   await connection();
-  const [all, t] = await Promise.all([listAllStrategies(getApi()), getT()]);
+  const api = getApi();
+  const [all, t] = await Promise.all([listAllStrategies(api), getT()]);
   // Per-strategy mode: every open position of every mode, each row badged; Real rules follow the row's mode.
   const modes = modesOf(all);
-  const rows = modes.flatMap((m) => listOpenPositions(m)).map((p) => ({ ...p, symbol: safeSymbol(p.symbol) }));
+  const rows = (await Promise.all(modes.map((m) => api.listOpenPositions(m)))).flat().map((p) => ({ ...p, symbol: safeSymbol(p.symbol) }));
   return (
     <>
       <PageHeader title={t("positions.title")} subtitle={t(modes.includes("real") ? "positions.subtitleReal" : "positions.subtitlePractice")} />

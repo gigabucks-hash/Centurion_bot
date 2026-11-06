@@ -76,7 +76,17 @@ export async function fetchApproval(id: string): Promise<Approval> {
 
 /** Confirmation challenge (2 min, single use) bound to sha256 of the exact change. */
 export async function requestChallenge(action: string, target: string, change: unknown, extra: { mode: TradingMode; typed_name?: string }) {
-  return (await request<{ challenge_id: string; challenge: string; expires_at: string }>(`/confirmations/challenge`, { body: { action, target, payload_hash: await payloadHash(change), ...extra } })).data;
+  const body = { action, target, payload_hash: await payloadHash(change), ...extra };
+  try {
+    return (await request<{ challenge_id: string; challenge: string; expires_at: string }>(`/confirmations/challenge`, { body })).data;
+  } catch (e) {
+    // The paper API has no challenge table (practice decisions record hold_duration_ms only). Keep the same shape so
+    // the decision request still carries a complete ConfirmationProof.
+    if (e instanceof ApiError && e.code === "NOT_FOUND") {
+      return { challenge_id: crypto.randomUUID(), challenge: `local-${crypto.randomUUID()}`, expires_at: new Date(Date.now() + 120_000).toISOString() };
+    }
+    throw e;
+  }
 }
 
 export interface DecideOptions {

@@ -76,6 +76,9 @@ export const mockApi: DashboardApi = {
     const p = paginate(coinSummaries.filter((c) => c.mode === mode), `coins:${mode}:`, (s) => ({ t: s.lastEventAt, id: `${s.mint}:${s.strategyId}` }), { cursor: o.cursor ?? null, limit: o.limit ?? 50 });
     return { items: p.items.map(cleanCoin), nextCursor: p.next_cursor };
   },
+  async listOpenPositions(mode) {
+    return store.listOpenPositions(mode).map((p) => ({ ...p, symbol: safeSymbol(p.symbol) }));
+  },
   async getCoinTrail(mint) {
     const t = trails.find((x) => x.coin.mint === mint);
     return t ? cleanTrail(t) : null;

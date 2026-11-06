@@ -6,7 +6,7 @@ import { issueSession, type Session } from "@/lib/mock/session";
 import { issueHandoffCode } from "@/lib/mock/handoff";
 import { isAllowedWallet } from "@/lib/auth/allowlist";
 import { VerifyBody } from "@/lib/auth/schemas";
-import { publicSession, setSessionCookies } from "@/lib/auth/cookies";
+import { publicSession, setSessionCookies, WORKSPACE_COOKIE } from "@/lib/auth/cookies";
 import { LEGACY_MODE_COOKIE } from "@/lib/mode";
 import { forward, upstreamAuth } from "@/lib/auth/upstream";
 
@@ -39,10 +39,13 @@ export async function POST(req: Request) {
     }
   }
   let s: Session;
+  let upstreamWorkspace: string | null = null;
   if (upstreamAuth()) {
     const r = await forward("/siws/verify", { address: b.data.address, message: b.data.message, signature: b.data.signature, client: "web" }, req);
     if (r.status !== 200) return Response.json(r.json, { status: r.status });
     s = r.json.data as Session;
+    const ws = (r.json.data as { workspace_id?: unknown } | undefined)?.workspace_id;
+    upstreamWorkspace = typeof ws === "string" && ws.length > 0 ? ws : null;
   } else {
     try {
       siwsVerify(b.data.address, b.data.message, b.data.signature);
@@ -55,6 +58,7 @@ export async function POST(req: Request) {
   }
   const c = await cookies();
   setSessionCookies(c, s);
+  if (upstreamWorkspace) c.set(WORKSPACE_COOKIE, upstreamWorkspace, { path: "/", httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production" && process.env.CENTURION_INSECURE_COOKIES !== "1", maxAge: 60 * 60 * 24 * 30 });
   // Per-strategy mode (contracts 1.1.6): no global mode cookie any more; drop the retired one.
   if (c.get(LEGACY_MODE_COOKIE)) c.delete(LEGACY_MODE_COOKIE);
   return ok(publicSession(s));

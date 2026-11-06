@@ -14,9 +14,13 @@ import { pnlDisplay, PNL_TEXT_CLASS } from "@/lib/pnl";
  * `wrapUnit`: lets the unit suffix move to the next line inside a narrow KPI cell (D1) instead of
  * overflowing the cell; the number itself never wraps.
  */
-export function Pnl({ sol, pct, lamports, className, unit = false, wrapUnit = false, mode }: { sol?: number | string; pct?: number; lamports?: string; className?: string; unit?: boolean; wrapUnit?: boolean; digits?: number; mode?: TradingMode }) {
+export function Pnl({ sol, pct, lamports, className, unit = false, wrapUnit = false, mode }: { sol?: number | string | null; pct?: number | null; lamports?: string; className?: string; unit?: boolean; wrapUnit?: boolean; digits?: number; mode?: TradingMode }) {
   const t = useT();
   const f = useFmt();
+  // A null is "not reported" (no mark price, no portfolio value): show an em dash, never a fabricated 0.00.
+  if (sol === null || pct === null) {
+    return <span className={cn("num", className)} aria-label={t.ux("common.value.unavailable")}>—</span>;
+  }
   const paper = (mode ?? f.mode) === "practice";
   const d = pnlDisplay(lamports != null ? { lamports } : sol != null ? { sol } : { pct: pct ?? 0 }, f.locale, { paper, unit: lamports != null || sol != null ? unit : undefined });
   // Unit suffix comes from the package as "…\u00A0paper SOL": render it one step smaller so hero numbers (28 px) keep

@@ -14,6 +14,7 @@ import type {
   CoinTrail,
   ExitReasonStat,
   Mint,
+  OpenPosition,
   PnlFilter,
   PnlSummary,
   PublishResult,
@@ -38,6 +39,8 @@ export interface DashboardApi {
   listCoins(mode: TradingMode): Promise<CoinSummary[]>;
   /** One keyset page (1.1.4): newest first, `nextCursor` null on the last page. */
   listCoinsPage(mode: TradingMode, o?: { cursor?: string | null; limit?: number }): Promise<{ items: CoinSummary[]; nextCursor: string | null }>;
+  /** Open positions for a mode. Realtime mark price / unrealized PnL are null when the API does not report them. */
+  listOpenPositions(mode: TradingMode): Promise<OpenPosition[]>;
   getCoinTrail(mint: Mint): Promise<CoinTrail | null>;
   getExitStats(filter: StatsFilter): Promise<ExitReasonStat[]>;
   /** 0022 PnL report strip: realized (all-time + range), unrealized, total, closed counts. */

@@ -10,6 +10,8 @@ type Jar = Awaited<ReturnType<typeof cookies>>;
 export const ACCESS_COOKIE = "centurion_at";
 export const REFRESH_COOKIE = "centurion_rt";
 export const REFRESH_PATH = "/api/v1/auth/session";
+/** Workspace created by the backend at first SIWS login (DATA_SOURCE=http); not a secret. */
+export const WORKSPACE_COOKIE = "centurion_ws";
 
 const secure = () => process.env.NODE_ENV === "production" && process.env.CENTURION_INSECURE_COOKIES !== "1";
 
@@ -21,6 +23,7 @@ export function setSessionCookies(c: Jar, s: Session) {
 export function clearSessionCookies(c: Jar) {
   c.set(ACCESS_COOKIE, "", { path: "/", httpOnly: true, sameSite: "lax", secure: secure(), maxAge: 0 });
   c.set(REFRESH_COOKIE, "", { path: REFRESH_PATH, httpOnly: true, sameSite: "strict", secure: secure(), maxAge: 0 });
+  c.set(WORKSPACE_COOKIE, "", { path: "/", httpOnly: true, sameSite: "lax", secure: secure(), maxAge: 0 });
   c.delete("centurion_session"); // legacy mock cookie
 }
 

@@ -395,6 +395,8 @@ export interface OpenPosition {
   /** Strategy exit plan, for the "next action" line. */
   stopLossPct: number;
   trailingPct: number;
+  /** http mode: the API reports no per-row mark price yet, so PnL/price render an em dash (never a fake 0). */
+  markUnknown?: boolean;
 }
 
 export interface CoinSummary {

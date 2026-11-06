@@ -16,6 +16,14 @@ export function proxy(request: NextRequest) {
     return withSecurity(Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required", reason: "access_missing", server_now: ts }, server_now: ts }, { status: 401 }));
   }
   if (g.kind === "redirect") return withSecurity(NextResponse.redirect(new URL(g.to, request.url)));
+  // DATA_SOURCE=http: browser-side reads/writes under the workspace API are answered by the paper backend through one
+  // proxy route, so every existing BFF call (approve, sell, events stream, coins, strategies) keeps its URL. Auth and
+  // workspace come from the httpOnly cookies, never from the URL.
+  if (process.env.DATA_SOURCE === "http" && (request.nextUrl.pathname.startsWith("/api/v1/workspaces/") || request.nextUrl.pathname.startsWith("/api/v1/img/coin/"))) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/api/backend${request.nextUrl.pathname}`;
+    return withSecurity(NextResponse.rewrite(url));
+  }
   const nonce = newNonce();
   const csp = buildCsp({
     nonce,

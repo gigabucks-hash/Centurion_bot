@@ -82,7 +82,7 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
       (["practice", "real"] as const)
         .map((m) => {
           const vs = view.filter((r) => r.mode === m);
-          return { mode: m, n: vs.length, cost: vs.reduce((s, r) => s + r.solIn * (1 - r.soldPct / 100), 0), unreal: vs.reduce((s, r) => s + r.pnlSol * (1 - r.soldPct / 100), 0) };
+          return { mode: m, n: vs.length, cost: vs.reduce((s, r) => s + r.solIn * (1 - r.soldPct / 100), 0), unreal: vs.every((r) => !r.markUnknown) ? vs.reduce((s, r) => s + r.pnlSol * (1 - r.soldPct / 100), 0) : null };
         })
         .filter((x) => x.n > 0),
     [view],
@@ -168,9 +168,9 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
           <Card title={<span className="inline-flex items-center gap-2"><CoinAvatar mint={focused.mint} logoHash={focused.logoHash} symbol={focused.symbol} size="md" />{focused.symbol} · {focused.strategyName}</span>} action={<ModeBadge mode={mode} />}>
             <dl className="grid grid-cols-2 gap-2 text-caption">
               <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colSize", { unit })}</dt><dd className="num whitespace-nowrap">{f.sol(focused.solIn * remaining(focused))}</dd></div>
-              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colPnlSol", { unit })}</dt><dd><Pnl sol={focused.pnlSol * remaining(focused)} unit mode={mode} /></dd></div>
-              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.lossGuard")}</dt><dd className="num">{f.pct(-focused.stopLossPct, 0)}</dd></div>
-              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.trail")}</dt><dd className="num">{f.pct(-focused.trailingPct, 0)}</dd></div>
+              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.colPnlSol", { unit })}</dt><dd><Pnl sol={focused.markUnknown ? null : focused.pnlSol * remaining(focused)} unit mode={mode} /></dd></div>
+              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.lossGuard")}</dt><dd className="num">{focused.markUnknown ? "—" : f.pct(-focused.stopLossPct, 0)}</dd></div>
+              <div className="rounded-md bg-bg-sunken px-2 py-1.5"><dt className="text-text-tertiary">{t("positions.trail")}</dt><dd className="num">{focused.markUnknown ? "—" : f.pct(-focused.trailingPct, 0)}</dd></div>
             </dl>
             {focused.soldPct > 0 && <p className="mt-2 text-caption text-text-secondary">{t("positions.alreadySold", { pct: f.pct(focused.soldPct, 0, false) })}</p>}
             <Link href={`/coins/${focused.mint}`} className="mt-3 inline-block text-label text-brand-primary hover:underline">{t("approvals.openTrail")}</Link>
@@ -179,7 +179,7 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
               <div ref={sellRef} className={cn("mt-4 rounded-md border p-3", mode === "real" ? "border-mode-real" : "border-border-default")}>
                 <p className="text-titleSm">{t.ux("positions.sell.title", { symbol: focused.symbol })}</p>
                 <div className="mt-2"><Segmented label={t("positions.sellShare")} value={pct} onChange={setPct} options={PCTS.map((p) => ({ value: p, label: f.pct(Number(p), 0, false) }))} /></div>
-                <p className="mt-3 flex justify-between text-caption"><span className="text-text-tertiary">{t.ux("positions.sell.estimate")}</span><span className="num">≈ {f.sol(focused.solIn * remaining(focused) * (1 + focused.pnlPct / 100) * (Number(pct) / 100))}</span></p>
+                <p className="mt-3 flex justify-between text-caption"><span className="text-text-tertiary">{t.ux("positions.sell.estimate")}</span><span className="num">≈ {focused.markUnknown ? "—" : f.sol(focused.solIn * remaining(focused) * (1 + focused.pnlPct / 100) * (Number(pct) / 100))}</span></p>
                 <p className="mt-1 text-caption text-text-secondary">{pct === "100" ? t.ux("positions.sell.plan_cancelled") : t.ux("positions.sell.remaining_plan")}</p>
                 <div className="sticky bottom-[calc(3rem+env(safe-area-inset-bottom))] z-20 -mx-3 mt-3 grid gap-2 border-t border-border-subtle bg-bg-surface/95 px-3 pt-3 backdrop-blur sm:grid-cols-2 lg:bottom-0">
                   <HoldButton durationMs={SELL_HOLD_MS[mode]} variant={mode === "real" ? "real" : "warning"} disabled={busy || mode === "real" || !!focused.screenerState} onConfirm={sell} hint={t.ux("positions.sell.hold.released")}>
@@ -222,9 +222,9 @@ const PositionRow = memo(function PositionRow({ r, focused, holdS, onFocus, onSe
       </th>
       <td className="whitespace-nowrap px-4 text-text-secondary"><span className="inline-flex items-center gap-2">{r.strategyName} <ModeBadge mode={r.mode} /></span></td>
       <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.sol(r.solIn * remaining, { unit: false })}</td>
-      <td className="num whitespace-nowrap px-4 text-right text-numSm text-text-secondary">{f.usd(r.entryPriceUsd)} → {f.usd(r.nowPriceUsd)}</td>
-      <td className="whitespace-nowrap px-4 text-right"><Pnl sol={r.pnlSol * remaining} mode={r.mode} /></td>
-      <td className="whitespace-nowrap px-4 text-right"><Pnl pct={r.pnlPct} mode={r.mode} /></td>
+      <td className="num whitespace-nowrap px-4 text-right text-numSm text-text-secondary">{r.markUnknown ? "—" : f.usd(r.entryPriceUsd)} → {r.markUnknown ? "—" : f.usd(r.nowPriceUsd)}</td>
+      <td className="whitespace-nowrap px-4 text-right"><Pnl sol={r.markUnknown ? null : r.pnlSol * remaining} mode={r.mode} /></td>
+      <td className="whitespace-nowrap px-4 text-right"><Pnl pct={r.markUnknown ? null : r.pnlPct} mode={r.mode} /></td>
       <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.duration(holdS)}</td>
       <td className="px-4 text-right">
         <Button size="sm" variant="secondary" className="min-h-11 whitespace-nowrap" disabled={!!r.screenerState} onClick={(e) => { e.stopPropagation(); onSell(r.key); }}>

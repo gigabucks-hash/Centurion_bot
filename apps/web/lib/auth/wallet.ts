@@ -23,6 +23,78 @@ export class WalletError extends Error {
   }
 }
 
+const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+/** Base58 (Bitcoin alphabet) without a dependency; SIWS signatures travel as base58. */
+export function b58encode(bytes: Uint8Array): string {
+  let zeros = 0;
+  while (zeros < bytes.length && bytes[zeros] === 0) zeros += 1;
+  const digits: number[] = [];
+  for (const byte of bytes) {
+    let carry = byte;
+    for (let i = 0; i < digits.length; i += 1) {
+      carry += digits[i] << 8;
+      digits[i] = carry % 58;
+      carry = (carry / 58) | 0;
+    }
+    while (carry > 0) {
+      digits.push(carry % 58);
+      carry = (carry / 58) | 0;
+    }
+  }
+  let out = "1".repeat(zeros);
+  for (let i = digits.length - 1; i >= 0; i -= 1) out += B58[digits[i]];
+  return out;
+}
+
+interface PhantomProvider {
+  isPhantom?: boolean;
+  connect(opts?: { onlyIfTrusted?: boolean }): Promise<{ publicKey: { toString(): string } }>;
+  signMessage(message: Uint8Array, encoding?: string): Promise<{ signature: Uint8Array } | Uint8Array>;
+  disconnect?(): Promise<void>;
+}
+
+function phantomProvider(): PhantomProvider | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as { phantom?: { solana?: PhantomProvider }; solana?: PhantomProvider };
+  const provider = w.phantom?.solana ?? w.solana;
+  return provider && typeof provider.connect === "function" && typeof provider.signMessage === "function" ? provider : null;
+}
+
+/**
+ * Real sign-in: the injected Phantom provider signs the exact SIWS bytes; the base58 signature goes to the
+ * backend, which verifies ed25519. No key ever leaves the wallet.
+ */
+export function phantomAdapter(): WalletAdapter {
+  return {
+    name: "Phantom",
+    async connect() {
+      const provider = phantomProvider();
+      if (!provider) throw new WalletError("not_installed");
+      try {
+        const res = await provider.connect();
+        return { address: res.publicKey.toString() };
+      } catch {
+        throw new WalletError("connect_rejected");
+      }
+    },
+    async signMessage(message: string) {
+      const provider = phantomProvider();
+      if (!provider) throw new WalletError("not_installed");
+      try {
+        const res = await provider.signMessage(new TextEncoder().encode(message), "utf8");
+        const sig = res instanceof Uint8Array ? res : res.signature;
+        return b58encode(sig);
+      } catch {
+        throw new WalletError("sign_rejected");
+      }
+    },
+    async disconnect() {
+      await phantomProvider()?.disconnect?.().catch(() => undefined);
+    },
+  };
+}
+
 export function mockPhantom(address: string, behaviour: MockWalletBehaviour = "ok"): WalletAdapter {
   return {
     name: "Phantom",

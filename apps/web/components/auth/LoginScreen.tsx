@@ -10,7 +10,7 @@ import { useNow } from "@/components/ui/client";
 import { AUTH_FLAGS, anyLegacyMethod } from "@/lib/auth/flags";
 import { safeNext } from "@/lib/auth/gate";
 import { MOCK_OTHER_WALLET, MOCK_OWNER_WALLET } from "@/lib/auth/allowlist";
-import { mockPhantom, siwsNonce, siwsVerify, WalletError, type MockWalletBehaviour, type SiwsChallenge } from "@/lib/auth/wallet";
+import { mockPhantom, phantomAdapter, siwsNonce, siwsVerify, WalletError, type MockWalletBehaviour, type SiwsChallenge } from "@/lib/auth/wallet";
 
 /**
  * Sign-in. Boss decision (29 Oct 2026, via Apex): private single-owner app, Solana wallet only (Phantom + SIWS):
@@ -35,7 +35,7 @@ type Method = "google" | "apple" | "telegram" | "email_otp" | "wallet_siws";
 type Scenario = "success" | "popup_blocked" | "idp_cancelled" | "telegram_invalid" | "wallet_missing" | "sign_rejected" | "nonce_expired" | "account_disabled" | "offline";
 const SCENARIOS: Scenario[] = ["success", "popup_blocked", "idp_cancelled", "telegram_invalid", "wallet_missing", "sign_rejected", "nonce_expired", "account_disabled", "offline"];
 
-export function LoginScreen() {
+export function LoginScreen({ realWallet = false }: { realWallet?: boolean }) {
   const router = useRouter();
   const t = useT();
   const [scenario, setScenario] = useState<Scenario>("success");
@@ -108,7 +108,7 @@ export function LoginScreen() {
               <h2 className="text-title">{t("walletLogin.heading")}</h2>
               <p className="mt-1 text-body text-text-secondary">{t("walletLogin.sub")}</p>
               {error && <ErrorBox text={error} />}
-              <WalletFlow wallet={mockWallet} behaviour={behaviour} onDone={() => router.push(afterLogin())} />
+              <WalletFlow wallet={mockWallet} behaviour={behaviour} real={realWallet} onDone={() => router.push(afterLogin())} />
               {anyLegacyMethod() && (
                 <details className="mt-6">
                   <summary className="cursor-pointer text-caption text-text-tertiary">{t("walletLogin.otherMethods")}</summary>
@@ -139,8 +139,8 @@ export function LoginScreen() {
             <OtpStep email={email} onBack={() => setStep("choose")} onSuccess={() => router.push(afterLogin())} />
           )}
         </div>
-        <WalletMockPanel wallet={mockWallet} setWallet={setMockWallet} behaviour={behaviour} setBehaviour={setBehaviour} />
-        {anyLegacyMethod() && <MockPanel scenario={scenario} setScenario={setScenario} />}
+        {!realWallet && <WalletMockPanel wallet={mockWallet} setWallet={setMockWallet} behaviour={behaviour} setBehaviour={setBehaviour} />}
+        {!realWallet && anyLegacyMethod() && <MockPanel scenario={scenario} setScenario={setScenario} />}
       </section>
 
     </div>
@@ -400,14 +400,17 @@ const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
  * Wallet-only sign-in: 1 Connect Phantom → 2 SIWS message preview (server nonce) → 3 sign → verify → session.
  * 403 FORBIDDEN_ROLE {reason: wallet_not_allowed} → "Access denied" (no sign-up path in the private MVP).
  */
-function WalletFlow({ wallet, behaviour, onDone }: { wallet: string; behaviour: WalletBehaviour; onDone: () => void }) {
+function WalletFlow({ wallet, behaviour, real, onDone }: { wallet: string; behaviour: WalletBehaviour; real: boolean; onDone: () => void }) {
   const t = useT();
   const [address, setAddress] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<SiwsChallenge | null>(null);
   const [busy, setBusy] = useState<"connect" | "sign" | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [denied, setDenied] = useState(false);
-  const adapter = useMemo(() => mockPhantom(wallet, behaviour === "nonce_expired" || behaviour === "offline" ? "ok" : behaviour), [wallet, behaviour]);
+  const adapter = useMemo(
+    () => (real ? phantomAdapter() : mockPhantom(wallet, behaviour === "nonce_expired" || behaviour === "offline" ? "ok" : behaviour)),
+    [wallet, behaviour, real],
+  );
   const step = denied ? 3 : !address ? 1 : challenge ? 2 : 1;
 
   function reset() {
@@ -422,7 +425,7 @@ function WalletFlow({ wallet, behaviour, onDone }: { wallet: string; behaviour: 
     setErr(null);
     setBusy("connect");
     try {
-      if (behaviour === "offline") throw new ApiError("OFFLINE", 0);
+      if (!real && behaviour === "offline") throw new ApiError("OFFLINE", 0);
       const { address: a } = await adapter.connect();
       setAddress(a);
       setChallenge(await siwsNonce(a));
@@ -445,7 +448,7 @@ function WalletFlow({ wallet, behaviour, onDone }: { wallet: string; behaviour: 
     try {
       const sig = await adapter.signMessage(challenge.message);
       // nonce_expired: send a message whose nonce the server never issued → SIWS_NONCE_INVALID.
-      const message = behaviour === "nonce_expired" ? challenge.message.replace(/Nonce: \w+/, "Nonce: expired0000000000") : challenge.message;
+      const message = !real && behaviour === "nonce_expired" ? challenge.message.replace(/Nonce: \w+/, "Nonce: expired0000000000") : challenge.message;
       await siwsVerify(address, message, sig);
       onDone();
     } catch (e) {
@@ -497,7 +500,7 @@ function WalletFlow({ wallet, behaviour, onDone }: { wallet: string; behaviour: 
         </>
       )}
       <p className="text-caption text-semantic-profit">{t.ux("login.wallet.sign_note")}</p>
-      <p className="rounded-md bg-semantic-infoContainer px-3 py-2 text-caption text-semantic-info">{t("walletLogin.mockNote")}</p>
+      {!real && <p className="rounded-md bg-semantic-infoContainer px-3 py-2 text-caption text-semantic-info">{t("walletLogin.mockNote")}</p>}
     </div>
   );
 }
