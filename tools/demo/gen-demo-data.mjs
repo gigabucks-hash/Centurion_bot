@@ -23,7 +23,7 @@ const ANCHOR_ISO = "2026-11-05T17:00:00.000Z";
 const ANCHOR = Date.parse(ANCHOR_ISO);
 const DEFAULT_SEED = 1337;
 const DATASET = "centurion-demo-v1";
-const SCHEMA_VERSION = "1.0";
+const SCHEMA_VERSION = "1.1";
 
 const HOUR = 3_600_000;
 const LAMPORTS_PER_SOL = 1_000_000_000;
@@ -166,6 +166,62 @@ const OPEN_PROFILES = [
   { key: "o04", openedH: 6, strat: 1, coin: 5, solIn: 900_000_000, soldBps: 0, remGainPct: 41.2, stop: 22, trail: 18 },
   { key: "o05", openedH: 2.5, strat: 0, coin: 8, solIn: 5_500_000_000, soldBps: 0, remGainPct: -18.7, stop: 15, trail: 9 },
 ];
+
+// ---------------------------------------------------------------------------
+// discovery /markets (docs/design/receipt-and-discovery.md, part B)
+// ---------------------------------------------------------------------------
+
+/** Mints that exist only in the market feed: never screened, so guard is "not evaluated". */
+const MARKET_ONLY = [
+  { symbol: "GRAIN", launchpad: "pumpfun" },
+  { symbol: "SPORE", launchpad: "pumpfun" },
+  { symbol: "MOSSY", launchpad: "raydium" },
+  { symbol: "PULSE", launchpad: "pumpfun" },
+  { symbol: "CRATE", launchpad: "raydium" },
+  { symbol: "EMBER", launchpad: "pumpfun" },
+  { symbol: "VAPOR", launchpad: "pumpfun" },
+  { symbol: "SABLE", launchpad: "raydium" },
+];
+
+const TRENDING_WEIGHTS_VERSION = "markets-rank-v1";
+const TRENDING_WEIGHTS = { mcap_growth: 0.5, activity: 0.3, migration: 0.2 };
+
+/**
+ * One market state per mint; the three tabs are views over this table, so a mint keeps
+ * the same mcap/logo/guard everywhere it appears.
+ * `seenH` / `migratedH` = hours before the anchor. `rank: true` puts the mint in Trending;
+ * its rank inputs are always the row's own growth/activity/migration, never a hand-written score.
+ */
+const MARKET_ROWS = [
+  { symbol: "SPORE", seenH: 0.0125, migratedH: null, mcapUsd: 58_000, growth: 88.5, change: { m5: 8.2, h1: 34.5, h24: null }, sinceMigration: null, activity: 9, guard: ["PASS", 71], tradeable: true, rank: true },
+  { symbol: "ORBIT", seenH: 0.07, migratedH: null, mcapUsd: 412_000, growth: 118, change: { m5: 3.1, h1: 18.2, h24: 44.8 }, sinceMigration: null, activity: 12, guard: ["PASS", 84], tradeable: true, rank: true },
+  { symbol: "GRAIN", seenH: 0.6, migratedH: 0.5, mcapUsd: 96_000, growth: 205, change: { m5: 6.4, h1: 41, h24: null }, sinceMigration: 41, activity: 7, guard: ["PASS", 66], tradeable: true, rank: true },
+  { symbol: "KELP", seenH: 0.15, migratedH: null, mcapUsd: 133_000, growth: 64, change: { m5: 1.2, h1: 9.4, h24: 21.7 }, sinceMigration: null, activity: 5, guard: ["PASS", 77], tradeable: true, rank: true },
+  { symbol: "PULSE", seenH: 0.22, migratedH: null, mcapUsd: 27_500, growth: -12, change: { m5: -2.4, h1: -3.6, h24: null }, sinceMigration: null, activity: 3, guard: ["PASS", 58], tradeable: true, rank: true },
+  { symbol: "WISP", seenH: 0.45, migratedH: null, mcapUsd: 31_000, growth: 2, change: { m5: 0.4, h1: 2, h24: null }, sinceMigration: null, activity: 2, guard: ["PASS", 55], tradeable: true },
+  { symbol: "VAPOR", seenH: 0.8, migratedH: null, mcapUsd: null, growth: null, change: { m5: null, h1: null, h24: null }, sinceMigration: null, activity: 1, guard: null, tradeable: true },
+  { symbol: "MOCHI", seenH: 0.9, migratedH: 40, mcapUsd: 780_000, growth: 96, change: { m5: 0.8, h1: 12.1, h24: 33.4 }, sinceMigration: null, activity: 21, guard: ["PASS", 88], tradeable: true, staleSeconds: 95, rank: true },
+  { symbol: "EMBER", seenH: 1.4, migratedH: null, mcapUsd: 64_000, growth: 27.7, change: { m5: -0.6, h1: 27.7, h24: null }, sinceMigration: null, activity: 4, guard: ["PASS", 69], tradeable: true },
+  { symbol: "ZAPP", seenH: 3.1, migratedH: null, mcapUsd: 19_800, growth: -8.2, change: { m5: -1.1, h1: -8.2, h24: -14.5 }, sinceMigration: null, activity: 2, guard: ["FAIL", 31], tradeable: true },
+  { symbol: "CRATE", seenH: 8, migratedH: 7.5, mcapUsd: 210_000, growth: 33.4, change: { m5: 2.2, h1: 9.8, h24: 33.4 }, sinceMigration: 33.4, activity: 12, guard: null, tradeable: true, rank: true },
+  { symbol: "BREW", seenH: 12, migratedH: 50, mcapUsd: 305_000, growth: 25.5, change: { m5: 0.5, h1: 4.2, h24: 25.5 }, sinceMigration: null, activity: 11, guard: ["PASS", 74], tradeable: true, rank: true },
+  { symbol: "MOSSY", seenH: 36, migratedH: 5, mcapUsd: 244_000, growth: null, change: { m5: 1.8, h1: 7.4, h24: 19.2 }, sinceMigration: 19.2, activity: 8, guard: ["PASS", 79], tradeable: true },
+  { symbol: "FLUX", seenH: 26, migratedH: null, mcapUsd: 12_400, growth: 8, change: { m5: 0.2, h1: 8, h24: null }, sinceMigration: null, activity: 4, guard: ["PASS", 49], tradeable: false, skipReason: "UNSUPPORTED_QUOTE_MINT", rank: true },
+  { symbol: "NOVA", seenH: 30, migratedH: 9, mcapUsd: 540_000, growth: 41, change: { m5: 0.9, h1: 11.3, h24: 33.4 }, sinceMigration: 41, activity: 27, guard: ["PASS", 82], tradeable: true, rank: true },
+  { symbol: "TIDE", seenH: 33, migratedH: 14, mcapUsd: 275_000, growth: null, change: { m5: -0.3, h1: 2.6, h24: 12.6 }, sinceMigration: 12.6, activity: 9, guard: ["PASS", 72], tradeable: true },
+  { symbol: "DUSK", seenH: 40, migratedH: 20, mcapUsd: 188_000, growth: null, change: { m5: -0.7, h1: -2.1, h24: -5.4 }, sinceMigration: -5.4, activity: 6, guard: ["FAIL", 28], tradeable: true },
+  { symbol: "SABLE", seenH: 44, migratedH: 23, mcapUsd: 149_000, growth: null, change: { m5: 0.1, h1: 1.9, h24: 7.8 }, sinceMigration: 7.8, activity: 4, guard: null, tradeable: true },
+];
+
+const MARKET_CAPABILITIES = {
+  change_pct: true,
+  activity: true,
+  volume: false,
+  liquidity: false,
+  holders: false,
+  guard: true,
+  launchpad: true,
+};
 
 // ---------------------------------------------------------------------------
 // build
@@ -330,6 +386,184 @@ function build(seed) {
 
   const sum = (rows, f) => rows.reduce((acc, r) => acc + f(r), 0);
 
+  // ---- discovery /markets (spec: docs/design/receipt-and-discovery.md part B) ----
+  const marketOnly = MARKET_ONLY.map((m) => {
+    const mint = mintFrom(`market:${m.symbol}`, seed);
+    const hash = logoHashFrom(mint, seed);
+    return {
+      mint,
+      symbol: m.symbol,
+      name: `${m.symbol.charAt(0)}${m.symbol.slice(1).toLowerCase()} Demo`,
+      launchpad: m.launchpad,
+      logo_hash: hash,
+      logo_url: logoUrlFrom(mint, hash),
+    };
+  });
+
+  const marketUniverse = new Map();
+  for (const c of coins) {
+    marketUniverse.set(c.untrusted.symbol, {
+      mint: c.mint,
+      symbol: c.untrusted.symbol,
+      name: c.untrusted.name,
+      launchpad: c.launchpad,
+      logo_hash: c.logo_hash,
+      logo_url: c.logo_url,
+    });
+  }
+  for (const m of marketOnly) marketUniverse.set(m.symbol, m);
+
+  const marketRowOf = (p) => {
+    const base = marketUniverse.get(p.symbol);
+    if (!base) throw new Error(`market row ${p.symbol} is not in the universe`);
+    const firstSeen = ANCHOR - p.seenH * HOUR;
+    const migrated = p.migratedH == null ? null : ANCHOR - p.migratedH * HOUR;
+    const venue = migrated == null ? "curve" : "amm";
+    const asOf = ANCHOR - (p.staleSeconds || 0) * 1000;
+    return {
+      mint: base.mint,
+      symbol: base.symbol,
+      name: base.name,
+      logo_hash: base.logo_hash,
+      logo_url: base.logo_url,
+      launchpad: base.launchpad,
+      venue,
+      first_seen_at: iso(firstSeen),
+      migrated_at: migrated == null ? null : iso(migrated),
+      market_cap_lamports: p.mcapUsd == null ? null : String(Math.round((p.mcapUsd * LAMPORTS_PER_SOL) / SOL_USD)),
+      mcap_usd: p.mcapUsd == null ? null : dec(p.mcapUsd, 2),
+      mcap_source: p.mcapUsd == null ? "unavailable" : venue === "curve" ? "curve" : "pool",
+      mcap_as_of: p.mcapUsd == null ? null : iso(asOf),
+      price_change_5m_pct: p.change.m5 == null ? null : round2(p.change.m5),
+      price_change_1h_pct: p.change.h1 == null ? null : round2(p.change.h1),
+      price_change_24h_pct: p.change.h24 == null ? null : round2(p.change.h24),
+      price_change_since_migration_pct: p.sinceMigration == null ? null : round2(p.sinceMigration),
+      volume_lamports_24h: null,
+      liquidity_lamports: null,
+      holders: null,
+      trades_24h: null,
+      activity_count_window: p.activity,
+      guard_verdict: p.guard ? p.guard[0] : null,
+      guard_score: p.guard ? p.guard[1] : null,
+      tradeable: p.tradeable !== false,
+      skip_reason: p.skipReason ?? null,
+      as_of: iso(asOf),
+      rank_position: null,
+      rank_score: null,
+      rank_inputs: null,
+    };
+  };
+
+  const marketBase = MARKET_ROWS.map(marketRowOf);
+  const marketBySymbol = new Map(marketBase.map((r) => [r.symbol, r]));
+  const byMintAsc = (a, b) => (a.mint < b.mint ? -1 : a.mint > b.mint ? 1 : 0);
+
+  const WINDOW_MS = { "5m": 5 * 60_000, "15m": 15 * 60_000, "1h": HOUR, "6h": 6 * HOUR, "24h": 24 * HOUR };
+  const MARKET_WINDOWS = {
+    trending: ["5m", "1h", "24h"],
+    new: ["15m", "1h", "6h", "24h"],
+    graduated: ["15m", "1h", "6h", "24h"],
+  };
+  const MARKET_DEFAULTS = { trending: "1h", new: "1h", graduated: "24h" };
+
+  const rankMeta = {
+    weights_version: TRENDING_WEIGHTS_VERSION,
+    weights: TRENDING_WEIGHTS,
+    formula: "rank_score = 0.5 * mcap_growth_score + 0.3 * activity_score + 0.2 * migration_score",
+    normalization: {
+      mcap_growth_score: "clamp(mcap_growth_pct * 2, 0, 100)",
+      activity_score: "min(activity_count_window, 50) * 2",
+      migration_score: "100 when the mint graduated inside the window, else 0",
+    },
+    inputs: {
+      mcap_growth_pct: "market-cap growth since first_seen_at, in percent",
+      activity_count_window: "screening events in the window, not market trades",
+      migrated_within_window: "1 when the mint graduated inside the window, else 0",
+    },
+    tie_break: "mint ascending when rank_score is equal",
+  };
+
+  const responseOf = (tab, window) => {
+    const ms = WINDOW_MS[window];
+    let rows;
+    if (tab === "trending") {
+      // Fewer than 5 observations inside 5m: the server has nothing to rank yet.
+      rows = window === "5m" ? [] : MARKET_ROWS.filter((p) => p.rank)
+        .map((p) => {
+          const migratedWithin = p.migratedH != null && p.migratedH * HOUR <= ms;
+          const growthScore = Math.min(Math.max(p.growth * 2, 0), 100);
+          const activityScore = Math.min(p.activity, 50) * 2;
+          const migrationScore = migratedWithin ? 100 : 0;
+          return {
+            row: marketBySymbol.get(p.symbol),
+            score: round2(0.5 * growthScore + 0.3 * activityScore + 0.2 * migrationScore),
+            inputs: {
+              mcap_growth_pct: p.growth,
+              activity_count_window: p.activity,
+              migrated_within_window: migratedWithin ? 1 : 0,
+              mcap_growth_score: growthScore,
+              activity_score: activityScore,
+              migration_score: migrationScore,
+            },
+          };
+        })
+        .sort((a, b) => b.score - a.score || byMintAsc(a.row, b.row))
+        .map((e, i) => ({ ...e.row, rank_position: i + 1, rank_score: e.score, rank_inputs: e.inputs }));
+    } else if (tab === "new") {
+      rows = marketBase
+        .filter((r) => ANCHOR - Date.parse(r.first_seen_at) <= ms)
+        .sort((a, b) => Date.parse(b.first_seen_at) - Date.parse(a.first_seen_at) || byMintAsc(a, b));
+    } else {
+      rows = marketBase
+        .filter((r) => r.migrated_at != null && ANCHOR - Date.parse(r.migrated_at) <= ms)
+        .sort((a, b) => Date.parse(b.migrated_at) - Date.parse(a.migrated_at) || byMintAsc(a, b));
+    }
+    return {
+      tab,
+      window,
+      total_count: rows.length,
+      limit: tab === "trending" ? 100 : 50,
+      next_cursor: null,
+      ...(tab === "trending" ? { rank: rankMeta } : {}),
+      rows,
+    };
+  };
+
+  const byWindow = {
+    trending: Object.fromEntries(MARKET_WINDOWS.trending.map((w) => [w, responseOf("trending", w)])),
+    new: Object.fromEntries(MARKET_WINDOWS.new.map((w) => [w, responseOf("new", w)])),
+    graduated: Object.fromEntries(MARKET_WINDOWS.graduated.map((w) => [w, responseOf("graduated", w)])),
+  };
+  const defaultRows = (tab) => byWindow[tab][MARKET_DEFAULTS[tab]].rows;
+
+  const markets = {
+    as_of: ANCHOR_ISO,
+    server_now: ANCHOR_ISO,
+    as_of_seq: "4242",
+    next_poll_ms: 10_000,
+    capabilities: MARKET_CAPABILITIES,
+    windows: MARKET_WINDOWS,
+    defaults: MARKET_DEFAULTS,
+    by_window: byWindow,
+    empty: [
+      {
+        tab: "trending",
+        window: "5m",
+        total_count: byWindow.trending["5m"].total_count,
+        copy_key: "markets.empty.trending",
+        note: "Ranking needs at least 5 observations inside the window; none yet at 5m.",
+      },
+      {
+        tab: "graduated",
+        window: "15m",
+        total_count: byWindow.graduated["15m"].total_count,
+        copy_key: "markets.empty.graduated",
+        note: "The newest graduation in this fixture is 30 minutes old.",
+      },
+    ],
+    note: "markets.empty.new is not reachable from this fixture: a pair first seen 45 s ago exists, so the 15m window has 4 rows. Use a stub override to test that copy.",
+  };
+
   const pnlSummaryOf = (rows, window, from, to = ANCHOR_ISO) => {
     const closedCount = rows.length;
     const winCount = rows.filter((r) => Number(r.pnl_lamports) > 0).length;
@@ -419,12 +653,18 @@ function build(seed) {
       total_pnl_lamports: String(realized + unrealized),
       ledger_closed_pnl_lamports: String(realizedClosed),
       reconciliation_delta_lamports: String(realized - realizedClosed),
+      markets_trending: defaultRows("trending").length,
+      markets_new: defaultRows("new").length,
+      markets_graduated: defaultRows("graduated").length,
+      markets_market_only_mints: marketOnly.length,
+      markets_empty_cases: markets.empty.length,
     },
     strategies: STRATEGIES.map((s, i) => ({ id: strategyId(i), key: s.key, name: s.name, mode: "practice" })),
     coins,
     positions_open: openSorted,
     positions_closed: closedSorted,
     windows,
+    markets,
     empty_range: {
       from: iso(emptyFrom),
       to: iso(emptyTo),
@@ -441,6 +681,18 @@ function build(seed) {
       { id: "no-logo", expect: "logo_hash and logo_url are both null -> identicon, no request", pointers: coins.filter((c) => c.logo_hash === null).map((c) => c.untrusted.symbol) },
       { id: "untradeable", expect: "tradeable=false + skip_reason=UNSUPPORTED_QUOTE_MINT", pointers: ["FLUX"] },
       { id: "zero-pnl-open", expect: "unrealized 0 stays neutral, not a 0% win", pointers: openSorted.filter((p) => Number(p.unrealized_pnl_lamports) === 0).map((p) => p.position_key) },
+      { id: "markets-trending-ranks", expect: "rank_position 1..10 in asc order; rank_score recomputable from rank_inputs and markets.by_window.trending[\"1h\"].rank.weights", pointers: defaultRows("trending").map((r) => `${r.rank_position}:${r.symbol}`) },
+      { id: "markets-trending-empty", expect: "rows [] and total_count 0 for trending 5m", pointers: ["markets.empty[0]"] },
+      { id: "markets-graduated-empty", expect: "rows [] and total_count 0 for graduated 15m", pointers: ["markets.empty[1]"] },
+      { id: "markets-new-young", expect: "first_seen_at < 60 s -> New chip", pointers: defaultRows("new").filter((r) => ANCHOR - Date.parse(r.first_seen_at) < 60_000).map((r) => r.symbol) },
+      { id: "markets-migrated-still-new", expect: "a mint in New pairs and Graduated at the same time keeps venue AMM in New", pointers: defaultRows("new").filter((r) => r.migrated_at != null).map((r) => r.symbol) },
+      { id: "markets-since-migration", expect: "Graduated change uses price_change_since_migration_pct, not 24h", pointers: defaultRows("graduated").filter((r) => r.price_change_since_migration_pct !== r.price_change_24h_pct).map((r) => r.symbol) },
+      { id: "markets-market-only-guard-null", expect: "never-screened mint: guard_verdict null -> Not evaluated, never Guard failed", pointers: defaultRows("trending").filter((r) => r.guard_verdict === null).map((r) => r.symbol) },
+      { id: "markets-null-mcap", expect: "mcap_usd and market_cap_lamports both null -> em dash, no invented rate", pointers: defaultRows("new").filter((r) => r.mcap_usd === null).map((r) => r.symbol) },
+      { id: "markets-null-change", expect: "change null per row -> em dash", pointers: defaultRows("new").filter((r) => r.price_change_1h_pct === null).map((r) => r.symbol) },
+      { id: "markets-stale-row", expect: "row as_of older than 60 s keeps its row and flags Stale", pointers: defaultRows("new").filter((r) => ANCHOR - Date.parse(r.as_of) > 60_000).map((r) => r.symbol) },
+      { id: "markets-not-tradeable", expect: "tradeable false + skip_reason, neutral treatment", pointers: defaultRows("trending").filter((r) => !r.tradeable).map((r) => r.symbol) },
+      { id: "markets-no-logo", expect: "logo_hash and logo_url null -> identicon, no request", pointers: defaultRows("new").filter((r) => r.logo_hash === null).map((r) => r.symbol) },
     ],
   };
 }
@@ -454,6 +706,7 @@ function validate(data) {
   const fail = (msg) => errors.push(msg);
   const isInt = (v) => typeof v === "number" && Number.isInteger(v);
   const isLamportStr = (v) => typeof v === "string" && /^(0|-?[1-9][0-9]*)$/.test(v);
+  const WINDOW_MS_VALIDATE = { "5m": 5 * 60_000, "15m": 15 * 60_000, "1h": HOUR, "6h": 6 * HOUR, "24h": 24 * HOUR };
 
   if (data.meta.seed !== data.meta.seed) fail("seed is NaN");
   if (!Number.isFinite(Date.parse(data.meta.anchor))) fail("anchor is not an ISO timestamp");
@@ -549,6 +802,162 @@ function validate(data) {
 
   if (data.empty_range.closed_count !== 0) fail("empty_range is not empty");
   if (data.empty_range.pnl_summary.closed_count !== 0 || data.empty_range.pnl_summary.win_rate_pct !== null) fail("empty_range pnl summary must be empty with a null win rate");
+
+  // ---- discovery /markets ----
+  const mk = data.markets;
+  if (!mk) {
+    fail("markets section is missing");
+  } else {
+    const caps = mk.capabilities || {};
+    const expectedWindows = { trending: ["5m", "1h", "24h"], new: ["15m", "1h", "6h", "24h"], graduated: ["15m", "1h", "6h", "24h"] };
+    const expectedDefaults = { trending: "1h", new: "1h", graduated: "24h" };
+    if (!Number.isFinite(Date.parse(mk.as_of))) fail("markets.as_of is not ISO");
+    if (!Number.isFinite(Date.parse(mk.server_now))) fail("markets.server_now is not ISO");
+    if (!isInt(mk.next_poll_ms) || mk.next_poll_ms <= 0) fail("markets.next_poll_ms must be a positive integer");
+    const tabNames = Object.keys(mk.by_window || {}).join(",");
+    if (tabNames !== "trending,new,graduated") fail(`markets.by_window must be trending,new,graduated (got ${tabNames})`);
+
+    const rowChecks = (where, rows) => {
+      const seen = new Set();
+      for (const r of rows) {
+        if (seen.has(r.mint)) fail(`markets.${where}: duplicate mint ${r.mint}`);
+        seen.add(r.mint);
+        if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(r.mint)) fail(`markets.${where}: mint not base58`);
+        if (Boolean(r.logo_hash) !== Boolean(r.logo_url)) fail(`markets.${where}: logo pair mismatch for ${r.symbol}`);
+        if (r.logo_hash && r.logo_url !== `/v1/img/coin/${r.mint}?s=96&v=${r.logo_hash}`) fail(`markets.${where}: logo_url shape for ${r.symbol}`);
+        const hasUsd = r.mcap_usd !== null;
+        const hasSol = r.market_cap_lamports !== null;
+        if (hasUsd !== hasSol) fail(`markets.${where}: mcap pair mismatch for ${r.symbol}`);
+        if (hasSol && !isLamportStr(r.market_cap_lamports)) fail(`markets.${where}: market_cap_lamports for ${r.symbol}`);
+        if (hasSol && !r.mcap_as_of) fail(`markets.${where}: mcap_as_of missing for ${r.symbol}`);
+        if (!hasSol && (r.mcap_source !== "unavailable" || r.mcap_as_of !== null)) fail(`markets.${where}: null mcap must be unavailable with null as_of`);
+        if (hasSol && !["curve", "pool"].includes(r.mcap_source)) fail(`markets.${where}: mcap_source for ${r.symbol}`);
+        if (!["curve", "amm"].includes(r.venue)) fail(`markets.${where}: venue for ${r.symbol}`);
+        if (r.venue === "amm" && r.migrated_at == null) fail(`markets.${where}: AMM without migrated_at for ${r.symbol}`);
+        if (r.venue === "curve" && r.migrated_at != null) fail(`markets.${where}: curve after migration for ${r.symbol}`);
+        if (!Number.isFinite(Date.parse(r.first_seen_at))) fail(`markets.${where}: first_seen_at for ${r.symbol}`);
+        if (Date.parse(r.first_seen_at) > Date.parse(mk.as_of)) fail(`markets.${where}: first_seen_at after as_of for ${r.symbol}`);
+        if (!Number.isFinite(Date.parse(r.as_of))) fail(`markets.${where}: row as_of for ${r.symbol}`);
+        if (Date.parse(r.as_of) > Date.parse(mk.as_of)) fail(`markets.${where}: row as_of in the future for ${r.symbol}`);
+        if (!isInt(r.activity_count_window) || r.activity_count_window < 0) fail(`markets.${where}: activity for ${r.symbol}`);
+        if (![null, "PASS", "WARN", "FAIL"].includes(r.guard_verdict)) fail(`markets.${where}: guard_verdict for ${r.symbol}`);
+        if (r.guard_verdict === null && r.guard_score !== null) fail(`markets.${where}: score without verdict for ${r.symbol}`);
+        if (r.guard_verdict !== null && (!isInt(r.guard_score) || r.guard_score < 0 || r.guard_score > 100)) fail(`markets.${where}: guard_score for ${r.symbol}`);
+        if (typeof r.tradeable !== "boolean") fail(`markets.${where}: tradeable for ${r.symbol}`);
+        if (!r.tradeable && !r.skip_reason) fail(`markets.${where}: untradeable row needs skip_reason (${r.symbol})`);
+        if (caps.volume === false && r.volume_lamports_24h !== null) fail(`markets.${where}: volume present while capability is false`);
+        if (caps.liquidity === false && r.liquidity_lamports !== null) fail(`markets.${where}: liquidity present while capability is false`);
+        if (caps.holders === false && r.holders !== null) fail(`markets.${where}: holders present while capability is false`);
+      }
+      return [...seen];
+    };
+
+    const canonical = (r) => JSON.stringify({ ...r, rank_position: null, rank_score: null, rank_inputs: null });
+    const seenState = new Map();
+
+    for (const [tab, wins] of Object.entries(expectedWindows)) {
+      if (JSON.stringify(mk.windows?.[tab]) !== JSON.stringify(wins)) fail(`markets.windows.${tab} must be ${wins.join(",")}`);
+      if (mk.defaults?.[tab] !== expectedDefaults[tab]) fail(`markets.defaults.${tab} must be ${expectedDefaults[tab]}`);
+
+      const counts = [];
+      for (const w of wins) {
+        const res = mk.by_window?.[tab]?.[w];
+        if (!res) {
+          fail(`markets.by_window.${tab}.${w} is missing`);
+          continue;
+        }
+        const where = `${tab}/${w}`;
+        if (res.tab !== tab || res.window !== w) fail(`markets.${where}: tab/window echo`);
+        if (res.total_count !== res.rows.length) fail(`markets.${where}: total_count != rows.length`);
+        if (!isInt(res.limit) || res.limit < 1) fail(`markets.${where}: limit`);
+        if (res.next_cursor !== null) fail(`markets.${where}: next_cursor must be null for a single page`);
+        if (tab === "trending" && !res.rank) fail(`markets.${where}: rank block missing`);
+        if (tab !== "trending" && "rank" in res) fail(`markets.${where}: rank block only belongs to Trending`);
+
+        rowChecks(where, res.rows);
+        for (const r of res.rows) {
+          const key = r.mint;
+          const value = canonical(r);
+          if (!seenState.has(key)) seenState.set(key, value);
+          else if (seenState.get(key) !== value) fail(`markets: ${r.symbol} differs between windows/tabs`);
+        }
+        counts.push(res.rows.length);
+
+        if (tab === "trending") {
+          if (w === "5m") {
+            if (res.rows.length !== 0) fail("markets.trending.5m: must be empty");
+            continue;
+          }
+          const weights = res.rank?.weights || {};
+          if (Math.abs(weights.mcap_growth + weights.activity + weights.migration - 1) > 1e-9) fail(`markets.${where}: weights must sum to 1`);
+          if (res.rank?.weights_version !== "markets-rank-v1") fail(`markets.${where}: weights_version`);
+          if (res.rows.length < 3) fail(`markets.${where}: too few ranked rows`);
+          let lastScore = Infinity;
+          res.rows.forEach((r, i) => {
+            if (r.rank_position !== i + 1) fail(`markets.${where}: rank_position ${r.symbol} should be ${i + 1}`);
+            const inputs = r.rank_inputs;
+            if (!inputs) {
+              fail(`markets.${where}: ${r.symbol} has no rank_inputs`);
+              return;
+            }
+            const g = Math.min(Math.max(inputs.mcap_growth_pct * 2, 0), 100);
+            const a = Math.min(inputs.activity_count_window, 50) * 2;
+            const mi = inputs.migrated_within_window ? 100 : 0;
+            if (inputs.mcap_growth_score !== g) fail(`markets.${where}: ${r.symbol} growth score`);
+            if (inputs.activity_score !== a) fail(`markets.${where}: ${r.symbol} activity score`);
+            if (inputs.migration_score !== mi) fail(`markets.${where}: ${r.symbol} migration score`);
+            const score = Math.round((0.5 * g + 0.3 * a + 0.2 * mi) * 100) / 100;
+            if (Math.abs(r.rank_score - score) > 0.001) fail(`markets.${where}: ${r.symbol} rank_score != formula`);
+            if (r.rank_score > lastScore) fail(`markets.${where}: ${r.symbol} breaks score order`);
+            lastScore = r.rank_score;
+            const prev = res.rows[i - 1];
+            if (prev && prev.rank_score === r.rank_score && !(prev.mint < r.mint)) fail(`markets.${where}: tie must break on mint asc (${prev.symbol}, ${r.symbol})`);
+          });
+        } else if (tab === "new") {
+          for (let i = 1; i < res.rows.length; i += 1) {
+            if (Date.parse(res.rows[i - 1].first_seen_at) < Date.parse(res.rows[i].first_seen_at)) fail(`markets.${where}: not sorted first_seen desc`);
+          }
+          for (const r of res.rows) {
+            if (Date.parse(mk.as_of) - Date.parse(r.first_seen_at) > WINDOW_MS_VALIDATE[w]) fail(`markets.${where}: ${r.symbol} outside the window`);
+          }
+        } else {
+          for (let i = 1; i < res.rows.length; i += 1) {
+            if (Date.parse(res.rows[i - 1].migrated_at) < Date.parse(res.rows[i].migrated_at)) fail(`markets.${where}: not sorted migrated desc`);
+          }
+          for (const r of res.rows) {
+            if (r.migrated_at == null) fail(`markets.${where}: ${r.symbol} has no migrated_at`);
+            else if (Date.parse(mk.as_of) - Date.parse(r.migrated_at) > WINDOW_MS_VALIDATE[w]) fail(`markets.${where}: ${r.symbol} outside the window`);
+          }
+        }
+      }
+      for (let i = 1; i < counts.length; i += 1) {
+        if (counts[i] < counts[i - 1]) fail(`markets.${tab}: count is not monotonic across windows`);
+      }
+    }
+
+    for (const e of mk.empty || []) {
+      const res = mk.by_window?.[e.tab]?.[e.window];
+      if (!res || res.total_count !== 0 || res.rows.length !== 0 || e.total_count !== 0) fail(`markets.empty ${e.tab}/${e.window} is not empty`);
+      if (!String(e.copy_key || "").startsWith("markets.empty.")) fail(`markets.empty ${e.tab}/${e.window} copy_key`);
+    }
+    if (!(mk.empty || []).some((e) => e.tab === "trending" && e.window === "5m")) fail("markets.empty: no trending 5m case");
+    if (!(mk.empty || []).some((e) => e.tab === "graduated" && e.window === "15m")) fail("markets.empty: no graduated 15m case");
+
+    const t1 = mk.by_window?.trending?.["1h"]?.rows || [];
+    const n1 = mk.by_window?.new?.["1h"]?.rows || [];
+    const g24 = mk.by_window?.graduated?.["24h"]?.rows || [];
+    if (!n1.some((r) => Date.parse(mk.as_of) - Date.parse(r.first_seen_at) < 60_000)) fail("markets.new: no row younger than 60 s");
+    if (!n1.some((r) => r.migrated_at !== null)) fail("markets.new: no migrated mint that stays in New pairs");
+    if (!g24.some((r) => r.price_change_since_migration_pct !== r.price_change_24h_pct)) fail("markets.graduated: since-migration change is not distinguishable");
+    if (!t1.some((r) => r.guard_verdict === null)) fail("markets.trending: no guard-not-evaluated row");
+    if (!n1.some((r) => r.logo_hash === null)) fail("markets: no no-logo row");
+    if (!n1.some((r) => Date.parse(mk.as_of) - Date.parse(r.as_of) > 60_000)) fail("markets: no stale row (>60 s)");
+    if (!t1.some((r) => !r.tradeable)) fail("markets.trending: no not-tradeable row");
+    if (!n1.some((r) => r.mcap_usd === null)) fail("markets: no null-mcap row");
+
+    const n1Mints = new Set(n1.map((r) => r.mint));
+    if (!g24.some((r) => n1Mints.has(r.mint))) fail("markets: expected a mint in both New pairs and Graduated");
+  }
   if (data.summary.closed_partial_take_profits < 1) fail("no partial take-profit scenario marked");
   if (data.summary.reconciliation_delta_lamports === "0") fail("reconciliation delta should be non-zero for the partial-TP demo");
 
@@ -612,6 +1021,7 @@ function main() {
 
   if (opts.validate) {
     console.log(`ok: ${data.summary.coins} coins, ${data.summary.open_positions} open, ${data.summary.closed_positions} closed, seed ${opts.seed}`);
+    console.log(`markets: ${data.summary.markets_trending} trending, ${data.summary.markets_new} new, ${data.summary.markets_graduated} graduated, ${data.summary.markets_empty_cases} empty cases`);
     console.log(`sha256 ${digest}`);
     return;
   }
@@ -643,6 +1053,7 @@ function main() {
   console.log(`wrote ${opts.out}`);
   console.log(`  seed ${opts.seed}, anchor ${ANCHOR_ISO}`);
   console.log(`  ${data.summary.coins} coins, ${data.summary.open_positions} open, ${data.summary.closed_positions} closed (${data.summary.wins}W/${data.summary.losses}L)`);
+  console.log(`  markets: ${data.summary.markets_trending} trending, ${data.summary.markets_new} new, ${data.summary.markets_graduated} graduated`);
   console.log(`  realized ${data.summary.realized_pnl_lamports} + unrealized ${data.summary.unrealized_pnl_lamports} = ${data.summary.total_pnl_lamports} lamports`);
   console.log(`  sha256 ${digest}`);
 }

@@ -1,6 +1,6 @@
-# Demo dataset v1 (deterministic)
+# Demo dataset v1.1 (deterministic)
 
-**Owner:** Game Dev Specialist **For:** Apex Dev Lead, Product Tester, UX **Version:** 1.0 (6 Nov 2026)
+**Owner:** Game Dev Specialist **For:** Apex Dev Lead, Product Tester, UX **Version:** 1.1 (6 Nov 2026)
 **Scope:** `tools/demo`, this document. No app code, no secrets, no deploy. Paper only.
 **Status:** fixture only. Nothing loads it at runtime yet; it is the repeatable input for QA,
 screenshots, and stub servers.
@@ -16,6 +16,7 @@ screenshots, and stub servers.
 | `positions_closed` | 25 closed trades across the 30-day window, 16 wins / 9 losses, 6 with a partial take-profit |
 | `windows` | `1h`, `24h`, `7d`, `30d`, `all` with the closed rows and a `PnlSummary`-shaped object each |
 | `empty_range` | a 48 h hole in the ledger that must return zero closed rows |
+| `markets` | discovery feed v1: Trending / New pairs / Graduated for every supported window, plus two empty states |
 | `summary` | counts and the exact workspace snapshot (realized + unrealized = total) |
 | `scenarios` | named pointers for the cases above, so a test can find them without guessing |
 
@@ -38,8 +39,8 @@ node tools/demo/gen-demo-data.mjs --check      # exit 1 if the committed file dr
 node tools/demo/gen-demo-data.mjs --out /tmp/demo.json
 ```
 
-`--seed` changes mints and logos only (the trade profiles are fixed); `--check` refuses a
-non-default seed on purpose.
+`--seed` changes mints and logos only (the trade and market profiles are fixed); `--check`
+refuses a non-default seed on purpose.
 
 ## 3. Determinism contract
 
@@ -49,11 +50,14 @@ non-default seed on purpose.
 | Seed | `1337` |
 | Wall clock / locale / randomness | never read |
 | Line endings / encoding | LF, ASCII only |
-| Default output sha256 | `c1cdcbb47775d11e41b87ec5db047bb3e3f1e4458bfff350dee271e6bfcc18b5` |
+| `meta.schema_version` | `1.1` |
+| Default output sha256 | `89c401c08002b71c4f6f9299838a1863577e3b77aff5d8e52697e84246454b16` |
+| Default output size | 159 872 bytes |
 
 Two runs on two machines produce the same bytes; `--check` is the gate. The anchor is fixed on
 purpose: a moving "now" would break screenshot baselines and make "30 days" mean something
-different every morning.
+different every morning. Market row order is derived (score, then mint) - never from object
+iteration or the clock.
 
 ## 4. Top-level schema
 
@@ -64,13 +68,16 @@ different every morning.
   "summary": { "coins", "strategies", "open_positions", "closed_positions", "wins", "losses",
                "open_partial_take_profits", "closed_partial_take_profits",
                "unrealized_pnl_lamports", "realized_pnl_lamports", "total_pnl_lamports",
-               "ledger_closed_pnl_lamports", "reconciliation_delta_lamports" },
+               "ledger_closed_pnl_lamports", "reconciliation_delta_lamports",
+               "markets_trending", "markets_new", "markets_graduated",
+               "markets_market_only_mints", "markets_empty_cases" },
   "strategies": [ { "id", "key", "name", "mode" } ],
   "coins": [ CoinWire ],
   "positions_open": [ PositionWireView ],
   "positions_closed": [ PositionWireView ],
   "windows": { "1h" | "24h" | "7d" | "30d" | "all": WindowEntry },
   "empty_range": { "from", "to", "closed_count", "pnl_summary", "note" },
+  "markets": Markets,
   "scenarios": [ { "id", "expect", "pointers" } ]
 }
 ```
@@ -155,6 +162,101 @@ Two rules the fixture demonstrates on purpose:
 `as_of_seq` is the synthetic string `"4242"` and `ts` is the anchor; both exist so the field is
 present, not to model a real stream position.
 
+### 5.4 `markets`
+
+One state table (`MARKET_ROWS`) is rendered per tab and window, so a mint keeps the same mcap,
+logo, guard, and activity everywhere it appears. The envelope follows the UX spec B11 shape:
+
+```jsonc
+{
+  "as_of": "2026-11-05T17:00:00.000Z",   // feed time (anchor)
+  "server_now": "2026-11-05T17:00:00.000Z",
+  "as_of_seq": "4242",                   // placeholder stream position
+  "next_poll_ms": 10000,                 // polling fallback when SSE is absent
+  "capabilities": { "change_pct", "activity", "volume", "liquidity", "holders", "guard", "launchpad" },
+  "windows": { "trending": [...], "new": [...], "graduated": [...] },
+  "defaults": { "trending": "1h", "new": "1h", "graduated": "24h" },
+  "by_window": {
+    "trending": { "5m"|"1h"|"24h": MarketResponse },
+    "new": { "15m"|"1h"|"6h"|"24h": MarketResponse },
+    "graduated": { "15m"|"1h"|"6h"|"24h": MarketResponse }
+  },
+  "empty": [ { "tab", "window", "total_count", "copy_key", "note" } ],
+  "note": "why markets.empty.new is not reachable from this fixture"
+}
+```
+
+`MarketResponse` is what a stub returns for `GET /markets?tab=&window=`:
+
+```jsonc
+{
+  "tab": "trending",           // echoes the requested tab
+  "window": "1h",              // echoes the requested window
+  "total_count": 10,           // == rows.length (one page, no cursor)
+  "limit": 100,                // 100 Trending / 50 the other tabs
+  "next_cursor": null,         // v1 fits one page; paging is additive later
+  "rank": { ... },             // Trending only; absent on New pairs and Graduated
+  "rows": [ MarketRow ]
+}
+```
+
+`markets.windows` is the authoritative window list per tab; `markets.defaults` is the tab's
+initial window. Only these combinations are materialised - do not invent `trending/15m` or
+`new/5m`.
+
+#### Market row fields
+
+| Field | Rule |
+|---|---|
+| `mint` | synthetic base58, starts with `demo`, unique within a tab |
+| `symbol`, `name` | from the coin table, or the market-only mint table |
+| `logo_hash`, `logo_url` | both set or both `null`; the same pair contract as `coins[]` |
+| `launchpad` | `pumpfun` \| `raydium` |
+| `venue` | `curve` before migration, `amm` after; a graduated mint stays `amm` even in New pairs |
+| `first_seen_at`, `migrated_at` | ISO; `migrated_at` is `null` on the curve |
+| `market_cap_lamports` | decimal string derived from `mcap_usd` at the fixture's fixed 200 USD/SOL; `null` when unknown |
+| `mcap_usd` | decimal string or `null`; never `0` as a stand-in for "unknown" |
+| `mcap_source` | `curve` \| `pool` \| `unavailable` |
+| `mcap_as_of` | ISO or `null`; follows the mcap, not the row |
+| `price_change_5m_pct`, `price_change_1h_pct`, `price_change_24h_pct` | percent number or `null` |
+| `price_change_since_migration_pct` | percent since graduation; the Graduated tab uses this, not 24h |
+| `volume_lamports_24h`, `liquidity_lamports`, `holders`, `trades_24h` | always `null` in v1 (no volume/liquidity/holder/trade feed); never `0` |
+| `activity_count_window` | screening events inside the window, not market trades |
+| `guard_verdict` | `PASS` \| `WARN` \| `FAIL` \| `null` (never screened -> "Not evaluated", never "Guard failed") |
+| `guard_score` | `0..100` or `null`; null exactly when the verdict is null |
+| `tradeable`, `skip_reason` | `false` carries a reason; the row stays visible with neutral treatment |
+| `as_of` | **fixture extra:** per-row freshness; older than 60 s drives the row-level Stale flag |
+| `rank_position`, `rank_score`, `rank_inputs` | Trending only; `null` on New pairs and Graduated |
+
+#### Capabilities
+
+| Capability | Value | Meaning |
+|---|---|---|
+| `change_pct` | `true` | the three window changes and since-migration are real fields |
+| `activity` | `true` | screening-event count is present |
+| `guard` | `true` | verdict/score present when screened |
+| `launchpad` | `true` | launchpad is known |
+| `volume`, `liquidity`, `holders` | `false` | the matching row fields are `null`; clients hide the metric |
+
+#### Ranking (Trending only)
+
+`rank.weights_version` is `markets-rank-v1`; clients must read the version before trusting scores.
+
+| Item | Value |
+|---|---|
+| Weights | `mcap_growth 0.5`, `activity 0.3`, `migration 0.2` (sum 1) |
+| `mcap_growth_score` | `clamp(mcap_growth_pct * 2, 0, 100)` |
+| `activity_score` | `min(activity_count_window, 50) * 2` |
+| `migration_score` | `100` when the mint graduated inside the window, else `0` |
+| `rank_score` | `0.5 * mcap_growth_score + 0.3 * activity_score + 0.2 * migration_score`, rounded to 2 dp |
+| Sort | `rank_score` desc, then mint ascending (stable, locale-free) |
+| `rank_inputs` | the raw growth/activity/migration inputs plus the three normalized scores, so QA can recompute the score |
+
+The migration term is window-relative, so the order legitimately changes between 1h and 24h:
+`NOVA` and `CRATE` graduated inside 24h but not inside 1h. `markets.trending.5m` has no rows
+(fewer than 5 observations) but keeps the `rank` metadata so the client can render the empty
+copy with the right weights version.
+
 ## 6. Expected numbers (default seed)
 
 | Item | Value |
@@ -180,6 +282,31 @@ present, not to model a real stream position.
 Empty custom range: `2026-10-24T05:00:00.000Z` .. `2026-10-26T05:00:00.000Z`
 (24 Oct 12:00 WIB .. 26 Oct 12:00 WIB), `closed_count = 0`.
 
+### 6.1 Markets counts (default seed)
+
+18 market states: 10 also have a `/coins` row, 8 are market-only mints
+(`GRAIN`, `SPORE`, `CRATE`, `PULSE`, `VAPOR`, `EMBER`, `MOSSY`, `SABLE`).
+
+| Tab | 5m | 15m | 1h | 6h | 24h |
+|---|---|---|---|---|---|
+| Trending | 0 | - | 10 | - | 10 |
+| New pairs | - | 4 | 8 | 10 | 12 |
+| Graduated | - | 0 | 1 | 2 | 7 |
+
+Default windows: Trending `1h` (10 rows), New pairs `1h` (8), Graduated `24h` (7).
+
+Trending 1h order (score): `GRAIN 74.2`, `MOCHI 62.6`, `NOVA 57.2`, `ORBIT 57.2`,
+`SPORE 55.4`, `KELP 53`, `CRATE 40.6`, `BREW 32.1`, `FLUX 10.4`, `PULSE 1.8`.
+`NOVA` and `ORBIT` tie at 57.2; mint ascending puts `NOVA` first.
+
+Trending 24h order: `NOVA 77.2`, `GRAIN 74.2`, `MOCHI 62.6`, `CRATE 60.6`, `ORBIT 57.2`,
+`SPORE 55.4`, `KELP 53`, `BREW 32.1`, `FLUX 10.4`, `PULSE 1.8`.
+
+Empty states: `markets.by_window.trending["5m"]` and `markets.by_window.graduated["15m"]` both have
+`rows: []`, `total_count: 0`. Copy keys: `markets.empty.trending`, `markets.empty.graduated`.
+`markets.empty.new` is deliberately unreachable here (a pair is 45 s old); stub an override to
+test that copy.
+
 ## 7. Scenarios
 
 | `scenarios[].id` | What it proves | Pointer |
@@ -192,6 +319,18 @@ Empty custom range: `2026-10-24T05:00:00.000Z` .. `2026-10-26T05:00:00.000Z`
 | `no-logo` | `logo_hash`/`logo_url` null, identicon, no request | `LUMA`, `WISP` |
 | `untradeable` | `tradeable: false` + `skip_reason` | `FLUX` |
 | `zero-pnl-open` | 0 unrealized stays neutral, not a 0 % win | `demo-o03-brew` |
+| `markets-trending-ranks` | rank 1..10 asc, score recomputable from `rank_inputs` | 10 `rank_position:symbol` |
+| `markets-trending-empty` | Trending 5m returns zero rows and `total_count: 0` | `markets.by_window.trending["5m"]` |
+| `markets-graduated-empty` | Graduated 15m returns zero rows | `markets.by_window.graduated["15m"]` |
+| `markets-new-young` | a 45 s-old pair gets the New chip | `SPORE` |
+| `markets-migrated-still-new` | a graduated mint stays in New pairs and still shows `venue: amm` | `GRAIN`, `MOCHI` |
+| `markets-since-migration` | Graduated uses `price_change_since_migration_pct`, not 24h | `GRAIN`, `NOVA` |
+| `markets-market-only-guard-null` | never-screened mint -> "Not evaluated", not "Guard failed" | `CRATE` |
+| `markets-null-mcap` | null mcap renders an em dash, no invented rate | `VAPOR` |
+| `markets-null-change` | null change renders an em dash | `VAPOR` |
+| `markets-stale-row` | row `as_of` 95 s old keeps its row and flags Stale | `MOCHI` |
+| `markets-not-tradeable` | untradeable row stays visible with a neutral treatment | `FLUX` |
+| `markets-no-logo` | null logo pair -> identicon and no image request | `PULSE`, `WISP`, `GRAIN`, `VAPOR` |
 
 ## 8. Using it
 
@@ -200,6 +339,7 @@ For screenshots and UI assertions, pick the numbers from the tables above or rea
 ```bash
 node -e "const d=require('./tools/demo/demo-data.json');console.log(d.windows['7d'].pnl_summary)"
 node -e "const d=require('./tools/demo/demo-data.json');console.log(d.positions_closed.filter(r=>r.partial_tp).map(r=>r.position_key))"
+node -e "const d=require('./tools/demo/demo-data.json');console.log(d.markets.by_window.trending['1h'].rows)"
 ```
 
 Mapping to endpoints when a stub is wired:
@@ -211,6 +351,12 @@ Mapping to endpoints when a stub is wired:
 | `GET /positions?state=closed&window=7d` | `positions_closed` filtered by the window `from` |
 | `GET /stats/pnl?window=7d` | `windows["7d"].pnl_summary` |
 | `GET /stats/pnl?from=&to=` | `empty_range.pnl_summary` for the empty case |
+| `GET /markets?tab=trending&window=1h` | `markets.by_window.trending["1h"]`, wrapped with `as_of`, `server_now`, `as_of_seq`, `next_poll_ms`, `capabilities` |
+| `GET /markets?tab=new&window=15m` | `markets.by_window.new["15m"]` (4 rows) |
+| `GET /markets?tab=graduated&window=15m` | `markets.by_window.graduated["15m"]` (empty state) |
+
+Window options and defaults come from `markets.windows` / `markets.defaults`, not from a hard-coded
+client list. Market rows carry no `mode`: do not apply the screener mode chip to this feed.
 
 There is no runtime loader in the apps yet. Do not change app code to consume this file without a
 task that says so; today it is the expected-value fixture for QA and the seed for a future stub.
@@ -224,11 +370,24 @@ task that says so; today it is the expected-value fixture for QA and the seed fo
 4. No receipts beyond the closed position fields (no per-trade event list).
 5. Bot filter is not modelled as an endpoint; filter `positions_closed[].strategy_id` yourself.
 6. The dataset is demo-only: never point it at `mode=real`, never treat a mint as tradable.
+7. Markets materialises only the tab/window pairs in `markets.windows`. Other combinations
+   (`trending/15m`, `new/5m`, ...) are out of scope for v1; the client disables them.
+8. Markets are market-wide and mode-less. There is no `mode`, strategy, or workspace field on a
+   market row, and the feed must not be filtered by the screener's mode chip.
+9. Market `as_of` (per row) and `skip_reason` are fixture extras: they are the proposed shape for
+   row freshness and the untradeable reason, not contract fields that exist on the current endpoint.
+10. `volume_lamports_24h`, `liquidity_lamports`, `holders`, and `trades_24h` are always `null` in
+    v1 and the first three are flagged `false` in `capabilities`. Rendering `0` would invent data.
+11. `market_cap_lamports` is converted from the synthetic USD number at a fixed 200 USD/SOL; it is
+    not a quote and carries no exchange rate history.
+12. The ranking formula is the v1 fixture contract (`markets-rank-v1`). A backend with a different
+    `weights_version` must not be compared against these scores.
 
 ## 10. Changing the fixture
 
-1. Edit the profile tables in `tools/demo/gen-demo-data.mjs` (or `--seed` for mints/logos).
+1. Edit the profile tables in `tools/demo/gen-demo-data.mjs` (`MARKET_ROWS`, `MARKET_ONLY` for the
+   feed) or use `--seed` for mints/logos.
 2. Run the generator; it validates every invariant before writing.
-3. Commit the script **and** `demo-data.json` in the same change; update the sha256 and the
-   expected-numbers table here.
+3. Commit the script **and** `demo-data.json` in the same change; update the sha256, the byte size,
+   and the expected-numbers tables here.
 4. Do not hand-edit the JSON: `--check` compares bytes and will fail.
