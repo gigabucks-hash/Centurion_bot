@@ -514,11 +514,12 @@ export interface ClosedTrade {
   /** Coin symbol/logo are joined from the coin list at the page edge (the wire carries the mint only). */
   symbol: string | null;
   logoHash: string | null;
-  solInSol: Sol;
-  solOutSol: Sol;
+  /** Null when the wire omits the value: render an em dash, never a fabricated 0. */
+  solInSol: Sol | null;
+  solOutSol: Sol | null;
   /** Reported context (swap fee is already netted inside solIn/solOut); null when the wire omits it. */
   feesSol: Sol | null;
-  pnlSol: Sol;
+  pnlSol: Sol | null;
   pnlPct: number | null;
   holdSeconds: number | null;
   exitReason: ExitReason | null;

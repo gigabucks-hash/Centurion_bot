@@ -684,12 +684,15 @@ export function pnlSummaryFromWire(w: PnlSummaryWire): PnlSummary {
  * (`sol_out - sol_in`); never recompute it from the prices. Symbol/logo come from the coin join.
  */
 export function closedTradeFromWire(w: PositionWire): ClosedTrade {
-  const solIn = lamportsToSolNumber(w.sol_in_lamports) ?? 0;
-  const pnl = lamportsToSolNumber(w.pnl_lamports) ?? 0;
+  const solIn = lamportsToSolNumber(w.sol_in_lamports) ?? null;
+  const pnl = lamportsToSolNumber(w.pnl_lamports) ?? null;
+  // F1: a missing wire value stays null (em dash), never 0 and never a value inferred from other fields
+  // when either input is missing — a fabricated 0.00 reads as a real result.
+  const solOut = lamportsToSolNumber(w.sol_out_lamports) ?? (solIn != null && pnl != null ? solIn + pnl : null);
   return {
     id: w.id, positionKey: w.position_key, strategyId: w.strategy_id, mode: w.mode, mint: w.mint,
     symbol: null, logoHash: logoHashFromWire(w.logo_hash) ?? null,
-    solInSol: solIn, solOutSol: lamportsToSolNumber(w.sol_out_lamports) ?? solIn + pnl,
+    solInSol: solIn, solOutSol: solOut,
     feesSol: lamportsToSolNumber(w.fees_lamports) ?? null,
     pnlSol: pnl, pnlPct: w.pnl_pct ?? null, holdSeconds: w.hold_seconds ?? null,
     exitReason: w.exit_reason ?? null,

@@ -90,11 +90,16 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
   // numbers below the filter come from that bot only, so say so instead of showing two "all-time" values.
   const botName = strategyId ? (name.get(strategyId) ?? shortMint(strategyId)) : null;
   // Lamport-exact: a 1-lamport difference must not read as "reconciled" just because floats are close.
-  const reconciled = summary.realizedWindowSol != null && sameLamports(summary.realizedWindowSol, summary.realizedPnlSol ?? 0);
+  // F1: with no all-time snapshot there is nothing to reconcile — never compare against a made-up 0.
+  const reconciled =
+    summary.realizedWindowSol != null &&
+    summary.realizedPnlSol != null &&
+    sameLamports(summary.realizedWindowSol, summary.realizedPnlSol);
   const scopeNote = botName ? t("pnl.scopeAllBots", { bot: botName }) : null;
   // All-time realized can differ from the windowed value at any range (partial take-profits on open
-  // positions, closes outside the range), including All. Show the note whenever they differ.
-  const showReconcile = !botName && !reconciled;
+  // positions, closes outside the range), including All. Show the note whenever they differ; a missing
+  // side stays an em dash (Pnl / f.sol guard), never 0.00.
+  const showReconcile = !botName && !reconciled && (summary.realizedPnlSol != null || summary.realizedWindowSol != null);
 
   return (
     <>
@@ -146,7 +151,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
 
       {showReconcile && (
         <p className="mt-3 rounded-md bg-bg-sunken p-3 text-caption text-text-secondary" data-testid="pnl-reconcile">
-          {t("pnl.reconcile", { all: f.sol(summary.realizedPnlSol ?? 0), range: summary.realizedWindowSol != null ? f.sol(summary.realizedWindowSol) : "—", window: rangeLabel })}
+          {t("pnl.reconcile", { all: summary.realizedPnlSol != null ? f.sol(summary.realizedPnlSol) : "—", range: summary.realizedWindowSol != null ? f.sol(summary.realizedWindowSol) : "—", window: rangeLabel })}
         </p>
       )}
 
@@ -188,8 +193,8 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
               ),
             },
             { key: "strategy", header: t("pnl.colStrategy"), cell: (r) => <div className="max-w-[8.5rem] truncate" title={r.strategyId ? name.get(r.strategyId) : undefined}>{r.strategyId ? name.get(r.strategyId) ?? "—" : "—"}</div> },
-            { key: "in", header: t("pnl.colIn"), numeric: true, cell: (r) => f.sol(r.solInSol, { unit: false }) },
-            { key: "out", header: t("pnl.colOut"), numeric: true, cell: (r) => f.sol(r.solOutSol, { unit: false }) },
+            { key: "in", header: t("pnl.colIn"), numeric: true, cell: (r) => (r.solInSol != null ? f.sol(r.solInSol, { unit: false }) : "—") },
+            { key: "out", header: t("pnl.colOut"), numeric: true, cell: (r) => (r.solOutSol != null ? f.sol(r.solOutSol, { unit: false }) : "—") },
             { key: "pnl", header: t("pnl.colRealized"), numeric: true, cell: (r) => <Pnl sol={r.pnlSol} mode={mode} /> },
             { key: "pct", header: t("pnl.colPct"), numeric: true, cell: (r) => (r.pnlPct != null ? <Pnl pct={r.pnlPct} mode={mode} /> : "—") },
             { key: "fees", header: t("pnl.colFees"), numeric: true, headerWrap: true, cell: (r) => (r.feesSol != null ? f.sol(r.feesSol, { unit: false }) : "—") },

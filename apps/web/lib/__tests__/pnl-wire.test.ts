@@ -56,3 +56,17 @@ test("closed trade: realized PnL comes from pnl_lamports, not from the prices", 
   assert.equal(t.openedAt, Date.parse("2026-11-05T00:00:00.000Z"));
   assert.equal(t.symbol, null, "symbol is joined from the coin list, never invented here");
 });
+
+test("F1: a closed row with missing money stays null (em dash), never 0", () => {
+  const t = closedTradeFromWire({
+    id: "p2", position_key: "pick.2", strategy_id: null, mint: "MockMint222", mode: "practice",
+    status: "closed", rev: 1, practice_epoch: 1, sol_in_lamports: null, sol_out_lamports: null,
+    fees_lamports: null, pnl_lamports: null, pnl_pct: null, hold_seconds: null,
+    exit_reason: null, opened_at: "2026-11-05T00:00:00.000Z", closed_at: "2026-11-05T00:06:00.000Z",
+    logo_hash: null,
+  } as unknown as PositionWire);
+  assert.equal(t.pnlSol, null, "missing realized PnL is not 0");
+  assert.equal(t.solInSol, null);
+  assert.equal(t.solOutSol, null, "out is not inferred when in/pnl are missing");
+  assert.equal(t.feesSol, null);
+});
