@@ -440,6 +440,42 @@ Rules:
 - The demo/mock build shows the standard `Example data` banner; a live-looking market screen on mock
   data is forbidden.
 
+### B6.1 State → copy matrix (authoritative)
+
+One banner at a time. When several apply, priority is **offline device > 429 > feed down > per-row
+stale**. A banner never replaces rows that are already on screen, and the action always sits in the
+banner (or the empty panel), never in more than one place.
+
+| # | state | trigger | rows kept | visible copy key | action key | retry rule |
+|---|---|---|---|---|---|---|
+| S1 | Loading, first paint | no cache for tab/window | 8 skeletons | `markets.loading` (status) + `markets.updated` with `—` | none | one in-flight request; no user loop |
+| S2 | Loading, cached tab | cache exists, request running | yes | previous `markets.updated`; no new banner | none | one in-flight request |
+| S3 | Empty, New | 0 rows in window | no (empty panel) | `markets.empty.new` | `markets.widen` if < 24h, else `markets.refresh` | manual only |
+| S4 | Empty, Graduated | 0 rows in window | no (empty panel) | `markets.empty.graduated` | `markets.widen` if < 24h, else `markets.refresh` | manual only |
+| S5 | Empty, Trending | 0 rankable rows | no (empty panel) | `markets.empty.trending` | `markets.refresh` | manual only |
+| S6 | Empty, filtered | server rows exist, client filter hides all | no (empty panel) | `markets.empty_filtered` | `markets.clear_filters` | manual only |
+| S7 | First-load error | no cache, request failed | no (error panel) | `markets.error.title` + `markets.error.body` | `markets.retry` | manual only |
+| S8 | Feed down with rows | refresh failed; rows exist | yes | `markets.feed_down` + per-row `markets.stale_row` | `markets.retry` | manual; auto-retry may continue silently |
+| S9 | 429 with `retry_after_s` | header present | yes | `markets.rate_limited` | none (auto) | retry once at 0, then backoff |
+| S10 | 429 without `retry_after_s` | header absent | yes | `markets.rate_limited_unknown` | none (auto) | 5→10→20→40 s, cap 60 s |
+| S11 | Offline device | `navigator.onLine = false` | yes (cache) | `markets.offline_cached` | `markets.retry` disabled until online | retry on `online` event, not a timer |
+| S12 | Partially stale row | row `as_of` older than 60 s | yes | dot + `markets.stale_row`, title `markets.stale` | none | replaced by the next poll |
+| S13 | Guard not evaluated | `guard_verdict = null` | yes | `markets.guard_not_evaluated` + `markets.guard_not_evaluated_hint` | none | n/a |
+| S14 | Not tradeable | `tradeable = false` | hidden by default | `markets.show_not_tradeable` chip | same chip toggles | n/a |
+| S15 | Capability absent | `capabilities.<field> = false` | yes | no column, no empty header | none | n/a |
+
+Freshness rules:
+
+- Header dot: `live` while the newest `as_of` is ≤ `max(10 s, 2 × next_poll_ms)`; `stale` above that;
+  `offline` on a transport failure. Label keys: `markets.live`, `markets.stale`, `markets.offline`.
+- Row stale is always 60 s, independent of the header dot. A stale row stays visible and keeps its
+  original timestamps; a row never disappears because it failed a poll.
+- Ages are computed from server `as_of` plus `skewFrom(server_now)`, never from client arrival time.
+- 429: keep rows, never clear the table, never start two retry timers, and never show the 429 banner
+  together with `markets.feed_down` (429 wins).
+- Offline: keep the per-tab/window in-memory cache; a cold start with no cache shows S7, not S3–S5.
+- Demo/mock builds show the existing `common.exampleData` banner; do not add a `markets.*` duplicate.
+
 ## B7. Live behaviour
 
 | behaviour | rule |
@@ -498,11 +534,13 @@ slice; `P1` ships with the market-only detail or the polish pass.
 | `markets.tab.trending` | `marketsTabTrending` | Trending | Trending | P0 |
 | `markets.tab.new` | `marketsTabNew` | New pairs | Pair baru | P0 |
 | `markets.tab.graduated` | `marketsTabGraduated` | Graduated | Lulus curve | P0 |
+| `markets.tab_count` | `marketsTabCount` | {tab}, {count} listed | {tab}, {count} terdaftar | P0 |
 | `markets.subtitle` | `marketsSubtitle` | Live on-chain feed · {count} listed in {range} | Feed on-chain langsung · {count} terdaftar dalam {range} | P0 |
 | `markets.window.15m` | `marketsWindow15m` | 15m | 15m | P0 |
 | `markets.window.1h` | `marketsWindow1h` | 1h | 1j | P0 |
 | `markets.window.6h` | `marketsWindow6h` | 6h | 6j | P0 |
 | `markets.window.24h` | `marketsWindow24h` | 24h | 24j | P0 |
+| `markets.window_label` | `marketsWindowLabel` | Time window | Jendela waktu | P0 |
 | `markets.live` | `marketsLive` | Live | Langsung | P0 |
 | `markets.stale` | `marketsStale` | Stale · {age} | Basi · {age} | P0 |
 | `markets.offline` | `marketsOffline` | Live feed offline | Feed langsung terputus | P0 |
@@ -526,6 +564,7 @@ slice; `P1` ships with the market-only detail or the polish pass.
 | `markets.activity_hint` | `marketsActivityHint` | Our screening events in this window, not market trades | Event screening kita di jendela ini, bukan trade pasar | P0 |
 | `markets.mcap_indicative` | `marketsMcapIndicative` | ≈ indicative | ≈ indikatif | P0 |
 | `markets.mcap_as_of` | `marketsMcapAsOf` | As of {time} | Per {time} | P0 |
+| `markets.mcap_source` | `marketsMcapSource` | Source: {source} | Sumber: {source} | P1 |
 | `markets.guard_passed` | `marketsGuardPassed` | Passed {score} | Lulus {score} | P0 |
 | `markets.guard_failed` | `marketsGuardFailed` | Guard failed | Gagal guard | P0 |
 | `markets.guard_not_evaluated` | `marketsGuardNotEvaluated` | Not evaluated | Belum dinilai | P0 |
@@ -533,21 +572,28 @@ slice; `P1` ships with the market-only detail or the polish pass.
 | `markets.empty.new` | `marketsEmptyNew` | No new pairs in the last {range} | Tidak ada pair baru dalam {range} | P0 |
 | `markets.empty.graduated` | `marketsEmptyGraduated` | No graduations in the last {range} | Tidak ada yang lulus dalam {range} | P0 |
 | `markets.empty.trending` | `marketsEmptyTrending` | Not enough data to rank yet | Data belum cukup untuk membuat peringkat | P0 |
+| `markets.empty_filtered` | `marketsEmptyFiltered` | No markets match these filters | Tidak ada pasar yang cocok dengan filter ini | P0 |
+| `markets.clear_filters` | `marketsClearFilters` | Clear filters | Hapus filter | P0 |
 | `markets.widen` | `marketsWiden` | Widen to 24h | Perlebar ke 24j | P0 |
 | `markets.refresh` | `marketsRefresh` | Refresh | Muat ulang | P0 |
 | `markets.retry` | `marketsRetry` | Retry | Coba lagi | P0 |
 | `markets.load_more` | `marketsLoadMore` | Load more | Muat lagi | P0 |
+| `markets.loading_more` | `marketsLoadingMore` | Loading more… | Memuat lagi… | P0 |
 | `markets.loading` | `marketsLoading` | Loading markets… | Memuat pasar… | P0 |
 | `markets.error.title` | `marketsErrorTitle` | Markets could not be loaded | Pasar gagal dimuat | P0 |
 | `markets.error.body` | `marketsErrorBody` | The feed did not answer. Check your connection and try again. | Feed tidak menjawab. Periksa koneksi lalu coba lagi. | P0 |
 | `markets.feed_down` | `marketsFeedDown` | Live feed offline · showing last data from {time} | Feed langsung terputus · menampilkan data terakhir {time} | P0 |
 | `markets.rate_limited` | `marketsRateLimited` | Feed rate-limited · retrying in {seconds}s | Feed kena rate limit · coba lagi {seconds}d | P0 |
+| `markets.rate_limited_unknown` | `marketsRateLimitedUnknown` | Feed rate-limited · retrying shortly | Feed kena rate limit · segera dicoba lagi | P0 |
 | `markets.offline_cached` | `marketsOfflineCached` | You're offline · showing cached rows from {time} | Kamu offline · menampilkan baris cache dari {time} | P0 |
 | `markets.stale_row` | `marketsStaleRow` | Stale | Basi | P0 |
 | `markets.new_rows` | `marketsNewRows` | {count} new | {count} baru | P0 |
+| `markets.new_rows_action` | `marketsNewRowsAction` | {count} new · tap to refresh | {count} baru · ketuk untuk memuat | P0 |
 | `markets.new_rows_announce` | `marketsNewRowsAnnounce` | {count, plural, =1{1 new pair} other{{count} new pairs}} | {count, plural, =1{1 pair baru} other{{count} pair baru}} | P0 |
 | `markets.row_open` | `marketsRowOpen` | Open {symbol} | Buka {symbol} | P0 |
 | `markets.row_a11y` | `marketsRowA11y` | {symbol}, {age}, market cap {mcap}, {venue}, {guard} | {symbol}, {age}, market cap {mcap}, {venue}, {guard} | P0 |
+| `markets.row_a11y_rank` | `marketsRowA11yRank` | Rank {rank}, {symbol}, {age}, market cap {mcap}, {venue}, {guard} | Peringkat {rank}, {symbol}, {age}, market cap {mcap}, {venue}, {guard} | P0 |
+| `markets.row_a11y_compact` | `marketsRowA11yCompact` | {symbol}, {age}, market cap {mcap}, change {change}, activity {activity}, {guard} | {symbol}, {age}, market cap {mcap}, perubahan {change}, aktivitas {activity}, {guard} | P0 |
 | `markets.filter.title` | `marketsFilterTitle` | Filter markets | Filter pasar | P0 |
 | `markets.filter.launchpad_all` | `marketsFilterLaunchpadAll` | All launchpads | Semua launchpad | P0 |
 | `markets.hide_failed` | `marketsHideFailed` | Hide guard-failed | Sembunyikan yang gagal guard | P0 |
@@ -560,6 +606,9 @@ slice; `P1` ships with the market-only detail or the polish pass.
 | `markets.age.hours_minutes` | `marketsAgeHoursMinutes` | {hours}h {minutes}m | {hours}j {minutes}m | P0 |
 | `markets.age.days` | `marketsAgeDays` | {count}d | {count} hr | P0 |
 | `markets.detail.market_only` | `marketsDetailMarketOnly` | Never screened by a bot | Belum pernah di-screening bot | P1 |
+| `markets.detail.breadcrumb` | `marketsDetailBreadcrumb` | Markets / {symbol} | Pasar / {symbol} | P1 |
+| `markets.detail.tradeable` | `marketsDetailTradeable` | Tradeable | Bisa ditradingkan | P1 |
+| `markets.detail.not_tradeable` | `marketsDetailNotTradeable` | Not tradeable right now | Belum bisa ditradingkan | P1 |
 | `markets.detail.send_to_review` | `marketsDetailSendToReview` | Send to bot review | Kirim ke review bot | P1 |
 | `markets.detail.sent` | `marketsDetailSent` | Sent to bot review | Terkirim ke review bot | P1 |
 | `markets.detail.no_strategies` | `marketsDetailNoStrategies` | Create a bot to review this coin | Buat bot untuk me-review koin ini | P1 |
@@ -684,11 +733,14 @@ market row.
 
 # Part C — Handoff
 
-- This document is the only file UX changed. No app files, no `packages/i18n`, no token changes.
+- UX changed only `docs/design`: this spec and `receipt-implementation-review.md`. No app files, no
+  `packages/i18n`, no token changes.
 - Implementation owners: **Desktop** (dialog receipt), **Mobile** (receipt corrections + `/markets`),
   **Web** (`/markets` + label parity), **Backend** (B11 endpoints/capabilities).
-- UX owns the next `@centurion/i18n` publish for the new keys, then the screenshot pass for both
-  surfaces.
-- Lead commits and pushes this file; specialists must not stage other agents' files.
+- The receipt review lists the open P1/P2/P3 gaps with `file:line` and the final key set; read it before
+  the fix pass.
+- UX owns the next `@centurion/i18n` publish for the new keys (89 `markets.*` + 25 mobile receipt keys),
+  then the screenshot pass for both surfaces.
+- Lead commits and pushes these two files; specialists must not stage other agents' files.
 - Suggested review gate for this doc: key table parses (no duplicate canonical or ARB names), all
   receipt fields have a source, and every discovery column has a capability and a null rule.
