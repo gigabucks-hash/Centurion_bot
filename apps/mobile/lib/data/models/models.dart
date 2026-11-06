@@ -185,6 +185,7 @@ class Position {
     this.lockedPnlPct,
     this.feesLamports,
     this.exitPriceUsd,
+    this.holdSeconds,
     this.soldBps = 0,
     this.exitPlan,
     this.feeBps = 125,
@@ -238,6 +239,12 @@ class Position {
   /// Wire `exit_price_sol` (closed rows): the price the remainder left at.
   final Decimal? exitPriceUsd;
 
+  /// Wire `hold_seconds` (closed rows, contract 1.1.6 / migration 0022): the
+  /// server's locked hold. When present it WINS over `closedAt − openedAt`, so a
+  /// receipt never depends on the device clock or a rounded timestamp. Null on
+  /// open rows and legacy rows → derive from the timestamps.
+  final int? holdSeconds;
+
   /// Share of the original size already sold, in basis points (0–10000).
   final int soldBps;
   final ExitPlanState? exitPlan;
@@ -269,7 +276,11 @@ class Position {
   Lamports get valueLamports => isOpen ? sizeLamports.times(ratio(markPriceUsd, entryPriceUsd)) : Lamports.zero;
   double get changePct => pctChange(entryPriceUsd, markPriceUsd);
   double get fromPeakPct => -pctChange(peakPriceUsd, markPriceUsd);
-  Duration holdAt(DateTime now) => (closedAt ?? now).difference(openedAt);
+  Duration holdAt(DateTime now) {
+    final locked = holdSeconds;
+    if (locked != null && locked >= 0) return Duration(seconds: locked);
+    return (closedAt ?? now).difference(openedAt);
+  }
 
   /// PnL: realized proceeds + mark-to-market of the remainder − cost. A closed
   /// row keeps the server's locked number instead of re-deriving it.
@@ -291,6 +302,7 @@ class Position {
     String? exitReason,
     Lamports? feesLamports,
     Decimal? exitPriceUsd,
+    int? holdSeconds,
     int? soldBps,
     ExitPlanState? exitPlan,
     int? rev,
@@ -315,6 +327,7 @@ class Position {
       lockedPnlPct: lockedPnlPct,
       feesLamports: feesLamports ?? this.feesLamports,
       exitPriceUsd: exitPriceUsd ?? this.exitPriceUsd,
+      holdSeconds: holdSeconds ?? this.holdSeconds,
       soldBps: soldBps ?? this.soldBps,
       exitPlan: exitPlan ?? this.exitPlan,
       feeBps: feeBps,

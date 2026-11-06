@@ -10,6 +10,7 @@ import '../../../data/api/api_exception.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/repositories.dart' show ClosePositionRequest;
 import '../../../data/providers.dart';
+import '../../../l10n/gen/app_localizations.dart';
 
 /// Opens the manual sell sheet (SPEC §6, flows/positions-sell.mmd).
 /// Only reachable from the Positions list/detail: never from a notification.
@@ -35,12 +36,15 @@ class _SellSheetState extends ConsumerState<SellSheet> {
   int _pct = 50;
   bool _busy = false;
 
-  String get _unit => widget.position.mode == TradeMode.real ? 'SOL' : 'paper SOL';
+  String _unit(AppLocalizations l) => widget.position.mode == TradeMode.real ? l.commonUnitSol : l.commonUnitPaperSol;
 
   Future<void> _sell({bool needsBiometric = false}) async {
+    final l = AppLocalizations.of(context);
     final p = ref.read(positionByIdProvider(widget.position.id)).valueOrNull ?? widget.position;
     if (needsBiometric) {
-      final ok = await ref.read(approvalGuardProvider).confirm(context, action: 'Jual $_pct% \$${p.symbol} (Real SOL)');
+      final ok = await ref
+          .read(approvalGuardProvider)
+          .confirm(context, action: l.positionsSellConfirmAction('$_pct', '\$${p.symbol}'));
       if (!ok || !mounted) return;
     }
     setState(() => _busy = true);
@@ -67,8 +71,8 @@ class _SellSheetState extends ConsumerState<SellSheet> {
         SnackBar(
           content: Text(
             got == null
-                ? 'Order jual $_pct% \$${p.symbol} dikirim'
-                : 'Terjual $_pct% \$${p.symbol} · ≈ ${fmtSol(got)} $_unit',
+                ? l.positionsSellOrderSent('$_pct', '\$${p.symbol}')
+                : l.positionsSellFilled('$_pct', '\$${p.symbol}', fmtSol(got), _unit(l)),
           ),
         ),
       );
@@ -83,6 +87,7 @@ class _SellSheetState extends ConsumerState<SellSheet> {
     // Live: estimate follows the mark while the sheet is open.
     final p = ref.watch(positionByIdProvider(widget.position.id)).valueOrNull ?? widget.position;
     final real = p.mode == TradeMode.real;
+    final l = AppLocalizations.of(context);
     final tt = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
     final est = p.estimateSell(_pct);
@@ -99,7 +104,11 @@ class _SellSheetState extends ConsumerState<SellSheet> {
               CoinAvatar(mint: p.mint, symbol: p.symbol, logoHash: p.logoHash, logoUrl: p.logoUrl),
               const SizedBox(width: AppSpace.s2),
               Flexible(
-                child: Text('Jual \$${p.symbol}', style: tt.titleLarge, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  l.positionsSellTitle('\$${p.symbol}'),
+                  style: tt.titleLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               const SizedBox(width: AppSpace.s2),
               ModeChip(p.mode),
@@ -120,9 +129,9 @@ class _SellSheetState extends ConsumerState<SellSheet> {
           const SizedBox(height: AppSpace.s3),
           Row(
             children: [
-              Expanded(child: Text('Perkiraan terima', style: tt.bodyMedium)),
+              Expanded(child: Text(l.positionsSellEstimate, style: tt.bodyMedium)),
               Text(
-                '≈ ${fmtSol(est)} $_unit',
+                l.positionsSellEstimateValue(fmtSol(est), _unit(l)),
                 key: const Key('sellEstimate'),
                 style: AppText.num(14, weight: FontWeight.w600),
               ),
@@ -131,13 +140,13 @@ class _SellSheetState extends ConsumerState<SellSheet> {
           const SizedBox(height: AppSpace.s1),
           Text(
             real
-                ? 'Slippage maks 3% · priority fee otomatis · fee ${p.feeBps / 100}%'
-                : 'Simulasi: slippage 0% · fee ${(p.feeBps / 100).toString().replaceAll('.', ',')}%',
+                ? l.positionsSellFeesReal('${p.feeBps / 100}')
+                : l.positionsSellFeesPractice((p.feeBps / 100).toString().replaceAll('.', ',')),
             style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpace.sHalf),
           Text(
-            full ? 'Posisi ditutup penuh · exit plan dibatalkan' : 'Sisa posisi tetap memakai exit plan',
+            full ? l.positionsSellPlanCancelled : l.positionsSellRemainingPlan,
             key: const Key('sellPlanEffect'),
             style: tt.bodySmall!.copyWith(color: full ? context.tradeColors.warning : cs.onSurfaceVariant),
           ),
@@ -149,8 +158,8 @@ class _SellSheetState extends ConsumerState<SellSheet> {
             label: realBlocked
                 ? realSolDisabledText
                 : real
-                ? 'Tahan untuk jual $_pct% (Real SOL)'
-                : 'Tahan untuk jual $_pct% (Practice)',
+                ? l.positionsSellHoldReal('$_pct%')
+                : l.positionsSellHoldPractice('$_pct%'),
             hold: real ? AppMotion.holdRealBase : AppMotion.holdPracticeBase,
             color: real ? context.tradeColors.real : Theme.of(context).colorScheme.primary,
             enabled: !_busy && !realBlocked,
@@ -160,7 +169,7 @@ class _SellSheetState extends ConsumerState<SellSheet> {
           OutlinedButton(
             style: AppButtons.secondary(context),
             onPressed: _busy ? null : () => Navigator.pop(context),
-            child: const Text('Batal'),
+            child: Text(l.commonActionCancel),
           ),
         ],
       ),

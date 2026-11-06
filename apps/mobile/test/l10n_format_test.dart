@@ -22,8 +22,12 @@ void main() {
     expect(formatPct(8.4, 'en', signed: true), '+8.4%');
     expect(formatUsd(Decimal.parse('0.000412'), 'en'), r'$0.000412');
     expect(formatUsd(Decimal.parse('1234.5'), 'id'), r'$1.235'); // 4 significant digits
-    expect(formatTime(DateTime(2026, 10, 29, 16, 5), 'id'), '16.05 WIB');
-    expect(formatTime(DateTime(2026, 10, 29, 16, 5), 'en'), '4:05${nb}PM WIB');
+    // Wire instants are UTC; 09:05Z is 16:05 WIB regardless of the device zone.
+    expect(formatTime(DateTime.utc(2026, 10, 29, 9, 5), 'id'), '16.05 WIB');
+    expect(formatTime(DateTime.utc(2026, 10, 29, 9, 5), 'en'), '4:05${nb}PM WIB');
+    // The F2 repro: 03:00Z must print 10:00 WIB, never 03:00.
+    expect(formatTime(DateTime.parse('2026-11-06T03:00:00.000Z'), 'id'), '10.00 WIB');
+    expect(toWib(DateTime.parse('2026-11-06T03:00:00.000Z')).hour, 10);
     expect(formatCountdown(const Duration(seconds: 102)), '01:42');
     expect(formatCountdown(const Duration(seconds: -3)), '00:00');
   });

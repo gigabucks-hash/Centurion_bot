@@ -353,6 +353,12 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get commonUnitPaperSol => 'paper SOL';
+
+  @override
+  String get commonUnitSol => 'SOL';
+
+  @override
   String get commonValueUnavailable => 'Data belum tersedia';
 
   @override
@@ -1789,6 +1795,32 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String positionsCaptionNextTp(String n, String pct) {
+    return 'TP$n berikutnya +$pct%';
+  }
+
+  @override
+  String positionsCaptionStopLoss(String pct) {
+    return 'SL −$pct%';
+  }
+
+  @override
+  String positionsCaptionTpFilled(String n) {
+    return 'TP$n ✓';
+  }
+
+  @override
+  String get positionsCaptionTrailArmed => 'trail aktif';
+
+  @override
+  String positionsCaptionTrailArmedPct(String pct) {
+    return 'trail −$pct% aktif';
+  }
+
+  @override
+  String get positionsCaptionTrailOff => 'trail nonaktif';
+
+  @override
   String get positionsDensityLabel => 'Kepadatan tabel';
 
   @override
@@ -1815,8 +1847,58 @@ class AppLocalizationsId extends AppLocalizations {
   String get positionsExitHeldDetail => 'Exit plan, TP & SL ditahan sampai kamu memberi izin trading lagi.';
 
   @override
+  String positionsExitPlanTitle(String name) {
+    return 'Exit plan · $name';
+  }
+
+  @override
+  String positionsExitSemantics(String sl, String now, String filled, String total, String next) {
+    return 'Exit plan: stop loss $sl%, sekarang $now%, $filled dari $total take profit terisi$next';
+  }
+
+  @override
+  String positionsExitSemanticsNext(String pct) {
+    return ', berikutnya +$pct%';
+  }
+
+  @override
+  String get positionsLadderArmed => 'aktif';
+
+  @override
+  String positionsLadderFilledAt(String time) {
+    return 'terisi $time';
+  }
+
+  @override
+  String get positionsLadderNext => 'berikutnya';
+
+  @override
+  String get positionsLadderNow => 'Sekarang';
+
+  @override
+  String get positionsLadderPending => 'menunggu';
+
+  @override
+  String positionsLadderTp(String n, String pct) {
+    return 'TP$n · jual $pct%';
+  }
+
+  @override
+  String positionsLadderTrail(String pct) {
+    return 'Trailing −$pct% dari high';
+  }
+
+  @override
+  String get positionsLadderTrailAfterTp1 => 'aktif setelah TP1';
+
+  @override
   String positionsNextAction(String gain, String pct, String rung) {
     return 'Berikutnya: $rung di $gain (jual $pct)';
+  }
+
+  @override
+  String positionsNextTrailing(String pct) {
+    return 'Berikutnya: trailing −$pct% dari high';
   }
 
   @override
@@ -1832,10 +1914,35 @@ class AppLocalizationsId extends AppLocalizations {
   String get positionsPnlUnrealized => 'PnL belum terealisasi';
 
   @override
+  String positionsSellConfirmAction(String pct, String symbol) {
+    return 'Jual $pct% $symbol (Real SOL)';
+  }
+
+  @override
   String get positionsSellConfirmTitle => 'Konfirmasi jual';
 
   @override
   String get positionsSellEstimate => 'Perkiraan diterima';
+
+  @override
+  String positionsSellEstimateValue(String amount, String unit) {
+    return '≈ $amount $unit';
+  }
+
+  @override
+  String positionsSellFeesPractice(String fee) {
+    return 'Simulasi: slippage 0% · fee $fee%';
+  }
+
+  @override
+  String positionsSellFeesReal(String fee) {
+    return 'Slippage maks 3% · priority fee otomatis · fee $fee%';
+  }
+
+  @override
+  String positionsSellFilled(String pct, String symbol, String amount, String unit) {
+    return 'Terjual $pct% $symbol · ≈ $amount $unit';
+  }
 
   @override
   String positionsSellHoldPractice(String pct) {
@@ -1862,6 +1969,11 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get positionsSellNotTradeableDetail =>
       'Posisi ini tidak punya pair SOL lagi; jual diblokir sampai pair SOL tersedia.';
+
+  @override
+  String positionsSellOrderSent(String pct, String symbol) {
+    return 'Order jual $pct% $symbol dikirim';
+  }
 
   @override
   String get positionsSellPlanCancelled => 'Exit plan dibatalkan (100%)';
@@ -1902,6 +2014,14 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get positionsStatsVolume24h => 'Volume 24j';
+
+  @override
+  String positionsTimeStopAt(String time, String countdown) {
+    return 'Time stop $time WIB ($countdown lagi)';
+  }
+
+  @override
+  String get positionsTimeStopOverdue => 'Time stop lewat · keluar di tick berikutnya';
 
   @override
   String get positionsTitle => 'Posisi';

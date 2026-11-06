@@ -30,12 +30,13 @@ pin_text() { # text pin: ignore CR so a Windows working tree verifies too (CI ch
   fi
 }
 
-# @centurion/i18n 0.4.11 @ 714beb2 plus the mobile PnL keys (pnl.*, added 2026-11-06). The vendored copy is
-# still a verbatim copy, so the monorepo ARB is the source of truth: restore from packages/i18n/arb, never from
-# the 0.4.11 tag (it does not have the PnL keys). Then run `flutter gen-l10n`.
-pin_text lib/l10n/app_en.arb fc1ee202c45c95c69aa23a12646ada94aba02698b797b3e1ba1c2648fff43a64 "i18n 0.4.11 + pnl keys" \
+# @centurion/i18n 0.4.11 @ 714beb2 plus the mobile PnL keys (pnl.*, added 2026-11-06) and the mobile
+# positions exit/sell keys (positions*, added 2026-11-06). The vendored copy is still a verbatim copy, so the
+# monorepo ARB is the source of truth: restore from packages/i18n/arb, never from the 0.4.11 tag (it does not
+# have those keys). Then run `flutter gen-l10n`.
+pin_text lib/l10n/app_en.arb 87edf194d85b0b52b429ce44b43341e12748842fd0ff113c099eed0a2e194f99 "i18n 0.4.11 + pnl/positions keys" \
   "cp ../../packages/i18n/arb/app_en.arb lib/l10n/app_en.arb"
-pin_text lib/l10n/app_id.arb 1d896a4ca6ba3a0945d639401abd8f2a110043a30d998a2619cd6ba4c03babec "i18n 0.4.11 + pnl keys" \
+pin_text lib/l10n/app_id.arb f5525123d1732aa3fcdb4ef43ab926631c9b91a379bc49d1223850ea139dff96 "i18n 0.4.11 + pnl/positions keys" \
   "cp ../../packages/i18n/arb/app_id.arb lib/l10n/app_id.arb"
 
 # design-tokens 0.3.4 (5234c44): G1-blue palette. Copied verbatim; the 0.3.x generator header already says

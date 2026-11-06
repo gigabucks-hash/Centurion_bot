@@ -104,8 +104,11 @@ class _PositionsScreenState extends ConsumerState<PositionsScreen> {
                     ),
                     const SliverToBoxAdapter(child: SizedBox(height: AppSpace.s3)),
                     if (openList.isEmpty)
-                      const SliverToBoxAdapter(
-                        child: EmptyState(icon: AppIcons.empty, text: 'Belum ada posisi terbuka'),
+                      SliverToBoxAdapter(
+                        child: EmptyState(
+                          icon: AppIcons.empty,
+                          text: AppLocalizations.of(context).positionsEmpty('practice'),
+                        ),
                       )
                     else
                       SliverList.builder(
@@ -183,7 +186,7 @@ class PositionCard extends ConsumerWidget {
                       children: [
                         Text('\$${p.symbol}', style: tt.titleMedium, overflow: TextOverflow.ellipsis),
                         Text(
-                          '${names[p.strategyId] ?? p.strategyId} · ${fmtSol(p.sizeLamports)} SOL',
+                          '${names[p.strategyId] ?? dash} · ${fmtSol(p.sizeLamports)} ${l.commonUnitSol}',
                           style: tt.bodySmall!.copyWith(color: cs.onSurfaceVariant),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -211,7 +214,7 @@ class PositionCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(exitCaption(p), style: tt.bodySmall),
+                        Text(exitCaption(p, l), style: tt.bodySmall),
                         Text(
                           '${fmtUsd(p.entryPriceUsd)} → ${fmtUsd(p.markPriceUsd)} · '
                           '${formatHold(l, p.holdAt(DateTime.now()).inSeconds)}',
@@ -265,11 +268,7 @@ class PositionDetailScreen extends ConsumerWidget {
                     ModeChip(p.mode),
                     const SizedBox(width: AppSpace.s2),
                     Expanded(
-                      child: Text(
-                        names[p.strategyId] ?? p.strategyId,
-                        style: tt.bodyMedium,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      child: Text(names[p.strategyId] ?? dash, style: tt.bodyMedium, overflow: TextOverflow.ellipsis),
                     ),
                     PnlText(p.pnlLamports, size: 18, unit: true),
                   ],
@@ -291,7 +290,7 @@ class PositionDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpace.s4),
                 if (p.exitPlan != null) ...[
-                  Text('Exit plan · ${p.exitPlan!.name}', style: tt.titleSmall),
+                  Text(l.positionsExitPlanTitle(p.exitPlan!.name), style: tt.titleSmall),
                   const SizedBox(height: AppSpace.s2),
                   ExitLadder(position: p),
                   const SizedBox(height: AppSpace.s3),
@@ -310,7 +309,7 @@ class PositionDetailScreen extends ConsumerWidget {
                   textAlign: TextAlign.center,
                 ),
               ] else
-                _ClosedReceipt(position: p, bot: names[p.strategyId] ?? p.strategyId, now: now),
+                _ClosedReceipt(position: p, bot: names[p.strategyId] ?? dash, now: now),
             ],
           );
         },
@@ -454,6 +453,7 @@ class ExitLadder extends StatelessWidget {
     final plan = p.exitPlan!;
     final t = context.tradeColors;
     final cs = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context);
     final next = plan.nextRung;
     final peakPct = pctChange(p.entryPriceUsd, p.peakPriceUsd);
     final trailLevel = (peakPct + 100) * (1 - plan.trailPct / 100) - 100;
@@ -466,22 +466,22 @@ class ExitLadder extends StatelessWidget {
               : identical(plan.rungs[i], next)
               ? _RowKind.tpNext
               : _RowKind.tpPending,
-          'TP${i + 1} · jual ${plan.rungs[i].sellPct.round()}%',
+          l.positionsLadderTp('${i + 1}', '${plan.rungs[i].sellPct.round()}'),
           plan.rungs[i].filled
-              ? 'terisi ${fmtTime(plan.rungs[i].filledAt!)}'
+              ? l.positionsLadderFilledAt(fmtTime(plan.rungs[i].filledAt!))
               : identical(plan.rungs[i], next)
-              ? 'berikutnya'
-              : 'menunggu',
+              ? l.positionsLadderNext
+              : l.positionsLadderPending,
         ),
-      (p.changePct, _RowKind.now, 'Sekarang', fmtUsd(p.markPriceUsd)),
+      (p.changePct, _RowKind.now, l.positionsLadderNow, fmtUsd(p.markPriceUsd)),
       (
         trailLevel,
         _RowKind.trail,
-        'Trailing −${plan.trailPct.round()}% dari high',
-        plan.trailArmed ? 'armed' : 'aktif setelah TP1',
+        l.positionsLadderTrail('${plan.trailPct.round()}'),
+        plan.trailArmed ? l.positionsLadderArmed : l.positionsLadderTrailAfterTp1,
       ),
-      (0.0, _RowKind.entry, 'Entry', fmtUsd(p.entryPriceUsd)),
-      (plan.stopLossPct, _RowKind.sl, 'Stop loss', 'armed'),
+      (0.0, _RowKind.entry, l.coinTrailStepEntry, fmtUsd(p.entryPriceUsd)),
+      (plan.stopLossPct, _RowKind.sl, l.positionsTpslStopLoss, l.positionsLadderArmed),
     ]..sort((a, b) => b.$1.compareTo(a.$1));
     return Column(
       key: const Key('exitLadder'),
@@ -594,6 +594,7 @@ class _NextAction extends StatelessWidget {
     final idx = next == null ? -1 : plan.rungs.indexOf(next);
     final ts = plan.timeStopAt;
     final left = ts?.difference(now);
+    final l = AppLocalizations.of(context);
     return Card(
       key: const Key('nextAction'),
       margin: EdgeInsets.zero,
@@ -601,15 +602,13 @@ class _NextAction extends StatelessWidget {
         leading: const Icon(AppIcons.clock),
         title: Text(
           next == null
-              ? 'Berikutnya: trailing −${plan.trailPct.round()}% dari high'
-              : 'Berikutnya: TP${idx + 1} di +${next.gainPct.round()}% (jual ${next.sellPct.round()}%)',
+              ? l.positionsNextTrailing('${plan.trailPct.round()}')
+              : l.positionsNextAction('+${next.gainPct.round()}%', '${next.sellPct.round()}%', 'TP${idx + 1}'),
         ),
         subtitle: ts == null
             ? null
             : Text(
-                left!.isNegative
-                    ? 'Time stop lewat · keluar di tick berikutnya'
-                    : 'Time stop ${fmtTime(ts)} WIB (${fmtCountdown(left)} lagi)',
+                left!.isNegative ? l.positionsTimeStopOverdue : l.positionsTimeStopAt(fmtTime(ts), fmtCountdown(left)),
               ),
       ),
     );

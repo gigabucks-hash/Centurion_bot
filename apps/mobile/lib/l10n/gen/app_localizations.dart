@@ -644,6 +644,18 @@ abstract class AppLocalizations {
   /// **'{mm_ss} left'**
   String commonTimerLeft(String mm_ss);
 
+  /// Practice unit; never a bare SOL
+  ///
+  /// In en, this message translates to:
+  /// **'paper SOL'**
+  String get commonUnitPaperSol;
+
+  /// Real SOL unit
+  ///
+  /// In en, this message translates to:
+  /// **'SOL'**
+  String get commonUnitSol;
+
   /// tooltip + aria-label for a muted “—” (e.g. Mcap until Backend ships it)
   ///
   /// In en, this message translates to:
@@ -2810,6 +2822,42 @@ abstract class AppLocalizations {
   /// **'Balance {trend, select, up {up} down {down} other {unchanged}} over {range}, from {start} to {end}'**
   String portfolioSparklineA11y(String end, String range, String start, String trend);
 
+  /// positions.caption.next_tp: compact caption under the exit progress bar
+  ///
+  /// In en, this message translates to:
+  /// **'next TP{n} +{pct}%'**
+  String positionsCaptionNextTp(String n, String pct);
+
+  /// positions.caption.stop_loss
+  ///
+  /// In en, this message translates to:
+  /// **'SL −{pct}%'**
+  String positionsCaptionStopLoss(String pct);
+
+  /// positions.caption.tp_filled
+  ///
+  /// In en, this message translates to:
+  /// **'TP{n} ✓'**
+  String positionsCaptionTpFilled(String n);
+
+  /// positions.caption.trail_armed
+  ///
+  /// In en, this message translates to:
+  /// **'trail armed'**
+  String get positionsCaptionTrailArmed;
+
+  /// positions.caption.trail_armed_pct
+  ///
+  /// In en, this message translates to:
+  /// **'trail −{pct}% armed'**
+  String positionsCaptionTrailArmedPct(String pct);
+
+  /// positions.caption.trail_off
+  ///
+  /// In en, this message translates to:
+  /// **'trail off'**
+  String get positionsCaptionTrailOff;
+
   /// 0.4.9 G1: accessible name of the Comfortable/Compact segmented control in a table card header (role=radiogroup); options = settings.appearance.density.*
   ///
   /// In en, this message translates to:
@@ -2846,11 +2894,83 @@ abstract class AppLocalizations {
   /// **'Exit plans, TP and SL are on hold until you grant trading authority again.'**
   String get positionsExitHeldDetail;
 
+  /// position detail: exit plan name
+  ///
+  /// In en, this message translates to:
+  /// **'Exit plan · {name}'**
+  String positionsExitPlanTitle(String name);
+
+  /// screen-reader label on the exit progress bar; next is empty or positionsExitSemanticsNext
+  ///
+  /// In en, this message translates to:
+  /// **'Exit plan: stop loss {sl}%, now {now}%, {filled} of {total} take profits filled{next}'**
+  String positionsExitSemantics(String sl, String now, String filled, String total, String next);
+
+  /// suffix for positionsExitSemantics when a rung is next
+  ///
+  /// In en, this message translates to:
+  /// **', next +{pct}%'**
+  String positionsExitSemanticsNext(String pct);
+
+  /// exit ladder status: trail / stop loss active
+  ///
+  /// In en, this message translates to:
+  /// **'armed'**
+  String get positionsLadderArmed;
+
+  /// exit ladder: TP rung already filled
+  ///
+  /// In en, this message translates to:
+  /// **'filled {time}'**
+  String positionsLadderFilledAt(String time);
+
+  /// exit ladder: the next TP rung
+  ///
+  /// In en, this message translates to:
+  /// **'next'**
+  String get positionsLadderNext;
+
+  /// exit ladder: current price row
+  ///
+  /// In en, this message translates to:
+  /// **'Now'**
+  String get positionsLadderNow;
+
+  /// exit ladder: TP rung not reached yet
+  ///
+  /// In en, this message translates to:
+  /// **'waiting'**
+  String get positionsLadderPending;
+
+  /// exit ladder: take-profit rung label
+  ///
+  /// In en, this message translates to:
+  /// **'TP{n} · sell {pct}%'**
+  String positionsLadderTp(String n, String pct);
+
+  /// exit ladder: trailing stop row
+  ///
+  /// In en, this message translates to:
+  /// **'Trailing −{pct}% from high'**
+  String positionsLadderTrail(String pct);
+
+  /// exit ladder: trailing stop not armed until TP1 fills
+  ///
+  /// In en, this message translates to:
+  /// **'active after TP1'**
+  String get positionsLadderTrailAfterTp1;
+
   /// positions.next_action
   ///
   /// In en, this message translates to:
   /// **'Next: {rung} at {gain} (sell {pct})'**
   String positionsNextAction(String gain, String pct, String rung);
+
+  /// position detail: no TP rung left, trailing stop is the next action
+  ///
+  /// In en, this message translates to:
+  /// **'Next: trailing −{pct}% from high'**
+  String positionsNextTrailing(String pct);
 
   /// positions.open_count
   ///
@@ -2864,6 +2984,12 @@ abstract class AppLocalizations {
   /// **'Unrealized PnL'**
   String get positionsPnlUnrealized;
 
+  /// biometric approval action label for a real sell
+  ///
+  /// In en, this message translates to:
+  /// **'Sell {pct}% {symbol} (Real SOL)'**
+  String positionsSellConfirmAction(String pct, String symbol);
+
   /// positions.sell.confirm_title
   ///
   /// In en, this message translates to:
@@ -2875,6 +3001,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Estimated proceeds'**
   String get positionsSellEstimate;
+
+  /// positions.sell.estimate value; amount excludes the unit, unit = commonUnitSol / commonUnitPaperSol
+  ///
+  /// In en, this message translates to:
+  /// **'≈ {amount} {unit}'**
+  String positionsSellEstimateValue(String amount, String unit);
+
+  /// positions.sell.fees.practice
+  ///
+  /// In en, this message translates to:
+  /// **'Simulation: 0% slippage · fee {fee}%'**
+  String positionsSellFeesPractice(String fee);
+
+  /// positions.sell.fees.real
+  ///
+  /// In en, this message translates to:
+  /// **'Max slippage 3% · automatic priority fee · fee {fee}%'**
+  String positionsSellFeesReal(String fee);
+
+  /// sell success snackbar
+  ///
+  /// In en, this message translates to:
+  /// **'Sold {pct}% {symbol} · ≈ {amount} {unit}'**
+  String positionsSellFilled(String pct, String symbol, String amount, String unit);
 
   /// Practice, all platforms; no single-press confirm. pct = formatFractionBps(fraction_bps); wire fraction_bps = pctToFractionBps(ui %)
   ///
@@ -2917,6 +3067,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This position no longer has a SOL pair, so selling is blocked until one exists.'**
   String get positionsSellNotTradeableDetail;
+
+  /// sell accepted without proceeds in the response
+  ///
+  /// In en, this message translates to:
+  /// **'Sell order {pct}% {symbol} sent'**
+  String positionsSellOrderSent(String pct, String symbol);
 
   /// positions.sell.plan_cancelled
   ///
@@ -2989,6 +3145,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Volume 24h'**
   String get positionsStatsVolume24h;
+
+  /// position detail: time stop still ahead
+  ///
+  /// In en, this message translates to:
+  /// **'Time stop {time} WIB ({countdown} left)'**
+  String positionsTimeStopAt(String time, String countdown);
+
+  /// position detail: time stop already passed
+  ///
+  /// In en, this message translates to:
+  /// **'Time stop passed · exit on the next tick'**
+  String get positionsTimeStopOverdue;
 
   /// positions.title
   ///

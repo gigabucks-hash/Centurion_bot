@@ -89,14 +89,22 @@ String formatCountdown(Duration left) {
   return '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 }
 
-/// Absolute time: id 24 h "16.10", en 12 h "4:10 PM"; zone label appended.
-/// Manual formatting: no intl date-locale init needed (background isolate).
+/// Absolute time in **WIB** (Asia/Jakarta, fixed UTC+7, no DST): id 24 h
+/// "16.10", en 12 h "4:10 PM"; zone label appended. The instant is converted to
+/// UTC+7 first, so a wire `03:00Z` renders `10:00` and the device's own zone is
+/// never labelled WIB. Manual formatting: no intl date-locale init needed
+/// (background isolate).
 String formatTime(DateTime t, String loc, {String zone = 'WIB'}) {
   String two(int v) => v.toString().padLeft(2, '0');
-  if (loc == 'id') return '${two(t.hour)}.${two(t.minute)} $zone';
-  final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
-  return '$h:${two(t.minute)}$_nbsp${t.hour < 12 ? 'AM' : 'PM'} $zone';
+  final w = toWib(t);
+  if (loc == 'id') return '${two(w.hour)}.${two(w.minute)} $zone';
+  final h = w.hour % 12 == 0 ? 12 : w.hour % 12;
+  return '$h:${two(w.minute)}$_nbsp${w.hour < 12 ? 'AM' : 'PM'} $zone';
 }
+
+/// The instant as wall-clock time in Asia/Jakarta (UTC+7, no DST). Use this for
+/// every WIB label; never format a device-local DateTime and call it WIB.
+DateTime toWib(DateTime t) => t.toUtc().add(const Duration(hours: 7));
 
 /// `format.mjs` DASH: every null-safe formatter renders a missing value as this.
 const dash = '—';

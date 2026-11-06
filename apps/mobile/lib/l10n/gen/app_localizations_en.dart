@@ -373,6 +373,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get commonUnitPaperSol => 'paper SOL';
+
+  @override
+  String get commonUnitSol => 'SOL';
+
+  @override
   String get commonValueUnavailable => 'Data not available yet';
 
   @override
@@ -1855,6 +1861,32 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String positionsCaptionNextTp(String n, String pct) {
+    return 'next TP$n +$pct%';
+  }
+
+  @override
+  String positionsCaptionStopLoss(String pct) {
+    return 'SL −$pct%';
+  }
+
+  @override
+  String positionsCaptionTpFilled(String n) {
+    return 'TP$n ✓';
+  }
+
+  @override
+  String get positionsCaptionTrailArmed => 'trail armed';
+
+  @override
+  String positionsCaptionTrailArmedPct(String pct) {
+    return 'trail −$pct% armed';
+  }
+
+  @override
+  String get positionsCaptionTrailOff => 'trail off';
+
+  @override
   String get positionsDensityLabel => 'Table density';
 
   @override
@@ -1878,8 +1910,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String get positionsExitHeldDetail => 'Exit plans, TP and SL are on hold until you grant trading authority again.';
 
   @override
+  String positionsExitPlanTitle(String name) {
+    return 'Exit plan · $name';
+  }
+
+  @override
+  String positionsExitSemantics(String sl, String now, String filled, String total, String next) {
+    return 'Exit plan: stop loss $sl%, now $now%, $filled of $total take profits filled$next';
+  }
+
+  @override
+  String positionsExitSemanticsNext(String pct) {
+    return ', next +$pct%';
+  }
+
+  @override
+  String get positionsLadderArmed => 'armed';
+
+  @override
+  String positionsLadderFilledAt(String time) {
+    return 'filled $time';
+  }
+
+  @override
+  String get positionsLadderNext => 'next';
+
+  @override
+  String get positionsLadderNow => 'Now';
+
+  @override
+  String get positionsLadderPending => 'waiting';
+
+  @override
+  String positionsLadderTp(String n, String pct) {
+    return 'TP$n · sell $pct%';
+  }
+
+  @override
+  String positionsLadderTrail(String pct) {
+    return 'Trailing −$pct% from high';
+  }
+
+  @override
+  String get positionsLadderTrailAfterTp1 => 'active after TP1';
+
+  @override
   String positionsNextAction(String gain, String pct, String rung) {
     return 'Next: $rung at $gain (sell $pct)';
+  }
+
+  @override
+  String positionsNextTrailing(String pct) {
+    return 'Next: trailing −$pct% from high';
   }
 
   @override
@@ -1900,10 +1982,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get positionsPnlUnrealized => 'Unrealized PnL';
 
   @override
+  String positionsSellConfirmAction(String pct, String symbol) {
+    return 'Sell $pct% $symbol (Real SOL)';
+  }
+
+  @override
   String get positionsSellConfirmTitle => 'Confirm sell';
 
   @override
   String get positionsSellEstimate => 'Estimated proceeds';
+
+  @override
+  String positionsSellEstimateValue(String amount, String unit) {
+    return '≈ $amount $unit';
+  }
+
+  @override
+  String positionsSellFeesPractice(String fee) {
+    return 'Simulation: 0% slippage · fee $fee%';
+  }
+
+  @override
+  String positionsSellFeesReal(String fee) {
+    return 'Max slippage 3% · automatic priority fee · fee $fee%';
+  }
+
+  @override
+  String positionsSellFilled(String pct, String symbol, String amount, String unit) {
+    return 'Sold $pct% $symbol · ≈ $amount $unit';
+  }
 
   @override
   String positionsSellHoldPractice(String pct) {
@@ -1930,6 +2037,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get positionsSellNotTradeableDetail =>
       'This position no longer has a SOL pair, so selling is blocked until one exists.';
+
+  @override
+  String positionsSellOrderSent(String pct, String symbol) {
+    return 'Sell order $pct% $symbol sent';
+  }
 
   @override
   String get positionsSellPlanCancelled => 'Exit plan cancelled (100%)';
@@ -1970,6 +2082,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get positionsStatsVolume24h => 'Volume 24h';
+
+  @override
+  String positionsTimeStopAt(String time, String countdown) {
+    return 'Time stop $time WIB ($countdown left)';
+  }
+
+  @override
+  String get positionsTimeStopOverdue => 'Time stop passed · exit on the next tick';
 
   @override
   String get positionsTitle => 'Positions';

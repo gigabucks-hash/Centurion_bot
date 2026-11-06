@@ -215,10 +215,10 @@ void main() {
     expect(find.text('Sisa posisi tetap memakai exit plan'), findsOneWidget);
     await tester.tap(find.text('100%'));
     await tester.pump();
-    expect(find.text('Posisi ditutup penuh · exit plan dibatalkan'), findsOneWidget);
+    expect(find.text('Exit plan dibatalkan (100%)'), findsOneWidget);
     await tester.tap(find.text('50%'));
     await tester.pump();
-    expect(find.text('Tahan untuk jual 50% (Practice)'), findsOneWidget);
+    expect(find.text('Tahan 1,2 dtk untuk jual 50%'), findsOneWidget);
     // Released before 1,2 s → nothing sold.
     await _hold(tester, find.byKey(const Key('sellHold')), const Duration(milliseconds: 900));
     expect(b.debugPositions.firstWhere((p) => p.id == 'ck101.0').soldPct, 0);
@@ -280,7 +280,7 @@ void main() {
     await tester.scrollUntilVisible(find.byKey(const Key('sell_ckR1.0')), 200);
     await tester.tap(find.byKey(const Key('sell_ckR1.0')));
     await tester.pumpAndSettle(const Duration(milliseconds: 100));
-    expect(find.text('Tahan untuk jual 50% (Real SOL)'), findsOneWidget);
+    expect(find.text('Tahan 2,5 dtk untuk jual 50%'), findsOneWidget);
     await _hold(tester, find.byKey(const Key('sellHold')), const Duration(milliseconds: 1300));
     expect(
       b.debugPositions.firstWhere((p) => p.id == 'ckR1.0').soldPct,

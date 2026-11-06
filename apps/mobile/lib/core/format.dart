@@ -1,11 +1,9 @@
 import 'package:decimal/decimal.dart';
-import 'package:intl/intl.dart';
 
 import '../data/money.dart';
-import 'l10n_format.dart' show pnlSol, pnlPct;
+import 'l10n_format.dart' show pnlSol, pnlPct, toWib;
 
 // SPEC §1: id-ID number format (comma decimal), mono tabular in UI.
-final _time = DateFormat('HH:mm');
 
 /// Unsigned amount, e.g. `27,494`. Negative values get a real minus sign. Exact (BigInt).
 String fmtSol(Lamports v, {bool unit = false}) {
@@ -55,7 +53,13 @@ String fmtPct(double v, {bool arrow = true}) {
 /// apply; null is handled by the caller as `—`.
 String fmtRatePct(double v) => '${formatDecimalAbs(Decimal.parse(v.toStringAsFixed(1)), 'id', minDp: 1, maxDp: 1)}%';
 
-String fmtTime(DateTime t) => _time.format(t);
+/// `HH:mm` in **WIB** (Asia/Jakarta, UTC+7). The instant is converted first;
+/// callers that append " WIB" therefore never print device-local wall time.
+/// `03:00Z` → `10:00`.
+String fmtTime(DateTime t) {
+  final w = toWib(t);
+  return '${w.hour.toString().padLeft(2, '0')}:${w.minute.toString().padLeft(2, '0')}';
+}
 
 /// mm:ss for expiry timers; hours shown as `h:mm:ss`.
 String fmtCountdown(Duration d) {

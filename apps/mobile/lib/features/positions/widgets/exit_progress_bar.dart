@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/centurion_theme.dart';
 import '../../../data/models/models.dart';
+import '../../../l10n/gen/app_localizations.dart';
 
 /// SPEC §6 exit progress: SL marker │ fill to current price │ TP rung dots.
 /// Scale is linear in % vs entry, from SL (left) to the last TP (right).
@@ -18,12 +19,15 @@ class ExitProgressBar extends StatelessWidget {
     if (plan == null) return const SizedBox.shrink();
     final t = context.tradeColors;
     final cs = Theme.of(context).colorScheme;
+    final l = AppLocalizations.of(context);
     final next = plan.nextRung;
-    final semantic =
-        'Exit plan: stop loss ${plan.stopLossPct.round()}%, '
-        'sekarang ${position.changePct.round()}%, '
-        '${plan.filledCount} dari ${plan.rungs.length} take profit terisi'
-        '${next == null ? '' : ', berikutnya +${next.gainPct.round()}%'}';
+    final semantic = l.positionsExitSemantics(
+      '${plan.stopLossPct.round()}',
+      '${position.changePct.round()}',
+      '${plan.filledCount}',
+      '${plan.rungs.length}',
+      next == null ? '' : l.positionsExitSemanticsNext('${next.gainPct.round()}'),
+    );
     return Semantics(
       label: semantic,
       child: SizedBox(
@@ -103,22 +107,24 @@ class _ExitBarPainter extends CustomPainter {
 }
 
 /// Short caption under the bar: "TP1 ✓ · next TP2 +100%" / "SL −35% · trail armed".
-String exitCaption(Position p) {
+/// [l] defaults to English for callers outside a widget tree (tests).
+String exitCaption(Position p, [AppLocalizations? l]) {
+  final t = l ?? lookupAppLocalizations(const Locale('en'));
   final plan = p.exitPlan;
   if (plan == null) return '';
   final parts = <String>[];
   for (var i = 0; i < plan.rungs.length; i++) {
-    if (plan.rungs[i].filled) parts.add('TP${i + 1} ✓');
+    if (plan.rungs[i].filled) parts.add(t.positionsCaptionTpFilled('${i + 1}'));
   }
   final nextIdx = plan.rungs.indexWhere((r) => !r.filled);
   if (p.changePct < 0) {
-    parts.add('SL −${plan.stopLossPct.abs().round()}%');
-    parts.add(plan.trailArmed ? 'trail armed' : 'trail off');
+    parts.add(t.positionsCaptionStopLoss('${plan.stopLossPct.abs().round()}'));
+    parts.add(plan.trailArmed ? t.positionsCaptionTrailArmed : t.positionsCaptionTrailOff);
   } else if (nextIdx >= 0) {
-    parts.add('next TP${nextIdx + 1} +${plan.rungs[nextIdx].gainPct.round()}%');
-    if (plan.trailArmed && parts.length == 1) parts.add('trail armed');
+    parts.add(t.positionsCaptionNextTp('${nextIdx + 1}', '${plan.rungs[nextIdx].gainPct.round()}'));
+    if (plan.trailArmed && parts.length == 1) parts.add(t.positionsCaptionTrailArmed);
   } else {
-    parts.add('trail −${plan.trailPct.round()}% armed');
+    parts.add(t.positionsCaptionTrailArmedPct('${plan.trailPct.round()}'));
   }
   return parts.join(' · ');
 }

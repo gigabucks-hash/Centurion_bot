@@ -520,6 +520,14 @@
       }
     }
   },
+  "commonUnitPaperSol": "paper SOL",
+  "@commonUnitPaperSol": {
+    "description": "Practice unit; never a bare SOL"
+  },
+  "commonUnitSol": "SOL",
+  "@commonUnitSol": {
+    "description": "Real SOL unit"
+  },
   "commonValueUnavailable": "Data not available yet",
   "@commonValueUnavailable": {
     "description": "tooltip + aria-label for a muted “—” (e.g. Mcap until Backend ships it)"
@@ -2661,6 +2669,53 @@
       }
     }
   },
+  "positionsCaptionNextTp": "next TP{n} +{pct}%",
+  "@positionsCaptionNextTp": {
+    "description": "positions.caption.next_tp: compact caption under the exit progress bar",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsCaptionStopLoss": "SL −{pct}%",
+  "@positionsCaptionStopLoss": {
+    "description": "positions.caption.stop_loss",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsCaptionTpFilled": "TP{n} ✓",
+  "@positionsCaptionTpFilled": {
+    "description": "positions.caption.tp_filled",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsCaptionTrailArmed": "trail armed",
+  "@positionsCaptionTrailArmed": {
+    "description": "positions.caption.trail_armed"
+  },
+  "positionsCaptionTrailArmedPct": "trail −{pct}% armed",
+  "@positionsCaptionTrailArmedPct": {
+    "description": "positions.caption.trail_armed_pct",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsCaptionTrailOff": "trail off",
+  "@positionsCaptionTrailOff": {
+    "description": "positions.caption.trail_off"
+  },
   "positionsDensityLabel": "Table density",
   "@positionsDensityLabel": {
     "description": "0.4.9 G1: accessible name of the Comfortable/Compact segmented control in a table card header (role=radiogroup); options = settings.appearance.density.*"
@@ -2695,6 +2750,95 @@
   "@positionsExitHeldDetail": {
     "description": "0.4.9 G1 policy_mismatch banner body"
   },
+  "positionsExitPlanTitle": "Exit plan · {name}",
+  "@positionsExitPlanTitle": {
+    "description": "position detail: exit plan name",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsExitSemantics": "Exit plan: stop loss {sl}%, now {now}%, {filled} of {total} take profits filled{next}",
+  "@positionsExitSemantics": {
+    "description": "screen-reader label on the exit progress bar; next is empty or positionsExitSemanticsNext",
+    "placeholders": {
+      "sl": {
+        "type": "String"
+      },
+      "now": {
+        "type": "String"
+      },
+      "filled": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      },
+      "next": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsExitSemanticsNext": ", next +{pct}%",
+  "@positionsExitSemanticsNext": {
+    "description": "suffix for positionsExitSemantics when a rung is next",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsLadderArmed": "armed",
+  "@positionsLadderArmed": {
+    "description": "exit ladder status: trail / stop loss active"
+  },
+  "positionsLadderFilledAt": "filled {time}",
+  "@positionsLadderFilledAt": {
+    "description": "exit ladder: TP rung already filled",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsLadderNext": "next",
+  "@positionsLadderNext": {
+    "description": "exit ladder: the next TP rung"
+  },
+  "positionsLadderNow": "Now",
+  "@positionsLadderNow": {
+    "description": "exit ladder: current price row"
+  },
+  "positionsLadderPending": "waiting",
+  "@positionsLadderPending": {
+    "description": "exit ladder: TP rung not reached yet"
+  },
+  "positionsLadderTp": "TP{n} · sell {pct}%",
+  "@positionsLadderTp": {
+    "description": "exit ladder: take-profit rung label",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsLadderTrail": "Trailing −{pct}% from high",
+  "@positionsLadderTrail": {
+    "description": "exit ladder: trailing stop row",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsLadderTrailAfterTp1": "active after TP1",
+  "@positionsLadderTrailAfterTp1": {
+    "description": "exit ladder: trailing stop not armed until TP1 fills"
+  },
   "positionsNextAction": "Next: {rung} at {gain} (sell {pct})",
   "@positionsNextAction": {
     "description": "positions.next_action",
@@ -2706,6 +2850,15 @@
         "type": "String"
       },
       "rung": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsNextTrailing": "Next: trailing −{pct}% from high",
+  "@positionsNextTrailing": {
+    "description": "position detail: no TP rung left, trailing stop is the next action",
+    "placeholders": {
+      "pct": {
         "type": "String"
       }
     }
@@ -2724,6 +2877,18 @@
   "@positionsPnlUnrealized": {
     "description": "0.4.10 G1-blue v2: PnL block label; number = pnlSol (only colored element)"
   },
+  "positionsSellConfirmAction": "Sell {pct}% {symbol} (Real SOL)",
+  "@positionsSellConfirmAction": {
+    "description": "biometric approval action label for a real sell",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      }
+    }
+  },
   "positionsSellConfirmTitle": "Confirm sell",
   "@positionsSellConfirmTitle": {
     "description": "positions.sell.confirm_title"
@@ -2731,6 +2896,54 @@
   "positionsSellEstimate": "Estimated proceeds",
   "@positionsSellEstimate": {
     "description": "positions.sell.estimate"
+  },
+  "positionsSellEstimateValue": "≈ {amount} {unit}",
+  "@positionsSellEstimateValue": {
+    "description": "positions.sell.estimate value; amount excludes the unit, unit = commonUnitSol / commonUnitPaperSol",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsSellFeesPractice": "Simulation: 0% slippage · fee {fee}%",
+  "@positionsSellFeesPractice": {
+    "description": "positions.sell.fees.practice",
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsSellFeesReal": "Max slippage 3% · automatic priority fee · fee {fee}%",
+  "@positionsSellFeesReal": {
+    "description": "positions.sell.fees.real",
+    "placeholders": {
+      "fee": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsSellFilled": "Sold {pct}% {symbol} · ≈ {amount} {unit}",
+  "@positionsSellFilled": {
+    "description": "sell success snackbar",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
   },
   "positionsSellHoldPractice": "Hold 1.2 s to sell {pct}",
   "@positionsSellHoldPractice": {
@@ -2769,6 +2982,18 @@
   "positionsSellNotTradeableDetail": "This position no longer has a SOL pair, so selling is blocked until one exists.",
   "@positionsSellNotTradeableDetail": {
     "description": "positions.sell.not_tradeable_detail"
+  },
+  "positionsSellOrderSent": "Sell order {pct}% {symbol} sent",
+  "@positionsSellOrderSent": {
+    "description": "sell accepted without proceeds in the response",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      },
+      "symbol": {
+        "type": "String"
+      }
+    }
   },
   "positionsSellPlanCancelled": "Exit plan cancelled (100%)",
   "@positionsSellPlanCancelled": {
@@ -2827,6 +3052,22 @@
   "positionsStatsVolume24h": "Volume 24h",
   "@positionsStatsVolume24h": {
     "description": "0.4.10 G1-blue v2"
+  },
+  "positionsTimeStopAt": "Time stop {time} WIB ({countdown} left)",
+  "@positionsTimeStopAt": {
+    "description": "position detail: time stop still ahead",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "countdown": {
+        "type": "String"
+      }
+    }
+  },
+  "positionsTimeStopOverdue": "Time stop passed · exit on the next tick",
+  "@positionsTimeStopOverdue": {
+    "description": "position detail: time stop already passed"
   },
   "positionsTitle": "Positions",
   "@positionsTitle": {

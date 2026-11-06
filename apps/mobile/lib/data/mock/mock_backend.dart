@@ -34,7 +34,10 @@ class MockBackend
         EventsFeed {
   MockBackend({int seed = 7, DateTime Function()? clock, this.realSolEnabled = false})
     : _rng = Random(seed),
-      _clock = clock ?? DateTime.now {
+      // The mock stands in for the server: its clock is a true UTC instant, so
+      // seeded rows and `server_now` are instants, never device wall time that a
+      // WIB label would misrepresent.
+      _clock = clock ?? (() => DateTime.now().toUtc()) {
     _seed();
   }
 
@@ -256,14 +259,17 @@ class MockBackend
     final rev = p.rev + 1;
     // Reported context only: the swap fee is already inside the proceeds.
     final fee = p.costLamports.bps(soldNowBps).bps(p.feeBps);
+    final closedAt = full ? _clock() : null;
     _positions[i] = p.copyWith(
       proceedsLamports: p.proceedsLamports + proceeds,
       soldBps: full ? 10000 : p.soldBps + soldNowBps,
       state: full ? PositionState.closed : null,
-      closedAt: full ? _clock() : null,
+      closedAt: closedAt,
       exitReason: full ? 'You sold 100% manually' : null,
       feesLamports: (p.feesLamports ?? Lamports.zero) + fee,
       exitPriceUsd: full ? p.markPriceUsd : null,
+      // Server parity: a closed row carries the locked hold.
+      holdSeconds: closedAt?.difference(p.openedAt).inSeconds,
       rev: rev,
       qtyRaw: qtyLeft,
     );
@@ -1285,6 +1291,7 @@ class MockBackend
         feesLamports: (next.feesLamports ?? Lamports.zero) + next.costLamports.bps(rest).bps(next.feeBps),
         exitPriceUsd: mark,
         exitReason: stop,
+        holdSeconds: now.difference(next.openedAt).inSeconds,
       );
       _emitEvent(
         ActivityKind.sold,
@@ -1593,6 +1600,7 @@ class MockBackend
         exitReason: 'Took profit: 40% at +20%',
         lockedPnlLamports: _sol('0.062'),
         lockedPnlPct: 31,
+        holdSeconds: 1140, // 19 min, mirrors position_wire() hold_seconds
         feesLamports: _sol('0.0025'),
         exitPriceUsd: _d('0.00053'),
         practiceEpoch: _epoch,

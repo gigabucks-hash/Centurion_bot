@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format.dart';
+import '../../../core/l10n_format.dart' show toWib;
 import '../../../core/theme/centurion_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../data/models/models.dart';
@@ -19,7 +20,9 @@ const _monthsId = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep'
 
 String _axisLabel(DateTime t, EquityRange r) {
   String two(int v) => v.toString().padLeft(2, '0');
-  return r == EquityRange.d1 ? '${two(t.hour)}:${two(t.minute)}' : '${t.day} ${_monthsId[t.month - 1]}';
+  // Chart labels are WIB too: a UTC instant must not show its UTC hour/day.
+  final w = toWib(t);
+  return r == EquityRange.d1 ? '${two(w.hour)}:${two(w.minute)}' : '${w.day} ${_monthsId[w.month - 1]}';
 }
 
 /// SPEC §6: equity curve (1D/7D/30D/All, high-water mark) above the list.
