@@ -90,7 +90,9 @@ export class FeedHub {
         });
         if (rows.length) f.cursor = String(rows[rows.length - 1]!.seq);
         if (BigInt(safe) > BigInt(f.safe)) f.safe = safe;
-        if (!rows.length && BigInt(safe) > BigInt(f.cursor)) f.cursor = safe; // nothing for us below the watermark
+        // Never advance the resume cursor on an empty page.  A lower sequence
+        // may be invisible in this snapshot and commit later; retaining the
+        // cursor makes that event eligible on the next poll.
         const batch = { rows, safe: f.safe };
         for (const fn of f.subs) {
           try {

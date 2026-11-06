@@ -91,8 +91,10 @@ under the frozen plan.
 - `jobs`: `(id, kind, key unique, run_at, attempts, locked_until, payload)`. Workers `SELECT ... FOR
   UPDATE SKIP LOCKED`, with exponential backoff, at most 8 attempts, then a `system.notice` dead letter.
 - `events` **is the outbox**: domain writes and their events commit in one transaction. `seq` is a
-  global identity (monotonic, gaps possible). Publishers (SSE, webhooks) read up to
-  `events_safe_seq()` (derived from `pg_snapshot_xmin` + `xid8`) and advance `outbox_cursors`.
+  global identity (monotonic, gaps possible) and `events_serialize_insert` makes allocation order
+  match commit order. Publishers (SSE, webhooks) read up to `events_safe_seq()` (`max` of the
+  committed rows visible to the statement) and advance `outbox_cursors` only over delivered rows;
+  see `docs/EVENTS_SAFE_SEQ.md` for the N1 race and the consumer rule.
   Side-channel deliveries (push/email/webhook) go in `outbox` rows created in the same transaction.
 - Deterministic event ids (`<subject>:<ms>:<type>`) plus a unique constraint make writes idempotent.
 
