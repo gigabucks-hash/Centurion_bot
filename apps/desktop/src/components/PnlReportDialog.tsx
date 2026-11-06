@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, X as XGlyph } from "lucide-react";
 import { core, type ClosedTradeView, type PnlReportView, type PnlWindow } from "../api";
-import { errorText, localTime, LOCALES, pnlLamports, pnlPercent, pnlText, solText, TONE_CLASS, useLang, useT } from "../i18n";
+import { errorText, LOCALES, pnlLamports, pnlPercent, pnlText, solText, TONE_CLASS, useLang, useT } from "../i18n";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { useTerm } from "../state/store";
 import { CoinAvatar } from "./CoinAvatar";
@@ -9,8 +9,10 @@ import { Icon } from "./Icon";
 import { shortMint } from "./format";
 import {
   PNL_RANGES,
+  botLabel,
   entryExitText,
   entryExitTimeText,
+  loadPageForGeneration,
   pnlPageArgs,
   pnlReconciles,
   pnlTotal,
@@ -58,16 +60,21 @@ export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; o
   const ledgerRef = useRef<HTMLDivElement | null>(null);
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
   const restore = useRef<{ key: string; scroll: number } | null>(null);
+  // Paging generation: bumped on every range reload so an in-flight `loadMore` from the old range
+  // can never append to the new one (F4 race).
+  const generation = useRef(0);
 
   const back = () => setSelected(null);
   useHotkeys({ escape: () => (selected ? back() : onClose()) });
 
   useEffect(() => {
+    generation.current += 1;
     let live = true;
     setLoading(true);
     setError(null);
     setData(null);
     setSelected(null);
+    setMore(false);
     setPageErr(null);
     restore.current = null;
     core
@@ -109,9 +116,9 @@ export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; o
   }, [st.screened, st.signals, st.positions, st.activity]);
 
   // Closed rows carry the bot id only; the name comes from the strategy list already in the store.
+  // An unknown id is not a name, so it renders `—` (A2 #3), never a truncated UUID.
   const bots = useMemo(() => new Map(st.strategies.map((s) => [s.id, s.name] as const)), [st.strategies]);
-  const botText = (id: string | null) =>
-    id == null ? "—" : bots.get(id) ?? (id.length > 12 ? `${id.slice(0, 8)}…` : id);
+  const botText = (id: string | null) => botLabel(id, bots);
 
   const rows = useMemo(() => sortClosed(data?.closed ?? [], sort.key, sort.dir), [data, sort]);
   const pctText = (pct: number | null) => {
@@ -142,25 +149,36 @@ export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; o
   const rangeLabel = t(`pnl.report.range.${range}`);
   const rowKey = (r: ClosedTradeView) => `${r.id}:${r.closed_at ?? r.position_key}`;
   const symOf = (r: ClosedTradeView) => symbols.get(r.mint) ?? shortMint(r.mint);
+  /** `$SYMBOL` when the session knows it; a short mint without `$` otherwise (A2 #2). */
+  const symLabel = (r: ClosedTradeView) => {
+    const s = symbols.get(r.mint);
+    return s ? `$${s}` : shortMint(r.mint);
+  };
   const openReceipt = (r: ClosedTradeView) => {
     restore.current = { key: rowKey(r), scroll: ledgerRef.current?.scrollTop ?? 0 };
     setSelected(r);
   };
   const loadMore = async () => {
-    if (!sum || !data?.next_cursor) return;
+    const cursor = data?.next_cursor;
+    if (!sum || !cursor) return;
+    const token = generation.current;
     setMore(true);
     setPageErr(null);
-    try {
-      // F4: absolute `from`/`to` from the first page; never a recomputed relative window.
-      const page = await core.pnlReportPage(pnlPageArgs(sum, data.next_cursor));
-      setData((d) =>
-        d ? { ...d, closed: [...d.closed, ...page.items], next_cursor: page.next_cursor } : d,
-      );
-    } catch (e) {
-      setPageErr(errorText(e, lang));
-    } finally {
+    // F4: absolute `from`/`to` from the first page; never a recomputed relative window. A response
+    // from a superseded range is dropped whole (rows and error) instead of appending to the new one.
+    const result = await loadPageForGeneration(token, () => generation.current, () =>
+      core.pnlReportPage(pnlPageArgs(sum, cursor)),
+    );
+    if (result.status === "stale") return;
+    if (result.status === "error") {
+      setPageErr(errorText(result.error, lang));
       setMore(false);
+      return;
     }
+    setData((d) =>
+      d ? { ...d, closed: [...d.closed, ...result.items], next_cursor: result.next } : d,
+    );
+    setMore(false);
   };
 
   const cell = (key: string, label: string, value: string, hint: string | null, tone = "") => (
@@ -202,12 +220,12 @@ export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; o
           <section className="pnl-receipt-id">
             <CoinAvatar mint={selected.mint} symbol={sym} logoHash={selected.logo_hash} size={32} />
             <div className="pnl-receipt-idtext">
-              <b>${sym}</b>
+              <b>{symLabel(selected)}</b>
+              <div className="dim">{t("pnl.receipt.bot")}: {botText(selected.strategy_id)}</div>
               <div className="row" style={{ gap: 6 }}>
                 <span className="chip">{t("pnl.closed")}</span>
                 <span className="dim" aria-label={t("pnl.receipt.closed_at", { time: close.replace(/ WIB$/, "") })}>{close}</span>
               </div>
-              <div className="dim">{t("pnl.receipt.bot")}: {botText(selected.strategy_id)}</div>
             </div>
           </section>
 
@@ -218,11 +236,14 @@ export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; o
             <span className="dim pnl-receipt-hint">{t("pnl.realized_hint")}</span>
           </section>
 
-          <section className="pnl-receipt-grid">
-            <div><span className="pnl-k">{t("pnl.receipt.sol_in")}</span><span className="num">{entry}</span></div>
-            <div><span className="pnl-k">{t("pnl.receipt.sol_out")}</span><span className="num">{out}</span></div>
-            <div><span className="pnl-k" title={t("pnl.receipt.fees_hint")}>{t("pnl.receipt.fees")}</span><span className="num">{fees}</span></div>
-            <div><span className="pnl-k">{t("pnl.receipt.hold")}</span><span className="num">{holdText(selected.hold_seconds, t)}</span></div>
+          <section className="pnl-receipt-breakdown">
+            <div className="pnl-receipt-grid">
+              <div><span className="pnl-k">{t("pnl.receipt.sol_in")}</span><span className="num">{entry}</span></div>
+              <div><span className="pnl-k">{t("pnl.receipt.sol_out")}</span><span className="num">{out}</span></div>
+              <div><span className="pnl-k">{t("pnl.receipt.fees")}</span><span className="num">{fees}</span></div>
+              <div><span className="pnl-k">{t("pnl.receipt.hold")}</span><span className="num">{holdText(selected.hold_seconds, t)}</span></div>
+            </div>
+            <span className="pnl-receipt-fees-hint dim">{t("pnl.receipt.fees_hint")}</span>
           </section>
 
           <section className="pnl-receipt-line">
@@ -371,7 +392,7 @@ export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; o
                           {th("pct", "%")}
                           <th className="num">{t("pnl.report.sol_in")}</th>
                           <th className="num">{t("pnl.report.sol_out")}</th>
-                          <th className="num" title={t("pnl.report.fees_hint")}>{t("pnl.report.fees_reported")}</th>
+                          <th className="num">{t("pnl.report.fees_reported")}</th>
                           <th>{t("pnl.report.bot")}</th>
                           <th>{t("pnl.report.exit_reason")}</th>
                           {th("closed", t("pnl.report.entry_exit"))}
@@ -389,7 +410,7 @@ export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; o
                               key={key}
                               tabIndex={0}
                               role="button"
-                              aria-label={`$${sym} ${t("pnl.receipt.title")}`}
+                              aria-label={`${symLabel(r)} ${t("pnl.receipt.title")}`}
                               data-row="closed-trade"
                               data-mint={r.mint}
                               ref={(el) => {
@@ -404,7 +425,7 @@ export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; o
                                 }
                               }}
                             >
-                              <td><span className="coin-sym" title={r.mint}><CoinAvatar mint={r.mint} symbol={sym} logoHash={r.logo_hash} size={20} /><b>${sym}</b></span></td>
+                              <td><span className="coin-sym" title={r.mint}><CoinAvatar mint={r.mint} symbol={sym} logoHash={r.logo_hash} size={20} /><b>{symLabel(r)}</b></span></td>
                               <td className={`num ${p ? TONE_CLASS[p.tone] : "muted"}`}>{p ? pnlText(p) : "—"}</td>
                               <td className={`num ${pct ? TONE_CLASS[pct.tone] : "muted"}`}>{pct ? pnlText(pct) : "—"}</td>
                               <td className="num">{r.sol_in_lamports == null ? "—" : solText(r.sol_in_lamports, lang, paper)}</td>
@@ -412,7 +433,7 @@ export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; o
                               <td className="num" title={t("pnl.report.fees_hint")}>{r.fees_lamports == null ? "—" : solText(r.fees_lamports, lang, paper)}</td>
                               <td className="col-bot" title={r.strategy_id ?? undefined}><span className="bot-name">{botText(r.strategy_id)}</span></td>
                               <td>{reason(r.exit_reason)}</td>
-                              <td className="num muted" title={r.closed_at ? localTime(r.closed_at, lang) : undefined} data-entry-exit>{entryExitText(r.opened_at, r.closed_at, LOCALES[lang])}</td>
+                              <td className="num muted" title={r.closed_at ? wibDateTimeText(r.closed_at, LOCALES[lang]) : undefined} data-entry-exit>{entryExitText(r.opened_at, r.closed_at, LOCALES[lang])}</td>
                               <td className="num muted">{holdText(r.hold_seconds, t)}</td>
                             </tr>
                           );
@@ -420,6 +441,7 @@ export function PnlReportDialog({ onClose, onViewBot }: { onClose: () => void; o
                       </tbody>
                     </table>
                   </div>
+                  <p className="pnl-fees-hint dim">{t("pnl.report.fees_hint")}</p>
                   {data.next_cursor && (
                     <div className="pnl-more">
                       <button className="sm" disabled={more} onClick={loadMore}>

@@ -374,6 +374,8 @@ table.positions tr.cursor td:last-child { background: var(--color-brand-primaryC
 .pnl-modal .pnl-receipt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-4); }
 .pnl-modal .pnl-receipt-grid > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pnl-modal .pnl-receipt-grid .num { font-size: var(--text-caption); }
+.pnl-modal .pnl-receipt-fees-hint { font-size: var(--text-caption); color: var(--color-text-tertiary); }
+.pnl-modal .pnl-fees-hint { margin: var(--space-1) 0 0; font-size: var(--text-caption); color: var(--color-text-tertiary); }
 .pnl-modal .pnl-receipt-line .num { font-size: var(--text-caption); overflow-wrap: anywhere; }
 .pnl-modal .pnl-receipt-reason b { font-weight: 600; }
 .pnl-modal .pnl-receipt-unit,

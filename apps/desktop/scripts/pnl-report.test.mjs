@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { LOCAL_TEMPLATES } from "../src/i18n/local.ts";
-import { PNL_RANGES, entryExitText, entryExitTimeText, pnlPageArgs, pnlReconciles, pnlTotal, priceText, receiptPct, receiptPrice, receiptSol, sortClosed, wibDateTimeText } from "../src/components/pnlReportView.ts";
+import { PNL_RANGES, botLabel, entryExitText, entryExitTimeText, loadPageForGeneration, pnlPageArgs, pnlReconciles, pnlTotal, priceText, receiptPct, receiptPrice, receiptSol, sortClosed, wibDateTimeText } from "../src/components/pnlReportView.ts";
 
 const src = readFileSync(new URL("../src/components/PnlReportDialog.tsx", import.meta.url), "utf8");
 const args = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join();
@@ -94,19 +94,26 @@ test("closed ledger carries In/Out/Fees/Bot and a compact WIB entry→exit", () 
   assert.match(src, /r\.sol_out_lamports == null \? "—" : solText/);
   assert.match(src, /r\.fees_lamports == null \? "—" : solText/);
   assert.match(src, /entryExitText\(r\.opened_at, r\.closed_at, LOCALES\[lang\]\)/);
-  assert.match(src, /bots\.get\(id\)/, "bot id resolves to the strategy name");
+  assert.match(src, /botLabel\(id, bots\)/, "bot id resolves to the strategy name or an em dash");
   assert.match(src, /data-entry-exit/);
 });
 
-test("entry→exit is WIB and only adds the exit date across midnight", () => {
-  // 02:00Z/03:30Z = 09:00/10:30 WIB (same day).
-  assert.equal(entryExitText("2026-11-05T02:00:00.000Z", "2026-11-05T03:30:00.000Z", "en-US"), "9:00 AM → 10:30 AM");
+test("entry→exit is 24-hour WIB; both sides carry a date only across midnight", () => {
+  const now = Date.parse("2026-11-06T00:00:00.000Z");
+  // 02:00Z/03:30Z = 09:00/10:30 WIB (same day): clocks only, 24-hour.
+  assert.equal(entryExitText("2026-11-05T02:00:00.000Z", "2026-11-05T03:30:00.000Z", "en-US", now), "09:00 → 10:30");
   // 16:52Z = 23:52 WIB Nov 5 → 17:12Z = 00:12 WIB Nov 6 (crosses midnight in WIB, not in UTC).
-  assert.equal(entryExitText("2026-11-05T16:52:00.000Z", "2026-11-05T17:12:00.000Z", "en-US"), "11:52 PM → Nov 6 · 12:12 AM");
-  // Year rollover keeps the year on the exit date.
-  assert.equal(entryExitText("2026-12-31T15:00:00.000Z", "2026-12-31T17:30:00.000Z", "en-US"), "10:00 PM → Jan 1, 2027 · 12:30 AM");
-  assert.equal(entryExitText(null, "2026-11-05T17:12:00.000Z", "en-US"), "—");
-  assert.equal(entryExitText("2026-11-05T16:52:00.000Z", null, "en-US"), "—");
+  assert.equal(
+    entryExitText("2026-11-05T16:52:00.000Z", "2026-11-05T17:12:00.000Z", "en-US", now),
+    "05 Nov · 23:52 → 06 Nov · 00:12",
+  );
+  // Year rollover keeps the year on the side that is not the current WIB year.
+  assert.equal(
+    entryExitText("2026-12-31T15:00:00.000Z", "2026-12-31T17:30:00.000Z", "en-US", now),
+    "31 Dec · 22:00 → 01 Jan 2027 · 00:30",
+  );
+  assert.equal(entryExitText(null, "2026-11-05T17:12:00.000Z", "en-US", now), "—");
+  assert.equal(entryExitText("2026-11-05T16:52:00.000Z", null, "en-US", now), "—");
 });
 
 test("new report copy exists in EN and ID with matching placeholders", () => {
@@ -176,10 +183,10 @@ test("receipt times are 24-hour WIB; dates appear on both sides only across midn
   // 16:52Z = 23:52 WIB Nov 5 → 17:12Z = 00:12 WIB Nov 6.
   assert.equal(
     entryExitTimeText("2026-11-05T16:52:00.000Z", "2026-11-05T17:12:00.000Z", "en-US"),
-    "Nov 05 · 23:52 → Nov 06 · 00:12 WIB",
+    "05 Nov · 23:52 → 06 Nov · 00:12 WIB",
   );
   assert.equal(entryExitTimeText(null, "2026-11-05T17:12:00.000Z", "en-US"), "— → 00:12 WIB");
-  assert.equal(wibDateTimeText("2026-11-05T07:32:00.000Z", "en-US", Date.parse("2026-11-06T00:00:00.000Z")), "Nov 05 · 14:32 WIB");
+  assert.equal(wibDateTimeText("2026-11-05T07:32:00.000Z", "en-US", Date.parse("2026-11-06T00:00:00.000Z")), "05 Nov · 14:32 WIB");
 });
 
 test("F4 paging reuses the frozen absolute range and never sends a relative window", () => {
@@ -189,6 +196,50 @@ test("F4 paging reuses the frozen absolute range and never sends a relative wind
   assert.equal(frozen.to, "2026-11-06T00:00:00.000Z");
   assert.equal(pnlPageArgs({ window: "7d", from: null, to: "2026-11-06T00:00:00.000Z" }, "c:2").window, null);
   assert.equal(pnlPageArgs({ window: "7d", from: null, to: null }, "c:3").window, "7d", "fallback only when nothing was pinned");
+});
+
+test("F4 race: a page that resolves after a range change never appends to the new range", async () => {
+  let generation = 1;
+  let resolveOld;
+  const oldPage = new Promise((resolve) => {
+    resolveOld = resolve;
+  });
+  const rows = ["7d:1"];
+  const load = loadPageForGeneration(1, () => generation, () => oldPage);
+
+  // The user switches 7d → 30d while the 7d page is still in flight. The new range replaces the rows.
+  generation = 2;
+  rows.length = 0;
+  rows.push("30d:1");
+  resolveOld({ items: ["7d:2"], next_cursor: "7d:c2" });
+
+  assert.equal((await load).status, "stale");
+  assert.deepEqual(rows, ["30d:1"], "the stale page did not append");
+});
+
+test("F4 race: a success in the same generation appends rows and the next cursor", async () => {
+  let generation = 7;
+  const result = await loadPageForGeneration(7, () => generation, async () => ({
+    items: ["p2a", "p2b"],
+    next_cursor: "c3",
+  }));
+  assert.equal(result.status, "ok");
+  assert.deepEqual(result.items, ["p2a", "p2b"]);
+  assert.equal(result.next, "c3");
+  generation = 8;
+  const staleError = await loadPageForGeneration(7, () => generation, async () => {
+    throw new Error("CURSOR_INVALID");
+  });
+  assert.equal(staleError.status, "stale", "a stale failure never surfaces under the new range");
+});
+
+test("an unknown bot renders an em dash, never a truncated UUID", () => {
+  const bots = new Map([["s1", "New pairs"]]);
+  assert.equal(botLabel("s1", bots), "New pairs");
+  assert.equal(botLabel("11111111-2222-3333-4444-555555555555", bots), "—");
+  assert.equal(botLabel(null, bots), "—");
+  assert.doesNotMatch(src, /slice\(0, 8\)/);
+  assert.match(src, /botLabel\(id, bots\)/);
 });
 
 test("receipt source: provenance, prices, only View bot, unknown reason falls back to Closed", () => {
@@ -206,7 +257,23 @@ test("receipt source: provenance, prices, only View bot, unknown reason falls ba
   assert.match(src, /t\("pnl\.closed"\)/);
   assert.match(src, /role="button"/);
   assert.match(src, /onKeyDown=/);
-  assert.match(src, /pnlPageArgs\(sum, data\.next_cursor\)/);
+  assert.match(src, /pnlPageArgs\(sum, cursor\)/);
+  assert.match(src, /generation\.current \+= 1/, "a range reload bumps the paging generation");
+  assert.match(src, /loadPageForGeneration\(token, \(\) => generation\.current/, "loadMore is generation-guarded");
+  assert.match(src, /pnl-receipt-fees-hint/, "the fees hint is visible, not title-only");
+  assert.match(src, /pnl-fees-hint dim/, "the ledger fees hint is visible too");
+  assert.match(src, /<div className="dim">\{t\("pnl\.receipt\.bot"\)\}[^<]*<\/div>\s*<div className="row"/, "identity order: bot, then Closed chip + close time");
+});
+
+test("ID uses Durasi tahan and A2 ledger labels", () => {
+  assert.equal(LOCAL_TEMPLATES.id["pnl.report.hold"], "Durasi tahan");
+  assert.equal(LOCAL_TEMPLATES.id["pnl.receipt.hold"], "Durasi tahan");
+  assert.equal(LOCAL_TEMPLATES.en["pnl.report.sol_in"], "SOL in");
+  assert.equal(LOCAL_TEMPLATES.en["pnl.report.sol_out"], "SOL out");
+  assert.equal(LOCAL_TEMPLATES.id["pnl.report.sol_in"], "SOL masuk");
+  assert.equal(LOCAL_TEMPLATES.id["pnl.report.sol_out"], "SOL keluar");
+  assert.equal(LOCAL_TEMPLATES.en["pnl.report.bot"], "Bot");
+  assert.equal(LOCAL_TEMPLATES.id["pnl.report.bot"], "Bot");
 });
 
 test("all 14 exit reasons have one-line explanations in EN and ID", () => {

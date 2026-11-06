@@ -129,11 +129,11 @@ test("contracts pin: packages/contracts is @centurion/contracts 1.1.6 at ca52707
   assert.notEqual(git, "drift", `packages/contracts changed since ${pin.commit}; re-check the desktop and bump contracts.pin.json`);
 });
 
-test("i18n pin: I18N_PACKAGE_VERSION equals packages/i18n (0.4.11: 0.4.10 + the two deprecated keys removed)", async () => {
+test("i18n pin: I18N_PACKAGE_VERSION equals packages/i18n (0.4.12: receipt + markets ARB keys)", async () => {
   const { readFileSync } = await import("node:fs");
   const src = readFileSync(new URL("../src/i18n/index.ts", import.meta.url), "utf8");
   assert.equal(/I18N_PACKAGE_VERSION = "([^"]+)"/.exec(src)?.[1], pkg("package.json").version);
-  assert.equal(pkg("package.json").version, "0.4.11");
+  assert.equal(pkg("package.json").version, "0.4.12");
 });
 
 test("next_allowed_at: RFC 3339 UTC with ms + Z, parsed strictly (no local-time guesses)", async () => {

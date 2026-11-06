@@ -49,53 +49,24 @@ function wibFormat(locale: string, opts: Intl.DateTimeFormatOptions): Intl.DateT
   return f;
 }
 
-type WibStamp = { ms: number; day: string; clock: string };
-
-function wibStamp(iso: string | null | undefined, locale: string): WibStamp | null {
-  const t = ms(iso);
-  if (t == null) return null;
-  const d = new Date(t + WIB_OFFSET_MS);
-  return {
-    ms: t,
-    // UTC getters on the shifted instant give the WIB calendar day, whatever the device zone is.
-    day: `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`,
-    clock: wibFormat(locale, { hour: "numeric", minute: "2-digit" }).format(t),
-  };
-}
-
-/**
- * Compact entry → exit for the closed ledger, both times in WIB (GMT+7). The exit date is shown
- * only when the exit falls on a different WIB day (the UX rule); a missing side prints an em dash.
- */
-export function entryExitText(
-  entry: string | null | undefined,
-  exit: string | null | undefined,
-  locale: string,
-): string {
-  const a = wibStamp(entry, locale);
-  const b = wibStamp(exit, locale);
-  if (!a || !b) return "—";
-  if (a.day === b.day) return `${a.clock} → ${b.clock}`;
-  const crossYear = a.day.slice(0, 4) !== b.day.slice(0, 4);
-  const date = wibFormat(locale, { month: "short", day: "numeric", ...(crossYear ? { year: "numeric" } : {}) });
-  // A middle dot keeps the date and clock apart in both locales (en-US drops the comma without a year).
-  return `${a.clock} → ${date.format(b.ms)} · ${b.clock}`;
-}
-
 type Wib24 = { ms: number; day: string; year: number; date: string; dateYear: string; clock: string };
 
-/** WIB calendar pieces, 24-hour clock (the receipt format; the ledger keeps the compact 12/24 h one). */
+/** WIB calendar pieces, always a 24-hour clock (A6: `HH:mm` on the ledger and the receipt). */
 function wib24(iso: string | null | undefined, locale: string): Wib24 | null {
   const t = ms(iso);
   if (t == null) return null;
   const d = new Date(t + WIB_OFFSET_MS);
   const year = d.getUTCFullYear();
+  // A2 time format is `06 Nov` in both locales, so build day + month explicitly (en-US would say
+  // `Nov 06` if the month came first from Intl).
+  const day = wibFormat(locale, { day: "2-digit" }).format(t);
+  const month = wibFormat(locale, { month: "short" }).format(t);
   return {
     ms: t,
     year,
     day: `${year}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`,
-    date: wibFormat(locale, { day: "2-digit", month: "short" }).format(t),
-    dateYear: wibFormat(locale, { day: "2-digit", month: "short", year: "numeric" }).format(t),
+    date: `${day} ${month}`,
+    dateYear: `${day} ${month} ${year}`,
     clock: wibFormat(locale, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(t),
   };
 }
@@ -112,6 +83,26 @@ export function wibDateTimeText(
   if (!p) return "—";
   const date = p.year === wibYear(nowMs) ? p.date : p.dateYear;
   return `${date} · ${p.clock} WIB`;
+}
+
+/**
+ * Compact entry → exit for the closed ledger, both times in 24-hour WIB (GMT+7, A6). Dates appear on
+ * **both** sides only when the exit falls on a different WIB day; a missing side prints an em dash.
+ */
+export function entryExitText(
+  entry: string | null | undefined,
+  exit: string | null | undefined,
+  locale: string,
+  nowMs: number = Date.now(),
+): string {
+  const a = wib24(entry, locale);
+  const b = wib24(exit, locale);
+  if (!a || !b) return "—";
+  if (a.day === b.day) return `${a.clock} → ${b.clock}`;
+  const thisYear = wibYear(nowMs);
+  const side = (p: Wib24) => `${p.year === thisYear ? p.date : p.dateYear} · ${p.clock}`;
+  // A middle dot keeps the date and clock apart in both locales (en-US drops the comma without a year).
+  return `${side(a)} → ${side(b)}`;
 }
 
 /**
@@ -206,6 +197,42 @@ export function pnlPageArgs(
 ): { window: PnlWindow | null; from: string | null; to: string | null; cursor: string } {
   const ranged = summary.from != null || summary.to != null;
   return { window: ranged ? null : summary.window, from: summary.from, to: summary.to, cursor };
+}
+
+/**
+ * Closed rows carry the bot id only. An unknown id is **not** a name: show an em dash (A2 #3) rather
+ * than a truncated UUID, and keep `View bot` hidden.
+ */
+export function botLabel(id: string | null | undefined, bots: ReadonlyMap<string, string>): string {
+  if (id == null) return "—";
+  return bots.get(id) ?? "—";
+}
+
+/** One page of the closed ledger, as the transport returns it. */
+export type GuardedPage<T> =
+  | { status: "ok"; items: readonly T[]; next: string | null }
+  | { status: "stale" }
+  | { status: "error"; error: unknown };
+
+/**
+ * F4 race guard: a page may only append while its generation is still current. The dialog bumps the
+ * generation whenever the range (or the first page) changes, so a response that arrives after a range
+ * change is dropped instead of appending rows from the old range. Errors from a stale request are
+ * dropped too, so they cannot surface under the new range.
+ */
+export async function loadPageForGeneration<T>(
+  generation: number,
+  currentGeneration: () => number,
+  load: () => Promise<{ items: readonly T[]; next_cursor: string | null }>,
+): Promise<GuardedPage<T>> {
+  try {
+    const page = await load();
+    if (currentGeneration() !== generation) return { status: "stale" };
+    return { status: "ok", items: page.items, next: page.next_cursor };
+  } catch (error) {
+    if (currentGeneration() !== generation) return { status: "stale" };
+    return { status: "error", error };
+  }
 }
 
 /** Newest close first (server order) unless a column is chosen; null values always sort last. */

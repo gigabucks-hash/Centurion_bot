@@ -31,7 +31,7 @@ const flatten = (o: Tree, p = "", out: Record<string, string> = {}) => {
 };
 const CAT: Record<Lang, Record<string, string>> = { en: flatten(en as Tree), id: flatten(id as Tree) };
 
-export const I18N_PACKAGE_VERSION = "0.4.11";
+export const I18N_PACKAGE_VERSION = "0.4.12";
 
 function lookup(lang: Lang, key: string): string | undefined {
   // Package copy wins; LOCAL_TEMPLATES only fill keys UX has not shipped yet (reported as UX gaps).
