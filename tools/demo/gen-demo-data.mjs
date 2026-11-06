@@ -105,6 +105,36 @@ const STRATEGIES = [
   { key: "ladder", name: "Fast Ladder", label: "three-step take-profit ladder" },
 ];
 
+/**
+ * Strategy lifecycle for D5 (pause/resume). `status` is the current wire status
+ * (`draft | running | paused | archived`); `events` are the pause/resume envelopes that
+ * produced it, oldest first. `atH` is hours before the anchor. One strategy is paused now,
+ * one was paused and resumed (running with both events), one was never paused.
+ */
+const STRATEGY_LIFECYCLE = [
+  {
+    key: "dip",
+    status: "paused",
+    rev: 4,
+    events: [{ type: "strategy.paused", atH: 2, baseRev: 3, rev: 4, status: "paused" }],
+  },
+  {
+    key: "grad",
+    status: "running",
+    rev: 5,
+    events: [
+      { type: "strategy.paused", atH: 8, baseRev: 3, rev: 4, status: "paused" },
+      { type: "strategy.resumed", atH: 7, baseRev: 4, rev: 5, status: "running" },
+    ],
+  },
+  { key: "ladder", status: "running", rev: 2, events: [] },
+];
+
+/** The coin whose `/coins/[mint]` trail is complete: buy -> partial take-profit -> sell. */
+const TRAIL_COIN = "ORBIT";
+/** The coin whose trail stops at the screener with tradeable=false (no invented buy/sell). */
+const BLOCKED_TRAIL_COIN = "FLUX";
+
 const COINS = [
   { symbol: "ORBIT", venue: "curve", launchpad: "pumpfun", decimals: 6 },
   { symbol: "MOCHI", venue: "amm", launchpad: "raydium", decimals: 6 },
@@ -366,6 +396,277 @@ function build(seed) {
       _partial_realized_lamports: realized,
     };
   });
+
+  // ---- strategy lifecycle + coin trails (D5 pause/resume, /coins/[mint]) ----
+  const mcapFields = (c) => ({
+    market_cap_lamports: c.market_cap_lamports,
+    mcap_usd: c.mcap_usd,
+    mcap_as_of: c.mcap_as_of,
+    mcap_source: c.mcap_source,
+  });
+
+  const strategyStates = STRATEGY_LIFECYCLE.map((s, i) => {
+    if (s.key !== STRATEGIES[i].key) throw new Error(`strategy lifecycle order must match STRATEGIES (${s.key} != ${STRATEGIES[i].key})`);
+    return { ...s, index: i, id: strategyId(i) };
+  });
+
+  const lifecycleDrafts = strategyStates.flatMap((s) =>
+    s.events.map((e) => {
+      const ts = iso(ANCHOR - e.atH * HOUR);
+      return {
+        _kind: "strategy",
+        _ts: Date.parse(ts),
+        id: `${s.id}:${Date.parse(ts)}:${e.type}`,
+        type: e.type,
+        version: 2,
+        workspace_id: WORKSPACE_ID,
+        strategy_id: s.id,
+        ck: null,
+        mint: null,
+        logo_hash: null,
+        logo_url: null,
+        ts,
+        actor: "user",
+        mode: "practice",
+        payload: { rev: e.rev, base_rev: e.baseRev, status: e.status },
+        untrusted: {},
+        server_now: ANCHOR_ISO,
+      };
+    }),
+  );
+
+  const coinBySymbol = new Map(coins.map((c) => [c.untrusted.symbol, c]));
+  const coinEvent = (coin, o) => ({
+    _kind: "trail",
+    _ts: Date.parse(o.ts),
+    id: `${coin.mint}:${Date.parse(o.ts)}:${o.type}`,
+    type: o.type,
+    version: 2,
+    workspace_id: WORKSPACE_ID,
+    strategy_id: o.strategyId ?? null,
+    ck: o.ck ?? null,
+    mint: coin.mint,
+    logo_hash: coin.logo_hash,
+    logo_url: coin.logo_url,
+    ts: o.ts,
+    actor: o.actor,
+    mode: "practice",
+    payload: o.payload,
+    untrusted: { symbol: coin.untrusted.symbol },
+    server_now: ANCHOR_ISO,
+  });
+
+  const orbit = coinBySymbol.get(TRAIL_COIN);
+  const orbitClosed = closed.find((r) => r.mint === orbit.mint && r.partial_tp && r.exit_reason === "profit_target");
+  if (!orbitClosed) throw new Error(`trail coin ${TRAIL_COIN} needs a closed position with a partial take-profit`);
+  const orbitEntry = Number(orbitClosed.avg_entry_price_sol);
+  const orbitSolIn = Number(orbitClosed.sol_in_lamports);
+  const orbitQtyRaw = BigInt(Math.round((orbitSolIn / LAMPORTS_PER_SOL / orbitEntry) * 10 ** orbit.decimals)).toString();
+  const orbitLeg = orbitClosed.partial_tp_legs[0];
+  const orbitSoldSol = Math.round((orbitSolIn * orbitLeg.sold_bps) / 10_000);
+  const orbitPartialPnl = Math.round((orbitSoldSol * orbitLeg.gain_pct) / 100);
+  const orbitPartialProceeds = orbitSoldSol + orbitPartialPnl;
+  const orbitOpenedMs = Date.parse(orbitClosed.opened_at);
+  const orbitClosedMs = Date.parse(orbitClosed.closed_at);
+  const orbitDetectedAt = iso(orbitOpenedMs - HOUR);
+  const orbitScoredAt = iso(orbitOpenedMs - HOUR / 2);
+  const orbitPartialAt = iso(orbitOpenedMs + Math.round((orbitClosedMs - orbitOpenedMs) / 2));
+  const orbitStrategyId = orbitClosed.strategy_id;
+  const orbitChecks = [
+    { id: "quote_mint", class: "venue", passed: true, measured: null, points: 0, reason: "SOL quote" },
+    { id: "mcap_usd", class: "weighted", passed: true, measured: 6_000, points: 30, reason: "Market cap above the floor" },
+  ];
+  const orbitEvents = [
+    coinEvent(orbit, {
+      type: "coin.detected",
+      ts: orbitDetectedAt,
+      actor: "ingest",
+      strategyId: orbitStrategyId,
+      payload: {
+        mint: orbit.mint,
+        venue: orbit.venue,
+        launchpad: orbit.launchpad,
+        creator: null,
+        decimals: orbit.decimals,
+        token_program: orbit.token_program,
+        quote_mint: null,
+        ...mcapFields(orbit),
+      },
+    }),
+    coinEvent(orbit, {
+      type: "screener.scored",
+      ts: orbitScoredAt,
+      actor: "screener",
+      strategyId: orbitStrategyId,
+      payload: {
+        mint: orbit.mint,
+        passed: true,
+        tradeable: true,
+        skip_reason: null,
+        quote_mint: null,
+        summary: "Score 84 >= 60; SOL quote.",
+        rejected_by: null,
+        failed: [],
+        result: { passed: true, score: 84, score_threshold: 60, max_score: 100, checks: orbitChecks, tradeable: true, skip_reason: null, quote_mint: null },
+        ...mcapFields(orbit),
+      },
+    }),
+    coinEvent(orbit, {
+      type: "position.opened",
+      ts: orbitClosed.opened_at,
+      actor: "executor",
+      strategyId: orbitStrategyId,
+      ck: orbitClosed.position_key,
+      payload: {
+        position_key: orbitClosed.position_key,
+        position_id: orbitClosed.id,
+        rev: 1,
+        practice_epoch: 1,
+        mint: orbit.mint,
+        decimals: orbit.decimals,
+        token_program: orbit.token_program,
+        first_buy: true,
+        fill: {
+          id: uuidFrom(`fill:${orbitClosed.position_key}:buy`, seed),
+          side: "buy",
+          simulated: true,
+          practice_epoch: 1,
+          sol_lamports: orbitClosed.sol_in_lamports,
+          token_amount_raw: orbitQtyRaw,
+          exec_price_sol: orbitClosed.avg_entry_price_sol,
+          mid_price_sol: orbitClosed.avg_entry_price_sol,
+          price_impact_bps: 12,
+          slippage_bps: 25,
+          swap_fee_lamports: String(feeOf(orbitSolIn)),
+          network_fee_lamports: "5000",
+          latency_ms: 380,
+          created_at: orbitClosed.opened_at,
+        },
+      },
+    }),
+    coinEvent(orbit, {
+      type: "exit.triggered",
+      ts: orbitPartialAt,
+      actor: "exit",
+      strategyId: orbitStrategyId,
+      ck: orbitClosed.position_key,
+      payload: {
+        position_key: orbitClosed.position_key,
+        rule: "profit_target",
+        rule_index: 0,
+        sell_portion_pct: orbitLeg.sold_bps / 100,
+        trigger_price_sol: dec(orbitEntry * (1 + orbitLeg.gain_pct / 100), 15),
+        detail: `Step 1: sell ${orbitLeg.sold_bps / 100}% at +${orbitLeg.gain_pct.toFixed(1)}%`,
+        partial: true,
+        summary: `Partial take-profit: sold ${orbitLeg.sold_bps / 100}% at +${orbitLeg.gain_pct.toFixed(1)}%`,
+        sol_lamports: String(orbitPartialProceeds),
+        pnl_lamports: String(orbitPartialPnl),
+        pnl_pct: orbitLeg.gain_pct,
+      },
+    }),
+    coinEvent(orbit, {
+      type: "position.closed",
+      ts: orbitClosed.closed_at,
+      actor: "exit",
+      strategyId: orbitStrategyId,
+      ck: orbitClosed.position_key,
+      payload: {
+        position_key: orbitClosed.position_key,
+        position_id: orbitClosed.id,
+        rev: orbitClosed.rev,
+        practice_epoch: 1,
+        exit_reason: orbitClosed.exit_reason,
+        exit_price_sol: orbitClosed.exit_price_sol,
+        sol_out_lamports: orbitClosed.sol_out_lamports,
+        pnl_lamports: orbitClosed.pnl_lamports,
+        pnl_pct: orbitClosed.pnl_pct,
+        hold_seconds: orbitClosed.hold_seconds,
+        partial: false,
+        summary: `Closed ${orbitClosed.pnl_pct >= 0 ? "+" : ""}${orbitClosed.pnl_pct.toFixed(2)}% after ${orbitClosed.hold_seconds / 3600}h`,
+        sol_lamports: orbitClosed.sol_out_lamports,
+      },
+    }),
+  ];
+
+  const fluxCoin = coins.find((c) => c.untrusted.symbol === BLOCKED_TRAIL_COIN);
+  if (!fluxCoin || fluxCoin.tradeable !== false) throw new Error(`blocked trail coin ${BLOCKED_TRAIL_COIN} must be tradeable=false`);
+  const fluxDetectedAt = iso(ANCHOR - 28 * HOUR);
+  const fluxScoredAt = iso(ANCHOR - 27.5 * HOUR);
+  const fluxEvents = [
+    coinEvent(fluxCoin, {
+      type: "coin.detected",
+      ts: fluxDetectedAt,
+      actor: "ingest",
+      strategyId: fluxCoin.strategy_id,
+      payload: {
+        mint: fluxCoin.mint,
+        venue: fluxCoin.venue,
+        launchpad: fluxCoin.launchpad,
+        creator: null,
+        decimals: fluxCoin.decimals,
+        token_program: fluxCoin.token_program,
+        quote_mint: fluxCoin.quote_mint,
+        ...mcapFields(fluxCoin),
+      },
+    }),
+    coinEvent(fluxCoin, {
+      type: "screener.scored",
+      ts: fluxScoredAt,
+      actor: "screener",
+      strategyId: fluxCoin.strategy_id,
+      payload: {
+        mint: fluxCoin.mint,
+        passed: false,
+        tradeable: false,
+        skip_reason: fluxCoin.skip_reason,
+        quote_mint: fluxCoin.quote_mint,
+        summary: "Quote mint is USDC; practice only trades SOL-quoted coins.",
+        rejected_by: "quote_mint",
+        failed: ["quote_mint"],
+        result: {
+          passed: false,
+          score: 41,
+          score_threshold: 60,
+          max_score: 100,
+          checks: [{ id: "quote_mint", class: "venue", passed: false, measured: null, points: 0, reason: "Quote mint must be wSOL" }],
+          tradeable: false,
+          skip_reason: fluxCoin.skip_reason,
+          quote_mint: fluxCoin.quote_mint,
+        },
+        ...mcapFields(fluxCoin),
+      },
+    }),
+  ];
+
+  const draftEvents = [...lifecycleDrafts, ...orbitEvents, ...fluxEvents].sort((a, b) => a._ts - b._ts || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  draftEvents.forEach((e, i) => {
+    e.seq = String(9001 + i);
+  });
+  const strategyEvents = draftEvents.filter((e) => e._kind === "strategy");
+  const orbitTrailEvents = draftEvents.filter((e) => e._kind === "trail" && e.mint === orbit.mint);
+  const fluxTrailEvents = draftEvents.filter((e) => e._kind === "trail" && e.mint === fluxCoin.mint);
+  for (const e of draftEvents) {
+    delete e._ts;
+    delete e._kind;
+  }
+
+  const trailOf = (coin, state, positionKey, events) => ({
+    mint: coin.mint,
+    symbol: coin.untrusted.symbol,
+    state,
+    position_key: positionKey,
+    strategy_id: events.find((e) => e.strategy_id != null)?.strategy_id ?? null,
+    logo_hash: coin.logo_hash,
+    logo_url: coin.logo_url,
+    mode: "practice",
+    first_event_at: events[0].ts,
+    last_event_at: events[events.length - 1].ts,
+    events,
+  });
+  const coinTrails = [
+    trailOf(orbit, "closed", orbitClosed.position_key, orbitTrailEvents),
+    trailOf(fluxCoin, "blocked", null, fluxTrailEvents),
+  ];
 
   // coin status + coin-level pnl from the ledger (mock display extras)
   for (const coin of coins) {
@@ -658,8 +959,28 @@ function build(seed) {
       markets_graduated: defaultRows("graduated").length,
       markets_market_only_mints: marketOnly.length,
       markets_empty_cases: markets.empty.length,
+      strategies_paused: strategyStates.filter((s) => s.status === "paused").length,
+      strategy_pause_events: strategyEvents.filter((e) => e.type === "strategy.paused").length,
+      strategy_resume_events: strategyEvents.filter((e) => e.type === "strategy.resumed").length,
+      coin_trails: coinTrails.length,
+      coin_trail_events: coinTrails.reduce((n, t) => n + t.events.length, 0),
     },
-    strategies: STRATEGIES.map((s, i) => ({ id: strategyId(i), key: s.key, name: s.name, mode: "practice" })),
+    strategies: STRATEGIES.map((s, i) => {
+      const state = strategyStates[i];
+      const lastEvent = state.events[state.events.length - 1];
+      return {
+        id: strategyId(i),
+        key: s.key,
+        name: s.name,
+        mode: "practice",
+        status: state.status,
+        rev: state.rev,
+        created_at: iso(ANCHOR - 30 * 24 * HOUR),
+        updated_at: lastEvent ? iso(ANCHOR - lastEvent.atH * HOUR) : iso(ANCHOR - 20 * 24 * HOUR),
+      };
+    }),
+    strategy_events: strategyEvents,
+    coin_trails: coinTrails,
     coins,
     positions_open: openSorted,
     positions_closed: closedSorted,
@@ -681,6 +1002,11 @@ function build(seed) {
       { id: "no-logo", expect: "logo_hash and logo_url are both null -> identicon, no request", pointers: coins.filter((c) => c.logo_hash === null).map((c) => c.untrusted.symbol) },
       { id: "untradeable", expect: "tradeable=false + skip_reason=UNSUPPORTED_QUOTE_MINT", pointers: ["FLUX"] },
       { id: "zero-pnl-open", expect: "unrealized 0 stays neutral, not a 0% win", pointers: openSorted.filter((p) => Number(p.unrealized_pnl_lamports) === 0).map((p) => p.position_key) },
+      { id: "strategy-paused", expect: "a strategy with status paused and a strategy.paused event; the row offers Resume", pointers: strategyStates.filter((s) => s.status === "paused").map((s) => `${s.key}:rev${s.rev}`) },
+      { id: "strategy-resumed", expect: "a strategy that was paused then resumed: status running with both events, rev increases", pointers: strategyStates.filter((s) => s.status === "running" && s.events.some((e) => e.type === "strategy.resumed")).map((s) => `${s.key}:rev${s.rev}`) },
+      { id: "tradeable-control", expect: "at least one coin with tradeable=true and skip_reason null next to the blocked coin", pointers: coins.filter((c) => c.tradeable === true && c.skip_reason === null).map((c) => c.untrusted.symbol).slice(0, 6) },
+      { id: "coin-trail-partial-tp", expect: "one trail: buy -> partial take-profit -> sell, each with the coin logo_hash/logo_url", pointers: [TRAIL_COIN] },
+      { id: "coin-trail-not-tradeable", expect: "trail stops at screener with tradeable=false + UNSUPPORTED_QUOTE_MINT and no buy/sell", pointers: [BLOCKED_TRAIL_COIN] },
       { id: "markets-trending-ranks", expect: "rank_position 1..10 in asc order; rank_score recomputable from rank_inputs and markets.by_window.trending[\"1h\"].rank.weights", pointers: defaultRows("trending").map((r) => `${r.rank_position}:${r.symbol}`) },
       { id: "markets-trending-empty", expect: "rows [] and total_count 0 for trending 5m", pointers: ["markets.empty[0]"] },
       { id: "markets-graduated-empty", expect: "rows [] and total_count 0 for graduated 15m", pointers: ["markets.empty[1]"] },
@@ -783,6 +1109,147 @@ function validate(data) {
   if (Number.isNaN(newest) || Number.isNaN(oldest)) fail("closed timestamps unreadable");
   if (newest > Date.parse(data.meta.anchor)) fail("a closed trade is after the anchor");
   if (Date.parse(data.meta.anchor) - oldest > 31 * 24 * HOUR) fail("closed ledger spans more than 31 days");
+
+  // ---- strategy lifecycle (D5) ----
+  if (data.meta.schema_version !== "1.1") fail("schema_version must stay 1.1 for this additive fixture");
+  if (!Array.isArray(data.strategies) || data.strategies.length !== 3) fail("expected exactly 3 strategies (count must not change)");
+  const STRATEGY_STATUSES = new Set(["draft", "running", "paused", "archived"]);
+  for (const s of data.strategies) {
+    if (!STRATEGY_STATUSES.has(s.status)) fail(`strategy ${s.key}: unknown status ${JSON.stringify(s.status)}`);
+    if (!isInt(s.rev) || s.rev < 1) fail(`strategy ${s.key}: rev`);
+    if (s.mode !== "practice") fail(`strategy ${s.key}: demo must stay paper`);
+    if (!Number.isFinite(Date.parse(s.created_at)) || !Number.isFinite(Date.parse(s.updated_at))) fail(`strategy ${s.key}: created_at/updated_at`);
+  }
+  const lifecycle = data.strategy_events;
+  if (!Array.isArray(lifecycle) || lifecycle.length < 2) fail("strategy_events must contain the pause/resume events");
+  const strategyById = new Map(data.strategies.map((s) => [s.id, s]));
+  const eventIds = new Set();
+  const eventSeqs = new Set();
+  for (const e of lifecycle || []) {
+    if (!["strategy.paused", "strategy.resumed"].includes(e.type)) fail(`strategy event ${e.type}: only pause/resume belong here`);
+    if (e.version !== 2) fail(`strategy event ${e.id}: version`);
+    if (e.mode !== "practice") fail(`strategy event ${e.id}: mode`);
+    if (e.workspace_id !== data.meta.workspace_id) fail(`strategy event ${e.id}: workspace_id`);
+    if (e.mint !== null || e.logo_hash !== null || e.logo_url !== null) fail(`strategy event ${e.id}: must not carry a mint/logo`);
+    if (!strategyById.has(e.strategy_id)) fail(`strategy event ${e.id}: unknown strategy_id`);
+    if (!Number.isFinite(Date.parse(e.ts))) fail(`strategy event ${e.id}: ts`);
+    const payload = e.payload || {};
+    const wantStatus = e.type === "strategy.paused" ? "paused" : "running";
+    if (payload.status !== wantStatus) fail(`strategy event ${e.id}: payload.status must be ${wantStatus}`);
+    if (!isInt(payload.rev) || payload.rev < 2) fail(`strategy event ${e.id}: payload.rev`);
+    if (!isInt(payload.base_rev) || payload.rev <= payload.base_rev) fail(`strategy event ${e.id}: payload.base_rev`);
+    if (eventIds.has(e.id)) fail(`duplicate event id ${e.id}`);
+    eventIds.add(e.id);
+    if (eventSeqs.has(e.seq)) fail(`duplicate event seq ${e.seq}`);
+    eventSeqs.add(e.seq);
+  }
+  for (const s of data.strategies) {
+    const evs = (lifecycle || []).filter((e) => e.strategy_id === s.id);
+    if (evs.length === 0) {
+      if (s.status !== "running") fail(`strategy ${s.key}: a strategy without events must stay running`);
+      continue;
+    }
+    const last = evs[evs.length - 1];
+    if (s.status !== last.payload.status) fail(`strategy ${s.key}: status must match its last event`);
+    if (s.rev !== last.payload.rev) fail(`strategy ${s.key}: rev must match its last event`);
+    if (Date.parse(s.updated_at) !== Date.parse(last.ts)) fail(`strategy ${s.key}: updated_at must match its last event`);
+  }
+  if (!data.strategies.some((s) => s.status === "paused")) fail("no strategy is paused (Resume state)");
+  if (!data.strategies.some((s) => s.status === "running" && (lifecycle || []).some((e) => e.strategy_id === s.id && e.type === "strategy.resumed"))) {
+    fail("no strategy was paused then resumed (Running state with a resume event)");
+  }
+  if (data.summary.strategies_paused !== data.strategies.filter((s) => s.status === "paused").length) fail("summary.strategies_paused");
+  if (data.summary.strategy_pause_events !== (lifecycle || []).filter((e) => e.type === "strategy.paused").length) fail("summary.strategy_pause_events");
+  if (data.summary.strategy_resume_events !== (lifecycle || []).filter((e) => e.type === "strategy.resumed").length) fail("summary.strategy_resume_events");
+
+  // ---- tradeable states ----
+  const blockedCoins = data.coins.filter((c) => c.tradeable === false);
+  if (blockedCoins.length === 0) fail("no coin with tradeable=false");
+  for (const c of blockedCoins) {
+    if (typeof c.skip_reason !== "string" || c.skip_reason.length === 0 || c.skip_reason.length > 64) fail(`coin ${c.untrusted.symbol}: tradeable=false needs a clear skip_reason`);
+    if (c.skip_reason === "0" || c.skip_reason === "0%") fail(`coin ${c.untrusted.symbol}: skip_reason must be a reason code, not a percentage`);
+  }
+  for (const c of data.coins.filter((c) => c.tradeable === true)) {
+    if (c.skip_reason !== null) fail(`coin ${c.untrusted.symbol}: tradeable=true must have skip_reason null`);
+  }
+  if (!data.coins.some((c) => c.tradeable === true)) fail("no tradeable=true control coin");
+
+  // ---- coin trails (/coins/[mint]) ----
+  if (!Array.isArray(data.coin_trails) || data.coin_trails.length < 1) fail("coin_trails is missing");
+  const coinByMint = new Map(data.coins.map((c) => [c.mint, c]));
+  let completeTrails = 0;
+  let blockedTrails = 0;
+  for (const t of data.coin_trails || []) {
+    const coin = coinByMint.get(t.mint);
+    if (!coin) {
+      fail(`trail ${t.symbol}: mint is not in coins[]`);
+      continue;
+    }
+    if (t.symbol !== coin.untrusted.symbol) fail(`trail ${t.symbol}: symbol mismatch`);
+    if (t.logo_hash !== coin.logo_hash || t.logo_url !== coin.logo_url) fail(`trail ${t.symbol}: logo pair must match the coin`);
+    if (t.mode !== "practice") fail(`trail ${t.symbol}: mode`);
+    if (!Array.isArray(t.events) || t.events.length < 2) {
+      fail(`trail ${t.symbol}: needs at least coin.detected and screener.scored`);
+      continue;
+    }
+    let prevTs = -Infinity;
+    for (const e of t.events) {
+      if (e.mint !== t.mint) fail(`trail ${t.symbol}: event mint`);
+      if (e.logo_hash !== coin.logo_hash || e.logo_url !== coin.logo_url) fail(`trail ${t.symbol}: event logo pair`);
+      if (e.mode !== "practice" || e.version !== 2) fail(`trail ${t.symbol}: event mode/version`);
+      if (e.workspace_id !== data.meta.workspace_id) fail(`trail ${t.symbol}: event workspace_id`);
+      if (!Number.isFinite(Date.parse(e.ts))) fail(`trail ${t.symbol}: event ts`);
+      if (Date.parse(e.ts) < prevTs) fail(`trail ${t.symbol}: events must be oldest first`);
+      prevTs = Date.parse(e.ts);
+      if (e.untrusted?.symbol !== coin.untrusted.symbol) fail(`trail ${t.symbol}: event untrusted.symbol`);
+      if (eventIds.has(e.id)) fail(`duplicate event id ${e.id}`);
+      eventIds.add(e.id);
+      if (eventSeqs.has(e.seq)) fail(`duplicate event seq ${e.seq}`);
+      eventSeqs.add(e.seq);
+    }
+    if (t.first_event_at !== t.events[0].ts || t.last_event_at !== t.events[t.events.length - 1].ts) fail(`trail ${t.symbol}: first/last event at`);
+    const scored = t.events.find((e) => e.type === "screener.scored");
+    if (!scored) fail(`trail ${t.symbol}: no screener.scored`);
+    else {
+      if (scored.payload.tradeable !== coin.tradeable) fail(`trail ${t.symbol}: screener tradeable must match the coin`);
+      if ((scored.payload.skip_reason ?? null) !== coin.skip_reason) fail(`trail ${t.symbol}: screener skip_reason must match the coin`);
+      if ((scored.payload.quote_mint ?? null) !== (coin.quote_mint ?? null)) fail(`trail ${t.symbol}: screener quote_mint must match the coin`);
+    }
+    const opened = t.events.find((e) => e.type === "position.opened");
+    const partial = t.events.find((e) => e.type === "exit.triggered");
+    const closedEv = t.events.find((e) => e.type === "position.closed");
+    if (opened && partial && closedEv) {
+      completeTrails += 1;
+      if (t.position_key !== opened.payload.position_key) fail(`trail ${t.symbol}: position_key`);
+      if (!(partial.payload.sell_portion_pct > 0 && partial.payload.sell_portion_pct < 100)) fail(`trail ${t.symbol}: partial sell_portion_pct`);
+      if (!(Date.parse(opened.ts) < Date.parse(partial.ts) && Date.parse(partial.ts) < Date.parse(closedEv.ts))) fail(`trail ${t.symbol}: buy/partial/sell order`);
+      const row = closed.find((r) => r.position_key === t.position_key);
+      if (!row) fail(`trail ${t.symbol}: no matching closed position`);
+      else {
+        if (closedEv.payload.pnl_lamports !== row.pnl_lamports) fail(`trail ${t.symbol}: closed pnl must equal the ledger row`);
+        if (closedEv.payload.sol_out_lamports !== row.sol_out_lamports) fail(`trail ${t.symbol}: closed sol_out must equal the ledger row`);
+        if (closedEv.payload.exit_reason !== row.exit_reason) fail(`trail ${t.symbol}: exit_reason must equal the ledger row`);
+        if (closedEv.payload.hold_seconds !== row.hold_seconds) fail(`trail ${t.symbol}: hold_seconds must equal the ledger row`);
+        if (opened.payload.fill.sol_lamports !== row.sol_in_lamports) fail(`trail ${t.symbol}: buy amount must equal sol_in`);
+        const leg = row.partial_tp_legs?.[0];
+        if (!leg) fail(`trail ${t.symbol}: ledger row has no partial leg`);
+        else {
+          const legPnl = Math.round((Number(row.sol_in_lamports) * leg.sold_bps * leg.gain_pct) / 1_000_000);
+          if (Number(partial.payload.pnl_lamports) !== legPnl) fail(`trail ${t.symbol}: partial pnl must equal the ledger leg`);
+          if (partial.payload.sell_portion_pct !== leg.sold_bps / 100) fail(`trail ${t.symbol}: partial bps`);
+          if (partial.payload.pnl_pct !== leg.gain_pct) fail(`trail ${t.symbol}: partial gain`);
+        }
+      }
+    } else if (opened || closedEv) {
+      fail(`trail ${t.symbol}: buy/sell events must be complete`);
+    } else if (scored?.payload.tradeable === false && scored?.payload.skip_reason) {
+      blockedTrails += 1;
+    }
+  }
+  if (completeTrails < 1) fail("no complete coin trail (buy + partial take-profit + sell)");
+  if (blockedTrails < 1) fail("no coin trail for a tradeable=false coin");
+  if (data.summary.coin_trails !== (data.coin_trails || []).length) fail("summary.coin_trails");
+  if (data.summary.coin_trail_events !== (data.coin_trails || []).reduce((n, t) => n + t.events.length, 0)) fail("summary.coin_trail_events");
 
   if (data.windows["1h"].pnl_summary.closed_count !== 0) fail("1h window must be empty");
   const order = ["1h", "24h", "7d", "30d", "all"];

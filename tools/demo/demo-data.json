@@ -30,26 +30,430 @@
     "markets_new": 8,
     "markets_graduated": 7,
     "markets_market_only_mints": 8,
-    "markets_empty_cases": 2
+    "markets_empty_cases": 2,
+    "strategies_paused": 1,
+    "strategy_pause_events": 2,
+    "strategy_resume_events": 1,
+    "coin_trails": 2,
+    "coin_trail_events": 7
   },
   "strategies": [
     {
       "id": "6fe4792c-72e4-4de5-81e4-7c526ce47473",
       "key": "dip",
       "name": "Dip Sniper",
-      "mode": "practice"
+      "mode": "practice",
+      "status": "paused",
+      "rev": 4,
+      "created_at": "2026-10-06T17:00:00.000Z",
+      "updated_at": "2026-11-05T15:00:00.000Z"
     },
     {
       "id": "9d738935-9a73-447c-8b73-860f98738156",
       "key": "grad",
       "name": "Grad Runner",
-      "mode": "practice"
+      "mode": "practice",
+      "status": "running",
+      "rev": 5,
+      "created_at": "2026-10-06T17:00:00.000Z",
+      "updated_at": "2026-11-05T10:00:00.000Z"
     },
     {
       "id": "26b15851-23b1-4398-84b1-552b29b15d0a",
       "key": "ladder",
       "name": "Fast Ladder",
-      "mode": "practice"
+      "mode": "practice",
+      "status": "running",
+      "rev": 2,
+      "created_at": "2026-10-06T17:00:00.000Z",
+      "updated_at": "2026-10-16T17:00:00.000Z"
+    }
+  ],
+  "strategy_events": [
+    {
+      "id": "9d738935-9a73-447c-8b73-860f98738156:1793869200000:strategy.paused",
+      "type": "strategy.paused",
+      "version": 2,
+      "workspace_id": "9f1d3c2a-7b64-4e58-8a10-0d5c6b7e8f90",
+      "strategy_id": "9d738935-9a73-447c-8b73-860f98738156",
+      "ck": null,
+      "mint": null,
+      "logo_hash": null,
+      "logo_url": null,
+      "ts": "2026-11-05T09:00:00.000Z",
+      "actor": "user",
+      "mode": "practice",
+      "payload": {
+        "rev": 4,
+        "base_rev": 3,
+        "status": "paused"
+      },
+      "untrusted": {},
+      "server_now": "2026-11-05T17:00:00.000Z",
+      "seq": "9007"
+    },
+    {
+      "id": "9d738935-9a73-447c-8b73-860f98738156:1793872800000:strategy.resumed",
+      "type": "strategy.resumed",
+      "version": 2,
+      "workspace_id": "9f1d3c2a-7b64-4e58-8a10-0d5c6b7e8f90",
+      "strategy_id": "9d738935-9a73-447c-8b73-860f98738156",
+      "ck": null,
+      "mint": null,
+      "logo_hash": null,
+      "logo_url": null,
+      "ts": "2026-11-05T10:00:00.000Z",
+      "actor": "user",
+      "mode": "practice",
+      "payload": {
+        "rev": 5,
+        "base_rev": 4,
+        "status": "running"
+      },
+      "untrusted": {},
+      "server_now": "2026-11-05T17:00:00.000Z",
+      "seq": "9008"
+    },
+    {
+      "id": "6fe4792c-72e4-4de5-81e4-7c526ce47473:1793890800000:strategy.paused",
+      "type": "strategy.paused",
+      "version": 2,
+      "workspace_id": "9f1d3c2a-7b64-4e58-8a10-0d5c6b7e8f90",
+      "strategy_id": "6fe4792c-72e4-4de5-81e4-7c526ce47473",
+      "ck": null,
+      "mint": null,
+      "logo_hash": null,
+      "logo_url": null,
+      "ts": "2026-11-05T15:00:00.000Z",
+      "actor": "user",
+      "mode": "practice",
+      "payload": {
+        "rev": 4,
+        "base_rev": 3,
+        "status": "paused"
+      },
+      "untrusted": {},
+      "server_now": "2026-11-05T17:00:00.000Z",
+      "seq": "9010"
+    }
+  ],
+  "coin_trails": [
+    {
+      "mint": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u",
+      "symbol": "ORBIT",
+      "state": "closed",
+      "position_key": "demo-001-orbit",
+      "strategy_id": "6fe4792c-72e4-4de5-81e4-7c526ce47473",
+      "logo_hash": "m4oeygh1si08rc",
+      "logo_url": "/v1/img/coin/demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u?s=96&v=m4oeygh1si08rc",
+      "mode": "practice",
+      "first_event_at": "2026-11-05T02:00:00.000Z",
+      "last_event_at": "2026-11-05T12:00:00.000Z",
+      "events": [
+        {
+          "id": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u:1793844000000:coin.detected",
+          "type": "coin.detected",
+          "version": 2,
+          "workspace_id": "9f1d3c2a-7b64-4e58-8a10-0d5c6b7e8f90",
+          "strategy_id": "6fe4792c-72e4-4de5-81e4-7c526ce47473",
+          "ck": null,
+          "mint": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u",
+          "logo_hash": "m4oeygh1si08rc",
+          "logo_url": "/v1/img/coin/demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u?s=96&v=m4oeygh1si08rc",
+          "ts": "2026-11-05T02:00:00.000Z",
+          "actor": "ingest",
+          "mode": "practice",
+          "payload": {
+            "mint": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u",
+            "venue": "curve",
+            "launchpad": "pumpfun",
+            "creator": null,
+            "decimals": 6,
+            "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "quote_mint": null,
+            "market_cap_lamports": "210000000000",
+            "mcap_usd": "42000",
+            "mcap_as_of": "2026-11-05T14:00:00.000Z",
+            "mcap_source": "curve"
+          },
+          "untrusted": {
+            "symbol": "ORBIT"
+          },
+          "server_now": "2026-11-05T17:00:00.000Z",
+          "seq": "9003"
+        },
+        {
+          "id": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u:1793845800000:screener.scored",
+          "type": "screener.scored",
+          "version": 2,
+          "workspace_id": "9f1d3c2a-7b64-4e58-8a10-0d5c6b7e8f90",
+          "strategy_id": "6fe4792c-72e4-4de5-81e4-7c526ce47473",
+          "ck": null,
+          "mint": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u",
+          "logo_hash": "m4oeygh1si08rc",
+          "logo_url": "/v1/img/coin/demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u?s=96&v=m4oeygh1si08rc",
+          "ts": "2026-11-05T02:30:00.000Z",
+          "actor": "screener",
+          "mode": "practice",
+          "payload": {
+            "mint": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u",
+            "passed": true,
+            "tradeable": true,
+            "skip_reason": null,
+            "quote_mint": null,
+            "summary": "Score 84 >= 60; SOL quote.",
+            "rejected_by": null,
+            "failed": [],
+            "result": {
+              "passed": true,
+              "score": 84,
+              "score_threshold": 60,
+              "max_score": 100,
+              "checks": [
+                {
+                  "id": "quote_mint",
+                  "class": "venue",
+                  "passed": true,
+                  "measured": null,
+                  "points": 0,
+                  "reason": "SOL quote"
+                },
+                {
+                  "id": "mcap_usd",
+                  "class": "weighted",
+                  "passed": true,
+                  "measured": 6000,
+                  "points": 30,
+                  "reason": "Market cap above the floor"
+                }
+              ],
+              "tradeable": true,
+              "skip_reason": null,
+              "quote_mint": null
+            },
+            "market_cap_lamports": "210000000000",
+            "mcap_usd": "42000",
+            "mcap_as_of": "2026-11-05T14:00:00.000Z",
+            "mcap_source": "curve"
+          },
+          "untrusted": {
+            "symbol": "ORBIT"
+          },
+          "server_now": "2026-11-05T17:00:00.000Z",
+          "seq": "9004"
+        },
+        {
+          "id": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u:1793847600000:position.opened",
+          "type": "position.opened",
+          "version": 2,
+          "workspace_id": "9f1d3c2a-7b64-4e58-8a10-0d5c6b7e8f90",
+          "strategy_id": "6fe4792c-72e4-4de5-81e4-7c526ce47473",
+          "ck": "demo-001-orbit",
+          "mint": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u",
+          "logo_hash": "m4oeygh1si08rc",
+          "logo_url": "/v1/img/coin/demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u?s=96&v=m4oeygh1si08rc",
+          "ts": "2026-11-05T03:00:00.000Z",
+          "actor": "executor",
+          "mode": "practice",
+          "payload": {
+            "position_key": "demo-001-orbit",
+            "position_id": "c15e9448-c45e-4901-835e-976ec65e9c27",
+            "rev": 1,
+            "practice_epoch": 1,
+            "mint": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u",
+            "decimals": 6,
+            "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "first_buy": true,
+            "fill": {
+              "id": "5ebe5723-5fbe-48b6-80be-5a4961be5bdc",
+              "side": "buy",
+              "simulated": true,
+              "practice_epoch": 1,
+              "sol_lamports": "2500000000",
+              "token_amount_raw": "2083333333333",
+              "exec_price_sol": "0.0000012",
+              "mid_price_sol": "0.0000012",
+              "price_impact_bps": 12,
+              "slippage_bps": 25,
+              "swap_fee_lamports": "31250000",
+              "network_fee_lamports": "5000",
+              "latency_ms": 380,
+              "created_at": "2026-11-05T03:00:00.000Z"
+            }
+          },
+          "untrusted": {
+            "symbol": "ORBIT"
+          },
+          "server_now": "2026-11-05T17:00:00.000Z",
+          "seq": "9005"
+        },
+        {
+          "id": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u:1793863800000:exit.triggered",
+          "type": "exit.triggered",
+          "version": 2,
+          "workspace_id": "9f1d3c2a-7b64-4e58-8a10-0d5c6b7e8f90",
+          "strategy_id": "6fe4792c-72e4-4de5-81e4-7c526ce47473",
+          "ck": "demo-001-orbit",
+          "mint": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u",
+          "logo_hash": "m4oeygh1si08rc",
+          "logo_url": "/v1/img/coin/demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u?s=96&v=m4oeygh1si08rc",
+          "ts": "2026-11-05T07:30:00.000Z",
+          "actor": "exit",
+          "mode": "practice",
+          "payload": {
+            "position_key": "demo-001-orbit",
+            "rule": "profit_target",
+            "rule_index": 0,
+            "sell_portion_pct": 40,
+            "trigger_price_sol": "0.000001488",
+            "detail": "Step 1: sell 40% at +24.0%",
+            "partial": true,
+            "summary": "Partial take-profit: sold 40% at +24.0%",
+            "sol_lamports": "1240000000",
+            "pnl_lamports": "240000000",
+            "pnl_pct": 24
+          },
+          "untrusted": {
+            "symbol": "ORBIT"
+          },
+          "server_now": "2026-11-05T17:00:00.000Z",
+          "seq": "9006"
+        },
+        {
+          "id": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u:1793880000000:position.closed",
+          "type": "position.closed",
+          "version": 2,
+          "workspace_id": "9f1d3c2a-7b64-4e58-8a10-0d5c6b7e8f90",
+          "strategy_id": "6fe4792c-72e4-4de5-81e4-7c526ce47473",
+          "ck": "demo-001-orbit",
+          "mint": "demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u",
+          "logo_hash": "m4oeygh1si08rc",
+          "logo_url": "/v1/img/coin/demonUwoTBjrt6DXiY7mVZHroPPiEMA1KKJLttXvts3u?s=96&v=m4oeygh1si08rc",
+          "ts": "2026-11-05T12:00:00.000Z",
+          "actor": "exit",
+          "mode": "practice",
+          "payload": {
+            "position_key": "demo-001-orbit",
+            "position_id": "c15e9448-c45e-4901-835e-976ec65e9c27",
+            "rev": 3,
+            "practice_epoch": 1,
+            "exit_reason": "profit_target",
+            "exit_price_sol": "0.000001176",
+            "sol_out_lamports": "2710000000",
+            "pnl_lamports": "210000000",
+            "pnl_pct": 8.4,
+            "hold_seconds": 32400,
+            "partial": false,
+            "summary": "Closed +8.40% after 9h",
+            "sol_lamports": "2710000000"
+          },
+          "untrusted": {
+            "symbol": "ORBIT"
+          },
+          "server_now": "2026-11-05T17:00:00.000Z",
+          "seq": "9009"
+        }
+      ]
+    },
+    {
+      "mint": "demodwRsUGeJvqtenieSR177YuAdYTUitBS1JATM17Yc",
+      "symbol": "FLUX",
+      "state": "blocked",
+      "position_key": null,
+      "strategy_id": "26b15851-23b1-4398-84b1-552b29b15d0a",
+      "logo_hash": "m1eioj3st2rgyp",
+      "logo_url": "/v1/img/coin/demodwRsUGeJvqtenieSR177YuAdYTUitBS1JATM17Yc?s=96&v=m1eioj3st2rgyp",
+      "mode": "practice",
+      "first_event_at": "2026-11-04T13:00:00.000Z",
+      "last_event_at": "2026-11-04T13:30:00.000Z",
+      "events": [
+        {
+          "id": "demodwRsUGeJvqtenieSR177YuAdYTUitBS1JATM17Yc:1793797200000:coin.detected",
+          "type": "coin.detected",
+          "version": 2,
+          "workspace_id": "9f1d3c2a-7b64-4e58-8a10-0d5c6b7e8f90",
+          "strategy_id": "26b15851-23b1-4398-84b1-552b29b15d0a",
+          "ck": null,
+          "mint": "demodwRsUGeJvqtenieSR177YuAdYTUitBS1JATM17Yc",
+          "logo_hash": "m1eioj3st2rgyp",
+          "logo_url": "/v1/img/coin/demodwRsUGeJvqtenieSR177YuAdYTUitBS1JATM17Yc?s=96&v=m1eioj3st2rgyp",
+          "ts": "2026-11-04T13:00:00.000Z",
+          "actor": "ingest",
+          "mode": "practice",
+          "payload": {
+            "mint": "demodwRsUGeJvqtenieSR177YuAdYTUitBS1JATM17Yc",
+            "venue": "amm",
+            "launchpad": "raydium",
+            "creator": null,
+            "decimals": 6,
+            "token_program": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+            "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "market_cap_lamports": "5545000000000",
+            "mcap_usd": "1109000",
+            "mcap_as_of": "2026-11-05T03:00:00.000Z",
+            "mcap_source": "pool"
+          },
+          "untrusted": {
+            "symbol": "FLUX"
+          },
+          "server_now": "2026-11-05T17:00:00.000Z",
+          "seq": "9001"
+        },
+        {
+          "id": "demodwRsUGeJvqtenieSR177YuAdYTUitBS1JATM17Yc:1793799000000:screener.scored",
+          "type": "screener.scored",
+          "version": 2,
+          "workspace_id": "9f1d3c2a-7b64-4e58-8a10-0d5c6b7e8f90",
+          "strategy_id": "26b15851-23b1-4398-84b1-552b29b15d0a",
+          "ck": null,
+          "mint": "demodwRsUGeJvqtenieSR177YuAdYTUitBS1JATM17Yc",
+          "logo_hash": "m1eioj3st2rgyp",
+          "logo_url": "/v1/img/coin/demodwRsUGeJvqtenieSR177YuAdYTUitBS1JATM17Yc?s=96&v=m1eioj3st2rgyp",
+          "ts": "2026-11-04T13:30:00.000Z",
+          "actor": "screener",
+          "mode": "practice",
+          "payload": {
+            "mint": "demodwRsUGeJvqtenieSR177YuAdYTUitBS1JATM17Yc",
+            "passed": false,
+            "tradeable": false,
+            "skip_reason": "UNSUPPORTED_QUOTE_MINT",
+            "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            "summary": "Quote mint is USDC; practice only trades SOL-quoted coins.",
+            "rejected_by": "quote_mint",
+            "failed": [
+              "quote_mint"
+            ],
+            "result": {
+              "passed": false,
+              "score": 41,
+              "score_threshold": 60,
+              "max_score": 100,
+              "checks": [
+                {
+                  "id": "quote_mint",
+                  "class": "venue",
+                  "passed": false,
+                  "measured": null,
+                  "points": 0,
+                  "reason": "Quote mint must be wSOL"
+                }
+              ],
+              "tradeable": false,
+              "skip_reason": "UNSUPPORTED_QUOTE_MINT",
+              "quote_mint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+            },
+            "market_cap_lamports": "5545000000000",
+            "mcap_usd": "1109000",
+            "mcap_as_of": "2026-11-05T03:00:00.000Z",
+            "mcap_source": "pool"
+          },
+          "untrusted": {
+            "symbol": "FLUX"
+          },
+          "server_now": "2026-11-05T17:00:00.000Z",
+          "seq": "9002"
+        }
+      ]
     }
   ],
   "coins": [
@@ -4296,6 +4700,46 @@
       "expect": "unrealized 0 stays neutral, not a 0% win",
       "pointers": [
         "demo-o03-brew"
+      ]
+    },
+    {
+      "id": "strategy-paused",
+      "expect": "a strategy with status paused and a strategy.paused event; the row offers Resume",
+      "pointers": [
+        "dip:rev4"
+      ]
+    },
+    {
+      "id": "strategy-resumed",
+      "expect": "a strategy that was paused then resumed: status running with both events, rev increases",
+      "pointers": [
+        "grad:rev5"
+      ]
+    },
+    {
+      "id": "tradeable-control",
+      "expect": "at least one coin with tradeable=true and skip_reason null next to the blocked coin",
+      "pointers": [
+        "ORBIT",
+        "MOCHI",
+        "KELP",
+        "ZAPP",
+        "BREW",
+        "PIXL"
+      ]
+    },
+    {
+      "id": "coin-trail-partial-tp",
+      "expect": "one trail: buy -> partial take-profit -> sell, each with the coin logo_hash/logo_url",
+      "pointers": [
+        "ORBIT"
+      ]
+    },
+    {
+      "id": "coin-trail-not-tradeable",
+      "expect": "trail stops at screener with tradeable=false + UNSUPPORTED_QUOTE_MINT and no buy/sell",
+      "pointers": [
+        "FLUX"
       ]
     },
     {
