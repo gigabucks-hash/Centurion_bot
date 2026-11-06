@@ -23,6 +23,13 @@ function optUuid(v: string | null, field: string): string | null {
 }
 
 /** Coin facts are trusted (from chain); name/symbol/uri stay inside `untrusted`. */
+const WSOL = "So11111111111111111111111111111111111111112";
+/** Same rule as the screener: no quote (legacy source) or wSOL is tradeable; any other quote mint is not. */
+function tradeableWire(quoteMint: unknown) {
+  const tradeable = quoteMint == null || quoteMint === WSOL;
+  return { tradeable, skip_reason: tradeable ? null : "UNSUPPORTED_QUOTE_MINT" };
+}
+
 function coinWire(r: Record<string, unknown>) {
   return {
     mint: r.mint,
@@ -38,6 +45,8 @@ function coinWire(r: Record<string, unknown>) {
     // 1.1.6: content hash of the current proxied logo (null: none yet / unavailable) + our proxy URL
     logo_hash: r.logo_hash ?? null,
     logo_url: logoUrl(r.mint, r.logo_hash),
+    // ScreenerResult.tradeable/skip_reason on the coin read (WF-20/21); derived from the quote mint.
+    ...tradeableWire(r.quote_mint),
     ...mcapWire(r),
   };
 }
