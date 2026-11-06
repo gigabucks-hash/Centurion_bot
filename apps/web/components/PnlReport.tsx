@@ -28,7 +28,7 @@ export function PnlReport({ report: r, mode, t, f, href = "/pnl", layout = "rows
 }) {
   // A null money field is "not reported": show an em dash, never a 0.00 the server did not send.
   const money = (v: number | null) =>
-    v == null ? <span className="num text-text-tertiary" data-testid="pnl-not-reported">—</span> : <Pnl sol={v} mode={mode} unit />;
+    v == null ? <span className="num text-text-tertiary" data-testid="pnl-not-reported">—</span> : <Pnl sol={v} mode={mode} unit wrapUnit={layout === "strip"} />;
   const items = [
     { label: t("pnlReport.unrealized"), value: money(r.unrealized), hint: t("pnlReport.openHint", { n: r.openPositions }) },
     {

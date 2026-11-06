@@ -1,7 +1,7 @@
 "use client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n/client";
-import { pnlFilterQuery } from "@/lib/pnl-report";
+import { parsePnlWindow, pnlFilterQuery } from "@/lib/pnl-report";
 
 /**
  * PnL report filters (0022): one mode (tabs), one strategy, one range. The range is the server's
@@ -23,7 +23,8 @@ export function PnlFilters({ strategies }: { strategies: { id: string; name: str
         <option value="">{t("common.allStrategies")}</option>
         {strategies.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
       </select>
-      <select aria-label={t("stats.window")} className={sel} value={sp.get("window") ?? "7d"} onChange={(e) => set("window", e.target.value)}>
+      <select aria-label={t("stats.window")} className={sel} value={parsePnlWindow(sp.get("window"))} onChange={(e) => set("window", e.target.value)}>
+        <option value="1h">{t("pnl.w1h")}</option>
         <option value="24h">{t("pnl.w24h")}</option>
         <option value="7d">{t("pnl.w7d")}</option>
         <option value="30d">{t("pnl.w30d")}</option>

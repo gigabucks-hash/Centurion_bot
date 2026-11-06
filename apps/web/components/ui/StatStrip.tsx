@@ -21,7 +21,14 @@ const TONE: Record<Tone, string> = {
 };
 
 /** Static class strings so Tailwind emits them (no dynamic `sm:grid-cols-${n}`). */
-const COLS = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-4", 5: "sm:grid-cols-5" } as const;
+const COLS = {
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "sm:grid-cols-4",
+  // Five KPIs at 22 px do not fit five columns on a 1024 screen; a 6-track grid keeps the numbers
+  // readable (3 cells on row 1, 2 wider cells on row 2) and fills the row without an empty cell.
+  5: "md:grid-cols-6 xl:grid-cols-5",
+} as const;
 
 const CELL = "flex min-w-0 flex-col bg-bg-surface p-4";
 
@@ -47,17 +54,28 @@ export function StatStrip({ items, columns = 4, className, label }: {
       )}
     >
       {items.map((item, i) => {
+        // 6-track fallback: 2 + 2 + 2 on row 1, 3 + 3 on row 2, no empty cell; 5 equal cells from xl.
+        const span = columns === 5 ? (i < 3 ? "md:col-span-2 xl:col-span-1" : "md:col-span-3 xl:col-span-1") : "";
         const body = (
           <>
             <span className="text-overline uppercase tracking-wide text-text-tertiary">{item.label}</span>
-            <span className={cn("num mt-1.5 min-w-0 whitespace-nowrap text-numSm sm:text-numLg", TONE[item.tone ?? "neutral"])}>{item.value}</span>
+            <span
+              className={cn(
+                "num mt-1.5 min-w-0 whitespace-normal",
+                // 5 cells: caption size only on phones (2 columns), full size from sm up (2 then 3 then 5 columns).
+                "text-numSm sm:text-numLg",
+                TONE[item.tone ?? "neutral"],
+              )}
+            >
+              {item.value}
+            </span>
             {item.hint && <span className="mt-1 text-caption text-text-tertiary">{item.hint}</span>}
           </>
         );
         return item.href ? (
-          <Link key={i} href={item.href} className={cn(CELL, "transition duration-fast hover:bg-bg-raised focus-visible:outline-2")}>{body}</Link>
+          <Link key={i} href={item.href} className={cn(CELL, span, "transition duration-fast hover:bg-bg-raised focus-visible:outline-2")}>{body}</Link>
         ) : (
-          <div key={i} className={CELL}>{body}</div>
+          <div key={i} className={cn(CELL, span)}>{body}</div>
         );
       })}
     </div>

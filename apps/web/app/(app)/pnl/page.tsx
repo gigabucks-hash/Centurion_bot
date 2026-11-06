@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { getApi } from "@/lib/api";
 import { listAllStrategies, modesOf, portfolioMode } from "@/lib/mode";
-import type { ClosedTrade } from "@/lib/types";
+import type { ClosedTrade, TradingMode } from "@/lib/types";
 import { parsePnlWindow, pnlReportFromSummary, sameLamports } from "@/lib/pnl-report";
 import { shortMint } from "@/lib/format";
 import { getT, getFmt } from "@/lib/i18n/server";
@@ -36,6 +36,14 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
     if (strategyId) q.set("strategy", strategyId);
     q.set("window", window);
     if (c) q.set("cursor", c);
+    return `/pnl?${q}`;
+  };
+  /** D7: switching mode keeps the range and the bot filter; only the keyset cursor is dropped. */
+  const modeHref = (m: TradingMode) => {
+    const q = new URLSearchParams();
+    if (m === "real") q.set("mode", "real");
+    if (strategyId) q.set("strategy", strategyId);
+    q.set("window", window);
     return `/pnl?${q}`;
   };
 
@@ -93,7 +101,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
       <PageHeader
         title={t("pnl.title")}
         subtitle={t("pnl.subtitle")}
-        actions={<PortfolioModeTabs mode={mode} modes={modes} href={(m) => (m === "practice" ? "/pnl" : "/pnl?mode=real")} t={t} />}
+        actions={<PortfolioModeTabs mode={mode} modes={modes} href={modeHref} t={t} />}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -114,10 +122,11 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
         columns={5}
         label={t("pnl.rangeAria", { window: rangeLabel })}
         items={[
-          { label: t("pnl.realizedIn", { window: rangeLabel }), value: summary.realizedWindowSol != null ? <Pnl sol={summary.realizedWindowSol} mode={mode} unit /> : "—", hint: t("pnl.realizedHint") },
+          { label: t("pnl.realizedIn", { window: rangeLabel }), value: summary.realizedWindowSol != null ? <Pnl sol={summary.realizedWindowSol} mode={mode} unit wrapUnit /> : "—", hint: t("pnl.realizedHint") },
           { label: t("pnl.closed"), value: f.int(summary.closedCount), hint: t("pnl.wins", { n: summary.winCount }) },
           { label: t("pnl.winRate"), value: summary.winRatePct != null ? `${f.num(summary.winRatePct, 1)}%` : "—", hint: summary.winRatePct != null ? t("pnl.ofClosed", { n: summary.closedCount }) : t("pnl.noClosedShort") },
-          { label: t("pnl.avgHold"), value: summary.avgHoldSeconds != null ? f.duration(summary.avgHoldSeconds) : "—" },
+          // NBSP keeps "9 mnt" together but lets a narrow 5-cell strip break between the two groups.
+          { label: t("pnl.avgHold"), value: summary.avgHoldSeconds != null ? f.duration(summary.avgHoldSeconds).replace(/(\p{L})\u00A0(?=\d)/gu, "$1 ") : "—" },
           {
             label: t("pnl.fees"),
             value: summary.feesSol != null
@@ -178,7 +187,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
                 </Link>
               ),
             },
-            { key: "strategy", header: t("pnl.colStrategy"), cell: (r) => <div className="max-w-[8.5rem]">{r.strategyId ? name.get(r.strategyId) ?? "—" : "—"}</div> },
+            { key: "strategy", header: t("pnl.colStrategy"), cell: (r) => <div className="max-w-[8.5rem] truncate" title={r.strategyId ? name.get(r.strategyId) : undefined}>{r.strategyId ? name.get(r.strategyId) ?? "—" : "—"}</div> },
             { key: "in", header: t("pnl.colIn"), numeric: true, cell: (r) => f.sol(r.solInSol, { unit: false }) },
             { key: "out", header: t("pnl.colOut"), numeric: true, cell: (r) => f.sol(r.solOutSol, { unit: false }) },
             { key: "pnl", header: t("pnl.colRealized"), numeric: true, cell: (r) => <Pnl sol={r.pnlSol} mode={mode} /> },
@@ -186,7 +195,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
             { key: "fees", header: t("pnl.colFees"), numeric: true, headerWrap: true, cell: (r) => (r.feesSol != null ? f.sol(r.feesSol, { unit: false }) : "—") },
             { key: "window", header: t("pnl.colWindow"), nowrap: true, cell: (r) => <span className="text-text-secondary">{when(r)}</span> },
             { key: "hold", header: t("pnl.colHold"), numeric: true, cell: (r) => (r.holdSeconds != null ? f.duration(r.holdSeconds) : "—") },
-            { key: "exit", header: t("pnl.colExit"), nowrap: true, cell: (r) => (r.exitReason ? t(`exitReason.${r.exitReason}`) : "—") },
+            { key: "exit", header: t("pnl.colExit"), nowrap: true, headerWrap: true, cell: (r) => (r.exitReason ? t(`exitReason.${r.exitReason}`) : "—") },
           ]}
         />
       </Card>

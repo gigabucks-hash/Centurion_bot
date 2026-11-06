@@ -84,10 +84,12 @@ async function Header({ all, filter }: { all: Strategy[]; filter: Filter }) {
   const live = all.filter((s) => s.status !== "archived");
   const real = live.filter((s) => s.mode === "real").length;
   const chip = (on: boolean) => cn("inline-flex min-h-8 items-center rounded-full border px-3 text-caption", on ? "border-brand-primary bg-brand-primaryContainer text-brand-onPrimaryContainer" : "border-border-default text-text-secondary hover:text-text-primary");
+  // D3: the UX catalog's strategy.list.filter.* keys are not in @centurion/i18n yet, so use the
+  // app's own mode labels plus the live counts instead of rendering the raw key.
   const filters: { id: Filter; label: string; href: string }[] = [
-    { id: "all", label: t.ux("strategy.list.filter.all"), href: "/strategies" },
-    { id: "practice", label: t.ux("strategy.list.filter.paper"), href: "/strategies?mode=practice" },
-    { id: "real", label: t.ux("strategy.list.filter.real"), href: "/strategies?mode=real" },
+    { id: "all", label: `${t("common.all")} · ${live.length}`, href: "/strategies" },
+    { id: "practice", label: `${t("mode.practiceShort")} · ${live.length - real}`, href: "/strategies?mode=practice" },
+    { id: "real", label: `${t("mode.realShort")} · ${real}`, href: "/strategies?mode=real" },
   ];
   return (
     <>

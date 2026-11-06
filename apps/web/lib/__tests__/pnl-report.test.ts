@@ -60,6 +60,7 @@ test("summary path clamps a bad win rate / win count", () => {
 
 test("report window parsing: default 7d, unknown → 7d, hours map", () => {
   assert.equal(parsePnlWindow(undefined), "7d");
+  assert.equal(parsePnlWindow("1h"), "1h");
   assert.equal(parsePnlWindow("1y"), "7d");
   assert.equal(parsePnlWindow(["all"]), "all");
   assert.equal(pnlWindowHours("1h"), 1);
