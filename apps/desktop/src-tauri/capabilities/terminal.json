@@ -30,6 +30,8 @@
     "allow-auth-login",
     "allow-auth-logout",
     "allow-patch-strategy",
-    "allow-stop-trading"
+    "allow-stop-trading",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

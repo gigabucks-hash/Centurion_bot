@@ -46,6 +46,9 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_notification::init())
+        // Windows desktop: check the latest GitHub release and install the signed update, then relaunch.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(hotkeys::plugin())
         .manage({
             // Mock backend speaking wire v1.1. Its clock runs ahead (CENTURION_MOCK_SKEW_MS, default

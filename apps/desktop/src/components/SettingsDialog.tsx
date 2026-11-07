@@ -9,6 +9,7 @@ import { fmtTime } from "./format";
 import { HoldButton } from "./HoldButton";
 import { Icon } from "./Icon";
 import { gateView, HOLD_MS, type Line } from "./strategyGate";
+import { UpdateSection } from "./UpdateSection";
 import type { StrategyView } from "../api";
 
 /** Wire strategy status → @centurion/i18n `strategy.status.*` (unknown → raw value never shown: "—"). */
@@ -285,6 +286,7 @@ export function SettingsDialog({ onClose, focusStrategyId }: { onClose: () => vo
         <StrategiesSection focusStrategyId={focusStrategyId} />
         <SessionSection />
         <PracticeResetSection />
+        <UpdateSection />
         {err && <div className="neg" style={{ marginTop: 8 }}>{err}</div>}
         <div className="actions">
           <button autoFocus onClick={onClose}>{t("common.action.cancel")}</button>

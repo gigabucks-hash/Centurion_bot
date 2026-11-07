@@ -1,7 +1,7 @@
 {
   "name": "@centurion/desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,13 +13,15 @@
     "csp:logo": "node scripts/csp-logo-origin.mjs",
     "tauri:dev:backend": "node scripts/csp-logo-origin.mjs && tauri dev --config src-tauri/tauri.logo-csp.json",
     "tauri:build:backend": "node scripts/csp-logo-origin.mjs && tauri build --config src-tauri/tauri.logo-csp.json",
-    "test:ui": "node --test scripts/ui-format.test.mjs scripts/hold-reset.test.mjs scripts/coin-avatar.test.mjs scripts/strategy-gate.test.mjs scripts/pnl-report.test.mjs",
+    "test:ui": "node --test scripts/ui-format.test.mjs scripts/hold-reset.test.mjs scripts/coin-avatar.test.mjs scripts/strategy-gate.test.mjs scripts/pnl-report.test.mjs scripts/update-check.test.mjs",
     "typecheck:pinned": "scripts/tsc-pinned.sh"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.0",
     "@fontsource/jetbrains-mono": "^5.0.0",
     "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.14.0",
     "lightweight-charts": "^5.0.0",
     "lucide-react": "1.67.0",
     "react": "^19.0.0",
