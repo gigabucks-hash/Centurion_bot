@@ -4,6 +4,6 @@
 [extend]
 useDefault = true
 
-[[allowlists]]
+[allowlist]
 description = "QA repro fixtures (fake ids only)"
 paths = ['''docs/qa/repro/.*''']
