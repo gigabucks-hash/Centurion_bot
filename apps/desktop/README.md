@@ -4,6 +4,8 @@
 > `com.centuriontrade.app`. Internal crate / package / repo names stay `centurion` (`centurion_lib`, `@centurion/*`).
 
 Tauri v2 + React 19 trading terminal prototype. **Mock data only**: no wallet, no chain network, no real trading.
+Supported desktop target: **Windows**. The Linux commands below verify the same shell. macOS is not a supported
+target (`tauri.macos.conf.json` and `icons/icon.icns` are not part of this app).
 See `ARCHITECTURE.md` and `MILESTONES.md`. Types come from `../../packages/contracts`.
 
 ## Prerequisites (Linux)
@@ -36,7 +38,7 @@ npm run sync:tokens         # pull tokens from packages/design-tokens (falls bac
 | ↵ | Pop out the chart (only from a focused row, no dialog open) |
 | C | Toggle the centre tab Chart ↔ **Koin · screener** (WF-20 screener rows incl. not-tradeable) |
 | L | Activity window |
-| P | Approval popup (Linux only for now; disabled on Windows/macOS until W-NOFOCUS passes; 360×232, bottom-right; PRACTICE: Approve/Skip; REAL: Skip + "Buka untuk approve ↗") |
+| P | Approval popup (Linux verification only; disabled on Windows until W-NOFOCUS passes; 360×232, bottom-right; PRACTICE: Approve/Skip; REAL: Skip + "Buka untuk approve ↗") |
 | , | Settings |
 | Esc | Close |
 
@@ -92,7 +94,7 @@ Practice reset is limited to once per 24 h. A second reset gets `429 RESET_COOLD
 - Linux app-shortcut action (right-click the launcher): **Stop trading** = `centurion --stop` (binary keeps the internal name; package `centurion-trade`).
   A running instance receives it through single-instance argv.
 - Every path only opens the confirm dialog. Pausing happens in one Rust command, `stop_trading(mode, source, confirm="STOP")`.
-- Windows jump list / macOS dock menu: not buildable here (see ARCHITECTURE §12 D17). Both would run the same `--stop` argv.
+- Windows jump list: documented, not built in this tree (see ARCHITECTURE §12 D17). It would run the same `--stop` argv. A macOS dock menu is not a supported target.
 
 ## Wallet login (SIWS) — backend mode only
 `CENTURION_BACKEND=<url>` without `CENTURION_BACKEND_TOKEN` → wallet login through the **system browser** (`CENTURION_LOGIN_URL`,

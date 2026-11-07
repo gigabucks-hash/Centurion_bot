@@ -9,7 +9,7 @@ Sumber desain beserta wireframe dan spec: `/workspace/ux-solbot` (tokens.json di
 | `tailwind.theme.css` | `apps/web` (Next.js + **Tailwind v4**) | `@import "tailwindcss"; @import "@centurion/design-tokens/tailwind.theme.css";` |
 | `tauri.css` | `apps/desktop` (Tauri v2) | dark default, **Compact default** (kontrol 32px, hit 24px). Disarankan `sync-tokens.mjs` menyalin file ini, bukan `tokens.css` |
 | `tokens.css` | CSS non-Tailwind / prototipe | dark + comfortable default; `[data-theme]`, `[data-mode]`, `[data-density]` |
-| `app_tokens.dart` | `apps/mobile` (Flutter M3) | salin ke `lib/core/theme/`, butuh `google_fonts` |
+| `app_tokens.dart` | retained generated Dart file | no app copies it; the Flutter app was removed |
 | `tailwind.config.tokens.legacy-v3.js` | legacy | tidak dipakai MVP |
 
 Atribut runtime: `data-theme="dark|light"` · `data-mode="practice|real"` · `data-density="comfortable|compact"`.

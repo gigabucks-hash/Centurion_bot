@@ -2,7 +2,7 @@
 
 Product name **Centurion Trade**; code/DB names use `centurion` (e.g. JWT claim `centurion_client`).
 
-Status: **v1.1.2, frozen for client work** (Web, Flutter, Desktop, MCP). See `CHANGELOG.md` for the v1.0 -> v1.1
+Status: **v1.1.2, frozen for client work** (Web, Windows desktop, MCP). See `CHANGELOG.md` for the v1.0 -> v1.1
 renames. From v1.1 on: additive changes only; a breaking change to a type's payload bumps that event's `version`.
 (v1.1 and v1.1.2 corrected pre-release payloads that no producer had shipped, so every per-type `version` is still `1`.
 **1.1.2 is breaking-but-early** for seq (now an int64 string) and for the `version` -> `rev` rename on approval payloads.)

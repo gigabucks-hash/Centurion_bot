@@ -34,16 +34,15 @@ Related: [`pnl-report.md`](pnl-report.md) (shipped PnL behaviour), `packages/con
 | platform | surface | entry | v1 state |
 |---|---|---|---|
 | Desktop | `PnlReportDialog` → receipt view | click or `Enter` on a closed ledger row | **new**; ledger stays, receipt opens inside the same 760 px dialog |
-| Mobile | Position detail, closed branch (`_ClosedReceipt`) | tap a closed row in Positions | **exists**; field order, units, provenance and server-only values need the fixes below |
 | Web | `/pnl` ledger | row already shows In / Out / Fees / entry→exit | parity only; labels and null rules must match this doc |
 
-Code anchors: `apps/desktop/src/components/PnlReportDialog.tsx`,
-`apps/mobile/lib/features/positions/positions_screen.dart` (`_ClosedReceipt`).
+Code anchor: `apps/desktop/src/components/PnlReportDialog.tsx`.
+Phone-width web screenshots stay under `apps/web/screenshots/`. The Flutter position-detail receipt was removed with `apps/mobile`.
 
 The receipt is for a **fully closed position** (`status = closed`). An open position with partial
 takes keeps its live exit ladder and never renders this receipt.
 
-## A2. Field order (both platforms)
+## A2. Field order (web and desktop)
 
 This order is fixed. A null field keeps its row and shows `—`; it is never removed from the receipt.
 
@@ -134,10 +133,9 @@ strings and the receipt labels below. At the time of writing (`HEAD 77a10e3`) th
 committed yet. `present` means the migration already adds it; `new` means it must be published. If the
 final committed ARB already contains a `new` key, skip it — never add a duplicate.
 
-Copy is authored with dotted keys and published three ways: web `en.ts`/`id.ts` (nested objects,
-accessed as `t("pnl.receipt.sol_in")`), desktop `src/i18n/local.ts` (flat dotted keys), and Flutter
-ARB (lowerCamel, because gen-l10n keys must be valid Dart identifiers). The canonical key is the
-source; the ARB identifier is derived from it.
+Copy is authored with dotted keys and published to web `en.ts`/`id.ts` (nested objects,
+accessed as `t("pnl.receipt.sol_in")`) and desktop `src/i18n/local.ts` (flat dotted keys).
+`packages/i18n/arb` still holds a lowerCamel ARB form of the same catalog. No app vendors it.
 
 | canonical key | ARB key | EN | ID | status |
 |---|---|---|---|---|
@@ -619,8 +617,7 @@ slice; `P1` ships with the market-only detail or the polish pass.
 | `markets.detail.chart_unavailable` | `marketsDetailChartUnavailable` | Chart unavailable for this coin yet | Chart belum tersedia untuk koin ini | P1 |
 | `markets.detail.back` | `marketsDetailBack` | Back to markets | Kembali ke pasar | P1 |
 
-No hardcoded strings on any platform. Mobile must not repeat the old PnL-card mistake of shipping
-Indonesian literals inside an English UI.
+No hardcoded strings on web or desktop. Do not ship Indonesian literals inside an English UI.
 
 ### B10.1 Copy destinations
 
@@ -628,11 +625,9 @@ Indonesian literals inside an English UI.
 |---|---|---|
 | Web | `apps/web/lib/i18n/en.ts`, `id.ts` | nested object, accessed as `t("markets.title")` |
 | Desktop | `apps/desktop/src/i18n/local.ts` | flat dotted keys, `"markets.title"` |
-| Flutter | `packages/i18n/arb/app_en.arb`, `app_id.arb` + vendored `apps/mobile/lib/l10n/*` | lowerCamel identifier, e.g. `marketsTabTrending` |
 
-`packages/i18n` 0.4.12 carries all keys above in `arb/app_en.arb` + `arb/app_id.arb` (975 strings each).
-Mobile still updates its vendored copies and the `apps/mobile/tool/ci_check_vendored.sh` pin in the next
-mobile change; until that lands, do not hardcode the new strings in the app.
+`packages/i18n` 0.4.12 also keeps the keys in `arb/app_en.arb` and `arb/app_id.arb` (975 strings each).
+That ARB output stays in the shared catalog. No app copies it. Do not hardcode the new strings.
 
 ## B11. Data request to Backend
 

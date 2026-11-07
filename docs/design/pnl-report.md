@@ -1,7 +1,7 @@
 # PnL report (unrealized + realized)
 
-Approved request: show a PnL card/report on every platform, with unrealized PnL while a trade is open
-and realized PnL once it is closed.
+Approved request: show a PnL card/report on the web app and the Windows desktop, with unrealized PnL while a trade is open
+and realized PnL once it is closed. Responsive web layouts are part of the web app.
 
 ## One definition, no new client-side maths
 
@@ -62,24 +62,19 @@ are reported, never subtracted twice. Tests: `api/test/pnl.test.ts`.
 
 ## Verification
 
-- mobile: `dart format` clean, `flutter analyze` no issues, full `flutter test`
 - web: eslint 0 errors, `tsc --noEmit`, `npm test`, `npm run build`
-- desktop: `npm run build`, `npm run test:ui`; Rust compiles in CI (local cargo is blocked by
-  Application Control 4551)
+- desktop: `npm run build`, `npm run test:ui`; Rust compiles in CI. The Windows installer and the
+  W-NOFOCUS popup gate are not verified by the Linux runner.
 
 ## Known gaps (v1.1)
 
 Deliberate, tracked scope that v1 ships without:
 
-- **Full receipt per closed trade on desktop and mobile.** Web's ledger already carries in, out,
-  reported fees, entry→exit and bot; desktop and mobile rows show realised PnL, %, hold, exit reason
+- **Full receipt per closed trade on desktop.** Web's ledger already carries in, out,
+  reported fees, entry→exit and bot; desktop rows show realised PnL, %, hold, exit reason
   and close time, and link to the position detail. SOL in/out and reported fees per row are next.
-- **Bot filter on mobile and desktop.** The strip's unrealised/realised/total are a workspace+mode
+- **Bot filter on desktop.** The strip's unrealised/realised/total are a workspace+mode
   snapshot and do not narrow by `strategy_id`, so a bot filter would mix two scopes in one strip.
-  Web exposes it and states the scope; mobile and desktop show workspace numbers only.
-- **Mobile string extraction.** The 23 report strings live in `pnl_strings.dart` until an
-  `@sentra/i18n` round publishes them to ARB and the vendored copies and pin are updated.
+  Web exposes it and states the scope; desktop shows workspace numbers only.
 - **Web visual check.** `/pnl` is covered by typecheck, tests and the build, but no light/dark
-  screenshot pass has been recorded yet.
-- **REST adapter mapping on mobile.** The repository override outside `lib/` still has to map
-  `pnl_lamports`, `pnl_pct`, `hold_seconds`, `logo_hash` and `logo_url` onto `Position`.
+  screenshot pass has been recorded yet. Phone-width screenshots under `apps/web/screenshots/` stay with the web app.

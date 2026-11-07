@@ -1,6 +1,6 @@
 /**
  * Deterministic coin identicon (UX COIN_LOGO.md Rev 6.1 §4; reference ux-solbot/visual/src/identicon.ts + vectors.mjs,
- * same on Web, Desktop and Flutter): palette index = FNV-1a 32-bit over the UTF-8 bytes of the trimmed mint, mod 12;
+ * same on web and desktop): palette index = FNV-1a 32-bit over the UTF-8 bytes of the trimmed mint, mod 12;
  * background `coin.identicon.palette.{idx}`, initials `coin.identicon.fg` (#F4F6FB), Inter 700.
  * Initials: drop leading `$`, first 2 ASCII [A-Za-z0-9] chars, uppercased; none → "•" (U+2022).
  * Pure: no user text reaches markup except the 1–2 validated initials.

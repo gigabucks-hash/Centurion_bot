@@ -22,8 +22,8 @@ Dependencies: **UX** = design tokens and specs; **BE** = backend API/WS and cont
 
 **Also done (Week 1 extras):** i18n 0.4.4 (id/en, Settings → Bahasa, errors.map.json, no desktop-local keys), design-tokens v0.2.4, the WF-20 not-tradeable state (screener tab + detail, queue/positions disabled, blocked in UI + Rust + mock).
 
-## Test plan item W-NOFOCUS — popup must not steal focus (Windows; also macOS)
-**Release gate (C19):** the approval popup ships **disabled on Windows and macOS**. `windows::POPUP_SUPPORTED = cfg!(target_os = "linux")` in Rust is the enforcement, and the UI greys out the setting with an explanation. It is enabled per OS only after every case below passes on that OS: flip the cfg for that target, re-run the cases, and record the result here. Until then those OSes use OS notifications only.
+## Test plan item W-NOFOCUS — popup must not steal focus (Windows)
+**Release gate (C19):** the approval popup ships **disabled on Windows**. `windows::POPUP_SUPPORTED = cfg!(target_os = "linux")` in Rust is the enforcement, and the UI greys out the setting with an explanation. Enable it on Windows only after every case below passes: flip the cfg for that target, re-run the cases, and record the result here. Until then Windows uses OS notifications only. macOS is not a supported target, so there is no macOS popup gate.
 
 This cannot be tested on the Linux build box (Xvfb has no window manager).
 
@@ -40,11 +40,10 @@ This cannot be tested on the Linux build box (Xvfb has no window manager).
   - Get `hwnd()` and set `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW` (also `WS_EX_TOPMOST`).
   - Show with `ShowWindow(SW_SHOWNOACTIVATE)` / `SetWindowPos(HWND_TOPMOST, …, SWP_NOACTIVATE)`. Never call `SetForegroundWindow`.
   - Clear `WS_EX_NOACTIVATE` on the first pointer-down so a click can give the popup keyboard focus (WebView2 needs it).
-- macOS: a non-activating `NSPanel` (e.g. `tauri-nspanel`) with `acceptFirstMouse:false`.
 - Fallback when focus is still stolen: disable the popup and use OS notifications only.
 
 ## Post-MVP (out of MVP scope)
-- Code signing: Windows Authenticode, macOS Developer ID + notarization.
+- Code signing: Windows Authenticode.
 - Tauri updater (signed update manifests, release channel).
-- Windows and macOS installers as release artifacts.
+- Windows installers are already produced unsigned by `.github/workflows/desktop.yml`. macOS installers are not a target.
 - **Phase 7:** Real SOL trading from the desktop (backend signer, server `expires_at`, 2.5 s hold, per-trade caps). The Real UI and guards already exist as a mock-flag-only reference (C15).

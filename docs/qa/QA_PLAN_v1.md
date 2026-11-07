@@ -1,5 +1,7 @@
 # QA plan v1 — paper trading end to end
 
+> Supported app targets are now the web app and the Windows desktop. Mobile rows in this plan are a historical record of the removed Flutter app, not a current gate. macOS desktop is not a supported target. Phone-width checks that remain are responsive web layouts.
+
 **Owner:** Product Tester · **For:** Apex Dev Lead · **Version:** 1.2 (6 Nov 2026, 09:35 WIB)
 **Scope:** web, desktop, mobile against the mock data source. Paper only; no secrets, no deploy, no app-code change.
 **Branch under test:** `HEAD = origin/main = eaa561e` plus the uncommitted fix set (web 8 files, desktop 17, mobile 20, backend 14).
@@ -172,13 +174,14 @@ closed trade (approve does not fill), so DT-05 stays a test-level PASS, not a pi
 
 - Real API paths: `/stats/pnl` vs ledger, SIWS expiry, RLS/keyset SQL — needs Postgres + API.
 - Desktop Tauri runtime, installer, `cargo test` (`0xc0000139` locally); CI owns build + artifacts.
-- Mobile on device/emulator, iOS build, Play upload (Boss-only secrets).
+- The Flutter app, iOS build, and Play upload are removed and are not remaining gates.
+- Windows Tauri installer, Authenticode, and the W-NOFOCUS popup gate (not run on this Linux box).
 - Docker image build (no engine) and any deploy.
 
 ## 7. Exit criteria for v1 sign-off
 
-All AUTH/PORT/APP/POS/PNL/STRAT items PASS on web + mobile, the PNL subset PASS on desktop, no open P0/P1,
-every failure has a repro above, and the fix tree is committed and pushed with all four CI workflows green.
+All AUTH/PORT/APP/POS/PNL/STRAT items PASS on web, the PNL subset PASS on the Windows desktop, no open P0/P1,
+every failure has a repro above, and the fix tree is committed and pushed with the web, backend, and desktop CI workflows green.
 
 Current: **close, not signed off** — D1, D2, D3, D6, D7, F1, F2, F4, F5 closed; open are D4 (P2), D5 (P2),
-D8 (P3), D9 (P3), F3 on mobile (P3). No P1 left.
+D8 (P3), D9 (P3). The former F3 mobile item left with the Flutter app. No P1 left. Sign-off is web plus Windows desktop.

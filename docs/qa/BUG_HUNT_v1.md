@@ -1,5 +1,7 @@
 # Bug hunt v1 — PnL + SIWS
 
+> Supported app targets are now the web app and the Windows desktop. The Flutter repro `docs/qa/repro/wib_time_test.dart` was removed with `apps/mobile`. Mobile rows below are a historical record of that pass.
+
 Audit date: 2026-11-06. Baseline: committed `main` / `origin/main` **77a10e3** (includes 62ebda0, bc93f50 and bfed32e). “Live” here means committed main, **not a verified production deployment**. Paper-only. No application fixes, staging, commits, pushes, deployment, secrets or token changes were performed for this assignment.
 
 The shared tree contains other owners' uncommitted work. Findings below reference HEAD line numbers, not their in-flight edits. SQL reproductions ran on throwaway `bug_hunt_test`, PostgreSQL 17.11, with the local shim and migrations applied; all fixture changes roll back. Migration 0023 was present locally but does not alter the reproduced semantics.
@@ -32,7 +34,7 @@ P2 = incorrect financial/time reporting or missing ledger rows under the stated 
 
 **Locations:** `apps/mobile/lib/core/format.dart:8,58`; `apps/mobile/lib/core/l10n_format.dart:93-98`; PnL call sites `apps/mobile/lib/features/positions/widgets/closed_trade_row.dart:37` and `positions_screen.dart:339`. Backend wire UTC: `services/backend/supabase/migrations/0022_pnl_report.sql:40-41`.
 
-**Reproduce:** from `apps/mobile`, run `flutter test ../../docs/qa/repro/wib_time_test.dart`. **3/3 pass**, asserting the actual faulty behavior:
+**Reproduce (historical):** this pass ran `flutter test ../../docs/qa/repro/wib_time_test.dart` from `apps/mobile` and recorded **3/3 pass**, asserting the faulty behavior. That app and that repro file are removed, so the command is not a current gate:
 - `DateTime.parse('2026-11-06T03:00:00.000Z')` → `fmtTime` returns **03:00**, and the PnL row appends `WIB`.
 - The correct WIB clock for that instant is **10:00**.
 - `formatTime(wire, 'id')` returns **03.00 WIB**; EN returns **3:00 AM WIB**.
@@ -94,7 +96,7 @@ Evidence: `docs/qa/repro/pnl_mode_isolation_latent.sql`. It first confirms the r
 
 ## Gates and handoff
 
-- Flutter targeted repro: **3/3 pass** (asserts current defect, not desired behavior).
+- Flutter targeted repro: **3/3 pass** on the removed app (historical; `wib_time_test.dart` is gone).
 - SQL null-realized repro: expected 0 portfolio rows / 1 close / 150000000 window lamports; rollback.
 - SQL stable keyset: 137 seen / 3 pages; rollback.
 - SQL moving window: 10 omitted; foreign filter cursor skips 50; rollback.

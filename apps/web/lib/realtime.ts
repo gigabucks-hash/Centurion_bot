@@ -56,7 +56,7 @@ export interface RealtimeOptions {
   catchUp?: (after: Seq) => Promise<CatchUpPage>;
 }
 
-/** Channel names the Supabase adapter will use (shared with Flutter). */
+/** Channel names the Supabase adapter will use (shared by web and desktop). */
 export function supabaseChannels(ws: string, mode: Mode) {
   return { events: `events:${ws}:${mode}`, marks: `marks:${ws}:${mode}`, table: "events", filter: `workspace_id=eq.${ws}` };
 }

@@ -1,8 +1,10 @@
 # Desktop release: installers from CI
 
-`apps/desktop` is Tauri 2. `.github/workflows/desktop.yml` builds the frontend and the Rust shell, runs
-the UI/contract tests, and — on a push to `main` only — bundles installers per OS. Everything here is
-unsigned; no certificate exists yet.
+`apps/desktop` is Tauri 2. The supported desktop product target is **Windows**.
+`.github/workflows/desktop.yml` builds the frontend and the Rust shell, runs the UI/contract tests on
+Ubuntu, and — on a push to `main` only — bundles unsigned Windows installers plus unsigned Linux
+packages used to verify the same shell. macOS (`.dmg` / `.app`) is not a supported target. Everything
+here is unsigned; no certificate exists yet.
 
 ## What CI produces
 
@@ -31,8 +33,8 @@ release so the file name, Add/Remove Programs entry and upgrade path agree.
 | Gap | Effect | Needed |
 |---|---|---|
 | No Windows Authenticode certificate | SmartScreen shows "Unknown publisher" and may block the `.exe`/`.msi` on first run | code-signing certificate (OV or EV) + `bundle.windows.certificateThumbprint` / `signCommand`, secret in CI |
-| No macOS job | no `.dmg`/`.app` artifact | a macOS runner plus Developer ID certificate and notarization credentials (out of scope for now) |
-| No Linux package repo | users download a file, no `apt`/`flatpak` channel | hosting decision, not a build change |
+| macOS | not a supported target | no `.dmg`/`.app`, no `tauri.macos.conf.json`, no `icon.icns`, no `bundle.macOS` |
+| No Linux package repo | CI still uploads `.deb`/`.AppImage` for verification; there is no `apt`/`flatpak` channel | hosting decision, not a build change |
 
 Unsigned builds are fine for internal testing and for Boss's own machine; they are not distributable to
 strangers without the SmartScreen warning.

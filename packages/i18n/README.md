@@ -5,11 +5,11 @@ Copy catalog milik UX. **Jangan edit manual**: sumber ada di `ux-solbot/scripts/
 | File | Isi | Konsumen |
 |---|---|---|
 | `en.json`, `id.json` | 786 key, nested, ICU MessageFormat (plural/select) | Web (next-intl), Desktop |
-| `arb/app_en.arb`, `arb/app_id.arb` | key lowerCamel (`notif.pick_pending.title` → `notifPickPendingTitle`), placeholder bertipe dari AST ICU (`int` untuk plural dan `*_count`, `String` lainnya). **Plural tanpa `#`**: `#` diganti `{count}` (dll.) + metadata `int`/`decimalPattern`. Lolos `flutter gen-l10n` + `dart analyze` 0 issue + `test/flutter/l10n_plural_test.dart` | Flutter |
-| `format.mjs` | formatter angka/waktu terikat locale UI | Web, Desktop (Flutter: port 1:1) |
-| `notifications.map.json` | N-01..N-22 + RESERVED Real N-23..N-46 (`reserved`, `channels`, `payload`) → wire `type`, kondisi, key title/body, `vars` (wire), `computed` (dihitung di device), aksi push + `token` per mode | push worker, Flutter/Web notif handler |
+| `arb/app_en.arb`, `arb/app_id.arb` | key lowerCamel (`notif.pick_pending.title` → `notifPickPendingTitle`), placeholder bertipe dari AST ICU (`int` untuk plural dan `*_count`, `String` lainnya). **Plural tanpa `#`**: `#` diganti `{count}` (dll.) + metadata `int`/`decimalPattern`. File ini tetap di paket. Tidak ada app Flutter yang menyalinnya | katalog bersama, bukan target app |
+| `format.mjs` | formatter angka/waktu terikat locale UI | Web, Desktop |
+| `notifications.map.json` | N-01..N-22 + RESERVED Real N-23..N-46 (`reserved`, `channels`, `payload`) → wire `type`, kondisi, key title/body, `vars` (wire), `computed` (dihitung di device), aksi push + `token` per mode | push worker, Web notif handler |
 | `notifications.meta.json` | aturan push (Real open-only, token hanya Practice `buy_pick`, fail closed) + formatter per var + `silent_events` (`proposal.updated`, 0.4.6) | idem |
-| `errors.map.json` | 58 kode `errors.json` v6 → key copy (`source: copy` atau `fallback`), kind/http/retryable; opsional `tone`/`title_key`/`cta_key`/`inline_key`/`modes` (0.4.6) | Web, Desktop, Flutter error handler |
+| `errors.map.json` | 58 kode `errors.json` v6 → key copy (`source: copy` atau `fallback`), kind/http/retryable; opsional `tone`/`title_key`/`cta_key`/`inline_key`/`modes` (0.4.6) | Web, Desktop |
 | `format.test.mjs` | `npm test`: aturan PnL nol (T-15), presisi SOL, lamports, `fraction_bps`, quote/bps/mcap (0.4.6) | CI |
 | `CHANGELOG.md` | riwayat versi, **BREAKING** ditandai | semua |
 | `reject_reasons.map.json` | wire `reject_reason` (contracts 1.1.3) → label key; chip skip → `reject_reason` + `reason` (0.4.5) | semua app |

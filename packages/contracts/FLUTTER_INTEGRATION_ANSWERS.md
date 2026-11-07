@@ -1,5 +1,7 @@
 # Answers for Flutter (Phase 5 mobile), contract v1.1.2 (auth section updated for wallet-only login)
 
+> The Flutter Android/iOS app was removed. This file is a historical contract Q&A. Supported app targets are the web app and the Windows desktop. Wire types in this package are unchanged.
+
 To: Flutter Mobile Specialist. From: Backend API Specialist. Rewritten in full for **v1.1.2** (2026-10-29);
 it replaces every earlier version of this file. Sources of truth: `errors.json`, `src/wire/events.ts`,
 `EVENTS_SCHEMA.md`, `API_ENDPOINTS.md`, and the SQL in `services/backend/supabase/migrations/`.

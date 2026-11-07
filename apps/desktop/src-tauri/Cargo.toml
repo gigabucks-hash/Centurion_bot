@@ -33,8 +33,9 @@ chrono = { version = "0.4", default-features = false, features = ["std", "clock"
 # Real transport (CENTURION_BACKEND): REST + SSE. rustls (no OpenSSL), no redirects, no cookies.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
-# Planned (Week 2): OS keychain for the backend session token. Off by default in the prototype.
-keyring = { version = "3", optional = true, features = ["apple-native", "windows-native", "sync-secret-service"] }
+# OS keychain for the backend session token. Windows Credential Manager and Linux Secret Service.
+# The macOS Keychain feature (apple-native) is not enabled: macOS is not a supported target.
+keyring = { version = "3", optional = true, features = ["windows-native", "sync-secret-service"] }
 
 [features]
 # The keychain is on by default: the SIWS session (and nothing else) is stored there.

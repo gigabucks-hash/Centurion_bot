@@ -13,10 +13,9 @@
 ## 2. Monorepo layout
 ```
 /workspace/centurion
-├── apps/desktop          ← this app (Tauri v2 + React)
-├── apps/web              (placeholder — Web team)
-├── apps/mobile           (placeholder — Flutter team)
-├── packages/design-tokens (placeholder — UX team)
+├── apps/desktop          ← this app (Tauri v2 + React). Supported desktop target: Windows
+├── apps/web              Next.js dashboard, including responsive mobile web
+├── packages/design-tokens
 └── packages/contracts    ← @centurion/contracts: event/command types (desktop draft, Backend to own)
 ```
 - **Contracts:** the TS types live in `packages/contracts/src/index.ts`. The desktop imports them as `@centurion/contracts` (tsconfig `paths` + a Vite alias; no workspace install is needed). The Rust mirror stays in `src-tauri/src/model.rs`, because Rust cannot import TS. Once Backend publishes a schema (JSON Schema/OpenAPI), both sides will be generated from it (milestone W2-D6).
@@ -190,8 +189,10 @@
 - In-window hotkeys ignore key repeat and typing in inputs.
 
 ## 8. Packaging
-- Targets: deb + AppImage (Linux), msi + nsis (Windows), dmg + app (macOS).
-- **MVP ships unsigned Linux builds.** Code signing (Windows Authenticode, macOS Developer ID + notarization) and the Tauri updater are **out of MVP scope** and moved to Post-MVP (MILESTONES.md).
+- Supported desktop target: Windows `msi` + `nsis`.
+- Linux `deb` + `AppImage` stay in `bundle.targets` and in `.github/workflows/desktop.yml` so Ubuntu CI can verify the shell. They are not a second product target.
+- macOS `dmg`/`app`, `tauri.macos.conf.json`, `icons/icon.icns`, and `bundle.macOS` are not part of this app.
+- **MVP ships unsigned builds.** Windows Authenticode and the Tauri updater are **out of MVP scope** (MILESTONES.md).
 - Release profile: LTO, `opt-level = "s"`, strip, `panic = "abort"`.
 
 ## 9. Rust plan (modules and crates)
@@ -245,7 +246,7 @@
 | C16 | Mock TTL 90 s vs UX default 10 min | OK for the demo. A **"MOCK TTL 90s"** badge shows in the queue header and the popup while the source is the mock. Production uses server `expires_at` (C6, before Real) | **DECIDED**; implemented |
 | C17 | Theme "system" | "Ikuti OS" optional; explicit `data-theme="dark"` default; no media query in `tauri.css` | **DECIDED**; already so |
 | C18 | `tauri.css` v0.2.0 stray `}` | Fixed in design-tokens **v0.2.1** (UX adds brace and lightningcss validation). The desktop workaround is removed | **DECIDED**; done |
-| C19 | D11 no-activation popup untested on Windows/macOS | Popup **disabled on Windows and macOS** until W-NOFOCUS passes. Rust: `windows::POPUP_SUPPORTED = cfg!(target_os = "linux")` gates `open_approval_popup`, `set_settings` (forces off) and the global shortcut (falls back to focusing main). UI: runtime OS check greys out the setting with an explanation, and P shows the reason. **Linux: enabled (opt-in)**. Fallback: OS notifications | **DECIDED**; implemented |
+| C19 | D11 no-activation popup untested on Windows | Popup **disabled on the Windows target** until W-NOFOCUS passes. Rust: `windows::POPUP_SUPPORTED = cfg!(target_os = "linux")` gates `open_approval_popup`, `set_settings` (forces off) and the global shortcut (falls back to focusing main). UI: runtime OS check greys out the setting with an explanation, and P shows the reason. **Linux: enabled (opt-in)**. Fallback: OS notifications. macOS is not a supported target | **DECIDED**; implemented |
 
 ### 11.2 Older UX Tauri README conflicts
 - Tokens come from `@centurion/design-tokens` v0.2.0 `tauri.css` (dark + Compact default): colours, `--text-*` type ramp, space, radius, `--duration-hold*`, `--density-*`.
@@ -263,12 +264,12 @@
 | D3 | Density | **Compact "Signal Terminal" is the desktop default** | **DECIDED** |
 | D4 | Approval popup | Small always-on-top window, **opt-in, OFF by default** | **DECIDED** |
 | D5 | Global shortcuts | Focus or open only; never approve, skip or sell | **DECIDED** |
-| D6 | Signing / updater | **Out of MVP scope.** MVP = unsigned Linux builds; signing, notarization and updater come Post-MVP | **DECIDED** |
+| D6 | Signing / updater | **Out of MVP scope.** Supported desktop artifact is the unsigned Windows installer. Linux bundles are CI verification. Windows Authenticode and the updater come Post-MVP. macOS is not a target | **DECIDED** |
 | D7 | Identity | Product name **Centurion Trade** (from i18n `app.name`: window titles, tray tooltip, notification titles, loopback page), identifier `com.centuriontrade.app`; crate `centurion` / `centurion_lib` and `@centurion/*` unchanged | **DONE** (rebrand, Boss 2026-10-29) |
 | D8 | Contracts | Backend owns `packages/contracts` (v1.1.2). The desktop imports `src/wire` types directly. The Rust mirror is hand-written and guarded by contract tests until codegen exists | **DONE for v1.1.4** (codegen open) |
 | D10 | Popup in REAL SOL | No Approve; "Buka untuk approve ↗" hands off to main (dialog + hold 2.5 s). Enforced in Rust by window label | **DECIDED** (UX, via Apex) |
-| D11 | Popup focus | Shown without activation; shortcuts only after a click. **Enabled on Linux only**; Windows/macOS are disabled until W-NOFOCUS passes (C19) | **DECIDED** (test gate) |
+| D11 | Popup focus | Shown without activation; shortcuts only after a click. **Enabled on Linux only**; the Windows target stays disabled until W-NOFOCUS passes (C19). macOS is not a supported target | **DECIDED** (test gate) |
 | D9 | Real mode on desktop | **Real SOL on desktop = Phase 7 (out of MVP).** It needs the backend signer, the server clock (C6, done for countdowns in v1.1), 2.5 s hold and per-trade caps. The Real code paths remain as a mock-flag-only reference (C15) | **DECIDED** |
 | D15 | Desktop login (SIWS) | **Wallet-only, system browser, never the webview.** Rust opens the browser (`xdg-open` / `open` / `rundll32 url.dll`, URL built from config only) to the Web `/auth/desktop` page with `redirect_uri` + 128-bit `state`. The page connects Phantom, asks `POST /v1/auth/siws/nonce` (its origin = SIWS domain), the wallet signs the **message** (no transaction), and the page returns `state` + `address` + `message` + `signature` to a **loopback** listener (`127.0.0.1:<random>/siws/callback`; exact method/path, constant-time state, size caps, 20-request / 5-min limit, single use). Rust pre-checks the message (domain, address, expiry) and calls `/siws/verify {client:"desktop"}` itself. Session → OS keychain only. Refresh: **single-flight** (one tokio mutex held across the refresh; the rotated token is saved before release; a 401 seen with an old access token reuses the new one) because a reused refresh token revokes the family. `refresh_reused/revoked/expired/invalid` → signed out + keychain cleared; `403 FORBIDDEN_ROLE wallet_not_allowed` → its own screen. **Target (Boss): `centurion://auth` deep link carrying only a one-time code, PKCE S256 verifier kept and exchanged in Rust** — implemented and tested as `deeplink.rs` (strict scheme/host/path, no extra params, state, single use, 5-min expiry), **not wired** because (a) `tauri-plugin-deep-link` is not in the offline crate cache (not installed without review) and (b) Backend has no code/PKCE exchange endpoint. Proposed: `/siws/verify {…, code_challenge, code_challenge_method:"S256", client:"desktop"}` → `{code}`; `POST /v1/auth/desktop/exchange {code, code_verifier}` → Session. Threats: a local process can hit the loopback port, but it cannot forge a signed SIWS message or guess the state; no token is ever in a URL. Full browser round trip = manual test (Phantom is not headless) | **PARTIAL** (loopback live; deep link blocked) |
 | D16 | Stop | One Rust command `stop_trading(mode, source, confirm)`, with validated args (mode = current mode, source ∈ ui/tray/shortcut, confirm == "STOP"). It pauses every running strategy with If-Match. The in-app button, tray "Stop trading…" and the `--stop` app-shortcut action (Linux `.desktop` `Actions=Stop`, `linux/main.desktop.hbs`) only *request* it: they open the confirm dialog. No workspace stop / kill-switch endpoint exists yet (1.1.5 reserves phase7 KillSwitch types only), so there is no sell_all and proposals are not expired server-side | **DONE** (gap reported) |
-| D17 | Windows / macOS quick actions | Windows jump list (`ICustomDestinationList` task "Stop trading" → `"Centurion Trade.exe" --stop`) and macOS dock menu (`applicationDockMenu:` item → the same `stop::request`). Neither is buildable or testable on this Linux box | **DOCUMENTED** |
+| D17 | Windows quick action | Windows jump list (`ICustomDestinationList` task "Stop trading" → `"Centurion Trade.exe" --stop`) is documented and not built in this tree. A macOS dock menu is not a supported target | **DOCUMENTED** |

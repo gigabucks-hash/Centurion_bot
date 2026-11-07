@@ -1,5 +1,7 @@
 # Receipt + Markets implementation review (v1.1)
 
+> Supported app targets are now the web app and the Windows desktop. Findings that name `apps/mobile` describe the removed Flutter app. They are not remaining app work, and there is no vendored ARB pin to update.
+
 Reviewed snapshot: `HEAD = origin/main = eaa561e`, working tree dated **2026-11-06 08:48 WIB**.
 The tree is shared: desktop and mobile files below are uncommitted WIP owned by their specialists, so
 line numbers can move. Each finding quotes the code anchor as well as the line.
@@ -123,9 +125,8 @@ Present already: `pnlRealized`, `pnlRealizedHeroHint`, `pnlClosed`, `pnlReceiptS
 | `stall` | `pnlReceiptWhyStall` | Price stalled on the exit rule | Harga mandek pada aturan keluar |
 
 Delivery: published in `packages/i18n` 0.4.12 — `arb/app_en.arb` + `app_id.arb` now carry all 25 keys
-(ARB 975 strings, EN/ID parity). Mobile still reads the vendored `apps/mobile/lib/l10n` copy, so the next
-mobile change copies both ARBs into `apps/mobile/lib/l10n/` and updates the two pins in
-`apps/mobile/tool/ci_check_vendored.sh:37-40` in the same change. One hand-edited copy fails the ARB gate.
+(ARB 975 strings, EN/ID parity). Those ARB files stay in the shared catalog. The Flutter app that vendored
+them was removed, so there is no `apps/mobile/lib/l10n` copy and no vendored-pin script to update.
 Do not re-add these keys to the package.
 
 Desktop has all 14 `pnl.receipt.why.*` keys in EN/ID (`apps/desktop/src/i18n/local.ts:106-119,222-235`).
@@ -309,8 +310,7 @@ Web:
 
 - **Desktop specialist:** P2-6…P2-8, P3-1…P3-4. These are local label/format changes in
   `PnlReportDialog.tsx`, `pnlReportView.ts`, `local.ts`, `app.css`.
-- **Mobile specialist:** P1-1…P1-3 first (nullable server fields and SOL price fields), then P2-1…P2-6
-  and P3-5…P3-7, plus the 25 ARB keys in §5. Do not add the provenance line until P1 is gone.
+- **Mobile:** the Flutter app was removed. Mobile P1–P3 rows in this review are a historical record, not remaining app work.
 - **Web specialist:** P1-4 (`contracts.ts:686-697`), P2-9 (measured hint), P3-4/P3-8/P3-9. Keep the
   verified D1/D2 measurements; do not change the 3 + 2 / 5-across breakpoints or `wrapUnit`.
 - **Backend:** unchanged by this review. Discovery still needs `capabilities`, `rank_position`,
@@ -402,4 +402,4 @@ remaining D2 gaps are layout/a11y, not money formatting.
 | `flutter gen-l10n` | **exit 0** on a copy of both ARBs; 975 keys; `marketsNewRowsAnnounce` emits `one`/`other` with `int count` (no `#`) |
 | `npm test` (`format.test.mjs`) | 10/10 pass |
 | `git diff --check -- packages/i18n docs/design` | clean |
-| vendored `apps/mobile/lib/l10n` + pins | untouched (next mobile change) |
+| vendored `apps/mobile/lib/l10n` + pins | untouched at this snapshot; the Flutter app was later removed |

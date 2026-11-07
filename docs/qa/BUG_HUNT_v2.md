@@ -1,5 +1,7 @@
 # Bug hunt v2 — retest and focused audit
 
+> Supported app targets are now the web app and the Windows desktop. `docs/qa/repro/v2/f2_wib_retest.dart` and `docs/qa/repro/v2/mobile_paging_race_test.dart` were removed with `apps/mobile`. Mobile findings below are historical.
+
 Date: 2026-11-06. Baseline: `main`, `HEAD = origin/main = 97faf0a` in `C:\cw\app`.
 Paper-only. No app fixes, staging, commits, pushes, deploys, or token/contracts changes.
 Owned deliverables: this file and `docs/qa/repro/v2/` only.
@@ -14,7 +16,7 @@ Owned deliverables: this file and `docs/qa/repro/v2/` only.
 | F4 — moving relative paging range / cursor not range-bound | **FIXED** | Real `pagedRange` (`services/backend/api/src/rules.ts:153-172`) plus encode/decode: 13 checks pass, byte-identical page-2 lower bound, cursor-only pin, alternate windows and mismatched explicit bound rejected. API/DB regression suite also passes. |
 | F5 — malformed UUID cursor reaches SQL/500 | **FIXED** | Real `decodeCursor` (`services/backend/api/src/wire.ts:216` onward): 8 checks pass (hyphens, length, grouping, non-hex, full-width, valid and ranged). API tests confirm 400 `CURSOR_INVALID` on positions/picks/fills/guard-changes, never 500. |
 
-Artifacts are `f1_null_realized_retest.ts`, `f2_wib_retest.dart`, `f3_range_retest.ts`, `f4_paging_retest.ts`, `f5_cursor_retest.ts` under `repro/v2/`.
+Artifacts still in `repro/v2/` are `f1_null_realized_retest.ts`, `f3_range_retest.ts`, `f4_paging_retest.ts`, `f5_cursor_retest.ts`. The Flutter files `f2_wib_retest.dart` and `mobile_paging_race_test.dart` were removed with `apps/mobile`.
 F1 uses copied page expressions with the real comparison/formatter; not a rendered-page E2E. All are read-only and require no data rollback.
 
 ## Confirmed new findings
@@ -56,7 +58,7 @@ after stale page: {items: [r30d-1, r7d-2, r7d-1], nextCursor: cursor-7d-2, loadi
 expected:        {items: [r30d-1], nextCursor: cursor-30d, loading: false}
 ```
 
-`repro/v2/mobile_paging_race_test.dart` fails one correctness assertion deterministically. The labels are distinct synthetic IDs to expose stale/duplicate membership: a 7d row is naturally also within 30d, so the error is stale page membership/order/deduplication and wrong paging cursor, not necessarily a timestamp outside 30d. A narrower new range can also receive wider-range rows. Tested controller logic, not emulator gestures. Rollback: none (in-memory fixture only).
+`repro/v2/mobile_paging_race_test.dart` failed one correctness assertion deterministically in this pass. That file was later removed with `apps/mobile`. The labels are distinct synthetic IDs to expose stale/duplicate membership: a 7d row is naturally also within 30d, so the error is stale page membership/order/deduplication and wrong paging cursor, not necessarily a timestamp outside 30d. A narrower new range can also receive wider-range rows. Tested controller logic, not emulator gestures. Rollback: none (in-memory fixture only).
 
 ## Desktop paging audit — confirmed freeze; race not promoted to runtime finding
 
