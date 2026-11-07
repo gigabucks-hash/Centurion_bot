@@ -1,9 +1,0 @@
-# ARB files are copied verbatim from @centurion/i18n 0.4.11 (../../packages/i18n/arb; UX owns them, built by
-# ux-solbot/scripts/build_locales.py). Do not edit here: tool/ci_check_vendored.sh fails CI on drift.
-arb-dir: lib/l10n
-template-arb-file: app_en.arb
-output-localization-file: app_localizations.dart
-output-class: AppLocalizations
-output-dir: lib/l10n/gen
-nullable-getter: false
-format: true
