@@ -56,6 +56,9 @@ jobs:
   # Rust gates (fmt, clippy, tests) — the desktop contract tests run against the committed pin.
   rust:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/desktop/src-tauri
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.90
