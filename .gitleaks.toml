@@ -1,0 +1,9 @@
+# Gitleaks: the QA repro scripts embed fake fixture ids (UUIDs, synthetic owner pubkeys,
+# `API_WORKSPACE_ID` assignments) copied from local paper-stack responses. They are test data,
+# never credentials; real secrets stay out of the repo by rule.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "QA repro fixtures (fake ids only)"
+paths = ['''docs/qa/repro/.*''']

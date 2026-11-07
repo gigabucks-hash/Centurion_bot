@@ -16,7 +16,7 @@
  */
 import assert from "node:assert/strict";
 
-process.env.API_WORKSPACE_ID = "ecd6941b-265f-4b47-a4a3-7cef9e8307b3";
+process.env.API_WORKSPACE_ID = "ecd6941b-265f-4b47-a4a3-7cef9e8307b3"; // gitleaks:allow — fake fixture id, not a secret
 
 // Exact item body from the live GET (no `stats`, as the backend strategy_wire() does not emit one).
 const wire = {
