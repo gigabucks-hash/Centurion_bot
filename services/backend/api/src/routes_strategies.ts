@@ -54,6 +54,13 @@ function strategyBody(body: Record<string, unknown>) {
   return { name: name as string | undefined, settings: settings as object | undefined, patch: settings_patch as object | undefined, status: status as string | undefined };
 }
 
+/** Target mode for the Paper/Real switch: `real` is a valid REQUEST (answered 403 MODE_NOT_ALLOWED), not REAL_SOL_DISABLED. */
+function modeBody(body: Record<string, unknown>): "practice" | "real" {
+  const m = body.mode;
+  if (m !== "practice" && m !== "real") throw new ApiError("VALIDATION_FAILED", { field: "mode", allowed: ["practice", "real"] });
+  return m;
+}
+
 export function registerStrategies(r: Router, d: Deps): void {
   const base = "/v1/workspaces/:ws/strategies";
 
@@ -226,6 +233,39 @@ export function registerStrategies(r: Router, d: Deps): void {
   };
   r.add("POST", `${base}/:id/pause`, status("paused"));
   r.add("POST", `${base}/:id/resume`, status("running"));
+
+  // Per-strategy Paper/Real switch (Web StrategyModeCard, additive to 1.1.6).
+  // Unlike modeParam, `real` is a valid request body here: the answer is 403 MODE_NOT_ALLOWED with
+  // real_locked details, not REAL_SOL_DISABLED. Same mode -> 200 without a write; real -> practice is kept
+  // for the phase-7 contract and only ever moves down to practice.
+  r.add("POST", `${base}/:id/mode`, async (ctx) => {
+    const p = authenticate(ctx, d.cfg);
+    requireScope(p, "trade");
+    const ws = uuidParam(ctx, "ws");
+    const id = uuidParam(ctx, "id");
+    const body = await readJson(ctx);
+    const mode = modeBody(body);
+    const rev = requireRev(expectedRev(ctx, body));
+    const device = deviceLabel(ctx, body);
+    const key = idempotencyKey(ctx);
+    await idempotent(ctx, d.db, p, key, { ...body, expected_rev: rev }, () =>
+      withCurrent(async () => {
+        const out = await asUser(d.db, p.claims, async (c) => {
+          await requireMember(c, ws);
+          await strategyIn(c, id, ws); // cross-workspace -> 404 before any write
+          const q = await c.query("select public.set_strategy_mode($1, $2::public.trade_mode, $3, $4) as r", [id, mode, rev, device]);
+          const r = q.rows[0]?.r as Record<string, unknown> | undefined;
+          if (!r) throw new ApiError("INTERNAL");
+          const err = fromReturnedError(r);
+          if (err) throw err;
+          const { server_now, ...wire } = r;
+          const [gated] = await withRealGate(c, d.cfg, ws, [wire]);
+          return { data: gated!, server_now: iso(server_now) };
+        });
+        return { status: 200, body: { data: out.data, server_now: out.server_now }, headers: etag(out.data.rev) };
+      }, load(p, id, ws)),
+    );
+  });
 
   const retire = (action: "archive" | "delete") => async (ctx: Ctx) => {
     const p = authenticate(ctx, d.cfg);

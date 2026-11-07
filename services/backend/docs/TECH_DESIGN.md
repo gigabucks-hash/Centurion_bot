@@ -97,6 +97,8 @@ under the frozen plan.
   see `docs/EVENTS_SAFE_SEQ.md` for the N1 race and the consumer rule.
   Side-channel deliveries (push/email/webhook) go in `outbox` rows created in the same transaction.
 - Deterministic event ids (`<subject>:<ms>:<type>`) plus a unique constraint make writes idempotent.
+- Per-strategy Paper/Real switch: `POST /v1/workspaces/{ws}/strategies/{id}/mode` is additive to 1.1.6;
+  Real is refused with `MODE_NOT_ALLOWED` in this phase. See `docs/STRATEGY_MODE.md`.
 
 ## 6. Approval queue
 - Kinds `buy_pick` (TTL 10 min), `guard_change` (24 h), `team_action` (1 h); configurable in
