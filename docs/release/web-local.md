@@ -106,6 +106,15 @@ For a real host: put the web and API behind one HTTPS origin (or set `AUTH_SIWS_
 - Browser actions (`approve`, `reject`, manual sell, events stream, logo images) are rewritten to one proxy route
   (`app/api/backend/[...path]`) that forwards to the paper API with the same cookies; the browser never sees a token.
 
+## On a phone
+
+The web app is the phone surface (mobile apps are cancelled). Layout: bottom tab bar (5 items) plus the
+"More" sheet below `lg`, table horizontal scroll with a sticky first column and a scroll hint, cards below
+`sm`. Pages render at 390×844 without page-level horizontal scroll: `/`, `/positions`, `/pnl`, `/coins`,
+`/strategies`, `/activity`, `/stats`, `/settings`. To open it from a phone on the same LAN, run
+`next start -H 0.0.0.0 -p 3100` and add the laptop's LAN host to `AUTH_SIWS_DOMAINS` (Phantom signs the
+message for that origin). Do not expose this stack to the internet without HTTPS.
+
 ## Known gaps (honest)
 
 - **Additive backend routes**: this web tree calls `POST /strategies/{id}/mode` and
@@ -119,6 +128,8 @@ For a real host: put the web and API behind one HTTPS origin (or set `AUTH_SIWS_
   PnL/price (never a fabricated 0).
 - **Manual-sell ledger in mock mode** is a session-local simulation: a 100 % sell removes the position and appends one
   `manual` close so dashboard `/positions` `/pnl` agree; the paper API is the real source in http mode.
+- **Practice epoch on Settings** starts unknown in http mode: the API has no GET for the reset state, so the epoch
+  line appears only after a reset (the 24 h cooldown still comes back as `429` with `next_allowed_at`).
 - **Container build** on this machine is unverified (no Docker engine); the app build itself passes.
 
 ## 5-minute local smoke checklist (click by click)

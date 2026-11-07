@@ -137,7 +137,7 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <Card>
           <p className="mb-1 text-caption text-text-tertiary sm:hidden">{t("table.scrollHint")} →</p>
-          <div className="-mx-4 overflow-x-auto [mask-image:linear-gradient(to_right,black_90%,transparent)] sm:[mask-image:none]">
+          <div className="relative -mx-4 overflow-x-auto [mask-image:linear-gradient(to_right,black_90%,transparent)] sm:[mask-image:none]">
             <table className="w-full min-w-[720px] text-body">
               <thead>
                 <tr className="border-b border-border-subtle text-left text-label text-text-tertiary">
@@ -148,7 +148,7 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
                   <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colPnlSol", { unit })}</th>
                   <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colPnlPct")}</th>
                   <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colHold")}</th>
-                  <th scope="col" className="px-4 py-2"><span className="sr-only">{t("positions.sell")}</span></th>
+                  <th scope="col" className="relative px-4 py-2"><span className="sr-only">{t("positions.sell")}</span></th>
                 </tr>
               </thead>
               <VirtualTbody

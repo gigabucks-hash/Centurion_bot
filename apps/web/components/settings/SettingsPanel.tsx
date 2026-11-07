@@ -41,7 +41,7 @@ function Row({ label, children, hint }: { label: string; children: React.ReactNo
   );
 }
 
-export function SettingsPanel({ signedInWith }: { signedInWith: Method | null }) {
+export function SettingsPanel({ signedInWith, practiceKnown = true }: { signedInWith: Method | null; practiceKnown?: boolean }) {
   const t = useT();
   const f = useFmt();
   const locale = useLocale();
@@ -73,11 +73,12 @@ export function SettingsPanel({ signedInWith }: { signedInWith: Method | null })
       setMyDevice(deviceId());
       setTheme((localStorage.getItem("centurion_theme") as "dark" | "light" | null) ?? (document.documentElement.dataset.theme === "light" ? "light" : "dark"));
     }, 0);
-    fetchPracticeReset().then(setPractice).catch(() => {});
+    // http mode: the backend has no GET for the reset state (only POST), so the epoch stays unknown until a reset.
+    if (practiceKnown) fetchPracticeReset().then(setPractice).catch(() => {});
     fetchDeletion().then(setDeletion).catch(() => {});
     fetchDevices().then(setDevices).catch(() => {});
     return () => clearTimeout(tm);
-  }, []);
+  }, [practiceKnown]);
 
   const thisDevice = devices.find((d) => d.device_id === myDevice);
   const cooldownUntil = practice?.next_allowed_at ? Date.parse(practice.next_allowed_at) : null;

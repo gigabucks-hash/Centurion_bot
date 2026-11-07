@@ -77,7 +77,7 @@ export function Table<T>({ columns, rows, rowKey, empty, minWidth = 560, mobile 
       )}
       <div className={cn(mobile === "cards" && "hidden sm:block")}>
         {labels && <p className="mb-1 text-caption text-text-tertiary sm:hidden">{labels.scrollHint} →</p>}
-        <div className="-mx-4 overflow-x-auto [mask-image:linear-gradient(to_right,black_92%,transparent)] sm:[mask-image:none]">
+        <div className="relative -mx-4 overflow-x-auto [mask-image:linear-gradient(to_right,black_92%,transparent)] sm:[mask-image:none]">
           <table className="w-full text-body" style={{ minWidth }}>
             <thead className="sticky top-0 bg-bg-surface">
               <tr className="border-b border-border-subtle text-label text-text-tertiary">

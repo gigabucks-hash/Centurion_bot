@@ -55,7 +55,11 @@ export function StatStrip({ items, columns = 4, className, label }: {
     >
       {items.map((item, i) => {
         // 6-track fallback: 2 + 2 + 2 on row 1, 3 + 3 on row 2, no empty cell; 5 equal cells from xl.
-        const span = columns === 5 ? (i < 3 ? "md:col-span-2 xl:col-span-1" : "md:col-span-3 xl:col-span-1") : "";
+        // Three KPIs on phones: 2 + 1 would leave an empty track showing the border tint, so the last
+        // cell spans both (PnL report: Unrealized + Realized, Total). Three equal cells from sm up.
+        const span = columns === 5
+          ? (i < 3 ? "md:col-span-2 xl:col-span-1" : "md:col-span-3 xl:col-span-1")
+          : columns === 3 && i === 2 ? "col-span-2 sm:col-span-1" : "";
         const body = (
           <>
             <span className="text-overline uppercase tracking-wide text-text-tertiary">{item.label}</span>
