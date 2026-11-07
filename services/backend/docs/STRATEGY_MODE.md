@@ -98,6 +98,12 @@ explanation inline instead of a generic validation error.
 - Always send the current `rev` from the strategy wire as `If-Match`; on `409` reload the strategy and retry the
   user's click only after they see the new state.
 
+## Consumer notes (desktop)
+
+- The Tauri terminal ships the same control in Settings → strategy rows (2.5 s hold; Real is disabled while
+  `real_locked` and shows the same inline reason). Desktop 0.2.0+ also updates itself from the latest GitHub
+  release; no desktop-specific backend change is needed.
+
 ## Tests
 
 `api/test/strategy_mode.test.ts` covers 428, 422 (mode/scope/role), 409 with `current`, 403 practice -> real with
