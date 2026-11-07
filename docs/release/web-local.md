@@ -3,6 +3,44 @@
 This is the fastest usable surface: the Next.js app in `apps/web`, signed in with Phantom, reading and trading the
 paper backend in `services/backend`. No chain, no real funds, no deploy.
 
+## Fast path (Windows, copy/paste, ~6 minutes)
+
+Prerequisite: Postgres 17 tools (`psql`, `createdb`) and Node 22 on `PATH`. Replace the two wallets/secrets once.
+
+```powershell
+# 0) repo root
+cd C:\cw\app
+
+# 1) database + schema (once per machine)
+createdb -h 127.0.0.1 -p 5432 -U postgres centurion
+psql -h 127.0.0.1 -p 5432 -U postgres -d centurion -f services/backend/supabase/tests/00_local_shim.sql
+Get-ChildItem services/backend/supabase/migrations/*.sql | Sort-Object Name |
+  ForEach-Object { psql -h 127.0.0.1 -p 5432 -U postgres -v ON_ERROR_STOP=1 -d centurion -f $_.FullName }
+
+# 2) paper API (terminal 1)
+cd services/backend/api
+$env:NODE_ENV="development"; $env:TRADING_MODE="paper"
+$env:DATABASE_URL="postgres://postgres@127.0.0.1:5432/centurion"
+$env:API_PORT="8080"
+$env:AUTH_SIWS_DOMAINS="localhost:3100"
+$env:OWNER_WALLETS="<your Phantom public key>"
+$env:CENTURION_SESSION_SECRET="<32+ random chars>"
+$env:SUPABASE_JWT_SECRET="<32+ other random chars>"
+$env:AUTH_USER_CREATE="direct"
+npm start
+
+# 3) web (terminal 2, after "listening on 0.0.0.0:8080")
+cd C:\cw\app\apps\web
+npm install                                  # first run only
+$env:DATA_SOURCE="http"
+$env:API_BASE_URL="http://127.0.0.1:8080"
+$env:CENTURION_INSECURE_COOKIES="1"
+npm run dev                                  # http://localhost:3100
+```
+
+Open http://localhost:3100, click **Phantom**, sign once: the owner, the practice workspace and 30 paper SOL are
+created automatically. Nothing else is seeded; every figure on screen comes from the local paper API.
+
 ## 1. Database (Postgres 17)
 
 ```powershell
@@ -70,12 +108,32 @@ For a real host: put the web and API behind one HTTPS origin (or set `AUTH_SIWS_
 
 ## Known gaps (honest)
 
-- **Open-position marks**: the REST API reports size/entry/rev but not a per-row mark price or unrealized PnL, so the
-  positions screen shows an em dash for PnL/price instead of inventing a number. The executor feed has the values; a
-  small `position_wire` + marks read is the next backend task.
-- **Coin detail trail**: `/coins/{mint}/timeline` exists but the web trail decoder is not written yet; the detail page
-  shows no trail.
-- **Buy pause/resume and mode switches**: web routes for these are still mock-only; approving/rejecting works.
-- **Coin tradeability flag**: `/coins` does not carry `tradeable`/`skip_reason`, so the screener does not mark rows
-  untradeable yet.
+- **Additive backend routes**: this web tree calls `POST /strategies/{id}/mode` and
+  `GET/POST /trading[/pause-buys|resume-buys]`. They ship in the same tree (`services/backend`, migration 0026); an older
+  API answers 404 on those two controls, everything else is unaffected. Mock mode mirrors the same wire contract.
+- **Real stays locked by design**: `practice -> real` always answers `403 MODE_NOT_ALLOWED` with `real_locked_reason`;
+  this build is paper-only. `real -> practice` is immediate (no hold).
+- **Coin tradeability flag**: `/coins` and the coin timeline carry `tradeable`/`skip_reason`; the screener and the coin
+  detail show the "Not tradeable" chip and disable Sell for those rows.
+- **Open-position marks**: when the API omits the 0025 mark/unrealized fields the positions screen renders an em dash for
+  PnL/price (never a fabricated 0).
+- **Manual-sell ledger in mock mode** is a session-local simulation: a 100 % sell removes the position and appends one
+  `manual` close so dashboard `/positions` `/pnl` agree; the paper API is the real source in http mode.
 - **Container build** on this machine is unverified (no Docker engine); the app build itself passes.
+
+## 5-minute local smoke checklist (click by click)
+
+Stack: Postgres 17, paper API on `:8080`, web in `DATA_SOURCE=http` on `:3100` (§1–§3). Use one owner wallet.
+
+| # | Do this | Expected result |
+|---|---|---|
+| 1 | `curl http://127.0.0.1:8080/healthz` | `200` with `mode: "practice"` and `real_enabled: false`; web `http://localhost:3100` loads the sign-in screen. |
+| 2 | Click **Phantom**, approve the SIWS signature | Dashboard loads with 30 paper SOL start, cash/realized/open tiles, strategies table, activity feed. |
+| 3 | Open **Settings** → **Stop buying** → confirm in the dialog | Card badge switches to **Buying paused**, shows **Paused at (WIB)** and **Paused via web**; `GET /trading` has `buys_paused: true` and a bumped `rev`. |
+| 4 | Go to **Dashboard**, then **Strategies** | A warning banner **Buying is paused** with the WIB time and an **Open settings** link appears on both pages. |
+| 5 | Return to **Settings** → **Resume buying** → confirm | Badge returns to **Buying active**, the paused-at row disappears, banners vanish on Dashboard/Strategies, `rev` bumps again. |
+| 6 | **Approvals** → open a pending buy pick → hold **Approve** | Toast confirms; the item leaves the pending list. Open **Positions**: the new pair is listed, and the Dashboard open count / **in positions** SOL are the same as `/positions` (one snapshot). |
+| 7 | On **Positions** focus that row → **Sell** → pick **100 %** | Before touching the hold button the sheet has **no** "Released early" note. Hold to fill: the row disappears, and **PnL** shows the new `manual` close as the newest row. Dashboard open count and in-positions SOL drop by that row. |
+| 8 | **PnL** → switch language to **ID** (Settings → Language) | Ledger headers read **Koin · Masuk → keluar · Durasi tahan · Masuk · Keluar · Biaya (dilaporkan)**; no English `Entry → exit` / `Hold`. |
+| 9 | **Strategies** → edit a Paper strategy → click **Real** | Dialog explains Real rules and holds 2.5 s. A Paper → Real attempt ends with the inline server lock explanation (403 `MODE_NOT_ALLOWED`) and the card refreshes; Real → Paper (when a Real strategy exists) applies immediately. |
+| 10 | **Dashboard** → **PnL** report card → **Full report** (`/pnl`) | Realized/unrealized/total and the closed count match the Dashboard card; a missing value stays an em dash, never `0.00`. |

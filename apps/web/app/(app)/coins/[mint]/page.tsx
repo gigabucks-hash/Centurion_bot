@@ -85,7 +85,7 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
         items={[
           { label: t("trail.score"), value: trail.score ? `${trail.score.value} / ${trail.score.passMark}` : "—", tone: trail.score && trail.score.value >= trail.score.passMark ? "profit" : "warning" },
           { label: t("trail.size"), value: pos && Number.isFinite(pos.solIn) ? <>{f.sol(pos.solIn, { unit: false })}<span className="text-caption font-normal"> {t(mode === "practice" ? "overview.paperSol" : "overview.realSol")}</span></> : "—", hint: pos ? (Number.isFinite(pos.feeBps) ? t("trail.fee", { bps: pos.feeBps }) : undefined) : t("trail.notEntered") },
-          { label: pos?.status === "open" ? t("trail.unrealized") : t("trail.realized"), value: pos ? <Pnl mode={mode} sol={numOrNull(pos.pnlSol)} unit /> : "—", hint: pos && numOrNull(pos.pnlPct) != null && numOrNull(pos.peakGainPct) != null ? t("trail.peak", { pct: f.num(pos.pnlPct, 1), peak: f.num(pos.peakGainPct, 1) }) : undefined },
+          { label: pos?.status === "open" ? t("trail.unrealized") : t("trail.realized"), value: pos ? <Pnl mode={mode} sol={numOrNull(pos.pnlSol)} unit /> : "—", hint: pos && pos.pnlPct != null && pos.peakGainPct != null ? t("trail.peak", { pct: f.num(pos.pnlPct, 1), peak: f.num(pos.peakGainPct, 1) }) : undefined },
           { label: t("trail.hold"), value: pos && holdS != null ? f.duration(holdS) : "—", hint: pos?.exitReason ? t(`exitReason.${pos.exitReason}`) : pos ? t("trail.stillOpen") : undefined },
         ]}
       />

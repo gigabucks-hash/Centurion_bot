@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AlertTriangle, Info, Plus } from "lucide-react";
 import { getApi } from "@/lib/api";
+import { DEFAULT_TRADING } from "@/lib/trading";
 import { acrossModes, listAllStrategies, modesOf, portfolioMode } from "@/lib/mode";
 import type { Strategy } from "@/lib/types";
 
@@ -10,6 +11,7 @@ import { ApprovalModeBadge, severityTone, StatusBadge, StrategyModeChips } from 
 import { PortfolioModeTabs } from "@/components/PortfolioModeTabs";
 import { EquityChart } from "@/components/charts/EquityChart";
 import { OverviewFeed } from "@/components/OverviewFeed";
+import { BuyingPausedBanner } from "@/components/BuyingPausedBanner";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
 import { PnlReport } from "@/components/PnlReport";
 import { closedTradeCounts, pnlReport, pnlReportFromSummary } from "@/lib/pnl-report";
@@ -35,12 +37,13 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
     // A backend without 0022 (or a transient read error) falls back to the overview + strategy counters.
     api.getPnlSummary({ mode, window: "all" }).catch(() => null),
   ]);
+  const trading = await api.getTrading().catch(() => DEFAULT_TRADING);
   events.sort((a, b) => b.ts - a.ts);
   const strategies = all;
   const names: Record<string, string> = Object.fromEntries(strategies.map((s) => [s.id, s.name]));
   const latestClosed = coins.find((c) => c.status === "closed");
   const trail = latestClosed ? await api.getCoinTrail(latestClosed.mint) : null;
-  const realizedPct = (o.realizedPnlSol / o.startingCashSol) * 100;
+  const realizedPct = o.realizedPnlSol != null && o.startingCashSol > 0 ? (o.realizedPnlSol / o.startingCashSol) * 100 : null;
   // Closed trades come from the same mode's strategies; the PnL report never mixes modes.
   const closed = closedTradeCounts(strategies, mode);
   const report = summary
@@ -65,11 +68,13 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
         actions={<PortfolioModeTabs mode={mode} modes={modes} href={(m) => (m === "practice" ? "/" : "/?mode=real")} t={t} />}
       />
 
+      <BuyingPausedBanner trading={trading} />
+
       <StatStrip
         items={[
-          { label: t("overview.cash"), value: <>{f.sol(o.cashSol, { unit: false })}<span className="text-caption font-normal"> {t(mode === "practice" ? "overview.paperSol" : "overview.realSol")}</span></>, hint: t("overview.inPositions", { amount_lamports: f.amount(o.inPositionsSol) }) },
-          { label: t("overview.realized"), value: <Pnl mode={mode} sol={o.realizedPnlSol} unit />, hint: t("overview.vsStart", { pct: f.pct(realizedPct) }) },
-          { label: t("overview.openPositions"), value: `${o.openPositions} / ${o.openPositionsCap}`, hint: t("overview.openHint", { amount_lamports: f.amount(o.inPositionsSol), unreal: f.sol(o.unrealizedPnlSol, { sign: true }) }) },
+          { label: t("overview.cash"), value: <>{f.sol(o.cashSol, { unit: false })}<span className="text-caption font-normal"> {t(mode === "practice" ? "overview.paperSol" : "overview.realSol")}</span></>, hint: t("overview.inPositions", { amount_lamports: o.inPositionsSol != null ? f.amount(o.inPositionsSol) : "—" }) },
+          { label: t("overview.realized"), value: <Pnl mode={mode} sol={o.realizedPnlSol} unit />, hint: t("overview.vsStart", { pct: realizedPct != null ? f.pct(realizedPct) : "—" }) },
+          { label: t("overview.openPositions"), value: o.openPositions != null ? `${o.openPositions} / ${o.openPositionsCap}` : "—", hint: t("overview.openHint", { amount_lamports: o.inPositionsSol != null ? f.amount(o.inPositionsSol) : "—", unreal: o.unrealizedPnlSol != null ? f.sol(o.unrealizedPnlSol, { sign: true }) : "—" }) },
           {
             label: t("overview.waiting"),
             value: f.int(o.pendingApprovals),
@@ -114,7 +119,7 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
           {trail && (
             <Card
               title={<span className="inline-flex items-center gap-2"><CoinAvatar mint={trail.coin.mint} logoHash={trail.coin.logoHash} symbol={trail.coin.untrusted.symbol} size="md" />{t("overview.coinTrail", { symbol: trail.coin.untrusted.symbol, strategy: trail.strategyName })}</span>}
-              action={trail.positions[0] && <Link href={`/coins/${trail.coin.mint}`} className="tap text-caption"><Pnl mode={trail.mode} sol={trail.positions[0].pnlSol} unit /> · {t("common.details")}</Link>}
+              action={trail.positions[0] && <Link href={`/coins/${trail.coin.mint}`} className="tap text-caption"><Pnl mode={trail.mode} sol={trail.positions[0].pnlSol ?? null} unit /> · {t("common.details")}</Link>}
             >
               <CoinTrailSteps trail={trail} />
               <p className="mt-3 rounded-md bg-bg-sunken p-3 text-caption text-text-secondary">

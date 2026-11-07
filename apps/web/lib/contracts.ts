@@ -699,11 +699,14 @@ export function positionFromWire(w: PositionWireView): OpenPosition {
     solIn,
     entryPriceUsd: entry != null && Number.isFinite(entry) ? entry * MOCK_SOL_USD : 0,
     nowPriceUsd: mark != null && Number.isFinite(mark) ? mark * MOCK_SOL_USD : 0,
+    // OpenPosition keeps numbers for layout; `markUnknown` is the flag every cell checks before rendering.
     pnlSol: unreal ?? 0,
     pnlPct: w.pnl_pct ?? (known && solIn > 0 ? (unreal! / solIn) * 100 : 0),
     openedAt: Date.parse(w.opened_at),
     soldPct: w.sold_bps / 100, stopLossPct: w.stop_loss_pct, trailingPct: w.peak_trail_pct,
     rev: w.rev, decimals: w.decimals, tokenProgram: w.token_program, practiceEpoch: w.practice_epoch,
+    // The REST wire has no SOL/USD rate; USD cells stay an em dash even when the SOL mark is known.
+    priceUnknown: true,
     ...(known ? {} : { markUnknown: true }),
   };
 }

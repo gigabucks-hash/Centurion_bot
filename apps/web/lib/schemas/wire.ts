@@ -11,8 +11,8 @@ const id = z.string().regex(/^[A-Za-z0-9_.:-]{1,128}$/);
 const mode = z.enum(["practice", "real"]);
 
 export const LocaleBody = z.object({ locale: z.enum(["en", "id"]) }).strict();
-/** Mock-only per-strategy mode switch body (app/api/mock/strategies/[id]/mode; no contract route yet). */
-export const StrategyModeBody = z.object({ mode, hold_ms: z.number().int().min(0).max(60_000).optional(), expected_rev: z.number().int().min(0).optional() }).strict();
+/** Per-strategy mode switch body (`POST /strategies/{id}/mode`); the 2.5 s hold is client-side only. */
+export const StrategyModeBody = z.object({ mode, expected_rev: z.number().int().min(0).optional() }).strict();
 
 const Webauthn = z.object({ credential_id: z.string().max(1024), client_data_json: z.string().max(8192), authenticator_data: z.string().max(4096), signature: z.string().max(2048), user_handle: z.string().max(256).nullable() }).nullable();
 const Device = z.object({ platform: z.string().max(32), app_version: z.string().max(32), model: z.string().max(64).nullable(), attestation: z.unknown().nullable() }).partial();

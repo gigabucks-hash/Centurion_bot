@@ -47,15 +47,24 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
     return `/pnl?${q}`;
   };
 
-  const [summary, workspaceSummary, closed, overview, coins] = await Promise.all([
+  const [summary, workspaceSummary, closedRes, overview, coins] = await Promise.all([
     api.getPnlSummary({ mode, strategyId, window }),
     // 0022 scope: realized/unrealized/total are workspace+mode totals and ignore `strategy_id`. Read the card
     // without the bot filter so its closed count / win rate cover exactly the same scope as its money.
     api.getPnlSummary({ mode, window: "all" }),
-    api.listClosedTradesPage({ mode, strategyId, window, cursor, limit: 50 }),
+    // F5-WEB-01: an invalid/foreign cursor is a dead link, not a page crash. Fall back to the first page.
+    api.listClosedTradesPage({ mode, strategyId, window, cursor, limit: 50 }).catch(async (e: unknown) => {
+      const code = (e as { code?: unknown })?.code ?? (e as Error)?.message;
+      if (cursor && (code === "CURSOR_INVALID" || (e as Error)?.name === "CursorInvalid")) {
+        return { page: await api.listClosedTradesPage({ mode, strategyId, window, cursor: null, limit: 50 }), cursorReset: true };
+      }
+      throw e;
+    }).then((r) => ("page" in r ? r : { page: r, cursorReset: false })),
     api.getOverview(mode).catch(() => null),
     api.listCoins(mode).catch(() => []),
   ]);
+  const closed = closedRes.page;
+  const cursorReset = closedRes.cursorReset;
   const allTime = pnlReportFromSummary(
     {
       realizedPnlSol: workspaceSummary.realizedPnlSol,
@@ -65,7 +74,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
       winCount: workspaceSummary.winCount,
       winRatePct: workspaceSummary.winRatePct,
     },
-    overview?.openPositions ?? 0,
+    overview?.openPositions ?? null,
   );
   const coin = new Map(coins.map((c) => [c.mint, c]));
   const name = new Map(all.map((s) => [s.id, s.name]));
@@ -113,6 +122,12 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
         <PnlFilters strategies={strategies.map((s) => ({ id: s.id, name: s.name }))} />
         {exitsLink}
       </div>
+
+      {cursorReset && (
+        <p className="mt-2 rounded-md bg-bg-sunken p-3 text-caption text-text-secondary" data-testid="pnl-cursor-reset" role="status">
+          {t("apiError.CURSOR_INVALID")}
+        </p>
+      )}
 
       <PnlReport report={allTime} mode={mode} t={t} f={f} href={null} layout="strip" heading={botName ? t("pnl.allBotsHeading") : t("pnl.allTime")} />
 

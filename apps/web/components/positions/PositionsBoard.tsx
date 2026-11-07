@@ -17,6 +17,7 @@ import { VirtualTbody } from "@/components/ui/VirtualList";
 import { useMarks } from "@/components/shell/RealtimeProvider";
 import { applyMark } from "@/lib/marks";
 import { CoinAvatar } from "@/components/CoinAvatar";
+import { sellHoldHint } from "@/lib/hold-hint";
 
 /** QA-11 (decision C1): Sell is always a hold — 1.2 s Practice / 2.5 s Real, on every platform. */
 const SELL_HOLD_MS: Record<TradingMode, number> = { practice: 1200, real: 2500 };
@@ -44,6 +45,8 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
   const [focusId, setFocusId] = useState<string | null>(initial[0]?.key ?? null);
   const [sellOpen, setSellOpen] = useState(false);
   const [pct, setPct] = useState<(typeof PCTS)[number]>("100");
+  /** D8: the "released early" note only appears after the user releases a hold on this row, never on idle. */
+  const [releasedFor, setReleasedFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const focused = view.find((r) => r.key === focusId) ?? null;
   /** Real safety rules follow the focused position's own strategy mode. */
@@ -66,6 +69,7 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
       else if (e.key === " " && cur) setSellOpen(false);
       else if (e.key === "Enter" && cur) router.push(`/coins/${cur.mint}#chart`);
       else if ((e.key === "X" || e.key === "x") && e.shiftKey && cur) {
+        setReleasedFor(null);
         setSellOpen(true);
         setTimeout(() => sellRef.current?.querySelector<HTMLElement>("[role=radio]")?.focus(), 0);
       } else if (e.key === "Escape") setSellOpen(false);
@@ -89,12 +93,14 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
   );
   const openSell = useCallback((k: string) => {
     setFocusId(k);
+    setReleasedFor(null);
     setSellOpen(true);
   }, []);
 
   async function sell(heldMs: number) {
     if (!focused) return;
     setBusy(true);
+    setReleasedFor(null);
     try {
       void heldMs; // hold-to-confirm is a client gesture; 1.1.2 close carries only fraction_bps + If-Match
       const r = await closePositionClient(focused, Number(pct));
@@ -178,11 +184,11 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
             {sellOpen ? (
               <div ref={sellRef} className={cn("mt-4 rounded-md border p-3", mode === "real" ? "border-mode-real" : "border-border-default")}>
                 <p className="text-titleSm">{t.ux("positions.sell.title", { symbol: focused.symbol })}</p>
-                <div className="mt-2"><Segmented label={t("positions.sellShare")} value={pct} onChange={setPct} options={PCTS.map((p) => ({ value: p, label: f.pct(Number(p), 0, false) }))} /></div>
+                <div className="mt-2"><Segmented label={t("positions.sellShare")} value={pct} onChange={(v) => { setPct(v); setReleasedFor(null); }} options={PCTS.map((p) => ({ value: p, label: f.pct(Number(p), 0, false) }))} /></div>
                 <p className="mt-3 flex justify-between text-caption"><span className="text-text-tertiary">{t.ux("positions.sell.estimate")}</span><span className="num">≈ {focused.markUnknown ? "—" : f.sol(focused.solIn * remaining(focused) * (1 + focused.pnlPct / 100) * (Number(pct) / 100))}</span></p>
                 <p className="mt-1 text-caption text-text-secondary">{pct === "100" ? t.ux("positions.sell.plan_cancelled") : t.ux("positions.sell.remaining_plan")}</p>
                 <div className="sticky bottom-[calc(3rem+env(safe-area-inset-bottom))] z-20 -mx-3 mt-3 grid gap-2 border-t border-border-subtle bg-bg-surface/95 px-3 pt-3 backdrop-blur sm:grid-cols-2 lg:bottom-0">
-                  <HoldButton durationMs={SELL_HOLD_MS[mode]} variant={mode === "real" ? "real" : "warning"} disabled={busy || mode === "real" || !!focused.screenerState} onConfirm={sell} hint={t.ux("positions.sell.hold.released")}>
+                  <HoldButton durationMs={SELL_HOLD_MS[mode]} variant={mode === "real" ? "real" : "warning"} disabled={busy || mode === "real" || !!focused.screenerState} onConfirm={(ms) => { setReleasedFor(null); void sell(ms); }} onHoldChange={(holding) => { if (!holding) setReleasedFor(focused.key); }} hint={sellHoldHint(t, releasedFor === focused.key)}>
                     {t.ux(mode === "real" ? "positions.sell.hold.real" : "positions.sell.hold.practice", { pct: f.pct(Number(pct), 0, false) })}
                   </HoldButton>
                   <Button variant="primary" size="lg" onClick={() => setSellOpen(false)}>{t("common.cancelEsc")}</Button>
@@ -195,7 +201,7 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
               focused.screenerState ? (
                 <NotTradeableCta label={t("notTradeable.sellUnavailable")} note={t("notTradeable.sellDetail")} />
               ) : (
-                <Button className="mt-4 min-h-12 w-full sm:min-h-0" variant={mode === "real" ? "real" : "secondary"} onClick={() => setSellOpen(true)}>{t("positions.sell")}…</Button>
+                <Button className="mt-4 min-h-12 w-full sm:min-h-0" variant={mode === "real" ? "real" : "secondary"} onClick={() => { setReleasedFor(null); setSellOpen(true); }}>{t("positions.sell")}…</Button>
               )
             )}
             {mode === "practice" && <Badge className="mt-3">{t("positions.simulated")}</Badge>}

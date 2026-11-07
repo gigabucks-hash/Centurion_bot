@@ -3,8 +3,9 @@ import type { DashboardApi } from "@/lib/api";
 import type { Approval, CoinSummary, CoinTrail, Strategy, TradeEvent } from "@/lib/types";
 import { pnlWindowHours } from "@/lib/pnl-report";
 import { safeName, safeSymbol } from "@/lib/untrusted";
-import { buildOverview, closedTrades, computeExitStats, coinSummaries, exitSamples, MOCK_NOW, recentEvents, trails } from "./data";
+import { buildOverview, computeExitStats, coinSummaries, MOCK_NOW, recentEvents, trails } from "./data";
 import * as store from "./store";
+import * as trading from "./trading";
 
 const HOUR = 3_600_000;
 const START_SOL = Number(BigInt(store.PRACTICE_START_LAMPORTS) / 1_000_000_000n);
@@ -31,6 +32,13 @@ export const mockApi: DashboardApi = {
     const approvals = store.listApprovals(mode).filter((a) => a.status === "pending");
     const now = Date.now();
     const resetAt = practiceResetAt(mode);
+    const snap = store.snapshot(mode);
+    // D4: every money/count field comes from the same store snapshot as /positions and /pnl.
+    const positions = resetAt != null ? [] : snap.positions;
+    const realized = resetAt != null ? 0 : snap.realizedSol;
+    const inPositions = resetAt != null ? 0 : snap.inPositionsSol;
+    const unrealized = resetAt != null ? 0 : snap.unrealizedSol;
+    const start = mode === "practice" ? START_SOL : 3;
     if (resetAt != null) {
       const base = buildOverview(mode, store.listStrategies().map(freshEpoch));
       return {
@@ -49,14 +57,34 @@ export const mockApi: DashboardApi = {
         expiringSoon: approvals.filter((a) => a.expiresAt - now < 2 * 60_000).length,
       };
     }
+    const base = buildOverview(mode, store.listStrategies());
     return {
-      ...buildOverview(mode, store.listStrategies()),
+      ...base,
+      realizedPnlSol: realized,
+      unrealizedPnlSol: unrealized,
+      inPositionsSol: inPositions,
+      cashSol: Math.round((start + realized - inPositions) * 1e9) / 1e9,
+      openPositions: positions.length,
+      openPositionsCap: Math.max(base.openPositionsCap, positions.length),
       pendingApprovals: approvals.length,
       expiringSoon: approvals.filter((a) => a.expiresAt - now < 2 * 60_000).length,
     };
   },
   async listStrategies(mode) {
-    const list = store.listStrategies().filter((s) => s.mode === mode);
+    const snap = store.snapshot(mode);
+    const list = store.listStrategies()
+      .filter((s) => s.mode === mode)
+      .map((s) => {
+        const rows = snap.closes.filter((t) => t.strategyId === s.id);
+        return {
+          ...s,
+          openPositions: snap.positions.filter((p) => p.strategyId === s.id).length,
+          realizedPnlSol: Math.round(rows.reduce((a, t) => a + (t.pnlSol ?? 0), 0) * 1e9) / 1e9,
+          trades: rows.length,
+          wins: rows.filter((t) => (t.pnlSol ?? 0) > 0).length,
+          avgHoldSeconds: rows.length ? Math.round(rows.reduce((a, t) => a + (t.holdSeconds ?? 0), 0) / rows.length) : 0,
+        };
+      });
     return practiceResetAt(mode) != null ? list.map(freshEpoch) : list;
   },
   async getStrategy(id) {
@@ -84,7 +112,7 @@ export const mockApi: DashboardApi = {
     return t ? cleanTrail(t) : null;
   },
   async getExitStats(filter) {
-    const rows = exitSamples.filter(
+    const rows = store.listClosedLedger().filter(
       (s) =>
         s.mode === filter.mode &&
         (!filter.strategyId || s.strategyId === filter.strategyId) &&
@@ -106,12 +134,12 @@ export const mockApi: DashboardApi = {
     // Backend 0022 scope: the portfolio snapshot (unrealized/realized/total) is per workspace+mode and
     // does NOT narrow with `strategy_id`; only the window numbers and the ledger do. Mirrored here so a
     // bot filter cannot silently turn a workspace total into a strategy total.
-    const allRows = closedTrades.filter((t) => t.mode === filter.mode && (resetAt == null || t.closedAt >= resetAt));
+    const allRows = store.listClosedLedger().filter((t) => t.mode === filter.mode && (resetAt == null || t.closedAt >= resetAt));
     const rows = filter.strategyId ? allRows.filter((t) => t.strategyId === filter.strategyId) : allRows;
     const inWindow = hours == null ? rows : rows.filter((t) => t.closedAt >= MOCK_NOW - hours * HOUR);
-    const sum = (xs: typeof rows) => Math.round(xs.reduce((a, r) => a + r.pnlSol, 0) * 1e9) / 1e9;
-    const strategies = store.listStrategies().filter((s) => s.mode === filter.mode);
-    const unrealized = resetAt != null ? 0 : Math.round(strategies.reduce((a, s) => a + s.unrealizedPnlSol, 0) * 1e9) / 1e9;
+    const sum = (xs: typeof rows) => Math.round(xs.reduce((a, r) => a + (r.pnlSol ?? 0), 0) * 1e9) / 1e9;
+    // D4: unrealized comes from the same open-position snapshot /positions renders.
+    const unrealized = resetAt != null ? 0 : store.snapshot(filter.mode).unrealizedSol;
     const realized = sum(allRows);
     const wins = inWindow.filter((r) => r.pnlSol > 0).length;
     return {
@@ -143,7 +171,7 @@ export const mockApi: DashboardApi = {
   async listClosedTradesPage(filter) {
     const hours = pnlWindowHours(filter.window ?? "7d");
     const resetAt = practiceResetAt(filter.mode);
-    const rows = closedTrades.filter(
+    const rows = store.listClosedLedger().filter(
       (t) =>
         t.mode === filter.mode &&
         (!filter.strategyId || t.strategyId === filter.strategyId) &&
@@ -179,5 +207,8 @@ export const mockApi: DashboardApi = {
   },
   async decideApproval(id, decision) {
     return store.decideApproval(id, decision);
+  },
+  async getTrading() {
+    return trading.getTradingState();
   },
 };

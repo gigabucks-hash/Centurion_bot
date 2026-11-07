@@ -39,12 +39,12 @@ export function pnlFilterQuery(current: string, key: string, value: string): str
 }
 
 export interface PnlReportInput {
-  /** WorkspaceOverview.realizedPnlSol (per mode). */
-  realized: number;
-  /** WorkspaceOverview.unrealizedPnlSol (per mode). */
-  unrealized: number;
-  /** WorkspaceOverview.openPositions (per mode). */
-  openPositions: number;
+  /** WorkspaceOverview.realizedPnlSol (per mode). null = not reported. */
+  realized: number | null;
+  /** WorkspaceOverview.unrealizedPnlSol (per mode). null = not reported. */
+  unrealized: number | null;
+  /** WorkspaceOverview.openPositions (per mode). null = no snapshot yet. */
+  openPositions: number | null;
   /** Closed trades from the same mode's strategies (sum of `trades`). */
   trades: number;
   /** Wins from the same mode's strategies (sum of `wins`). */
@@ -58,7 +58,8 @@ export interface PnlReportView {
   unrealized: number | null;
   /** null = neither the server total nor both parts are known, so the total is not reported. */
   total: number | null;
-  openPositions: number;
+  /** null = the overview has no open-count snapshot yet; the hint prints an em dash. */
+  openPositions: number | null;
   trades: number;
   wins: number;
   /** null = no closed trade yet, so there is no win rate (never 0 %). */
@@ -67,14 +68,17 @@ export interface PnlReportView {
 }
 
 export function pnlReport(i: PnlReportInput): PnlReportView {
-  const openPositions = Math.max(0, Math.trunc(i.openPositions || 0));
+  const openPositions = i.openPositions == null ? null : Math.max(0, Math.trunc(i.openPositions));
   const trades = Math.max(0, Math.trunc(i.trades || 0));
   // A server that reports more wins than trades must not print >100 %.
   const wins = Math.min(trades, Math.max(0, Math.trunc(i.wins || 0)));
+  // An unknown part leaves the total unknown: summing a missing figure would invent money.
+  const realized = i.realized ?? null;
+  const unrealized = i.unrealized ?? null;
   return {
-    realized: i.realized || 0,
-    unrealized: i.unrealized || 0,
-    total: (i.realized || 0) + (i.unrealized || 0),
+    realized,
+    unrealized,
+    total: realized != null && unrealized != null ? realized + unrealized : null,
     openPositions,
     trades,
     wins,
@@ -100,7 +104,7 @@ export interface PnlSummaryInput {
  * A null money field means "not reported" (no data yet, or a legacy server), so it stays null and the
  * card prints an em dash. Turning it into 0 would state a flat result the server never sent.
  */
-export function pnlReportFromSummary(s: PnlSummaryInput, openPositions = 0): PnlReportView {
+export function pnlReportFromSummary(s: PnlSummaryInput, openPositions: number | null = 0): PnlReportView {
   const realized = s.realizedPnlSol ?? null;
   const unrealized = s.unrealizedPnlSol ?? null;
   const trades = Math.max(0, Math.trunc(s.closedCount || 0));
@@ -114,7 +118,7 @@ export function pnlReportFromSummary(s: PnlSummaryInput, openPositions = 0): Pnl
     unrealized,
     // The server's lamport total wins when present; otherwise sum only two reported parts.
     total: s.totalPnlSol ?? (realized != null && unrealized != null ? realized + unrealized : null),
-    openPositions: Math.max(0, Math.trunc(openPositions || 0)),
+    openPositions: openPositions == null ? null : Math.max(0, Math.trunc(openPositions || 0)),
     trades,
     wins,
     winRatePct,

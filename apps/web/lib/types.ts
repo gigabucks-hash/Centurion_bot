@@ -64,6 +64,19 @@ export interface EquityPoint {
   equitySol: Sol;
 }
 
+/**
+ * Workspace trading authority (`GET /trading`, additive to 1.1.6): a workspace-wide Stop that blocks new buys while
+ * exits keep running. `buysPausedAt` is null while buying is enabled; `via` records who stopped it.
+ */
+export interface TradingState {
+  buysPaused: boolean;
+  buysPausedVia: string | null;
+  buysPausedAt: number | null;
+  agentTradeEnabled: boolean;
+  /** Optimistic concurrency for pause/resume (`If-Match: "<rev>"`). */
+  rev: number;
+}
+
 export interface WorkspaceOverview {
   id: string;
   name: string;
@@ -72,10 +85,10 @@ export interface WorkspaceOverview {
   walletConnected: boolean;
   startingCashSol: Sol;
   cashSol: Sol;
-  inPositionsSol: Sol;
-  realizedPnlSol: Sol;
-  unrealizedPnlSol: Sol;
-  openPositions: number;
+  inPositionsSol: Sol | null;
+  realizedPnlSol: Sol | null;
+  unrealizedPnlSol: Sol | null;
+  openPositions: number | null;
   /** Sum of maxOpen across running strategies. */
   openPositionsCap: number;
   runningStrategies: number;
@@ -202,9 +215,9 @@ export interface Strategy {
   /** Active settings revision (optimistic versioning). */
   rev: number;
   settings: StrategySettings;
-  openPositions: number;
-  realizedPnlSol: Sol;
-  unrealizedPnlSol: Sol;
+  openPositions: number | null;
+  realizedPnlSol: Sol | null;
+  unrealizedPnlSol: Sol | null;
   trades: number;
   wins: number;
   maxDrawdownPct: number;
@@ -282,8 +295,8 @@ export interface Position {
   openedAt: Timestamp;
   closedAt?: Timestamp;
   exitReason?: ExitReason;
-  pnlSol: Sol;
-  pnlPct: number;
+  pnlSol: Sol | null;
+  pnlPct: number | null;
   /** The API has no mark for this row yet: render an em dash, never a fabricated 0. */
   markUnknown?: boolean;
 }

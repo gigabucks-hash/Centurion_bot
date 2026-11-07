@@ -411,7 +411,7 @@ const ledgerFromTrails: ClosedTrade[] = trails.flatMap((t) =>
     .filter((p) => p.status === "closed" && p.closedAt && p.exitReason)
     .map((p) => ({
       id: p.key, strategyId: p.strategyId, mode: t.mode, reason: p.exitReason!, closedAt: p.closedAt!,
-      pnlPct: p.pnlPct, pnlSol: p.pnlSol, holdSeconds: Math.round((p.closedAt! - p.openedAt) / 1000),
+      pnlPct: p.pnlPct ?? 0, pnlSol: p.pnlSol ?? 0, holdSeconds: Math.round((p.closedAt! - p.openedAt) / 1000),
       mint: t.coin.mint, symbol: t.coin.untrusted.symbol, logoHash: t.coin.logoHash ?? null,
       solInSol: p.solIn, solOutSol: p.solOut, feesSol: round((p.solIn + p.solOut) * 0.0125, 6),
     })),
@@ -455,7 +455,7 @@ for (const strat of seedStrategies) {
   strat.realizedPnlSol = round(rows.reduce((a, r) => a + r.pnlSol, 0), 4);
   strat.avgHoldSeconds = rows.length ? Math.round(rows.reduce((a, r) => a + r.holdSeconds, 0) / rows.length) : 0;
   strat.funnel.exited = rows.length;
-  strat.funnel.entered = Math.max(strat.funnel.entered, rows.length + strat.openPositions);
+  strat.funnel.entered = Math.max(strat.funnel.entered, rows.length + (strat.openPositions ?? 0));
   // Sparkline = cumulative realized PnL in 24 buckets; max drawdown from the same curve.
   const spark: number[] = [];
   let acc = 0, peak = 0, dd = 0;
@@ -521,9 +521,9 @@ function equityCurve(mode: TradingMode, start: number, unrealized: number) {
 export function buildOverview(mode: TradingMode, strategies: Strategy[]): Omit<WorkspaceOverview, "pendingApprovals" | "expiringSoon"> {
   const list = strategies.filter((x) => x.mode === mode);
   const start = mode === "practice" ? 30 : 3;
-  const realized = round(list.reduce((a, x) => a + x.realizedPnlSol, 0), 4);
+  const realized = round(list.reduce((a, x) => a + (x.realizedPnlSol ?? 0), 0), 4);
   const running = list.filter((x) => x.status === "running");
-  const inPositions = round(list.reduce((a, x) => a + x.openPositions * x.settings.sizing.tradeSol, 0), 3);
+  const inPositions = round(list.reduce((a, x) => a + (x.openPositions ?? 0) * x.settings.sizing.tradeSol, 0), 3);
   return {
     id: `ws_${mode}`,
     name: mode === "practice" ? "Paper portfolio" : "Real portfolio",
@@ -533,15 +533,15 @@ export function buildOverview(mode: TradingMode, strategies: Strategy[]): Omit<W
     cashSol: round(start + realized - inPositions, 4),
     inPositionsSol: inPositions,
     realizedPnlSol: realized,
-    unrealizedPnlSol: round(list.reduce((a, x) => a + x.unrealizedPnlSol, 0), 4),
-    openPositions: list.reduce((a, x) => a + x.openPositions, 0),
+    unrealizedPnlSol: round(list.reduce((a, x) => a + (x.unrealizedPnlSol ?? 0), 0), 4),
+    openPositions: list.reduce((a, x) => a + (x.openPositions ?? 0), 0),
     openPositionsCap: running.reduce((a, x) => a + x.settings.sizing.maxOpen, 0),
     runningStrategies: running.length,
     pausedStrategies: list.filter((x) => x.status === "paused").length,
     lossStopPct: mode === "practice" ? 50 : 30,
     drawdownPct: mode === "practice" ? 8.4 : 24.6,
     engine: { online: true, lastHeartbeatAt: MOCK_NOW - 4000, version: "0.0.0-mock" },
-    equityCurve: equityCurve(mode, start, list.reduce((a, x) => a + x.unrealizedPnlSol, 0)),
+    equityCurve: equityCurve(mode, start, list.reduce((a, x) => a + (x.unrealizedPnlSol ?? 0), 0)),
     alerts: alertsByMode[mode],
     updatedAt: MOCK_NOW,
   };
@@ -553,7 +553,7 @@ export { EXIT_PRESETS };
 if (process.env.NODE_ENV !== "production") {
   for (const mode of ["practice", "real"] as const) {
     const statsTotal = round(computeExitStats(closedTrades.filter((x) => x.mode === mode)).reduce((a, r) => a + r.totalPnlSol, 0), 3);
-    const overviewTotal = round(seedStrategies.filter((x) => x.mode === mode).reduce((a, x) => a + x.realizedPnlSol, 0), 3);
+    const overviewTotal = round(seedStrategies.filter((x) => x.mode === mode).reduce((a, x) => a + (x.realizedPnlSol ?? 0), 0), 3);
     console.assert(Math.abs(statsTotal - overviewTotal) < 0.002, `[mock] exit stats (${statsTotal}) ≠ overview realized (${overviewTotal}) for ${mode}`);
   }
 }

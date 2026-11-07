@@ -104,6 +104,31 @@ test("closed ledger pages by keyset: newest first, no duplicates, cursor ends", 
   }
 });
 
+test("overview path: an unreported figure stays null (em dash) and never creates a total", () => {
+  const r = pnlReport({ realized: null, unrealized: null, openPositions: null, trades: 0, wins: 0 });
+  assert.equal(r.realized, null);
+  assert.equal(r.unrealized, null);
+  assert.equal(r.total, null, "two missing parts must not sum to 0");
+  assert.equal(r.openPositions, null, "no overview snapshot yet is unknown, not 0 open");
+  const partial = pnlReport({ realized: 0.4, unrealized: null, openPositions: 1, trades: 0, wins: 0 });
+  assert.equal(partial.total, null, "one missing part must not be read as 0");
+  const flat = pnlReport({ realized: 0, unrealized: 0, openPositions: 0, trades: 0, wins: 0 });
+  assert.equal(flat.total, 0, "a reported 0 is a real flat result");
+});
+
+test("summary path: a missing open count stays unknown", () => {
+  const r = pnlReportFromSummary({ realizedPnlSol: 0.1, unrealizedPnlSol: 0, totalPnlSol: 0.1, closedCount: 1, winCount: 1, winRatePct: 100 }, null);
+  assert.equal(r.openPositions, null);
+});
+
+test("an invalid ledger cursor is a CURSOR_INVALID error the page can recover from", async () => {
+  const { mockApi } = await import("../mock/index.ts");
+  await assert.rejects(
+    () => mockApi.listClosedTradesPage({ mode: "practice", window: "all", limit: 5, cursor: "not-a-uuid" }),
+    (e: unknown) => (e as Error).message === "CURSOR_INVALID",
+  );
+});
+
 test("a filter change drops the ledger cursor (keyset position is not filter-bound)", async () => {
   const { pnlFilterQuery } = await import("../pnl-report.ts");
   // Page 2 of 7d is an opaque (closed_at, id) position; switching range must start the new ledger at page 1,

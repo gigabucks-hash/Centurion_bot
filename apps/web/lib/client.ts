@@ -157,17 +157,15 @@ export async function closePositionClient(p: OpenPosition, sellPct: number): Pro
 
 // --- Mode, strategies (app routes) ------------------------------------------------------
 
-async function post<T>(url: string, body: unknown): Promise<T> {
-  return (await request<T>(url, { body })).data;
-}
-
 /**
- * Per-strategy Paper/Real switch (replaces the global workspace toggle). MOCK-ONLY route: contracts 1.1.6 has no
- * switch endpoint yet. If-Match rev + Idempotency-Key; 403 MODE_NOT_ALLOWED while the strategy is not approved for Real.
+ * Per-strategy Paper/Real switch (replaces the global workspace toggle).
+ * `POST /strategies/{id}/mode` with `If-Match: "<rev>"` + Idempotency-Key; the 2.5 s hold stays a client gesture
+ * (hold_ms is not sent). 200 → strategy wire; 403 MODE_NOT_ALLOWED → throws ApiError (show inline);
+ * 409 STRATEGY_REV_CONFLICT → throws (refresh). Mock mode answers the same shape from the BFF; http is proxied.
  */
-export async function setStrategyModeClient(strategyId: string, mode: TradingMode, rev: number, holdMs = 0): Promise<{ mode: TradingMode; rev: number }> {
-  const { data } = await request<{ mode: TradingMode; rev: number }>(`/api/mock/strategies/${encodeURIComponent(strategyId)}/mode`, {
-    method: "POST", body: { mode, ...(holdMs ? { hold_ms: Math.round(holdMs) } : {}) }, headers: { "If-Match": `"${rev}"` },
+export async function setStrategyModeClient(strategyId: string, mode: TradingMode, rev: number): Promise<{ mode: TradingMode; rev: number }> {
+  const { data } = await request<StrategyWire>(`/strategies/${encodeURIComponent(strategyId)}/mode`, {
+    body: { mode }, headers: { "If-Match": `"${rev}"` },
   });
   return { mode: data.mode, rev: data.rev };
 }

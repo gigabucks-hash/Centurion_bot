@@ -15,6 +15,7 @@ import type { DashboardApi } from "./api";
 import { approvalFromWire, closedTradeFromWire, coinSummaryFromWire, pnlSummaryFromWire, realGateFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings, lamportsToSolNumber, MOCK_SOL_USD } from "./contracts";
 import { ACCESS_COOKIE, WORKSPACE_COOKIE } from "./auth/cookies";
 import { ApiError, toApiError } from "./errors";
+import { tradingFromWire, type TradingWire } from "./trading";
 import { blankSettings } from "./strategy-schema";
 import type { CoinSummary, CoinMeta, CoinTrail, EquityPoint, OpenPosition, Position, Strategy, TradeEvent, TradingMode, WorkspaceOverview } from "./types";
 
@@ -97,10 +98,12 @@ interface StrategyWire extends Partial<StrategyRealGateFields> {
 function strategyFromWire(w: StrategyWire): Strategy {
   const fb = { ...blankSettings(), mode: w.mode };
   const ts = (s?: string) => (s ? Date.parse(s) : 0);
+  // The reads wire carries no per-strategy stats yet. Unknown stays null (em dash); never a fabricated 0.
+  const stat = (k: string): number | null => (w.stats && typeof w.stats[k] === "number" ? (w.stats[k] as number) : null);
   return {
     id: w.id, name: w.name, mode: w.mode, ...realGateFromWire(w), status: w.status, rev: w.rev, settings: { ...settingsFromWire(w.settings, fb), mode: w.mode },
-    openPositions: w.stats?.open_positions ?? 0, realizedPnlSol: 0, unrealizedPnlSol: 0, trades: w.stats?.trades ?? 0, wins: w.stats?.wins ?? 0,
-    maxDrawdownPct: w.stats?.max_drawdown_pct ?? 0, avgHoldSeconds: w.stats?.avg_hold_seconds ?? 0, pnlSpark: [],
+    openPositions: stat("open_positions"), realizedPnlSol: stat("realized_pnl_sol"), unrealizedPnlSol: stat("unrealized_pnl_sol"), trades: stat("trades") ?? 0, wins: stat("wins") ?? 0,
+    maxDrawdownPct: stat("max_drawdown_pct") ?? 0, avgHoldSeconds: stat("avg_hold_seconds") ?? 0, pnlSpark: [],
     funnel: { scanned: 0, filtered: 0, signaled: 0, entered: 0, exited: 0, rejections: [] }, createdAt: ts(w.created_at), updatedAt: ts(w.updated_at),
   };
 }
@@ -191,9 +194,10 @@ export const httpApi: DashboardApi = {
     const list = strategies.map(strategyFromWire);
     const start = Number(BigInt(ws.data.practice_start_lamports ?? "30000000000") / 1_000_000_000n);
     const cash = lamportsToSolNumber(row?.cash_lamports) ?? start;
-    const inPositions = lamportsToSolNumber(row?.positions_cost_lamports) ?? 0;
-    const realized = lamportsToSolNumber(row?.realized_pnl_lamports) ?? 0;
-    const unrealized = lamportsToSolNumber(row?.unrealized_pnl_lamports) ?? 0;
+    // Before the first snapshot the tile is unknown, not zero: the PnL card must not read "flat 0.00".
+    const inPositions = lamportsToSolNumber(row?.positions_cost_lamports);
+    const realized = lamportsToSolNumber(row?.realized_pnl_lamports);
+    const unrealized = lamportsToSolNumber(row?.unrealized_pnl_lamports);
     const ts = row?.ts ? Date.parse(row.ts) : Date.now();
     const equity = lamportsToSolNumber(row?.equity_lamports);
     const running = list.filter((s) => s.status === "running");
@@ -201,8 +205,8 @@ export const httpApi: DashboardApi = {
     const equityCurve: EquityPoint[] = equity != null ? [{ t: ts, equitySol: equity }] : [];
     return {
       id: ws.data.id, name: ws.data.name, mode, walletConnected: false,
-      startingCashSol: start, cashSol: cash, inPositionsSol: inPositions, realizedPnlSol: realized, unrealizedPnlSol: unrealized,
-      openPositions: row?.open_positions ?? 0,
+      startingCashSol: start, cashSol: cash, inPositionsSol: inPositions ?? null, realizedPnlSol: realized ?? null, unrealizedPnlSol: unrealized ?? null,
+      openPositions: row?.open_positions ?? null,
       openPositionsCap: running.reduce((n, s) => n + s.settings.sizing.maxOpen, 0),
       runningStrategies: running.length, pausedStrategies: list.filter((s) => s.status === "paused").length,
       lossStopPct: running.reduce((n, s) => Math.max(n, s.settings.sizing.lossStopPct), 0),
@@ -277,6 +281,9 @@ export const httpApi: DashboardApi = {
         return Array.isArray(data.items) ? data.items : [];
       } catch (e) {
         if (e instanceof ApiError && (e.code === "NOT_FOUND" || e.code === "VALIDATION_FAILED")) return [];
+        // Paper-only deployments refuse Real reads (403 REAL_SOL_DISABLED / MODE_NOT_ALLOWED): that is an empty
+        // probe, not a page error. A failure on the practice probe still surfaces.
+        if (mode === "real" && e instanceof ApiError) return [];
         throw e;
       }
     };
@@ -389,6 +396,7 @@ export const httpApi: DashboardApi = {
     }
     return approvalFromWire((await req<ApprovalWire>(await wsPath(`/approvals/${encodeURIComponent(id)}`))).data);
   },
+  getTrading: async () => tradingFromWire((await req<TradingWire>(await wsPath("/trading"))).data),
 };
 
 function coinRows(rows: RawCoin[], picks: PickRow[], strategies: StrategyWire[], mode: TradingMode): CoinSummary[] {
@@ -457,8 +465,8 @@ function trailPositionFromWire(w: PositionWire): Position {
     openedAt: Date.parse(w.opened_at),
     ...(w.closed_at ? { closedAt: Date.parse(w.closed_at) } : {}),
     ...(w.exit_reason ? { exitReason: w.exit_reason } : {}),
-    pnlSol: lamportsToSolNumber(w.pnl_lamports) ?? NaN,
-    pnlPct: w.pnl_pct ?? NaN,
+    pnlSol: lamportsToSolNumber(w.pnl_lamports) ?? null,
+    pnlPct: w.pnl_pct ?? null,
     markUnknown: w.status === "open",
   };
 }

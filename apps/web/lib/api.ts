@@ -23,6 +23,7 @@ import type {
   StrategySettings,
   TradeEvent,
   TradingMode,
+  TradingState,
   WorkspaceOverview,
 } from "@/lib/types";
 import { httpApi } from "./http-api";
@@ -51,6 +52,8 @@ export interface DashboardApi {
   listClosedTradesPage(filter: PnlFilter): Promise<{ items: ClosedTrade[]; nextCursor: string | null }>;
   listApprovals(mode: TradingMode): Promise<Approval[]>;
   decideApproval(id: string, decision: ApprovalDecision): Promise<Approval>;
+  /** Workspace-wide buy switch (Stop buying) + optimistic rev. */
+  getTrading(): Promise<TradingState>;
 }
 
 export type DataSource = "mock" | "http";

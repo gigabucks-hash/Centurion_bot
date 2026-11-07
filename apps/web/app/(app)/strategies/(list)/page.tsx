@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Copy, Pencil, Plus } from "lucide-react";
 import { getApi } from "@/lib/api";
+import { DEFAULT_TRADING } from "@/lib/trading";
 import { listAllStrategies } from "@/lib/mode";
 import type { Strategy, TradingMode } from "@/lib/types";
 import { cn } from "@/components/ui";
@@ -12,6 +13,7 @@ import { ApprovalModeBadge, StatusBadge, StrategyModeChips } from "@/components/
 import { getT, getFmt } from "@/lib/i18n/server";
 import { Funnel } from "@/components/Funnel";
 import { StrategyStatusActions } from "@/components/strategy/StrategyStatusActions";
+import { BuyingPausedBanner } from "@/components/BuyingPausedBanner";
 
 export const metadata: Metadata = { title: "Strategies" };
 
@@ -55,7 +57,7 @@ async function List({ all, filter }: { all: Strategy[]; filter: Filter }) {
               {s.settings.screener.streams.map((st) => <Badge key={st}>{st === "curve" ? t("builder.bonding") : t("builder.graduated")}</Badge>)}
               <Badge tone="brand">{t("strategies.exit", { plan })}</Badge>
               <Badge>{t("strategies.perTrade", { amount_lamports: f.amount(s.settings.sizing.tradeSol) })}</Badge>
-              <Badge>{t("strategies.open", { n: s.openPositions, max: s.settings.sizing.maxOpen })}</Badge>
+              <Badge>{t("strategies.open", { n: s.openPositions ?? "—", max: s.settings.sizing.maxOpen })}</Badge>
               <Badge tone="guard">{t("strategies.guard", { preset: t(`guardPreset.${s.settings.guard.preset}`) })}</Badge>
             </div>
             {s.funnel.rejections.length > 0 && (
@@ -115,10 +117,11 @@ async function Header({ all, filter }: { all: Strategy[]; filter: Filter }) {
 }
 
 async function Page({ searchParams }: { searchParams: PageProps<"/strategies">["searchParams"] }) {
-  const [all, sp] = await Promise.all([listAllStrategies(getApi()), searchParams]);
+  const [all, sp, trading] = await Promise.all([listAllStrategies(getApi()), searchParams, getApi().getTrading().catch(() => DEFAULT_TRADING)]);
   const filter = filterOf(sp.mode);
   return (
     <>
+      <BuyingPausedBanner trading={trading} />
       <Header all={all} filter={filter} />
       <List all={all} filter={filter} />
     </>

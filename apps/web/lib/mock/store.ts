@@ -4,9 +4,9 @@
  */
 import type { Approval, ApprovalDecision, OpenPosition, PublishResult, RiskLevel, Strategy, StrategySettings, TradingMode } from "@/lib/types";
 import { diffSettings, validate, weakensGuard } from "@/lib/strategy-schema";
-import { APPROVAL_REJECT_REASONS, approvalToWire, realGateToWire, settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
+import { APPROVAL_REJECT_REASONS, approvalToWire, MOCK_SOL_USD, realGateToWire, settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
 import type { ApprovalDecisionRequest, ErrorCode } from "@centurion/contracts/wire";
-import { coinSummaries, realGateFor, seedStrategies, trails } from "./data";
+import { closedTrades, coinSummaries, realGateFor, seedStrategies, trails, type ClosedTrade as LedgerRow } from "./data";
 
 /** Error carrying a contract error code (errors.json); the BFF turns it into the wire error body. */
 export class WireError extends Error {
@@ -46,6 +46,10 @@ interface State {
   /** Last change per strategy (who/when), for the 409 body. */
   lastChange?: Record<string, { by: { actor: string; via: "web" | "mobile"; device?: string }; at: number; fields: string[] }>;
   practice?: { epoch: number; lastResetAt: number | null };
+  /** Positions opened by approving a buy pick in this mock session (D4: one snapshot feeds every screen). */
+  createdPositions?: OpenPosition[];
+  /** Manual 100 % closes appended to the ledger (D4: /pnl reads the same snapshot as /positions). */
+  manualCloses?: LedgerRow[];
 }
 
 const g = globalThis as unknown as { __centurionMock?: State };
@@ -270,14 +274,16 @@ export function strategyToWire(s: Strategy) {
 }
 
 /**
- * Per-strategy mode switch (mock BFF only; contracts 1.1.6 defines the mode + Real gate fields but NO switch route,
- * see app/api/strategy-mode). Rules mirrored from the contract and UX v2:
- * - to Real: `403 MODE_NOT_ALLOWED` ("strategy not approved for Real") while `real_locked`; else a 2.5 s hold
- *   (`HOLD_TOO_SHORT`) and the current rev (`STRATEGY_REV_CONFLICT`); bumps rev.
- * - to Paper: always allowed (safe direction), rev checked, bumps rev.
- * Open positions keep their original mode (only new entries use the new mode).
+ * Per-strategy mode switch, mirroring the paper backend `POST /strategies/{id}/mode`:
+ * - rev required (`428 PRECONDITION_REQUIRED`), stale rev → `409 STRATEGY_REV_CONFLICT` with merge data.
+ * - same mode → 200, no rev bump.
+ * - practice → real: ALWAYS `403 MODE_NOT_ALLOWED` while this phase is paper-only, with `real_locked_reason`
+ *   (the client shows it inline). Archived strategies are retired.
+ * - real → practice: allowed, rev + 1.
+ * The 2.5 s hold is a client-side gesture and is NOT sent (`hold_ms` is not part of the route body).
+ * Open positions keep their original mode; only new entries use the new mode.
  */
-export function setStrategyMode(id: string, mode: TradingMode, expectedRev: number | null, holdMs = 0, now = Date.now()): Strategy {
+export function setStrategyMode(id: string, mode: TradingMode, expectedRev: number | null, now = Date.now()): Strategy {
   const s = state().strategies.find((x) => x.id === id);
   if (!s) throw wireErr("NOT_FOUND");
   if (s.status === "archived") throw wireErr("STRATEGY_RETIRED");
@@ -285,8 +291,12 @@ export function setStrategyMode(id: string, mode: TradingMode, expectedRev: numb
   if (expectedRev !== s.rev) throw wireErr("STRATEGY_REV_CONFLICT", undefined, conflictBody(s, expectedRev));
   if (s.mode === mode) return { ...s };
   if (mode === "real") {
-    if (s.realLocked) throw wireErr("MODE_NOT_ALLOWED", { strategy_id: s.id, real_locked_reason: s.realLockedReason ?? "other" });
-    if (holdMs < HOLD_MS.real) throw wireErr("HOLD_TOO_SHORT", { hold_ms: HOLD_MS.real });
+    throw wireErr("MODE_NOT_ALLOWED", {
+      strategy_id: s.id,
+      reason: "real_locked",
+      real_locked_reason: s.realLockedReason ?? "needs_owner_approval",
+      hint: "Real trading needs owner approval; this build stays in Paper.",
+    });
   }
   Object.assign(s, { mode, settings: { ...s.settings, mode }, rev: s.rev + 1, updatedAt: now });
   revs(s.id)[s.rev] = structuredClone(s.settings);
@@ -482,6 +492,7 @@ export function decideApproval(id: string, d: ApprovalDecision, now = Date.now()
     }
   }
   a.auditId = audit(a, "approve", now);
+  if (a.kind === "buy_pick") openFromApproval(a, now);
   return { ...a };
 }
 
@@ -625,7 +636,7 @@ export function getTrailMode(mint: string): TradingMode | null {
 
 export function listOpenPositions(mode: TradingMode): OpenPosition[] {
   const st = state();
-  return trails
+  const seeded = trails
     .filter((t) => t.mode === mode)
     .flatMap((t) =>
       t.positions
@@ -634,14 +645,60 @@ export function listOpenPositions(mode: TradingMode): OpenPosition[] {
           const strat = st.strategies.find((s) => s.id === t.strategyId);
           return {
             key: p.key, strategyId: t.strategyId, strategyName: t.strategyName, mode: t.mode, mint: t.coin.mint, symbol: t.coin.untrusted.symbol,
-            solIn: p.solIn, entryPriceUsd: p.entryPriceUsd, nowPriceUsd: p.entryPriceUsd * (1 + p.pnlPct / 100), pnlSol: p.pnlSol, pnlPct: p.pnlPct, openedAt: p.openedAt,
+            solIn: p.solIn, entryPriceUsd: p.entryPriceUsd, nowPriceUsd: p.entryPriceUsd * (1 + (p.pnlPct ?? 0) / 100), pnlSol: p.pnlSol ?? 0, pnlPct: p.pnlPct ?? 0, openedAt: p.openedAt,
             soldPct: st.sold[p.key] ?? 0, stopLossPct: strat?.settings.exit.stopLossPct ?? 0, trailingPct: strat?.settings.exit.trailingPct ?? 0,
             ...(t.screenerState ? { screenerState: t.screenerState } : {}),
             rev: st.posRev?.[p.key] ?? 1, decimals: t.coin.decimals, tokenProgram: t.coin.tokenProgram, practiceEpoch: t.mode === "practice" ? practiceState().epoch : 0,
           };
         }),
-    )
-    .sort((a, b) => b.openedAt - a.openedAt);
+    );
+  // D4: approvals approved this session add rows to the very same list the dashboard counts.
+  const created = (st.createdPositions ?? [])
+    .filter((p) => p.mode === mode)
+    .map((p) => ({ ...p, soldPct: st.sold[p.key] ?? p.soldPct, rev: st.posRev?.[p.key] ?? p.rev }))
+    .filter((p) => p.soldPct < 100);
+  return [...seeded, ...created].sort((a, b) => b.openedAt - a.openedAt);
+}
+
+/** D4: the closed ledger every mock screen reads (seeded rows + manual 100 % closes from this session). */
+export function listClosedLedger(): LedgerRow[] {
+  return [...closedTrades, ...(state().manualCloses ?? [])];
+}
+
+/**
+ * D4: one snapshot per read. Overview, /positions and /pnl all derive from this, so counts and SOL can never
+ * disagree after an approve or a 100 % manual sell.
+ */
+export function snapshot(mode: TradingMode) {
+  const positions = listOpenPositions(mode);
+  return {
+    positions,
+    closes: listClosedLedger().filter((t) => t.mode === mode),
+    inPositionsSol: Math.round(positions.reduce((a, p) => a + p.solIn * (1 - p.soldPct / 100), 0) * 1e9) / 1e9,
+    unrealizedSol: Math.round(positions.reduce((a, p) => a + p.pnlSol * (1 - p.soldPct / 100), 0) * 1e9) / 1e9,
+    realizedSol: Math.round(listClosedLedger().filter((t) => t.mode === mode).reduce((a, t) => a + (t.pnlSol ?? 0), 0) * 1e9) / 1e9,
+  };
+}
+
+/** D4: an approved buy pick becomes a live position in the same mutable store. */
+function openFromApproval(a: Approval, now: number) {
+  if (!a.strategyId || !a.mint || !a.amountSol) return;
+  const st = state();
+  st.createdPositions ??= [];
+  const key = `approval:${a.id}`;
+  if (st.createdPositions.some((p) => p.key === key)) return;
+  const strat = st.strategies.find((s) => s.id === a.strategyId);
+  const meta = trails.find((t) => t.coin.mint === a.mint)?.coin;
+  if (!strat || !meta) return;
+  const priceSol = Number(a.quote?.priceSol ?? 0);
+  const entryUsd = priceSol > 0 ? priceSol * MOCK_SOL_USD : 0.000004 * MOCK_SOL_USD;
+  st.createdPositions.push({
+    key, logoHash: meta.logoHash ?? null, strategyId: strat.id, strategyName: strat.name, mode: a.mode,
+    mint: meta.mint, symbol: meta.untrusted.symbol, solIn: a.amountSol, entryPriceUsd: entryUsd, nowPriceUsd: entryUsd, pnlSol: 0, pnlPct: 0,
+    openedAt: now, soldPct: 0, rev: 1, decimals: meta.decimals, tokenProgram: meta.tokenProgram,
+    practiceEpoch: a.mode === "practice" ? practiceState().epoch : 0,
+    stopLossPct: strat.settings.exit.stopLossPct, trailingPct: strat.settings.exit.trailingPct,
+  });
 }
 
 /**
@@ -666,5 +723,20 @@ export function closePosition(key: string, expectedRev: number | null, fractionB
   st.sold[key] = fractionBps >= 10_000 ? 100 : Math.min(100, pos.soldPct + remaining * (fractionBps / 10_000));
   st.posRev ??= {};
   st.posRev[key] = pos.rev + 1;
+  // D4: a 100 % manual sell closes the position AND appends its realized row to the same ledger /pnl reads.
+  if (st.sold[key] >= 100) {
+    st.manualCloses ??= [];
+    if (!st.manualCloses.some((c) => c.id === key)) {
+      const share = remaining / 100; // only the part still open at this call
+      const pnl = Math.round(pos.pnlSol * share * 1e9) / 1e9;
+      const solIn = Math.round(pos.solIn * share * 1e9) / 1e9;
+      st.manualCloses.push({
+        id: key, strategyId: pos.strategyId, mode: pos.mode, mint: pos.mint, symbol: pos.symbol,
+        logoHash: pos.logoHash ?? null, solInSol: solIn, solOutSol: Math.round((solIn + pnl) * 1e9) / 1e9, feesSol: 0,
+        pnlSol: pnl, pnlPct: pos.pnlPct, holdSeconds: Math.max(0, Math.round((now - pos.openedAt) / 1000)),
+        reason: "manual", closedAt: now,
+      });
+    }
+  }
   return { before, after: { ...pos, soldPct: st.sold[key], rev: pos.rev + 1 }, fractionBps, at: now };
 }
