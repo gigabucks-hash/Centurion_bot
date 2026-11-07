@@ -1,8 +1,8 @@
 # QA plan v1 — paper trading end to end
 
-**Owner:** Product Tester · **For:** Apex Dev Lead · **Version:** 1.2 (6 Nov 2026, 09:35 WIB)
-**Scope:** web, desktop, mobile against the mock data source. Paper only; no secrets, no deploy, no app-code change.
-**Branch under test:** `HEAD = origin/main = eaa561e` plus the uncommitted fix set (web 8 files, desktop 17, mobile 20, backend 14).
+**Owner:** Product Tester · **For:** Apex Dev Lead · **Version:** 1.3 (7 Nov 2026, WIB)
+**Scope:** web paper surface against mock plus a local HTTP decoder harness. Paper only; no secrets, no deploy, no app-code change.
+**Branch under test:** `HEAD = origin/main = 025e488` plus the shared uncommitted web/backend fix tree (not included in the HEAD claim). The QA agent changed only this document.
 **Invariants under test:** integer lamports server-side; clients never re-sum totals; one workspace mode per read;
 WIB (GMT+7) times; sign + label on every PnL; null → em dash; token pin 0.3.4 and contracts 1.1.6 unchanged.
 
@@ -182,3 +182,141 @@ every failure has a repro above, and the fix tree is committed and pushed with a
 
 Current: **close, not signed off** — D1, D2, D3, D6, D7, F1, F2, F4, F5 closed; open are D4 (P2), D5 (P2),
 D8 (P3), D9 (P3), F3 on mobile (P3). No P1 left.
+
+
+## 8. QA v1.3 web-paper re-run — HEAD 025e488
+
+This section is additive; §1–§7 retain the v1.2 history. Visual checks used the running mock build at `http://localhost:3101` with the shared uncommitted web fix tree. Exact probe evidence is recorded below. A local Postgres 17 Windows service was listening on `127.0.0.1:5432`; the requested `centurion_e2e` database on `127.0.0.1:55432` was not available. The real paper API health endpoint was reachable on `:8090`/`:8080`, but authenticated SIWS was not performed because Phantom signature and owner-wallet credentials were unavailable. An isolated HTTP decoder stub on `127.0.0.1:8099` was used only to prove null rendering; it is not a paper API acceptance result.
+
+### 8.1 Gates actually run by Product Tester
+
+| Gate | Result | Evidence |
+|---|---|---|
+| `git rev-parse HEAD` | **PASS** | `025e4884f321706f8647ed5b1cc19b16fe7cd606` (`025e488`) |
+| Web production build | **PASS** | `cd apps/web; npm.cmd run build` — completed; route table included `/pnl`, `/positions`, `/strategies`, `/coins` |
+| Web HTTP mock render | **PASS** | `DATA_SOURCE=mock`, auth gate disabled, production server on `:3101`; `/pnl?window=7d` returned HTTP 200 |
+| Web visual probe | **PASS** | Playwright/Chrome, Asia/Jakarta, EN+ID, 1024/1280/1366/1440; no browser errors |
+| F1 HTTP null render harness | **PASS** | HTTP stub on `:8099`, web `DATA_SOURCE=http` on `:3102`, `/pnl?window=7d`; 3 summary em dashes and 7 null ledger cells observed |
+| Web `npm.cmd run typecheck` | **PASS** | exit 0, `next typegen` + `tsc --noEmit` |
+| Web `npm.cmd test` | **PASS** | **99 tests: 98 pass, 1 skip, 0 fail** |
+| Web `npm.cmd run lint` | **PASS** | 0 errors, 3 warnings (`CoinsVirtualList` unused `useFmt`; 2 non-literal `readFileSync` in a test) |
+| Postgres/API authenticated acceptance | **UNVERIFIED** | `:55432/centurion_e2e` unavailable; `:8090/readyz` returned 200/db ok but workspace reads returned 401 without session |
+| Docker / device / Tauri | **UNVERIFIED** | Docker executable absent; no device/emulator/Tauri runtime |
+
+### 8.2 D1–D9 and F1–F5 web checklist
+
+| ID | Result | Current evidence / repro |
+|---|---|---|
+| D1 | **PASS** | `/pnl?window=7d`; strip had 5 cells. At 1024: 3+2 cells, widths 257/257/257 and 387/387; at 1280: 5×205; 1366: 5×222; 1440: 5×237. Each cell `scrollWidth=clientWidth`; page horizontal overflow 0. EN and ID both measured. |
+| D2 | **PASS with known design deviation** | Ledger 50 rows, row height 69 px. At 1024 table `scrollWidth/clientWidth=983/774`, visible scroll hint; at 1280/1366/1440 1030/1030, 1116/1116, 1190/1190. Page overflow 0. The historical 52 px/sticky-Coin specification remains unmet, so this is a web usability PASS, not a pixel-spec closure. |
+| D3 | **PASS** | `/strategies`: `All · 7`, `Paper · 7`, `Real · 0`; zero raw `strategy.*` keys in rendered text. |
+| D4 | **PASS (mock)** | Before action dashboard and `/positions`: `2 / 21`, `0.50 paper SOL` vs `2 open`, `0.50 paper SOL`. After approving `$TIDE` (`Pending 8 → 7`, review sheet, approve button enabled), both became dashboard `3 / 21`, `0.74 paper SOL` and `/positions` `3 open`, `0.74 paper SOL`. After holding `Hold 1.2 s to sell 100%`, both returned to dashboard `2 / 21`, `0.50` and `/positions` `2 open`, `0.50`; `/pnl` newest row `TIDE`, `Manual sell`, closed count `1103`. HTTP source-of-truth path remains UNVERIFIED. |
+| D5 | **PASS (mock)** | `/strategies`: `Fresh Bonding Scout` button `Pause`; after click card text changed `Running → Paused`, rev `15 → 16`, `Resume` appeared; after Resume, `Paused → Running`, rev `16 → 17`, `Pause` returned. |
+| D6 | **PASS** | `/pnl?window=1h`: select value `1h`, group label `Closed trades in the last 1 hour`, 3 ledger rows, strip `REALIZED · 1 HOUR`. |
+| D7 | **UNVERIFIED UI / PASS code** | Mode URL fallback `/pnl?window=7d&mode=real` rendered Paper because mock had `Real · 0`; modeHref code preserves strategy/window and drops cursor. No clickable Real surface was available. |
+| D8 | **PASS** | `/positions` → first Sell → idle sheet: `Sell GLUM`, 25/50/100%, `Estimated proceeds`, `Exit plan cancelled (100%)`, `Hold 1.2 s to sell 100%`, and **no** `Released early`. A short pointer down/up then produced `Released early — nothing was sold`, proving the hint is interaction-dependent. |
+| D9 | **PASS** | ID `/pnl?window=7d`: headers exactly `Koin`, `Strategi`, `Masuk`, `Keluar`, `PnL`, `PnL %`, `Biaya (dilaporkan)`, `Masuk → keluar`, `Durasi tahan`, `Alasan exit`; no `Entry → exit`, no `Hold`, no raw `pnl.*` keys. |
+| F1 | **PASS** | HTTP null harness: `/pnl` summary showed `UNREALIZED PNL —`, `REALIZED PNL —`, `TOTAL PNL —`; ledger row showed In/Out/PnL/PnL%/Fees/Hold/Exit reason all `—`; `0.00 paper SOL` absent. Unit/repro: `docs/qa/repro/v3/f1_retest_v3.ts`. |
+| F2 | **PASS (web) / UNVERIFIED mobile** | `/pnl?window=7d` rendered the identical row time `Nov 7 · 1:10 AM → 1:11 AM` under browser timezones `Asia/Jakarta`, `UTC` and `America/New_York`, with `Amounts in paper SOL · times in WIB (GMT+7)`; formatting is independent of the device TZ. No mobile/device re-run in this assignment. |
+| F3 (web) | **PASS** | 1h control, deep URL, 3 rows and range label measured above; `24h/7d/30d/all` controls remain in source/UI. Mobile half remains outside this web assignment. |
+| F4 | **PASS (mock)** | `/pnl?window=all`: page 1 50 rows; `Older closes →` produced URL cursor and page 2 50 rows with 0 row overlap; changing select to `30d` produced `/pnl?window=30d` with cursor dropped. HTTP DB freeze remains UNVERIFIED. |
+| F5 | **FAIL (new reproducible web defect)** | `/pnl?window=7d&cursor=not-a-uuid` returned HTTP 200 shell `This page couldn’t load / A server error occurred / ERROR 827497098`; the error was not converted to a user-safe `CURSOR_INVALID` response. This is **F5-WEB-01 P3**, distinct from backend UUID validation. |
+
+### 8.3 Defect table update
+
+| ID | Sev | Status at v1.3 | Evidence |
+|---|---:|---|---|
+| D4 | P2 | **CLOSED mock / UNVERIFIED HTTP** | Single mock store values matched after approve and after full sell; see §8.2. |
+| D5 | P2 | **CLOSED mock / UNVERIFIED HTTP** | Pause/resume status and revisions changed in UI; see §8.2. |
+| D8 | P3 | **CLOSED** | Idle sell sheet had no early-release hint; hint appeared only after pointer interaction. |
+| D9 | P3 | **CLOSED** | ID ledger had no English `Entry → exit` or `Hold` headers. |
+| F3m | P3 | **OPEN / outside web scope** | Mobile device/emulator was unavailable; web F3 is closed. |
+| F5-WEB-01 | P3 | **OPEN — new** | Malformed UI cursor crashes the server-rendered page into generic Next error shell instead of a safe invalid-cursor state; repro §8.2. |
+
+**Final web open/closed list:** closed D1, D3, D4(mock), D5(mock), D6, D8, D9, F1, F2(web), F3(web), F4; code/logic closed F5 backend but **F5-WEB-01 remains open (P3)**; D2 is usability PASS with the documented 69 px/sticky deviation; D7 UI unverified because no Real strategy; F2 mobile and F3m open outside web scope; HTTP/API/DB/Phantom acceptance unverified. No new P1.
+
+## 9. Web paper acceptance (Boss DoD A–F)
+
+| DoD | Result | One command / click sequence and evidence |
+|---|---|---|
+| A — local stack | **UNVERIFIED** | `Get-NetTCPConnection` showed PostgreSQL on 5432 and `GET http://127.0.0.1:8090/readyz` 200/db ok, but requested `centurion_e2e` on 55432 was absent and no authenticated web stack was booted. |
+| B — SIWS/session | **UNVERIFIED** | Run `npm run dev` with `DATA_SOURCE=http`, open `http://localhost:3100`, click Phantom and sign. No Phantom/provider/owner signature was available; synthetic repro is not a Phantom PASS. |
+| B — dashboard | **PASS mock / UNVERIFIED HTTP** | Mock: open `/`, saw `30.00 paper SOL` start, cash, realized, open positions, pending approvals, strategies and activity. HTTP needs the SIWS session. |
+| B — approvals approve+reject | **PASS mock / UNVERIFIED HTTP** | Mock approve: `/approvals` → `Approve` → review sheet → `Approve · 0.24 paper SOL`; pending 8→7. Mock reject: `Skip` → `Skip $TIDE?` → `Skip without reason`; pending 8→7 and `Skipped· 2` after the 5 s undo window. HTTP needs API auth; not claimed. |
+| B — positions sell | **PASS mock / UNVERIFIED HTTP** | `/positions` → Sell → choose 100% → hold 1.2 s; row removed and manual close appended. HTTP needs authenticated API. |
+| B — PnL | **PASS mock + null stub / UNVERIFIED real API** | `/pnl?window=1h` gave 3 rows; `/pnl?window=all` paging was 50/page; null stub gave 3 summary em dashes and null ledger cells. |
+| B — coins/detail | **PASS mock / UNVERIFIED HTTP** | Mock `/coins`: 14 rows, `All / Passed / Rejected / Not tradeable` chips, grey `Not tradeable` rows. Detail `/coins/EGgs…BVDA`: `$PIXL · coin trail`, `USDC · not SOL`, `UNSUPPORTED_QUOTE_MINT`, `Approve — not available`, and trail steps `Screen → Guard → Entry → Buy → TP → Exit`. HTTP trail payload was not authenticated. |
+| B — practice reset | **PASS mock / UNVERIFIED HTTP** | Mock `POST /api/v1/workspaces/ws_mock/practice/reset`: first 200 `epoch 2`, `starting_balance 30 SOL`, archived 2 positions/4 pending; second immediate call 429 `RESET_COOLDOWN`, `next_allowed_at` +86400 s. HTTP API path needs an authenticated session. |
+| C — open marks/tradeability/trails/routes | **PASS mock / UNVERIFIED HTTP** | Mock UI/source exposes pause/resume, tradeability (`Not tradeable` + `UNSUPPORTED_QUOTE_MINT`), coin trail steps and marks; API route validation needs the unavailable `centurion_e2e:55432` authenticated session. |
+| D — QA closure | **PASS mock for D4/D5/D8/D9/F1** | Exact evidence in §8.2; HTTP portions remain explicitly unverified. |
+| E — smoke documentation | **PASS** | `docs/release/web-local.md` contains the 10-step five-minute click-by-click checklist; reproduced as §10 below. |
+| F — container | **UNVERIFIED** | `docker` executable/engine absent; no build claimed. |
+
+## 10. Five-minute smoke sequence (matches `docs/release/web-local.md`)
+
+1. **API health:** `curl http://127.0.0.1:8080/healthz`. Expect HTTP 200, `mode: "practice"`, `real_enabled: false`; open `http://localhost:3100` and expect sign-in.
+2. **SIWS:** click **Phantom**, approve the SIWS signature. Expect dashboard with 30 paper SOL start, cash/realized/open/pending tiles, strategies and activity.
+3. **Trading stop:** Settings → **Stop buying** → confirm. Expect **Buying paused**, WIB `Paused at`, and `GET /trading` `buys_paused:true` with bumped rev.
+4. **Trading resume:** Settings → **Resume buying** → confirm. Expect **Buying active**, paused timestamp/banner gone, rev bumped.
+5. **Approve:** Approvals → pending buy → **Approve** → review quote → hold/confirm. Expect pending count down and the new position in Positions; dashboard open count/in-position SOL equal Positions.
+6. **Sell:** Positions → row → **Sell** → 100% → hold 1.2 s. Before hold, expect no `Released early`; after a short release, expect the hint; after completed hold, row disappears and PnL gets newest `manual` close.
+7. **PnL/ID:** PnL → select `1h`, then Settings → Language → ID. Expect 1h label/rows and Indonesian headers `Masuk → keluar`, `Durasi tahan`, with no English ledger headers.
+8. **Mode lock:** Strategies → edit Paper strategy → click Real. Expect 2.5 s hold and inline `MODE_NOT_ALLOWED` / real-locked explanation; no Real trading.
+9. **Null/paging:** PnL → inspect `—` for missing money; open **Older closes**. Expect 50 rows/page, no duplicate, and filter change drops cursor.
+10. **Not in this environment:** malformed cursor should show a safe error state (currently F5-WEB-01 open); practice reset second attempt should return 429; Docker build and Phantom/API acceptance require the local stack and are not claimed here.
+
+## 11. QA v1.3 exit status
+
+**Not signed off for HTTP paper release.** Mock web D4/D5/D8/D9/F1 and the DoD approve/reject/sell/coins/reset click paths are verified; F5-WEB-01 is a new P3; Phantom, authenticated API/DB, container, and mobile/device evidence remain unverified. Lead must merge the shared web/backend paths, rerun `npm run ci`, and fix F5-WEB-01 before HTTP sign-off.
+
+## 12. Lead final pass — web + paper API over HTTP (2026-11-07)
+
+Scope: the shared tree above v1.3 (backend mode-switch route + migration 0026, web mode/Stop wiring, null-money fixes,
+F5-WEB-01 fix). Stack: Postgres 17 `centurion_e2e` on `127.0.0.1:55432`, paper API on `:8090`, web `next start`
+`DATA_SOURCE=http` on `:3100`. Login used a synthetic ed25519 **owner** wallet through the real SIWS nonce/verify
+endpoints (the same wire Phantom uses); the Phantom extension UI itself was not driven.
+
+### 12.1 End-to-end result
+
+`e2e-web-smoke.mjs` (Lead scratch, not committed): **35/35 checks pass**.
+
+| Area | Check and observed result |
+|---|---|
+| Session | SIWS nonce 200, verify 200, `centurion_at` + `centurion_ws` cookies set for workspace `0f6c55d4…` |
+| Pages | `/`, `/positions`, `/pnl?window=7d`, `/pnl?window=1h`, `/coins`, `/strategies`, `/activity`, `/stats`, `/settings` all 200 without an error shell |
+| Marks | open row with mark 0.30 → `unrealized_pnl_lamports=100000000`; USDC-quoted open row keeps `unrealized=null` (em dash, not 0) |
+| Tradeability | `/coins` rows carry booleans; one row `tradeable=false` `UNSUPPORTED_QUOTE_MINT`; coin detail renders the chip |
+| PnL | `/stats/pnl` 200 realized `1010000000`; closed ledger 3 rows; coin timeline 3 items |
+| Approvals | 2 pending; approve 200 `approved`; same-token replay 200 `replayed=true`; approve→reject 409 `APPROVAL_ALREADY_DECIDED`; reject 200 `rejected` |
+| Workspace Stop | `GET /trading` 200; pause 200 `buys_paused=true`; resume 200 `false` (both with `If-Match` + idempotency) |
+| Strategy | pause 200 `paused`; resume 200 `running`; `practice → real` 403 `MODE_NOT_ALLOWED` |
+| Sell | manual close 50 % 200 (order `manual_close`) |
+| D4 (http) | `portfolio/overview.open_positions` == `/positions?state=open` length (2) |
+| Reset | first 200, second 429 `RESET_COOLDOWN` |
+
+### 12.2 F5-WEB-01 — CLOSED
+
+`GET /pnl?cursor=not-a-uuid` now answers **200**, renders the page with a `pnl-cursor-reset` status note
+(`apiError.CURSOR_INVALID`), and falls back to the first ledger page. No `This page couldn't load` / `ERROR …` shell.
+Unit coverage: `apps/web/lib/__tests__/pnl-report.test.ts` ("an invalid ledger cursor is a CURSOR_INVALID error…").
+
+### 12.3 Null-money defects from BUG_HUNT_v3
+
+| ID | Status | Fix |
+|---|---|---|
+| V3-P1-COIN-REAL | CLOSED | Real timeline probe swallows paper-only 403; coin detail renders both fixtures |
+| V3-P2-OVERVIEW-NULL | CLOSED | Overview money/open count stay `null`; dashboard tiles print em dash |
+| V3-P2-STRATEGY-STATS | CLOSED | Strategy stats absent on the wire stay `null` (no hardcoded 0) |
+| V3-P3-TRAIL-PNL | CLOSED | Dashboard trail link drops unknown PnL instead of `0.00` |
+| V3-P3-USD-DERIVED | CLOSED | HTTP open positions set `priceUnknown`; USD cells render em dash |
+| V3-P3-MOCK-PAUSE | CLOSED | Mock Stop no longer flips `agentTradeEnabled`; test updated to API semantics |
+| V3-P3-EXIT-NULL | CLOSED | `pnlReport`/summary paths keep null parts null; total only when both parts reported |
+
+### 12.4 DoD A–F after this pass
+
+A **PASS (local)** — DB + migrations through 0026, API `:8080`/`:8090`, web http `:3100`, SIWS owner workspace.
+B **PASS (HTTP, synthetic owner)** — all surfaces in §12.1. Phantom *extension* click-through remains UNVERIFIED.
+C **PASS (HTTP)** — open marks, coin trail, Stop/pause/resume, per-strategy mode switch, tradeable chip.
+D **PASS** — D4/D5/D8/D9/F1 closed in mock and D4/D5 also exercised over HTTP; F5-WEB-01 closed.
+E **PASS** — `docs/release/web-local.md` now has the exact fast path plus the 10-step checklist.
+F **UNVERIFIED** — no Docker engine on this machine; build not claimed.
