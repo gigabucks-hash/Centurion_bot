@@ -19,9 +19,14 @@ npm run dev                 # browser-only UI with the built-in mock adapter (ht
 cargo tauri dev             # full desktop app
 npm run build               # typecheck + Vite build
 (cd src-tauri && cargo check && cargo test)
-cargo tauri build --bundles deb   # unsigned Linux release (MVP) → src-tauri/target/release/bundle/deb/Centurion Trade_0.1.0_amd64.deb
+cargo tauri build --bundles nsis,msi   # Windows installers → src-tauri/target/release/bundle/{nsis,msi}
+cargo tauri build --bundles deb,appimage   # Linux installers (unsigned)
 npm run sync:tokens         # pull tokens from packages/design-tokens (falls back to the embedded copy)
 ```
+
+App updates: the installed Windows app checks the latest GitHub release from
+Settings → App update. See `docs/release/desktop.md` for the `desktop-vX.Y.Z` release steps, the
+signing secrets and troubleshooting. macOS is not a target.
 
 ## Keys
 | Key | Action |
@@ -92,7 +97,7 @@ Practice reset is limited to once per 24 h. A second reset gets `429 RESET_COOLD
 - Linux app-shortcut action (right-click the launcher): **Stop trading** = `centurion --stop` (binary keeps the internal name; package `centurion-trade`).
   A running instance receives it through single-instance argv.
 - Every path only opens the confirm dialog. Pausing happens in one Rust command, `stop_trading(mode, source, confirm="STOP")`.
-- Windows jump list / macOS dock menu: not buildable here (see ARCHITECTURE §12 D17). Both would run the same `--stop` argv.
+- Windows jump list: not buildable here (see ARCHITECTURE §12 D17).
 
 ## Wallet login (SIWS) — backend mode only
 `CENTURION_BACKEND=<url>` without `CENTURION_BACKEND_TOKEN` → wallet login through the **system browser** (`CENTURION_LOGIN_URL`,

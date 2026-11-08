@@ -12,7 +12,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { runtime } from "../api";
 import { useT } from "../i18n";
-import { applyDownloadEvent, compareVersions, formatBytes, progressPct, type UpdateProgress } from "./updateCheck";
+import { applyDownloadEvent, compareVersions, formatBytes, isNoReleaseError, progressPct, type UpdateProgress } from "./updateCheck";
 
 type Phase = "idle" | "checking" | "current" | "available" | "downloading" | "installing" | "error";
 
@@ -107,7 +107,13 @@ export function UpdateSection() {
           </span>
         )}
         {phase === "installing" && <span className="dim">{t("desktop.update.installing")}</span>}
-        {phase === "error" && <span className="neg" data-testid="update-error">{t("desktop.update.error", { message: err ?? "" })}</span>}
+        {phase === "error" && (
+          <span className="neg" data-testid="update-error" title={err ?? undefined}>
+            {err && isNoReleaseError(err)
+              ? t("desktop.update.no_release")
+              : t("desktop.update.error", { message: err ?? "" })}
+          </span>
+        )}
       </div>
     </div>
   );

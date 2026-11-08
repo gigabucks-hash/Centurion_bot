@@ -44,6 +44,8 @@ jobs:
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
       - run: npm ci
+      - name: version files agree (the updater compares these versions)
+        run: npm run check:versions
       - name: design tokens in sync (subset from packages/design-tokens)
         run: |
           npm run sync:tokens
@@ -173,6 +175,8 @@ jobs:
           workspaces: apps/desktop/src-tauri
       - run: npm ci
       - run: npm run sync:tokens
+      - name: release tag matches the app version
+        run: node scripts/check-versions.mjs --tag "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

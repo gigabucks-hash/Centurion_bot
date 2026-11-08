@@ -44,7 +44,7 @@ This cannot be tested on the Linux build box (Xvfb has no window manager).
 - Fallback when focus is still stolen: disable the popup and use OS notifications only.
 
 ## Post-MVP (out of MVP scope)
-- Code signing: Windows Authenticode, macOS Developer ID + notarization.
-- Tauri updater (signed update manifests, release channel).
-- Windows and macOS installers as release artifacts.
+- Code signing: Windows Authenticode (macOS was dropped from the product).
+- ~~Tauri updater (signed update manifests, release channel).~~ **Done:** `desktop-vX.Y.Z` publishes a signed Windows release with `latest.json`; Settings → App update checks, downloads and installs it.
+- Windows installers as release artifacts. **Done**; macOS installers are no longer a target.
 - **Phase 7:** Real SOL trading from the desktop (backend signer, server `expires_at`, 2.5 s hold, per-trade caps). The Real UI and guards already exist as a mock-flag-only reference (C15).

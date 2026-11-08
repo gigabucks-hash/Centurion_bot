@@ -35,6 +35,8 @@ Cargo/package versions are what the build tools stamp:
 
 Current version: **0.2.0**.
 
+CI enforces this: `npm run check:versions` runs on every desktop change, and the release job fails when the `desktop-vX.Y.Z` tag does not equal `tauri.conf.json` - otherwise the release would carry an app the updater never offers.
+
 ## Cut a release
 
 ```powershell

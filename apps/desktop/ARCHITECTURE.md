@@ -8,15 +8,14 @@
 ## 1. Goals and non-goals
 - A multi-window trading terminal with an approval queue, a chart, an activity feed, positions, native notifications and keyboard-first actions (Approve / Skip / Sell).
 - It is a **thin client**. Strategy, signing and the order flow live in the backend (Phase 3–5). The desktop never holds private keys.
-- Non-goals for the MVP: code signing, notarization, auto-updater (see §8 and §12), and Real SOL trading from the desktop (Phase 7, C15).
+- Non-goals for the MVP: code signing, notarization, and Real SOL trading from the desktop (Phase 7, C15).
 
 ## 2. Monorepo layout
 ```
 /workspace/centurion
 ├── apps/desktop          ← this app (Tauri v2 + React)
-├── apps/web              (placeholder — Web team)
-├── apps/mobile           (placeholder — Flutter team)
-├── packages/design-tokens (placeholder — UX team)
+├── apps/web              Next.js web app (also the phone surface)
+├── packages/design-tokens G1-blue tokens (UX)
 └── packages/contracts    ← @centurion/contracts: event/command types (desktop draft, Backend to own)
 ```
 - **Contracts:** the TS types live in `packages/contracts/src/index.ts`. The desktop imports them as `@centurion/contracts` (tsconfig `paths` + a Vite alias; no workspace install is needed). The Rust mirror stays in `src-tauri/src/model.rs`, because Rust cannot import TS. Once Backend publishes a schema (JSON Schema/OpenAPI), both sides will be generated from it (milestone W2-D6).
@@ -190,8 +189,8 @@
 - In-window hotkeys ignore key repeat and typing in inputs.
 
 ## 8. Packaging
-- Targets: deb + AppImage (Linux), msi + nsis (Windows), dmg + app (macOS).
-- **MVP ships unsigned Linux builds.** Code signing (Windows Authenticode, macOS Developer ID + notarization) and the Tauri updater are **out of MVP scope** and moved to Post-MVP (MILESTONES.md).
+- Targets: msi + nsis (Windows) and deb + AppImage (Linux). **macOS (dmg/app) was removed** — the product ships as the web app (phone-friendly) plus the Windows desktop app; `tauri.macos.conf.json` and `icon.icns` are gone.
+- **Windows is the supported release target.** Signing is still pending: there is no Authenticode certificate yet, so installers show "Unknown publisher". `desktop-vX.Y.Z` publishes a signed-updater Windows release; the in-app updater (`plugins.updater`) compares against the latest GitHub release and installs `latest.json` + the signed NSIS package, then restarts (see `docs/release/desktop.md`).
 - Release profile: LTO, `opt-level = "s"`, strip, `panic = "abort"`.
 
 ## 9. Rust plan (modules and crates)

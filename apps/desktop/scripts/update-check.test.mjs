@@ -1,7 +1,7 @@
 // Update card helpers: `npm run test:ui` (node --test strips the TS types).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyDownloadEvent, compareVersions, formatBytes, progressPct } from "../src/components/updateCheck.ts";
+import { applyDownloadEvent, compareVersions, formatBytes, isNoReleaseError, progressPct } from "../src/components/updateCheck.ts";
 
 test("compareVersions: numeric per segment, so 0.10.0 beats 0.9.0", () => {
   assert.equal(compareVersions("0.2.0", "0.1.0"), 1);
@@ -33,4 +33,11 @@ test("progress is clamped to 100 and formatted sizes are human", () => {
   assert.equal(formatBytes(900), "900 B");
   assert.equal(formatBytes(1536), "1.5 KB");
   assert.equal(formatBytes(5 * 1024 * 1024), "5.0 MB");
+});
+
+test("a missing release reads as 'no release yet', other failures keep their message", () => {
+  assert.equal(isNoReleaseError("Could not fetch a valid release JSON from the remote"), true);
+  assert.equal(isNoReleaseError("Update failed: 404 Not Found"), true);
+  assert.equal(isNoReleaseError("signature verification failed"), false);
+  assert.equal(isNoReleaseError("error sending request for url"), false);
 });

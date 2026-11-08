@@ -39,3 +39,12 @@ export function formatBytes(n: number | null): string | null {
   if (kb < 1024) return `${(kb < 10 ? kb.toFixed(1) : kb.toFixed(0))} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/**
+ * True when the check failed because no usable release exists yet: the endpoint has no
+ * `latest.json` (404) or the release does not carry the updater manifest. That is a normal state
+ * before the first `desktop-vX.Y.Z` release, so the card says so instead of showing a network error.
+ */
+export function isNoReleaseError(message: string): boolean {
+  return /404|not found|could not fetch a valid release json|release json/i.test(message);
+}
