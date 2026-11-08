@@ -28,6 +28,10 @@ docker build \
   .
 ```
 
+`NEXT_PUBLIC_SITE_URL` may be omitted: a blank value falls back to `http://localhost:3100` (a Docker
+`ARG` with no value arrives as `""`, which used to make `metadataBase` throw "Invalid URL" during the
+build). Set it to the public origin for a real deployment, because it is baked into metadata.
+
 ### Public values are build-time
 
 Next inlines every `NEXT_PUBLIC_*` value into the client bundle. Pass them as `--build-arg`; changing them at
@@ -124,9 +128,9 @@ Container logs go to stdout/stderr. Stop with `Ctrl+C` / `docker stop`.
    server-side credential must come from the platform's secret store, not the image.
 3. **TLS/reverse proxy is not provisioned.** Terminate TLS in front of the container, forward to port 3100, and
    keep `CENTURION_INSECURE_COOKIES` unset.
-4. **No image registry or CI build.** The Dockerfile is verified by a local Next standalone build only; this
-   machine has no Docker engine. The first `docker build` should be run where Docker 23+ exists, then the health
-   check and non-root user should be confirmed.
+4. **No image registry.** The image is built and booted on every `web` CI run (the `docker` job builds
+   it, waits for the container health check, and requires `GET /login` = 200), but nothing is pushed
+   anywhere. Pulling it onto a host is a deploy step that needs the host decision.
 5. **Mock state is per container.** Practice resets and session state live in memory; multiple replicas do not
    share them. Production must use the HTTP backend.
 6. **SSE through a proxy** needs buffering disabled; `NEXT_PUBLIC_REALTIME` is build-time, so enabling it later

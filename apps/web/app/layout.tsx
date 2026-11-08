@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { APP_DESCRIPTION, APP_NAME, APP_TITLE, BRAND_COLORS } from "@/lib/brand";
+import { siteUrl } from "@/lib/site-url";
 import { LOCALE_COOKIE, localeFromCookie } from "@/lib/i18n/core";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/client";
@@ -12,7 +13,7 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", 
 
 // Rebrand (Boss 2026-10-29): Centurion Trade. Private app → robots noindex; OG/Twitter for shared links only.
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3100"),
+  metadataBase: new URL(siteUrl(process.env.NEXT_PUBLIC_SITE_URL)),
   applicationName: APP_NAME,
   title: { default: APP_TITLE, template: `%s · ${APP_NAME}` },
   description: APP_DESCRIPTION,
