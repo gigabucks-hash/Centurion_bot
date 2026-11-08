@@ -131,8 +131,9 @@ and migrations `0001`–`0026` (database `centurion_webpaper`), paper API on `:8
 | Phone layout over HTTP (390×844 and 360×800) | 16 | pass — `/`, `/positions`, `/pnl`, `/strategies`, `/coins`, `/settings`, `/approvals`, `/activity`: page overflow 0, no tap target under 40 px, no error page |
 | Invalid ledger cursor | 2 | pass — `/pnl?cursor=not-a-uuid` and a foreign UUID fall back to page 1 with `200`, no error screen |
 
-Still unverified: **real Phantom** (the probes sign SIWS with a test-only ed25519 key), a deployed host with HTTPS,
-and the Docker image (no engine on this machine). The UI defects that remain are cosmetic or latent: USD cells are
+Still unverified: **real Phantom** (the probes sign SIWS with a test-only ed25519 key) and a deployed host
+with HTTPS. The production image itself is built and booted in CI (`docker` job, container `healthy`,
+`GET /login` → 200). The UI defects that remain are cosmetic or latent: USD cells are
 hidden in HTTP mode because the wire carries no SOL/USD rate, and exit-bucket aggregates still default to 0 only when
 the server sends a null (a bucket with `sol_in = 0`).
 
@@ -151,7 +152,9 @@ the server sends a null (a bucket with `sol_in = 0`).
   `manual` close so dashboard `/positions` `/pnl` agree; the paper API is the real source in http mode.
 - **Practice epoch on Settings** starts unknown in http mode: the API has no GET for the reset state, so the epoch
   line appears only after a reset (the 24 h cooldown still comes back as `429` with `next_allowed_at`).
-- **Container build** on this machine is unverified (no Docker engine); the app build itself passes.
+- **Container build** is verified in CI (`web` workflow `docker` job: image builds, container reports
+  `healthy`, `GET /login` → 200). This machine still has no Docker engine, so the same two commands
+  above are unverified locally.
 
 ## 5-minute local smoke checklist (click by click)
 
