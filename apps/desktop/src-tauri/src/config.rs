@@ -82,7 +82,8 @@ pub fn validate_backend(raw: &str) -> Result<Option<String>, String> {
         return Err("backend_scheme".into());
     };
     let host = host_of(rest);
-    if host.is_empty() || v.len() > 200 || rest.contains('@') || rest.contains(char::is_whitespace) {
+    if host.is_empty() || v.len() > 200 || rest.contains('@') || rest.contains(char::is_whitespace)
+    {
         return Err("backend_url".into());
     }
     if !tls && !is_loopback(host) {
@@ -150,14 +151,22 @@ pub fn load() -> (Connection, Option<String>) {
     let raw = match std::fs::read_to_string(&p) {
         Ok(r) => r,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return (Connection::default(), None),
-        Err(e) => return (Connection::default(), Some(format!("read {}: {e}", p.display()))),
+        Err(e) => {
+            return (
+                Connection::default(),
+                Some(format!("read {}: {e}", p.display())),
+            )
+        }
     };
     match serde_json::from_str::<Connection>(&raw) {
         Ok(c) => match c.validated() {
             Ok(c) => (c, None),
             Err(k) => (Connection::default(), Some(format!("{}: {k}", p.display()))),
         },
-        Err(e) => (Connection::default(), Some(format!("parse {}: {e}", p.display()))),
+        Err(e) => (
+            Connection::default(),
+            Some(format!("parse {}: {e}", p.display())),
+        ),
     }
 }
 
@@ -206,10 +215,22 @@ mod tests {
 
     #[test]
     fn backend_rejects_plain_http_off_loopback_and_paths() {
-        assert_eq!(validate_backend("http://paper.example.com").unwrap_err(), "backend_loopback");
-        assert_eq!(validate_backend("https://paper.example.com/v1").unwrap_err(), "backend_path");
-        assert_eq!(validate_backend("paper.example.com").unwrap_err(), "backend_scheme");
-        assert_eq!(validate_backend("http://user:pw@127.0.0.1").unwrap_err(), "backend_url");
+        assert_eq!(
+            validate_backend("http://paper.example.com").unwrap_err(),
+            "backend_loopback"
+        );
+        assert_eq!(
+            validate_backend("https://paper.example.com/v1").unwrap_err(),
+            "backend_path"
+        );
+        assert_eq!(
+            validate_backend("paper.example.com").unwrap_err(),
+            "backend_scheme"
+        );
+        assert_eq!(
+            validate_backend("http://user:pw@127.0.0.1").unwrap_err(),
+            "backend_url"
+        );
         assert_eq!(
             validate_backend(&format!("https://{}", "a".repeat(260))).unwrap_err(),
             "backend_url"
@@ -252,7 +273,10 @@ mod tests {
         .unwrap();
         assert_eq!(c.backend.as_deref(), Some("http://localhost:8080"));
         assert_eq!(c.login_page(), Some("http://localhost:3100/auth/desktop"));
-        assert_eq!(Connection::default().validated().unwrap(), Connection::default());
+        assert_eq!(
+            Connection::default().validated().unwrap(),
+            Connection::default()
+        );
     }
 
     #[test]
@@ -262,9 +286,17 @@ mod tests {
             login_url: None,
         };
         let s = serde_json::to_string(&c).unwrap();
-        assert!(!s.contains("login_url"), "None fields stay out of the file: {s}");
+        assert!(
+            !s.contains("login_url"),
+            "None fields stay out of the file: {s}"
+        );
         assert_eq!(serde_json::from_str::<Connection>(&s).unwrap(), c);
-        assert!(serde_json::from_str::<Connection>(r#"{"backend":"https://x","extra":1}"#).is_err());
-        assert_eq!(serde_json::from_str::<Connection>("{}").unwrap(), Connection::default());
+        assert!(
+            serde_json::from_str::<Connection>(r#"{"backend":"https://x","extra":1}"#).is_err()
+        );
+        assert_eq!(
+            serde_json::from_str::<Connection>("{}").unwrap(),
+            Connection::default()
+        );
     }
 }

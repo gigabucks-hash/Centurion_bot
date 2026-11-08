@@ -49,12 +49,17 @@ pub fn run() {
         Err(e) => {
             // Never pretend "connected": start on the mock and surface the reason in Settings.
             log::error!("saved backend unusable, using mock: {e}");
-            Arc::new(backend::ActiveTransport::Mock(backend::mock::MockTransport::new(skew)))
+            Arc::new(backend::ActiveTransport::Mock(
+                backend::mock::MockTransport::new(skew),
+            ))
         }
     };
     let mut engine = state::Engine::new(transport.workspace_id());
     engine.logo_origin = Some(transport.logo_origin());
-    let app_state = state::AppState { engine: Mutex::new(engine), transport };
+    let app_state = state::AppState {
+        engine: Mutex::new(engine),
+        transport,
+    };
     let conn_state = config::ConnectionState::new(conn, load_error);
 
     tauri::Builder::default()
