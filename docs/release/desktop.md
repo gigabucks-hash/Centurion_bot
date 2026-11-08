@@ -83,12 +83,15 @@ Normal `npx tauri build` stays unsigned and needs no key: `createUpdaterArtifact
 
 | Gap | Effect | Needed |
 |---|---|---|
-| No Windows Authenticode certificate | SmartScreen shows "Unknown publisher" and may block the `.exe`/`.msi` on first run | code-signing certificate (OV or EV) + `bundle.windows.certificateThumbprint` / `signCommand`, secret in CI |
+| No Windows Authenticode certificate | SmartScreen shows "Unknown publisher" and may block the `.exe`/`.msi` on first run. On a PC with **Smart App Control** on (`VerifiedAndReputablePolicyState=1`), Windows refuses to start the unsigned installer at all ("An Application Control policy has blocked this file") — there is no "Run anyway" button | code-signing certificate (OV or EV) + `bundle.windows.certificateThumbprint` / `signCommand`, secret in CI |
 | No Linux package repo | users download a file, no `apt`/`flatpak` channel | hosting decision, not a build change |
 | No macOS artifacts | none — macOS support was removed | — |
 
-Unsigned builds are fine for internal testing and for Boss's own machine; they are not distributable to
-strangers without the SmartScreen warning. The updater signature is separate from Authenticode.
+Unsigned builds are fine for internal testing **where Smart App Control is off or the app is code-signed**;
+on a default Windows 11 install with Smart App Control on, they cannot be installed at all. That blocks
+the "install once, then update" proof on such a machine until a certificate exists. The updater signature
+is separate from Authenticode and does not help here: Windows checks the installer's Authenticode
+signature before the app can run.
 
 ## Connecting the installed app to the paper API
 

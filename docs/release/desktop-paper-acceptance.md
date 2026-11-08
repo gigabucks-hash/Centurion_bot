@@ -22,6 +22,12 @@ Scope owner: Desktop. The web/API side is proven separately in [`web-local.md`](
 ## Preconditions
 
 - Windows 10/11 x64, signed-in desktop session (Credential Manager needs it).
+- **Check Smart App Control before promising an install.** Run
+  `(Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy').VerifiedAndReputablePolicyState`.
+  `1` means Smart App Control is enforcing and Windows will refuse to start an unsigned installer
+  ("An Application Control policy has blocked this file") with no Run-anyway option. Either install on a
+  PC where it is `0`, or sign the installer with Authenticode first. The Tauri updater signature does
+  not satisfy this check.
 - Installer from `https://github.com/gigabucks-hash/Centurion_bot/releases` (`desktop-v*`), or the
   MSI/NSIS artifact of a green `desktop.yml` run.
 - Paper API reachable over `https://` (or `http://127.0.0.1:<port>` for a local stack) and a paper
@@ -43,6 +49,8 @@ Where the app keeps state:
 
 1. Run the installer. SmartScreen shows **"Unknown publisher"** — expected: the installer has no
    Authenticode certificate (the updater signature is separate). Choose *More info → Run anyway*.
+   With Smart App Control enforcing there is no such button: the installer is blocked before it runs
+   (see Preconditions — that needs a certificate or a different PC).
 2. Launch from the Start menu (tray icon appears).
 3. Expected: app opens on **mock** data; Settings → Koneksi paper shows chip *Data contoh (demo)*
    and no error line. No login gate.

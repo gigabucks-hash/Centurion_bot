@@ -75,7 +75,14 @@ fn on_write_error<R: Runtime>(
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn get_snapshot(state: State<'_, AppState>) -> Snapshot {
-    state.engine.lock().unwrap().snapshot()
+    let mut s = state.engine.lock().unwrap().snapshot();
+    // The engine builds the view; only the command knows which transport is live.
+    s.source = if state.transport.base().is_some() {
+        "backend"
+    } else {
+        "mock"
+    };
+    s
 }
 
 #[tauri::command(rename_all = "snake_case")]
