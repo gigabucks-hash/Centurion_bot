@@ -64,6 +64,7 @@ export function ConnectionSection() {
     if (!b.ok) return invalid(b.error);
     const l = checkLoginUrl(login);
     if (!l.ok) return invalid(l.error);
+    if (b.value && !l.value) return setErr(t("desktop.connection.err.login_required"));
     setBusy(true);
     try {
       const r = await core.saveConnection({ backend: b.value, login_url: l.value });
@@ -119,6 +120,9 @@ export function ConnectionSection() {
         <div className="notice pending" role="status" data-testid="connection-env">{t("desktop.connection.env")}</div>
       )}
       {view?.error && <div className="neg" role="status" data-testid="connection-load-error">{view.error}</div>}
+      {view?.restart_required && (
+        <div className="notice pending" role="status" data-testid="connection-restart-required">{t("desktop.connection.restart_pending")}</div>
+      )}
       <label>
         <div className="muted">{t("desktop.connection.backend.label")}</div>
         <input

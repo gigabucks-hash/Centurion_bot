@@ -437,7 +437,7 @@ export const browserMockAdapter: CoreApi = {
   async authLogout() {},
   async connectionStatus(): Promise<ConnectionView> {
     // Browser preview has no Tauri backend: always the in-process mock, nothing saved.
-    return { active: "mock", active_backend: null, saved_backend: null, login_url: null, error: null, env_override: false };
+    return { active: "mock", active_backend: null, saved_backend: null, login_url: null, error: null, env_override: false, restart_required: false };
   },
   async saveConnection(): Promise<SaveConnectionResult> {
     return { saved: false, restart_required: false };

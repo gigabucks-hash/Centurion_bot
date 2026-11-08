@@ -17,10 +17,16 @@ export type Checked<T> = { ok: true; value: T } | { ok: false; error: Connection
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
+const isLoopback = (host: string) => LOOPBACK.has(host.toLowerCase());
+
 function schemeAndRest(url: string): { tls: boolean; rest: string } | null {
-  if (url.startsWith("https://")) return { tls: true, rest: url.slice("https://".length) };
-  if (url.startsWith("http://")) return { tls: false, rest: url.slice("http://".length) };
-  return null;
+  const m = /^(https?):\/\//i.exec(url);
+  if (!m) return null;
+  return { tls: m[1]!.toLowerCase() === "https", rest: url.slice(m[0].length) };
+}
+
+function withScheme(tls: boolean, rest: string): string {
+  return `${tls ? "https" : "http"}://${rest}`;
 }
 
 function hostOf(rest: string): string {
@@ -39,11 +45,11 @@ export function checkBackend(raw: string): Checked<string | null> {
   if (!hostOf(s.rest) || v.length > 200 || s.rest.includes("@") || /\s/.test(s.rest)) {
     return { ok: false, error: "backend_url" };
   }
-  if (!s.tls && !LOOPBACK.has(hostOf(s.rest))) return { ok: false, error: "backend_loopback" };
+  if (!s.tls && !isLoopback(hostOf(s.rest))) return { ok: false, error: "backend_loopback" };
   if (s.rest.includes("/") || s.rest.includes("?") || s.rest.includes("#")) {
     return { ok: false, error: "backend_path" };
   }
-  return { ok: true, value: v };
+  return { ok: true, value: withScheme(s.tls, s.rest) };
 }
 
 /** `""` means "use the built-in login page" and checks as ok/null. A path is allowed. */
@@ -55,8 +61,8 @@ export function checkLoginUrl(raw: string): Checked<string | null> {
   if (!hostOf(s.rest) || v.length > 300 || /\s/.test(v) || v.includes("#")) {
     return { ok: false, error: "login_url" };
   }
-  if (!s.tls && !LOOPBACK.has(hostOf(s.rest))) return { ok: false, error: "login_loopback" };
-  return { ok: true, value: v };
+  if (!s.tls && !isLoopback(hostOf(s.rest))) return { ok: false, error: "login_loopback" };
+  return { ok: true, value: withScheme(s.tls, s.rest) };
 }
 
 /** True when the saved API base differs from what this run actually uses (a restart is needed). */

@@ -743,15 +743,18 @@ pub fn connection_status(
     let env_override = std::env::var(crate::config::ENV_BACKEND)
         .map(|v| !v.trim().is_empty() && v.trim() != "mock")
         .unwrap_or(false);
+    let active_backend = state.transport.base().map(str::to_owned);
+    // True when the saved file names a different API than this run uses: a relaunch is still due.
+    let restart_required = !env_override && active_backend != saved.backend;
     serde_json::json!({
         "active": state.transport.label(),
-        "active_backend": state.transport.base(),
+        "active_backend": active_backend,
         "saved_backend": saved.backend,
         "login_url": saved.login_url,
         "error": err,
         // A launcher-set env var always wins; the card then shows "set outside the app" and save is disabled.
         "env_override": env_override,
-        "restart_required": false,
+        "restart_required": restart_required,
     })
 }
 
@@ -777,24 +780,33 @@ pub async fn save_connection<R: Runtime>(
     let next = crate::config::Connection { backend, login_url }
         .validated()
         .map_err(AppError::Invalid)?;
+    // A paper API without a sign-in page would open the placeholder `app.centuriontrade.local`,
+    // then hang until the login timeout. Refuse the save instead (unless a launcher set one).
+    let env_login = std::env::var(crate::config::ENV_LOGIN_URL)
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false);
+    if next.backend.is_some() && next.login_url.is_none() && !env_login {
+        return Err(AppError::Invalid("login_page_required".into()));
+    }
     let active = state.transport.base().map(str::to_owned);
     let backend_changed = active != next.backend;
-    if let Some(page) = next.login_page() {
-        std::env::set_var(crate::config::ENV_LOGIN_URL, page);
-    } else {
-        std::env::remove_var(crate::config::ENV_LOGIN_URL);
-    }
-    crate::config::save(&next).map_err(AppError::Invalid)?;
-    *conn.conn.lock().unwrap() = next;
-    *conn.error.lock().unwrap() = None;
     if backend_changed {
-        // Never carry a session across servers: the keychain key is fixed, not per backend.
+        // Drop the old session BEFORE the file names the new server: a crash between the two steps
+        // must not leave a token for server A next to a config that points at server B.
         if let Some(sm) = state.transport.session().cloned() {
             sm.logout().await;
             use tauri::Emitter;
             let _ = app.emit(AUTH_STATE, sm.state());
         }
     }
+    crate::config::save(&next).map_err(AppError::Invalid)?;
+    if let Some(page) = next.login_page() {
+        std::env::set_var(crate::config::ENV_LOGIN_URL, page);
+    } else {
+        std::env::remove_var(crate::config::ENV_LOGIN_URL);
+    }
+    *conn.conn.lock().unwrap() = next;
+    *conn.error.lock().unwrap() = None;
     Ok(serde_json::json!({ "saved": true, "restart_required": backend_changed }))
 }
 
@@ -812,8 +824,13 @@ pub async fn auth_login<R: Runtime>(
     if matches!(sm.state(), crate::auth::AuthState::WaitingForBrowser) {
         return Ok(()); // one login at a time
     }
-    let page = std::env::var(crate::config::ENV_LOGIN_URL)
-        .unwrap_or_else(|_| "https://app.centuriontrade.local/auth/desktop".into());
+    let page = match std::env::var(crate::config::ENV_LOGIN_URL) {
+        Ok(v) if !v.trim().is_empty() => v,
+        // Only reached with a wallet session, i.e. a paper API. Saving such a config now requires
+        // the page, so this is a hand-edited file or a removed env var: say so instead of opening
+        // the placeholder host and waiting five minutes for a callback.
+        _ => return Err(AppError::Invalid("login_page_required".into())),
+    };
     if crate::deeplink::handoff_enabled() {
         // API 4.1.1 deep-link hand-off: state + PKCE (S256) made here; the browser returns only a one-time code.
         let pending = app.state::<crate::deeplink::PendingLogins>();

@@ -48,14 +48,25 @@ impl ConnectionState {
 }
 
 fn is_loopback(host: &str) -> bool {
-    matches!(host, "127.0.0.1" | "localhost" | "[::1]")
+    host.eq_ignore_ascii_case("localhost") || matches!(host, "127.0.0.1" | "[::1]")
 }
 
+/// Scheme is case-insensitive (RFC 3986), so `HTTPS://Host` is the same server as `https://host`.
 fn scheme_and_rest(url: &str) -> Option<(bool, &str)> {
-    if let Some(r) = url.strip_prefix("https://") {
-        return Some((true, r));
+    let prefix = url.get(..8).filter(|p| p.eq_ignore_ascii_case("https://"));
+    if let Some(_p) = prefix {
+        return Some((true, &url[8..]));
     }
-    url.strip_prefix("http://").map(|r| (false, r))
+    url.get(..7)
+        .filter(|p| p.eq_ignore_ascii_case("http://"))
+        .map(|_| (false, &url[7..]))
+}
+
+/// Rebuild with a lower-case scheme so a saved value is byte-identical to what a user typed in
+/// lower case (`validate_*` only compares strings).
+fn with_scheme(tls: bool, rest: &str) -> String {
+    let scheme = if tls { "https://" } else { "http://" };
+    format!("{scheme}{rest}")
 }
 
 fn host_of(rest: &str) -> &str {
@@ -92,7 +103,7 @@ pub fn validate_backend(raw: &str) -> Result<Option<String>, String> {
     if rest.contains('/') || rest.contains('?') || rest.contains('#') {
         return Err("backend_path".into());
     }
-    Ok(Some(v.to_owned()))
+    Ok(Some(with_scheme(tls, rest)))
 }
 
 /// Same rules as `auth::login_url`: https anywhere, plain http only to loopback, no fragment.
@@ -111,7 +122,7 @@ pub fn validate_login_url(raw: &str) -> Result<Option<String>, String> {
     if !tls && !is_loopback(host) {
         return Err("login_loopback".into());
     }
-    Ok(Some(v.to_owned()))
+    Ok(Some(with_scheme(tls, rest)))
 }
 
 impl Connection {
@@ -170,7 +181,9 @@ pub fn load() -> (Connection, Option<String>) {
     }
 }
 
-/// Write the file atomically (temp + rename) so a crash never leaves a half-written config.
+/// Write the file atomically (temp + replace). A crash must never leave no readable config: if the
+/// target cannot be replaced in one step (Windows refuses `rename` onto an existing file), the old
+/// file is moved aside first and restored when the swap fails.
 pub fn save(conn: &Connection) -> Result<(), String> {
     let p = path().ok_or_else(|| "no config directory".to_string())?;
     if let Some(dir) = p.parent() {
@@ -179,10 +192,27 @@ pub fn save(conn: &Connection) -> Result<(), String> {
     let body = serde_json::to_vec_pretty(conn).map_err(|e| e.to_string())?;
     let tmp = p.with_extension("json.tmp");
     std::fs::write(&tmp, body).map_err(|e| format!("write {}: {e}", tmp.display()))?;
-    if p.exists() {
-        std::fs::remove_file(&p).map_err(|e| format!("replace {}: {e}", p.display()))?;
+    if std::fs::rename(&tmp, &p).is_ok() {
+        return Ok(());
     }
-    std::fs::rename(&tmp, &p).map_err(|e| format!("rename {}: {e}", p.display()))
+    let bak = p.with_extension("json.bak");
+    let _ = std::fs::remove_file(&bak);
+    if p.exists() {
+        std::fs::rename(&p, &bak).map_err(|e| format!("replace {}: {e}", p.display()))?;
+    }
+    match std::fs::rename(&tmp, &p) {
+        Ok(()) => {
+            let _ = std::fs::remove_file(&bak);
+            Ok(())
+        }
+        Err(e) => {
+            // Put the previous file back so the app still has a readable connection.
+            if bak.exists() {
+                let _ = std::fs::rename(&bak, &p);
+            }
+            Err(format!("rename {}: {e}", p.display()))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -261,6 +291,22 @@ mod tests {
             "login_url"
         );
         assert_eq!(validate_login_url("ftp://x").unwrap_err(), "login_scheme");
+    }
+
+    #[test]
+    fn scheme_and_loopback_host_are_case_insensitive() {
+        assert_eq!(
+            validate_backend("HTTPS://Paper.Example.COM").unwrap(),
+            Some("https://Paper.Example.COM".into())
+        );
+        assert_eq!(
+            validate_backend("Http://LOCALHOST:8080").unwrap(),
+            Some("http://LOCALHOST:8080".into())
+        );
+        assert_eq!(
+            validate_login_url("HTTPS://App.Example.com/auth/desktop").unwrap(),
+            Some("https://App.Example.com/auth/desktop".into())
+        );
     }
 
     #[test]

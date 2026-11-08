@@ -423,6 +423,8 @@ export interface ConnectionView {
   error: string | null;
   /** A `CENTURION_BACKEND` env var is in force; the card cannot override it. */
   env_override: boolean;
+  /** The saved file names a different API than this run: a relaunch is still due. */
+  restart_required: boolean;
 }
 
 export interface SaveConnectionResult { saved: boolean; restart_required: boolean }

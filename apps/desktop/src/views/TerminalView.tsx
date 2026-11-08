@@ -31,6 +31,19 @@ export function TerminalView() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsFocus, setSettingsFocus] = useState<string | null>(null);
   const [pnlOpen, setPnlOpen] = useState(false);
+  // Status bar: name the backend this run really uses. The transport is fixed at startup, so one
+  // read is enough (a saved change only takes effect after the relaunch).
+  const [transport, setTransport] = useState<"mock" | "http">("mock");
+  useEffect(() => {
+    let alive = true;
+    core
+      .connectionStatus()
+      .then((v) => alive && setTransport(v.active))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   // Receipt → View bot: close the PnL drill-down, open Settings scrolled to that strategy row.
   const viewBot = (strategyId: string) => {
     setPnlOpen(false);
@@ -250,7 +263,7 @@ export function TerminalView() {
         </section>
       </div>
       <div className="statusbar">
-        <span className={st.connected ? "pos" : "neg"}>● {st.connected ? "backend (mock) online" : "offline"}</span>
+        <span className={st.connected ? "pos" : "neg"}>● {st.connected ? t(transport === "http" ? "status.online_api" : "status.online_mock") : t("status.offline")}</span>
         {st.sync && (
           <span className="dim num" title="watermark = seq resume cursor · gap = seq lompat (re-fetch via /events) · skew = server_now − jam lokal">
             contracts {st.contractsVersion} · seq {st.sync.watermark} · gap {st.sync.gaps_seen} · resync {st.sync.resyncs} (+{st.sync.recovered}) · dup {st.sync.duplicates} · skew {st.sync.skew_ms > 0 ? "+" : st.sync.skew_ms < 0 ? "\u2212" : ""}{Math.abs(st.sync.skew_ms / 1000).toFixed(1)}s

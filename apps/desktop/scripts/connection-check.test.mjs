@@ -35,6 +35,15 @@ test("login page: https anywhere, http only loopback, a path is allowed", () => 
   assert.deepEqual(checkLoginUrl("ftp://app.example.com"), { ok: false, error: "login_scheme" });
 });
 
+test("scheme and loopback host are case-insensitive", () => {
+  assert.deepEqual(checkBackend("HTTPS://Paper.Example.COM"), { ok: true, value: "https://Paper.Example.COM" });
+  assert.deepEqual(checkBackend("Http://LOCALHOST:8080"), { ok: true, value: "http://LOCALHOST:8080" });
+  assert.deepEqual(checkLoginUrl("HTTPS://App.Example.com/auth/desktop"), {
+    ok: true,
+    value: "https://App.Example.com/auth/desktop",
+  });
+});
+
 test("a restart is needed only when the API base itself changes", () => {
   assert.equal(needsRestart("https://a.example.com", "https://a.example.com"), false);
   assert.equal(needsRestart(null, null), false);
