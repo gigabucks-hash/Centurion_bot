@@ -3,5 +3,8 @@ target/
 .env
 *.log
 
+# Local paper stack state (tools/paper/up.ps1): pids, logs, generated secrets
+.paper/
+
 # Updater signing key (docs/release/desktop.md): only the public half goes into tauri.conf.json
 *.key

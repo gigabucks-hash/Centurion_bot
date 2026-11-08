@@ -41,6 +41,31 @@ npm run dev                                  # http://localhost:3100
 Open http://localhost:3100, click **Phantom**, sign once: the owner, the practice workspace and 30 paper SOL are
 created automatically. Nothing else is seeded; every figure on screen comes from the local paper API.
 
+## One command (Windows)
+
+`tools\paper\up.ps1` does the whole fast path above: creates the database, applies the shim + every migration, keeps
+two generated API secrets in `.paper\secrets.json` (so restarts do not invalidate sessions), starts the paper API and
+the built Next app in `DATA_SOURCE=http`, waits until both answer, and prints the local plus LAN URL.
+
+```powershell
+$env:PGPASSWORD = "postgres"                 # local Postgres superuser
+.\tools\paper\up.ps1 -OwnerWallet <your Phantom public key>
+.\tools\paper\down.ps1                       # stop both processes
+```
+
+| Flag | Effect |
+|---|---|
+| `-OwnerWallet <base58>` | Required (or set `OWNER_WALLETS`). SIWS fails closed without it. |
+| `-Reset` | Drop and recreate the database (all paper history is lost). |
+| `-Rebuild` | Force `next build` even when `.next\BUILD_ID` exists. |
+| `-DbName`, `-ApiPort`, `-WebPort` | Defaults `centurion_paper`, `8080`, `3100`. |
+| `-NoWait` | Start and return without waiting for the readiness checks. |
+
+Logs and pids live in `.paper\` (git-ignored). `AUTH_SIWS_DOMAINS` is filled automatically with
+`localhost:<port>`, `127.0.0.1:<port>` and the LAN address of the interface that has the default route, so a phone on
+the same Wi-Fi can open the printed LAN URL. Plain `http` is a local/LAN convenience only: Phantom may refuse it from
+a phone, and a public host needs HTTPS (see §4).
+
 ## 1. Database (Postgres 17)
 
 ```powershell
@@ -136,6 +161,25 @@ with HTTPS. The production image itself is built and booted in CI (`docker` job,
 `GET /login` → 200). The UI defects that remain are cosmetic or latent: USD cells are
 hidden in HTTP mode because the wire carries no SOL/USD rate, and exit-bucket aggregates still default to 0 only when
 the server sends a null (a bucket with `sol_in = 0`).
+
+### Re-check through `tools\paper\up.ps1` (2026-11-08, HEAD `f7c5b65`)
+
+Same probes, this time started by the one-command launcher instead of hand-written terminals: Postgres 17 on
+`:5432` (database `centurion_paper`, shim + `0001`-`0026` applied by the script), paper API on `:8080`
+(`AUTH_USER_CREATE=direct`, synthetic owner `9C6hy…Jtpj`), web `next start` in `DATA_SOURCE=http` on `:3100`.
+
+| Probe | Result |
+|---|---|
+| `http_paper_v3.mjs` | **13/13** — SIWS, null overview, no strategy `stats`, `practice -> real` 403, null realized + window sum, ledger rows, 0025 mark/unrealized, tradeable chip, `/trading`, exit stats, 401 |
+| `http_paper_flows_v3.mjs` | **21/21** — pause/resume + replay, stale `409`, approve/reject + replay, 50 % sell + replay |
+| `render_http_v3.mjs` | **13/13** checks, **0/4** old defects reproduced (coin detail 200; dashboard + strategy cards keep the em dash) |
+| `http_pnl_paging_v3.mjs` | **6/6** |
+| `http_reset_v3.mjs` | **4/4** |
+
+Run them against the launcher stack with `BB_API=http://127.0.0.1:8080`, `BB_WEB=http://127.0.0.1:3100`,
+`PGHOST/PGPORT/PGUSER/PGPASSWORD`, `PGDATABASE=<the -DbName you used>` and `BB_PSQL` set to the full `psql.exe` path
+when it is not on `PATH`.
+
 
 ## Known gaps (honest)
 
