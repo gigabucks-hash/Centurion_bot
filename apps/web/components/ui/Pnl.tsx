@@ -2,7 +2,7 @@
 import { cn } from "./cn";
 import { useFmt, useT } from "@/lib/i18n/client";
 import type { TradingMode } from "@/lib/types";
-import { pnlDisplay, PNL_TEXT_CLASS } from "@/lib/pnl";
+import { isUnknownMoney, pnlDisplay, PNL_TEXT_CLASS } from "@/lib/pnl";
 
 /**
  * Shared PnL (T-15) rendered straight from @centurion/i18n `pnlSol()` / `pnlPct()` output ({text, tone, arrow, sign}):
@@ -18,7 +18,8 @@ export function Pnl({ sol, pct, lamports, className, unit = false, wrapUnit = fa
   const t = useT();
   const f = useFmt();
   // A null is "not reported" (no mark price, no portfolio value): show an em dash, never a fabricated 0.00.
-  if (sol === null || pct === null) {
+  // A non-finite number (NaN from an unparsable decimal) is the same case: `pnlSol()` would print "0.00".
+  if ((sol !== undefined && isUnknownMoney(sol)) || (pct !== undefined && isUnknownMoney(pct))) {
     return <span className={cn("num", className)} aria-label={t.ux("common.value.unavailable")}>—</span>;
   }
   const paper = (mode ?? f.mode) === "practice";

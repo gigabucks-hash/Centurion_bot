@@ -34,6 +34,15 @@ export function pnlTone(v: number | string | null | undefined): PnlTone {
   const s = signOf(v);
   return s === 1 ? "profit" : s === -1 ? "loss" : "neutral";
 }
+/**
+ * "Not reported" money: null/undefined, or a non-finite number (NaN from a decimal parse, Infinity).
+ * A NaN must never reach the formatter: `pnlSol()` would print it as a flat "0.00" (a fabricated value).
+ */
+export function isUnknownMoney(v: number | string | null | undefined): boolean {
+  if (v == null) return true;
+  if (typeof v === "string") return signOf(v) === null;
+  return !Number.isFinite(v);
+}
 
 export function pnlArrow(v: number | string | null | undefined): "▲" | "▼" | "" {
   const t = pnlTone(v);

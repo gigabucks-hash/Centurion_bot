@@ -1,7 +1,7 @@
 // Run: npm test  (Node ≥ 22.18 strips TS types natively)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decimalSign, eventSignValue, pnlArrow, pnlDisplay, pnlTone, PNL_TEXT_CLASS } from "../pnl.ts";
+import { decimalSign, eventSignValue, isUnknownMoney, pnlArrow, pnlDisplay, pnlTone, PNL_TEXT_CLASS } from "../pnl.ts";
 
 test("loss is never profit-toned", () => {
   assert.equal(pnlTone(-14), "loss");
@@ -57,4 +57,15 @@ test("Pnl = @centurion/i18n pnlSol/pnlPct: exact zero '0.00' neutral; tiny '<0.0
   assert.match(lam.text, /^\u22120,25/);
   // Feed titles keep using the exact-sign helpers.
   assert.equal(pnlTone(1e-12), "profit");
+});
+// A NaN from an unparsable decimal is the same as null: the em dash, never a fabricated "0.00".
+test("unknown money never formats as zero", () => {
+  assert.equal(isUnknownMoney(null), true);
+  assert.equal(isUnknownMoney(undefined), true);
+  assert.equal(isUnknownMoney(Number.NaN), true);
+  assert.equal(isUnknownMoney(Number.POSITIVE_INFINITY), true);
+  assert.equal(isUnknownMoney("not-a-number"), true);
+  assert.equal(isUnknownMoney(0), false);
+  assert.equal(isUnknownMoney("0.00"), false);
+  assert.equal(isUnknownMoney(-1.5), false);
 });
