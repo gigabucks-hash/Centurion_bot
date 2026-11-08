@@ -101,9 +101,14 @@ The installer starts on the in-process **mock** (demo data). To use a real paper
 | Sign-in page | the web app's `/auth/desktop` page; `https` or loopback `http` | `https://app.example.com/auth/desktop` |
 
 Saving a **different API base** restarts the app and drops the stored session (a token is never
-carried to another server). Saving only the sign-in page applies immediately. **Use demo data**
+carried to another server, and the session is cleared *before* the new address is written, so a
+crash mid-save cannot pair an old token with a new server). An API base needs a sign-in page: the
+save is refused without one, because the app would otherwise open a placeholder host and wait for a
+callback that never comes. Saving only the sign-in page applies immediately. If a relaunch was
+skipped, the card says the change is saved but not active. **Use demo data**
 clears the API base and returns to the mock. Values live in `connection.json` in the OS config
-directory (`%APPDATA%\com.centuriontrade.app\` on Windows), never in the repo.
+directory (`%APPDATA%\com.centuriontrade.app\` on Windows), never in the repo. Scheme and host are
+case-insensitive (`HTTPS://Host` is accepted).
 
 `CENTURION_BACKEND` (and `CENTURION_BACKEND_TOKEN` for dev) still override the file; the Settings
 card then shows that the value comes from outside the app and stays read-only. Paper only: this

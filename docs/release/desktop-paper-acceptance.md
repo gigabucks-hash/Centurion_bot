@@ -54,8 +54,8 @@ Settings (gear) → **Koneksi paper**.
 1. *Alamat API*: paste the API base **without a path**, e.g. `https://paper.example.com`
    (plain `http://` is accepted only for `127.0.0.1` / `localhost`).
 2. *Halaman login*: paste the web app's desktop sign-in page, e.g.
-   `https://app.example.com/auth/desktop`. Leave the inline hint as a check: a page is required for
-   login to work (see D2).
+   `https://app.example.com/auth/desktop`. It is required with an API address: saving without it is
+   refused, so the app never opens a placeholder host and waits for a callback that cannot come.
 3. Press **Simpan dan restart**.
 
 Expected:
@@ -64,8 +64,10 @@ Expected:
   save returns; a slow old server can delay the save by up to 15 s while it tries to revoke the old
   session).
 - After restart: chip **API paper** + the saved URL; the login gate (*Hubungkan wallet Solana* button)
-  replaces the terminal.
+  replaces the terminal. The status bar at the bottom says *API paper online* (not *backend (mock)*).
 - Saving only the login page (same API) does not restart: *Tersimpan. Login dengan Phantom…*.
+- If a restart was skipped or crashed, the card shows *Perubahan API sudah tersimpan tapi belum
+  aktif…* until the app is relaunched.
 
 Rejections (inline, nothing saved):
 
@@ -75,6 +77,7 @@ Rejections (inline, nothing saved):
 | `http://paper.example.com` | *http:// polos hanya untuk 127.0.0.1 atau localhost …* |
 | `https://paper.example.com/v1` | *Isi alamat dasarnya saja, tanpa /v1 …* |
 | `https://user:pw@host` | *Alamat itu tidak valid.* |
+| API set, sign-in page empty | *Alamat API harus disertai halaman login …* |
 
 If `CENTURION_BACKEND` is set, the card shows *Backend diatur lewat CENTURION_BACKEND …* and the
 inputs are disabled. Close the app, unset the var, relaunch.
@@ -146,8 +149,8 @@ CI. Still unproven here: the installed app receiving that callback, and a real P
 1. Save a well-formed but dead base, e.g. `https://paper.invalid`.
 2. Expected: the app restarts on **API paper** (it does not silently fall back to mock), the login
    gate appears, and requests fail with a visible error instead of a "connected" state.
-   `connection_status.active` is what is really in use, not the file contents. Note D5: the status
-   bar wording is still mock-flavoured, so read the Settings card, not the bottom bar.
+   `connection_status.active` is what is really in use, not the file contents; the status bar names
+   the paper API, and Settings shows *API paper* with the saved URL.
 3. A *malformed* saved value (bad scheme/path) is different: startup keeps mock data and Settings
    shows the reason on the card (`connection-load-error`). Fix it there.
 4. *Pakai data contoh* switches back to mock and also restarts (the old session is dropped first).
@@ -170,18 +173,22 @@ Note: the update feed is `releases/latest`, so **only desktop releases** may be 
 "latest"; a non-desktop release would break `latest.json`. The release tag must equal the version in
 `tauri.conf.json`, `Cargo.toml` and `package.json` (`npm run check:versions` enforces it in CI).
 
-## Known gaps (fix before calling this signed off)
+## Defect status
 
-Static audit of `0bbef0e`; none of these is exercised by the current CI matrix.
+The six gaps below were found in a static audit of `0bbef0e` and fixed in `d54d543`; steps F/G are
+still the live proof.
 
-| ID | Severity | Where | Issue |
-|---|---|---|---|
-| D1 | P2 | `src-tauri/src/commands.rs:787` vs `:790-796` | `connection.json` is written **before** the old session is revoked/cleared. If the process dies in between, the file points at server B while the keychain still holds A's token → next launch sends A's token to B. Fix: clear the session first, then save; or key the credential by backend. |
-| D2 | P3 | `src-tauri/src/commands.rs:815-816` | With an API set and the sign-in page empty, login opens the placeholder `https://app.centuriontrade.local/auth/desktop` and hangs for 5 min. Fix: refuse to save an API without a login page, or show a clear message before opening. |
-| D3 | P3 | `src-tauri/src/config.rs:174-185` | `remove_file` + `rename` is not atomic on Windows; a crash between them leaves no `connection.json`, which the app reads as "first run" and silently demotes to mock. |
-| D4 | P3 | `src-tauri/src/config.rs:54-58`, `src/components/connectionCheck.ts:22-26` | Scheme/host match is case-sensitive: `HTTPS://host` and `LOCALHOST` are rejected as bad scheme. Accept a case-insensitive scheme, or say so in the message. |
-| D5 | P3 | `src/views/TerminalView.tsx:253` | Status bar always says "backend (mock) online" / "offline", even on the real paper API. |
-| D6 | P3 | `src-tauri/src/commands.rs:755` | `connection_status.restart_required` is hardcoded `false` (dead field; the save response carries the real value). |
+| ID | Severity | Where (before the fix) | Issue | Now |
+|---|---|---|---|---|
+| D1 | P2 | `src-tauri/src/commands.rs:787` vs `:790-796` | `connection.json` was written **before** the old session was revoked/cleared. If the process died in between, the file pointed at server B while the keychain still held A's token → next launch sent A's token to B. | Fixed: the session is cleared first, then the file is written. |
+| D2 | P3 | `src-tauri/src/commands.rs:815-816` | With an API set and the sign-in page empty, login opened the placeholder `https://app.centuriontrade.local/auth/desktop` and hung for 5 min. | Fixed: saving an API without a sign-in page is refused (UI + Rust); login without a page errors at once. |
+| D3 | P3 | `src-tauri/src/config.rs:174-185` | `remove_file` + `rename` was not atomic on Windows; a crash between them left no `connection.json`, which reads as "first run" and silently demotes to mock. | Fixed: rename in one step when possible, otherwise move the old file aside and restore it if the swap fails. |
+| D4 | P3 | `src-tauri/src/config.rs:54-58`, `src/components/connectionCheck.ts:22-26` | Scheme/host match was case-sensitive: `HTTPS://host` and `LOCALHOST` were rejected. | Fixed in Rust and TS; the saved value is normalised to a lower-case scheme. |
+| D5 | P3 | `src/views/TerminalView.tsx:253` | Status bar always said "backend (mock) online", even on the paper API. | Fixed: it names the transport this run really uses. |
+| D6 | P3 | `src-tauri/src/commands.rs:755` | `connection_status.restart_required` was hardcoded `false`. | Fixed: true while the saved API differs from the running transport, and the card says the change is not active yet. |
+
+Two new regression tests cover D2/D4 (`cargo test` in CI) plus one node test for D4; `cargo fmt` and
+`cargo clippy -D warnings` stay green in CI.
 
 Verified good in code (no runtime needed to see it, but step F is the live proof):
 

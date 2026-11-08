@@ -134,6 +134,17 @@ impl Connection {
         })
     }
 
+    /// Same as [`Self::validated`], and an API base also needs a sign-in page: without one the app
+    /// would open the placeholder host and wait for a callback that never comes. `env_login` is a
+    /// page supplied by a dev launcher, which the file does not need to repeat.
+    pub fn validated_for_save(self, env_login: bool) -> Result<Self, String> {
+        let c = self.validated()?;
+        if c.backend.is_some() && c.login_url.is_none() && !env_login {
+            return Err("login_page_required".into());
+        }
+        Ok(c)
+    }
+
     pub fn login_page(&self) -> Option<&str> {
         self.login_url.as_deref()
     }
@@ -323,6 +334,34 @@ mod tests {
             Connection::default().validated().unwrap(),
             Connection::default()
         );
+    }
+
+    #[test]
+    fn saving_an_api_requires_a_login_page_unless_a_launcher_supplies_one() {
+        let api_only = Connection {
+            backend: Some("https://paper.example.com".into()),
+            login_url: None,
+        };
+        assert_eq!(
+            api_only.clone().validated_for_save(false).unwrap_err(),
+            "login_page_required"
+        );
+        assert_eq!(
+            api_only
+                .validated_for_save(true)
+                .unwrap()
+                .backend
+                .as_deref(),
+            Some("https://paper.example.com")
+        );
+        // Demo data needs no login page.
+        assert!(Connection::default().validated_for_save(false).is_ok());
+        assert!(Connection {
+            backend: Some("https://paper.example.com".into()),
+            login_url: Some("https://app.example.com/auth/desktop".into()),
+        }
+        .validated_for_save(false)
+        .is_ok());
     }
 
     #[test]

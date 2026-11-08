@@ -777,17 +777,13 @@ pub async fn save_connection<R: Runtime>(
             "connection is set by CENTURION_BACKEND outside the app".into(),
         ));
     }
-    let next = crate::config::Connection { backend, login_url }
-        .validated()
-        .map_err(AppError::Invalid)?;
-    // A paper API without a sign-in page would open the placeholder `app.centuriontrade.local`,
-    // then hang until the login timeout. Refuse the save instead (unless a launcher set one).
+    // A page supplied by a dev launcher counts, so the saved file need not repeat it.
     let env_login = std::env::var(crate::config::ENV_LOGIN_URL)
         .map(|v| !v.trim().is_empty())
         .unwrap_or(false);
-    if next.backend.is_some() && next.login_url.is_none() && !env_login {
-        return Err(AppError::Invalid("login_page_required".into()));
-    }
+    let next = crate::config::Connection { backend, login_url }
+        .validated_for_save(env_login)
+        .map_err(AppError::Invalid)?;
     let active = state.transport.base().map(str::to_owned);
     let backend_changed = active != next.backend;
     if backend_changed {
