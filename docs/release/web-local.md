@@ -115,6 +115,27 @@ The web app is the phone surface (mobile apps are cancelled). Layout: bottom tab
 `next start -H 0.0.0.0 -p 3100` and add the laptop's LAN host to `AUTH_SIWS_DOMAINS` (Phantom signs the
 message for that origin). Do not expose this stack to the internet without HTTPS.
 
+## HTTP paper re-check (2026-11-08, HEAD `9930a70`)
+
+A scratch stack proved the paper read/write paths on this tree, not just the mock: Postgres 17 with the local shim
+and migrations `0001`–`0026` (database `centurion_webpaper`), paper API on `:8091` (`TRADING_MODE=paper`,
+`AUTH_USER_CREATE=direct`, synthetic test owner in `OWNER_WALLETS`), Next in `DATA_SOURCE=http` on `:3111`.
+
+| Probe | Rows | Result |
+|---|---|---|
+| Backend wire (`docs/qa/repro/v3/http_paper_v3.mjs`) | 13 | pass — SIWS, null overview, no strategy `stats`, `practice -> real` 403, null realized with window sum, closed/open ledger rows, tradeable chip, exit stats, 401 without a session |
+| Write flows (`http_paper_flows_v3.mjs`) | 21 | pass — pause/resume, stale `409`, approve/reject + replay, 50 % sell + replay |
+| Server render (`render_http_v3.mjs`) | 13 checks / 4 defects | 13 pass; all four old defects now absent (coin detail is **200**, dashboard tile and strategy cards keep the em dash) |
+| Ledger paging (`http_pnl_paging_v3.mjs`) | 6 | pass — 50 + remainder, no overlap, page 2 renders, `window=24h` keeps em dashes |
+| Practice reset (`http_reset_v3.mjs`) | 4 | pass — epoch bump, `429 RESET_COOLDOWN`, open rows closed, reset history |
+| Phone layout over HTTP (390×844 and 360×800) | 16 | pass — `/`, `/positions`, `/pnl`, `/strategies`, `/coins`, `/settings`, `/approvals`, `/activity`: page overflow 0, no tap target under 40 px, no error page |
+| Invalid ledger cursor | 2 | pass — `/pnl?cursor=not-a-uuid` and a foreign UUID fall back to page 1 with `200`, no error screen |
+
+Still unverified: **real Phantom** (the probes sign SIWS with a test-only ed25519 key), a deployed host with HTTPS,
+and the Docker image (no engine on this machine). The UI defects that remain are cosmetic or latent: USD cells are
+hidden in HTTP mode because the wire carries no SOL/USD rate, and exit-bucket aggregates still default to 0 only when
+the server sends a null (a bucket with `sol_in = 0`).
+
 ## Known gaps (honest)
 
 - **Additive backend routes**: this web tree calls `POST /strategies/{id}/mode` and
