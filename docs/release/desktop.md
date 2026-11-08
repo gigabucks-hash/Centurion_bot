@@ -90,6 +90,25 @@ Normal `npx tauri build` stays unsigned and needs no key: `createUpdaterArtifact
 Unsigned builds are fine for internal testing and for Boss's own machine; they are not distributable to
 strangers without the SmartScreen warning. The updater signature is separate from Authenticode.
 
+## Connecting the installed app to the paper API
+
+The installer starts on the in-process **mock** (demo data). To use a real paper account, open
+**Settings → Koneksi paper** and set:
+
+| Field | Rule | Example |
+|---|---|---|
+| API base URL | `https://` anywhere; plain `http://` only to this machine; no path (`/v1` is added) | `https://paper.example.com` or `http://127.0.0.1:8080` |
+| Sign-in page | the web app's `/auth/desktop` page; `https` or loopback `http` | `https://app.example.com/auth/desktop` |
+
+Saving a **different API base** restarts the app and drops the stored session (a token is never
+carried to another server). Saving only the sign-in page applies immediately. **Use demo data**
+clears the API base and returns to the mock. Values live in `connection.json` in the OS config
+directory (`%APPDATA%\com.centuriontrade.app\` on Windows), never in the repo.
+
+`CENTURION_BACKEND` (and `CENTURION_BACKEND_TOKEN` for dev) still override the file; the Settings
+card then shows that the value comes from outside the app and stays read-only. Paper only: this
+build requests `read` + `trade` scopes and never `trade:real`.
+
 ## Troubleshooting an update
 
 | Symptom | Cause |
