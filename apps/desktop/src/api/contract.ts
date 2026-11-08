@@ -413,6 +413,20 @@ export const EVT = {
 export interface StopResult { paused: string[]; already_paused: string[]; failed: [string, string][] }
 export type EvtName = (typeof EVT)[keyof typeof EVT];
 
+/** Settings → Koneksi paper. `active` is what this run really uses, not what the file says. */
+export interface ConnectionView {
+  active: "mock" | "http";
+  active_backend: string | null;
+  saved_backend: string | null;
+  login_url: string | null;
+  /** Set when the saved file could not be used; the app stays on the mock. */
+  error: string | null;
+  /** A `CENTURION_BACKEND` env var is in force; the card cannot override it. */
+  env_override: boolean;
+}
+
+export interface SaveConnectionResult { saved: boolean; restart_required: boolean }
+
 export interface CoreApi {
   snapshot(): Promise<Snapshot>;
   candles(mint: string): Promise<CandleView[]>;
@@ -442,6 +456,9 @@ export interface CoreApi {
   authStatus(): Promise<AuthView>;
   authLogin(): Promise<void>;
   authLogout(): Promise<void>;
+  /** Which API this installed app uses (mock by default). Saved; a changed base needs a restart. */
+  connectionStatus(): Promise<ConnectionView>;
+  saveConnection(c: { backend: string | null; login_url: string | null }): Promise<SaveConnectionResult>;
   /** One Rust command for every Stop entry point; `confirm` must be "STOP". */
   stopTrading(mode: Mode, source: "ui" | "tray" | "shortcut", confirm: string): Promise<StopResult>;
   on<T>(event: EvtName, cb: (payload: T) => void): Promise<() => void>;

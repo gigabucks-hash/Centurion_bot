@@ -4,6 +4,7 @@ mod auth;
 mod backend;
 mod brand;
 mod commands;
+mod config;
 #[cfg(test)]
 mod contract_tests;
 mod deeplink;
@@ -31,6 +32,31 @@ use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 pub fn run() {
+    // Backend from the saved Settings file (Connection). A dev launcher's `CENTURION_BACKEND` env
+    // var still wins. The mock's clock runs ahead (CENTURION_MOCK_SKEW_MS, default 2500 ms) so
+    // countdowns provably use server_now.
+    let skew = std::env::var("CENTURION_MOCK_SKEW_MS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(2_500);
+    let (conn, load_error) = config::load();
+    if let Some(page) = conn.login_page() {
+        // `auth_login` reads this; the saved page is validated by `config::validate_login_url`.
+        std::env::set_var("CENTURION_LOGIN_URL", page);
+    }
+    let transport = match backend::ActiveTransport::from_connection(&conn, skew) {
+        Ok(t) => Arc::new(t),
+        Err(e) => {
+            // Never pretend "connected": start on the mock and surface the reason in Settings.
+            log::error!("saved backend unusable, using mock: {e}");
+            Arc::new(backend::ActiveTransport::Mock(backend::mock::MockTransport::new(skew)))
+        }
+    };
+    let mut engine = state::Engine::new(transport.workspace_id());
+    engine.logo_origin = Some(transport.logo_origin());
+    let app_state = state::AppState { engine: Mutex::new(engine), transport };
+    let conn_state = config::ConnectionState::new(conn, load_error);
+
     tauri::Builder::default()
         // Second launch just focuses the running terminal (avoids double global hotkeys).
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
@@ -50,15 +76,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(hotkeys::plugin())
-        .manage({
-            // Mock backend speaking wire v1.1. Its clock runs ahead (CENTURION_MOCK_SKEW_MS, default
-            // 2500 ms) so countdowns provably use server_now. Week 2: HttpTransport (SSE + REST).
-            let skew = std::env::var("CENTURION_MOCK_SKEW_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(2_500);
-            let transport = Arc::new(backend::ActiveTransport::from_env(skew));
-            let mut engine = state::Engine::new(transport.workspace_id());
-            engine.logo_origin = Some(transport.logo_origin());
-            state::AppState { engine: Mutex::new(engine), transport }
-        })
+        .manage(app_state)
+        .manage(conn_state)
         .manage(hotkeys::Bindings(Mutex::new(Vec::new())))
         .manage(deeplink::PendingLogins::default())
         .setup(|app| {
@@ -113,6 +132,8 @@ pub fn run() {
             commands::auth_status,
             commands::auth_login,
             commands::auth_logout,
+            commands::connection_status,
+            commands::save_connection,
             commands::request_sell,
             commands::confirm_sell,
             commands::open_chart_window,

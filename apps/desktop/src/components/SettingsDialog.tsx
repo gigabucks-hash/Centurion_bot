@@ -10,6 +10,7 @@ import { HoldButton } from "./HoldButton";
 import { Icon } from "./Icon";
 import { gateView, HOLD_MS, type Line } from "./strategyGate";
 import { UpdateSection } from "./UpdateSection";
+import { ConnectionSection } from "./ConnectionSection";
 import type { StrategyView } from "../api";
 
 /** Wire strategy status → @centurion/i18n `strategy.status.*` (unknown → raw value never shown: "—"). */
@@ -284,6 +285,7 @@ export function SettingsDialog({ onClose, focusStrategyId }: { onClose: () => vo
           Global shortcut hanya membuka UI — tidak pernah approve, skip, atau sell langsung.
         </div>
         <StrategiesSection focusStrategyId={focusStrategyId} />
+        <ConnectionSection />
         <SessionSection />
         <PracticeResetSection />
         <UpdateSection />

@@ -426,6 +426,14 @@ macro_rules! delegate {
 impl ActiveTransport {
     /// `CENTURION_BACKEND` unset → mock. Set but invalid → refuse to fall back silently (panic with the reason).
     pub fn from_env(mock_skew_ms: i64) -> Self {
+        match Self::try_from_env(mock_skew_ms) {
+            Ok(t) => t,
+            Err(e) => panic!("CENTURION_BACKEND set but unusable: {e}"),
+        }
+    }
+
+    /// `CENTURION_BACKEND` unset/mock → the in-process mock; never errors.
+    fn try_from_env(mock_skew_ms: i64) -> Result<Self, String> {
         match std::env::var("CENTURION_BACKEND") {
             // No dev token → wallet login (SIWS via the system browser); tokens live in the OS keychain.
             Ok(v)
@@ -434,30 +442,53 @@ impl ActiveTransport {
                     && std::env::var("CENTURION_BACKEND_TOKEN").is_err() =>
             {
                 let ws = std::env::var("CENTURION_WORKSPACE_ID").ok();
-                match crate::auth::AuthClient::new(&v).and_then(|c| {
+                let t = crate::auth::AuthClient::new(&v).and_then(|c| {
                     http::HttpTransport::with_session(
                         &v,
                         ws.as_deref(),
                         crate::auth::SessionManager::new(c, crate::auth::default_store()),
                     )
-                }) {
-                    Ok(t) => {
-                        log::info!("transport: http {} (SIWS session)", t.base());
-                        Self::Http(t)
-                    }
-                    Err(e) => panic!("CENTURION_BACKEND set but unusable: {e}"),
-                }
+                })?;
+                log::info!("transport: http {} (SIWS session)", t.base());
+                Ok(Self::Http(t))
             }
             Ok(v) if !v.trim().is_empty() && v.trim() != "mock" => {
-                match http::HttpTransport::from_env() {
-                    Ok(t) => {
-                        log::info!("transport: http {}", t.base());
-                        Self::Http(t)
-                    }
-                    Err(e) => panic!("CENTURION_BACKEND set but unusable: {e}"),
-                }
+                let t = http::HttpTransport::from_env()?;
+                log::info!("transport: http {}", t.base());
+                Ok(Self::Http(t))
             }
-            _ => Self::Mock(mock::MockTransport::new(mock_skew_ms)),
+            _ => Ok(Self::Mock(mock::MockTransport::new(mock_skew_ms))),
+        }
+    }
+
+    /// Startup transport from the saved Settings file (`config::Connection`).
+    ///
+    /// A non-empty `CENTURION_BACKEND` env var still wins over the file (dev launchers keep working).
+    /// An unusable saved value is an error, not a silent mock: the caller logs it and shows it in
+    /// Settings, because "connected" must never be a lie.
+    pub fn from_connection(
+        conn: &crate::config::Connection,
+        mock_skew_ms: i64,
+    ) -> Result<Self, String> {
+        let env_set = std::env::var("CENTURION_BACKEND")
+            .map(|v| !v.trim().is_empty() && v.trim() != "mock")
+            .unwrap_or(false);
+        if env_set {
+            return Self::try_from_env(mock_skew_ms);
+        }
+        match conn.backend.as_deref() {
+            // Wallet login (SIWS via the system browser); tokens live in the OS keychain.
+            Some(base) => {
+                let c = crate::auth::AuthClient::new(base)?;
+                let t = http::HttpTransport::with_session(
+                    base,
+                    None,
+                    crate::auth::SessionManager::new(c, crate::auth::default_store()),
+                )?;
+                log::info!("transport: http {base} (SIWS session, saved setting)");
+                Ok(Self::Http(t))
+            }
+            None => Ok(Self::Mock(mock::MockTransport::new(mock_skew_ms))),
         }
     }
     /// Origin of the coin-logo image proxy (COIN_LOGO §2): the backend base, or the mock's bundled files.
@@ -471,6 +502,13 @@ impl ActiveTransport {
         match self {
             Self::Mock(_) => "mock",
             Self::Http(_) => "http",
+        }
+    }
+    /// Backend base URL when this run talks to a real API (None on the mock).
+    pub fn base(&self) -> Option<&str> {
+        match self {
+            Self::Mock(_) => None,
+            Self::Http(t) => Some(t.base()),
         }
     }
     /// The SIWS session manager (HTTP transport in wallet-login mode only).

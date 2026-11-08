@@ -731,6 +731,73 @@ pub fn auth_status(state: State<'_, AppState>) -> serde_json::Value {
     }
 }
 
+/// Where this run's data comes from + the saved connection settings (Settings → "Koneksi paper").
+/// `active` is what is *actually* in use, never what the file says: a failed save must not look connected.
+#[tauri::command(rename_all = "snake_case")]
+pub fn connection_status(
+    state: State<'_, AppState>,
+    conn: State<'_, crate::config::ConnectionState>,
+) -> serde_json::Value {
+    let saved = conn.conn.lock().map(|c| c.clone()).unwrap_or_default();
+    let err = conn.error.lock().ok().and_then(|e| e.clone());
+    let env_override = std::env::var(crate::config::ENV_BACKEND)
+        .map(|v| !v.trim().is_empty() && v.trim() != "mock")
+        .unwrap_or(false);
+    serde_json::json!({
+        "active": state.transport.label(),
+        "active_backend": state.transport.base(),
+        "saved_backend": saved.backend,
+        "login_url": saved.login_url,
+        "error": err,
+        // A launcher-set env var always wins; the card then shows "set outside the app" and save is disabled.
+        "env_override": env_override,
+        "restart_required": false,
+    })
+}
+
+/// Save the paper API base + login page. A changed API base needs a restart (the transport is built
+/// once at startup), and the stored session is dropped so a token from another server is never sent.
+/// The login page alone applies immediately.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn save_connection<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+    conn: State<'_, crate::config::ConnectionState>,
+    backend: Option<String>,
+    login_url: Option<String>,
+) -> AppResult<serde_json::Value> {
+    if std::env::var(crate::config::ENV_BACKEND)
+        .map(|v| !v.trim().is_empty() && v.trim() != "mock")
+        .unwrap_or(false)
+    {
+        return Err(AppError::Invalid(
+            "connection is set by CENTURION_BACKEND outside the app".into(),
+        ));
+    }
+    let next = crate::config::Connection { backend, login_url }
+        .validated()
+        .map_err(AppError::Invalid)?;
+    let active = state.transport.base().map(str::to_owned);
+    let backend_changed = active != next.backend;
+    if let Some(page) = next.login_page() {
+        std::env::set_var(crate::config::ENV_LOGIN_URL, page);
+    } else {
+        std::env::remove_var(crate::config::ENV_LOGIN_URL);
+    }
+    crate::config::save(&next).map_err(AppError::Invalid)?;
+    *conn.conn.lock().unwrap() = next;
+    *conn.error.lock().unwrap() = None;
+    if backend_changed {
+        // Never carry a session across servers: the keychain key is fixed, not per backend.
+        if let Some(sm) = state.transport.session().cloned() {
+            sm.logout().await;
+            use tauri::Emitter;
+            let _ = app.emit(AUTH_STATE, sm.state());
+        }
+    }
+    Ok(serde_json::json!({ "saved": true, "restart_required": backend_changed }))
+}
+
 /// Start a browser login: bind the loopback, open the system browser, return at once. The result
 /// arrives as [`AUTH_STATE`] events (`signed_in` / `wallet_not_allowed` / `failed` / `signed_out`).
 #[tauri::command(rename_all = "snake_case")]
@@ -745,7 +812,7 @@ pub async fn auth_login<R: Runtime>(
     if matches!(sm.state(), crate::auth::AuthState::WaitingForBrowser) {
         return Ok(()); // one login at a time
     }
-    let page = std::env::var("CENTURION_LOGIN_URL")
+    let page = std::env::var(crate::config::ENV_LOGIN_URL)
         .unwrap_or_else(|_| "https://app.centuriontrade.local/auth/desktop".into());
     if crate::deeplink::handoff_enabled() {
         // API 4.1.1 deep-link hand-off: state + PKCE (S256) made here; the browser returns only a one-time code.

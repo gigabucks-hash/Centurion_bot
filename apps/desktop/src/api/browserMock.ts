@@ -9,6 +9,7 @@ import type {
   Actor,
   CandleView,
   ClosedTradeView,
+  ConnectionView,
   CoreApi,
   ExitReason,
   ExitReasonStatView,
@@ -18,6 +19,7 @@ import type {
   PnlReportView,
   PnlWindow,
   PositionView,
+  SaveConnectionResult,
   ScreenedCoin,
   SellQuote,
   Settings,
@@ -433,6 +435,13 @@ export const browserMockAdapter: CoreApi = {
   },
   async authLogin() {},
   async authLogout() {},
+  async connectionStatus(): Promise<ConnectionView> {
+    // Browser preview has no Tauri backend: always the in-process mock, nothing saved.
+    return { active: "mock", active_backend: null, saved_backend: null, login_url: null, error: null, env_override: false };
+  },
+  async saveConnection(): Promise<SaveConnectionResult> {
+    return { saved: false, restart_required: false };
+  },
   async stopTrading(_mode, _source, confirm) {
     if (confirm !== "STOP") throw new Error("VALIDATION_FAILED: stop confirm");
     const paused: string[] = [], already: string[] = [];
