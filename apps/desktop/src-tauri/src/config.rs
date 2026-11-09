@@ -170,8 +170,41 @@ pub fn load() -> (Connection, Option<String>) {
     let Some(p) = path() else {
         return (Connection::default(), None);
     };
-    let raw = match std::fs::read_to_string(&p) {
+    load_at(&p)
+}
+
+/// [`load`] against an explicit path (tests use a temp dir).
+///
+/// `save` moves the old file to `connection.json.bak` before renaming `tmp` into place. A crash or
+/// power loss in that window leaves only the backup, which is **not** a first run: recover it instead
+/// of silently starting on demo data. A leftover `.tmp` is never used — it may be half written.
+fn load_at(p: &std::path::Path) -> (Connection, Option<String>) {
+    let bak = p.with_extension("json.bak");
+    let mut note = None;
+    let raw = match std::fs::read_to_string(p) {
         Ok(r) => r,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound && bak.exists() => {
+            match std::fs::read_to_string(&bak) {
+                Ok(r) => {
+                    note = Some(if std::fs::rename(&bak, p).is_ok() {
+                        format!("recovered {} from the backup", p.display())
+                    } else {
+                        format!("using backup {} (could not restore it)", bak.display())
+                    });
+                    r
+                }
+                Err(be) => {
+                    return (
+                        Connection::default(),
+                        Some(format!(
+                            "read {}: {e}; read {}: {be}",
+                            p.display(),
+                            bak.display()
+                        )),
+                    )
+                }
+            }
+        }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return (Connection::default(), None),
         Err(e) => {
             return (
@@ -180,7 +213,7 @@ pub fn load() -> (Connection, Option<String>) {
             )
         }
     };
-    match serde_json::from_str::<Connection>(&raw) {
+    let (conn, err) = match serde_json::from_str::<Connection>(&raw) {
         Ok(c) => match c.validated() {
             Ok(c) => (c, None),
             Err(k) => (Connection::default(), Some(format!("{}: {k}", p.display()))),
@@ -189,7 +222,13 @@ pub fn load() -> (Connection, Option<String>) {
             Connection::default(),
             Some(format!("parse {}: {e}", p.display())),
         ),
-    }
+    };
+    let err = match (note, err) {
+        (None, err) => err,
+        (Some(note), None) => Some(note),
+        (Some(note), Some(err)) => Some(format!("{note}; {err}")),
+    };
+    (conn, err)
 }
 
 /// Write the file atomically (temp + replace). A crash must never leave no readable config: if the
@@ -383,5 +422,38 @@ mod tests {
             serde_json::from_str::<Connection>("{}").unwrap(),
             Connection::default()
         );
+    }
+
+    fn temp_connection_file(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("centurion-config-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir.join(FILE)
+    }
+
+    #[test]
+    fn recovers_the_backup_left_by_an_interrupted_save() {
+        let p = temp_connection_file("bak");
+        let bak = p.with_extension("json.bak");
+        std::fs::write(
+            &bak,
+            r#"{"backend":"https://paper.example.com","login_url":"https://app.example.com/auth/desktop"}"#,
+        )
+        .unwrap();
+
+        let (c, note) = load_at(&p);
+        assert_eq!(c.backend.as_deref(), Some("https://paper.example.com"));
+        assert!(note.unwrap_or_default().contains("recovered"));
+        assert!(p.exists(), "the backup becomes the live file again");
+        assert!(!bak.exists());
+        let _ = std::fs::remove_dir_all(p.parent().unwrap());
+    }
+
+    #[test]
+    fn a_missing_file_and_no_backup_is_still_a_first_run() {
+        let p = temp_connection_file("first-run");
+        assert_eq!(load_at(&p), (Connection::default(), None));
+        let _ = std::fs::remove_dir_all(p.parent().unwrap());
     }
 }
