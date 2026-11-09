@@ -129,6 +129,23 @@ test("manual close percent → fraction_bps; exit-stats row shape; tradeable fla
   assert.equal(screenerStateOf({ tradeable: true, skip_reason: null }), undefined);
 });
 
+test("exit-stats keep a missing average as null (em dash), never 0", async () => {
+  const { exitStatFromWire, exitStatToWire } = await import("../contracts.ts");
+  const empty = exitStatFromWire({ exit_reason: "peak_trail", count: 0, pnl_lamports: "0", avg_pnl_pct: null, win_rate_pct: 0, avg_hold_s: 0 });
+  assert.equal(empty.winRate, null);
+  assert.equal(empty.avgPnlSol, null);
+  assert.equal(empty.avgPnlPct, null);
+  assert.equal(empty.avgHoldSeconds, null);
+  // A closed bucket with trades but no cost basis: the server sends avg_pnl_pct null and it must survive.
+  const noBasis = exitStatFromWire({ exit_reason: "manual", count: 2, pnl_lamports: "-5000", avg_pnl_pct: null, win_rate_pct: 50, avg_hold_s: 90 });
+  assert.equal(noBasis.avgPnlPct, null);
+  assert.ok(Math.abs((noBasis.avgPnlSol ?? 0) + 0.0000025) < 1e-15);
+  const back = exitStatToWire(empty);
+  assert.equal(back.avg_pnl_pct, null);
+  assert.equal(back.win_rate_pct, 0);
+  assert.equal(back.avg_hold_s, 0);
+});
+
 test("stop_loss_pct (from entry) and peak_trail_pct (from peak) are separate wire keys", async () => {
   const { settingsToWire } = await import("../contracts.ts");
   const { blankSettings } = await import("../strategy-schema.ts");

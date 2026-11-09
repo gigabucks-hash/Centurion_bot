@@ -66,11 +66,11 @@ async function StatsBody({ searchParams }: { searchParams: PageProps<"/stats">["
           columns={[
             { key: "r", header: t("stats.colReason"), cell: (s) => <span className="font-medium">{t(`exitReason.${s.reason}`)}</span> },
             { key: "c", header: t("stats.colCount"), numeric: true, cell: (s) => f.int(s.count) },
-            { key: "w", header: t("stats.colWin"), numeric: true, cell: (s) => `${f.num(s.winRate * 100, 0)}%` },
+            { key: "w", header: t("stats.colWin"), numeric: true, cell: (s) => (s.winRate == null ? "—" : `${f.num(s.winRate * 100, 0)}%`) },
             { key: "ap", header: t("stats.colAvgPct"), numeric: true, cell: (s) => <Pnl mode={mode} pct={s.avgPnlPct} /> },
             { key: "as", header: t("stats.colAvg"), numeric: true, cell: (s) => <Pnl mode={mode} sol={s.avgPnlSol} digits={4} /> },
             { key: "t", header: t("stats.colTotal"), numeric: true, cell: (s) => <Pnl mode={mode} sol={s.totalPnlSol} /> },
-            { key: "h", header: t("stats.colHold"), numeric: true, cell: (s) => f.duration(s.avgHoldSeconds) },
+            { key: "h", header: t("stats.colHold"), numeric: true, cell: (s) => (s.avgHoldSeconds == null ? "—" : f.duration(s.avgHoldSeconds)) },
             { key: "sh", header: t("stats.colShare"), numeric: true, cell: (s) => f.pct((s.count / total) * 100, 0, false) },
           ]}
         />

@@ -716,15 +716,22 @@ export function positionFromWire(w: PositionWireView): OpenPosition {
 export function exitStatToWire(s: ExitReasonStat): ExitStatsRow {
   return {
     exit_reason: s.reason, count: s.count, pnl_lamports: solToLamports(s.totalPnlSol),
-    avg_pnl_pct: s.count ? s.avgPnlPct : null, win_rate_pct: Math.round(s.winRate * 1000) / 10, avg_hold_s: s.avgHoldSeconds,
+    // The wire has no null win_rate_pct/avg_hold_s: a bucket with no trades reports 0 there, but the
+    // averages stay null so the UI can show an em dash instead of a made-up 0.
+    avg_pnl_pct: s.count ? s.avgPnlPct : null,
+    win_rate_pct: s.count && s.winRate != null ? Math.round(s.winRate * 1000) / 10 : 0,
+    avg_hold_s: s.avgHoldSeconds ?? 0,
   };
 }
 
 export function exitStatFromWire(w: ExitStatsRow): ExitReasonStat {
   const total = lamportsToSolNumber(w.pnl_lamports) ?? 0;
   return {
-    reason: w.exit_reason, count: w.count, wins: Math.round((w.win_rate_pct / 100) * w.count), winRate: w.win_rate_pct / 100,
-    avgPnlSol: w.count ? total / w.count : 0, avgPnlPct: w.avg_pnl_pct ?? 0, totalPnlSol: total, avgHoldSeconds: w.avg_hold_s,
+    reason: w.exit_reason, count: w.count, wins: Math.round((w.win_rate_pct / 100) * w.count),
+    // No closed trades means no win rate and no average; keep null (em dash), never 0.
+    winRate: w.count ? w.win_rate_pct / 100 : null,
+    avgPnlSol: w.count ? total / w.count : null, avgPnlPct: w.count ? w.avg_pnl_pct : null,
+    totalPnlSol: total, avgHoldSeconds: w.count ? w.avg_hold_s : null,
   };
 }
 

@@ -464,11 +464,13 @@ export interface ExitReasonStat {
   reason: ExitReason;
   count: number;
   wins: number;
-  winRate: number; // 0..1
-  avgPnlSol: Sol;
-  avgPnlPct: number;
+  // Derived metrics are null when there is nothing to average (count 0, or the server had no cost basis).
+  // The UI renders an em dash for null; it never shows a fabricated 0.
+  winRate: number | null; // 0..1
+  avgPnlSol: Sol | null;
+  avgPnlPct: number | null;
   totalPnlSol: Sol;
-  avgHoldSeconds: number;
+  avgHoldSeconds: number | null;
 }
 
 export interface StatsFilter {

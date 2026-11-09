@@ -482,11 +482,11 @@ export function computeExitStats(samples: ClosedTrade[]): ExitReasonStat[] {
     const total = rows.reduce((a, r) => a + r.pnlSol, 0);
     return {
       reason, count, wins,
-      winRate: count ? wins / count : 0,
-      avgPnlSol: count ? round(total / count, 4) : 0,
-      avgPnlPct: count ? round(rows.reduce((a, r) => a + r.pnlPct, 0) / count, 1) : 0,
+      winRate: count ? wins / count : null,
+      avgPnlSol: count ? round(total / count, 4) : null,
+      avgPnlPct: count ? round(rows.reduce((a, r) => a + r.pnlPct, 0) / count, 1) : null,
       totalPnlSol: round(total, 4),
-      avgHoldSeconds: count ? Math.round(rows.reduce((a, r) => a + r.holdSeconds, 0) / count) : 0,
+      avgHoldSeconds: count ? Math.round(rows.reduce((a, r) => a + r.holdSeconds, 0) / count) : null,
     };
   });
 }

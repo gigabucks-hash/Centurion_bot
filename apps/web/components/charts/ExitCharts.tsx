@@ -29,7 +29,9 @@ export function ExitCountChart({ stats, t, f }: { stats: ExitReasonStat[]; t: T;
 }
 
 export function ExitPnlChart({ stats, t, f }: { stats: ExitReasonStat[]; t: T; f: Fmt }) {
-  const rows = stats.map((s) => ({ name: t(`exitReason.${s.reason}`), v: s.avgPnlPct }));
+  // A bucket without closed trades has no average: leave it out of the chart instead of drawing a 0 bar.
+  const rows = stats.flatMap((s) => (s.avgPnlPct == null ? [] : [{ name: t(`exitReason.${s.reason}`), v: s.avgPnlPct }]));
+  if (rows.length === 0) return <p className="num text-caption text-text-tertiary">—</p>;
   return (
     <Bars
       rows={rows}
