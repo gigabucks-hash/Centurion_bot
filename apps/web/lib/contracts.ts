@@ -687,7 +687,6 @@ export function positionToWire(p: OpenPosition, workspaceId: string): PositionWi
 
 export function positionFromWire(w: PositionWireView): OpenPosition {
   const solIn = lamportsToSolNumber(w.sol_in_lamports) ?? 0;
-  const entry = w.avg_entry_price_sol != null ? Number(w.avg_entry_price_sol) : null;
   const mark = w.mark_price_sol != null ? Number(w.mark_price_sol) : null;
   const unreal = lamportsToSolNumber(w.unrealized_pnl_lamports);
   // 0025: a known mark+PnL drives the row; anything missing keeps the em dash instead of a fabricated 0.
@@ -697,8 +696,10 @@ export function positionFromWire(w: PositionWireView): OpenPosition {
     logoHash: logoHashFromWire(w.logo_hash),
     symbol: safeSymbol(w.untrusted.symbol ?? ""),
     solIn,
-    entryPriceUsd: entry != null && Number.isFinite(entry) ? entry * MOCK_SOL_USD : 0,
-    nowPriceUsd: mark != null && Number.isFinite(mark) ? mark * MOCK_SOL_USD : 0,
+    // The REST wire has no SOL/USD rate; USD cells stay an em dash even when the SOL mark is known.
+    entryPriceUsd: NaN,
+    nowPriceUsd: NaN,
+    nowPriceSol: mark != null && Number.isFinite(mark) ? mark : null,
     // OpenPosition keeps numbers for layout; `markUnknown` is the flag every cell checks before rendering.
     pnlSol: unreal ?? 0,
     pnlPct: w.pnl_pct ?? (known && solIn > 0 ? (unreal! / solIn) * 100 : 0),

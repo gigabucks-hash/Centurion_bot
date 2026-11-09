@@ -12,7 +12,7 @@
 import { randomUUID } from "node:crypto";
 import type { AnyEvent, EventPage, ExitStatsRow, PnlSummary as PnlSummaryWire, PositionWire, StrategyRealGateFields } from "@centurion/contracts/wire";
 import type { DashboardApi } from "./api";
-import { approvalFromWire, closedTradeFromWire, coinSummaryFromWire, pnlSummaryFromWire, realGateFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings, lamportsToSolNumber, MOCK_SOL_USD } from "./contracts";
+import { approvalFromWire, closedTradeFromWire, coinSummaryFromWire, pnlSummaryFromWire, realGateFromWire, envelopeToTradeEvent, exitStatFromWire, type CoinWire, settingsFromWire, settingsPatch, settingsToWire, type ApprovalItemWire as ApprovalWire, rejectReasonFor, type WireSettings, lamportsToSolNumber } from "./contracts";
 import { ACCESS_COOKIE, WORKSPACE_COOKIE } from "./auth/cookies";
 import { ApiError, toApiError } from "./errors";
 import { tradingFromWire, type TradingWire } from "./trading";
@@ -158,16 +158,17 @@ interface RawPosition {
  */
 function positionView(r: RawPosition, strategyName: string, symbol: string): OpenPosition {
   const solIn = lamportsToSolNumber(r.sol_in_lamports) ?? 0;
-  const entry = r.avg_entry_price_sol != null ? Number(r.avg_entry_price_sol) : null;
   const mark = r.mark_price_sol != null ? Number(r.mark_price_sol) : null;
   const unreal = lamportsToSolNumber(r.unrealized_pnl_lamports);
   const known = mark != null && Number.isFinite(mark) && unreal != null;
   return {
     key: r.position_key, strategyId: r.strategy_id ?? "", strategyName, mode: r.mode, mint: r.mint, symbol,
     solIn,
-    // No trustworthy SOL/USD on this wire: keep the USD price cell an em dash, but show the exact SOL PnL.
-    entryPriceUsd: entry != null && Number.isFinite(entry) ? entry * MOCK_SOL_USD : 0,
-    nowPriceUsd: mark != null && Number.isFinite(mark) ? mark * MOCK_SOL_USD : 0,
+    // The REST wire carries no SOL/USD rate, so no USD price is invented here; the UI shows an em dash.
+    // Realtime scaling uses nowPriceSol (0025 mark), not a USD rate.
+    entryPriceUsd: NaN,
+    nowPriceUsd: NaN,
+    nowPriceSol: mark != null && Number.isFinite(mark) ? mark : null,
     pnlSol: unreal ?? 0,
     pnlPct: r.pnl_pct ?? (known && solIn > 0 ? (unreal! / solIn) * 100 : 0),
     openedAt: Date.parse(r.opened_at), soldPct: (r.sold_bps ?? 0) / 100,
