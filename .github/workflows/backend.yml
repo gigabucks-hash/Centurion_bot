@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@1.90
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
@@ -91,7 +91,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@1.90
       - name: fetch deps for the logo crate (tests build it offline)
         working-directory: services/backend
         run: cargo fetch --locked
