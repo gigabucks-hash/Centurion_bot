@@ -45,8 +45,8 @@ git tag desktop-v0.2.1
 git push origin desktop-v0.2.1
 ```
 
-Equivalent: Actions → `desktop` → Run workflow → tag `desktop-v0.2.1`. The workflow creates the tag and
-release if they do not exist.
+Equivalent: Actions → `desktop` → Run workflow (from `main`) → tag `desktop-v0.2.1`. The workflow creates
+the tag and release if they do not exist; a dispatch from another branch is ignored by the release job.
 
 Then open the installed app → `Pengaturan` → **Update aplikasi** → **Cek update** → **Unduh & pasang**.
 The app verifies the minisign signature, installs, and restarts. The endpoint it reads is:
@@ -116,6 +116,25 @@ case-insensitive (`HTTPS://Host` is accepted).
 `CENTURION_BACKEND` (and `CENTURION_BACKEND_TOKEN` for dev) still override the file; the Settings
 card then shows that the value comes from outside the app and stays read-only. Paper only: this
 build requests `read` + `trade` scopes and never `trade:real`.
+
+## Preflight and proof
+
+`npm run check:updater` (run by the `web` job on every desktop change) proves the offline half of the
+update path: the endpoint is this repo's latest-release `latest.json`, the committed key is a minisign
+public key, `tauri.updater.conf.json` enables updater artifacts, the capability allows check/install and
+restart, both Rust plugins are registered, the release job passes both signing secrets, and the three
+version files agree.
+
+```powershell
+cd apps/desktop
+npm run check:updater                     # offline; exit 1 names the broken link
+node scripts/check-updater.mjs --online   # also fetch latest.json (404 = no release yet)
+```
+
+After `tauri-action` publishes, the release job downloads the attached `latest.json` and validates it
+(`--latest-json <file> --expect-version <tag version>`). A release with no windows entry, no signature,
+an http URL or a version that differs from the tag now fails CI instead of leaving installed apps on
+"already up to date".
 
 ## Troubleshooting an update
 

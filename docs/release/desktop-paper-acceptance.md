@@ -36,6 +36,12 @@ Scope owner: Desktop. The web/API side is proven separately in [`web-local.md`](
 - No `CENTURION_BACKEND` / `CENTURION_LOGIN_URL` set for the installed app (those env vars win and
   disable the Settings card). Check with `Get-ChildItem Env:CENTURION*`.
 
+**No deploy needed to run this runbook.** `tools/paper/up.ps1` starts the paper API and the built web
+app on this PC (`down.ps1` stops them). Use its loopback URLs: API `http://127.0.0.1:<api port>`,
+sign-in page `http://127.0.0.1:<web port>/auth/desktop`. Both are legal on loopback; the LAN URL the
+script prints is for the phone/web client only — the desktop refuses plain `http://` to a non-loopback
+host. A deployed HTTPS pair works the same way.
+
 Where the app keeps state:
 
 - Settings file: `%APPDATA%\com.centuriontrade.app\connection.json` (`{"backend":…,"login_url":…}`;
@@ -130,7 +136,9 @@ CI. Still unproven here: the installed app receiving that callback, and a real P
 4. Expected: position closes (or shrinks for a partial), Activity records the exit with its reason,
    and a receipt is available read-only.
 5. **PnL**: open the PnL report (R) → realized/unrealized/fees/total, epoch, window (7D default).
-   A field the API did not send renders **"—"**, never `0.00`.
+   A field the API did not send renders **"—"**, never `0.00`. A brand-new paper workspace has no
+   portfolio snapshot yet (`GET …/portfolio/overview` → `data: null`), so cash/PnL may stay "—" until
+   the first fill; that is correct, not a defect.
 6. **Reset practice** (Settings) → positions close, epoch increments; repeating immediately hits the
    429 cooldown (shown as a message, not a crash).
 
@@ -183,8 +191,8 @@ Note: the update feed is `releases/latest`, so **only desktop releases** may be 
 
 ## Defect status
 
-The six gaps below were found in a static audit of `0bbef0e` and fixed in `d54d543`; steps F/G are
-still the live proof.
+The gaps below were found in a static audit of `0bbef0e`; D1–D6 are fixed in `d54d543` and steps F/G
+are still the live proof. D7 was found in the follow-up review.
 
 | ID | Severity | Where (before the fix) | Issue | Now |
 |---|---|---|---|---|
@@ -194,9 +202,19 @@ still the live proof.
 | D4 | P3 | `src-tauri/src/config.rs:54-58`, `src/components/connectionCheck.ts:22-26` | Scheme/host match was case-sensitive: `HTTPS://host` and `LOCALHOST` were rejected. | Fixed in Rust and TS; the saved value is normalised to a lower-case scheme. |
 | D5 | P3 | `src/views/TerminalView.tsx:253` | Status bar always said "backend (mock) online", even on the paper API. | Fixed: it names the transport this run really uses. |
 | D6 | P3 | `src-tauri/src/commands.rs:755` | `connection_status.restart_required` was hardcoded `false`. | Fixed: true while the saved API differs from the running transport, and the card says the change is not active yet. |
+| D7 | P3 | `src-tauri/src/config.rs:173-193` (save side `:209-226`) | **Open.** `save()` moves `connection.json` → `connection.json.bak` before the `tmp` rename. A crash or power loss in that window leaves only the backup, and `load()` treats a missing `connection.json` as a first run: the app starts on demo data with **no error**, so mock data can be mistaken for paper. | Patch specified, not applied (owner: Lead) — when the main file is `NotFound` and `connection.json.bak` exists, read and re-validate the backup, rename it back to `connection.json`, and keep a note in the card's error line. Do not fall back to `.tmp` (it may hold a half-written file). |
 
 Two new regression tests cover D2/D4 (`cargo test` in CI) plus one node test for D4; `cargo fmt` and
 `cargo clippy -D warnings` stay green in CI.
+
+Gate on the dirty desktop tree at `c03154a` (2026-11-09, no commit): `npm run typecheck` exit 0;
+`npm run test:ui` **64/64**; `npm run check:versions` 0.2.0 in all three files and
+`--tag desktop-v0.2.1` correctly fails; `npm run check:updater` OK (key `2F57B840B40EAA22`);
+`--online` reports 404 "no desktop release exists yet"; `npm run build` exit 0. A synthetic
+`latest.json` passes and a wrong one (version/date/windows entry) fails. Rust gates (`cargo fmt`,
+`clippy`, `test`) cannot run on this PC: Smart App Control blocks `cargo-fmt`/`cargo`
+("Application Control policy has blocked this file", os error 4551) and the default 1.85 toolchain is
+below the 1.90 MSRV of the Tauri dependencies — CI is the proof for those.
 
 Verified good in code (no runtime needed to see it, but step F is the live proof):
 
@@ -205,10 +223,18 @@ Verified good in code (no runtime needed to see it, but step F is the live proof
 - A failed save cannot look connected: `connection_status.active` comes from the live transport
   (`commands.rs:747`), not from the file.
 - An unusable **saved** backend falls back to mock **and** surfaces the reason in Settings
-  (`lib.rs:42-63`, `config.rs:147-170`).
+  (`lib.rs:42-63`, `config.rs:167-193`), except the D7 backup-only state.
 - The transport is built once at startup, so an API change only takes effect after restart; the old
   session is dropped in the same command.
-- Inline validation matches Rust (`scripts/connection-check.test.mjs`, 14 node tests pass).
+- Inline validation matches Rust (`scripts/connection-check.test.mjs`; the full count is in the gate
+  line above).
+- **Route parity** (checked 2026-11-08): every path `http.rs` builds exists in the paper API router
+  (`/v1/workspaces/:ws` + `/portfolio/overview`, `/positions`, `/approvals/:id/decision`,
+  `/positions/:id/close`, `/strategies`, `/strategies/:id/pause|resume`, `PATCH /strategies/:id`,
+  `/practice/reset`, `/coins/:mint/timeline`, `/stats/pnl`, `/stats/exit-reasons`, `/events`,
+  `/events/stream`, `/v1/auth/{siws/nonce,siws/verify,session/refresh,session/logout,desktop/exchange}`).
+  Query names (`mode`, `state`, `window`, `from`, `to`, `cursor`, `after_seq`, `limit`) match the
+  handlers' validation.
 
 Proven at runtime here (mock wallet, headless Chrome, production web build on `:3200`):
 `/auth/desktop` → loopback returned `state,address,message,signature` with the original `state`, no
@@ -219,7 +245,9 @@ refused. That covers the **web half** of C; the Rust callback parser is covered 
 
 - The GUI path itself: this PC has no installed build, no signed release (`latest.json` → 404) and no
   MSVC linker; the GNU test binary aborts with `STATUS_ENTRYPOINT_NOT_FOUND` because the WinRT
-  api-set DLLs (`api-ms-win-core-winrt-*`) are absent. Steps A–H must run on the installed app.
+  api-set DLLs (`api-ms-win-core-winrt-*`) are absent. Since 2026-11-09 Smart App Control also refuses
+  to start `cargo-fmt`/`cargo` from the toolchain ("Application Control policy has blocked this file",
+  os error 4551), so the Rust gates run only in CI. Steps A–H must run on the installed app.
 - A real Phantom extension on a physical device (the web team used a synthetic ed25519 key).
 - Authenticode: unsigned installer, so SmartScreen "Unknown publisher" is expected.
 
