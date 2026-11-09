@@ -44,12 +44,14 @@ created automatically. Nothing else is seeded; every figure on screen comes from
 ## One command (Windows)
 
 `tools\paper\up.ps1` does the whole fast path above: creates the database, applies the shim + every migration, keeps
-two generated API secrets in `.paper\secrets.json` (so restarts do not invalidate sessions), starts the paper API and
-the built Next app in `DATA_SOURCE=http`, waits until both answer, and prints the local plus LAN URL.
+two generated API secrets in `.paper\secrets.json` (so restarts do not invalidate sessions), starts the paper API on
+loopback and the built Next app in `DATA_SOURCE=http`, waits until both answer, and prints the local URL. Both bind
+loopback by default; `-Lan` additionally serves the web app on the Wi-Fi address and prints that URL.
 
 ```powershell
 $env:PGPASSWORD = "postgres"                 # local Postgres superuser
 .\tools\paper\up.ps1 -OwnerWallet <your Phantom public key>
+.\tools\paper\up.ps1 -OwnerWallet <key> -Lan  # also reachable from a phone on the same Wi-Fi
 .\tools\paper\down.ps1                       # stop both processes
 ```
 
@@ -58,16 +60,17 @@ $env:PGPASSWORD = "postgres"                 # local Postgres superuser
 | `-OwnerWallet <base58>` | Required (or set `OWNER_WALLETS`). SIWS fails closed without it. |
 | `-Reset` | Drop and recreate the database (all paper history is lost). |
 | `-Rebuild` | Force `next build` even when `.next\BUILD_ID` exists. |
+| `-Lan` | Listen on every interface instead of loopback, and allow the LAN origin in SIWS. Plain http: anyone on that Wi-Fi can open the app. |
 | `-DbName`, `-ApiPort`, `-WebPort` | Defaults `centurion_paper`, `8080`, `3100`. |
 | `-NoWait` | Start and return without waiting for the readiness checks. |
 
 Logs and pids live in `.paper\` (git-ignored). The script builds with `NODE_ENV=production` (the API's
 `development` env must not leak into `next build`) and serves the standalone output Next emits
 (`.next\standalone\apps\web\server.js` with `static/` and `public/` copied in), because plain `next start` refuses
-`output: "standalone"`. `AUTH_SIWS_DOMAINS` is filled automatically with
-`localhost:<port>`, `127.0.0.1:<port>` and the LAN address of the interface that has the default route, so a phone on
-the same Wi-Fi can open the printed LAN URL. Plain `http` is a local/LAN convenience only: Phantom may refuse it from
-a phone, and a public host needs HTTPS (see §4).
+`output: "standalone"`. The API always binds `127.0.0.1`; the browser reaches it through the web proxy, so it never
+needs the network. With `-Lan`, `AUTH_SIWS_DOMAINS` also carries `localhost:<port>`, `127.0.0.1:<port>` and the LAN
+address of the interface with the default route, so a phone on the same Wi-Fi can open the printed LAN URL. Plain
+`http` is a local/LAN convenience only: Phantom may refuse it from a phone, and a public host needs HTTPS (see §4).
 
 ## 1. Database (Postgres 17)
 

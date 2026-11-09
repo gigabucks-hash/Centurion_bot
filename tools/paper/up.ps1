@@ -44,6 +44,7 @@ param(
   [string]$PgPassword = $env:PGPASSWORD,
   [switch]$Reset,
   [switch]$Rebuild,
+  [switch]$Lan,
   [switch]$NoWait
 )
 
@@ -156,7 +157,12 @@ if (-not $lanIp) {
     Select-Object -First 1 -ExpandProperty IPAddress)
 }
 $domains = @("localhost:$WebPort", "127.0.0.1:$WebPort")
-if ($lanIp) { $domains += "${lanIp}:$WebPort" }
+# Listening on every interface is opt-in: plain http means anyone on the same Wi-Fi can open the app and
+# read the paper history. Without -Lan both servers bind loopback only.
+$bindHost = if ($Lan) { "0.0.0.0" } else { "127.0.0.1" }
+if ($Lan -and $lanIp) { $domains += "${lanIp}:$WebPort" }
+if ($Lan -and -not $lanIp) { Write-Host "WARN: -Lan was given but no LAN IPv4 address was found; only localhost will answer." -ForegroundColor Yellow }
+if ($Lan) { Write-Host "WARN: -Lan serves plain http to the whole network; use it only on a Wi-Fi you trust." -ForegroundColor Yellow }
 
 $dbUrl = if ($PgPassword) {
   "postgres://${PgUser}:$([uri]::EscapeDataString($PgPassword))@${PgHost}:${PgPort}/$DbName"
@@ -169,7 +175,7 @@ Step "starting paper API on :$ApiPort"
 $env:TRADING_MODE = "paper"
 $env:NODE_ENV = "development"            # AUTH_USER_CREATE=direct is refused in production
 $env:DATABASE_URL = $dbUrl
-$env:API_HOST = "0.0.0.0"
+$env:API_HOST = "127.0.0.1"                # the web app proxies for the browser; the API never needs the LAN
 $env:API_PORT = "$ApiPort"
 $env:AUTH_SIWS_DOMAINS = ($domains -join ",")
 $env:OWNER_WALLETS = $OwnerWallet
@@ -214,7 +220,7 @@ $env:DATA_SOURCE = "http"
 $env:API_BASE_URL = "http://127.0.0.1:$ApiPort"
 $env:CENTURION_INSECURE_COOKIES = "1"     # plain http on localhost / LAN only
 $env:PORT = "$WebPort"
-$env:HOSTNAME = "0.0.0.0"
+$env:HOSTNAME = $bindHost
 
 $webLog = Join-Path $logDir "web.log"
 $web = Start-Process -FilePath $node -ArgumentList @($serverJs) `
@@ -264,7 +270,11 @@ $health = Invoke-RestMethod -Uri "http://127.0.0.1:$ApiPort/healthz" -TimeoutSec
 Write-Host ""
 Write-Host "Paper stack is up (mode: $($health.mode), real_enabled: $($health.real_enabled))" -ForegroundColor Green
 Write-Host "  Web        http://localhost:$WebPort"
-if ($lanIp) { Write-Host "  Phone/LAN  http://${lanIp}:$WebPort   (same Wi-Fi; Phantom may require https from a phone)" }
+if ($Lan -and $lanIp) {
+  Write-Host "  Phone/LAN  http://${lanIp}:$WebPort   (same Wi-Fi; anyone on it can open this app; Phantom may require https)" -ForegroundColor Yellow
+} else {
+  Write-Host "  Phone/LAN  off (loopback only); add -Lan to listen on ${lanIp}:$WebPort"
+}
 Write-Host "  API        http://127.0.0.1:$ApiPort/healthz"
 Write-Host "  Wallet     $OwnerWallet"
 Write-Host "  Database   $DbName"
