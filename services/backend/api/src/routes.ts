@@ -126,7 +126,8 @@ export function buildRouter(d: Deps): Router {
           where p.workspace_id = $1 and p.mode = $2::public.trade_mode
             and ($3::public.position_status is null or p.status = $3::public.position_status)
             and ($4::uuid is null or p.strategy_id = $4)
-            and p.practice_epoch = coalesce($5::int, (select practice_epoch from public.workspaces where id = $1))
+            and (p.mode <> 'practice'
+                 or p.practice_epoch = coalesce($5::int, (select practice_epoch from public.workspaces where id = $1)))
             and ($6::timestamptz is null or ${sortCol} >= $6)
             and ($7::timestamptz is null or ${sortCol} < $7)
             and ($8::timestamptz is null or (${sortCol}, p.id) < ($8::timestamptz, $9::uuid))

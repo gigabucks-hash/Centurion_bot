@@ -17,7 +17,7 @@ Implements `packages/contracts/API_ENDPOINTS.md` / `EVENTS_SCHEMA.md` (contracts
 | `POST /v1/workspaces/{ws}/positions/{id}/close` | `If-Match`/`expected_rev`, `Idempotency-Key`, `{fraction_bps}` -> `close_position()` |
 | `GET /v1/workspaces/{ws}/approvals[?status&kind]`, `/approvals/{id}` | detail mints a `decision_token` for members with `trade` |
 | `POST /v1/workspaces/{ws}/approvals/{id}/decision` | `If-Match`/`expected_rev`, `Idempotency-Key` -> `decide_approval()` |
-| `GET /v1/workspaces/{ws}/portfolio/overview` | `portfolio_latest` |
+| `GET /v1/workspaces/{ws}/portfolio/overview` | `portfolio_latest`: one latest snapshot per `(workspace, mode)`; practice is scoped to the current `practice_epoch`, a real snapshot never hides it |
 | `GET /v1/workspaces/{ws}/stats/exit-reasons[?strategy_id&window|from&to]` | `exit_stats()` rows |
 | `GET /v1/workspaces/{ws}/stats/pnl[?strategy_id&window|from&to]` | PnL card/report: unrealized, realized, total, windowed realized + closed count / win rate / avg hold / fees (default `window=7d`) |
 | `GET /v1/workspaces/{ws}/events[?after_seq|before_seq&types&limit]` | seq strings, `next_after_seq`, `safe_seq` |
