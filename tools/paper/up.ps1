@@ -114,8 +114,23 @@ if ($schema -ne "t") {
 
 # --- secrets ------------------------------------------------------------------------------------
 function New-Secret([int]$length = 48) {
+  # Cryptographic RNG, not Get-Random: these two values are the HMAC keys for every session and
+  # JWT the local stack issues, and System.Random is seeded from the clock and predictable.
+  # Rejection sampling keeps the 62-char alphabet uniform (accept 0..247, reject 248..255).
   $alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-  -join (1..$length | ForEach-Object { $alphabet[[int](Get-Random -Minimum 0 -Maximum $alphabet.Length)] })
+  $limit = [int]([math]::Floor(256 / $alphabet.Length) * $alphabet.Length)
+  $chars = [System.Collections.Generic.List[char]]::new()
+  $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+  try {
+    $buf = New-Object byte[] 64
+    while ($chars.Count -lt $length) {
+      $rng.GetBytes($buf)
+      foreach ($b in $buf) {
+        if ($b -lt $limit -and $chars.Count -lt $length) { $chars.Add($alphabet[[int]$b % $alphabet.Length]) }
+      }
+    }
+  } finally { $rng.Dispose() }
+  -join $chars
 }
 if (Test-Path $secretFile) {
   $secrets = Get-Content $secretFile -Raw | ConvertFrom-Json
@@ -168,26 +183,41 @@ $api = Start-Process -FilePath $node -ArgumentList @("src/main.ts") -WorkingDire
   -RedirectStandardOutput $apiLog -RedirectStandardError "$apiLog.err" -WindowStyle Hidden -PassThru
 
 # --- web ----------------------------------------------------------------------------------------
+# The web build must never inherit NODE_ENV=development (the API needs it for AUTH_USER_CREATE=direct):
+# a dev-env production build fails at /_global-error. Build with production env, start from the
+# standalone output Next emits when `output: "standalone"` is set (plain `next start` refuses it).
+$env:NODE_ENV = "production"
+$env:NEXT_PUBLIC_SITE_URL = "http://localhost:$WebPort"
 $buildId = Join-Path $webDir ".next\BUILD_ID"
 if ($Rebuild -or -not (Test-Path $buildId)) {
   Step "building the web app (first run only, ~1-2 min)"
   Push-Location $webDir
   try {
-    $env:NEXT_PUBLIC_SITE_URL = "http://localhost:$WebPort"
     & (Join-Path $webDir "node_modules\.bin\next.cmd") build | Out-Host
     if ($LASTEXITCODE -ne 0) { Fail "web build failed." }
   } finally { Pop-Location }
+}
+
+$standalone = Join-Path $webDir ".next\standalone"
+$serverJs = Join-Path $standalone "apps\web\server.js"
+if (-not (Test-Path $serverJs)) { Fail "standalone server not found at $serverJs (run with -Rebuild)." }
+# The standalone tree ships no static assets or public files: copy them like the Dockerfile does.
+$standaloneApp = Join-Path $standalone "apps\web"
+New-Item -ItemType Directory -Force -Path (Join-Path $standaloneApp ".next") | Out-Null
+Copy-Item (Join-Path $webDir ".next\static") (Join-Path $standaloneApp ".next\static") -Recurse -Force
+if (Test-Path (Join-Path $webDir "public")) {
+  Copy-Item (Join-Path $webDir "public") (Join-Path $standaloneApp "public") -Recurse -Force
 }
 
 Step "starting web (DATA_SOURCE=http) on :$WebPort"
 $env:DATA_SOURCE = "http"
 $env:API_BASE_URL = "http://127.0.0.1:$ApiPort"
 $env:CENTURION_INSECURE_COOKIES = "1"     # plain http on localhost / LAN only
-$env:NEXT_PUBLIC_SITE_URL = "http://localhost:$WebPort"
-$env:NODE_ENV = "production"
+$env:PORT = "$WebPort"
+$env:HOSTNAME = "0.0.0.0"
 
 $webLog = Join-Path $logDir "web.log"
-$web = Start-Process -FilePath $node -ArgumentList @("node_modules/next/dist/bin/next", "start", "-p", "$WebPort", "-H", "0.0.0.0") `
+$web = Start-Process -FilePath $node -ArgumentList @($serverJs) `
   -WorkingDirectory $webDir -RedirectStandardOutput $webLog -RedirectStandardError "$webLog.err" -WindowStyle Hidden -PassThru
 
 [pscustomobject]@{

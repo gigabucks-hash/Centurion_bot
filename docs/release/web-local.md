@@ -61,7 +61,10 @@ $env:PGPASSWORD = "postgres"                 # local Postgres superuser
 | `-DbName`, `-ApiPort`, `-WebPort` | Defaults `centurion_paper`, `8080`, `3100`. |
 | `-NoWait` | Start and return without waiting for the readiness checks. |
 
-Logs and pids live in `.paper\` (git-ignored). `AUTH_SIWS_DOMAINS` is filled automatically with
+Logs and pids live in `.paper\` (git-ignored). The script builds with `NODE_ENV=production` (the API's
+`development` env must not leak into `next build`) and serves the standalone output Next emits
+(`.next\standalone\apps\web\server.js` with `static/` and `public/` copied in), because plain `next start` refuses
+`output: "standalone"`. `AUTH_SIWS_DOMAINS` is filled automatically with
 `localhost:<port>`, `127.0.0.1:<port>` and the LAN address of the interface that has the default route, so a phone on
 the same Wi-Fi can open the printed LAN URL. Plain `http` is a local/LAN convenience only: Phantom may refuse it from
 a phone, and a public host needs HTTPS (see §4).
