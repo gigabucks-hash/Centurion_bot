@@ -8,3 +8,30 @@ target/
 
 # Updater signing key (docs/release/desktop.md): only the public half goes into tauri.conf.json
 *.key
+
+# --- Defense in depth: credentials and artifacts never belong in a public repo ---
+# Env variants (apps/web and apps/desktop already ignore their own; this covers stray copies).
+.env.*
+!.env.example
+# Certificates and signing material
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+key.properties
+# Store/service credentials
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+*.mobileprovision
+# Installable artifacts
+*.apk
+*.aab
+*.ipa
+*.msi
+*.dmg
+*.AppImage
+# OS noise
+.DS_Store
+.idea/

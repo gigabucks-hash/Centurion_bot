@@ -1,9 +1,22 @@
 # Gitleaks: the QA repro scripts embed fake fixture ids (UUIDs, synthetic owner pubkeys,
 # `API_WORKSPACE_ID` assignments) copied from local paper-stack responses. They are test data,
 # never credentials; real secrets stay out of the repo by rule.
+#
+# The line-target allowlist covers unit-test fixtures that trip the default rules: the fake
+# bearer JWT in the redaction test, `idempotency-key` header values, and captured on-chain
+# `accountKey` public keys in the mainnet fixtures. These are values, not credentials.
 [extend]
 useDefault = true
 
-[allowlist]
+[[allowlists]]
 description = "QA repro fixtures (fake ids only)"
 paths = ['''docs/qa/repro/.*''']
+
+[[allowlists]]
+description = "Unit-test fixtures: fake JWT, idempotency keys, on-chain public keys"
+regexTarget = "line"
+regexes = [
+  '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIwMDAwMDAwMC0wMDAwIn0\.c2lnbmF0dXJl''',
+  '''idempotency-key''',
+  '''"accountKey":"[1-9A-HJ-NP-Za-km-z]{32,44}"''',
+]

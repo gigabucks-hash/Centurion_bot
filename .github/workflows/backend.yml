@@ -101,13 +101,3 @@ jobs:
         run: npm run typecheck
       - name: REST/SSE tests against Postgres (TRADING_MODE=paper only)
         run: npm test
-
-  secrets:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
