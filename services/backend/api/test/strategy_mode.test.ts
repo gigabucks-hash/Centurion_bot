@@ -188,6 +188,21 @@ describe("strategy mode switch", () => {
     assert.deepEqual(au.after, { mode: "practice", rev: baseRev + 1 });
     assert.equal(au.actor_via, "web");
 
+    // Mode is first-class in the revision history and in a stale-writer conflict.
+    const revBase = await call(h.base, "GET", `${base()}/${id}/revisions/${baseRev}`, { token: phase7() });
+    assert.equal(revBase.status, 200, JSON.stringify(revBase.body));
+    assert.equal(revBase.body.data.mode, "real");
+    const revList = await call(h.base, "GET", `${base()}/${id}/revisions`, { token: phase7() });
+    assert.equal(revList.status, 200, JSON.stringify(revList.body));
+    assert.equal(revList.body.items[0].rev, baseRev + 1);
+    assert.equal(revList.body.items[0].mode, "practice");
+    const stale = await call(h.base, "PATCH", `${base()}/${id}`, {
+      token: phase7(), headers: { "idempotency-key": key(), "if-match": `"${baseRev}"` }, body: {},
+    });
+    assert.equal(stale.status, 409, JSON.stringify(stale.body));
+    assert.equal(stale.body.error.code, "STRATEGY_REV_CONFLICT");
+    assert.ok(stale.body.error.changed_fields.includes("mode"), JSON.stringify(stale.body.error.changed_fields));
+
     // Already practice: another switch is the no-write 200 and does not append a second event.
     const same = await modeCall(id, "practice", { rev: baseRev + 1 });
     assert.equal(same.status, 200, JSON.stringify(same.body));

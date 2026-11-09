@@ -60,14 +60,16 @@ A retried key returns the stored response with `"replayed": true` and `Idempoten
 
 and writes `audit_log(action='strategy.mode_changed', before={mode,rev}, after={mode,rev})`. A mode flip bumps
 `rev` through `strategies_bump_rev()` (now includes `mode`), so it appears in the revision list like any other
-user-visible change.
+user-visible change. Migration `0027_strategy_revision_mode.sql` stores `mode` on `strategy_revisions` (the
+trigger copies it), so a mode-only revision is distinguishable from its parent and
+`GET .../strategies/{id}/revisions[/{rev}]` returns `mode` next to `name`/`status`/`settings`.
 
 ## Errors
 
 | HTTP | Code | Extra |
 |---|---|---|
 | 428 | `PRECONDITION_REQUIRED` | missing `If-Match`/`expected_rev` or `Idempotency-Key` |
-| 409 | `STRATEGY_REV_CONFLICT` | `current_rev`, `base_rev`, `changed_by`, `changed_at`, `current` |
+| 409 | `STRATEGY_REV_CONFLICT` | `current_rev`, `base_rev`, `changed_fields`, `changed_by`, `changed_at`, `current` (`changed_fields` can include `mode`, so a writer that lost a race to a mode flip sees exactly that) |
 | 403 | `MODE_NOT_ALLOWED` | practice -> real: `{reason:"real_locked", real_locked_reason:"needs_owner_approval", hint}`; archived: `{reason:"archived"}` |
 | 403 | `FORBIDDEN_SCOPE` / `FORBIDDEN_ROLE` | token without `trade`; member below trader |
 | 404 | `NOT_FOUND` | unknown id, not this workspace, not a member |
@@ -108,4 +110,6 @@ explanation inline instead of a generic validation error.
 
 `api/test/strategy_mode.test.ts` covers 428, 422 (mode/scope/role), 409 with `current`, 403 practice -> real with
 `real_locked_reason` and no write/event, same-mode no-op + key replay, cross-workspace 404, archived 403, and the
-real -> practice flip (rev bump, audit row, `strategy.mode_changed` payload, one-event-only repeat).
+real -> practice flip (rev bump, audit row, `strategy.mode_changed` payload, one-event-only repeat). It also
+asserts that revisions carry `mode` (base row `real`, new row `practice`) and that a stale `PATCH` after the flip
+returns `409` with `changed_fields` containing `mode`.

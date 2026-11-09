@@ -130,7 +130,7 @@ export function registerStrategies(r: Router, d: Deps): void {
     const rows = await asUser(d.db, p.claims, async (c) => {
       await strategyIn(c, id, ws);
       const q = await c.query(
-        `select rev, name, status::text as status, changed_by, changed_via, device, created_at, ${cursorCols("created_at", "rev")}
+        `select rev, name, status::text as status, mode::text as mode, changed_by, changed_via, device, created_at, ${cursorCols("created_at", "rev")}
            from public.strategy_revisions where strategy_id = $1 and ($2::int is null or rev < $2::int)
           order by rev desc limit $3`,
         [id, cur?.id ?? null, limit + 1],
@@ -151,7 +151,7 @@ export function registerStrategies(r: Router, d: Deps): void {
     const row = await asUser(d.db, p.claims, async (c) => {
       await strategyIn(c, id, ws);
       const q = await c.query(
-        `select strategy_id as id, rev, name, status::text as status, settings, changed_by, changed_via, device, created_at
+        `select strategy_id as id, rev, name, status::text as status, mode::text as mode, settings, changed_by, changed_via, device, created_at
            from public.strategy_revisions where strategy_id = $1 and rev = $2`,
         [id, rev],
       );

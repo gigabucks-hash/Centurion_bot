@@ -1,7 +1,7 @@
 # Centurion API (Phase 2, REST + SSE)
 
 Node 22.18+/24 TypeScript (run directly with Node's type stripping, no build step; `tsc` is typecheck only).
-Implements `packages/contracts/API_ENDPOINTS.md` / `EVENTS_SCHEMA.md` (contracts **1.1.2**). Practice mode only.
+Implements `packages/contracts/API_ENDPOINTS.md` / `EVENTS_SCHEMA.md` (contracts **1.1.6**). Practice mode only.
 
 - **Refuses to start unless `TRADING_MODE=paper`** (exit 78); also refuses `REAL_TRADING_ENABLED=true`.
 - No private keys, no signing, no transactions. Secrets only from env (`DATABASE_URL`, `SUPABASE_JWT_SECRET`), never logged.
@@ -26,7 +26,11 @@ Implements `packages/contracts/API_ENDPOINTS.md` / `EVENTS_SCHEMA.md` (contracts
 | `GET/POST /v1/workspaces/{ws}/strategies[?status]`, `GET .../{id}` | create via `create_strategy()` (draft/paused), `201` + `ETag` + `Location`, `Idempotency-Key` |
 | `PATCH .../strategies/{id}` | `{settings_patch?, name?, status?}`, `If-Match`/`expected_rev`, `Idempotency-Key` -> `update_strategy()` |
 | `POST .../strategies/{id}/pause`, `/resume`, `/archive`; `DELETE .../strategies/{id}` | rev required; archive/delete via `retire_strategy_by_user()` |
-| `GET .../strategies/{id}/revisions`, `/revisions/{rev}` | history (light) and the merge base (with settings) for the 3-way review |
+| `POST .../strategies/{id}/mode` | `{"mode":"practice"\|"real"}`, `If-Match`/`expected_rev`, `Idempotency-Key` -> `set_strategy_mode()`. Practice -> Real is always `403 MODE_NOT_ALLOWED {reason:"real_locked", real_locked_reason:"needs_owner_approval", hint}` in this phase; Real -> Practice bumps `rev`, audits and emits `strategy.mode_changed`; same mode is a rev-checked no-op. Archived -> `403`, other workspace -> `404` |
+| `GET .../strategies/{id}/revisions`, `/revisions/{rev}` | history (light, includes `mode`) and the merge base (with settings + `mode`) for the 3-way review |
+| `GET /v1/workspaces/{ws}/trading` | workspace Stop wire: `{buys_paused, buys_paused_via, buys_paused_at, agent_trade_enabled, rev}` + `ETag` |
+| `POST .../trading/pause-buys`, `/resume-buys` | `{reason?}` (max 200), `If-Match`/`expected_rev`, `Idempotency-Key`; stale -> `409 VERSION_CONFLICT`; an agent cannot resume a pause set from the app (`403 RESUME_REQUIRES_APP`); audited + `buys.paused`/`buys.resumed` event |
+| `POST .../trading/sell-all` | `Idempotency-Key` (= `sell_all_id`), one request per 60 s per workspace; closes every open practice position via `close_position()` and returns per-position results; paper only |
 | `GET .../coins[?strategy_id&window]`, `/coins/{mint}`, `/coins/{mint}/timeline` | coins seen in the workspace's picks; name/symbol stay in `untrusted` |
 | `GET .../picks[?strategy_id&stage]`, `/picks/{id}`; `GET .../fills[?position_id&window]` | `fill_wire()` + `position_id` |
 | `GET .../orders/{id}`, `GET .../jobs/{job_id}` | poll targets (`order_wire()`; job payload stays internal) |
@@ -39,7 +43,9 @@ Common rules: every body has `server_now` and every response `X-Server-Now`; err
 status from `errors.json`; SQL raises (`P0<http>`, message = code, detail = JSON) map 1:1. Missing rev ->
 `428 PRECONDITION_REQUIRED`, stale -> `409 VERSION_CONFLICT|STRATEGY_REV_CONFLICT {current_rev, base_rev, current}` (`current` is always present: SQL sends it and `withCurrent()` fills it for any path that does not); same
 `Idempotency-Key` + same body -> stored response with `replayed:true` and `Idempotent-Replayed: true`, different
-body -> `422 IDEMPOTENCY_KEY_REUSED`. `mode=real` -> `403 REAL_SOL_DISABLED`.
+body -> `422 IDEMPOTENCY_KEY_REUSED`. `mode=real` -> `403 REAL_SOL_DISABLED`, except on
+`POST .../strategies/{id}/mode`, which accepts `"mode":"real"` and answers `403 MODE_NOT_ALLOWED` with the lock
+reason (`real_locked`, `real_locked_reason`, `hint`) so the app can explain it inline.
 
 Marks for `include=marks` arrive by `pg_notify('<SSE_MARKS_CHANNEL default centurion_marks>',
 '{"workspace_id","mode","mark":{MarkMessage}}')`; only `MarkMessage` fields are forwarded.
