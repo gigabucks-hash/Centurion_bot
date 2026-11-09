@@ -17,17 +17,19 @@ compliance statement.
 The Windows installer published as `desktop-v0.2.0` ships with Real locked. Installing it cannot enable
 real trading.
 
-## Data-model blockers (must be fixed before Real can even be tested)
+## Data-model blockers (closed before Real can even be tested)
 
-These come from the Phase-7 review in `docs/qa/BUG_HUNT_v1.md` and are **not** cosmetic:
+These come from the Phase-7 review in `docs/qa/BUG_HUNT_v1.md` and were **not** cosmetic. Both are fixed in
+`0028_per_mode_practice_reset.sql` and proved by `supabase/tests/97_per_mode_reset.sql` (commit `babfa7b`,
+CI backend `sql` + `rust` green):
 
-| ID | Problem | Location | Effect if Real were enabled |
+| ID | Was | Now | Proof |
 |---|---|---|---|
-| L1 | `portfolio_latest` keeps one row per workspace (`distinct on (workspace_id)`), not per workspace+mode | `supabase/migrations/0002_contracts_v1_1.sql:300-305` | A newer real snapshot hides the practice snapshot; `/stats/pnl` loses the practice card |
-| L2 | Practice reset closes/archives **every** mode and advances the workspace `practice_epoch` | `0002_contracts_v1_1.sql:346-354`, `0022_pnl_report.sql:69`, `routes.ts:127-128` | Resetting practice would close and archive real positions with `exit_reason=practice_reset` |
+| L1 | `portfolio_latest` kept one row per workspace (`distinct on (workspace_id)`), so a newer real snapshot hid the practice snapshot | one row per `(workspace_id, mode)`; the practice epoch only filters practice rows | `97_per_mode_reset.sql:30-70`: overview practice stays 29.75 SOL while a newer real snapshot exists |
+| L2 | Practice reset closed/archived **every** mode, including real positions and approvals | reset touches `mode='practice'` only (positions, approvals, fill/snapshot counts, `first_buy_at`); per-mode epoch in `0022:69` and `routes.ts:127-130` | `97_per_mode_reset.sql:72-116`: real positions, approvals and snapshots survive a practice reset |
 
-Both are being fixed as per-mode isolation with SQL regression tests. Until those tests exist and pass,
-enabling Real would corrupt history, so the lock stays.
+Enabling Real still cannot corrupt practice history, but it remains locked: the lock is about custody,
+signing, limits and approval, not about these two bugs.
 
 ## Decisions only the owner can make
 
@@ -41,7 +43,7 @@ enabling Real would corrupt history, so the lock stays.
 
 ## Order of work once the owner decides
 
-1. Land L1/L2 with tests (paper behaviour unchanged).
+1. ~~Land L1/L2 with tests (paper behaviour unchanged).~~ Done in `babfa7b`.
 2. Build the executor behind a compile-time feature that CI proves is off by default.
 3. Devnet canary with the smallest possible size; every order needs hold-to-confirm.
 4. Live canary with hard caps, reconciled against the chain, with an incident runbook.
@@ -52,3 +54,5 @@ enabling Real would corrupt history, so the lock stays.
 - Real Phantom signature on a physical device (probes use a synthetic ed25519 key).
 - Custody provider integration (none chosen, none coded).
 - Chain reconciliation, withdrawal, and any live order path (do not exist).
+- RLS visibility of the per-mode overview with a JWT that carries `trade:real` is not exercised by a test; the
+  paper API never issues one while Real is locked.
