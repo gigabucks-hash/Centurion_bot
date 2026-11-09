@@ -196,7 +196,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         );
                     }
                 }
-                if n % 30 == 0 {
+                if n.is_multiple_of(30) {
                     if let Err(e) = credits.flush() {
                         tracing::warn!(error = %e, "credit meter flush failed");
                     }
