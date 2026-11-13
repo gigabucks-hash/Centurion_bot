@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-real-status"
+description = "Enables the real_status command without any pre-configured scope."
+commands.allow = ["real_status"]
+
+[[permission]]
+identifier = "deny-real-status"
+description = "Denies the real_status command without any pre-configured scope."
+commands.deny = ["real_status"]

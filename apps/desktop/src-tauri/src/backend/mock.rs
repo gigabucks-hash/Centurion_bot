@@ -337,6 +337,8 @@ struct Server {
     quote_strict: bool,
     /// PRACTICE_CASH_INSUFFICIENT notice already sent (cleared by the next filled entry / reset).
     entries_paused: bool,
+    /// Stop: new buys are refused. Sells and exit plans keep running.
+    stop_buys: bool,
     slot: i64,
     next_candidate_ms: i64,
     next_clock_ms: i64,
@@ -1615,6 +1617,7 @@ impl MockTransport {
             nt_watch: Default::default(),
             quote_strict: std::env::var("CENTURION_MOCK_QUOTE_STRICT").is_ok_and(|v| v == "1"),
             entries_paused: false,
+            stop_buys: false,
             seq_job: 9_000_000_000,
             slot: 301_223_344,
             next_candidate_ms: now + 1_500,
@@ -1855,6 +1858,14 @@ impl Transport for MockTransport {
                 "QUOTE_MISSING_OR_STALE",
                 "Quote missing or expired; refresh it before approving",
                 json!({"quote_expires_at": exp}),
+            );
+        }
+        if req.decision == Decision::Approve && s.stop_buys {
+            return s.err(
+                409,
+                "BUYS_PAUSED",
+                "New buys are paused. Sells still run.",
+                json!({}),
             );
         }
         if req.decision == Decision::Approve && !s.coins.get(&mint).is_some_and(Coin::tradeable) {
@@ -2396,6 +2407,49 @@ impl Transport for MockTransport {
         Ok(ClosedPage {
             items: rows,
             next_cursor,
+        })
+    }
+
+    async fn set_buys_paused(
+        &self,
+        _idem_key: &str,
+        paused: bool,
+    ) -> ApiResult<crate::backend::TradingSwitch> {
+        let mut s = self.inner.lock().unwrap();
+        s.stop_buys = paused;
+        Ok(crate::backend::TradingSwitch {
+            buys_paused: paused,
+            rev: 1,
+        })
+    }
+
+    async fn sell_all(&self, idem_key: &str) -> ApiResult<crate::backend::SellAllReport> {
+        let open: Vec<(String, u64)> = {
+            let s = self.inner.lock().unwrap();
+            s.positions
+                .values()
+                .map(|p| (p.id.clone(), p.rev))
+                .collect()
+        };
+        let mut positions = Vec::new();
+        for (i, (id, rev)) in open.iter().enumerate() {
+            match self
+                .close(id, &format!("{idem_key}:sa{i}"), Some(*rev), 10_000)
+                .await
+            {
+                Ok(_) => positions.push(crate::backend::SellAllItem {
+                    position_id: id.clone(),
+                    status: "filled".into(),
+                }),
+                Err(e) => positions.push(crate::backend::SellAllItem {
+                    position_id: id.clone(),
+                    status: format!("failed:{}", e.code()),
+                }),
+            }
+        }
+        Ok(crate::backend::SellAllReport {
+            sell_all_id: idem_key.into(),
+            positions,
         })
     }
 }

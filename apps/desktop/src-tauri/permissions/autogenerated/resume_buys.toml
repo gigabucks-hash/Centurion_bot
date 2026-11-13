@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-resume-buys"
+description = "Enables the resume_buys command without any pre-configured scope."
+commands.allow = ["resume_buys"]
+
+[[permission]]
+identifier = "deny-resume-buys"
+description = "Denies the resume_buys command without any pre-configured scope."
+commands.deny = ["resume_buys"]

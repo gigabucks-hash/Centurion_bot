@@ -1,58 +1,54 @@
-# Real-money readiness (gate document)
+# Real money: go-live checklist
 
-Real money is **off in code, not by configuration alone**. This page records what is already true, what is
-still missing, and in which order the missing pieces have to land. It is not an approval and not a
-compliance statement.
+Real is **off** until the owner turns it on in the installed Centurion Trade app and signs with their own wallet. Installing 0.3.0 does not trade. This page is the owner's checklist, not a statement that live trading is already switched on.
 
-## What is enforced today
+## What the app already enforces
 
-| Control | Where | Evidence |
-|---|---|---|
-| The whole product runs paper only | `services/backend/api/src/config.ts:153-155` | `REAL_TRADING_ENABLED` is refused at start; probe shows `real_enabled:false` |
-| A strategy cannot move to Real | strategy mode route + `0026`/`0027` | HTTP probe: `POST .../mode` practice -> real = `403 MODE_NOT_ALLOWED` (`real_locked_reason: needs_owner_approval`) |
-| No live executor | backend features + `.env.example` | CI fails if `live-execution` is compiled into `ingest`; `LIVE_EXECUTION_ENABLED=false` |
-| No keys, no signing, no withdrawal | backend + desktop | no key material in the repo; desktop asks for `read` + `trade`, never `trade:real` |
-| Real UI is a locked card, not a hidden switch | web + desktop | Paper/Real card explains the lock; server refuses regardless of the client |
+| Rail | What it does |
+|---|---|
+| Opt-in | Settings → Real money → Enable Real. The system browser opens so the owner's wallet can sign. The app stores the public key and the signature only. |
+| Keys | There is no export, no upload, and no field in `real.json` for a private key. Swaps are signed by the wallet. |
+| Defaults | 0.05 SOL per trade, 0.5 SOL per day, 2 SOL capital cap, 3 open positions. These are starting values. There is no hard maximum. |
+| Tighter limits | Save immediately. |
+| Looser limits | A dialog lists every old value and the new value. The new values are stored only after the wallet signs that exact text. |
+| Where | Global, and a separate copy per strategy. |
+| Other knobs | Slippage, priority fee, tip, take-profit, stop-loss, trailing stop, max hold, and buy filters (market cap, liquidity, volume, top-10, holders, age, LP burn, pool share). |
+| Stop | Pauses new buys only. Exit plans keep running. Resume is immediate. |
+| Jual semua | Sells every open position, including while buys are paused. |
+| Guard and Risk | A buy is refused unless the guard verdict is pass and the risk manager has not vetoed. The size, daily, cap, position and slippage checks run as well. |
+| Transfers | A transaction that sends SOL or tokens to any address other than the owner's wallet is refused. A tip is allowed only up to the tip setting, and only to the public Jito tip accounts. |
+| RPC | Uses the URL in Settings. `https://` anywhere, or `http://` only to this PC. The public Solana mainnet URL is the default. No paid plan is configured. |
+| Server | The paper API still refuses `REAL_TRADING_ENABLED` and does not receive keys. Live swaps are built on this PC (public Jupiter quote) and sent through the owner's RPC. |
 
-The Windows installer published as `desktop-v0.2.0` ships with Real locked. Installing it cannot enable
-real trading.
+L1 and L2 (practice and real books no longer hide each other, and a practice reset does not touch real rows) stay closed. See `supabase/tests/97_per_mode_reset.sql`.
 
-## Data-model blockers (closed before Real can even be tested)
+## What the owner does to turn Real on
 
-These come from the Phase-7 review in `docs/qa/BUG_HUNT_v1.md` and were **not** cosmetic. Both are fixed in
-`0028_per_mode_practice_reset.sql` and proved by `supabase/tests/97_per_mode_reset.sql` (commit `babfa7b`,
-CI backend `sql` + `rust` green):
+1. Install the Windows build from the `desktop-v0.3.0` release after you publish it. Do not publish it until you have read these notes.
+2. On that PC, turn Smart App Control off or sign the installer with an Authenticode certificate. An unsigned installer will not start while Smart App Control is enforcing.
+3. Open Centurion Trade → Settings → Real money.
+4. Paste the wallet address that will sign. Press **Enable Real** and approve the message in that wallet. The key never leaves the wallet.
+5. Set the RPC URL if you do not want the public mainnet endpoint.
+6. Set the limits. Raising any of them shows the old and new numbers and asks for another signature.
+7. Tick the strategies that may trade Real.
+8. Fund that wallet yourself. The app does not move funds in from anywhere else.
+9. Approve a buy. The app builds the swap, checks Guard, Risk, the limits and the destination, then asks the wallet to sign the transaction. Until you sign, nothing is sent.
+10. Stop pauses new buys. **Jual semua** sells the open positions. Each of those sells is still signed by the wallet.
 
-| ID | Was | Now | Proof |
-|---|---|---|---|
-| L1 | `portfolio_latest` kept one row per workspace (`distinct on (workspace_id)`), so a newer real snapshot hid the practice snapshot | one row per `(workspace_id, mode)`; the practice epoch only filters practice rows | `97_per_mode_reset.sql:30-70`: overview practice stays 29.75 SOL while a newer real snapshot exists |
-| L2 | Practice reset closed/archived **every** mode, including real positions and approvals | reset touches `mode='practice'` only (positions, approvals, fill/snapshot counts, `first_buy_at`); per-mode epoch in `0022:69` and `routes.ts:127-130` | `97_per_mode_reset.sql:72-116`: real positions, approvals and snapshots survive a practice reset |
+## Still an owner decision
 
-Enabling Real still cannot corrupt practice history, but it remains locked: the lock is about custody,
-signing, limits and approval, not about these two bugs.
+These are not code. The build does not do them.
 
-## Decisions only the owner can make
+| Decision | Why it is still open |
+|---|---|
+| Publish `desktop-v0.3.0` | The tag, notes and installer job are ready. This change does not publish the GitHub release. |
+| Authenticode certificate | Without it, SmartScreen shows an unknown publisher and Smart App Control can block the installer. The updater signature is separate and is already wired. |
+| Which wallet and how much to fund | The app will not pick a wallet or move funds into it. |
+| Which RPC to rely on | The public endpoint is the default. A private URL is a setting. No plan was purchased. |
+| Leave the paper API where it is | No server was deployed and no VPS was rented. Real signing happens on the PC. |
+| Legal and tax | Not decided here. |
+| Stay on, or turn Real back off | Delete the enable signature by signing out of Real on a future build, or don't press Enable. The default install is off. |
 
-1. **Custody and signing**: Turnkey, Crossmint, or a self-custodied signer. This decides whether keys ever
-   exist server-side, which the security review has to sign off on.
-2. **Withdrawal policy**: allowlist, per-transaction cap, daily cap, and who can change them.
-3. **Risk limits**: max position SOL, max slippage, max open positions, kill switch behaviour.
-4. **Funding**: which wallet, how much for the first canary, and who can top it up.
-5. **Legal/tax**: entity, jurisdiction, and what the app may claim about performance.
-6. **Phase 7 approval**: the explicit go/no-go, with L1/L2 closed and the executor audited.
+## Names left as they are
 
-## Order of work once the owner decides
-
-1. ~~Land L1/L2 with tests (paper behaviour unchanged).~~ Done in `babfa7b`.
-2. Build the executor behind a compile-time feature that CI proves is off by default.
-3. Devnet canary with the smallest possible size; every order needs hold-to-confirm.
-4. Live canary with hard caps, reconciled against the chain, with an incident runbook.
-5. Only then remove the `practice -> real` 403 for strategies that pass the per-strategy gate.
-
-## What is still unverified today
-
-- Real Phantom signature on a physical device (probes use a synthetic ed25519 key).
-- Custody provider integration (none chosen, none coded).
-- Chain reconciliation, withdrawal, and any live order path (do not exist).
-- RLS visibility of the per-mode overview with a JWT that carries `trade:real` is not exercised by a test; the
-  paper API never issues one while Real is locked.
+The window title, installer product, publisher, tray tooltip and About text say **Centurion Trade**. The crate name `centurion`, the folder `src-tauri`, and the `@tauri-apps/*` packages stay. Renaming those breaks the Windows build and the updater. They are not shown as the product name.

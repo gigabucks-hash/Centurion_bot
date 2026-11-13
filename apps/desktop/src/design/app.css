@@ -151,7 +151,16 @@ table.positions button { min-height: 24px; padding: 0 var(--space-2); }
 
 .chart-host { position: absolute; inset: 0; }
 .modal-backdrop { position: fixed; inset: 0; background: var(--color-scrim-sheet); /* 0.3.4: alpha included */ display: grid; place-items: center; z-index: 10; }
-.modal { background: var(--color-bg-overlay); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); box-shadow: var(--shadow-dialog); padding: var(--space-4); width: 380px; }
+.modal { background: var(--color-bg-overlay); border: 1px solid var(--color-border-default); border-radius: var(--radius-md); box-shadow: var(--shadow-dialog); padding: var(--space-4); width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; }
+.balance-cards { display: inline-flex; gap: var(--space-2); min-width: 0; }
+.balance-card { display: inline-flex; flex-direction: column; line-height: 1.1; padding: 2px var(--space-2); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); background: var(--color-bg-surface); }
+.balance-card .dim { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.shortcut-hint { overflow: hidden; }
+.real-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2) var(--space-3); margin-top: var(--space-2); }
+.limit-diff { width: 100%; border-collapse: collapse; margin-top: var(--space-2); }
+.limit-diff th, .limit-diff td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--color-border-subtle); }
+.limit-diff td.num { text-align: right; font-family: var(--font-mono); }
+.settings-section { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .modal h3 { margin: 0 0 var(--space-2); font-size: var(--text-titleSm); line-height: var(--text-titleSm--line-height); }
 .modal .actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
 .modal label { display: block; margin-top: var(--space-3); }

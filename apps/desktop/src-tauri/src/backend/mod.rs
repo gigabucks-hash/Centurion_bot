@@ -392,6 +392,33 @@ pub trait Transport: Send + Sync + 'static {
         &self,
         query: ClosedQuery,
     ) -> impl Future<Output = ApiResult<ClosedPage>> + Send;
+    /// `POST /trading/pause-buys` or `resume-buys`. Pauses new buys only; open positions keep their exits.
+    fn set_buys_paused(
+        &self,
+        idem_key: &str,
+        paused: bool,
+    ) -> impl Future<Output = ApiResult<TradingSwitch>> + Send;
+    /// `POST /trading/sell-all`. Every open paper position, including while buys are paused.
+    fn sell_all(&self, idem_key: &str) -> impl Future<Output = ApiResult<SellAllReport>> + Send;
+}
+
+/// Workspace buy switch (`agent_settings.buys_paused`). Not a strategy pause.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct TradingSwitch {
+    pub buys_paused: bool,
+    pub rev: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SellAllItem {
+    pub position_id: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SellAllReport {
+    pub sell_all_id: String,
+    pub positions: Vec<SellAllItem>,
 }
 
 /// Endpoint paths (Week-2 HTTP transport; asserted in tests so renames are caught).
@@ -603,6 +630,12 @@ impl Transport for ActiveTransport {
 
     async fn closed_positions(&self, query: ClosedQuery) -> ApiResult<ClosedPage> {
         delegate!(self, t => t.closed_positions(query).await)
+    }
+    async fn set_buys_paused(&self, idem_key: &str, paused: bool) -> ApiResult<TradingSwitch> {
+        delegate!(self, t => t.set_buys_paused(idem_key, paused).await)
+    }
+    async fn sell_all(&self, idem_key: &str) -> ApiResult<SellAllReport> {
+        delegate!(self, t => t.sell_all(idem_key).await)
     }
 }
 

@@ -45,6 +45,9 @@ export function StopControl() {
       <button className="sm danger stop-btn" data-action="stop" onClick={() => setAsk("ui")} title={real ? t("kill_switch.dialog.title") : t("desktop.stop.title_practice")}>
         <Icon glyph={Power} size={16} /> {t("kill_switch.action.engage")}
       </button>
+      <button className="sm" data-action="resume-buys" onClick={() => core.resumeBuys().then(() => setMsg({ ok: true, text: lang === "id" ? "Pembelian baru dilanjutkan." : "New buys resumed." })).catch((e) => setMsg({ ok: false, text: errorText(e, lang) }))}>
+        Resume
+      </button>
       {msg && <span className={msg.ok ? "dim" : "neg"} role="status">{msg.text}</span>}
       {ask && <StopDialog real={real} running={running} busy={busy} onCancel={() => setAsk(null)} onConfirm={confirm} />}
     </>

@@ -18,8 +18,18 @@ pub enum AppError {
     Api(String),
     #[error("shortcut error: {0}")]
     Shortcut(String),
-    #[error(transparent)]
-    Tauri(#[from] tauri::Error),
+    #[error("{0}")]
+    Shell(String),
+}
+
+impl From<tauri::Error> for AppError {
+    fn from(e: tauri::Error) -> Self {
+        let raw = e.to_string();
+        let scrubbed = raw
+            .replace("Tauri", "Centurion Trade")
+            .replace("tauri", "Centurion Trade");
+        AppError::Shell(scrubbed)
+    }
 }
 
 // Commands return errors to JS as plain strings (no internal details beyond the message).

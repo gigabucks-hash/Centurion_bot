@@ -12,7 +12,12 @@ import { useCoreEvents, useDocumentAttributes } from "./hooks/useCoreEvents";
 import { useTerm } from "./state/store";
 
 // Defaults before the snapshot arrives (desktop: dark + compact + practice).
-Object.assign(document.documentElement.dataset, { theme: "dark", mode: "practice", density: "compact" });
+const boot = new URLSearchParams(location.search);
+Object.assign(document.documentElement.dataset, {
+  theme: boot.get("theme") === "light" ? "light" : "dark",
+  mode: "practice",
+  density: boot.get("density") === "comfortable" ? "comfortable" : "compact",
+});
 
 // Surface uncaught errors in the status bar (no devtools in release builds).
 window.addEventListener("error", (e) => useTerm.getState().reportError(e.error ?? e.message));

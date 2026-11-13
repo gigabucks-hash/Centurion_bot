@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-real-limits-message"
+description = "Enables the real_limits_message command without any pre-configured scope."
+commands.allow = ["real_limits_message"]
+
+[[permission]]
+identifier = "deny-real-limits-message"
+description = "Denies the real_limits_message command without any pre-configured scope."
+commands.deny = ["real_limits_message"]

@@ -35,7 +35,7 @@ export function useCoreEvents() {
 
 /** Mirror mode/density/theme onto <html> (tokens key off data-mode / data-density / data-theme). */
 export function useDocumentAttributes() {
-  const mode = useTerm((s) => s.mode);
+  const mode = useTerm((s) => (s.realOn ? "real" : s.mode));
   const density = useTerm((s) => s.settings.density);
   const theme = useTerm((s) => s.settings.theme);
   useEffect(() => {

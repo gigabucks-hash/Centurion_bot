@@ -17,6 +17,7 @@ mod keys;
 mod logo;
 mod model;
 mod notify;
+mod real;
 mod rejmap;
 mod state;
 mod stop;
@@ -156,6 +157,18 @@ pub fn run() {
             commands::get_pnl_report,
             commands::get_pnl_page,
             commands::stop_trading,
+            commands::resume_buys,
+            commands::sell_all,
+            commands::real_status,
+            commands::real_enable_message,
+            commands::real_limits_message,
+            commands::real_enable,
+            commands::real_apply,
+            commands::real_set_rpc,
+            commands::real_set_strategies,
+            commands::real_sign,
+            commands::real_prepare_swap,
+            commands::real_submit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Centurion Trade");
