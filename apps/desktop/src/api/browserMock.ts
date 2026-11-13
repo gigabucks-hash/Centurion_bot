@@ -29,7 +29,18 @@ import type {
   Tone,
 } from "./contract";
 import { CONTRACTS_VERSION, EVT, type ApprovalRejectReason } from "./contract";
+import { DEFAULT_KNOBS, diffKnobs, fromWire, limitsMessage, toWire, type RealStatus, type WireKnobs } from "../real/limits";
 let lastResetMs: number | null = null;
+let buysPaused = false;
+let realBook: RealStatus = {
+  enabled: false,
+  wallet: "",
+  rpc_url: "https://api.mainnet-beta.solana.com",
+  global: toWire(DEFAULT_KNOBS),
+  strategies: {},
+  buys_paused: false,
+  real_strategies: [],
+};
 
 type Cb = (p: unknown) => void;
 /** Browser preview of REAL chrome + gating: add ?mode=real to the URL (still mock). */
@@ -65,7 +76,7 @@ let strategies: StrategyView[] = [
     mode: "practice", real_locked: true, real_locked_reason: "policy", paper_progress: { days_done: 14, days_required: 7, trades_done: 41, trades_required: 30 } },
 ];
 let settings: Settings = {
-  theme: "dark",
+  theme: new URLSearchParams(location.search).get("theme") === "light" ? "light" : "dark",
   density: "compact",
   approval_popup: false,
   locale: "id",
@@ -332,6 +343,7 @@ export const browserMockAdapter: CoreApi = {
     return toCandles(mint);
   },
   async approveSignal(id) {
+    if (buysPaused) throw new Error("BUYS_PAUSED: new buys are paused");
     if (MOCK_MODE === "real" && location.hash.startsWith("#/popup")) throw new Error("REAL SOL: approve hanya dari window utama (Buka untuk approve)");
     const s = signals.find((x) => x.id === id && x.status === "pending");
     if (!s) throw new Error("signal not pending");
@@ -444,10 +456,61 @@ export const browserMockAdapter: CoreApi = {
   },
   async stopTrading(_mode, _source, confirm) {
     if (confirm !== "STOP") throw new Error("VALIDATION_FAILED: stop confirm");
-    const paused: string[] = [], already: string[] = [];
-    strategies = strategies.map((x) => (x.status === "paused" ? (already.push(x.id), x) : (paused.push(x.id), { ...x, rev: x.rev + 1, status: "paused" })));
-    emit(EVT.strategies, strategies);
-    return { paused, already_paused: already, failed: [] };
+    if (buysPaused) return { paused: [], already_paused: ["buys"], failed: [] };
+    buysPaused = true;
+    realBook = { ...realBook, buys_paused: true };
+    return { paused: ["buys"], already_paused: [], failed: [] };
+  },
+  async resumeBuys() {
+    buysPaused = false;
+    realBook = { ...realBook, buys_paused: false };
+    return true;
+  },
+  async sellAll(confirm) {
+    if (confirm !== "SELL ALL") throw new Error("VALIDATION_FAILED: sell_all confirm");
+    const positionsOut: { position_id: string; status: string }[] = [];
+    for (const pos of [...positions.values()]) {
+      const q = await browserMockAdapter.requestSell(pos.key, 100);
+      await browserMockAdapter.confirmSell(q.nonce);
+      positionsOut.push({ position_id: pos.position_id ?? pos.key, status: "filled" });
+    }
+    return { sell_all_id: `preview-${Date.now()}`, positions: positionsOut };
+  },
+  async realStatus() {
+    return realBook;
+  },
+  async realEnableMessage(wallet) {
+    return `Centurion Trade\naction: enable-real\nwallet: ${wallet}\n`;
+  },
+  async realLimitsMessage(scope, knobs: WireKnobs) {
+    const old = fromWire(scope.startsWith("strategy:") ? realBook.strategies[scope.slice(9)] ?? realBook.global : realBook.global);
+    return limitsMessage(realBook.wallet || "wallet", scope, old, fromWire(knobs));
+  },
+  async realEnable() {
+    throw new Error("Sign with your wallet in the installed Centurion Trade app. This preview does not enable mainnet trading.");
+  },
+  async realApply(scope, knobs: WireKnobs, signature) {
+    const oldWire = scope.startsWith("strategy:") ? realBook.strategies[scope.slice(9)] ?? realBook.global : realBook.global;
+    const kind = diffKnobs(fromWire(oldWire), fromWire(knobs)).kind;
+    if (kind === "loosen" && !signature) throw new Error("wallet signature required to loosen a limit");
+    if (kind === "loosen") throw new Error("The installed app checks the wallet signature before a looser limit is stored.");
+    if (scope === "global") realBook = { ...realBook, global: knobs };
+    else if (scope.startsWith("strategy:")) {
+      const id = scope.slice("strategy:".length);
+      realBook = { ...realBook, strategies: { ...realBook.strategies, [id]: knobs } };
+    }
+    return realBook;
+  },
+  async realSetRpc(url) {
+    realBook = { ...realBook, rpc_url: url };
+    return realBook;
+  },
+  async realSetStrategies(ids) {
+    realBook = { ...realBook, real_strategies: ids };
+    return realBook;
+  },
+  async realSign() {
+    throw new Error("Wallet signing opens in the installed Centurion Trade app.");
   },
   async setStrategyPaused(id, paused, baseRev) {
     const s = strategies.find((x) => x.id === id);

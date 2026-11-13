@@ -876,6 +876,61 @@ impl Transport for HttpTransport {
             .map(str::to_owned);
         Ok(ClosedPage { items, next_cursor })
     }
+
+    async fn set_buys_paused(
+        &self,
+        idem_key: &str,
+        paused: bool,
+    ) -> ApiResult<crate::backend::TradingSwitch> {
+        let (_, _, cur) = self
+            .raw(Method::GET, &self.p("/trading"), None, &[])
+            .await?;
+        let rev = cur["data"]["rev"].as_u64().unwrap_or(0);
+        let path = if paused {
+            "/trading/pause-buys"
+        } else {
+            "/trading/resume-buys"
+        };
+        let body = json!({ "mode": "practice", "expected_rev": rev });
+        let got: serde_json::Value = self
+            .write(Method::POST, &self.p(path), idem_key, Some(rev), &body)
+            .await?;
+        Ok(crate::backend::TradingSwitch {
+            buys_paused: got["data"]["buys_paused"].as_bool().unwrap_or(paused),
+            rev: got["data"]["rev"].as_u64().unwrap_or(rev),
+        })
+    }
+
+    async fn sell_all(&self, idem_key: &str) -> ApiResult<crate::backend::SellAllReport> {
+        let body = json!({ "mode": "practice", "confirm": "SELL ALL" });
+        let got: serde_json::Value = self
+            .write(
+                Method::POST,
+                &self.p("/trading/sell-all"),
+                idem_key,
+                None,
+                &body,
+            )
+            .await?;
+        let positions = got["data"]["positions"]
+            .as_array()
+            .map(|rows| {
+                rows.iter()
+                    .map(|r| crate::backend::SellAllItem {
+                        position_id: r["position_id"].as_str().unwrap_or("").to_owned(),
+                        status: r["status"].as_str().unwrap_or("failed").to_owned(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(crate::backend::SellAllReport {
+            sell_all_id: got["data"]["sell_all_id"]
+                .as_str()
+                .unwrap_or(idem_key)
+                .to_owned(),
+            positions,
+        })
+    }
 }
 
 /// 200 → applied strategy; 202 → `{data: {proposal: ApprovalWire, guard_change}}` (nothing applied).

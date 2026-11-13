@@ -22,7 +22,7 @@ on:
       tag:
         description: "Release tag to create (desktop-vX.Y.Z)"
         required: true
-        default: "desktop-v0.2.0"
+        default: "desktop-v0.3.0"
 
 env:
   CARGO_TERM_COLOR: always

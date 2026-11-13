@@ -1,7 +1,7 @@
 [package]
 name = "centurion"
-version = "0.2.0"
-description = "Centurion desktop trading terminal (prototype, mock backend only)"
+version = "0.3.0"
+description = "Centurion Trade for Windows"
 edition = "2021"
 rust-version = "1.80"
 license = "UNLICENSED"
@@ -36,6 +36,8 @@ rust_decimal = { version = "1", default-features = false, features = ["std"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 # Real transport (CENTURION_BACKEND): REST + SSE. rustls (no OpenSSL), no redirects, no cookies.
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+# Verify a wallet signature. The desktop never constructs or stores a signing key.
+ed25519-dalek = { version = "2", features = ["std"] }
 
 # Planned (Week 2): OS keychain for the backend session token. Off by default in the prototype.
 keyring = { version = "3", optional = true, features = ["apple-native", "windows-native", "sync-secret-service"] }

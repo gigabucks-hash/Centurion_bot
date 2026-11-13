@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-real-apply"
+description = "Enables the real_apply command without any pre-configured scope."
+commands.allow = ["real_apply"]
+
+[[permission]]
+identifier = "deny-real-apply"
+description = "Denies the real_apply command without any pre-configured scope."
+commands.deny = ["real_apply"]

@@ -26,6 +26,16 @@ mod tests {
             serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
         assert_eq!(conf["productName"], "Centurion Trade");
         assert_eq!(conf["identifier"], "com.centuriontrade.app");
+        assert_eq!(conf["bundle"]["publisher"], "Centurion Trade");
+        for key in [
+            "shortDescription",
+            "longDescription",
+            "copyright",
+            "publisher",
+        ] {
+            let text = conf["bundle"][key].as_str().unwrap_or("");
+            assert!(!text.contains("Tauri") && !text.contains("tauri"), "{key}");
+        }
         for w in conf["app"]["windows"].as_array().unwrap() {
             assert_eq!(w["title"], "Centurion Trade");
         }

@@ -31,6 +31,18 @@
     "allow-auth-logout",
     "allow-patch-strategy",
     "allow-stop-trading",
+    "allow-resume-buys",
+    "allow-sell-all",
+    "allow-real-status",
+    "allow-real-enable-message",
+    "allow-real-limits-message",
+    "allow-real-enable",
+    "allow-real-apply",
+    "allow-real-set-rpc",
+    "allow-real-set-strategies",
+    "allow-real-sign",
+    "allow-real-prepare-swap",
+    "allow-real-submit",
     "updater:default",
     "process:allow-restart"
   ]

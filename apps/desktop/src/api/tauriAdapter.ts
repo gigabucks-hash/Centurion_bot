@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { AuthView, StopResult, CandleView, ClosedPageView, ConnectionView, CoreApi, PatchOutcome, ExitReasonStatView, PnlReportView, PnlWindow, SaveConnectionResult, SellQuote, Settings, Snapshot, StrategyView, TimelineItem } from "./contract";
+import type { RealStatus, WireKnobs } from "../real/limits";
 
 /** Thin typed wrapper over Tauri IPC. Commands use snake_case args (`#[tauri::command(rename_all = "snake_case")]`). */
 export const tauriAdapter: CoreApi = {
@@ -32,6 +33,16 @@ export const tauriAdapter: CoreApi = {
   connectionStatus: () => invoke<ConnectionView>("connection_status"),
   saveConnection: (c) => invoke<SaveConnectionResult>("save_connection", { backend: c.backend, login_url: c.login_url }),
   stopTrading: (mode, source, confirm) => invoke<StopResult>("stop_trading", { mode, source, confirm }),
+  resumeBuys: () => invoke<boolean>("resume_buys"),
+  sellAll: (confirm) => invoke("sell_all", { confirm }),
+  realStatus: () => invoke<RealStatus>("real_status"),
+  realEnableMessage: (wallet) => invoke<string>("real_enable_message", { wallet }),
+  realLimitsMessage: (scope, knobs: WireKnobs) => invoke<string>("real_limits_message", { scope, knobs }),
+  realEnable: (wallet, signature) => invoke<RealStatus>("real_enable", { wallet, signature }),
+  realApply: (scope, knobs: WireKnobs, signature) => invoke<RealStatus>("real_apply", { scope, knobs, signature }),
+  realSetRpc: (url) => invoke<RealStatus>("real_set_rpc", { url }),
+  realSetStrategies: (ids) => invoke<RealStatus>("real_set_strategies", { ids }),
+  realSign: (kind, payload) => invoke<string>("real_sign", { kind, payload }),
   on: async (event, cb) => {
     const un = await listen(event, (e) => cb(e.payload as never));
     return un;

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-real-sign"
+description = "Enables the real_sign command without any pre-configured scope."
+commands.allow = ["real_sign"]
+
+[[permission]]
+identifier = "deny-real-sign"
+description = "Denies the real_sign command without any pre-configured scope."
+commands.deny = ["real_sign"]

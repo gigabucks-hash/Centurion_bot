@@ -461,7 +461,20 @@ export interface CoreApi {
   /** Which API this installed app uses (mock by default). Saved; a changed base needs a restart. */
   connectionStatus(): Promise<ConnectionView>;
   saveConnection(c: { backend: string | null; login_url: string | null }): Promise<SaveConnectionResult>;
-  /** One Rust command for every Stop entry point; `confirm` must be "STOP". */
+  /** One Rust command for every Stop entry point; `confirm` must be "STOP". Pauses new buys only. */
   stopTrading(mode: Mode, source: "ui" | "tray" | "shortcut", confirm: string): Promise<StopResult>;
+  /** Resume new buys immediately. No cooldown. */
+  resumeBuys(): Promise<boolean>;
+  /** Sell every open position. `confirm` must be "SELL ALL". Works while buys are paused. */
+  sellAll(confirm: string): Promise<{ sell_all_id: string; positions: { position_id: string; status: string }[] }>;
+  realStatus(): Promise<import("../real/limits").RealStatus>;
+  realEnableMessage(wallet: string): Promise<string>;
+  realLimitsMessage(scope: string, knobs: import("../real/limits").WireKnobs): Promise<string>;
+  realEnable(wallet: string, signature: string): Promise<import("../real/limits").RealStatus>;
+  realApply(scope: string, knobs: import("../real/limits").WireKnobs, signature: string | null): Promise<import("../real/limits").RealStatus>;
+  realSetRpc(url: string): Promise<import("../real/limits").RealStatus>;
+  realSetStrategies(ids: string[]): Promise<import("../real/limits").RealStatus>;
+  /** Installed app only: open the system browser so the owner's wallet can sign. */
+  realSign(kind: "message" | "transaction", payload: string): Promise<string>;
   on<T>(event: EvtName, cb: (payload: T) => void): Promise<() => void>;
 }

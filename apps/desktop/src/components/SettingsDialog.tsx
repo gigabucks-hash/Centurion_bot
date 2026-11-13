@@ -9,6 +9,7 @@ import { fmtTime } from "./format";
 import { HoldButton } from "./HoldButton";
 import { Icon } from "./Icon";
 import { gateView, HOLD_MS, type Line } from "./strategyGate";
+import { RealMoneySection } from "./RealMoneySection";
 import { UpdateSection } from "./UpdateSection";
 import { ConnectionSection } from "./ConnectionSection";
 import type { StrategyView } from "../api";
@@ -284,6 +285,7 @@ export function SettingsDialog({ onClose, focusStrategyId }: { onClose: () => vo
         <div className="dim" style={{ marginTop: 8, fontSize: "var(--d-small)" }}>
           Global shortcut hanya membuka UI — tidak pernah approve, skip, atau sell langsung.
         </div>
+        <RealMoneySection />
         <StrategiesSection focusStrategyId={focusStrategyId} />
         <ConnectionSection />
         <SessionSection />

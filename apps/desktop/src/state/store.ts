@@ -20,6 +20,8 @@ const EMPTY_ACCOUNT: Account = {
 interface TermState {
   ready: boolean;
   mode: Mode;
+  /** Local Real opt-in. The paper snapshot does not clear this. */
+  realOn: boolean;
   source: Snapshot["source"];
   contractsVersion: string;
   connected: boolean;
@@ -53,6 +55,7 @@ interface TermState {
   setStrategies: (s: StrategyView[]) => void;
   setConflict: (c: ConflictView | null) => void;
   setSettings: (s: Settings) => void;
+  setRealOn: (on: boolean) => void;
   setCursor: (mint: string | null) => void;
   toggleSelected: (id: string) => void;
   clearSelected: () => void;
@@ -61,6 +64,7 @@ interface TermState {
 export const useTerm = create<TermState>((set) => ({
   ready: false,
   mode: "practice",
+  realOn: false,
   source: "mock",
   contractsVersion: "",
   connected: false,
@@ -73,7 +77,10 @@ export const useTerm = create<TermState>((set) => ({
   activity: [],
   screened: [],
   strategies: [],
-  settings: DEFAULT_SETTINGS,
+  settings: {
+    ...DEFAULT_SETTINGS,
+    theme: typeof location !== "undefined" && new URLSearchParams(location.search).get("theme") === "light" ? "light" : DEFAULT_SETTINGS.theme,
+  },
   conflict: null,
   cursorMint: null,
   selectedIds: new Set(),
@@ -123,6 +130,7 @@ export const useTerm = create<TermState>((set) => ({
   setStrategies: (strategies) => set({ strategies }),
   setConflict: (conflict) => set({ conflict }),
   setSettings: (settings) => set({ settings }),
+  setRealOn: (realOn) => set({ realOn }),
   setCursor: (cursorMint) => set({ cursorMint }),
   toggleSelected: (id) =>
     set((st) => {

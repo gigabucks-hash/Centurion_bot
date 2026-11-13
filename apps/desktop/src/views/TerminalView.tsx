@@ -28,7 +28,7 @@ import { pendingSorted, useTerm } from "../state/store";
 export function TerminalView() {
   const st = useTerm();
   const [quote, setQuote] = useState<SellQuote | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(() => new URLSearchParams(location.search).get("settings") === "1");
   const [settingsFocus, setSettingsFocus] = useState<string | null>(null);
   const [pnlOpen, setPnlOpen] = useState(false);
   // Status bar: name the backend this run really uses. The transport is fixed at startup, so one
@@ -199,9 +199,13 @@ export function TerminalView() {
     <div className="window">
       <ModeChrome title="Terminal" stop>
         <span className="chip">src: {st.source}</span>
-        <span className="muted num" title={`practice_epoch ${st.account.epoch ?? "—"} · as_of_seq ${st.account.as_of_seq ?? "—"}`}>Cash {solText(st.account.cash_lamports, lang, paper)} · Equity {solText(st.account.equity_lamports, lang, paper)}</span>
-        <span style={{ marginLeft: "auto" }} className="dim">
-          <kbd>J/K</kbd> nav <kbd>A</kbd> approve <kbd>S</kbd> skip <kbd>X</kbd> pilih <kbd>⇧A</kbd> approve terpilih <kbd>⇧X</kbd> sell <kbd>Space</kbd> quick-look <kbd>↵</kbd> chart <kbd>L</kbd> feed <kbd>C</kbd> koin <kbd>P</kbd> popup
+        <span className="balance-cards" title={`practice_epoch ${st.account.epoch ?? "—"} · as_of_seq ${st.account.as_of_seq ?? "—"}`}>
+          <span className="balance-card"><span className="dim">Cash</span><b className="num">{solText(st.account.cash_lamports, lang, paper)}</b></span>
+          <span className="balance-card"><span className="dim">Equity</span><b className="num">{solText(st.account.equity_lamports, lang, paper)}</b></span>
+          <span className="balance-card"><span className="dim">PnL</span><b className="num">{solText(st.account.unrealized_pnl_lamports, lang, paper)}</b></span>
+        </span>
+        <span style={{ marginLeft: "auto" }} className="dim shortcut-hint" title="J/K nav, A approve, S skip, X select, Shift+A approve selected, Shift+X sell, Space quick-look, Enter chart, L feed, C coins">
+          <kbd>J/K</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>⇧X</kbd>
         </span>
         <button className="ghost" onClick={openSettings}><Icon glyph={SettingsGlyph} size={16} /> Settings<kbd>,</kbd></button>
       </ModeChrome>
@@ -254,7 +258,11 @@ export function TerminalView() {
           <div className="body"><ActivityFeed items={st.activity} /></div>
         </section>
         <section className="panel area-positions">
-          <header><span className="panel-title"><Icon glyph={Wallet} size={16} /> {t(st.mode === "real" ? "positions.title" : "positions.title_paper")}</span> <PositionsSummary positions={st.positions} /></header>
+          <header>
+            <span className="panel-title"><Icon glyph={Wallet} size={16} /> {t(st.mode === "real" || st.realOn ? "positions.title" : "positions.title_paper")}</span>
+            <PositionsSummary positions={st.positions} />
+            <button className="sm danger" data-action="sell-all" disabled={!st.positions.length} onClick={() => run(async () => { await core.sellAll("SELL ALL"); })}>Jual semua</button>
+          </header>
           <PnlReport onOpen={() => setPnlOpen(true)} />
           <div className="body">
             <PositionsTable positions={st.positions} cursorMint={st.cursorMint} onCursor={clickPosition} onFocusRow={st.setCursor} onSell={(p) => sell(p)} now={now} />
@@ -269,7 +277,7 @@ export function TerminalView() {
             contracts {st.contractsVersion} · seq {st.sync.watermark} · gap {st.sync.gaps_seen} · resync {st.sync.resyncs} (+{st.sync.recovered}) · dup {st.sync.duplicates} · skew {st.sync.skew_ms > 0 ? "+" : st.sync.skew_ms < 0 ? "\u2212" : ""}{Math.abs(st.sync.skew_ms / 1000).toFixed(1)}s
           </span>
         )}
-        <span className="dim">i18n {I18N_PACKAGE_VERSION} · {lang} · runtime: {runtime} · density: {st.settings.density} · popup: {!popupSupported ? "n/a (OS)" : st.settings.approval_popup ? "on" : "off"}</span>
+        <span className="dim">i18n {I18N_PACKAGE_VERSION} · {lang} · {runtime === "tauri" ? "desktop" : "preview"} · density: {st.settings.density} · popup: {!popupSupported ? "n/a (OS)" : st.settings.approval_popup ? "on" : "off"}</span>
         <span className="dim">global: focus {sc.focus_terminal}{sc.open_approvals ? ` · approvals ${sc.open_approvals}` : ""}</span>
         {(err ?? st.lastError) ? <span className="neg status-error" role="status" title={err ?? st.lastError ?? undefined}>{err ?? st.lastError}</span>
           : info && <span className="status-info status-error" role="status" title={info}>ⓘ {info}</span>}

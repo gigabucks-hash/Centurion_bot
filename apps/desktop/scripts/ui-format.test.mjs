@@ -106,7 +106,7 @@ test("i18n 0.4.10/0.4.11: desktop uses no deprecated/removed key, and every lite
   assert.equal(get(cat.id, "kill_switch.dialog.effect.exits_keep"), "Exit plan, TP & SL tetap jalan.");
 });
 
-test("contracts pin: packages/contracts is @centurion/contracts 1.1.6 at ca52707 (no unreviewed drift)", async () => {
+test("contracts pin: packages/contracts is @centurion/contracts 1.1.6 at 117bd09 (no unreviewed drift)", async () => {
   const { readFileSync } = await import("node:fs");
   const { execFileSync } = await import("node:child_process");
   const pin = JSON.parse(readFileSync(new URL("../contracts.pin.json", import.meta.url), "utf8"));

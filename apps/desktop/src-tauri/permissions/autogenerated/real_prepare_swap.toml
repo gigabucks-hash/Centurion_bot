@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-real-prepare-swap"
+description = "Enables the real_prepare_swap command without any pre-configured scope."
+commands.allow = ["real_prepare_swap"]
+
+[[permission]]
+identifier = "deny-real-prepare-swap"
+description = "Denies the real_prepare_swap command without any pre-configured scope."
+commands.deny = ["real_prepare_swap"]

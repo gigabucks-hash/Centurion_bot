@@ -41,7 +41,8 @@ export function SignalQueue(p: Props) {
   const lang = useLang();
   const paper = useTerm((s) => s.mode) === "practice";
   const skew = useTerm((s) => s.skewMs);
-  if (!p.signals.length) return <div className="empty"><Icon glyph={Inbox} size={32} />{t("queue.empty")} {MOCK_SUFFIX}</div>;
+  const source = useTerm((s) => s.source);
+  if (!p.signals.length) return <div className="empty"><Icon glyph={Inbox} size={32} />{t("queue.empty")}{source === "mock" ? ` ${MOCK_SUFFIX}` : ""}</div>;
   return (
     <div role="list">
       {p.signals.map((s) => {

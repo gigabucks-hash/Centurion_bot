@@ -909,46 +909,372 @@ pub async fn auth_logout<R: Runtime>(
     Ok(())
 }
 
-/// STOP (one command for every entry point; see `stop.rs`): pause every running strategy in the current
-/// mode with If-Match = its cached rev. Already paused strategies are left alone. Validated arguments only.
+/// STOP pauses new buys only. Open positions keep their exit plans, and Jual semua still sells.
+/// Strategies are not paused: a pause would also stop those exits.
 #[tauri::command(rename_all = "snake_case")]
 pub async fn stop_trading<R: Runtime>(
-    app: AppHandle<R>,
+    _app: AppHandle<R>,
     state: State<'_, AppState>,
     mode: String,
     source: String,
     confirm: String,
 ) -> AppResult<crate::stop::StopResult> {
-    let (current, strategies) = {
-        let e = state.engine.lock().unwrap();
-        (e.mode, e.strategies_vec())
-    };
+    let current = state.engine.lock().unwrap().mode;
     let req = crate::stop::StopRequest::parse(&mode, current, &source, &confirm)
         .map_err(|w| AppError::Invalid(format!("stop: {w}")))?;
-    log::info!("stop requested via {:?} in {:?}", req.source, req.mode);
-    let mut out = crate::stop::StopResult::default();
-    for s in strategies {
-        if s.status == "paused" {
-            out.already_paused.push(s.id);
-            continue;
-        }
-        let idem = idem_key(&state);
-        match state
-            .transport
-            .set_strategy_paused(&s.id, &idem, Some(s.rev), true)
-            .await
-        {
-            Ok(r) => {
-                let o = {
-                    let mut e = state.engine.lock().unwrap();
-                    e.observe_server_now(&r.server_now);
-                    e.set_strategies(std::slice::from_ref(&r.data))
-                };
-                dispatch(&app, vec![o]);
-                out.paused.push(s.id);
+    log::info!("stop buys via {:?} in {:?}", req.source, req.mode);
+    let idem = idem_key(&state);
+    match state.transport.set_buys_paused(&idem, true).await {
+        Ok(sw) => {
+            if let Ok(mut book) = real_book().lock() {
+                book.buys_paused = true;
+                let _ = save_real_book(&book);
             }
-            Err(e) => out.failed.push((s.id, e.code().to_owned())),
+            let mut out = crate::stop::StopResult::default();
+            if sw.buys_paused {
+                out.paused.push("buys".into());
+            }
+            Ok(out)
+        }
+        Err(e) => {
+            let mut out = crate::stop::StopResult::default();
+            out.failed.push(("buys".into(), e.code().to_owned()));
+            Ok(out)
         }
     }
-    Ok(out)
+}
+
+/// Resume new buys immediately. There is no cooldown.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn resume_buys(state: State<'_, AppState>) -> AppResult<bool> {
+    let idem = idem_key(&state);
+    let sw = state.transport.set_buys_paused(&idem, false).await?;
+    if let Ok(mut book) = real_book().lock() {
+        book.buys_paused = false;
+        let _ = save_real_book(&book);
+    }
+    Ok(!sw.buys_paused)
+}
+
+/// Sell every open paper position. Works while buys are paused.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn sell_all(
+    state: State<'_, AppState>,
+    confirm: String,
+) -> AppResult<crate::backend::SellAllReport> {
+    if confirm != "SELL ALL" {
+        return Err(AppError::Invalid("sell_all confirm".into()));
+    }
+    let idem = idem_key(&state);
+    Ok(state.transport.sell_all(&idem).await?)
+}
+
+fn real_path() -> Option<std::path::PathBuf> {
+    crate::config::path().map(|p| p.with_file_name("real.json"))
+}
+
+fn load_real_book() -> crate::real::RealBook {
+    real_path()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_real_book(book: &crate::real::RealBook) -> Result<(), String> {
+    let path = real_path().ok_or_else(|| "no config directory".to_string())?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let text = serde_json::to_string_pretty(book).map_err(|e| e.to_string())?;
+    if text.to_lowercase().contains("private_key") {
+        return Err("refusing to store a key".into());
+    }
+    std::fs::write(path, text).map_err(|e| e.to_string())
+}
+
+fn real_book() -> &'static std::sync::Mutex<crate::real::RealBook> {
+    use std::sync::{Mutex, OnceLock};
+    static BOOK: OnceLock<Mutex<crate::real::RealBook>> = OnceLock::new();
+    BOOK.get_or_init(|| Mutex::new(load_real_book()))
+}
+
+fn book_err(e: crate::real::LimitError) -> AppError {
+    AppError::Invalid(match e {
+        crate::real::LimitError::Invalid => "limits".into(),
+        crate::real::LimitError::NeedsSignature => {
+            "wallet signature required to loosen a limit".into()
+        }
+        crate::real::LimitError::BadSignature => "wallet signature did not match".into(),
+    })
+}
+
+/// Real status for Settings. Real is off until the owner signs the enable message.
+#[tauri::command]
+pub fn real_status() -> crate::real::RealBook {
+    real_book().lock().map(|b| b.clone()).unwrap_or_default()
+}
+
+/// The exact enable message the wallet must sign.
+#[tauri::command]
+pub fn real_enable_message(wallet: String) -> String {
+    crate::real::enable_message(wallet.trim())
+}
+
+/// The exact limits message the wallet must sign before a looser setting is stored.
+#[tauri::command]
+pub fn real_limits_message(scope: String, knobs: crate::real::Knobs) -> Result<String, AppError> {
+    let book = real_book()
+        .lock()
+        .map_err(|_| AppError::Invalid("real book".into()))?;
+    let old = if scope == "global" {
+        book.global.clone()
+    } else {
+        let id = scope
+            .strip_prefix("strategy:")
+            .ok_or_else(|| AppError::Invalid("scope".into()))?;
+        book.strategies
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| book.global.clone())
+    };
+    Ok(crate::real::limits_message(
+        &book.wallet,
+        &scope,
+        &old,
+        &knobs,
+    ))
+}
+
+#[tauri::command]
+pub fn real_enable(wallet: String, signature: String) -> AppResult<crate::real::RealBook> {
+    let mut book = real_book()
+        .lock()
+        .map_err(|_| AppError::Invalid("real book".into()))?;
+    book.enable(wallet.trim(), signature.trim())
+        .map_err(book_err)?;
+    save_real_book(&book).map_err(AppError::Invalid)?;
+    Ok(book.clone())
+}
+
+#[tauri::command]
+pub fn real_apply(
+    scope: String,
+    knobs: crate::real::Knobs,
+    signature: Option<String>,
+) -> AppResult<crate::real::RealBook> {
+    let mut book = real_book()
+        .lock()
+        .map_err(|_| AppError::Invalid("real book".into()))?;
+    book.apply(&scope, knobs, signature.as_deref())
+        .map_err(book_err)?;
+    save_real_book(&book).map_err(AppError::Invalid)?;
+    Ok(book.clone())
+}
+
+#[tauri::command]
+pub fn real_set_rpc(url: String) -> AppResult<crate::real::RealBook> {
+    if !crate::real::rpc_url_ok(url.trim()) {
+        return Err(AppError::Invalid("rpc url".into()));
+    }
+    let mut book = real_book()
+        .lock()
+        .map_err(|_| AppError::Invalid("real book".into()))?;
+    book.rpc_url = url.trim().to_owned();
+    save_real_book(&book).map_err(AppError::Invalid)?;
+    Ok(book.clone())
+}
+
+#[tauri::command]
+pub fn real_set_strategies(ids: Vec<String>) -> AppResult<crate::real::RealBook> {
+    let mut book = real_book()
+        .lock()
+        .map_err(|_| AppError::Invalid("real book".into()))?;
+    book.real_strategies = ids;
+    save_real_book(&book).map_err(AppError::Invalid)?;
+    Ok(book.clone())
+}
+
+/// Open the system browser so the owner's wallet can sign. Returns hex (message) or base64 (transaction).
+#[tauri::command]
+pub async fn real_sign(kind: String, payload: String) -> AppResult<String> {
+    let kind = kind.clone();
+    let payload = payload.clone();
+    tokio::task::spawn_blocking(move || crate::real::sign::request(&kind, &payload))
+        .await
+        .map_err(|e| AppError::Invalid(e.to_string()))?
+        .map_err(AppError::Invalid)
+}
+
+fn b64_decode(s: &str) -> Result<Vec<u8>, AppError> {
+    crate::real::b64::decode(s).map_err(|_| AppError::Invalid("transaction".into()))
+}
+
+/// Inputs for one Real buy. Kept in one struct so the command stays readable.
+#[derive(serde::Deserialize)]
+pub struct RealSwapRequest {
+    pub strategy_id: Option<String>,
+    pub input_mint: String,
+    pub output_mint: String,
+    pub amount: u64,
+    pub slippage_bps: u32,
+    pub guard_pass: bool,
+    pub risk_veto: bool,
+    pub open_positions: u32,
+    pub spent_today: u64,
+    pub capital_used: u64,
+}
+
+/// Build an unsigned mainnet swap for the owner's wallet, after Guard, Risk and the limits.
+#[tauri::command]
+pub async fn real_prepare_swap(req: RealSwapRequest) -> AppResult<String> {
+    let RealSwapRequest {
+        strategy_id,
+        input_mint,
+        output_mint,
+        amount,
+        slippage_bps,
+        guard_pass,
+        risk_veto,
+        open_positions,
+        spent_today,
+        capital_used,
+    } = req;
+    let wallet = {
+        let book = real_book()
+            .lock()
+            .map_err(|_| AppError::Invalid("real book".into()))?;
+        let check = crate::real::BuyCheck {
+            guard_pass,
+            risk_veto,
+            open_positions,
+            spent_today,
+            capital_used,
+            trade_lamports: amount,
+            slippage_bps,
+            mcap_usd: None,
+            liquidity_usd: None,
+            volume_24h_usd: None,
+            top10_pct: None,
+            holders: None,
+            age_minutes: None,
+            lp_burn_pct: None,
+        };
+        book.admit_buy(strategy_id.as_deref(), &check)
+            .map_err(|e| AppError::Invalid(format!("{e:?}")))?;
+        let knobs = book.effective(strategy_id.as_deref());
+        if slippage_bps > knobs.slippage_bps {
+            return Err(AppError::Invalid("slippage".into()));
+        }
+        book.wallet.clone()
+    };
+    let url = crate::real::quote_url(&input_mint, &output_mint, amount, slippage_bps);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| AppError::Invalid(e.to_string()))?;
+    let quote: serde_json::Value = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| AppError::Invalid(e.to_string()))?
+        .json()
+        .await
+        .map_err(|e| AppError::Invalid(e.to_string()))?;
+    if quote.get("error").is_some() {
+        return Err(AppError::Invalid("quote".into()));
+    }
+    let swap_body = serde_json::json!({
+        "quoteResponse": quote,
+        "userPublicKey": wallet,
+        "wrapAndUnwrapSol": true,
+        "dynamicComputeUnitLimit": true
+    });
+    let swap: serde_json::Value = client
+        .post(crate::real::JUPITER_SWAP)
+        .json(&swap_body)
+        .send()
+        .await
+        .map_err(|e| AppError::Invalid(e.to_string()))?
+        .json()
+        .await
+        .map_err(|e| AppError::Invalid(e.to_string()))?;
+    let b64 = crate::real::swap_tx_b64(&swap.to_string())
+        .ok_or_else(|| AppError::Invalid("swap".into()))?;
+    let raw = b64_decode(&b64)?;
+    let tip = real_book()
+        .lock()
+        .map(|b| b.effective(strategy_id.as_deref()).tip_lamports)
+        .unwrap_or(0);
+    let owner = crate::real::b58::decode_exact::<32>(&wallet)
+        .map_err(|_| AppError::Invalid("wallet".into()))?;
+    vet_with_rpc(&raw, &owner, tip)?;
+    if crate::real::tx::fee_payer(&raw).map_err(|_| AppError::Invalid("transaction".into()))?
+        != owner
+    {
+        return Err(AppError::Invalid(
+            "fee payer is not the owner wallet".into(),
+        ));
+    }
+    Ok(b64)
+}
+
+fn vet_with_rpc(raw: &[u8], owner: &[u8; 32], tip: u64) -> AppResult<()> {
+    match crate::real::vet(raw, owner, tip, &[]) {
+        Ok(()) => Ok(()),
+        Err(crate::real::TxRefuse::Unresolved) => Err(AppError::Invalid(
+            "transaction uses an account table this build will not guess".into(),
+        )),
+        Err(crate::real::TxRefuse::TransferOut) => Err(AppError::Invalid(
+            "transfer to another wallet was refused".into(),
+        )),
+        Err(crate::real::TxRefuse::TipOverCap) => {
+            Err(AppError::Invalid("tip is above the setting".into()))
+        }
+        Err(crate::real::TxRefuse::UnknownProgram) => {
+            Err(AppError::Invalid("program is not on the allowlist".into()))
+        }
+        Err(_) => Err(AppError::Invalid("transaction".into())),
+    }
+}
+
+/// Submit a wallet-signed transaction. Vet it again, then send it through the owner's RPC.
+#[tauri::command]
+pub async fn real_submit(signed_b64: String) -> AppResult<String> {
+    let book = real_book()
+        .lock()
+        .map_err(|_| AppError::Invalid("real book".into()))?
+        .clone();
+    if !book.enabled {
+        return Err(AppError::Invalid("real is off".into()));
+    }
+    let raw = b64_decode(signed_b64.trim())?;
+    let owner = crate::real::b58::decode_exact::<32>(&book.wallet)
+        .map_err(|_| AppError::Invalid("wallet".into()))?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| AppError::Invalid(e.to_string()))?;
+    vet_with_rpc(&raw, &owner, book.global.tip_lamports)?;
+    let body = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "sendTransaction",
+        "params": [signed_b64.trim(), {"encoding": "base64", "skipPreflight": false}]
+    });
+    let v: serde_json::Value = client
+        .post(&book.rpc_url)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| AppError::Invalid(e.to_string()))?
+        .json()
+        .await
+        .map_err(|e| AppError::Invalid(e.to_string()))?;
+    if let Some(err) = v.get("error") {
+        return Err(AppError::Invalid(err.to_string()));
+    }
+    v.get("result")
+        .and_then(|r| r.as_str())
+        .map(|s| s.to_owned())
+        .ok_or_else(|| AppError::Invalid("rpc".into()))
 }

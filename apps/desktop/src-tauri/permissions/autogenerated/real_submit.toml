@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-real-submit"
+description = "Enables the real_submit command without any pre-configured scope."
+commands.allow = ["real_submit"]
+
+[[permission]]
+identifier = "deny-real-submit"
+description = "Denies the real_submit command without any pre-configured scope."
+commands.deny = ["real_submit"]
