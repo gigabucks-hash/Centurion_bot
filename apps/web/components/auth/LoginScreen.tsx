@@ -6,7 +6,7 @@ import { request } from "@/lib/client";
 import { ApiError, errorText } from "@/lib/errors";
 import { useFmt, useLocale, useT } from "@/lib/i18n/client";
 import { Button, cn } from "@/components/ui";
-import { Mark } from "@/components/shell/Mark";
+import { Wordmark } from "@/components/shell/Wordmark";
 import { useNow } from "@/components/ui/client";
 import { AUTH_FLAGS, anyLegacyMethod } from "@/lib/auth/flags";
 import { safeNext } from "@/lib/auth/gate";
@@ -92,7 +92,7 @@ export function LoginScreen({ realWallet = false, localPaper = false }: { realWa
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <section className="hidden flex-col border-r border-border-subtle bg-bg-surface p-10 lg:flex">
-        <p className="flex items-center gap-2 text-title"><Mark />{t.ux("app.name")}</p>
+        <Wordmark height={72} />
         <h1 className="mt-auto text-display text-text-primary">{t("walletLogin.hero")}</h1>
         <ul className="mt-6 flex flex-col gap-2 text-body text-text-secondary">
           {(["walletLogin.v1", "walletLogin.v2", "walletLogin.v3"] as const).map((k) => (
@@ -103,7 +103,7 @@ export function LoginScreen({ realWallet = false, localPaper = false }: { realWa
       </section>
 
       <section className="flex flex-col items-center justify-center p-4 sm:p-10">
-        <div className="mb-6 flex items-center gap-2 text-title lg:hidden"><Mark />{t.ux("app.name")}</div>
+        <div className="mb-6 lg:hidden"><Wordmark height={40} /></div>
         <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-surface p-6 shadow-card sm:p-8">
           {step === "choose" ? (
             <>

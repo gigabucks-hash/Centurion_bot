@@ -110,7 +110,7 @@ export function PageHero() {
   return (
     <section data-testid="page-hero" className="page-hero mb-6 flex items-center justify-between gap-4 overflow-hidden rounded-2xl border border-border-subtle px-4 py-3 sm:px-6">
       <div className="min-w-0">
-        <p className="text-overline uppercase tracking-[0.14em] text-brand-primary">{t("hero.kicker")}</p>
+        <p className="logo-kicker text-overline uppercase tracking-[0.14em]">{t("hero.kicker")}</p>
         <p className="mt-1 max-w-xl text-body text-text-primary sm:text-titleSm">{t(key)}</p>
       </div>
       <Scene kind={kind} />

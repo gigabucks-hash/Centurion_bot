@@ -112,3 +112,15 @@ test("local real defaults, tighten now, loosen only with a Phantom signature, no
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("wordmarks are outlined vectors and the light TRADE line is dark", async () => {
+  const { readFileSync } = await import("node:fs");
+  const path = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+  const dark = readFileSync(path.join(root, "brand/wordmark-on-dark.svg"), "utf8");
+  const light = readFileSync(path.join(root, "brand/wordmark-on-light.svg"), "utf8");
+  assert.equal(dark.includes("<text"), false);
+  assert.equal(light.includes("#1A140C"), true);
+  assert.equal(/tauri/i.test(dark + light), false);
+});
