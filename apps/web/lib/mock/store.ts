@@ -1,11 +1,13 @@
 /**
- * In-memory mutable mock state (server process only; resets on restart).
- * Nothing here touches wallets, RPC, chain or any external service.
+ * Paper book for this Next.js process.
+ * Default: in memory, reset on restart. Nothing here touches wallets, RPC, or chain.
+ * CENTURION_LOCAL=1: the same book is also saved under `.local-web/paper.json` so one PC keeps its paper trades.
  */
 import type { Approval, ApprovalDecision, OpenPosition, PublishResult, RiskLevel, Strategy, StrategySettings, TradingMode } from "@/lib/types";
 import { diffSettings, validate, weakensGuard } from "@/lib/strategy-schema";
 import { APPROVAL_REJECT_REASONS, approvalToWire, MOCK_SOL_USD, realGateToWire, settingsFromWire, settingsToWire, type WireSettings } from "@/lib/contracts";
 import type { ApprovalDecisionRequest, ErrorCode } from "@centurion/contracts/wire";
+import { loadPaperBlob, schedulePaperSave } from "@/lib/local/paper-file";
 import { closedTrades, coinSummaries, realGateFor, seedStrategies, trails, type ClosedTrade as LedgerRow } from "./data";
 
 /** Error carrying a contract error code (errors.json); the BFF turns it into the wire error body. */
@@ -169,11 +171,19 @@ function seedApprovals(now: number, strategies: Strategy[]): Omit<Approval, "rev
 }
 
 function state(): State {
-  if (g.__centurionMock && !g.__centurionMock.sold) g.__centurionMock.sold = {};
   if (!g.__centurionMock) {
-    const strategies = structuredClone(seedStrategies);
-    g.__centurionMock = { strategies, approvals: initApprovals(Date.now(), strategies), audit: [], seq: 300, sold: {} };
+    const loaded = loadPaperBlob() as State | null;
+    if (loaded?.strategies) {
+      loaded.sold ??= {};
+      loaded.audit ??= [];
+      g.__centurionMock = loaded;
+    } else {
+      const strategies = structuredClone(seedStrategies);
+      g.__centurionMock = { strategies, approvals: initApprovals(Date.now(), strategies), audit: [], seq: 300, sold: {} };
+    }
   }
+  if (!g.__centurionMock.sold) g.__centurionMock.sold = {};
+  schedulePaperSave(g.__centurionMock);
   return g.__centurionMock;
 }
 

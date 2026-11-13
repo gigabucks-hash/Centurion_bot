@@ -24,7 +24,7 @@ async function Body() {
       <div className="mb-4">
         <TradingControls initial={trading} />
       </div>
-      <SettingsPanel signedInWith={method} practiceKnown={process.env.DATA_SOURCE !== "http"} />
+      <SettingsPanel signedInWith={method} practiceKnown={process.env.DATA_SOURCE !== "http"} localMode={process.env.CENTURION_LOCAL === "1" && process.env.DATA_SOURCE !== "http"} />
     </>
   );
 }

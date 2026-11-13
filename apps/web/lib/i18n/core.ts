@@ -32,8 +32,14 @@ export function isLocale(v: unknown): v is Locale {
 }
 
 /** Locale from the `centurion_locale` cookie value; unknown or missing → the default (English). */
-export function localeFromCookie(value: string | null | undefined): Locale {
-  return isLocale(value) ? value : DEFAULT_LOCALE;
+export function localeFromCookie(value: string | null | undefined, fallback: Locale = DEFAULT_LOCALE): Locale {
+  return isLocale(value) ? value : fallback;
+}
+
+/** Saved theme, or the operating system when nothing is saved. */
+export function resolveTheme(choice: string | null | undefined, prefersDark: boolean): "dark" | "light" {
+  if (choice === "light" || choice === "dark") return choice;
+  return prefersDark ? "dark" : "light";
 }
 
 export function interpolate(s: string, vars?: Vars): string {

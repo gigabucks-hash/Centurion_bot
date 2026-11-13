@@ -11,7 +11,7 @@ import { spawnSync } from "node:child_process";
 
 const result = spawnSync(process.execPath, ["--import", "tsx", "--test", "lib/__tests__/*.test.ts"], {
   stdio: "inherit",
-  env: { ...process.env, CENTURION_MOCK_REAL_DEMO: "1" },
+  env: { ...process.env, CENTURION_MOCK_REAL_DEMO: "1", CENTURION_LOCAL: "", DATA_SOURCE: "" },
 });
 
 if (result.error) {

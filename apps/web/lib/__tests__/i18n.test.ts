@@ -34,6 +34,7 @@ test("locale cookie → <html lang>: known locales only, anything else falls bac
   assert.equal(localeFromCookie(""), "en");
   assert.equal(localeFromCookie(undefined), "en");
   assert.equal(localeFromCookie(null), "en");
+  assert.equal(localeFromCookie(null, "id"), "id");
 });
 
 test("every alias points at a key in @centurion/i18n 0.4.10+ (en + id)", async () => {

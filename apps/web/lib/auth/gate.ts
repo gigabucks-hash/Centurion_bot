@@ -6,7 +6,7 @@
  * - /api/v1/workspaces/*: no access cookie → 401 UNAUTHENTICATED, which makes lib/client.ts refresh once and retry.
  * Disable for local perf/screenshot runs with CENTURION_AUTH_GATE=0.
  */
-export const PUBLIC_PATHS = [/^\/login(\/|$)/, /^\/api\/v1\/auth\//, /^\/api\/auth$/, /^\/robots\.txt$/, /^\/manifest/, /^\/icon/, /^\/apple-icon/, /^\/opengraph-image/, /^\/twitter-image/, /^\/auth\/desktop$/];
+export const PUBLIC_PATHS = [/^\/login(\/|$)/, /^\/api\/v1\/auth\//, /^\/api\/auth$/, /^\/api\/local\/paper-session$/, /^\/robots\.txt$/, /^\/manifest/, /^\/icon/, /^\/apple-icon/, /^\/opengraph-image$/, /^\/twitter-image$/, /^\/auth\/desktop$/];
 
 export type GateResult = { kind: "pass" } | { kind: "redirect"; to: string } | { kind: "unauthorized" };
 

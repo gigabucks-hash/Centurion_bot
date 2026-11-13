@@ -6,6 +6,7 @@ import { request } from "@/lib/client";
 import { ApiError, errorText } from "@/lib/errors";
 import { useFmt, useLocale, useT } from "@/lib/i18n/client";
 import { Button, cn } from "@/components/ui";
+import { Mark } from "@/components/shell/Mark";
 import { useNow } from "@/components/ui/client";
 import { AUTH_FLAGS, anyLegacyMethod } from "@/lib/auth/flags";
 import { safeNext } from "@/lib/auth/gate";
@@ -35,7 +36,7 @@ type Method = "google" | "apple" | "telegram" | "email_otp" | "wallet_siws";
 type Scenario = "success" | "popup_blocked" | "idp_cancelled" | "telegram_invalid" | "wallet_missing" | "sign_rejected" | "nonce_expired" | "account_disabled" | "offline";
 const SCENARIOS: Scenario[] = ["success", "popup_blocked", "idp_cancelled", "telegram_invalid", "wallet_missing", "sign_rejected", "nonce_expired", "account_disabled", "offline"];
 
-export function LoginScreen({ realWallet = false }: { realWallet?: boolean }) {
+export function LoginScreen({ realWallet = false, localPaper = false }: { realWallet?: boolean; localPaper?: boolean }) {
   const router = useRouter();
   const t = useT();
   const [scenario, setScenario] = useState<Scenario>("success");
@@ -45,6 +46,7 @@ export function LoginScreen({ realWallet = false }: { realWallet?: boolean }) {
   const [email, setEmail] = useState("");
   const [mockWallet, setMockWallet] = useState(MOCK_OWNER_WALLET);
   const [behaviour, setBehaviour] = useState<WalletBehaviour>("ok");
+  const [paperBusy, setPaperBusy] = useState(false);
 
   const scenarioError = (relevant: Scenario[]): string | null => {
     if (scenario === "offline") return t("login.e.offline");
@@ -90,7 +92,7 @@ export function LoginScreen({ realWallet = false }: { realWallet?: boolean }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <section className="hidden flex-col border-r border-border-subtle bg-bg-surface p-10 lg:flex">
-        <p className="text-title"><span aria-hidden>◆ </span>{t.ux("app.name")}</p>
+        <p className="flex items-center gap-2 text-title"><Mark />{t.ux("app.name")}</p>
         <h1 className="mt-auto text-display text-text-primary">{t("walletLogin.hero")}</h1>
         <ul className="mt-6 flex flex-col gap-2 text-body text-text-secondary">
           {(["walletLogin.v1", "walletLogin.v2", "walletLogin.v3"] as const).map((k) => (
@@ -101,7 +103,7 @@ export function LoginScreen({ realWallet = false }: { realWallet?: boolean }) {
       </section>
 
       <section className="flex flex-col items-center justify-center p-4 sm:p-10">
-        <div className="mb-6 text-title lg:hidden"><span aria-hidden>◆ </span>{t.ux("app.name")}</div>
+        <div className="mb-6 flex items-center gap-2 text-title lg:hidden"><Mark />{t.ux("app.name")}</div>
         <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-surface p-6 shadow-card sm:p-8">
           {step === "choose" ? (
             <>
@@ -109,6 +111,28 @@ export function LoginScreen({ realWallet = false }: { realWallet?: boolean }) {
               <p className="mt-1 text-body text-text-secondary">{t("walletLogin.sub")}</p>
               {error && <ErrorBox text={error} />}
               <WalletFlow wallet={mockWallet} behaviour={behaviour} real={realWallet} onDone={() => router.push(afterLogin())} />
+              {localPaper && (
+                <div className="mt-4 flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 w-full"
+                    loading={paperBusy}
+                    data-testid="local-paper-entry"
+                    onClick={async () => {
+                      setError(null);
+                      setPaperBusy(true);
+                      const res = await fetch("/api/local/paper-session", { method: "POST" });
+                      setPaperBusy(false);
+                      if (!res.ok) return setError(t("localLogin.paperFailed"));
+                      router.push(afterLogin());
+                    }}
+                  >
+                    {t("localLogin.paperCta")}
+                  </Button>
+                  <p className="text-caption text-text-secondary">{t("localLogin.paperNote")}</p>
+                </div>
+              )}
               {anyLegacyMethod() && (
                 <details className="mt-6">
                   <summary className="cursor-pointer text-caption text-text-tertiary">{t("walletLogin.otherMethods")}</summary>
@@ -543,14 +567,17 @@ function MockPanel({ scenario, setScenario }: { scenario: Scenario; setScenario:
 
 function FauxDashboard() {
   return (
-    <div aria-hidden className="mt-10 overflow-hidden rounded-lg border border-border-subtle bg-bg-canvas p-4 blur-[2px]">
-      <div className="grid grid-cols-4 gap-2">
-        {[0, 1, 2, 3].map((i) => <div key={i} className="h-14 rounded-md bg-bg-raised" />)}
-      </div>
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <div className="col-span-2 h-28 rounded-md bg-bg-raised" />
-        <div className="h-28 rounded-md bg-bg-raised" />
-      </div>
-    </div>
+    <svg aria-hidden viewBox="0 0 420 180" className="mt-10 w-full max-w-lg">
+      <rect x="1" y="1" width="418" height="178" rx="16" fill="var(--color-bg-surface)" stroke="var(--color-border-subtle)" />
+      <rect x="20" y="22" width="86" height="52" rx="10" fill="var(--color-brand-primaryContainer)" />
+      <rect x="118" y="22" width="86" height="52" rx="10" fill="var(--color-semantic-profitContainer)" />
+      <rect x="216" y="22" width="86" height="52" rx="10" fill="var(--color-semantic-infoContainer)" />
+      <rect x="314" y="22" width="86" height="52" rx="10" fill="var(--color-brand-primary)" />
+      <path d="M28 128c28-30 48-28 70-6 16 16 30 8 46-14 22-30 48-26 70 6" fill="none" stroke="var(--color-brand-primary)" strokeWidth="3" strokeLinecap="round" />
+      <rect x="250" y="96" width="18" height="48" rx="4" fill="var(--color-semantic-profit)" />
+      <rect x="276" y="112" width="18" height="32" rx="4" fill="var(--color-semantic-loss)" />
+      <rect x="302" y="88" width="18" height="56" rx="4" fill="var(--color-brand-primary)" />
+      <rect x="328" y="104" width="18" height="40" rx="4" fill="var(--color-text-tertiary)" />
+    </svg>
   );
 }

@@ -6,6 +6,9 @@ target/
 # Local paper stack state (tools/paper/up.ps1): pids, logs, generated secrets
 .paper/
 
+# Single-user web on this PC (scripts/windows): paper book, Real public key, logs. No secrets.
+.local-web/
+
 # Updater signing key (docs/release/desktop.md): only the public half goes into tauri.conf.json
 *.key
 

@@ -32,6 +32,24 @@
 [data-theme="dark"] { color-scheme: dark; }
 [data-theme="light"] { color-scheme: light; }
 
+/* Atmosphere uses only existing tokens, so both themes stay inside the contrast set. */
+body {
+  background-image:
+    radial-gradient(900px 420px at 100% -10%, color-mix(in srgb, var(--color-brand-primary) 14%, transparent), transparent 60%),
+    radial-gradient(700px 360px at -10% 0%, color-mix(in srgb, var(--color-mode-practice) 10%, transparent), transparent 55%);
+  background-attachment: fixed;
+}
+
+.page-hero {
+  background:
+    linear-gradient(105deg, var(--color-bg-surface) 0%, color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface)) 100%);
+}
+
+.chrome-bar {
+  background: color-mix(in srgb, var(--color-bg-surface) 86%, transparent);
+  backdrop-filter: blur(16px);
+}
+
 /*
  * The package declares --color-mode-accent: var(--mode-accent, …) on :root, where it is
  * resolved once (Practice). Re-declare it where [data-mode] is set so bg-mode-accent etc.

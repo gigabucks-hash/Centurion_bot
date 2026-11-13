@@ -11,6 +11,8 @@ export type StatItem = {
   tone?: Tone;
   /** The whole cell becomes a link (Approvals cell → /approvals). */
   href?: string;
+  /** Optional status icon (lucide). Decorative; the label stays the accessible name. */
+  icon?: ReactNode;
 };
 
 const TONE: Record<Tone, string> = {
@@ -62,7 +64,7 @@ export function StatStrip({ items, columns = 4, className, label }: {
           : columns === 3 && i === 2 ? "col-span-2 sm:col-span-1" : "";
         const body = (
           <>
-            <span className="text-overline uppercase tracking-wide text-text-tertiary">{item.label}</span>
+            <span className="flex items-center gap-1.5 text-overline uppercase tracking-wide text-text-tertiary">{item.icon}<span>{item.label}</span></span>
             <span
               className={cn(
                 "num mt-1.5 min-w-0 whitespace-normal",
