@@ -18,6 +18,8 @@ import { CoinTrailSteps } from "@/components/CoinTrailSteps";
 import { EventTitle } from "@/components/EventTitle";
 import { PriceChart } from "@/components/charts/PriceChartLazy";
 import { CoinAvatar } from "@/components/CoinAvatar";
+import { ExploreMint } from "@/components/explore/ExploreMint";
+import { isMint } from "@/lib/identicon";
 
 export const metadata: Metadata = { title: "Coin trail" };
 
@@ -161,7 +163,8 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
 export default async function CoinTrailPage(props: PageProps<"/coins/[mint]">) {
   await connection();
   const [{ mint }, t] = await Promise.all([props.params, getT()]);
+  if (!isMint(mint)) notFound();
   const trail = await getApi().getCoinTrail(mint);
-  if (!trail) notFound();
+  if (!trail) return <ExploreMint mint={mint} />;
   return <Trail trail={trail} t={t} f={await getFmt(trail.mode)} />;
 }

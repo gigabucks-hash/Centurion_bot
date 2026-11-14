@@ -41,6 +41,7 @@ fn main() {
             "auth_status",
             "auth_login",
             "auth_logout",
+            "explore_fetch",
         ]),
     ))
     .expect("failed to run tauri-build");

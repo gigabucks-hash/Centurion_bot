@@ -1871,6 +1871,12 @@ pub async fn real_submit_many(signed: Vec<String>) -> AppResult<String> {
     Ok(serde_json::json!({ "signatures": signatures, "failed": failed }).to_string())
 }
 
+/// Read-only token discovery. Does not approve, swap, or change Real.
+#[tauri::command]
+pub async fn explore_fetch(section: String, window: String) -> serde_json::Value {
+    crate::explore::fetch(&section, &window).await
+}
+
 fn record_fill(hold: &Hold, commit: bool) -> AppResult<()> {
     let mut live = real_book()
         .lock()

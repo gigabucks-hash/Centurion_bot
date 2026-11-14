@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, ChartNoAxesColumn, Coins, ExternalLink, Settings as SettingsGlyph, SquareCheck, Wallet } from "lucide-react";
+import { Activity, ChartNoAxesColumn, Coins, Compass, ExternalLink, Settings as SettingsGlyph, SquareCheck, Wallet } from "lucide-react";
 import { core, EVT, runtime, type PickView, type PositionView, type SellQuote } from "../api";
 import { ApproveConfirm } from "../components/ApproveConfirm";
 import { MockTtlBadge } from "../components/MockTtlBadge";
@@ -21,6 +21,7 @@ import { Icon } from "../components/Icon";
 import { useCoinLogo } from "../components/useCoinLogo";
 import { isBlocked } from "../components/NotTradeable";
 import { ScreenerTable } from "../components/ScreenerTable";
+import { ExploreView } from "../components/ExploreView";
 import { errorMessage, errorText, I18N_PACKAGE_VERSION, solText, useLang, useT } from "../i18n";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { pendingSorted, useTerm } from "../state/store";
@@ -63,6 +64,7 @@ export function TerminalView() {
   const setInfo = (m: string) => { setErr(null); setInfoRaw(m); };
   // Center panel: chart (default) or WF-20 "Koin · screener" (C key / tab).
   const [center, setCenter] = useState<"chart" | "coins">(() => (new URLSearchParams(location.search).get("tab") === "coins" ? "coins" : "chart"));
+  const [exploreOn, setExploreOn] = useState(() => new URLSearchParams(location.search).get("tab") === "explore");
   const [coinSel, setCoinSel] = useState<string | null>(null);
   const t = useT();
   const lang = useLang();
@@ -191,7 +193,7 @@ export function TerminalView() {
       c: () => setCenter((x) => (x === "coins" ? "chart" : "coins")),
       r: () => setPnlOpen(true),
     },
-    !quote && !settingsOpen && !realApprove && !pnlOpen,
+    !quote && !settingsOpen && !realApprove && !pnlOpen && !exploreOn,
   );
 
   const sc = st.settings.shortcuts;
@@ -207,8 +209,15 @@ export function TerminalView() {
         <span style={{ marginLeft: "auto" }} className="dim shortcut-hint" title="J/K nav, A approve, S skip, X select, Shift+A approve selected, Shift+X sell, Space quick-look, Enter chart, L feed, C coins">
           <kbd>J/K</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>⇧X</kbd>
         </span>
+        <button className="ghost explore-toggle" aria-pressed={exploreOn} data-testid="tab-explore" onClick={() => setExploreOn((v) => !v)}><Icon glyph={Compass} size={16} /> {t("explore.title")}</button>
         <button className="ghost" onClick={openSettings}><Icon glyph={SettingsGlyph} size={16} /> Settings<kbd>,</kbd></button>
       </ModeChrome>
+      {exploreOn ? (
+        <ExploreView
+          queued={new Set(pending.map((s) => s.mint))}
+          onOpenQueue={(mint) => { setExploreOn(false); clickSignal(mint); }}
+        />
+      ) : (
       <div className="grid">
         <section className="panel area-queue">
           <header>
@@ -270,6 +279,7 @@ export function TerminalView() {
           {cursorPos && <PositionsBar p={cursorPos} now={now} onSell={(p) => sell(p)} sellLabel={t("positions.sell.unavailable")} />}
         </section>
       </div>
+      )}
       <div className="statusbar">
         <span className="dim">{st.connected ? t(transport === "http" ? "status.online_api" : "status.online_mock") : t("status.offline")}</span>
         {st.sync && (
