@@ -750,3 +750,38 @@ export function closePosition(key: string, expectedRev: number | null, fractionB
   }
   return { before, after: { ...pos, soldPct: st.sold[key], rev: pos.rev + 1 }, fractionBps, at: now };
 }
+
+/** Local paper buy opened by the on-PC autotrader. Refused while buys are paused. */
+export function openLocalPaperBuy(input: { mint: string; symbol: string; sol: number }, now = Date.now()): OpenPosition {
+  if (!(input.sol > 0) || input.sol > 1_000_000) throw wireErr("VALIDATION_FAILED", { field: "sol" });
+  const mint = input.mint.trim();
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) throw wireErr("VALIDATION_FAILED", { field: "mint" });
+  const st = state();
+  const strat = st.strategies.find((s) => s.mode === "practice" && s.status === "running") ?? st.strategies.find((s) => s.mode === "practice");
+  if (!strat) throw wireErr("NOT_FOUND");
+  st.createdPositions ??= [];
+  const key = `mcp:${now.toString(36)}:${mint.slice(0, 4)}`;
+  const pos: OpenPosition = {
+    key, strategyId: strat.id, strategyName: strat.name, mode: "practice", mint, symbol: input.symbol.slice(0, 16) || "TOKEN",
+    solIn: input.sol, entryPriceUsd: 0, nowPriceUsd: 0, pnlSol: 0, pnlPct: 0, openedAt: now, soldPct: 0, rev: 1,
+    decimals: 6, tokenProgram: null, practiceEpoch: practiceState().epoch,
+    stopLossPct: strat.settings.exit.stopLossPct, trailingPct: strat.settings.exit.trailingPct,
+  };
+  st.createdPositions.push(pos);
+  return pos;
+}
+
+/** Sell every open paper position. Skips rows the paper book refuses (for example a non-SOL quote). */
+export function sellAllPractice(now = Date.now()): { sold: string[]; skipped: string[] } {
+  const sold: string[] = [];
+  const skipped: string[] = [];
+  for (const pos of listOpenPositions("practice")) {
+    try {
+      closePosition(pos.key, pos.rev, 10_000, "practice", now);
+      sold.push(pos.key);
+    } catch {
+      skipped.push(pos.key);
+    }
+  }
+  return { sold, skipped };
+}

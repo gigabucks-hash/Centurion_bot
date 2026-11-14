@@ -44,6 +44,7 @@ test("gate: pages redirect without cookies, APIs 401, auth routes public, off sw
   assert.deepEqual(gate("/api/v1/auth/siws/nonce", "", none, true), { kind: "pass" });
   assert.deepEqual(gate("/login", "", none, true), { kind: "pass" });
   assert.deepEqual(gate("/api/local/paper-session", "", none, true), { kind: "pass" });
+  assert.deepEqual(gate("/api/local/mcp", "", none, true), { kind: "pass" });
   assert.deepEqual(gate("/", "", { access: false, refresh: true }, true), { kind: "pass" }, "refresh-only → client refreshes silently");
   assert.deepEqual(gate("/", "", none, false), { kind: "pass" });
 });

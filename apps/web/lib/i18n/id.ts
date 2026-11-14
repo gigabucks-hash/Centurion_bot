@@ -138,6 +138,15 @@ export const id: PartialMessages = {
     trail: "Trail % (0 = mati)",
     hold: "Tahan maksimal (menit, 0 = mati)",
   },
+  mcp: {
+    title: "Agen di komputer ini",
+    body: "Agen bisa trading kertas dan, setelah Real dinyalakan di sini, trading serta mengubah batas langsung. Agen tidak bisa melihat kunci dan tidak bisa mengirim SOL ke wallet lain. Matikan ini untuk menghentikan semua agen sekaligus.",
+    on: "Agen nyala",
+    off: "Agen mati",
+    audit: "Panggilan agen terbaru",
+    empty: "Belum ada panggilan agen.",
+    tokenHint: "Token lokal ada di .local-web/mcp.token. Tidak ditampilkan di sini dan tidak pernah disimpan di git.",
+  },
   conn: {
     connected: "Live", connecting: "Menghubungkan…", disconnected: "Offline", title: "Stream realtime: {state}",
     // N-16

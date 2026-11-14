@@ -23,6 +23,7 @@ import { Badge, Button, Card, cn } from "@/components/ui";
 import { HoldButton, Segmented, Toggle, useNow, useToast } from "@/components/ui/client";
 import { applyThemeChoice } from "@/components/shell/ThemeToggle";
 import { LocalRealPanel } from "@/components/settings/LocalRealPanel";
+import { McpPanel } from "@/components/settings/McpPanel";
 
 type Method = "google" | "apple" | "telegram" | "email_otp" | "wallet_siws";
 const METHODS: { id: Method; label: string }[] = [
@@ -165,6 +166,7 @@ export function SettingsPanel({ signedInWith, practiceKnown = true, localMode = 
         })}
       </Card>
 
+      {localMode ? <McpPanel /> : null}
       {localMode ? <LocalRealPanel /> : (
         <section data-mode="real" className="rounded-lg border border-mode-real/50 bg-bg-surface p-4" aria-labelledby="trading-wallet-h">
           <h2 id="trading-wallet-h" className="flex items-center gap-2 text-titleSm text-mode-real"><Wallet size={16} aria-hidden /> {t.ux("settings.wallet.title")}</h2>

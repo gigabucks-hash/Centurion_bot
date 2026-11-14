@@ -143,6 +143,23 @@ export function disableReal(book: RealBook): RealBook {
   return { ...book, enabled: false };
 }
 
+/** Apply knobs with no extra signature. Only for the local autotrader after Real is already on. */
+export function applyKnobsDirect(
+  book: RealBook,
+  scope: string,
+  next: RealKnobs,
+): { book: RealBook; kind: "same" | "tighten" | "loosen" } | { error: BookError } {
+  if (!book.enabled || !book.wallet) return { error: "real_off" };
+  if (validateKnobs(next)) return { error: "invalid" };
+  const old = scopeKnobs(book, scope);
+  if (!old) return { error: "invalid" };
+  const kind = diffKnobs(old, next).kind;
+  const saved = structuredClone(book);
+  if (scope === "global") saved.global = structuredClone(next);
+  else saved.strategies[scope.slice("strategy:".length)] = structuredClone(next);
+  return { book: saved, kind };
+}
+
 export function applyKnobs(
   book: RealBook,
   scope: string,
