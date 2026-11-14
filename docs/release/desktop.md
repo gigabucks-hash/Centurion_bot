@@ -33,7 +33,7 @@ Cargo/package versions are what the build tools stamp:
 - `apps/desktop/src-tauri/Cargo.toml` → `[package] version`
 - `apps/desktop/package.json` → `"version"`
 
-Current version: **0.3.0**.
+Current version: **0.3.1**.
 
 CI enforces this: `npm run check:versions` runs on every desktop change, and the release job fails when the `desktop-vX.Y.Z` tag does not equal `tauri.conf.json` - otherwise the release would carry an app the updater never offers.
 
