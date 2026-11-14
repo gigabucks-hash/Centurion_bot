@@ -1,6 +1,6 @@
 import { popupSupported, POPUP_DISABLED_REASON } from "./platform";
 import { useEffect, useRef, useState } from "react";
-import { Settings as SettingsGlyph } from "lucide-react";
+import { Lock, Settings as SettingsGlyph } from "lucide-react";
 import { core, type PatchOutcome, type Settings } from "../api";
 import { useTerm } from "../state/store";
 import { useHotkeys } from "../hooks/useHotkeys";
@@ -47,7 +47,7 @@ function StrategyMode({ s }: { s: StrategyView }) {
           <HoldButton ms={HOLD_MS.real} className="sm danger" onConfirm={toReal}>{t("mode.switch.to_real.hold")}</HoldButton>
         ) : (
           <button className="sm" role="radio" aria-checked={s.mode === "real"} disabled aria-disabled="true" aria-label={realLabel} title={realLabel}>
-            <span aria-hidden="true">🔒 </span>{t("strategy.mode.real")}
+            <Icon glyph={Lock} size={16} /> {t("strategy.mode.real")}
           </button>
         )}
       </span>

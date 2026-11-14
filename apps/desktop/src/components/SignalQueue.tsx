@@ -125,8 +125,8 @@ export function SignalQueue(p: Props) {
                   <Icon glyph={ExternalLink} size={18} /> Chart<kbd>↵</kbd>
                 </button>
               )}
-              <span className={`num countdown ${nt ? "neutral" : urgent ? "neg" : "dim"}`} style={{ marginLeft: "auto" }} aria-label="Sisa waktu (jam server)">
-                {urgent ? "⏱ " : ""}{fmtMmSs(left)}
+              <span className="num countdown dim" style={{ marginLeft: "auto" }} aria-label="Sisa waktu (jam server)">
+                {fmtMmSs(left)}
               </span>
             </div>
           </div>

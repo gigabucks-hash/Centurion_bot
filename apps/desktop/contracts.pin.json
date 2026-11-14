@@ -20,7 +20,11 @@
     {
       "commit": "117bd09",
       "note": "PnL report types the desktop already reads (summary, closed ledger, cursors). No wire break for the terminal."
+    },
+    {
+      "commit": "675c6c4",
+      "note": "Docs only: the Flutter client answers were removed. Wire types the desktop reads are unchanged."
     }
   ],
-  "note": "Pinned to 117bd09 (contracts 1.1.6, including the PnL report the desktop already renders). Earlier pin ca52707 drifted on two additive commits that were already on main. Uncommitted working-tree changes are not part of the pin."
+  "note": "Pinned to 117bd09 (contracts 1.1.6, including the PnL report the desktop already renders). 675c6c4 only removed the Flutter docs. Uncommitted working-tree changes are not part of the pin."
 }
