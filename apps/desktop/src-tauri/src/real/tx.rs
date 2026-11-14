@@ -236,7 +236,6 @@ fn u64_le(data: &[u8]) -> Option<u64> {
     Some(u64::from_le_bytes(data.get(..8)?.try_into().ok()?))
 }
 
-#[cfg(test)]
 pub fn lookup_table_keys(tx: &[u8]) -> Result<Vec<[u8; 32]>, TxRefuse> {
     let msg = parse_message(tx)?;
     let mut out = Vec::new();
@@ -268,13 +267,8 @@ fn token_disc(data: &[u8]) -> Result<u8, TxRefuse> {
     data.first().copied().ok_or(TxRefuse::Truncated)
 }
 
-/// `tables` maps a lookup-table account pubkey to its account data. Missing data fails closed.
-pub fn vet(
-    tx: &[u8],
-    owner: &[u8; 32],
-    tip_cap: u64,
-    tables: &[([u8; 32], &[u8])],
-) -> Result<(), TxRefuse> {
+/// Static keys, then addresses loaded from lookup tables. Missing table data fails closed.
+pub fn expanded_keys(tx: &[u8], tables: &[([u8; 32], &[u8])]) -> Result<Vec<[u8; 32]>, TxRefuse> {
     let msg = parse_message(tx)?;
     let mut keys = msg.keys.clone();
     for (table, writable, readonly) in &msg.lookups {
@@ -289,29 +283,75 @@ pub fn vet(
             keys.push(*addrs.get(*idx).ok_or(TxRefuse::Unresolved)?);
         }
     }
-    let mut closed_to_owner: Vec<[u8; 32]> = Vec::new();
+    Ok(keys)
+}
+
+/// Base signature fee plus the compute-budget price in the transaction, in lamports.
+pub fn network_fee(tx: &[u8]) -> u64 {
+    let Ok(msg) = parse_message(tx) else {
+        return 5_000;
+    };
+    let mut limit: u64 = 200_000;
+    let mut price: u64 = 0;
+    let mut saw_limit = false;
     for ix in &msg.ixs {
-        let prog = *key_at(&keys, ix.program)?;
+        let Ok(prog) = key_at(&msg.keys, ix.program) else {
+            continue;
+        };
+        if *prog != COMPUTE {
+            continue;
+        }
+        if ix.data.first() == Some(&2) && ix.data.len() >= 5 {
+            limit = u64::from(u32::from_le_bytes(ix.data[1..5].try_into().unwrap_or([0; 4])));
+            saw_limit = true;
+        }
+        if ix.data.first() == Some(&3) && ix.data.len() >= 9 {
+            price = u64::from_le_bytes(ix.data[1..9].try_into().unwrap_or([0; 8]));
+        }
+    }
+    if !saw_limit && price > 0 {
+        limit = 1_400_000;
+    }
+    5_000 + limit.saturating_mul(price) / 1_000_000
+}
+
+pub struct ResolvedIx {
+    pub program: usize,
+    pub accounts: Vec<usize>,
+    pub data: Vec<u8>,
+}
+
+/// Same rules as [`vet`], for instructions whose account indexes use `keys`
+/// (including addresses loaded from lookup tables). Used for inner instructions.
+pub fn vet_instructions(
+    keys: &[[u8; 32]],
+    ixs: &[ResolvedIx],
+    owner: &[u8; 32],
+    tip_cap: u64,
+) -> Result<(), TxRefuse> {
+    let mut closed_to_owner: Vec<[u8; 32]> = Vec::new();
+    for ix in ixs {
+        let prog = *key_at(keys, ix.program)?;
         // SPL Token and Token-2022 use a one-byte discriminator. CloseAccount is 9.
         if (prog == TOKEN || prog == TOKEN_2022) && ix.data.first() == Some(&9) && ix.data.len() == 1
         {
-            let dest = key_at(&keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
+            let dest = key_at(keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
             if dest == owner {
                 if let Some(acct) = ix.accounts.first() {
-                    closed_to_owner.push(*key_at(&keys, *acct)?);
+                    closed_to_owner.push(*key_at(keys, *acct)?);
                 }
             }
         }
     }
-    for ix in &msg.ixs {
-        let prog = *key_at(&keys, ix.program)?;
+    for ix in ixs {
+        let prog = *key_at(keys, ix.program)?;
         if !allowed_program(&prog) {
             return Err(TxRefuse::UnknownProgram);
         }
         if prog == ATA {
             // Create / CreateIdempotent: [payer, ata, wallet, mint, system, token].
             // Paying rent for someone else's token account is a transfer out.
-            let wallet = key_at(&keys, *ix.accounts.get(2).ok_or(TxRefuse::Truncated)?)?;
+            let wallet = key_at(keys, *ix.accounts.get(2).ok_or(TxRefuse::Truncated)?)?;
             if wallet != owner {
                 return Err(TxRefuse::TransferOut);
             }
@@ -320,7 +360,7 @@ pub fn vet(
         if prog == SYSTEM {
             let disc = u32_le(&ix.data).ok_or(TxRefuse::Truncated)?;
             if disc == 2 {
-                let to = key_at(&keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
+                let to = key_at(keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
                 let lamports = u64_le(ix.data.get(4..).ok_or(TxRefuse::Truncated)?)
                     .ok_or(TxRefuse::Truncated)?;
                 if to == owner || closed_to_owner.iter().any(|c| c == to) {
@@ -339,7 +379,7 @@ pub fn vet(
             // (Assign, TransferWithSeed, CreateAccountWithSeed, …) can move value out.
             if disc == 0 && ix.data.len() == 52 {
                 let new_owner = ix.data.get(20..52).ok_or(TxRefuse::Truncated)?;
-                let created = key_at(&keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
+                let created = key_at(keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
                 let token_owned = new_owner == TOKEN.as_slice() || new_owner == TOKEN_2022.as_slice();
                 if token_owned && closed_to_owner.iter().any(|c| c == created) {
                     continue;
@@ -355,7 +395,7 @@ pub fn vet(
                     if ix.data.len() != 9 {
                         return Err(TxRefuse::Truncated);
                     }
-                    let dest = key_at(&keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
+                    let dest = key_at(keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
                     if dest != owner && !closed_to_owner.iter().any(|c| c == dest) {
                         return Err(TxRefuse::TransferOut);
                     }
@@ -365,7 +405,7 @@ pub fn vet(
                     if ix.data.len() != 10 {
                         return Err(TxRefuse::Truncated);
                     }
-                    let dest = key_at(&keys, *ix.accounts.get(2).ok_or(TxRefuse::Truncated)?)?;
+                    let dest = key_at(keys, *ix.accounts.get(2).ok_or(TxRefuse::Truncated)?)?;
                     if dest != owner && !closed_to_owner.iter().any(|c| c == dest) {
                         return Err(TxRefuse::TransferOut);
                     }
@@ -374,7 +414,7 @@ pub fn vet(
                     if ix.data.len() != 1 {
                         return Err(TxRefuse::Truncated);
                     }
-                    let dest = key_at(&keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
+                    let dest = key_at(keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
                     if dest != owner {
                         return Err(TxRefuse::TransferOut);
                     }
@@ -388,6 +428,27 @@ pub fn vet(
         }
     }
     Ok(())
+}
+
+/// `tables` maps a lookup-table account pubkey to its account data. Missing data fails closed.
+pub fn vet(
+    tx: &[u8],
+    owner: &[u8; 32],
+    tip_cap: u64,
+    tables: &[([u8; 32], &[u8])],
+) -> Result<(), TxRefuse> {
+    let msg = parse_message(tx)?;
+    let keys = expanded_keys(tx, tables)?;
+    let ixs: Vec<ResolvedIx> = msg
+        .ixs
+        .iter()
+        .map(|ix| ResolvedIx {
+            program: ix.program,
+            accounts: ix.accounts.clone(),
+            data: ix.data.clone(),
+        })
+        .collect();
+    vet_instructions(&keys, &ixs, owner, tip_cap)
 }
 
 /// Legacy transaction: one signature slot, the given instructions. Tests build these; the app never signs them.

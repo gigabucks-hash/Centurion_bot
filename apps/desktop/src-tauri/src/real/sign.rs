@@ -66,7 +66,7 @@ pub fn request(kind: &str, payload: &str) -> Result<String, String> {
 
 fn fresh_token() -> Result<String, String> {
     let mut raw = [0u8; 16];
-    getrandom::getrandom(&mut raw).map_err(|e| e.to_string())?;
+    getrandom::fill(&mut raw).map_err(|e| e.to_string())?;
     Ok(raw.iter().map(|b| format!("{b:02x}")).collect())
 }
 

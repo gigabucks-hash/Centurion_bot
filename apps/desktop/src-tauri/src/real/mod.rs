@@ -4,12 +4,13 @@
 
 pub(crate) mod b58;
 pub(crate) mod b64;
+pub(crate) mod chain;
 mod limits;
 pub mod sign;
 pub(crate) mod tx;
 
 pub use limits::{rpc_url_ok, BuyCheck, Knobs, LimitError, RealBook};
-pub use tx::{message_bytes, vet, TxRefuse};
+pub use tx::{expanded_keys, lookup_table_keys, message_bytes, network_fee, vet, ResolvedIx, TxRefuse};
 
 /// Public Jupiter swap endpoint. No API key. The owner's RPC is separate and user-supplied.
 pub const JUPITER_QUOTE: &str = "https://lite-api.jup.ag/swap/v1/quote";

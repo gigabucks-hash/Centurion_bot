@@ -430,7 +430,7 @@ pub fn nonce_ok(nonce: &str) -> bool {
 
 pub fn new_nonce() -> Result<String, LimitError> {
     let mut raw = [0u8; 16];
-    getrandom::getrandom(&mut raw).map_err(|_| LimitError::Invalid)?;
+    getrandom::fill(&mut raw).map_err(|_| LimitError::Invalid)?;
     Ok(raw.iter().map(|b| format!("{b:02x}")).collect())
 }
 
