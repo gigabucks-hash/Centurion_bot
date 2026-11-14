@@ -4,7 +4,7 @@
  * family). Tokens are random strings held in server memory only; they never reach client JS (route handlers put
  * them in httpOnly cookies). Nothing here is a real credential.
  */
-import { isAllowedWallet } from "@/lib/auth/allowlist";
+import { sessionWalletAllowed } from "@/lib/local/access";
 import { WireError } from "./store";
 
 export const ACCESS_TTL_S = 900;
@@ -54,7 +54,7 @@ export function refreshSession(refreshToken: string | undefined, now = Date.now(
     throw new WireError("UNAUTHENTICATED", { reason: "refresh_reused" });
   }
   if (now > f.refreshExp) throw new WireError("UNAUTHENTICATED", { reason: "refresh_expired" });
-  if (!isAllowedWallet(f.address)) {
+  if (!sessionWalletAllowed(f.address)) {
     f.revoked = true;
     throw new WireError("FORBIDDEN_ROLE", { reason: "wallet_not_allowed" });
   }

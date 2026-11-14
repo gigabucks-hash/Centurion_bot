@@ -3,6 +3,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { LogOut, MoreHorizontal, Search, X } from "lucide-react";
+import { PageHero } from "./PageHero";
+import { Wordmark } from "./Wordmark";
 import type { TradingMode } from "@/lib/types";
 import { APPROVALS_CHANGED, fetchApprovals } from "@/lib/client";
 import { cn } from "@/components/ui";
@@ -14,12 +16,10 @@ import { LocaleToggle } from "./LocaleToggle";
 import { useT } from "@/lib/i18n/client";
 import { logout, useSessionKeeper } from "@/lib/auth/session-client";
 
-function Brand() {
-  const t = useT();
+function Brand({ height = 36 }: { height?: number }) {
   return (
-    <Link href="/" className="flex items-baseline gap-2 text-text-primary">
-      {/* Brand = @centurion/i18n app.name ("Centurion Trade", Boss 2026-10-29); short form on narrow phones. */}
-      <span className="text-titleSm"><span aria-hidden>◆ </span><span className="hidden min-[400px]:inline">{t.ux("app.name")}</span><span className="min-[400px]:hidden">{t("common.brandShort")}</span></span>
+    <Link href="/" className="flex items-center text-text-primary" aria-label="Centurion Trade">
+      <Wordmark height={height} />
     </Link>
   );
 }
@@ -170,8 +170,8 @@ export function AppShell({ children, sessionKeeper = true, modes, realCount, pap
       <div data-mode={real ? "real" : "practice"} className="flex min-h-screen flex-col">
         <div className="sticky top-0 z-40">
           <ModeBanner realCount={realCount} paperCount={paperCount} />
-          <header className="flex h-14 items-center gap-3 border-b border-border-subtle bg-bg-surface px-4">
-            <Brand />
+          <header className="chrome-bar flex h-14 items-center gap-3 border-b border-border-subtle px-4">
+            <span className="lg:hidden"><Brand height={34} /></span>
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
               <SearchBox />
               <ConnectionDot />
@@ -183,7 +183,7 @@ export function AppShell({ children, sessionKeeper = true, modes, realCount, pap
                 aria-label={t("nav.signOut")}
                 onClick={() => logout()}
               >
-                Y
+                <LogOut size={16} aria-hidden />
               </button>
             </div>
           </header>
@@ -193,11 +193,15 @@ export function AppShell({ children, sessionKeeper = true, modes, realCount, pap
           {/* QA-14: the column background stretches with the content; the nav inside stays sticky. */}
           <aside className="hidden w-[200px] shrink-0 border-r border-border-subtle bg-bg-chrome lg:block">
             <div className="sticky top-22 flex h-[calc(100dvh-88px)] flex-col gap-4 px-2 py-4">
+              <Brand height={40} />
               <SideNav pending={pending} />
-              <p className="mt-auto px-2 text-caption text-text-tertiary">{t("common.mockBuild")}</p>
+              <p className="mt-auto px-2 text-caption text-text-tertiary">{t("nav.workspaceNote")}</p>
             </div>
           </aside>
-          <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 pt-6 pb-24 sm:px-6 lg:pb-10">{children}</main>
+          <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 pt-6 pb-24 sm:px-6 lg:pb-10">
+            <PageHero />
+            {children}
+          </main>
         </div>
 
         <BottomNav pending={pending} onMore={() => setMore(true)} />

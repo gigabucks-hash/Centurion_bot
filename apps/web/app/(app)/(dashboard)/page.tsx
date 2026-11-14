@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { AlertTriangle, Info, Plus } from "lucide-react";
+import { AlertTriangle, Inbox, Info, Layers, Plus, TrendingDown, Wallet } from "lucide-react";
 import { getApi } from "@/lib/api";
 import { DEFAULT_TRADING } from "@/lib/trading";
 import { acrossModes, listAllStrategies, modesOf, portfolioMode } from "@/lib/mode";
@@ -72,10 +72,11 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
 
       <StatStrip
         items={[
-          { label: t("overview.cash"), value: <>{f.sol(o.cashSol, { unit: false })}<span className="text-caption font-normal"> {t(mode === "practice" ? "overview.paperSol" : "overview.realSol")}</span></>, hint: t("overview.inPositions", { amount_lamports: o.inPositionsSol != null ? f.amount(o.inPositionsSol) : "—" }) },
-          { label: t("overview.realized"), value: <Pnl mode={mode} sol={o.realizedPnlSol} unit />, hint: t("overview.vsStart", { pct: realizedPct != null ? f.pct(realizedPct) : "—" }) },
-          { label: t("overview.openPositions"), value: o.openPositions != null ? `${o.openPositions} / ${o.openPositionsCap}` : "—", hint: t("overview.openHint", { amount_lamports: o.inPositionsSol != null ? f.amount(o.inPositionsSol) : "—", unreal: o.unrealizedPnlSol != null ? f.sol(o.unrealizedPnlSol, { sign: true }) : "—" }) },
+          { icon: <Wallet size={14} aria-hidden />, label: t("overview.cash"), value: <>{f.sol(o.cashSol, { unit: false })}<span className="text-caption font-normal"> {t(mode === "practice" ? "overview.paperSol" : "overview.realSol")}</span></>, hint: t("overview.inPositions", { amount_lamports: o.inPositionsSol != null ? f.amount(o.inPositionsSol) : "—" }) },
+          { icon: <TrendingDown size={14} aria-hidden />, label: t("overview.realized"), value: <Pnl mode={mode} sol={o.realizedPnlSol} unit />, hint: t("overview.vsStart", { pct: realizedPct != null ? f.pct(realizedPct) : "—" }) },
+          { icon: <Layers size={14} aria-hidden />, label: t("overview.openPositions"), value: o.openPositions != null ? `${o.openPositions} / ${o.openPositionsCap}` : "—", hint: t("overview.openHint", { amount_lamports: o.inPositionsSol != null ? f.amount(o.inPositionsSol) : "—", unreal: o.unrealizedPnlSol != null ? f.sol(o.unrealizedPnlSol, { sign: true }) : "—" }) },
           {
+            icon: <Inbox size={14} aria-hidden />,
             label: t("overview.waiting"),
             value: f.int(o.pendingApprovals),
             tone: o.pendingApprovals ? "warning" : "neutral",

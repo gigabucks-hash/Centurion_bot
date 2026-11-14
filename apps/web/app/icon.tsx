@@ -1,7 +1,14 @@
-import { ImageResponse } from "next/og";
-import { BrandMark } from "@/lib/brand/mark";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 
-/** App icons: /icon/32 (favicon), /icon/192, /icon/512, /icon/maskable (extra safe-zone padding). */
+/** Helmet mark rendered from brand/icon.svg. /icon/32 is the small favicon PNG. */
+const FILES: Record<string, string> = {
+  "32": "mark-32.png",
+  "192": "mark-192.png",
+  "512": "mark-512.png",
+  maskable: "mark-maskable-512.png",
+};
+
 export function generateImageMetadata() {
   return [
     { id: "32", size: { width: 32, height: 32 }, contentType: "image/png" },
@@ -13,6 +20,12 @@ export function generateImageMetadata() {
 
 export default async function Icon({ id }: { id: Promise<string | number> }) {
   const v = String(await id);
-  const size = v === "maskable" ? 512 : Number(v) || 32;
-  return new ImageResponse(<BrandMark size={size} pad={v === "maskable" ? 0.28 : 0.14} />, { width: size, height: size });
+  const name = FILES[v] ?? FILES["32"];
+  const buf = await readFile(path.join(process.cwd(), "public", "brand", name));
+  return new Response(buf, {
+    headers: {
+      "content-type": "image/png",
+      "cache-control": "public, max-age=86400",
+    },
+  });
 }

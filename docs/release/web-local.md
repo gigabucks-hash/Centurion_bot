@@ -1,5 +1,8 @@
 # Run the web app against the paper API (local)
 
+For a laptop with one double-click and no Postgres, use `Start-Centurion-Web.cmd` and `docs/web-local-windows.md`.
+That path keeps paper trading inside the Next.js app. The steps below are the optional Postgres paper API.
+
 This is the fastest usable surface: the Next.js app in `apps/web`, signed in with Phantom, reading and trading the
 paper backend in `services/backend`. No chain, no real funds, no deploy.
 

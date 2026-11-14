@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { APP_DESCRIPTION, APP_NAME, APP_TITLE, BRAND_COLORS } from "@/lib/brand";
 import { siteUrl } from "@/lib/site-url";
-import { LOCALE_COOKIE, localeFromCookie } from "@/lib/i18n/core";
+import { DEFAULT_LOCALE, LOCALE_COOKIE, localeFromCookie, type Locale } from "@/lib/i18n/core";
+import { ThemeSync } from "@/components/shell/ThemeSync";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/client";
 import { THEME_INIT } from "@/lib/security/theme-init";
@@ -33,14 +34,16 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // The app ships en + id copy behind a cookie; <html lang> must follow it (screen readers, spellcheck, hyphenation).
-  const locale = localeFromCookie((await cookies()).get(LOCALE_COOKIE)?.value);
+  const fallback: Locale = process.env.CENTURION_LOCAL === "1" && process.env.DATA_SOURCE !== "http" ? "id" : DEFAULT_LOCALE;
+  const locale = localeFromCookie((await cookies()).get(LOCALE_COOKIE)?.value, fallback);
   return (
     <html lang={locale} data-theme="dark" className={`${inter.variable} ${mono.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         {/* Theme before first paint: plain text child (no dangerouslySetInnerHTML), allowed by its CSP hash. */}
         <script>{THEME_INIT}</script>
       </head>
-      <body className="min-h-full text-body">
+      <body className="min-h-full bg-bg-canvas text-body">
+        <ThemeSync />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

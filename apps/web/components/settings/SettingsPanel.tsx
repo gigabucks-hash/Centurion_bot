@@ -21,6 +21,8 @@ import { useFmt, useLocale, useT } from "@/lib/i18n/client";
 import type { ApprovalMode } from "@/lib/types";
 import { Badge, Button, Card, cn } from "@/components/ui";
 import { HoldButton, Segmented, Toggle, useNow, useToast } from "@/components/ui/client";
+import { applyThemeChoice } from "@/components/shell/ThemeToggle";
+import { LocalRealPanel } from "@/components/settings/LocalRealPanel";
 
 type Method = "google" | "apple" | "telegram" | "email_otp" | "wallet_siws";
 const METHODS: { id: Method; label: string }[] = [
@@ -41,7 +43,7 @@ function Row({ label, children, hint }: { label: string; children: React.ReactNo
   );
 }
 
-export function SettingsPanel({ signedInWith, practiceKnown = true }: { signedInWith: Method | null; practiceKnown?: boolean }) {
+export function SettingsPanel({ signedInWith, practiceKnown = true, localMode = false }: { signedInWith: Method | null; practiceKnown?: boolean; localMode?: boolean }) {
   const t = useT();
   const f = useFmt();
   const locale = useLocale();
@@ -59,7 +61,7 @@ export function SettingsPanel({ signedInWith, practiceKnown = true }: { signedIn
   const [popup, setPopup] = useState(false);
   const [practiceActions, setPracticeActions] = useState(false);
   const [twoFa, setTwoFa] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light" | "system">("dark");
+  const [theme, setTheme] = useState<"dark" | "light" | "system">("system");
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
 
   // Server-backed mock resources.
@@ -71,7 +73,8 @@ export function SettingsPanel({ signedInWith, practiceKnown = true }: { signedIn
   useEffect(() => {
     const tm = setTimeout(() => {
       setMyDevice(deviceId());
-      setTheme((localStorage.getItem("centurion_theme") as "dark" | "light" | null) ?? (document.documentElement.dataset.theme === "light" ? "light" : "dark"));
+      const saved = localStorage.getItem("centurion_theme");
+      setTheme(saved === "light" || saved === "dark" ? saved : "system");
     }, 0);
     // http mode: the backend has no GET for the reset state (only POST), so the epoch stays unknown until a reset.
     if (practiceKnown) fetchPracticeReset().then(setPractice).catch(() => {});
@@ -88,13 +91,7 @@ export function SettingsPanel({ signedInWith, practiceKnown = true }: { signedIn
 
   function applyTheme(v: "dark" | "light" | "system") {
     setTheme(v);
-    const resolved = v === "system" ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : v;
-    document.documentElement.dataset.theme = resolved;
-    try {
-      localStorage.setItem("centurion_theme", resolved);
-    } catch {
-      /* ignore */
-    }
+    applyThemeChoice(v);
   }
 
   async function setLocale(l: string) {
@@ -168,12 +165,14 @@ export function SettingsPanel({ signedInWith, practiceKnown = true }: { signedIn
         })}
       </Card>
 
-      <section data-mode="real" className="rounded-lg border border-mode-real/50 bg-bg-surface p-4" aria-labelledby="trading-wallet-h">
-        <h2 id="trading-wallet-h" className="flex items-center gap-2 text-titleSm text-mode-real"><Wallet size={16} aria-hidden /> {t.ux("settings.wallet.title")}</h2>
-        <p className="mt-2 text-body">{t.ux("settings.wallet.not_connected")}</p>
-        <p className="mt-1 text-caption text-text-secondary">{t.ux("settings.wallet.separate_note")}</p>
-        <Button className="mt-3" size="sm" variant="real" disabled title={t("apiError.REAL_SOL_DISABLED")}>{t("settings.connectTrading")}</Button>
-      </section>
+      {localMode ? <LocalRealPanel /> : (
+        <section data-mode="real" className="rounded-lg border border-mode-real/50 bg-bg-surface p-4" aria-labelledby="trading-wallet-h">
+          <h2 id="trading-wallet-h" className="flex items-center gap-2 text-titleSm text-mode-real"><Wallet size={16} aria-hidden /> {t.ux("settings.wallet.title")}</h2>
+          <p className="mt-2 text-body">{t.ux("settings.wallet.not_connected")}</p>
+          <p className="mt-1 text-caption text-text-secondary">{t.ux("settings.wallet.separate_note")}</p>
+          <Button className="mt-3" size="sm" variant="real" disabled title={t("apiError.REAL_SOL_DISABLED")}>{t("settings.connectTrading")}</Button>
+        </section>
+      )}
 
       <Card title={t.ux("settings.section.mode_defaults")}>
         <Row label={t.ux("settings.mode.default_new_strategy")}><Badge tone="info">{t("mode.practice")}</Badge></Row>

@@ -9,7 +9,8 @@ export async function getLocale(): Promise<Locale> {
   const c = await cookies();
   // Pre-rename cookie as a read-only fallback until the user changes the locale again.
   const v = c.get(LOCALE_COOKIE)?.value ?? c.get(LEGACY_LOCALE_COOKIE)?.value;
-  return isLocale(v) ? v : DEFAULT_LOCALE;
+  const fallback: Locale = process.env.CENTURION_LOCAL === "1" && process.env.DATA_SOURCE !== "http" ? "id" : DEFAULT_LOCALE;
+  return isLocale(v) ? v : fallback;
 }
 
 export async function getT(): Promise<T> {

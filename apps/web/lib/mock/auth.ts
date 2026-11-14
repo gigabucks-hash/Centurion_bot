@@ -5,6 +5,7 @@
  * - Email OTP: request always 202 {sent, resend_after_s: 60}; code is 123456 in the mock; 10 min TTL;
  *   5 wrong → locked 15 min (429 OTP_LOCKED).
  */
+import { verifySolanaMessage } from "@/lib/local/ed25519";
 import { WireError } from "./store";
 
 /** Backend SIWS_STATEMENTS[2] (current, = UX auth.siws.statement since i18n 0.4.7). The server builds the signed text. */
@@ -32,8 +33,13 @@ export function siwsVerify(address: string, message: string, signature: string, 
   const n = nonce ? st.nonces.get(nonce) : undefined;
   if (!nonce || !n || n.address !== address || now > n.exp) throw new WireError("SIWS_NONCE_INVALID");
   st.nonces.delete(nonce); // single use
-  if (signature !== "mock-signature") throw new WireError("SIWS_SIGNATURE_INVALID");
-  return { method: "wallet_siws" as const };
+  if (signature === "mock-signature") {
+    // Local web refuses the fake signature so a pasted mock string cannot become the owner.
+    if (process.env.CENTURION_LOCAL === "1") throw new WireError("SIWS_SIGNATURE_INVALID");
+    return { method: "wallet_siws" as const };
+  }
+  if (process.env.CENTURION_LOCAL === "1" && verifySolanaMessage(address, message, signature)) return { method: "wallet_siws" as const };
+  throw new WireError("SIWS_SIGNATURE_INVALID");
 }
 
 export function otpRequest(email: string, now = Date.now()) {

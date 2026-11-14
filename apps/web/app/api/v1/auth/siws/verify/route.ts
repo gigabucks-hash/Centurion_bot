@@ -4,7 +4,9 @@ import { WireError } from "@/lib/mock/store";
 import { siwsVerify } from "@/lib/mock/auth";
 import { issueSession, type Session } from "@/lib/mock/session";
 import { issueHandoffCode } from "@/lib/mock/handoff";
-import { isAllowedWallet } from "@/lib/auth/allowlist";
+import { sessionWalletAllowed } from "@/lib/local/access";
+import { bindOwner } from "@/lib/local/owner";
+import { isLocalWeb } from "@/lib/local/paths";
 import { VerifyBody } from "@/lib/auth/schemas";
 import { publicSession, setSessionCookies, WORKSPACE_COOKIE } from "@/lib/auth/cookies";
 import { LEGACY_MODE_COOKIE } from "@/lib/mode";
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
     }
     try {
       siwsVerify(b.data.address, b.data.message, b.data.signature);
-      if (!isAllowedWallet(b.data.address)) return fail("FORBIDDEN_ROLE", {}, { reason: "wallet_not_allowed" });
+      if (!sessionWalletAllowed(b.data.address)) return fail("FORBIDDEN_ROLE", {}, { reason: "wallet_not_allowed" });
       return ok(issueHandoffCode(b.data.address, pkce.code_challenge, pkce.state));
     } catch (e) {
       if (e instanceof WireError) return fail(e.code, e.extra, e.details);
@@ -49,7 +51,8 @@ export async function POST(req: Request) {
   } else {
     try {
       siwsVerify(b.data.address, b.data.message, b.data.signature);
-      if (!isAllowedWallet(b.data.address)) return fail("FORBIDDEN_ROLE", {}, { reason: "wallet_not_allowed" });
+      if (!sessionWalletAllowed(b.data.address)) return fail("FORBIDDEN_ROLE", {}, { reason: "wallet_not_allowed" });
+      if (isLocalWeb() && !bindOwner(b.data.address)) return fail("FORBIDDEN_ROLE", {}, { reason: "wallet_not_allowed" });
       s = issueSession(b.data.address);
     } catch (e) {
       if (e instanceof WireError) return fail(e.code, e.extra, e.details);
