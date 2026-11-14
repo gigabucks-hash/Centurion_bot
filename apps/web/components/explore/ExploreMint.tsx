@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CoinAvatar } from "@/components/CoinAvatar";
+import { formatMcapUsd } from "@centurion/i18n/format";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { coerceFeed, safeIcon, type ExploreRow } from "@explore/index";
 
@@ -26,8 +27,7 @@ export function ExploreMint({ mint }: { mint: string }) {
       alive = false;
     };
   }, [mint]);
-  const tag = locale === "id" ? "id-ID" : "en-US";
-  const usd = (n: number | null) => (n == null ? "—" : new Intl.NumberFormat(tag, { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(n));
+  const usd = (n: number | null) => formatMcapUsd(n, locale);
   const icon = safeIcon(row?.icon);
   return (
     <article className="mx-auto max-w-xl">

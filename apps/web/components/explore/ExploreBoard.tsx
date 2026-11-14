@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Copy } from "lucide-react";
 import { CoinAvatar } from "@/components/CoinAvatar";
+import { formatMcapUsd } from "@centurion/i18n/format";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { MessageKey } from "@/lib/i18n/core";
 import {
@@ -43,9 +44,8 @@ const WIN: Record<ExploreWindow, MessageKey> = {
   "24h": "explore.window.24h",
 };
 
-function money(n: number | null, tag: string): string {
-  if (n == null) return "—";
-  return new Intl.NumberFormat(tag, { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(n);
+function money(n: number | null, loc: "en" | "id"): string {
+  return formatMcapUsd(n, loc);
 }
 
 function signed(n: number | null, tag: string): string {
@@ -214,7 +214,7 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
           <tbody>
             {!feed && <tr><td colSpan={9} className="px-3 py-6 text-text-tertiary">{t("explore.loading")}</td></tr>}
             {feed && rows.length === 0 && <tr><td colSpan={9} className="px-3 py-6 text-text-secondary">{feed.rows.length ? t("explore.emptyFiltered") : t("explore.empty")}</td></tr>}
-            {rows.map((r) => <Row key={r.mint} row={r} tag={tag} age={age(r.createdAt)} copied={copied === r.mint} onCopy={() => copy(r.mint)} t={t} />)}
+            {rows.map((r) => <Row key={r.mint} row={r} tag={tag} locale={locale} age={age(r.createdAt)} copied={copied === r.mint} onCopy={() => copy(r.mint)} t={t} />)}
           </tbody>
         </table>
       </div>
@@ -222,9 +222,10 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
   );
 }
 
-function Row({ row, tag, age, copied, onCopy, t }: {
+function Row({ row, tag, locale, age, copied, onCopy, t }: {
   row: ExploreRow;
   tag: string;
+  locale: "en" | "id";
   age: string;
   copied: boolean;
   onCopy: () => void;
@@ -253,9 +254,9 @@ function Row({ row, tag, age, copied, onCopy, t }: {
         </span>
       </td>
       <td className="px-2 py-1.5 text-right tabular-nums text-text-secondary">{age}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{money(row.liquidityUsd, tag)}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{money(row.mcapUsd, tag)}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{money(row.volumeUsd, tag)}</td>
+      <td className="px-2 py-1.5 text-right tabular-nums">{money(row.liquidityUsd, locale)}</td>
+      <td className="px-2 py-1.5 text-right tabular-nums">{money(row.mcapUsd, locale)}</td>
+      <td className="px-2 py-1.5 text-right tabular-nums">{money(row.volumeUsd, locale)}</td>
       <td className="px-2 py-1.5 text-right tabular-nums">
         <div>{row.txns == null ? "—" : row.txns.toLocaleString(tag)}</div>
         {row.buys != null && row.sells != null && <div className="text-text-tertiary"><span className="text-semantic-profit">{row.buys.toLocaleString(tag)}</span>/<span className="text-semantic-loss">{row.sells.toLocaleString(tag)}</span></div>}

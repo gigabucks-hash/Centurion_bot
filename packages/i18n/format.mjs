@@ -41,8 +41,18 @@ export function pnlPct(r, loc, { dp = 1 } = {}) {
 /** Percent from a ratio (0.084 → 8.4%). signed for PnL. */
 export const formatPct = (r, loc, { signed = false, dp = 1 } = {}) => signed ? pnlPct(r, loc, { dp }).text :
   nf(loc, { style: 'percent', minimumFractionDigits: dp, maximumFractionDigits: dp }).format(r).replace('-', '−');
-/** Token price in USD: 4 significant digits, tiny prices keep zeros visible. narrowSymbol → "$" in both locales; separators follow the locale. */
-export const formatUsd = (v, loc) => nf(loc, { style: 'currency', currency: 'USD', maximumSignificantDigits: 4, currencyDisplay: 'narrowSymbol' }).format(v);
+/**
+ * id-ID's currency symbol for USD is "US$". Both locales must show a leading "$" only
+ * ("$3.5M" / "$3,5 jt"). narrowSymbol is usually "$"; this still strips a leftover "US$".
+ */
+function dollar(text) {
+  const sign = text.startsWith('-') || text.startsWith('\u2212') ? text[0] : '';
+  const body = sign ? text.slice(1) : text;
+  const rest = body.replaceAll('US$', '').replaceAll('$', '').replace(/^[\s\u00a0\u202f]+/, '');
+  return sign + '$' + rest;
+}
+/** Token price in USD: 4 significant digits, tiny prices keep zeros visible. Separators follow the locale. */
+export const formatUsd = (v, loc) => dollar(nf(loc, { style: 'currency', currency: 'USD', maximumSignificantDigits: 4, currencyDisplay: 'narrowSymbol' }).format(v));
 export const formatCompact = (v, loc) => nf(loc, { notation: 'compact', maximumFractionDigits: 1 }).format(v); // market cap, volume
 export const formatInt = (v, loc) => nf(loc, {}).format(v);
 /** Countdown mm:ss from expires_at − server_now (never device clock). Not localized: digits + colon. */
@@ -182,8 +192,8 @@ export const formatRelativeSeconds = (sec, loc) =>
     .format(Math.round(sec), 'second');
 /** Market cap (USD decimal string, indicative) → compact USD: "$1.2M" (en) / "$1,2 jt" (id). null → DASH. */
 export const formatMcapUsd = (usd, loc) => missing(usd) || !Number.isFinite(Number(usd)) ? DASH :
-  nf(loc, { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', notation: 'compact',
-    maximumFractionDigits: 1 }).format(Number(usd));
+  dollar(nf(loc, { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', notation: 'compact',
+    maximumFractionDigits: 1 }).format(Number(usd)));
 /** Market cap (lamports integer string) → compact SOL: "8.4K SOL" (en) / "8,4 rb SOL" (id). null → DASH. */
 export const formatMcapSol = (lamports, loc) => missing(lamports) ? DASH :
   formatCompact(lamportsToSol(lamports), loc) + '\u00A0SOL';

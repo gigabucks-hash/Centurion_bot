@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Copy } from "lucide-react";
 import { CoinAvatar } from "./CoinAvatar";
 import { core } from "../api";
-import { useLang, useT } from "../i18n";
+import { formatMcapUsd, useLang, useT } from "../i18n";
 import {
   applyExploreQuery,
   defaultSort,
@@ -37,9 +37,8 @@ async function load(section: ExploreSection, span: ExploreWindow): Promise<Explo
   }
 }
 
-function money(n: number | null, tag: string): string {
-  if (n == null) return "—";
-  return new Intl.NumberFormat(tag, { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(n);
+function money(n: number | null, loc: "en" | "id"): string {
+  return formatMcapUsd(n, loc);
 }
 function signed(n: number | null, tag: string): string {
   if (n == null) return "—";
@@ -162,7 +161,7 @@ export function ExploreView({ queued, onOpenQueue }: { queued: ReadonlySet<strin
               {!feed && <tr><td colSpan={9} className="dim">{t("explore.loading")}</td></tr>}
               {feed && rows.length === 0 && <tr><td colSpan={9} className="dim">{feed.rows.length ? t("explore.emptyFiltered") : t("explore.empty")}</td></tr>}
               {rows.map((r) => (
-                <DesktopRow key={r.mint} row={r} tag={tag} age={age(r.createdAt)} selected={r.mint === sel} copied={copied === r.mint} onSelect={() => setSel(r.mint)} onCopy={() => copy(r.mint)} t={t} />
+                <DesktopRow key={r.mint} row={r} tag={tag} lang={lang} age={age(r.createdAt)} selected={r.mint === sel} copied={copied === r.mint} onSelect={() => setSel(r.mint)} onCopy={() => copy(r.mint)} t={t} />
               ))}
             </tbody>
           </table>
@@ -174,9 +173,9 @@ export function ExploreView({ queued, onOpenQueue }: { queued: ReadonlySet<strin
             <p className="mono dim">{selected.mint}</p>
             <p className="dim">{t("explore.detail.note")}</p>
             <dl>
-              <div><dt>{t("explore.col.mcap")}</dt><dd className="num">{money(selected.mcapUsd, tag)}</dd></div>
-              <div><dt>{t("explore.col.liq")}</dt><dd className="num">{money(selected.liquidityUsd, tag)}</dd></div>
-              <div><dt>{t("explore.col.volume")}</dt><dd className="num">{money(selected.volumeUsd, tag)}</dd></div>
+              <div><dt>{t("explore.col.mcap")}</dt><dd className="num">{money(selected.mcapUsd, lang)}</dd></div>
+              <div><dt>{t("explore.col.liq")}</dt><dd className="num">{money(selected.liquidityUsd, lang)}</dd></div>
+              <div><dt>{t("explore.col.volume")}</dt><dd className="num">{money(selected.volumeUsd, lang)}</dd></div>
             </dl>
             {queued.has(selected.mint) ? (
               <button type="button" onClick={() => onOpenQueue(selected.mint)}>{t("explore.detail.queue")}</button>
@@ -189,9 +188,10 @@ export function ExploreView({ queued, onOpenQueue }: { queued: ReadonlySet<strin
   );
 }
 
-function DesktopRow({ row, tag, age, selected, copied, onSelect, onCopy, t }: {
+function DesktopRow({ row, tag, lang, age, selected, copied, onSelect, onCopy, t }: {
   row: ExploreRow;
   tag: string;
+  lang: "en" | "id";
   age: string;
   selected: boolean;
   copied: boolean;
@@ -219,9 +219,9 @@ function DesktopRow({ row, tag, age, selected, copied, onSelect, onCopy, t }: {
         </span>
       </td>
       <td className="num">{age}</td>
-      <td className="num">{money(row.liquidityUsd, tag)}</td>
-      <td className="num">{money(row.mcapUsd, tag)}</td>
-      <td className="num">{money(row.volumeUsd, tag)}</td>
+      <td className="num">{money(row.liquidityUsd, lang)}</td>
+      <td className="num">{money(row.mcapUsd, lang)}</td>
+      <td className="num">{money(row.volumeUsd, lang)}</td>
       <td className="num">{row.txns == null ? "—" : row.txns.toLocaleString(tag)}{row.buys != null && row.sells != null && <div className="dim"><span className="pos">{row.buys}</span>/<span className="neg">{row.sells}</span></div>}</td>
       <td className="num">{row.holders == null ? "—" : row.holders.toLocaleString(tag)}</td>
       <td className={`num ${tone}`}>{signed(row.changePct, tag)}</td>
