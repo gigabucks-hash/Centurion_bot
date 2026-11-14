@@ -425,7 +425,10 @@ nonce: {nonce}\n",
 }
 
 pub fn nonce_ok(nonce: &str) -> bool {
-    nonce.len() == 32 && nonce.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    nonce.len() == 32
+        && nonce
+            .bytes()
+            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
 }
 
 pub fn new_nonce() -> Result<String, LimitError> {
@@ -600,7 +603,12 @@ impl RealBook {
     }
 
     pub fn note_sell(&mut self, mint: &str) {
-        if let Some(row) = self.spends.iter_mut().rev().find(|s| s.open && s.mint == mint) {
+        if let Some(row) = self
+            .spends
+            .iter_mut()
+            .rev()
+            .find(|s| s.open && s.mint == mint)
+        {
             row.open = false;
         }
     }

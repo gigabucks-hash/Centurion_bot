@@ -302,7 +302,9 @@ pub fn network_fee(tx: &[u8]) -> u64 {
             continue;
         }
         if ix.data.first() == Some(&2) && ix.data.len() >= 5 {
-            limit = u64::from(u32::from_le_bytes(ix.data[1..5].try_into().unwrap_or([0; 4])));
+            limit = u64::from(u32::from_le_bytes(
+                ix.data[1..5].try_into().unwrap_or([0; 4]),
+            ));
             saw_limit = true;
         }
         if ix.data.first() == Some(&3) && ix.data.len() >= 9 {
@@ -333,7 +335,9 @@ pub fn vet_instructions(
     for ix in ixs {
         let prog = *key_at(keys, ix.program)?;
         // SPL Token and Token-2022 use a one-byte discriminator. CloseAccount is 9.
-        if (prog == TOKEN || prog == TOKEN_2022) && ix.data.first() == Some(&9) && ix.data.len() == 1
+        if (prog == TOKEN || prog == TOKEN_2022)
+            && ix.data.first() == Some(&9)
+            && ix.data.len() == 1
         {
             let dest = key_at(keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
             if dest == owner {
@@ -380,7 +384,8 @@ pub fn vet_instructions(
             if disc == 0 && ix.data.len() == 52 {
                 let new_owner = ix.data.get(20..52).ok_or(TxRefuse::Truncated)?;
                 let created = key_at(keys, *ix.accounts.get(1).ok_or(TxRefuse::Truncated)?)?;
-                let token_owned = new_owner == TOKEN.as_slice() || new_owner == TOKEN_2022.as_slice();
+                let token_owned =
+                    new_owner == TOKEN.as_slice() || new_owner == TOKEN_2022.as_slice();
                 if token_owned && closed_to_owner.iter().any(|c| c == created) {
                     continue;
                 }

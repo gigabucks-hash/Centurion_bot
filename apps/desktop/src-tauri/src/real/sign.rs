@@ -217,8 +217,8 @@ mod tests {
     #[test]
     fn the_page_is_local_and_a_cross_site_post_is_refused() {
         let token = "ab".repeat(16);
-        let get = format!("GET / HTTP/1.1\r\nHost: 127.0.0.1:9\r\n\r\n");
-        assert!(accept(&get, 9, &token).unwrap().is_none());
+        let get = "GET / HTTP/1.1\r\nHost: 127.0.0.1:9\r\n\r\n";
+        assert!(accept(get, 9, &token).unwrap().is_none());
         let ok = post(9, "127.0.0.1:9", "http://127.0.0.1:9", &token, "sig");
         assert_eq!(accept(&ok, 9, &token).unwrap().as_deref(), Some("sig"));
         let rebound = post(9, "evil.example:9", "http://evil.example:9", &token, "sig");

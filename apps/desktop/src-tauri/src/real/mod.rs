@@ -10,7 +10,9 @@ pub mod sign;
 pub(crate) mod tx;
 
 pub use limits::{rpc_url_ok, BuyCheck, Knobs, LimitError, RealBook};
-pub use tx::{expanded_keys, lookup_table_keys, message_bytes, network_fee, vet, ResolvedIx, TxRefuse};
+pub use tx::{
+    expanded_keys, lookup_table_keys, message_bytes, network_fee, vet, ResolvedIx, TxRefuse,
+};
 
 /// Public Jupiter swap endpoint. No API key. The owner's RPC is separate and user-supplied.
 pub const JUPITER_QUOTE: &str = "https://lite-api.jup.ag/swap/v1/quote";
@@ -22,7 +24,12 @@ pub fn mint_ok(mint: &str) -> bool {
     (32..=44).contains(&n) && mint.bytes().all(|b| matches!(b, b'1'..=b'9' | b'A'..=b'H' | b'J'..=b'N' | b'P'..=b'Z' | b'a'..=b'k' | b'm'..=b'z'))
 }
 
-pub fn quote_url(input_mint: &str, output_mint: &str, amount: u64, slippage_bps: u32) -> Result<String, ()> {
+pub fn quote_url(
+    input_mint: &str,
+    output_mint: &str,
+    amount: u64,
+    slippage_bps: u32,
+) -> Result<String, ()> {
     if !mint_ok(input_mint) || !mint_ok(output_mint) || slippage_bps > 10_000 || amount == 0 {
         return Err(());
     }
@@ -32,7 +39,13 @@ pub fn quote_url(input_mint: &str, output_mint: &str, amount: u64, slippage_bps:
 }
 
 /// The quote must be the swap we asked for: same mints, same size, min-out within the slippage.
-pub fn quote_matches(quote: &serde_json::Value, input_mint: &str, output_mint: &str, amount: u64, slippage_bps: u32) -> bool {
+pub fn quote_matches(
+    quote: &serde_json::Value,
+    input_mint: &str,
+    output_mint: &str,
+    amount: u64,
+    slippage_bps: u32,
+) -> bool {
     let get = |k: &str| quote.get(k).and_then(|v| v.as_str()).unwrap_or("");
     if get("inputMint") != input_mint || get("outputMint") != output_mint {
         return false;
@@ -43,7 +56,10 @@ pub fn quote_matches(quote: &serde_json::Value, input_mint: &str, output_mint: &
     if in_amount != amount || out_amount == 0 || min_out > out_amount {
         return false;
     }
-    let quoted_slip = quote.get("slippageBps").and_then(|v| v.as_u64()).unwrap_or(u64::MAX);
+    let quoted_slip = quote
+        .get("slippageBps")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(u64::MAX);
     if quoted_slip != u64::from(slippage_bps) {
         return false;
     }
@@ -54,7 +70,12 @@ pub fn quote_matches(quote: &serde_json::Value, input_mint: &str, output_mint: &
     if let Some(fee) = quote.get("platformFee") {
         if !fee.is_null() {
             let bps = fee.get("feeBps").and_then(|v| v.as_u64()).unwrap_or(1);
-            let amt = fee.get("amount").and_then(|v| v.as_str()).unwrap_or("1").parse::<u64>().unwrap_or(1);
+            let amt = fee
+                .get("amount")
+                .and_then(|v| v.as_str())
+                .unwrap_or("1")
+                .parse::<u64>()
+                .unwrap_or(1);
             if bps > 0 || amt > 0 {
                 return false;
             }
@@ -71,7 +92,10 @@ pub fn quote_matches(quote: &serde_json::Value, input_mint: &str, output_mint: &
     for (i, step) in plan.iter().enumerate() {
         let info = step.get("swapInfo").unwrap_or(step);
         let inn = info.get("inputMint").and_then(|v| v.as_str()).unwrap_or("");
-        let out = info.get("outputMint").and_then(|v| v.as_str()).unwrap_or("");
+        let out = info
+            .get("outputMint")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         if !mint_ok(inn) || !mint_ok(out) {
             return false;
         }
@@ -121,7 +145,13 @@ mod tests {
             "platformFee": null,
             "routePlan": [{"swapInfo": {"inputMint": WSOL, "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}}]
         });
-        assert!(quote_matches(&ok, WSOL, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 50, 300));
+        assert!(quote_matches(
+            &ok,
+            WSOL,
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            50,
+            300
+        ));
         let low = serde_json::json!({
             "inputMint": WSOL,
             "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
@@ -131,7 +161,13 @@ mod tests {
             "slippageBps": 300,
             "routePlan": [{"swapInfo": {"inputMint": WSOL, "outputMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"}}]
         });
-        assert!(!quote_matches(&low, WSOL, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 50, 300));
+        assert!(!quote_matches(
+            &low,
+            WSOL,
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            50,
+            300
+        ));
         assert_eq!(
             swap_tx_b64(r#"{"swapTransaction":"AQID"}"#).as_deref(),
             Some("AQID")

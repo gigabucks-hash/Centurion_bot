@@ -59,9 +59,17 @@ pub enum SimFail {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
     /// SOL in, token out. The user must gain at least `min_out` of the output mint.
-    Buy { output_mint: [u8; 32], min_out: u64, max_sol_spent: u64 },
+    Buy {
+        output_mint: [u8; 32],
+        min_out: u64,
+        max_sol_spent: u64,
+    },
     /// Token in, SOL out. The user's SOL must rise by at least `min_out` after the network fee.
-    Sell { input_mint: [u8; 32], min_out: u64, fee_lamports: u64 },
+    Sell {
+        input_mint: [u8; 32],
+        min_out: u64,
+        fee_lamports: u64,
+    },
 }
 
 fn coption(data: &[u8]) -> Option<Option<[u8; 32]>> {
@@ -212,7 +220,8 @@ fn jito(id: &[u8; 32]) -> bool {
         "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL",
         "3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT",
     ];
-    JITO.iter().any(|s| b58::decode_exact::<32>(s).ok().as_ref() == Some(id))
+    JITO.iter()
+        .any(|s| b58::decode_exact::<32>(s).ok().as_ref() == Some(id))
 }
 
 /// `pre` and `post` are the same accounts in the same order. `None` means the account does not exist.
@@ -252,7 +261,9 @@ pub fn check_simulation(
                     return Err(SimFail::TokenLeft);
                 }
                 if let Some((mint, authority, amount)) = token_pos(b) {
-                    if authority == *user && matches!(side, Side::Buy { output_mint, .. } if mint == output_mint) {
+                    if authority == *user
+                        && matches!(side, Side::Buy { output_mint, .. } if mint == output_mint)
+                    {
                         received_out = received_out.saturating_add(amount);
                     }
                 }
@@ -270,13 +281,17 @@ pub fn check_simulation(
                         return Err(SimFail::SolLeft);
                     }
                 }
-                if let (Some((_, _, before_amt)), Some((mint, authority, after_amt))) = (token_pos(a), token_pos(b)) {
+                if let (Some((_, _, before_amt)), Some((mint, authority, after_amt))) =
+                    (token_pos(a), token_pos(b))
+                {
                     if after_amt > before_amt {
                         let gain = after_amt - before_amt;
                         if !token_gain_ok(authority, user) {
                             return Err(SimFail::TokenLeft);
                         }
-                        if authority == *user && matches!(side, Side::Buy { output_mint, .. } if mint == output_mint) {
+                        if authority == *user
+                            && matches!(side, Side::Buy { output_mint, .. } if mint == output_mint)
+                        {
                             received_out = received_out.saturating_add(gain);
                         }
                     }
@@ -285,7 +300,11 @@ pub fn check_simulation(
         }
     }
     match side {
-        Side::Buy { min_out, max_sol_spent, .. } => {
+        Side::Buy {
+            min_out,
+            max_sol_spent,
+            ..
+        } => {
             if received_out < min_out {
                 return Err(SimFail::NotReceived);
             }
@@ -295,7 +314,11 @@ pub fn check_simulation(
                 return Err(SimFail::SolLeft);
             }
         }
-        Side::Sell { min_out, fee_lamports, .. } => {
+        Side::Sell {
+            min_out,
+            fee_lamports,
+            ..
+        } => {
             let user_pre = user_lamports(keys, pre, user);
             let user_post = user_lamports(keys, post, user);
             if user_post.saturating_add(fee_lamports) < user_pre.saturating_add(min_out) {
@@ -328,7 +351,14 @@ fn fresh_ok(key: &[u8; 32], acct: &Acct, user: &[u8; 32]) -> bool {
     acct.lamports == 0 || !is_on_curve(key)
 }
 
-fn sol_gain_ok(key: &[u8; 32], acct: &Acct, user: &[u8; 32], gain: u64, tips: &mut u64, tip_cap: u64) -> bool {
+fn sol_gain_ok(
+    key: &[u8; 32],
+    acct: &Acct,
+    user: &[u8; 32],
+    gain: u64,
+    tips: &mut u64,
+    tip_cap: u64,
+) -> bool {
     if key == user {
         return true;
     }
@@ -371,7 +401,11 @@ fn inner_authority_ok(keys: &[[u8; 32]], ixs: &[ResolvedIx]) -> Result<(), TxRef
     for ix in ixs {
         let prog = keys.get(ix.program).copied().ok_or(TxRefuse::Unresolved)?;
         if prog == tx::SYSTEM {
-            let disc = ix.data.get(..4).map(|b| u32::from_le_bytes(b.try_into().unwrap_or([0; 4]))).unwrap_or(u32::MAX);
+            let disc = ix
+                .data
+                .get(..4)
+                .map(|b| u32::from_le_bytes(b.try_into().unwrap_or([0; 4])))
+                .unwrap_or(u32::MAX);
             // Assign, seed transfers, nonce withdraw/authorize, allocate. These change
             // ownership or move lamports outside a plain transfer the balance check sees.
             if matches!(disc, 1 | 3 | 5 | 7 | 8 | 9 | 10 | 11) {
@@ -403,10 +437,14 @@ mod tests {
     use ed25519_dalek::SigningKey;
 
     fn user() -> [u8; 32] {
-        SigningKey::from_bytes(&[7u8; 32]).verifying_key().to_bytes()
+        SigningKey::from_bytes(&[7u8; 32])
+            .verifying_key()
+            .to_bytes()
     }
     fn other() -> [u8; 32] {
-        SigningKey::from_bytes(&[9u8; 32]).verifying_key().to_bytes()
+        SigningKey::from_bytes(&[9u8; 32])
+            .verifying_key()
+            .to_bytes()
     }
     fn pda() -> [u8; 32] {
         let mut k = [1u8; 32];
@@ -432,7 +470,11 @@ mod tests {
         data[..32].copy_from_slice(&mint);
         data[32..64].copy_from_slice(&authority);
         data[64..72].copy_from_slice(&amount.to_le_bytes());
-        Acct { lamports: 2_039_280, owner: TOKEN, data }
+        Acct {
+            lamports: 2_039_280,
+            owner: TOKEN,
+            data,
+        }
     }
 
     #[test]
@@ -464,7 +506,11 @@ mod tests {
     fn the_user_may_receive_tokens_and_a_pool_may_receive_sol_a_wallet_may_not() {
         let user = user();
         let out = [5u8; 32];
-        let mut user_sol = Acct { lamports: 1_000_000_000, owner: [0u8; 32], data: vec![] };
+        let mut user_sol = Acct {
+            lamports: 1_000_000_000,
+            owner: [0u8; 32],
+            data: vec![],
+        };
         let mut user_ata = token_account(out, user, 0);
         let mut pool = token_account([6u8; 32], pda(), 0);
         let keys = [user, [1u8; 32], [2u8; 32]];
@@ -479,21 +525,40 @@ mod tests {
         // pool is a token account; its lamports rose and its token amount did not.
         // sol_gain_ok allows a token account whose authority is off-curve.
         let post = vec![Some(user_sol), Some(user_ata), Some(pool)];
-        let side = Side::Buy { output_mint: out, min_out: 1_000, max_sol_spent: 50_000_000 };
-        assert_eq!(check_simulation(&keys, &pre, &post, &user, 0, side, &[]), Ok(()));
+        let side = Side::Buy {
+            output_mint: out,
+            min_out: 1_000,
+            max_sol_spent: 50_000_000,
+        };
+        assert_eq!(
+            check_simulation(&keys, &pre, &post, &user, 0, side, &[]),
+            Ok(())
+        );
 
         let mut thief = token_account(out, other(), 0);
         let keys = [user, [3u8; 32]];
         let pre = vec![
-            Some(Acct { lamports: 100, owner: [0u8; 32], data: vec![] }),
+            Some(Acct {
+                lamports: 100,
+                owner: [0u8; 32],
+                data: vec![],
+            }),
             Some(thief.clone()),
         ];
         thief = token_account(out, other(), 5);
         let post = vec![
-            Some(Acct { lamports: 100, owner: [0u8; 32], data: vec![] }),
+            Some(Acct {
+                lamports: 100,
+                owner: [0u8; 32],
+                data: vec![],
+            }),
             Some(thief),
         ];
-        let side = Side::Buy { output_mint: out, min_out: 1, max_sol_spent: 100 };
+        let side = Side::Buy {
+            output_mint: out,
+            min_out: 1,
+            max_sol_spent: 100,
+        };
         assert_eq!(
             check_simulation(&keys, &pre, &post, &user, 0, side, &[]),
             Err(SimFail::TokenLeft)
@@ -515,14 +580,22 @@ mod tests {
                 &[Some(after)],
                 &user,
                 0,
-                Side::Buy { output_mint: out, min_out: 0, max_sol_spent: 0 },
+                Side::Buy {
+                    output_mint: out,
+                    min_out: 0,
+                    max_sol_spent: 0
+                },
                 &[]
             ),
             Err(SimFail::AuthorityChanged)
         );
         before.data[32] = user[0];
         let keys = [user, other(), tx::TOKEN];
-        let ix = ResolvedIx { program: 2, accounts: vec![0, 1, 0], data: vec![6] };
+        let ix = ResolvedIx {
+            program: 2,
+            accounts: vec![0, 1, 0],
+            data: vec![6],
+        };
         assert_eq!(
             check_simulation(
                 &keys,
@@ -530,7 +603,11 @@ mod tests {
                 &[None, None, None],
                 &user,
                 0,
-                Side::Sell { input_mint: out, min_out: 0, fee_lamports: 0 },
+                Side::Sell {
+                    input_mint: out,
+                    min_out: 0,
+                    fee_lamports: 0
+                },
                 &[ix]
             ),
             Err(SimFail::Inner)
