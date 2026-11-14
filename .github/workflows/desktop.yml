@@ -26,7 +26,7 @@ on:
       tag:
         description: "Release tag to create (desktop-vX.Y.Z)"
         required: true
-        default: "desktop-v0.3.0"
+        default: "desktop-v0.3.1"
 
 env:
   CARGO_TERM_COLOR: always
@@ -199,7 +199,7 @@ jobs:
           projectPath: apps/desktop
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           releaseName: "Centurion Trade ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
-          releaseBody: "Signed Windows desktop build. The in-app updater reads latest.json from this release."
+          releaseBody: "Centurion Trade 0.3.1. New terminal UI, security fixes, and faster trades."
           releaseDraft: false
           prerelease: false
           uploadUpdaterJson: true

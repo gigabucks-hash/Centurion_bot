@@ -1,6 +1,6 @@
 [package]
 name = "centurion"
-version = "0.3.0"
+version = "0.3.1"
 description = "Centurion Trade for Windows"
 edition = "2021"
 rust-version = "1.80"
