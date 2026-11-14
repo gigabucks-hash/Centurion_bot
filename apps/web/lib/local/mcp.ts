@@ -11,7 +11,8 @@ import { getTradingState, pauseBuys, resumeBuys } from "@/lib/mock/trading";
 import { closePosition, listClosedLedger, listOpenPositions, openLocalPaperBuy, sellAllPractice, snapshot } from "@/lib/mock/store";
 import { safeSymbol } from "@/lib/untrusted";
 import { localDir } from "./paths";
-import { applyKnobsDirect, readBook, scopeKnobs, setRpc, writeBook, type RealBook } from "./real-book";
+import { applyKnobsDirect, readBook, scopeKnobs, setFastRpc, setRpc, writeBook, type RealBook } from "./real-book";
+import { claimSell, releaseSell } from "./trade-speed";
 import { admitBuy, lamportsToSolInput, solToLamports, type RealKnobs } from "./real-limits";
 
 const FORBIDDEN = /private|secret|seed|mnemonic|keypair|recipient|destination|withdraw|export/i;
@@ -357,10 +358,20 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
     if (mode === "practice") return { ok: true, ...sellAllPractice(now) };
     if (!readBook().enabled) return { error: "real_off" };
     const ledger = readLedger();
-    const sold = ledger.positions.filter((p) => p.soldBps < 10_000).map((p) => p.key);
-    ledger.positions = ledger.positions.map((p) => ({ ...p, soldBps: 10_000 }));
+    const sold: string[] = [];
+    const skipped: string[] = [];
+    for (const pos of ledger.positions) {
+      if (pos.soldBps >= 10_000) continue;
+      if (!claimSell(pos.key)) {
+        skipped.push(pos.key);
+        continue;
+      }
+      pos.soldBps = 10_000;
+      sold.push(pos.key);
+      releaseSell(pos.key);
+    }
     writeLedger(ledger);
-    return { ok: true, sold };
+    return { ok: true, sold, skipped };
   }
   if (tool === "centurion_real_buy" || tool === "centurion_real_sell") {
     const book = readBook();
@@ -374,9 +385,14 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
       if (!key && !mint) return { error: "invalid" };
       const pos = ledger.positions.find((p) => p.soldBps < 10_000 && (key ? p.key === key : p.mint === mint));
       if (!pos) return { error: "not_found" };
-      pos.soldBps = 10_000;
-      writeLedger(ledger);
-      return { ok: true, key: pos.key };
+      if (!claimSell(pos.key)) return { error: "not_found" };
+      try {
+        pos.soldBps = 10_000;
+        writeLedger(ledger);
+        return { ok: true, key: pos.key };
+      } finally {
+        releaseSell(pos.key);
+      }
     }
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) return { error: "invalid" };
     if (tool === "centurion_real_buy") {
@@ -455,6 +471,12 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
     if (stop !== undefined) next = { ...next, stopLossPct: stop };
     if (trail !== undefined) next = { ...next, trailPct: trail };
     if (hold !== undefined) next = { ...next, maxHoldMinutes: hold };
+    const percentile = num(args, "priority_fee_percentile");
+    if (percentile !== undefined) {
+      if (!Number.isInteger(percentile) || percentile < 0 || percentile > 100) return { error: "invalid" };
+      next = { ...next, priorityFeePercentile: percentile };
+    }
+    if (typeof args.jito === "boolean") next = { ...next, jitoEnabled: args.jito };
     const applied = applyKnobsDirect(book, "global", next);
     if ("error" in applied) return { error: applied.error };
     let saved: RealBook = applied.book;
@@ -463,8 +485,13 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
       if ("error" in rpc) return { error: rpc.error };
       saved = rpc.book;
     }
+    if (typeof args.fast_rpc_url === "string") {
+      const rpc = setFastRpc(saved, args.fast_rpc_url);
+      if ("error" in rpc) return { error: rpc.error };
+      saved = rpc.book;
+    }
     writeBook(saved);
-    return { ok: true, kind: applied.kind, limits: saved.global, rpc_url: saved.rpcUrl };
+    return { ok: true, kind: applied.kind, limits: saved.global, rpc_url: saved.rpcUrl, fast_rpc_url: saved.fastRpcUrl };
   }
   return { error: "unknown_tool" };
 }

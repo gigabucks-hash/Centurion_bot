@@ -69,8 +69,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if store.active.is_empty() {
         return Err(format!("no valid strategy in {}", cfg.strategies_dir.display()).into());
     }
-    let active: Arc<std::sync::RwLock<Vec<StrategyConfig>>> =
-        Arc::new(std::sync::RwLock::new(vec![]));
+    let active: Arc<std::sync::RwLock<Arc<Vec<StrategyConfig>>>> =
+        Arc::new(std::sync::RwLock::new(Arc::new(vec![])));
 
     // feeds: PumpPortal primary (no RPC key passed -> zero credits), Helius WS fallback
     let mut specs = vec![FeedSpec {
@@ -134,7 +134,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     });
 
     let publish = |store: &StrategyStore,
-                   active: &std::sync::RwLock<Vec<StrategyConfig>>,
+                   active: &std::sync::RwLock<Arc<Vec<StrategyConfig>>>,
                    st: &AppState| {
         let list: Vec<StrategyConfig> = store.active.values().map(|l| l.config.clone()).collect();
         let summary: serde_json::Value = store
@@ -152,7 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             *s = json!({ "active": summary, "rejected": store.rejected });
         }
         if let Ok(mut a) = active.write() {
-            *a = list;
+            *a = Arc::new(list);
         }
     };
     publish(&store, &active, &state);
@@ -221,7 +221,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     continue; // M2: swap log + price tracking on watched pools
                 }
                 let c = candidate(&t);
-                let strategies = active.read().map(|a| a.clone()).unwrap_or_default();
+                let strategies = active
+                    .read()
+                    .map(|a| Arc::clone(&a))
+                    .unwrap_or_else(|_| Arc::new(Vec::new()));
                 for s in strategies.iter().filter(|s| s.enabled) {
                     let d = lead.decide(&c, s);
                     st.scout_latency.record_us(d.latency_us);

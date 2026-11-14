@@ -5,8 +5,10 @@
 pub(crate) mod b58;
 pub(crate) mod b64;
 pub(crate) mod chain;
+pub(crate) mod lane;
 mod limits;
 pub mod sign;
+pub(crate) mod speed;
 pub(crate) mod tx;
 
 pub use limits::{rpc_url_ok, BuyCheck, Knobs, LimitError, RealBook};

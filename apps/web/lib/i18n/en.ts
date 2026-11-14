@@ -188,6 +188,8 @@ export const en = {
     positions: "Open positions",
     more: "More limits",
     slippage: "Slippage %",
+    percentile: "Priority fee percentile (0-100, cap is the priority fee)",
+    jito: "Jito tip (1 = on, 0 = off). Off spends no tip.",
     stop: "Stop-loss % (0 = off)",
     trail: "Trail % (0 = off)",
     hold: "Max hold minutes (0 = off)",

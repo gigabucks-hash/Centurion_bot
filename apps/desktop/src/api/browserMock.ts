@@ -36,6 +36,7 @@ let realBook: RealStatus = {
   enabled: false,
   wallet: "",
   rpc_url: "https://api.mainnet-beta.solana.com",
+  fast_rpc_url: "",
   global: toWire(DEFAULT_KNOBS),
   strategies: {},
   buys_paused: false,
@@ -503,6 +504,10 @@ export const browserMockAdapter: CoreApi = {
   },
   async realSetRpc(url) {
     realBook = { ...realBook, rpc_url: url };
+    return realBook;
+  },
+  async realSetFastRpc(url) {
+    realBook = { ...realBook, fast_rpc_url: url };
     return realBook;
   },
   async realSetStrategies(ids) {

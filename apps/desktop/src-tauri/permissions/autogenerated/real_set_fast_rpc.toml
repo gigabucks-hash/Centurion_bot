@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-real-set-fast-rpc"
+description = "Enables the real_set_fast_rpc command without any pre-configured scope."
+commands.allow = ["real_set_fast_rpc"]
+
+[[permission]]
+identifier = "deny-real-set-fast-rpc"
+description = "Denies the real_set_fast_rpc command without any pre-configured scope."
+commands.deny = ["real_set_fast_rpc"]

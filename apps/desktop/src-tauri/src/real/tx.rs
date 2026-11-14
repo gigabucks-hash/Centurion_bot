@@ -456,6 +456,103 @@ pub fn vet(
     vet_instructions(&keys, &ixs, owner, tip_cap)
 }
 
+/// Byte offsets of the compute-budget limit (u32) and price (u64) inside a serialized transaction.
+pub struct BudgetSpans {
+    pub limit_at: Option<usize>,
+    pub price_at: Option<usize>,
+}
+
+/// Overwrite the compute-unit limit and price in place. Length stays the same, so the signature
+/// slot is still the one the wallet will fill. Returns whether each field was present.
+pub fn patch_compute_budget(
+    tx: &mut [u8],
+    limit: Option<u32>,
+    price: Option<u64>,
+) -> Result<(bool, bool), TxRefuse> {
+    let spans = budget_spans(tx)?;
+    let mut limit_ok = false;
+    let mut price_ok = false;
+    if let (Some(at), Some(limit)) = (spans.limit_at, limit) {
+        if at + 4 <= tx.len() {
+            tx[at..at + 4].copy_from_slice(&limit.to_le_bytes());
+            limit_ok = true;
+        }
+    }
+    if let (Some(at), Some(price)) = (spans.price_at, price) {
+        if at + 8 <= tx.len() {
+            tx[at..at + 8].copy_from_slice(&price.to_le_bytes());
+            price_ok = true;
+        }
+    }
+    Ok((limit_ok, price_ok))
+}
+
+pub(crate) fn budget_spans(tx: &[u8]) -> Result<BudgetSpans, TxRefuse> {
+    let mut i = 0usize;
+    let sigs = shortvec(tx, &mut i)?;
+    i = i
+        .checked_add(sigs.checked_mul(64).ok_or(TxRefuse::Truncated)?)
+        .ok_or(TxRefuse::Truncated)?;
+    if i >= tx.len() {
+        return Err(TxRefuse::Truncated);
+    }
+    if tx[i] & 0x80 != 0 {
+        if tx[i] != 0x80 {
+            return Err(TxRefuse::Unresolved);
+        }
+        i += 1;
+    }
+    if i + 3 > tx.len() {
+        return Err(TxRefuse::Truncated);
+    }
+    i += 3;
+    let nkeys = shortvec(tx, &mut i)?;
+    let keys_at = i;
+    i = i
+        .checked_add(nkeys.checked_mul(32).ok_or(TxRefuse::Truncated)?)
+        .ok_or(TxRefuse::Truncated)?;
+    if i + 32 > tx.len() {
+        return Err(TxRefuse::Truncated);
+    }
+    i += 32;
+    let nix = shortvec(tx, &mut i)?;
+    let mut limit_at = None;
+    let mut price_at = None;
+    for _ in 0..nix {
+        if i >= tx.len() {
+            return Err(TxRefuse::Truncated);
+        }
+        let program = tx[i] as usize;
+        i += 1;
+        let na = shortvec(tx, &mut i)?;
+        i = i.checked_add(na).ok_or(TxRefuse::Truncated)?;
+        if i > tx.len() {
+            return Err(TxRefuse::Truncated);
+        }
+        let nd = shortvec(tx, &mut i)?;
+        if i + nd > tx.len() {
+            return Err(TxRefuse::Truncated);
+        }
+        let data_at = i;
+        let prog_key = program
+            .checked_mul(32)
+            .and_then(|off| keys_at.checked_add(off))
+            .filter(|at| at + 32 <= tx.len() && program < nkeys);
+        if let Some(at) = prog_key {
+            let mut key = [0u8; 32];
+            key.copy_from_slice(&tx[at..at + 32]);
+            if key == COMPUTE && nd >= 5 && tx[data_at] == 2 {
+                limit_at = Some(data_at + 1);
+            }
+            if key == COMPUTE && nd >= 9 && tx[data_at] == 3 {
+                price_at = Some(data_at + 1);
+            }
+        }
+        i += nd;
+    }
+    Ok(BudgetSpans { limit_at, price_at })
+}
+
 /// Legacy transaction: one signature slot, the given instructions. Tests build these; the app never signs them.
 #[cfg(test)]
 pub fn legacy_tx(keys: &[[u8; 32]], ixs: &[(usize, &[u8], &[u8])]) -> Vec<u8> {
@@ -611,5 +708,26 @@ mod tests {
         let keys = [owner(), other(), owner(), TOKEN, ATA];
         let tx = legacy_tx(&keys, &[(4, &[0, 1, 2, 3], &[1u8])]);
         assert_eq!(vet(&tx, &owner(), 0, &[]), Ok(()));
+    }
+
+    #[test]
+    fn a_compute_budget_can_be_lowered_without_moving_value() {
+        let mut limit = vec![2u8];
+        limit.extend_from_slice(&200_000u32.to_le_bytes());
+        let mut price = vec![3u8];
+        price.extend_from_slice(&50_000u64.to_le_bytes());
+        let keys = [owner(), COMPUTE];
+        let mut tx = legacy_tx(&keys, &[(1, &[], &limit), (1, &[], &price)]);
+        assert_eq!(vet(&tx, &owner(), 0, &[]), Ok(()));
+        let (limit_ok, price_ok) =
+            patch_compute_budget(&mut tx, Some(55_000), Some(1_000)).unwrap();
+        assert!(limit_ok && price_ok);
+        assert_eq!(vet(&tx, &owner(), 0, &[]), Ok(()));
+        let spans = budget_spans(&tx).unwrap();
+        let at = spans.limit_at.unwrap();
+        assert_eq!(
+            u32::from_le_bytes(tx[at..at + 4].try_into().unwrap()),
+            55_000
+        );
     }
 }

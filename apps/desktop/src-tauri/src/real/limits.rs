@@ -37,7 +37,13 @@ pub struct Knobs {
     pub max_positions: u32,
     pub slippage_bps: u32,
     pub priority_fee_lamports: u64,
+    /// Percentile of `getRecentPrioritizationFees`, 0–100. Higher pays more, up to the lamport cap.
+    #[serde(default = "default_fee_percentile")]
+    pub priority_fee_percentile: u8,
     pub tip_lamports: u64,
+    /// Jito costs a tip on every swap. Off until the owner turns it on.
+    #[serde(default)]
+    pub jito_enabled: bool,
     pub take_profits: Vec<TakeProfit>,
     pub stop_loss_pct: u32,
     pub trail_pct: u32,
@@ -54,7 +60,9 @@ impl Default for Knobs {
             max_positions: 3,
             slippage_bps: 300,
             priority_fee_lamports: 0,
+            priority_fee_percentile: default_fee_percentile(),
             tip_lamports: 0,
+            jito_enabled: false,
             take_profits: vec![TakeProfit {
                 gain_pct: 100,
                 sell_pct: 100,
@@ -119,6 +127,13 @@ pub struct RealBook {
     /// SOL buys this book has recorded. Caps are computed from this, not from the window.
     #[serde(default)]
     pub spends: Vec<Spend>,
+    /// Optional faster RPC. Empty means off: sends use `rpc_url`. A paid endpoint is never assumed.
+    #[serde(default)]
+    pub fast_rpc_url: String,
+}
+
+fn default_fee_percentile() -> u8 {
+    super::speed::DEFAULT_FEE_PERCENTILE
 }
 
 impl Default for RealBook {
@@ -137,6 +152,7 @@ impl Default for RealBook {
             pending_limits_nonce: String::new(),
             used_signatures: Vec::new(),
             spends: Vec::new(),
+            fast_rpc_url: String::new(),
         }
     }
 }
@@ -353,7 +369,17 @@ pub fn change_kind(old: &Knobs, new: &Knobs) -> ChangeKind {
             true,
         ),
         cmp_u64(old.priority_fee_lamports, new.priority_fee_lamports, true),
+        cmp_u64(
+            u64::from(old.priority_fee_percentile),
+            u64::from(new.priority_fee_percentile),
+            true,
+        ),
         cmp_u64(old.tip_lamports, new.tip_lamports, true),
+        cmp_u64(
+            u64::from(old.jito_enabled),
+            u64::from(new.jito_enabled),
+            true,
+        ),
         cmp_room(old.stop_loss_pct, new.stop_loss_pct),
         cmp_room(old.trail_pct, new.trail_pct),
         cmp_room(old.max_hold_minutes, new.max_hold_minutes),
@@ -387,7 +413,9 @@ cap_lamports: {c0} -> {c1}\n\
 max_positions: {p0} -> {p1}\n\
 slippage_bps: {s0} -> {s1}\n\
 priority_fee_lamports: {f0} -> {f1}\n\
+priority_fee_percentile: {q0} -> {q1}\n\
 tip_lamports: {i0} -> {i1}\n\
+jito_enabled: {j0} -> {j1}\n\
 stop_loss_pct: {l0} -> {l1}\n\
 trail_pct: {r0} -> {r1}\n\
 max_hold_minutes: {h0} -> {h1}\n\
@@ -407,8 +435,12 @@ nonce: {nonce}\n",
         s1 = new.slippage_bps,
         f0 = old.priority_fee_lamports,
         f1 = new.priority_fee_lamports,
+        q0 = old.priority_fee_percentile,
+        q1 = new.priority_fee_percentile,
         i0 = old.tip_lamports,
         i1 = new.tip_lamports,
+        j0 = if old.jito_enabled { "true" } else { "false" },
+        j1 = if new.jito_enabled { "true" } else { "false" },
         l0 = old.stop_loss_pct,
         l1 = new.stop_loss_pct,
         r0 = old.trail_pct,
@@ -484,7 +516,11 @@ fn pct_ok(n: u32) -> bool {
 }
 
 pub fn validate(k: &Knobs) -> Result<(), LimitError> {
-    if k.trade_lamports == 0 || k.max_positions == 0 || k.slippage_bps > 10_000 {
+    if k.trade_lamports == 0
+        || k.max_positions == 0
+        || k.slippage_bps > 10_000
+        || k.priority_fee_percentile > 100
+    {
         return Err(LimitError::Invalid);
     }
     if !pct_ok(k.stop_loss_pct) || !pct_ok(k.trail_pct) {
@@ -630,6 +666,29 @@ impl RealBook {
 
     pub fn open_count(&self) -> u32 {
         self.spends.iter().filter(|s| s.open).count() as u32
+    }
+
+    /// `None` if this mint was never bought here. `Some(true)` while a row is still open.
+    pub fn mint_open(&self, mint: &str) -> Option<bool> {
+        let mut seen = false;
+        let mut open = false;
+        for row in &self.spends {
+            if row.mint == mint {
+                seen = true;
+                open |= row.open;
+            }
+        }
+        seen.then_some(open)
+    }
+
+    pub fn open_mints(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        for row in &self.spends {
+            if row.open && !out.iter().any(|m: &String| m == &row.mint) {
+                out.push(row.mint.clone());
+            }
+        }
+        out
     }
 
     pub fn apply(

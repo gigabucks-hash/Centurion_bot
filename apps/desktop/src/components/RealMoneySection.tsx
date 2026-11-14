@@ -49,6 +49,8 @@ function draftFrom(k: RealKnobs) {
     positions: String(k.maxPositions),
     slippage: String(k.slippageBps / 100),
     priority: k.priorityFeeLamports,
+    percentile: String(k.priorityFeePercentile),
+    jito: k.jitoEnabled ? "1" : "0",
     tip: lamportsToSolInput(k.tipLamports),
     stop: String(k.stopLossPct),
     trail: String(k.trailPct),
@@ -84,6 +86,8 @@ function knobsFrom(d: ReturnType<typeof draftFrom>, base: RealKnobs): RealKnobs 
     maxPositions: num(d.positions),
     slippageBps: Math.round(num(d.slippage) * 100),
     priorityFeeLamports: d.priority.replace(/\D/g, "") || "0",
+    priorityFeePercentile: Math.round(num(d.percentile)),
+    jitoEnabled: d.jito === "1",
     tipLamports: tip,
     stopLossPct: num(d.stop),
     trailPct: num(d.trail),
@@ -116,6 +120,7 @@ export function RealMoneySection() {
   const [scope, setScope] = useState("global");
   const [wallet, setWallet] = useState("");
   const [rpc, setRpc] = useState("https://api.mainnet-beta.solana.com");
+  const [fastRpc, setFastRpc] = useState("");
   const [draft, setDraft] = useState(draftFrom(DEFAULT_KNOBS));
   const [pending, setPending] = useState<RealKnobs | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -127,6 +132,7 @@ export function RealMoneySection() {
     setStatus(s);
     setWallet(s.wallet);
     setRpc(s.rpc_url);
+    setFastRpc(s.fast_rpc_url ?? "");
     setRealOn(s.enabled);
     const wire = scope === "global" ? s.global : s.strategies[scope] ?? s.global;
     setDraft(draftFrom(fromWire(wire)));
@@ -219,6 +225,17 @@ export function RealMoneySection() {
     }
   };
 
+  const saveFast = async () => {
+    if (fastRpc.trim() && !rpcUrlOk(fastRpc.trim())) return setErr("Use https://, or http://127.0.0.1 / localhost. Leave it empty to stay on the normal RPC.");
+    setErr(null);
+    try {
+      setStatus(await core.realSetFastRpc(fastRpc.trim()));
+      setMsg(fastRpc.trim() ? "Faster RPC saved on this PC." : "Faster RPC is off.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const toggleStrategy = async (id: string) => {
     if (!status) return;
     const has = status.real_strategies.includes(id);
@@ -255,6 +272,11 @@ export function RealMoneySection() {
       </label>
       <button className="sm" onClick={saveRpc}>Save RPC</button>
       <label>
+        <div className="muted">Faster RPC (optional, off when empty)</div>
+        <input className="mono" value={fastRpc} onChange={(e) => setFastRpc(e.target.value.trim())} placeholder="Leave empty. A paid RPC is not required." />
+      </label>
+      <button className="sm" onClick={saveFast}>Save faster RPC</button>
+      <label>
         <div className="muted">Edit limits for</div>
         <select value={scope} onChange={(e) => setScope(e.target.value)}>
           <option value="global">Global</option>
@@ -267,7 +289,9 @@ export function RealMoneySection() {
         {field("cap", "Capital cap SOL")}
         {field("positions", "Max open positions")}
         {field("slippage", "Slippage %")}
-        {field("priority", "Priority fee (lamports)")}
+        {field("priority", "Priority fee cap (lamports, 0 = off)")}
+        {field("percentile", "Priority fee percentile (0-100)")}
+        {field("jito", "Jito tip (1 = on, 0 = off)")}
         {field("tip", "Tip SOL")}
         {field("tpGain", "Take-profit at +%")}
         {field("tpSell", "Take-profit sell %")}

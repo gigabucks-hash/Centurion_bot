@@ -126,6 +126,7 @@ pub fn run() {
             let t = handle.state::<state::AppState>().transport.clone();
             t.start();
             sync::spawn(handle, t);
+            commands::warm_real_lane();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -169,6 +170,9 @@ pub fn run() {
             commands::real_sign,
             commands::real_prepare_swap,
             commands::real_submit,
+            commands::real_prepare_sell_all,
+            commands::real_submit_many,
+            commands::real_set_fast_rpc,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Centurion Trade");
