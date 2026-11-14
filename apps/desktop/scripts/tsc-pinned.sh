@@ -11,7 +11,6 @@ cat > "$tmp/tsconfig.json" <<JSON
 {
   "extends": "$desk/tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "$desk",
     "types": ["$desk/node_modules/vite/client"],
     "typeRoots": ["$desk/node_modules/@types"],
     "paths": {
