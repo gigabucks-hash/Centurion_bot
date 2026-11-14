@@ -20,7 +20,7 @@ jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.90
         with:
           components: rustfmt, clippy
@@ -64,7 +64,7 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: migration + smoke tests (RLS, append-only, settings CHECK, proposals)
         run: scripts/check_sql.sh
 
@@ -87,7 +87,7 @@ jobs:
       run:
         working-directory: services/backend/api
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
