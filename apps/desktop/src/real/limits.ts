@@ -35,7 +35,11 @@ export interface RealKnobs {
   maxPositions: number;
   slippageBps: number;
   priorityFeeLamports: string;
+  /** 0–100. Higher pays more of the priority-fee cap. The cap itself stays `priorityFeeLamports`. */
+  priorityFeePercentile: number;
   tipLamports: string;
+  /** Off until the owner turns it on. A tip is spent on every swap while this is on. */
+  jitoEnabled: boolean;
   takeProfits: TakeProfit[];
   /** 0 = off (no hard stop). Higher = wider = looser. */
   stopLossPct: number;
@@ -53,7 +57,9 @@ export const DEFAULT_KNOBS: RealKnobs = {
   maxPositions: 3,
   slippageBps: 300,
   priorityFeeLamports: "0",
+  priorityFeePercentile: 75,
   tipLamports: "0",
+  jitoEnabled: false,
   takeProfits: [{ gainPct: 100, sellPct: 100 }],
   stopLossPct: 25,
   trailPct: 20,
@@ -118,7 +124,9 @@ export function validateKnobs(k: RealKnobs): string | null {
   if (!Number.isInteger(k.maxPositions) || k.maxPositions < 1) return "positions";
   if (!Number.isInteger(k.slippageBps) || k.slippageBps < 0 || k.slippageBps > 10_000) return "slippage";
   if (u64(k.priorityFeeLamports) == null) return "priority";
+  if (!Number.isInteger(k.priorityFeePercentile) || k.priorityFeePercentile < 0 || k.priorityFeePercentile > 100) return "priority";
   if (u64(k.tipLamports) == null) return "tip";
+  if (typeof k.jitoEnabled !== "boolean") return "tip";
   if (!pctOk(k.stopLossPct) || !pctOk(k.trailPct)) return "exit";
   if (!Number.isInteger(k.maxHoldMinutes) || k.maxHoldMinutes < 0) return "hold";
   if (k.takeProfits.length > 8) return "take_profits";
@@ -233,7 +241,9 @@ export function diffKnobs(oldK: RealKnobs, newK: RealKnobs): { kind: LimitChange
     ["max_positions", String(oldK.maxPositions), String(newK.maxPositions), cmpNum(oldK.maxPositions, newK.maxPositions, true)],
     ["slippage_bps", String(oldK.slippageBps), String(newK.slippageBps), cmpNum(oldK.slippageBps, newK.slippageBps, true)],
     ["priority_fee_lamports", oldK.priorityFeeLamports, newK.priorityFeeLamports, cmpBig(oldK.priorityFeeLamports, newK.priorityFeeLamports, true)],
+    ["priority_fee_percentile", String(oldK.priorityFeePercentile), String(newK.priorityFeePercentile), cmpNum(oldK.priorityFeePercentile, newK.priorityFeePercentile, true)],
     ["tip_lamports", oldK.tipLamports, newK.tipLamports, cmpBig(oldK.tipLamports, newK.tipLamports, true)],
+    ["jito_enabled", String(oldK.jitoEnabled), String(newK.jitoEnabled), cmpNum(oldK.jitoEnabled ? 1 : 0, newK.jitoEnabled ? 1 : 0, true)],
     ["stop_loss_pct", String(oldK.stopLossPct), String(newK.stopLossPct), cmpRoom(oldK.stopLossPct, newK.stopLossPct)],
     ["trail_pct", String(oldK.trailPct), String(newK.trailPct), cmpRoom(oldK.trailPct, newK.trailPct)],
     ["max_hold_minutes", String(oldK.maxHoldMinutes), String(newK.maxHoldMinutes), cmpRoom(oldK.maxHoldMinutes, newK.maxHoldMinutes)],
@@ -255,7 +265,9 @@ export function limitsMessage(wallet: string, scope: string, oldK: RealKnobs, ne
     ["max_positions", String(oldK.maxPositions), String(newK.maxPositions)],
     ["slippage_bps", String(oldK.slippageBps), String(newK.slippageBps)],
     ["priority_fee_lamports", oldK.priorityFeeLamports, newK.priorityFeeLamports],
+    ["priority_fee_percentile", String(oldK.priorityFeePercentile), String(newK.priorityFeePercentile)],
     ["tip_lamports", oldK.tipLamports, newK.tipLamports],
+    ["jito_enabled", String(oldK.jitoEnabled), String(newK.jitoEnabled)],
     ["stop_loss_pct", String(oldK.stopLossPct), String(newK.stopLossPct)],
     ["trail_pct", String(oldK.trailPct), String(newK.trailPct)],
     ["max_hold_minutes", String(oldK.maxHoldMinutes), String(newK.maxHoldMinutes)],
@@ -345,6 +357,8 @@ export interface RealStatus {
   enabled: boolean;
   wallet: string;
   rpc_url: string;
+  /** Empty unless the owner pasted a faster RPC. Off by default. */
+  fast_rpc_url?: string;
   global: WireKnobs;
   strategies: Record<string, WireKnobs>;
   buys_paused: boolean;
@@ -358,7 +372,9 @@ export interface WireKnobs {
   max_positions: number;
   slippage_bps: number;
   priority_fee_lamports: number;
+  priority_fee_percentile?: number;
   tip_lamports: number;
+  jito_enabled?: boolean;
   take_profits: { gain_pct: number; sell_pct: number }[];
   stop_loss_pct: number;
   trail_pct: number;
@@ -391,7 +407,9 @@ export function toWire(k: RealKnobs): WireKnobs {
     max_positions: k.maxPositions,
     slippage_bps: k.slippageBps,
     priority_fee_lamports: asNum(k.priorityFeeLamports),
+    priority_fee_percentile: k.priorityFeePercentile,
     tip_lamports: asNum(k.tipLamports),
+    jito_enabled: k.jitoEnabled,
     take_profits: k.takeProfits.map((t) => ({ gain_pct: t.gainPct, sell_pct: t.sellPct })),
     stop_loss_pct: k.stopLossPct,
     trail_pct: k.trailPct,
@@ -420,7 +438,9 @@ export function fromWire(k: WireKnobs): RealKnobs {
     maxPositions: k.max_positions,
     slippageBps: k.slippage_bps,
     priorityFeeLamports: String(k.priority_fee_lamports),
+    priorityFeePercentile: k.priority_fee_percentile ?? 75,
     tipLamports: String(k.tip_lamports),
+    jitoEnabled: k.jito_enabled ?? false,
     takeProfits: k.take_profits.map((t) => ({ gainPct: t.gain_pct, sellPct: t.sell_pct })),
     stopLossPct: k.stop_loss_pct,
     trailPct: k.trail_pct,

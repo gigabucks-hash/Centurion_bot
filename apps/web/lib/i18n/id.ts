@@ -134,6 +134,8 @@ export const id: PartialMessages = {
     positions: "Posisi terbuka",
     more: "Batas lain",
     slippage: "Slippage %",
+    percentile: "Persentil biaya prioritas (0-100, batasnya biaya prioritas)",
+    jito: "Tip Jito (1 = nyala, 0 = mati). Mati berarti tidak ada tip.",
     stop: "Stop-loss % (0 = mati)",
     trail: "Trail % (0 = mati)",
     hold: "Tahan maksimal (menit, 0 = mati)",

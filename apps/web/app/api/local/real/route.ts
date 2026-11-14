@@ -10,6 +10,7 @@ import {
   publicBook,
   readBook,
   setRealStrategies,
+  setFastRpc,
   setRpc,
   writeBook,
   type BookError,
@@ -111,6 +112,13 @@ export async function POST(req: Request) {
   if (action === "rpc") {
     const rpcUrl = typeof body.rpcUrl === "string" ? body.rpcUrl : "";
     const result = setRpc(book, rpcUrl);
+    if ("error" in result) return bookError(result.error);
+    return save(result.book);
+  }
+
+  if (action === "fast-rpc") {
+    const rpcUrl = typeof body.rpcUrl === "string" ? body.rpcUrl : "";
+    const result = setFastRpc(book, rpcUrl);
     if ("error" in result) return bookError(result.error);
     return save(result.book);
   }

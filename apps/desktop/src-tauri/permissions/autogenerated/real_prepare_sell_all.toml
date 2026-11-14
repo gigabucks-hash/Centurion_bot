@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-real-prepare-sell-all"
+description = "Enables the real_prepare_sell_all command without any pre-configured scope."
+commands.allow = ["real_prepare_sell_all"]
+
+[[permission]]
+identifier = "deny-real-prepare-sell-all"
+description = "Denies the real_prepare_sell_all command without any pre-configured scope."
+commands.deny = ["real_prepare_sell_all"]

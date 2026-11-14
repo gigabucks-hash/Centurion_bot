@@ -473,6 +473,7 @@ export interface CoreApi {
   realEnable(wallet: string, signature: string): Promise<import("../real/limits").RealStatus>;
   realApply(scope: string, knobs: import("../real/limits").WireKnobs, signature: string | null): Promise<import("../real/limits").RealStatus>;
   realSetRpc(url: string): Promise<import("../real/limits").RealStatus>;
+  realSetFastRpc(url: string): Promise<import("../real/limits").RealStatus>;
   realSetStrategies(ids: string[]): Promise<import("../real/limits").RealStatus>;
   /** Installed app only: open the system browser so the owner's wallet can sign. */
   realSign(kind: "message" | "transaction", payload: string): Promise<string>;

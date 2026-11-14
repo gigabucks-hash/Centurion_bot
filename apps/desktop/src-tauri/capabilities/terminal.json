@@ -43,6 +43,9 @@
     "allow-real-sign",
     "allow-real-prepare-swap",
     "allow-real-submit",
+    "allow-real-prepare-sell-all",
+    "allow-real-submit-many",
+    "allow-real-set-fast-rpc",
     "updater:default",
     "process:allow-restart"
   ]

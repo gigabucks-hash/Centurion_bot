@@ -25,6 +25,8 @@ export interface RealBook {
   pendingLimitsNonce: string;
   usedSignatures: string[];
   rpcUrl: string;
+  /** Empty unless the owner pasted a faster RPC. Off by default. */
+  fastRpcUrl: string;
   global: RealKnobs;
   strategies: Record<string, RealKnobs>;
   buysPaused: boolean;
@@ -45,6 +47,7 @@ export function defaultBook(): RealBook {
     pendingLimitsNonce: "",
     usedSignatures: [],
     rpcUrl: "https://api.mainnet-beta.solana.com",
+    fastRpcUrl: "",
     global: structuredClone(DEFAULT_KNOBS),
     strategies: {},
     buysPaused: false,
@@ -66,8 +69,19 @@ function bookPath(): string | null {
   return dir ? path.join(dir, "real.json") : null;
 }
 
-function isKnobs(value: unknown): value is RealKnobs {
-  return !!value && typeof value === "object" && validateKnobs(value as RealKnobs) == null;
+/** Old books predate the fee percentile and the Jito switch. Missing fields stay at the safe defaults. */
+export function fillKnobs(value: unknown): RealKnobs | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Partial<RealKnobs>;
+  const merged: RealKnobs = {
+    ...DEFAULT_KNOBS,
+    ...row,
+    filters: { ...DEFAULT_KNOBS.filters, ...(row.filters ?? {}) },
+    takeProfits: row.takeProfits?.length ? row.takeProfits : DEFAULT_KNOBS.takeProfits,
+    priorityFeePercentile: row.priorityFeePercentile ?? DEFAULT_KNOBS.priorityFeePercentile,
+    jitoEnabled: row.jitoEnabled ?? false,
+  };
+  return validateKnobs(merged) == null ? merged : null;
 }
 
 function normalize(raw: unknown): RealBook {
@@ -77,7 +91,8 @@ function normalize(raw: unknown): RealBook {
   const strategies: Record<string, RealKnobs> = {};
   if (row.strategies && typeof row.strategies === "object" && !Array.isArray(row.strategies)) {
     for (const [id, knobs] of Object.entries(row.strategies)) {
-      if (isKnobs(knobs)) strategies[id] = knobs;
+      const filled = fillKnobs(knobs);
+      if (filled) strategies[id] = filled;
     }
   }
   return {
@@ -89,7 +104,8 @@ function normalize(raw: unknown): RealBook {
     pendingLimitsNonce: typeof row.pendingLimitsNonce === "string" ? row.pendingLimitsNonce : "",
     usedSignatures: Array.isArray(row.usedSignatures) ? row.usedSignatures.filter((s): s is string => typeof s === "string").slice(-32) : [],
     rpcUrl: typeof row.rpcUrl === "string" && rpcUrlOk(row.rpcUrl) ? row.rpcUrl : blank.rpcUrl,
-    global: isKnobs(row.global) ? row.global : blank.global,
+    fastRpcUrl: typeof row.fastRpcUrl === "string" && (row.fastRpcUrl === "" || rpcUrlOk(row.fastRpcUrl)) ? row.fastRpcUrl : "",
+    global: fillKnobs(row.global) ?? blank.global,
     strategies,
     buysPaused: row.buysPaused === true,
     realStrategies: Array.isArray(row.realStrategies) ? row.realStrategies.filter((id): id is string => typeof id === "string") : [],
@@ -242,6 +258,13 @@ export function setRpc(book: RealBook, rpcUrl: string): { book: RealBook } | { e
   return { book: { ...book, rpcUrl: rpcUrl.trim() } };
 }
 
+/** Empty turns the optional faster RPC off. A paid URL is never filled in for the owner. */
+export function setFastRpc(book: RealBook, rpcUrl: string): { book: RealBook } | { error: BookError } {
+  const url = rpcUrl.trim();
+  if (url !== "" && !rpcUrlOk(url)) return { error: "invalid" };
+  return { book: { ...book, fastRpcUrl: url } };
+}
+
 export function setRealStrategies(book: RealBook, ids: string[]): { book: RealBook } | { error: BookError } {
   if (!book.enabled) return { error: "real_off" };
   if (ids.length > 50 || ids.some((id) => !/^[A-Za-z0-9_-]{1,64}$/.test(id))) return { error: "invalid" };
@@ -253,6 +276,7 @@ export function publicBook(book: RealBook) {
     enabled: book.enabled,
     wallet: book.wallet,
     rpcUrl: book.rpcUrl,
+    fastRpcUrl: book.fastRpcUrl,
     global: book.global,
     strategies: book.strategies,
     buysPaused: book.buysPaused,

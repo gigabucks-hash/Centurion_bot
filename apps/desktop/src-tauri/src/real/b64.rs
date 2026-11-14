@@ -40,3 +40,33 @@ pub fn decode(s: &str) -> Result<Vec<u8>, ()> {
     }
     Ok(out)
 }
+
+pub fn encode(data: &[u8]) -> String {
+    const T: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    let mut i = 0;
+    while i + 3 <= data.len() {
+        let n = (u32::from(data[i]) << 16) | (u32::from(data[i + 1]) << 8) | u32::from(data[i + 2]);
+        out.push(T[((n >> 18) & 63) as usize] as char);
+        out.push(T[((n >> 12) & 63) as usize] as char);
+        out.push(T[((n >> 6) & 63) as usize] as char);
+        out.push(T[(n & 63) as usize] as char);
+        i += 3;
+    }
+    if i < data.len() {
+        let rem = data.len() - i;
+        let mut n = u32::from(data[i]) << 16;
+        if rem == 2 {
+            n |= u32::from(data[i + 1]) << 8;
+        }
+        out.push(T[((n >> 18) & 63) as usize] as char);
+        out.push(T[((n >> 12) & 63) as usize] as char);
+        if rem == 2 {
+            out.push(T[((n >> 6) & 63) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        out.push('=');
+    }
+    out
+}

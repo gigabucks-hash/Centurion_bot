@@ -28,7 +28,9 @@ const emptyKnobs = (): RealKnobs => ({
   maxPositions: 3,
   slippageBps: 300,
   priorityFeeLamports: "0",
+  priorityFeePercentile: 75,
   tipLamports: "0",
+  jitoEnabled: false,
   takeProfits: [{ gainPct: 100, sellPct: 100 }],
   stopLossPct: 25,
   trailPct: 20,
@@ -40,7 +42,7 @@ const emptyKnobs = (): RealKnobs => ({
   },
 });
 
-type Draft = { trade: string; daily: string; cap: string; positions: string; slippage: string; stop: string; trail: string; hold: string };
+type Draft = { trade: string; daily: string; cap: string; positions: string; slippage: string; stop: string; trail: string; hold: string; percentile: string; jito: string };
 
 function draftFrom(k: RealKnobs): Draft {
   return {
@@ -49,6 +51,8 @@ function draftFrom(k: RealKnobs): Draft {
     cap: lamportsToSolInput(k.capLamports),
     positions: String(k.maxPositions),
     slippage: String(k.slippageBps / 100),
+    percentile: String(k.priorityFeePercentile),
+    jito: k.jitoEnabled ? "1" : "0",
     stop: String(k.stopLossPct),
     trail: String(k.trailPct),
     hold: String(k.maxHoldMinutes),
@@ -61,7 +65,7 @@ function knobsFrom(d: Draft, base: RealKnobs): RealKnobs | null {
   const cap = solToLamports(d.cap);
   if (!trade || !daily || !cap) return null;
   const n = (s: string) => Number(s);
-  if ([d.positions, d.slippage, d.stop, d.trail, d.hold].some((s) => !Number.isFinite(n(s)))) return null;
+  if ([d.positions, d.slippage, d.stop, d.trail, d.hold, d.percentile].some((s) => !Number.isFinite(n(s)))) return null;
   return {
     ...base,
     tradeLamports: trade,
@@ -69,6 +73,8 @@ function knobsFrom(d: Draft, base: RealKnobs): RealKnobs | null {
     capLamports: cap,
     maxPositions: n(d.positions),
     slippageBps: Math.round(n(d.slippage) * 100),
+    priorityFeePercentile: Math.round(n(d.percentile)),
+    jitoEnabled: d.jito === "1",
     stopLossPct: n(d.stop),
     trailPct: n(d.trail),
     maxHoldMinutes: n(d.hold),
@@ -259,6 +265,8 @@ export function LocalRealPanel() {
         <summary className="cursor-pointer text-label text-text-secondary">{t("localReal.more")}</summary>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row">
           {field("slippage", t("localReal.slippage"))}
+          {field("percentile", t("localReal.percentile"))}
+          {field("jito", t("localReal.jito"))}
           {field("stop", t("localReal.stop"))}
           {field("trail", t("localReal.trail"))}
           {field("hold", t("localReal.hold"))}

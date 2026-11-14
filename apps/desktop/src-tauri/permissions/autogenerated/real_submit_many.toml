@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-real-submit-many"
+description = "Enables the real_submit_many command without any pre-configured scope."
+commands.allow = ["real_submit_many"]
+
+[[permission]]
+identifier = "deny-real-submit-many"
+description = "Denies the real_submit_many command without any pre-configured scope."
+commands.deny = ["real_submit_many"]

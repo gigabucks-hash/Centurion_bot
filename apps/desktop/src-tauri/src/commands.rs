@@ -1075,6 +1075,23 @@ pub fn real_set_rpc(url: String) -> AppResult<crate::real::RealBook> {
         .lock()
         .map_err(|_| AppError::Invalid("real book".into()))?;
     book.rpc_url = url.trim().to_owned();
+    crate::real::lane::use_endpoint(&book.rpc_url, &book.fast_rpc_url, &book.wallet);
+    save_real_book(&book).map_err(AppError::Invalid)?;
+    Ok(book.clone())
+}
+
+/// Optional faster RPC. An empty string turns it off. Nothing here is on unless the owner pastes a URL.
+#[tauri::command]
+pub fn real_set_fast_rpc(url: String) -> AppResult<crate::real::RealBook> {
+    let url = url.trim();
+    if !url.is_empty() && !crate::real::rpc_url_ok(url) {
+        return Err(AppError::Invalid("rpc url".into()));
+    }
+    let mut book = real_book()
+        .lock()
+        .map_err(|_| AppError::Invalid("real book".into()))?;
+    book.fast_rpc_url = url.to_owned();
+    crate::real::lane::use_endpoint(&book.rpc_url, &book.fast_rpc_url, &book.wallet);
     save_real_book(&book).map_err(AppError::Invalid)?;
     Ok(book.clone())
 }
@@ -1131,6 +1148,12 @@ struct Hold {
     fee: u64,
     input_mint: [u8; 32],
     output_mint: [u8; 32],
+    prepared_at: Option<std::time::Instant>,
+    quote_us: u64,
+    build_us: u64,
+    simulated: bool,
+    expiry_height: u64,
+    jito: bool,
 }
 
 fn holds() -> &'static std::sync::Mutex<Vec<Hold>> {
@@ -1147,12 +1170,36 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-fn http_client() -> AppResult<reqwest::Client> {
-    reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|_| AppError::Invalid("network".into()))
+fn lane_err(e: crate::real::lane::BuildFail) -> AppError {
+    AppError::Invalid(match e {
+        crate::real::lane::BuildFail::Quote => "quote".into(),
+        crate::real::lane::BuildFail::Swap => "swap".into(),
+        crate::real::lane::BuildFail::FeePayer => "fee payer is not the owner wallet".into(),
+        crate::real::lane::BuildFail::Simulation => "simulation".into(),
+        crate::real::lane::BuildFail::Network => "network".into(),
+        crate::real::lane::BuildFail::Tx(crate::real::TxRefuse::Unresolved) => {
+            "transaction uses an account table this build will not guess".into()
+        }
+        crate::real::lane::BuildFail::Tx(crate::real::TxRefuse::TransferOut) => {
+            "transfer to another wallet was refused".into()
+        }
+        crate::real::lane::BuildFail::Tx(crate::real::TxRefuse::TipOverCap) => {
+            "tip is above the setting".into()
+        }
+        crate::real::lane::BuildFail::Tx(crate::real::TxRefuse::UnknownProgram) => {
+            "program is not on the allowlist".into()
+        }
+        crate::real::lane::BuildFail::Tx(_) => "transaction".into(),
+    })
+}
+
+/// Load the saved RPC and warm Jupiter plus the blockhash cache. Failures stay on the log.
+pub fn warm_real_lane() {
+    let book = real_book().lock().ok();
+    if let Some(book) = book.as_ref() {
+        crate::real::lane::use_endpoint(&book.rpc_url, &book.fast_rpc_url, &book.wallet);
+    }
+    crate::real::lane::prewarm();
 }
 
 async fn rpc_call(
@@ -1218,6 +1265,30 @@ struct Prove<'a> {
     output_mint: [u8; 32],
     min_out: u64,
     sol_budget: u64,
+}
+
+fn vet_with_rpc_tables(
+    raw: &[u8],
+    owner: &[u8; 32],
+    tip: u64,
+    tables: &[([u8; 32], &[u8])],
+) -> AppResult<()> {
+    match crate::real::vet(raw, owner, tip, tables) {
+        Ok(()) => Ok(()),
+        Err(crate::real::TxRefuse::Unresolved) => Err(AppError::Invalid(
+            "transaction uses an account table this build will not guess".into(),
+        )),
+        Err(crate::real::TxRefuse::TransferOut) => Err(AppError::Invalid(
+            "transfer to another wallet was refused".into(),
+        )),
+        Err(crate::real::TxRefuse::TipOverCap) => {
+            Err(AppError::Invalid("tip is above the setting".into()))
+        }
+        Err(crate::real::TxRefuse::UnknownProgram) => {
+            Err(AppError::Invalid("program is not on the allowlist".into()))
+        }
+        Err(_) => Err(AppError::Invalid("transaction".into())),
+    }
 }
 
 async fn prove_swap(client: &reqwest::Client, rpc: &str, swap: Prove<'_>) -> AppResult<()> {
@@ -1378,7 +1449,7 @@ fn release_hold(message_missing_only: bool, mint: &str, at_hint: std::time::Inst
     }
 }
 
-/// Build an unsigned mainnet swap for the owner's wallet, after Guard, Risk and the limits.
+/// Build an unsigned mainnet swap for the owner's wallet, after the on-chain Guard and the limits.
 #[tauri::command]
 pub async fn real_prepare_swap(req: RealSwapRequest) -> AppResult<String> {
     let RealSwapRequest {
@@ -1393,10 +1464,7 @@ pub async fn real_prepare_swap(req: RealSwapRequest) -> AppResult<String> {
         spent_today,
         capital_used,
     } = req;
-    if crate::real::quote_url(&input_mint, &output_mint, amount, slippage_bps).is_err() {
-        return Err(AppError::Invalid("mint".into()));
-    }
-    // The window may send these. They are not consulted.
+    // The window may send these. They are not consulted. Guard reads the mint account.
     let _ = (guard_pass, risk_veto);
     let buying = input_mint == crate::real::WSOL;
     let selling = output_mint == crate::real::WSOL;
@@ -1405,18 +1473,17 @@ pub async fn real_prepare_swap(req: RealSwapRequest) -> AppResult<String> {
             "swap must be between SOL and a token".into(),
         ));
     }
-    let rpc_for_guard = {
-        let book = real_book()
-            .lock()
-            .map_err(|_| AppError::Invalid("real book".into()))?;
-        book.rpc_url.clone()
-    };
-    let client = http_client()?;
-    if buying {
-        guard_output_mint(&client, &rpc_for_guard, &output_mint).await?;
+    if !crate::real::mint_ok(&input_mint)
+        || !crate::real::mint_ok(&output_mint)
+        || slippage_bps > 10_000
+        || (amount == 0 && !selling)
+        || (amount > 0
+            && crate::real::quote_url(&input_mint, &output_mint, amount, slippage_bps).is_err())
+    {
+        return Err(AppError::Invalid("mint".into()));
     }
     let started = std::time::Instant::now();
-    let (wallet, tip, rpc_url) = {
+    let (wallet, tip, priority_cap, percentile, jito, rpc) = {
         let book = real_book()
             .lock()
             .map_err(|_| AppError::Invalid("real book".into()))?;
@@ -1459,14 +1526,23 @@ pub async fn real_prepare_swap(req: RealSwapRequest) -> AppResult<String> {
         if slippage_bps > knobs.slippage_bps {
             return Err(AppError::Invalid("slippage".into()));
         }
+        let token_mint = if buying {
+            output_mint.clone()
+        } else {
+            input_mint.clone()
+        };
+        if !buying
+            && crate::real::speed::sell_decision(
+                book.mint_open(&token_mint),
+                hs.iter().any(|h| !h.buy && h.mint == token_mint),
+            ) != crate::real::speed::SellDecision::Allow
+        {
+            return Err(AppError::Invalid("already selling".into()));
+        }
         hs.push(Hold {
             message: None,
             lamports: if buying { amount } else { 0 },
-            mint: if buying {
-                output_mint.clone()
-            } else {
-                input_mint.clone()
-            },
+            mint: token_mint,
             buy: buying,
             tip: knobs.tip_lamports,
             strategy_id: strategy_id.clone(),
@@ -1475,96 +1551,70 @@ pub async fn real_prepare_swap(req: RealSwapRequest) -> AppResult<String> {
             fee: 0,
             input_mint: [0u8; 32],
             output_mint: [0u8; 32],
+            prepared_at: None,
+            quote_us: 0,
+            build_us: 0,
+            simulated: false,
+            expiry_height: 0,
+            jito: knobs.jito_enabled,
         });
+        let rpc = crate::real::speed::rpc_in_use(&book.rpc_url, &book.fast_rpc_url).to_owned();
+        crate::real::lane::use_endpoint(&book.rpc_url, &book.fast_rpc_url, &book.wallet);
         (
             book.wallet.clone(),
             knobs.tip_lamports,
-            book.rpc_url.clone(),
+            knobs.priority_fee_lamports,
+            knobs.priority_fee_percentile,
+            knobs.jito_enabled,
+            rpc,
         )
     };
-    let url = crate::real::quote_url(&input_mint, &output_mint, amount, slippage_bps)
-        .map_err(|_| AppError::Invalid("mint".into()))?;
-    let quote = async {
-        let quote: serde_json::Value = client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|_| AppError::Invalid("quote".into()))?
-            .json()
-            .await
-            .map_err(|_| AppError::Invalid("quote".into()))?;
-        if quote.get("error").is_some()
-            || !crate::real::quote_matches(&quote, &input_mint, &output_mint, amount, slippage_bps)
-        {
-            return Err(AppError::Invalid("quote".into()));
+    let client = crate::real::lane::http();
+    if buying {
+        if let Err(e) = guard_output_mint(client, &rpc, &output_mint).await {
+            release_hold(true, &output_mint, started);
+            return Err(e);
         }
-        let min_out = quote
-            .get("otherAmountThreshold")
-            .and_then(|v| v.as_str())
-            .unwrap_or("0")
-            .parse::<u64>()
-            .unwrap_or(0);
-        let swap_body = serde_json::json!({
-            "quoteResponse": quote,
-            "userPublicKey": wallet,
-            "wrapAndUnwrapSol": true,
-            "dynamicComputeUnitLimit": true
-        });
-        let swap: serde_json::Value = client
-            .post(crate::real::JUPITER_SWAP)
-            .json(&swap_body)
-            .send()
-            .await
-            .map_err(|_| AppError::Invalid("swap".into()))?
-            .json()
-            .await
-            .map_err(|_| AppError::Invalid("swap".into()))?;
-        let b64 = crate::real::swap_tx_b64(&swap.to_string())
-            .ok_or_else(|| AppError::Invalid("swap".into()))?;
-        let raw = b64_decode(&b64)?;
-        let owner = crate::real::b58::decode_exact::<32>(&wallet)
-            .map_err(|_| AppError::Invalid("wallet".into()))?;
-        let input_key = crate::real::b58::decode_exact::<32>(&input_mint)
-            .map_err(|_| AppError::Invalid("mint".into()))?;
-        let output_key = crate::real::b58::decode_exact::<32>(&output_mint)
-            .map_err(|_| AppError::Invalid("mint".into()))?;
-        if crate::real::tx::fee_payer(&raw).map_err(|_| AppError::Invalid("transaction".into()))?
-            != owner
-        {
-            return Err(AppError::Invalid(
-                "fee payer is not the owner wallet".into(),
-            ));
-        }
-        let fee = crate::real::network_fee(&raw);
-        let budget = if buying {
-            amount.saturating_add(fee).saturating_add(tip)
-        } else {
-            fee.saturating_add(tip)
-        };
-        prove_swap(
-            &client,
-            &rpc_url,
-            Prove {
-                raw: &raw,
-                signed_b64: &b64,
-                owner: &owner,
-                tip,
-                buy: buying,
-                input_mint: input_key,
-                output_mint: output_key,
-                min_out,
-                sol_budget: budget,
-            },
-        )
-        .await?;
-        let message = crate::real::message_bytes(&raw)
-            .map_err(|_| AppError::Invalid("transaction".into()))?;
-        Ok::<(String, Vec<u8>, u64, u64, [u8; 32], [u8; 32]), AppError>((
-            b64, message, min_out, fee, input_key, output_key,
-        ))
     }
+    let owner = match crate::real::b58::decode_exact::<32>(&wallet) {
+        Ok(v) => v,
+        Err(_) => {
+            release_hold(
+                true,
+                if buying { &output_mint } else { &input_mint },
+                started,
+            );
+            return Err(AppError::Invalid("wallet".into()));
+        }
+    };
+    let built = crate::real::lane::build_swap(crate::real::lane::SwapIn {
+        input_mint: input_mint.clone(),
+        output_mint: output_mint.clone(),
+        amount,
+        slippage_bps,
+        wallet,
+        owner,
+        tip_cap: tip,
+        priority_cap,
+        percentile,
+        jito,
+        rpc_url: rpc.clone(),
+        quote_base: None,
+        swap_url: None,
+    })
     .await;
-    let (b64, message, min_out, fee, input_key, output_key) = match quote {
+    let built = match built {
+        Ok(v) => v,
+        Err(e) => {
+            release_hold(
+                true,
+                if buying { &output_mint } else { &input_mint },
+                started,
+            );
+            return Err(lane_err(e));
+        }
+    };
+    let raw = match b64_decode(&built.b64) {
         Ok(v) => v,
         Err(e) => {
             release_hold(
@@ -1575,46 +1625,92 @@ pub async fn real_prepare_swap(req: RealSwapRequest) -> AppResult<String> {
             return Err(e);
         }
     };
+    let input_key = match crate::real::b58::decode_exact::<32>(&input_mint) {
+        Ok(v) => v,
+        Err(_) => {
+            release_hold(
+                true,
+                if buying { &output_mint } else { &input_mint },
+                started,
+            );
+            return Err(AppError::Invalid("mint".into()));
+        }
+    };
+    let output_key = match crate::real::b58::decode_exact::<32>(&output_mint) {
+        Ok(v) => v,
+        Err(_) => {
+            release_hold(
+                true,
+                if buying { &output_mint } else { &input_mint },
+                started,
+            );
+            return Err(AppError::Invalid("mint".into()));
+        }
+    };
+    let fee = crate::real::network_fee(&raw);
+    let budget = if buying {
+        amount.saturating_add(fee).saturating_add(tip)
+    } else {
+        fee.saturating_add(tip)
+    };
+    if let Err(e) = prove_swap(
+        client,
+        &rpc,
+        Prove {
+            raw: &raw,
+            signed_b64: &built.b64,
+            owner: &owner,
+            tip,
+            buy: buying,
+            input_mint: input_key,
+            output_mint: output_key,
+            min_out: built.min_out,
+            sol_budget: budget,
+        },
+    )
+    .await
+    {
+        release_hold(
+            true,
+            if buying { &output_mint } else { &input_mint },
+            started,
+        );
+        return Err(e);
+    }
     if let Ok(mut hs) = holds().lock() {
         if let Some(h) = hs
             .iter_mut()
             .find(|h| h.at == started && h.message.is_none())
         {
-            h.message = Some(message);
-            h.min_out = min_out;
+            h.message = Some(built.message.clone());
+            h.min_out = built.min_out;
             h.fee = fee;
             h.input_mint = input_key;
             h.output_mint = output_key;
+            h.prepared_at = Some(std::time::Instant::now());
+            h.quote_us = built.quote_us;
+            h.build_us = built.build_us;
+            h.simulated = built.simulated;
+            h.expiry_height = built.last_valid_block_height;
+            h.jito = jito;
         }
     }
-    Ok(b64)
+    log::info!(
+        "{} priority_fee_lamports={}",
+        crate::real::speed::StageUs {
+            quote: built.quote_us,
+            build: built.build_us,
+            sign: 0,
+            send: 0,
+            confirm: 0,
+        }
+        .log_line(),
+        built.priority_fee_lamports
+    );
+    Ok(built.b64)
 }
 
-fn vet_with_rpc_tables(
-    raw: &[u8],
-    owner: &[u8; 32],
-    tip: u64,
-    tables: &[([u8; 32], &[u8])],
-) -> AppResult<()> {
-    match crate::real::vet(raw, owner, tip, tables) {
-        Ok(()) => Ok(()),
-        Err(crate::real::TxRefuse::Unresolved) => Err(AppError::Invalid(
-            "transaction uses an account table this build will not guess".into(),
-        )),
-        Err(crate::real::TxRefuse::TransferOut) => Err(AppError::Invalid(
-            "transfer to another wallet was refused".into(),
-        )),
-        Err(crate::real::TxRefuse::TipOverCap) => {
-            Err(AppError::Invalid("tip is above the setting".into()))
-        }
-        Err(crate::real::TxRefuse::UnknownProgram) => {
-            Err(AppError::Invalid("program is not on the allowlist".into()))
-        }
-        Err(_) => Err(AppError::Invalid("transaction".into())),
-    }
-}
-
-/// Submit a wallet-signed transaction. Vet it again, then send it through the owner's RPC.
+/// Submit a wallet-signed transaction. Prove it again, then send it through the owner's RPC.
 #[tauri::command]
 pub async fn real_submit(signed_b64: String) -> AppResult<String> {
     let book = real_book()
@@ -1653,15 +1749,16 @@ pub async fn real_submit(signed_b64: String) -> AppResult<String> {
             "fee payer is not the owner wallet".into(),
         ));
     }
-    let client = http_client()?;
+    let client = crate::real::lane::http();
+    let rpc = crate::real::speed::rpc_in_use(&book.rpc_url, &book.fast_rpc_url).to_owned();
     let budget = if hold.buy {
         hold.lamports.saturating_add(hold.fee).saturating_add(tip)
     } else {
         hold.fee.saturating_add(tip)
     };
     prove_swap(
-        &client,
-        &book.rpc_url,
+        client,
+        &rpc,
         Prove {
             raw: &raw,
             signed_b64: signed_b64.trim(),
@@ -1676,35 +1773,102 @@ pub async fn real_submit(signed_b64: String) -> AppResult<String> {
     )
     .await?;
     record_fill(&hold, true)?;
-    let body = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "sendTransaction",
-        "params": [signed_b64.trim(), {"encoding": "base64", "skipPreflight": false}]
-    });
-    let sent = async {
-        let v: serde_json::Value = client
-            .post(&book.rpc_url)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|_| AppError::Invalid("network".into()))?
-            .json()
-            .await
-            .map_err(|_| AppError::Invalid("rpc".into()))?;
-        if let Some(err) = v.get("error") {
-            return Err(AppError::Invalid(err.to_string()));
-        }
-        v.get("result")
-            .and_then(|r| r.as_str())
-            .map(|s| s.to_owned())
-            .ok_or_else(|| AppError::Invalid("rpc".into()))
-    }
-    .await;
+    let sign_us = hold
+        .prepared_at
+        .map(|t| t.elapsed().as_micros() as u64)
+        .unwrap_or(0);
+    let sent = crate::real::lane::broadcast(
+        &rpc,
+        hold.jito,
+        tip,
+        signed_b64.trim(),
+        hold.simulated,
+        hold.expiry_height,
+    )
+    .await
+    .map(|(sig, stages)| {
+        log::info!(
+            "{}",
+            crate::real::speed::StageUs {
+                quote: hold.quote_us,
+                build: hold.build_us,
+                sign: sign_us,
+                send: stages.send,
+                confirm: stages.confirm,
+            }
+            .log_line()
+        );
+        sig
+    })
+    .map_err(AppError::Invalid);
     if sent.is_err() {
         let _ = record_fill(&hold, false);
     }
     sent
+}
+
+/// Build every open sell at once. Each swap is still vetted. Signing stays one transaction at a time.
+#[tauri::command]
+pub async fn real_prepare_sell_all(slippage_bps: u32) -> AppResult<String> {
+    let mints = {
+        let book = real_book()
+            .lock()
+            .map_err(|_| AppError::Invalid("real book".into()))?;
+        if !book.enabled {
+            return Err(AppError::Invalid("real is off".into()));
+        }
+        if slippage_bps > book.global.slippage_bps {
+            return Err(AppError::Invalid("slippage".into()));
+        }
+        book.open_mints()
+    };
+    let mut joins = Vec::with_capacity(mints.len());
+    for mint in mints {
+        joins.push(tokio::spawn(real_prepare_swap(RealSwapRequest {
+            strategy_id: None,
+            input_mint: mint,
+            output_mint: crate::real::WSOL.to_owned(),
+            amount: 0,
+            slippage_bps,
+            guard_pass: true,
+            risk_veto: false,
+            open_positions: 0,
+            spent_today: 0,
+            capital_used: 0,
+        })));
+    }
+    let mut transactions = Vec::new();
+    let mut failed = Vec::new();
+    for join in joins {
+        match join.await {
+            Ok(Ok(b64)) => transactions.push(b64),
+            Ok(Err(e)) => failed.push(e.to_string()),
+            Err(_) => failed.push("sell".into()),
+        }
+    }
+    Ok(serde_json::json!({ "transactions": transactions, "failed": failed }).to_string())
+}
+
+/// Broadcast several already-signed sells together. Each one is vetted again.
+#[tauri::command]
+pub async fn real_submit_many(signed: Vec<String>) -> AppResult<String> {
+    if signed.len() > 16 {
+        return Err(AppError::Invalid("too many".into()));
+    }
+    let mut joins = Vec::with_capacity(signed.len());
+    for tx in signed {
+        joins.push(tokio::spawn(real_submit(tx)));
+    }
+    let mut signatures = Vec::new();
+    let mut failed = Vec::new();
+    for join in joins {
+        match join.await {
+            Ok(Ok(sig)) => signatures.push(sig),
+            Ok(Err(e)) => failed.push(e.to_string()),
+            Err(_) => failed.push("submit".into()),
+        }
+    }
+    Ok(serde_json::json!({ "signatures": signatures, "failed": failed }).to_string())
 }
 
 fn record_fill(hold: &Hold, commit: bool) -> AppResult<()> {
