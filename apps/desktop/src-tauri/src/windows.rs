@@ -63,8 +63,9 @@ pub fn open_activity<R: Runtime>(app: &AppHandle<R>) -> AppResult<()> {
 /// the user's other app; popup shortcuts only work after the user clicks it.
 /// Approve/Skip only — never Sell/batch (capabilities/approval.json) and no Approve in REAL
 /// (`state::check_approve_origin`).
-/// C19 test gate: the no-activation popup is only verified on Linux. Windows/macOS keep it
-/// disabled until MILESTONES W-NOFOCUS passes there (fallback: OS notifications only).
+/// C19 test gate: the no-activation popup is only verified on Linux. The Windows target keeps it
+/// disabled until MILESTONES W-NOFOCUS passes (fallback: OS notifications only).
+/// macOS is not a supported target.
 pub const POPUP_SUPPORTED: bool = cfg!(target_os = "linux");
 
 pub fn open_approval_popup<R: Runtime>(app: &AppHandle<R>, focus: bool) -> AppResult<()> {
@@ -98,8 +99,6 @@ pub fn open_approval_popup<R: Runtime>(app: &AppHandle<R>, focus: bool) -> AppRe
             .theme(Some(tauri::Theme::Dark))
             .visible(false)
             .focused(false);
-            #[cfg(target_os = "macos")]
-            let b = b.accept_first_mouse(false); // first click only focuses the popup
             b.build()?
         }
     };

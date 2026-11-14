@@ -152,10 +152,10 @@ impl Connection {
 
 /// `{config dir}/{APP_ID}/connection.json` — the same file `app.path().app_config_dir()` names.
 pub fn path() -> Option<PathBuf> {
+    // Windows uses %APPDATA%. Every other supported host (Linux CI, and a local Linux shell)
+    // uses the XDG config dir. macOS is not a supported target.
     let base = if cfg!(windows) {
         std::env::var_os("APPDATA").map(PathBuf::from)
-    } else if cfg!(target_os = "macos") {
-        std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Application Support"))
     } else {
         std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)

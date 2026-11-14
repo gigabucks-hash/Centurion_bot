@@ -1,5 +1,7 @@
 # Bug hunt v1 — PnL + SIWS
 
+The Flutter app paths in this report (`apps/mobile`, `flutter test`) were removed with the mobile target. They are a historical audit, not a current build.
+
 Audit date: 2026-11-06. Baseline: committed `main` / `origin/main` **77a10e3** (includes 62ebda0, bc93f50 and bfed32e). “Live” here means committed main, **not a verified production deployment**. Paper-only. No application fixes, staging, commits, pushes, deployment, secrets or token changes were performed for this assignment.
 
 The shared tree contains other owners' uncommitted work. Findings below reference HEAD line numbers, not their in-flight edits. SQL reproductions ran on throwaway `bug_hunt_test`, PostgreSQL 17.11, with the local shim and migrations applied; all fixture changes roll back. Migration 0023 was present locally but does not alter the reproduced semantics.

@@ -3,7 +3,7 @@
 Tipe bersama API/WS untuk apps Centurion Trade (codename repo: `centurion`).
 
 **Status:** draft. Isinya saat ini adalah *view-model* dari Desktop (`apps/desktop`), dipakai sampai Backend API Specialist menerbitkan spec resmi (OpenAPI REST + JSON Schema event WS). Setelah spec resmi ada:
-- Backend jadi owner package ini; tipe di-generate dari OpenAPI/JSON Schema (TS untuk web/desktop, Dart untuk mobile, Rust via `typify`/`schemars`).
+- Backend jadi owner package ini; tipe di-generate dari OpenAPI/JSON Schema (TS untuk web dan desktop Windows, Rust via `typify`/`schemars`).
 - Desktop memetakan DTO wire → view-model di Rust (`apps/desktop/src-tauri/src/model.rs`), jadi perubahan wire tidak memecah UI.
 
 Konsumen sekarang: `apps/desktop` (alias `@centurion/contracts` → `src/index.ts`, lihat `apps/desktop/vite.config.ts` dan `tsconfig.json`).
@@ -16,9 +16,9 @@ Kenapa Rust belum share dari sini: Rust tidak bisa impor TS. Mirror Rust ada di 
 |---|---|
 | `EVENTS_SCHEMA.md` | event envelope, types, transport, seq/resume, `server_now` |
 | `API_ENDPOINTS.md` | REST/SSE, scopes, workspace+mode scoping, approvals and tokens, auth, proof-of-confirmation |
-| `WEB_INTEGRATION_ANSWERS.md`, `FLUTTER_INTEGRATION_ANSWERS.md` | answers to the client teams |
+| `WEB_INTEGRATION_ANSWERS.md` | answers for the web client |
 | `CHANGELOG.md` | version history and the v1.0 -> v1.1 rename table |
-| `errors.json` | shared error codes (source). `npm run gen` generates `src/wire/errors.ts` and the Rust `error_codes.rs`. The **Dart** enum is owned by the Flutter team: `tool/gen_errors.dart` in the mobile app, run in their CI from this `errors.json` |
+| `errors.json` | shared error codes (source). `npm run gen` generates `src/wire/errors.ts` and the Rust `error_codes.rs`. The Dart generator left with the removed Flutter app |
 | `src/wire/*` | TS wire types (`import { wire } from "@centurion/contracts"`) |
 
 The view-model in `src/index.ts` is owned by Desktop and is not edited by Backend. Map `wire.*` DTOs onto it

@@ -62,7 +62,6 @@ are reported, never subtracted twice. Tests: `api/test/pnl.test.ts`.
 
 ## Verification
 
-- mobile: `dart format` clean, `flutter analyze` no issues, full `flutter test`
 - web: eslint 0 errors, `tsc --noEmit`, `npm test`, `npm run build`
 - desktop: `npm run build`, `npm run test:ui`; Rust compiles in CI (local cargo is blocked by
   Application Control 4551)
@@ -71,7 +70,7 @@ are reported, never subtracted twice. Tests: `api/test/pnl.test.ts`.
 
 Deliberate, tracked scope that v1 ships without:
 
-- **Full receipt per closed trade on desktop and mobile.** Web's ledger already carries in, out,
+- **Full receipt per closed trade on desktop.** The Flutter mobile app was removed. Web's ledger already carries in, out,
   reported fees, entry→exit and bot; desktop and mobile rows show realised PnL, %, hold, exit reason
   and close time, and link to the position detail. SOL in/out and reported fees per row are next.
 - **Bot filter on mobile and desktop.** The strip's unrealised/realised/total are a workspace+mode

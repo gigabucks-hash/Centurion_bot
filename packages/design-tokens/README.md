@@ -1,7 +1,7 @@
 # @centurion/design-tokens
 
 Owner: UX UI Designer. Aplikasi: **Centurion Trade**. Nama package tetap `@centurion/design-tokens` (codename internal).
-**Sumber kebenaran:** `src/tokens.json` (W3C DTCG). Jalankan `python3 scripts/build.py` (atau `npm run build`). Tidak butuh dependency, cukup Python 3.9+. `dart format` dipakai otomatis kalau tersedia. Build gagal kalau ada pasangan warna di bawah WCAG AA (`tokens/contrast-report.md`).
+**Sumber kebenaran:** `src/tokens.json` (W3C DTCG). Jalankan `python3 scripts/build.py` (atau `npm run build`). Tidak butuh dependency, cukup Python 3.9+. Build gagal kalau ada pasangan warna di bawah WCAG AA (`tokens/contrast-report.md`). The Flutter `app_tokens.dart` export was removed with the mobile app.
 Sumber desain beserta wireframe dan spec: `/workspace/ux-solbot` (tokens.json di sana identik, disinkronkan oleh UX).
 
 | Output (`tokens/`) | Konsumen | Cara pakai |
@@ -9,7 +9,6 @@ Sumber desain beserta wireframe dan spec: `/workspace/ux-solbot` (tokens.json di
 | `tailwind.theme.css` | `apps/web` (Next.js + **Tailwind v4**) | `@import "tailwindcss"; @import "@centurion/design-tokens/tailwind.theme.css";` |
 | `tauri.css` | `apps/desktop` (Tauri v2) | dark default, **Compact default** (kontrol 32px, hit 24px). Disarankan `sync-tokens.mjs` menyalin file ini, bukan `tokens.css` |
 | `tokens.css` | CSS non-Tailwind / prototipe | dark + comfortable default; `[data-theme]`, `[data-mode]`, `[data-density]` |
-| `app_tokens.dart` | `apps/mobile` (Flutter M3) | salin ke `lib/core/theme/`, butuh `google_fonts` |
 | `tailwind.config.tokens.legacy-v3.js` | legacy | tidak dipakai MVP |
 
 Atribut runtime: `data-theme="dark|light"` · `data-mode="practice|real"` · `data-density="comfortable|compact"`.

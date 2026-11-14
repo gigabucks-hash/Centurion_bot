@@ -122,7 +122,7 @@ describe("strategies CRUD with rev", () => {
     assert.equal(now.body.data.rev, rev, "nothing applied");
     assert.equal(now.body.data.settings.top_holders_share_pct_max, 30);
 
-    // the SQL write path refuses weakening on its own (Flutter RPC must use propose_guard_change)
+    // the SQL write path refuses weakening on its own (callers use propose_guard_change)
     const direct = await h.db.query("select public.update_strategy($1, $2, $3) as r", [id, rev, JSON.stringify({ guard_checks: { require_sell_sim: false } })]).catch((e) => e);
     assert.equal(direct.message, "GUARD_WEAKEN_REQUIRES_APPROVAL");
 

@@ -1,4 +1,4 @@
-//! Native notifications (Windows toast / macOS UNUserNotification / Linux libnotify)
+//! Native notifications (Windows toast / Linux libnotify). macOS is not a supported target.
 //! via tauri-plugin-notification. Throttled so a burst of signals is not spammy.
 //!
 //! Copy comes from @centurion/i18n 0.4.10 `notifications.map.json`: N-01 (`notif.pick_pending.*`) and N-02

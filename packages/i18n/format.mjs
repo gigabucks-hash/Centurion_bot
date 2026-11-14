@@ -1,4 +1,4 @@
-// Centurion reference formatters (Web: import as-is; Flutter: mirror with package:intl NumberFormat/DateFormat).
+// Centurion reference formatters (web and desktop import this module).
 // Rule: the locale used for numbers == the UI language. Never mix (EN UI + id-ID numbers = bug QA-01).
 // Domain values are formatted here and passed to ICU messages as string args ({sol}, {pnl}, {pct}, {price}, {time}).
 export const LOCALES = { en: 'en-US', id: 'id-ID' };
@@ -175,8 +175,8 @@ export function formatLimitValue(setting, v, loc) {
   if (String(setting).endsWith('_bps')) return formatBps(Number(v), loc);
   return formatInt(Number(v), loc);
 }
-/** Web-only alternative to the ICU plural keys: Intl.RelativeTimeFormat ("5 sec. ago" / "5 dtk. yang lalu",
- *  "in 9 sec." / "dalam 9 dtk."). Flutter has no RelativeTimeFormat → use review.quote.* ICU keys (ARB). */
+/** Intl.RelativeTimeFormat ("5 sec. ago" / "5 dtk. yang lalu",
+ *  "in 9 sec." / "dalam 9 dtk."). Web and desktop both use this. */
 export const formatRelativeSeconds = (sec, loc) =>
   new Intl.RelativeTimeFormat(LOCALES[loc] ?? loc, { numeric: 'auto', style: 'short' })
     .format(Math.round(sec), 'second');

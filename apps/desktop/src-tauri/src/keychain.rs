@@ -1,4 +1,5 @@
-//! OS keychain wrapper (macOS Keychain, Windows Credential Manager, Linux Secret Service).
+//! OS keychain wrapper (Windows Credential Manager, Linux Secret Service).
+//! macOS Keychain is not a supported target.
 //! Stores ONLY the backend session/refresh token. Wallet private keys never exist on the
 //! desktop: signing happens server-side (custody/MPC) per the blueprint security model.
 //! Compiled only with `--features keychain` in the prototype.
