@@ -1,11 +1,12 @@
+import { localWriteAllowed } from "@/lib/local/http-guard";
 import { loopbackRequest } from "@/lib/local/paths";
 import { bindOwner, readOwnerAddress } from "@/lib/local/owner";
 import {
   applyKnobs,
+  armEnable,
+  armLimits,
   disableReal,
   enableReal,
-  previewEnable,
-  previewLimits,
   publicBook,
   readBook,
   setRealStrategies,
@@ -39,12 +40,12 @@ function asScope(value: unknown): string | null {
 }
 
 export async function GET(req: Request) {
-  if (!loopbackRequest(req)) return denied();
+  if (!loopbackRequest(req) || !localWriteAllowed(req)) return denied();
   return Response.json({ data: publicBook(readBook()) });
 }
 
 export async function POST(req: Request) {
-  if (!loopbackRequest(req)) return denied();
+  if (!loopbackRequest(req) || !localWriteAllowed(req)) return denied();
   const raw = await req.text();
   if (raw.length > 20_000) return Response.json({ error: "invalid" }, { status: 400 });
   let body: Record<string, unknown>;
@@ -57,19 +58,20 @@ export async function POST(req: Request) {
   }
   const action = body.action;
   const book = readBook();
-  const save = (next: ReturnType<typeof readBook>) => {
+  const save = (next: ReturnType<typeof readBook>, extra?: Record<string, unknown>) => {
     try {
       writeBook(next);
     } catch {
       return bookError("invalid");
     }
-    return Response.json({ data: publicBook(next) });
+    return Response.json({ data: { ...publicBook(next), ...extra } });
   };
 
   if (action === "enable-message") {
-    const message = typeof body.wallet === "string" ? previewEnable(body.wallet.trim()) : null;
-    if (!message) return bookError("wallet");
-    return Response.json({ data: { message } });
+    const wallet = typeof body.wallet === "string" ? body.wallet.trim() : "";
+    const armed = armEnable(book, wallet);
+    if ("error" in armed) return bookError(armed.error);
+    return save(armed.book, { message: armed.message });
   }
 
   if (action === "enable") {
@@ -91,9 +93,9 @@ export async function POST(req: Request) {
     const scope = asScope(body.scope);
     const knobs = asKnobs(body.knobs);
     if (!scope || !knobs) return bookError("invalid");
-    const message = previewLimits(book, scope, knobs);
-    if (!message) return bookError(book.enabled ? "invalid" : "real_off");
-    return Response.json({ data: { message } });
+    const armed = armLimits(book, scope, knobs);
+    if ("error" in armed) return bookError(armed.error);
+    return save(armed.book, { message: armed.message });
   }
 
   if (action === "apply") {

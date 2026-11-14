@@ -3,15 +3,16 @@
  * Real trades and setting changes run only after Real was enabled in the app.
  * This module never reads a private key and has no transfer-out action.
  */
-import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { trails } from "@/lib/mock/data";
 import { getTradingState, pauseBuys, resumeBuys } from "@/lib/mock/trading";
 import { closePosition, listClosedLedger, listOpenPositions, openLocalPaperBuy, sellAllPractice, snapshot } from "@/lib/mock/store";
+import { safeSymbol } from "@/lib/untrusted";
 import { localDir } from "./paths";
 import { applyKnobsDirect, readBook, scopeKnobs, setRpc, writeBook, type RealBook } from "./real-book";
-import { admitBuy, solToLamports, type RealKnobs } from "./real-limits";
+import { admitBuy, lamportsToSolInput, solToLamports, type RealKnobs } from "./real-limits";
 
 const FORBIDDEN = /private|secret|seed|mnemonic|keypair|recipient|destination|withdraw|export/i;
 const MODULES = ["scout", "guard", "smart_money", "momentum", "narrative", "risk"] as const;
@@ -21,20 +22,22 @@ export interface AuditRow {
   tool: string;
   ok: boolean;
   code: string;
+  prev?: string;
+  hash?: string;
 }
 
 interface RealPos {
   key: string;
   mint: string;
   symbol: string;
-  solIn: number;
+  lamportsIn: string;
   openedAt: number;
-  soldPct: number;
+  soldBps: number;
 }
 
 interface RealLedger {
   positions: RealPos[];
-  buys: { mint: string; sol: number; at: number }[];
+  buys: { mint: string; lamports: string; at: number }[];
 }
 
 function ledgerFile(): string | null {
@@ -42,15 +45,47 @@ function ledgerFile(): string | null {
   return dir ? path.join(dir, "real-ledger.json") : null;
 }
 
+function posFrom(raw: unknown): RealPos | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as Record<string, unknown>;
+  if (typeof p.mint !== "string") return null;
+  let lamportsIn = typeof p.lamportsIn === "string" && /^\d+$/.test(p.lamportsIn) ? p.lamportsIn : null;
+  if (!lamportsIn && typeof p.solIn === "number" && Number.isFinite(p.solIn)) {
+    lamportsIn = solToLamports(p.solIn.toFixed(9).replace(/0+$/, "").replace(/\.$/, ""));
+  }
+  if (!lamportsIn) return null;
+  const soldBps = Number.isInteger(p.soldBps) ? Number(p.soldBps) : Math.round(Number(p.soldPct ?? 0) * 100);
+  if (soldBps < 0 || soldBps > 10_000) return null;
+  return {
+    key: typeof p.key === "string" ? p.key : "",
+    mint: p.mint,
+    symbol: safeSymbol(p.symbol),
+    lamportsIn,
+    openedAt: typeof p.openedAt === "number" ? p.openedAt : 0,
+    soldBps,
+  };
+}
+
 function readLedger(): RealLedger {
   const file = ledgerFile();
   if (!file || !existsSync(file)) return { positions: [], buys: [] };
   try {
-    const raw = JSON.parse(readFileSync(file, "utf8")) as Partial<RealLedger>;
-    return {
-      positions: Array.isArray(raw.positions) ? raw.positions.filter((p) => p && typeof p.mint === "string" && typeof p.solIn === "number") : [],
-      buys: Array.isArray(raw.buys) ? raw.buys.filter((b) => b && typeof b.sol === "number" && typeof b.at === "number") : [],
-    };
+    const raw = JSON.parse(readFileSync(file, "utf8")) as { positions?: unknown; buys?: unknown };
+    const positions = Array.isArray(raw.positions) ? raw.positions.map(posFrom).filter((p): p is RealPos => p != null) : [];
+    const buys = Array.isArray(raw.buys)
+      ? raw.buys.flatMap((b) => {
+          if (!b || typeof b !== "object") return [];
+          const row = b as Record<string, unknown>;
+          const lamports = typeof row.lamports === "string" && /^\d+$/.test(row.lamports)
+            ? row.lamports
+            : typeof row.sol === "number" && Number.isFinite(row.sol)
+              ? solToLamports(row.sol.toFixed(9).replace(/0+$/, "").replace(/\.$/, ""))
+              : null;
+          if (!lamports || typeof row.at !== "number") return [];
+          return [{ mint: typeof row.mint === "string" ? row.mint : "", lamports, at: row.at }];
+        })
+      : [];
+    return { positions, buys };
   } catch {
     return { positions: [], buys: [] };
   }
@@ -72,9 +107,10 @@ export function ensureMcpToken(): string | null {
     const token = readFileSync(file, "utf8").trim();
     return token.length >= 32 ? token : null;
   }
-  mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
   const token = randomBytes(32).toString("hex");
   writeFileSync(file, `${token}\n`, { mode: 0o600 });
+  try { chmodSync(dir, 0o700); chmodSync(file, 0o600); } catch { /* windows */ }
   return token;
 }
 
@@ -127,13 +163,45 @@ export function readAudit(limit = 40): AuditRow[] {
   }
 }
 
-function appendAudit(row: AuditRow) {
+function chainHash(prev: string, row: Pick<AuditRow, "at" | "tool" | "ok" | "code">): string {
+  return createHash("sha256").update(`${prev}\n${row.at}\n${row.tool}\n${row.ok ? 1 : 0}\n${row.code}`).digest("hex");
+}
+
+export function auditOk(): boolean {
+  const file = auditFile();
+  if (!file || !existsSync(file)) return true;
+  try {
+    const rows = JSON.parse(readFileSync(file, "utf8")) as AuditRow[];
+    if (!Array.isArray(rows)) return false;
+    let prev = "";
+    for (const row of rows) {
+      if (!row || typeof row.hash !== "string") {
+        prev = "";
+        continue;
+      }
+      if (row.prev !== prev || row.hash !== chainHash(prev, row)) return false;
+      prev = row.hash;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function appendAudit(row: Pick<AuditRow, "at" | "tool" | "ok" | "code">) {
   const dir = localDir();
   const file = auditFile();
   if (!dir || !file) return;
-  const prev = readAudit(199).reverse();
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(file, `${JSON.stringify([...prev, row].slice(-200))}\n`, { mode: 0o600 });
+  const kept = readAudit(199).reverse().map(({ at, tool, ok, code }) => ({ at, tool, ok, code }));
+  const rows = [...kept, row].slice(-200);
+  let prev = "";
+  const sealed: AuditRow[] = rows.map((item) => {
+    const full: AuditRow = { ...item, prev, hash: chainHash(prev, item) };
+    prev = full.hash ?? "";
+    return full;
+  });
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  writeFileSync(file, `${JSON.stringify(sealed)}\n`, { mode: 0o600 });
 }
 
 export function forbiddenKey(value: unknown): boolean {
@@ -145,8 +213,9 @@ export function forbiddenKey(value: unknown): boolean {
   return false;
 }
 
-function lamports(sol: number): string {
-  return solToLamports(sol.toFixed(9).replace(/0+$/, "").replace(/\.$/, "")) ?? "0";
+function lamportsOf(sol: number): string | null {
+  if (typeof sol !== "number" || !Number.isFinite(sol) || sol <= 0) return null;
+  return solToLamports(sol.toFixed(9).replace(/0+$/, "").replace(/\.$/, ""));
 }
 
 function teamScores(mint: string) {
@@ -167,17 +236,19 @@ function teamScores(mint: string) {
 }
 
 function realOpen(mint: string): RealPos[] {
-  return readLedger().positions.filter((p) => p.soldPct < 100 && (!mint || p.mint === mint));
+  return readLedger().positions.filter((p) => p.soldBps < 10_000 && (!mint || p.mint === mint));
 }
 
-function spentToday(now: number): number {
+function spentToday(now: number): bigint {
   const start = new Date(now);
   start.setUTCHours(0, 0, 0, 0);
-  return readLedger().buys.filter((b) => b.at >= start.getTime()).reduce((sum, b) => sum + b.sol, 0);
+  return readLedger().buys.filter((b) => b.at >= start.getTime()).reduce((sum, b) => sum + BigInt(b.lamports), 0n);
 }
 
-function capitalUsed(): number {
-  return readLedger().positions.filter((p) => p.soldPct < 100).reduce((sum, p) => sum + p.solIn * (1 - p.soldPct / 100), 0);
+function capitalUsed(): bigint {
+  return readLedger().positions.filter((p) => p.soldBps < 10_000).reduce((sum, p) => {
+    return sum + BigInt(p.lamportsIn) * BigInt(10_000 - p.soldBps) / 10_000n;
+  }, 0n);
 }
 
 export function mcpStatus(now = Date.now()): Record<string, unknown> {
@@ -224,6 +295,7 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
       real_enabled: book.enabled,
       paper_open: paper.positions.length,
       real_open: realOpen("").length,
+      audit_ok: auditOk(),
     };
   }
   if (tool === "centurion_engine_stop") {
@@ -236,7 +308,13 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
   }
   if (tool === "centurion_list_positions") {
     const mode = args.mode === "real" ? "real" : "practice";
-    if (mode === "real") return { ok: true, mode, items: realOpen("") };
+    if (mode === "real") {
+      return {
+        ok: true,
+        mode,
+        items: realOpen("").map((p) => ({ key: p.key, mint: p.mint, symbol: p.symbol, lamports_in: p.lamportsIn, sol_in: lamportsToSolInput(p.lamportsIn), sold_bps: p.soldBps })),
+      };
+    }
     return { ok: true, mode, items: listOpenPositions("practice").map((p) => ({ key: p.key, mint: p.mint, symbol: p.symbol, sol_in: p.solIn, sold_pct: p.soldPct, rev: p.rev })) };
   }
   if (tool === "centurion_pnl") {
@@ -260,8 +338,8 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
     if (trading.buysPaused) return { error: "buys_paused" };
     const sol = num(args, "sol");
     const mint = String(args.mint ?? "");
-    const symbol = String(args.symbol ?? "TOKEN");
-    if (sol === undefined) return { error: "invalid" };
+    const symbol = safeSymbol(args.symbol) || "TOKEN";
+    if (sol === undefined || !Number.isFinite(sol) || sol <= 0) return { error: "invalid" };
     const pos = openLocalPaperBuy({ mint, symbol, sol }, now);
     return { ok: true, key: pos.key, mint: pos.mint, sol: pos.solIn };
   }
@@ -270,6 +348,7 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
     const pos = listOpenPositions("practice").find((p) => p.key === key);
     if (!pos) return { error: "not_found" };
     const fraction = num(args, "fraction_bps") ?? 10_000;
+    if (!Number.isInteger(fraction) || fraction < 1 || fraction > 10_000) return { error: "invalid" };
     closePosition(key, pos.rev, fraction, "practice", now);
     return { ok: true, key };
   }
@@ -278,8 +357,8 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
     if (mode === "practice") return { ok: true, ...sellAllPractice(now) };
     if (!readBook().enabled) return { error: "real_off" };
     const ledger = readLedger();
-    const sold = ledger.positions.filter((p) => p.soldPct < 100).map((p) => p.key);
-    ledger.positions = ledger.positions.map((p) => ({ ...p, soldPct: 100 }));
+    const sold = ledger.positions.filter((p) => p.soldBps < 10_000).map((p) => p.key);
+    ledger.positions = ledger.positions.map((p) => ({ ...p, soldBps: 10_000 }));
     writeLedger(ledger);
     return { ok: true, sold };
   }
@@ -287,12 +366,24 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
     const book = readBook();
     if (!book.enabled) return { error: "real_off" };
     const mint = String(args.mint ?? "");
-    const symbol = String(args.symbol ?? "TOKEN").slice(0, 16);
+    const symbol = safeSymbol(args.symbol) || "TOKEN";
+    if (tool === "centurion_real_sell") {
+      const ledger = readLedger();
+      const key = typeof args.key === "string" ? args.key : "";
+      if (mint && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) return { error: "invalid" };
+      if (!key && !mint) return { error: "invalid" };
+      const pos = ledger.positions.find((p) => p.soldBps < 10_000 && (key ? p.key === key : p.mint === mint));
+      if (!pos) return { error: "not_found" };
+      pos.soldBps = 10_000;
+      writeLedger(ledger);
+      return { ok: true, key: pos.key };
+    }
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) return { error: "invalid" };
     if (tool === "centurion_real_buy") {
       if (trading.buysPaused) return { error: "buys_paused" };
       const sol = num(args, "sol");
-      if (sol === undefined || sol <= 0) return { error: "invalid" };
+      const size = sol === undefined ? null : lamportsOf(sol);
+      if (!size) return { error: "invalid" };
       const scores = teamScores(mint);
       const guard = scores.modules.find((m) => m.id === "guard");
       const scout = scores.modules.find((m) => m.id === "scout");
@@ -305,27 +396,20 @@ function dispatch(tool: string, args: Record<string, unknown>, now: number): Rec
         guardVerdict: guard?.available && guard.veto ? "fail" : "pass",
         riskVeto: null,
         openPositions: open.length,
-        spentTodayLamports: lamports(spentToday(now)),
-        capitalUsedLamports: lamports(capitalUsed()),
-        tradeLamports: lamports(sol),
+        spentTodayLamports: spentToday(now).toString(),
+        capitalUsedLamports: capitalUsed().toString(),
+        tradeLamports: size,
         slippageBps: book.global.slippageBps,
         mcapUsd: null, liquidityUsd: null, volume24hUsd: null, top10Pct: null, holders: null, ageMinutes: null, lpBurnPct: null,
       });
       if (refuse) return { error: refuse };
       const ledger = readLedger();
       const key = `real:${now.toString(36)}:${mint.slice(0, 4)}`;
-      ledger.positions.push({ key, mint, symbol, solIn: sol, openedAt: now, soldPct: 0 });
-      ledger.buys.push({ mint, sol, at: now });
+      ledger.positions.push({ key, mint, symbol, lamportsIn: size, openedAt: now, soldBps: 0 });
+      ledger.buys.push({ mint, lamports: size, at: now });
       writeLedger(ledger);
-      return { ok: true, key, mint, sol };
+      return { ok: true, key, mint, sol, lamports: size };
     }
-    const ledger = readLedger();
-    const key = typeof args.key === "string" ? args.key : "";
-    const pos = ledger.positions.find((p) => (key ? p.key === key : p.mint === mint) && p.soldPct < 100);
-    if (!pos) return { error: "not_found" };
-    pos.soldPct = 100;
-    writeLedger(ledger);
-    return { ok: true, key: pos.key };
   }
   if (tool === "centurion_get_settings") {
     const book = readBook();

@@ -1,11 +1,26 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { generateKeyPairSync, sign } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { b58encode } from "../auth/wallet.ts";
 import { trails } from "../mock/data.ts";
-import { mcpCall, setMcpEnabled } from "../local/mcp.ts";
-import { defaultBook, writeBook } from "../local/real-book.ts";
+import { localWriteAllowed, bearerMatches, loopbackHost } from "../local/http-guard.ts";
+import { auditOk, mcpCall, setMcpEnabled } from "../local/mcp.ts";
+import { armEnable, defaultBook, enableReal, writeBook } from "../local/real-book.ts";
+
+function enableSignedBook() {
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+  const der = publicKey.export({ type: "spki", format: "der" }) as Buffer;
+  const address = b58encode(new Uint8Array(der.subarray(der.length - 32)));
+  const armed = armEnable(defaultBook(), address);
+  if ("error" in armed) throw new Error(armed.error);
+  const signature = b58encode(new Uint8Array(sign(null, Buffer.from(armed.message), privateKey)));
+  const enabled = enableReal(armed.book, address, signature);
+  if ("error" in enabled) throw new Error(enabled.error);
+  writeBook(enabled.book);
+}
 import { MCP_TOOLS } from "../../mcp/registry.ts";
 
 const MINT = "So11111111111111111111111111111111111111112";
@@ -59,10 +74,7 @@ test("paper buy and sell-all work; real buy waits until Real is on; loosen appli
     const blocked = mcpCall("centurion_real_buy", { mint: MINT, symbol: "SOL", sol: 0.01 });
     assert.equal(blocked.error, "real_off");
 
-    const book = defaultBook();
-    book.enabled = true;
-    book.wallet = MINT;
-    writeBook(book);
+    enableSignedBook();
     const real = mcpCall("centurion_real_buy", { mint: MINT, symbol: "SOL", sol: 0.01 });
     assert.equal(real.ok, true, JSON.stringify(real));
     const loosened = mcpCall("centurion_update_settings", { trade_sol: 1 });
@@ -74,7 +86,45 @@ test("paper buy and sell-all work; real buy waits until Real is on; loosen appli
 
     setMcpEnabled(false);
     assert.equal(mcpCall("centurion_paper_buy", { mint: MINT, symbol: "SOL", sol: 0.01 }).error, "mcp_disabled");
+    assert.equal(mcpCall("centurion_engine_stop", {}).error, "mcp_disabled");
     assert.equal(mcpCall("centurion_status", {}).mcp_enabled, false);
     setMcpEnabled(true);
   });
+});
+
+test("real caps use integer lamports, a second sell is refused, and bad numbers are rejected", () => {
+  withLocal(() => {
+    enableSignedBook();
+    assert.equal(mcpCall("centurion_real_buy", { mint: MINT, symbol: "SO\u202eL", sol: Number.NaN }).error, "invalid");
+    assert.equal(mcpCall("centurion_real_buy", { mint: MINT, symbol: "SOL", sol: -1 }).error, "invalid");
+    assert.equal(mcpCall("centurion_update_settings", { trade_sol: 0.4, daily_sol: 0.5, slippage_pct: 101 }).error, "invalid");
+    const widened = mcpCall("centurion_update_settings", { trade_sol: 0.4, daily_sol: 0.5 });
+    assert.equal(widened.ok, true, JSON.stringify(widened));
+    const first = mcpCall("centurion_real_buy", { mint: MINT, symbol: "SO\u202eL", sol: 0.4 });
+    assert.equal(first.ok, true, JSON.stringify(first));
+    assert.equal(String(first.lamports), "400000000");
+    const listed = mcpCall("centurion_list_positions", { mode: "real" }) as { items: { symbol: string }[] };
+    assert.equal(listed.items[0]?.symbol.includes("\u202e"), false);
+    assert.equal(mcpCall("centurion_real_buy", { mint: MINT, symbol: "SOL", sol: 0.2 }).error, "daily");
+    const sold = mcpCall("centurion_real_sell", { key: first.key });
+    assert.equal(sold.ok, true, JSON.stringify(sold));
+    assert.equal(mcpCall("centurion_real_sell", { key: first.key }).error, "not_found");
+    assert.equal(auditOk(), true);
+    assert.equal(mcpCall("centurion_status", {}).audit_ok, true);
+  });
+});
+
+test("localhost writes reject a foreign origin and compare the bearer in full", () => {
+  const token = "ab".repeat(32);
+  assert.equal(bearerMatches(`Bearer ${token}`, token), true);
+  assert.equal(bearerMatches(`Bearer ${token.slice(0, -1)}c`, token), false);
+  assert.equal(bearerMatches("Bearer short", token), false);
+  assert.equal(loopbackHost("127.0.0.1:3210"), true);
+  assert.equal(loopbackHost("evil.example"), false);
+  const ok = new Request("http://127.0.0.1:3100/api/local/real", { headers: { host: "127.0.0.1:3100" } });
+  assert.equal(localWriteAllowed(ok), true);
+  const csrf = new Request("http://127.0.0.1:3100/api/local/real", { headers: { host: "127.0.0.1:3100", origin: "https://evil.example" } });
+  assert.equal(localWriteAllowed(csrf), false);
+  const rebound = new Request("http://evil.example/api/local/real", { headers: { host: "evil.example", origin: "http://evil.example" } });
+  assert.equal(localWriteAllowed(rebound), false);
 });

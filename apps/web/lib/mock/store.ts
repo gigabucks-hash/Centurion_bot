@@ -729,8 +729,12 @@ export function closePosition(key: string, expectedRev: number | null, fractionB
   if (expectedRev == null) throw wireErr("PRECONDITION_REQUIRED");
   if (expectedRev !== pos.rev) throw wireErr("VERSION_CONFLICT", { current_rev: pos.rev, base_rev: expectedRev, current: { id: pos.key, rev: pos.rev, sold_pct: pos.soldPct } });
   const before = { ...pos };
-  const remaining = 100 - pos.soldPct;
-  st.sold[key] = fractionBps >= 10_000 ? 100 : Math.min(100, pos.soldPct + remaining * (fractionBps / 10_000));
+  const soldBps = Math.min(10_000, Math.max(0, Math.round(pos.soldPct * 100)));
+  const remainingBps = 10_000 - soldBps;
+  const addBps = fractionBps >= 10_000 ? remainingBps : Math.floor(remainingBps * fractionBps / 10_000);
+  const nextBps = Math.min(10_000, soldBps + addBps);
+  const remaining = remainingBps / 100;
+  st.sold[key] = nextBps / 100;
   st.posRev ??= {};
   st.posRev[key] = pos.rev + 1;
   // D4: a 100 % manual sell closes the position AND appends its realized row to the same ledger /pnl reads.
