@@ -9,7 +9,7 @@ export function Segmented<T extends string>({ value, onChange, options, label, s
   size?: "sm" | "md";
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex flex-wrap gap-1.5">
+    <div role="radiogroup" aria-label={label} className="inline-flex flex-wrap gap-0.5 rounded-md border border-border-subtle bg-bg-sunken p-0.5">
       {options.map((o) => (
         <button
           key={o.value}
@@ -19,11 +19,11 @@ export function Segmented<T extends string>({ value, onChange, options, label, s
           disabled={o.disabled}
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded-full border px-3 font-medium transition duration-fast disabled:opacity-40",
-            size === "sm" ? "h-7 text-caption" : "h-8 text-label",
+            "rounded-sm px-2.5 font-medium transition duration-fast disabled:opacity-40",
+            size === "sm" ? "h-6 text-caption" : "h-7 text-label",
             value === o.value
-              ? "border-brand-primary bg-brand-primaryContainer text-brand-onPrimaryContainer"
-              : "border-border-default bg-bg-surface text-text-secondary hover:text-text-primary",
+              ? "bg-bg-surface text-text-primary"
+              : "text-text-secondary hover:text-text-primary",
           )}
         >
           {o.label}

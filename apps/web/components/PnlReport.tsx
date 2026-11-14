@@ -27,8 +27,9 @@ export function PnlReport({ report: r, mode, t, f, href = "/pnl", layout = "rows
   heading?: ReactNode;
 }) {
   // A null money field is "not reported": show an em dash, never a 0.00 the server did not send.
+  const unitLabel = t(mode === "practice" ? "overview.paperSol" : "overview.realSol");
   const money = (v: number | null) =>
-    v == null ? <span className="num text-text-tertiary" data-testid="pnl-not-reported">—</span> : <Pnl sol={v} mode={mode} unit wrapUnit={layout === "strip"} />;
+    v == null ? <span className="num text-text-tertiary" data-testid="pnl-not-reported">—</span> : <Pnl sol={v} mode={mode} wrapUnit={layout === "strip"} />;
   const items = [
     { label: t("pnlReport.unrealized"), value: money(r.unrealized), hint: r.openPositions == null ? "—" : t("pnlReport.openHint", { n: r.openPositions }) },
     {
@@ -41,7 +42,7 @@ export function PnlReport({ report: r, mode, t, f, href = "/pnl", layout = "rows
   return (
     <section aria-label={t("pnlReport.title")} data-testid="pnl-report">
       <div className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="text-titleSm text-text-primary">{heading ?? t("pnlReport.title")}</h2>
+        <h2 className="text-[15px] font-medium text-text-primary">{heading ?? t("pnlReport.title")}<span className="ml-2 text-caption font-normal text-text-tertiary">{unitLabel}</span></h2>
         {href && (
           <Link href={href} className="tap text-caption text-brand-primary hover:underline">
             {t("pnlReport.full")} →
@@ -55,7 +56,7 @@ export function PnlReport({ report: r, mode, t, f, href = "/pnl", layout = "rows
           {items.map((it, i) => (
             <div key={it.label} className={cn("flex items-start justify-between gap-3 px-4 py-3", i > 0 && "border-t border-border-subtle")}>
               <span className="min-w-0">
-                <span className="block text-overline uppercase tracking-wide text-text-tertiary">{it.label}</span>
+                <span className="block text-caption text-text-tertiary">{it.label}</span>
                 <span className="mt-0.5 block text-caption text-text-tertiary">{it.hint}</span>
               </span>
               <span className="shrink-0 text-num">{it.value}</span>

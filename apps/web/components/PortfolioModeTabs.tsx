@@ -11,12 +11,12 @@ import { ModeBadge } from "@/components/domain";
  */
 export function PortfolioModeTabs({ mode, modes, href, t }: { mode: TradingMode; modes: TradingMode[]; href: (m: TradingMode) => string; t: T }) {
   if (modes.length < 2) return <ModeBadge mode={mode} />;
-  const chip = (active: boolean) => cn("inline-flex min-h-8 items-center rounded-full border px-3 text-caption", active ? "border-brand-primary bg-brand-primaryContainer text-brand-onPrimaryContainer" : "border-border-default text-text-secondary hover:text-text-primary");
+  const chip = (active: boolean) => cn("chip hover:text-text-primary", active && "chip-on");
   return (
     <nav aria-label={t("portfolio.label")} className="flex flex-wrap gap-2">
       {modes.map((m) => (
         <Link key={m} href={href(m)} aria-current={m === mode ? "page" : undefined} className={chip(m === mode)}>
-          {m === "practice" ? "◇ " : "● "}{t.ux(m === "practice" ? "strategy.mode.paper" : "strategy.mode.real")}
+          {t.ux(m === "practice" ? "strategy.mode.paper" : "strategy.mode.real")}
         </Link>
       ))}
     </nav>

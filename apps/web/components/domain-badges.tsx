@@ -2,37 +2,45 @@
 import { Lock } from "lucide-react";
 import type { ApprovalMode, ApprovalStatus, EventKind, RealLockedReason, StrategyStatus, TradingMode } from "@/lib/types";
 import { useT } from "@/lib/i18n/client";
-import { Badge, type Tone } from "@/components/ui";
+import { Badge, cn, type Tone } from "@/components/ui";
 
-/**
- * Per-strategy mode chip (contracts 1.1.6: wire practice|real, UI "Paper"/"Real"). Always text + glyph
- * (◇ Paper / ● Real), never colour alone.
- */
+/** Per-strategy mode: a word plus a dot. The page banner is the workspace-level indicator. */
 export function ModeBadge({ mode, className }: { mode: TradingMode; className?: string }) {
   const t = useT();
-  return mode === "real" ? (
-    <Badge tone="real" upper className={className}>● {t("mode.real")}</Badge>
-  ) : (
-    <Badge tone="practice" upper className={className}>◇ {t("mode.practice")}</Badge>
+  const real = mode === "real";
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap text-caption", real ? "text-semantic-loss" : "text-text-secondary", className)}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", real ? "bg-semantic-loss" : "bg-text-tertiary")} aria-hidden />
+      {real ? t("mode.real") : t("mode.practice")}
+    </span>
   );
 }
 
-const statusTone: Record<StrategyStatus, Tone> = { draft: "neutral", running: "profit", paused: "warning", archived: "neutral" };
-/** "Real locked" chip (UX strategy.real_locked.chip / chip_short), lock icon + dashed border; reason as tooltip/a11y. */
+const statusDot: Record<StrategyStatus, string> = {
+  draft: "bg-text-disabled",
+  running: "bg-semantic-profit",
+  paused: "bg-semantic-warning",
+  archived: "bg-text-tertiary",
+};
+
+/** "Real locked": a lock, with the reason as the tooltip. The word is hidden in dense tables. */
 export function RealLockedChip({ reason, short = false, className }: { reason: RealLockedReason | null; short?: boolean; className?: string }) {
   const t = useT();
   const why = t.ux(`strategy.real_locked_reason.${reason ?? "other"}` as never);
+  const label = t.ux(short ? "strategy.real_locked.chip_short" as never : "strategy.real_locked.chip" as never);
+  if (short) return <span className="sr-only">{label}. {why}</span>;
   return (
-    <Badge className={`border-dashed ${className ?? ""}`} title={why} icon={<Lock size={11} aria-hidden />}>
-      <span aria-label={t.ux("strategy.real_locked.a11y" as never, { reason: why })}>{t.ux(short ? "strategy.real_locked.chip_short" as never : "strategy.real_locked.chip" as never)}</span>
-    </Badge>
+    <span className={cn("inline-flex items-center gap-1 text-caption text-text-tertiary", className)} title={why}>
+      <Lock size={12} strokeWidth={1.75} aria-hidden />
+      <span className={short ? "sr-only" : undefined} aria-label={t.ux("strategy.real_locked.a11y" as never, { reason: why })}>{label}</span>
+    </span>
   );
 }
 
-/** Mode chip + (when Real is locked) the locked chip, for strategy rows/cards and items that belong to a strategy. */
+/** Mode word + lock (when Real is gated) for strategy rows and cards. */
 export function StrategyModeChips({ mode, realLocked, realLockedReason, short = false }: { mode: TradingMode; realLocked?: boolean; realLockedReason?: RealLockedReason | null; short?: boolean }) {
   return (
-    <span className="inline-flex flex-wrap items-center gap-1.5">
+    <span className="inline-flex items-center gap-2">
       <ModeBadge mode={mode} />
       {mode === "practice" && realLocked && <RealLockedChip reason={realLockedReason ?? null} short={short} />}
     </span>
@@ -41,7 +49,12 @@ export function StrategyModeChips({ mode, realLocked, realLockedReason, short = 
 
 export function StatusBadge({ status }: { status: StrategyStatus }) {
   const t = useT();
-  return <Badge tone={statusTone[status]}>{t(`status.${status}`)}</Badge>;
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-caption text-text-primary">
+      <span className={cn("h-1.5 w-1.5 rounded-full", statusDot[status])} aria-hidden />
+      {t(`status.${status}`)}
+    </span>
+  );
 }
 
 export function ApprovalModeText({ mode }: { mode: ApprovalMode }) {
@@ -49,14 +62,14 @@ export function ApprovalModeText({ mode }: { mode: ApprovalMode }) {
   return <span className="text-caption text-text-secondary">{t(`approvalMode.${mode}`)}</span>;
 }
 
-/** Per-strategy ask-before-buy setting as a compact badge (strategy cards / tables). */
+/** Ask-before-buy setting as plain text. The title carries the full phrase. */
 export function ApprovalModeBadge({ mode }: { mode: ApprovalMode }) {
   const t = useT();
   const label = mode === "ask_first_buy" ? t("approvalMode.firstBuyBadge") : mode === "ask_every_buy" ? t("approvalMode.everyBuyBadge") : t("approvalMode.autoBadge");
   return (
-    <Badge tone={mode === "off" ? "neutral" : "brand"} title={t(`approvalMode.${mode}`)}>
-      {mode === "off" ? "⚡" : "✋"} {label}
-    </Badge>
+    <span className="whitespace-nowrap text-caption text-text-secondary" title={t(`approvalMode.${mode}`)}>
+      {label}
+    </span>
   );
 }
 
@@ -65,7 +78,7 @@ const approvalTone: Record<ApprovalStatus, Tone> = {
 };
 export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
   const t = useT();
-  return <Badge tone={approvalTone[status]} upper>{t(`approvalStatus.${status}`)}</Badge>;
+  return <Badge tone={approvalTone[status]}>{t(`approvalStatus.${status}`)}</Badge>;
 }
 
 const kindTone: Record<EventKind, Tone> = {
@@ -73,5 +86,5 @@ const kindTone: Record<EventKind, Tone> = {
 };
 export function EventKindBadge({ kind }: { kind: EventKind }) {
   const t = useT();
-  return <Badge tone={kindTone[kind]} upper>{t(`kind.${kind}`)}</Badge>;
+  return <Badge tone={kindTone[kind]}>{t(`kind.${kind}`)}</Badge>;
 }

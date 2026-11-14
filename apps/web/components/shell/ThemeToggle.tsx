@@ -48,7 +48,7 @@ export function ThemeToggle() {
       }}
       aria-label={t("nav.themeTo", { theme: name(next) })}
       title={t("nav.themeTo", { theme: name(next) })}
-      className="grid h-9 w-9 place-items-center rounded-full border border-border-default text-text-secondary hover:bg-bg-raised hover:text-text-primary"
+      className="grid h-8 w-8 place-items-center rounded-md text-text-secondary hover:bg-bg-raised hover:text-text-primary"
     >
       <Icon size={16} aria-hidden />
     </button>

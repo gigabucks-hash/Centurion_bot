@@ -14,7 +14,7 @@ export default async function WelcomePage() {
   const t = await getT();
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center p-6">
-      <div className="stripes-practice mb-6 rounded-md bg-mode-practiceContainer px-4 py-2 text-label font-semibold text-mode-practice">{t("mode.bannerPractice")}</div>
+      <div className="mb-6 rounded-md border border-border-subtle bg-bg-surface px-3 py-2 text-caption text-text-secondary">{t("mode.bannerPractice")}</div>
       <h1 className="text-headline">{t("welcome.heading")}</h1>
       <p className="mt-2 text-bodyLg text-text-secondary">{t("welcome.body", { n: 30 })}</p>
       <div className="mt-6 grid gap-3 sm:grid-cols-2">

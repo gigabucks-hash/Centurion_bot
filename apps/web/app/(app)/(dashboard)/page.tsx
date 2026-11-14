@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { AlertTriangle, Inbox, Info, Layers, Plus, TrendingDown, Wallet } from "lucide-react";
+import { AlertTriangle, Info, Plus } from "lucide-react";
 import { getApi } from "@/lib/api";
 import { DEFAULT_TRADING } from "@/lib/trading";
 import { acrossModes, listAllStrategies, modesOf, portfolioMode } from "@/lib/mode";
 import type { Strategy } from "@/lib/types";
 
 import { Badge, Card, PageHeader, Pnl, Sparkline, StatStrip, Table } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { ApprovalModeBadge, severityTone, StatusBadge, StrategyModeChips } from "@/components/domain";
 import { PortfolioModeTabs } from "@/components/PortfolioModeTabs";
 import { EquityChart } from "@/components/charts/EquityChart";
@@ -44,6 +45,7 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
   const latestClosed = coins.find((c) => c.status === "closed");
   const trail = latestClosed ? await api.getCoinTrail(latestClosed.mint) : null;
   const realizedPct = o.realizedPnlSol != null && o.startingCashSol > 0 ? (o.realizedPnlSol / o.startingCashSol) * 100 : null;
+  const unit = t(mode === "practice" ? "overview.paperSol" : "overview.realSol");
   // Closed trades come from the same mode's strategies; the PnL report never mixes modes.
   const closed = closedTradeCounts(strategies, mode);
   const report = summary
@@ -72,11 +74,10 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
 
       <StatStrip
         items={[
-          { icon: <Wallet size={14} aria-hidden />, label: t("overview.cash"), value: <>{f.sol(o.cashSol, { unit: false })}<span className="text-caption font-normal"> {t(mode === "practice" ? "overview.paperSol" : "overview.realSol")}</span></>, hint: t("overview.inPositions", { amount_lamports: o.inPositionsSol != null ? f.amount(o.inPositionsSol) : "—" }) },
-          { icon: <TrendingDown size={14} aria-hidden />, label: t("overview.realized"), value: <Pnl mode={mode} sol={o.realizedPnlSol} unit />, hint: t("overview.vsStart", { pct: realizedPct != null ? f.pct(realizedPct) : "—" }) },
-          { icon: <Layers size={14} aria-hidden />, label: t("overview.openPositions"), value: o.openPositions != null ? `${o.openPositions} / ${o.openPositionsCap}` : "—", hint: t("overview.openHint", { amount_lamports: o.inPositionsSol != null ? f.amount(o.inPositionsSol) : "—", unreal: o.unrealizedPnlSol != null ? f.sol(o.unrealizedPnlSol, { sign: true }) : "—" }) },
+          { label: t("overview.cash"), value: f.sol(o.cashSol, { unit: false }), hint: t("overview.inPositions", { amount_lamports: o.inPositionsSol != null ? f.amount(o.inPositionsSol) : "—" }) },
+          { label: t("overview.realized"), value: <Pnl mode={mode} sol={o.realizedPnlSol} />, hint: t("overview.vsStart", { pct: realizedPct != null ? f.pct(realizedPct) : "—" }) },
+          { label: t("overview.openPositions"), value: o.openPositions != null ? `${o.openPositions} / ${o.openPositionsCap}` : "—", hint: t("overview.openHint", { amount_lamports: o.inPositionsSol != null ? f.amount(o.inPositionsSol) : "—", unreal: o.unrealizedPnlSol != null ? f.sol(o.unrealizedPnlSol, { sign: true, unit: false }) : "—" }) },
           {
-            icon: <Inbox size={14} aria-hidden />,
             label: t("overview.waiting"),
             value: f.int(o.pendingApprovals),
             tone: o.pendingApprovals ? "warning" : "neutral",
@@ -91,27 +92,26 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
           <Card
             title={t("overview.strategies")}
             action={
-              <Link href="/strategies/new" className="inline-flex h-9 items-center gap-1 rounded-md bg-brand-primary px-3 text-label font-medium text-text-onAccent hover:bg-brand-primaryHover">
-                <Plus size={14} /> {t("overview.newStrategy")}
+              <Link href="/strategies/new" className="inline-flex h-8 items-center gap-1 rounded-md bg-brand-primary px-2.5 text-label font-medium text-text-onAccent hover:bg-brand-primaryHover">
+                <Plus size={14} strokeWidth={1.75} /> {t("overview.newStrategy")}
               </Link>
             }
           >
             <Table<Strategy>
               rows={strategies.filter((s) => s.status !== "archived")}
               rowKey={(s) => s.id}
-              minWidth={820}
               mobile="cards"
               labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
               columns={[
-                { key: "name", header: t("overview.colName"), cell: (s) => <Link href={`/strategies/${s.id}/edit`} className="tap font-medium text-text-primary hover:underline">{s.name}</Link> },
-                { key: "mode", header: t.ux("strategy.mode.label"), mobile: "status", nowrap: true, cell: (s) => <StrategyModeChips mode={s.mode} realLocked={s.realLocked} realLockedReason={s.realLockedReason} short /> },
-                { key: "status", header: t("overview.colStatus"), mobile: "status", nowrap: true, cell: (s) => <StatusBadge status={s.status} /> },
-                { key: "ap", header: t("overview.colApproval"), mobile: "status", nowrap: true, cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
-                { key: "pnl", header: t("overview.colPnl"), numeric: true, mobile: "primary", cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} mode={s.mode} />) },
-                { key: "wr", header: t("overview.colWin"), numeric: true, cell: (s) => (s.trades ? f.pct((s.wins / s.trades) * 100, 0, false) : "—") },
-                { key: "dd", header: t("overview.colDd"), numeric: true, cell: (s) => (s.trades ? f.pct(-s.maxDrawdownPct) : "—") },
-                { key: "hold", header: t("overview.colHold"), numeric: true, cell: (s) => (s.trades ? f.duration(s.avgHoldSeconds) : "—") },
-                { key: "spark", header: <span className="sr-only">{t("overview.colTrend")}</span>, align: "right", cell: (s) => <Sparkline values={s.pnlSpark} label={t("overview.trend", { name: s.name })} /> },
+                { key: "name", header: t("overview.colName"), nowrap: true, width: "18%", cell: (s) => <Link href={`/strategies/${s.id}/edit`} className="tap block truncate font-medium text-text-primary hover:underline" title={s.name}>{s.name}</Link> },
+                { key: "mode", header: t.ux("strategy.mode.label"), headerWrap: true, mobile: "status", nowrap: true, width: "12%", cell: (s) => <StrategyModeChips mode={s.mode} realLocked={s.realLocked} realLockedReason={s.realLockedReason} short /> },
+                { key: "status", header: t("overview.colStatus"), mobile: "status", nowrap: true, width: "11%", cell: (s) => <StatusBadge status={s.status} /> },
+                { key: "ap", header: t("overview.colApproval"), headerWrap: true, mobile: "status", nowrap: true, width: "13%", cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
+                { key: "pnl", header: `${t("overview.colPnl")} · ${unit}`, headerWrap: true, numeric: true, mobile: "primary", width: "12%", cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} mode={s.mode} />) },
+                { key: "wr", header: t("overview.colWin"), numeric: true, width: "8%", cell: (s) => (s.trades ? f.pct((s.wins / s.trades) * 100, 0, false) : "—") },
+                { key: "dd", header: t("overview.colDd"), numeric: true, width: "8%", cell: (s) => (s.trades ? f.pct(-s.maxDrawdownPct) : "—") },
+                { key: "hold", header: t("overview.colHold"), headerWrap: true, numeric: true, width: "9%", cell: (s) => (s.trades ? f.duration(s.avgHoldSeconds) : "—") },
+                { key: "spark", header: <span className="sr-only">{t("overview.colTrend")}</span>, align: "right", nowrap: true, width: "9%", cell: (s) => <Sparkline values={s.pnlSpark} width={64} label={t("overview.trend", { name: s.name })} /> },
               ]}
             />
             <p className="mt-3 text-caption text-text-tertiary">{t("overview.approvalNote")}</p>
@@ -168,7 +168,7 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
 
 export default function OverviewPage({ searchParams }: PageProps<"/">) {
   return (
-    <Suspense fallback={<div className="h-96 animate-pulse rounded-lg bg-bg-surface" />}>
+    <Suspense fallback={<PageSkeleton variant="dashboard" />}>
       <Overview searchParams={searchParams} />
     </Suspense>
   );

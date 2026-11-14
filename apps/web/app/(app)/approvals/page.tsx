@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { getApi } from "@/lib/api";
 import { acrossModes, listAllStrategies, modesOf } from "@/lib/mode";
 import { PageHeader } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { ApprovalQueue } from "@/components/approvals/ApprovalQueue";
 import { getT } from "@/lib/i18n/server";
 
@@ -31,7 +32,7 @@ async function Queue({ searchParams }: { searchParams: Promise<{ focus?: string 
 
 export default function ApprovalsPage({ searchParams }: PageProps<"/approvals">) {
   return (
-    <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-bg-surface" />}>
+    <Suspense fallback={<PageSkeleton variant="list" />}>
       <Queue searchParams={searchParams as Promise<{ focus?: string | string[] }>} />
     </Suspense>
   );

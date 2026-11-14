@@ -109,7 +109,7 @@ export function ActivityFeed({ initial, strategyNames, modes, hasMore: initialHa
               render={(i) => {
                 const it = flat[i];
                 return it.kind === "day" ? (
-                  <h3 key={it.key} className="flex items-baseline justify-between bg-bg-surface px-0 py-1.5 text-overline uppercase text-text-tertiary">
+                  <h3 key={it.key} className="flex items-baseline justify-between bg-bg-surface px-0 py-1.5 text-caption text-text-tertiary">
                     <span>{dayLabel(it.key, it.ts)}</span>
                     <span className="num normal-case">{t("activity.dayCount", { n: it.n })}</span>
                   </h3>
@@ -121,7 +121,7 @@ export function ActivityFeed({ initial, strategyNames, modes, hasMore: initialHa
           ) : (
             groups.map((g) => (
               <Fragment key={g.key}>
-                <h3 className="sticky top-22 z-10 -mx-4 flex items-baseline justify-between border-y border-border-subtle bg-bg-surface/95 px-4 py-1.5 text-overline uppercase text-text-tertiary backdrop-blur">
+                <h3 className="sticky top-[var(--shell-top)] z-10 -mx-4 flex items-baseline justify-between border-y border-border-subtle bg-bg-surface px-4 py-1.5 text-caption text-text-tertiary">
                   <span>{dayLabel(g.key, g.ts)}</span>
                   <span className="num normal-case">{t("activity.dayCount", { n: g.items.length })}</span>
                 </h3>

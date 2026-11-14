@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getApi } from "@/lib/api";
 import { acrossModes, listAllStrategies, modesOf } from "@/lib/mode";
 import { PageHeader } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { getT } from "@/lib/i18n/server";
 
@@ -25,7 +26,7 @@ async function Feed() {
 export default function ActivityPage() {
   return (
     <>
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-lg bg-bg-surface" />}>
+      <Suspense fallback={<PageSkeleton variant="list" />}>
         <Feed />
       </Suspense>
     </>

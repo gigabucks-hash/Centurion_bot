@@ -26,7 +26,7 @@ export function Button({ variant = "secondary", size = "md", loading, className,
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(
-        "inline-flex select-none items-center justify-center gap-1.5 rounded-md font-medium transition duration-fast ease-standard disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex select-none items-center justify-center gap-1.5 rounded-md font-medium transition duration-fast ease-standard hover:brightness-[1.03] disabled:cursor-not-allowed disabled:opacity-50",
         variants[variant],
         sizes[size],
         className,

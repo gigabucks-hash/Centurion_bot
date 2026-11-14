@@ -6,8 +6,9 @@
  * `theme(static)` keeps every token variable in the output so JS (canvas charts via
  * lib/theme.ts readToken) can read tokens that no utility happens to use.
  *
- * Below are web-only EXTENSIONS (no colour values): font binding to next/font, the
- * [data-mode] alias fix, and a few utilities the package doesn't ship.
+ * Below are web-only EXTENSIONS: font binding, the [data-mode] alias fix, and the
+ * terminal palette (zinc surfaces, one gold accent). Utilities read the CSS variables,
+ * so these overrides retheme the app without editing the generated package.
  */
 @import "@centurion/design-tokens/tailwind.theme.css" theme(static);
 
@@ -21,34 +22,138 @@
  * design-tokens 0.3.4 (G1-blue v2) adds bg.chrome, scrim.sheet, shadow.card, shadow.dialog and semantic.onWarning.
  * They arrive through the @import above as --color-bg-chrome, --color-scrim-sheet, --shadow-card, --shadow-dialog,
  * --color-semantic-onWarning (utilities bg-bg-chrome, bg-scrim-sheet, shadow-card, shadow-dialog,
- * text-semantic-onWarning). Adopted (pending Boss sign-off on G1-blue): sidebar + bottom tab bar = bg-bg-chrome,
- * sheet/dialog scrim = bg-scrim-sheet (alpha is baked into the token, do not add opacity), dialogs and the "more"
- * sheet = shadow-dialog, cards/stat tiles = shadow-card (dark = none, light = 0 1px 2px rgba(15,20,32,.06)).
- * semantic.onWarning has no consumer yet: web has no solid warning/guard fill that carries text or a glyph.
+ * text-semantic-onWarning). Sidebar + bottom tab bar = bg-bg-chrome, sheet/dialog scrim = bg-scrim-sheet
+ * (alpha is baked into the token, do not add opacity), dialogs and the "more" sheet = shadow-dialog.
+ * Cards use a 1px border and no glow (shadow-card is none in both themes).
  * Coin logo / identicon tokens used by components/CoinAvatar.tsx: --color-identicon-0..11, --color-identicon-fg,
  * --coin-logo-ring, --coin-logo-not-tradeable-opacity, --color-skeleton-base.
  */
 
-[data-theme="dark"] { color-scheme: dark; }
-[data-theme="light"] { color-scheme: light; }
-
-/* Atmosphere uses only existing tokens, so both themes stay inside the contrast set. */
-body {
-  background-image:
-    radial-gradient(900px 420px at 100% -10%, color-mix(in srgb, var(--color-brand-primary) 14%, transparent), transparent 60%),
-    radial-gradient(700px 360px at -10% 0%, color-mix(in srgb, var(--color-mode-practice) 10%, transparent), transparent 55%);
-  background-attachment: fixed;
+:root {
+  --shell-top: 4.75rem;
 }
 
-.page-hero {
-  background:
-    linear-gradient(105deg, var(--color-bg-surface) 0%, color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface)) 100%);
+/* Terminal palette. Gold is the logo metal (#E0C36A / #6E5216). Green and red are PnL only. */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg-canvas: #09090b;
+  --color-bg-surface: #111113;
+  --color-bg-raised: #18181b;
+  --color-bg-overlay: #1c1c1f;
+  --color-bg-sunken: #070708;
+  --color-bg-chrome: #0c0c0e;
+  --color-border-subtle: #27272a;
+  --color-border-default: #3f3f46;
+  --color-border-strong: #52525b;
+  --color-border-focus: #e0c36a;
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-tertiary: #94949e;
+  --color-text-disabled: #52525b;
+  --color-text-onAccent: #1a1408;
+  --color-brand-primary: #e0c36a;
+  --color-brand-primaryHover: #ebd48a;
+  --color-brand-primaryPressed: #c6a24e;
+  --color-brand-primaryContainer: #2a2418;
+  --color-brand-onPrimaryContainer: #f3e6c4;
+  --color-semantic-profit: #3dbe7a;
+  --color-semantic-profitContainer: #10261a;
+  --color-semantic-loss: #f07178;
+  --color-semantic-lossContainer: #2c1518;
+  --color-semantic-warning: #f0a05a;
+  --color-semantic-warningContainer: #2a220e;
+  --color-semantic-onWarning: #1a1408;
+  --color-semantic-guard: #e08a3c;
+  --color-semantic-guardContainer: #2a1c10;
+  --color-semantic-info: #a1a1aa;
+  --color-semantic-infoContainer: #1c1c1f;
+  --color-semantic-neutralPnl: #a1a1aa;
+  --color-mode-practice: #a1a1aa;
+  --color-mode-practiceContainer: #18181b;
+  --color-mode-practiceStripe: #27272a;
+  --color-mode-onPracticeContainer: #e4e4e7;
+  --color-mode-onPractice: #09090b;
+  --color-mode-real: #f07178;
+  --color-mode-realContainer: #2c1518;
+  --color-mode-onReal: #1a1408;
+  --color-inverse-surface: #fafafa;
+  --color-inverse-onSurface: #18181b;
+  --color-inverse-primary: #6e5216;
+  --color-skeleton-base: #27272a;
+  --color-skeleton-highlight: #3f3f46;
+  --shadow-card: none;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --color-bg-canvas: #f4f4f5;
+  --color-bg-surface: #ffffff;
+  --color-bg-raised: #fafafa;
+  --color-bg-overlay: #ffffff;
+  --color-bg-sunken: #f4f4f5;
+  --color-bg-chrome: #f7f7f8;
+  --color-border-subtle: #e4e4e7;
+  --color-border-default: #d4d4d8;
+  --color-border-strong: #71717a;
+  --color-border-focus: #6e5216;
+  --color-text-primary: #18181b;
+  --color-text-secondary: #3f3f46;
+  --color-text-tertiary: #52525b;
+  --color-text-disabled: #71717a;
+  --color-text-onAccent: #ffffff;
+  --color-brand-primary: #6e5216;
+  --color-brand-primaryHover: #5c430e;
+  --color-brand-primaryPressed: #3f2e0a;
+  --color-brand-primaryContainer: #f6f0e4;
+  --color-brand-onPrimaryContainer: #5c4310;
+  --color-semantic-profit: #067a4b;
+  --color-semantic-profitContainer: #e5f6ee;
+  --color-semantic-loss: #c0262d;
+  --color-semantic-lossContainer: #fdecec;
+  --color-semantic-warning: #9a4a12;
+  --color-semantic-warningContainer: #fbf0d5;
+  --color-semantic-onWarning: #ffffff;
+  --color-semantic-guard: #9a4a12;
+  --color-semantic-guardContainer: #fbf0d5;
+  --color-semantic-info: #3f3f46;
+  --color-semantic-infoContainer: #f4f4f5;
+  --color-semantic-neutralPnl: #3f3f46;
+  --color-mode-practice: #3f3f46;
+  --color-mode-practiceContainer: #f4f4f5;
+  --color-mode-practiceStripe: #e4e4e7;
+  --color-mode-onPracticeContainer: #18181b;
+  --color-mode-onPractice: #ffffff;
+  --color-mode-real: #c0262d;
+  --color-mode-realContainer: #fdecec;
+  --color-mode-onReal: #ffffff;
+  --color-inverse-surface: #18181b;
+  --color-inverse-onSurface: #fafafa;
+  --color-inverse-primary: #e0c36a;
+  --color-scrim-sheet: #18181b99;
+  --color-skeleton-base: #e4e4e7;
+  --color-skeleton-highlight: #f4f4f5;
+  --coin-logo-ring: rgba(24, 24, 27, 0.1);
+  --shadow-card: none;
+  --shadow-dialog: 0 12px 32px 0px rgba(24, 24, 27, 0.12);
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+}
+
+body {
+  background-image: none;
 }
 
 .chrome-bar {
-  background: color-mix(in srgb, var(--color-bg-surface) 86%, transparent);
-  backdrop-filter: blur(16px);
-  border-bottom-color: color-mix(in srgb, #e0be62 50%, var(--color-border-subtle));
+  background: var(--color-bg-chrome);
 }
 
 .brand-wordmark { display: inline-flex; align-items: center; line-height: 0; }
@@ -57,9 +162,9 @@ body {
 [data-theme="light"] .brand-wordmark-dark { display: none; }
 [data-theme="light"] .brand-wordmark-light { display: block; }
 
-/* Logo gold. Checked against canvas/surface: dark #E7C56A is about 11:1, light #7A4E12 is about 6.7:1. */
-.logo-kicker { color: #e7c56a; }
-[data-theme="light"] .logo-kicker { color: #7a4e12; }
+/* Logo gold. Dark #E0C36A on canvas is about 11:1. Light #6E5216 on white is about 7.3:1. */
+.logo-kicker { color: #e0c36a; }
+[data-theme="light"] .logo-kicker { color: #6e5216; }
 
 /*
  * The package declares --color-mode-accent: var(--mode-accent, …) on :root, where it is
@@ -84,10 +189,29 @@ body {
 @utility min-h-tap-touch { min-height: var(--spacing-control-lg); }
 @utility min-w-tap-touch { min-width: var(--spacing-control-lg); }
 
-/* Numbers: always tabular mono */
-@utility num { font-family: var(--font-mono); font-variant-numeric: tabular-nums slashed-zero; }
+/* Numbers: sans, tabular. Mono is reserved for addresses and hashes (font-mono). */
+@utility num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
-/* Practice banner pattern (diagonal stripes, so mode is not conveyed by colour alone) */
+/* Filter control shared by coins, strategies and presets. */
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-subtle);
+  padding-inline: 0.625rem;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-secondary);
+  background: transparent;
+}
+@utility chip-on {
+  border-color: var(--color-border-default);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+}
+
+/* Kept so older class names do not paint diagonal stripes. */
 @utility stripes-practice {
-  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-mode-practice) 22%, transparent) 0 6px, transparent 6px 14px);
+  background-image: none;
 }

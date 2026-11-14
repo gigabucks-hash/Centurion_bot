@@ -16,6 +16,8 @@ export interface Column<T> {
   /** Mobile card list (MOBILE_TABLES.md): "primary" = right of row 1, "status" = row 2, default = inside expand. */
   mobile?: "primary" | "status";
   className?: string;
+  /** Share of the table when the row must fit without clipping the last column (e.g. "16%"). */
+  width?: string;
 }
 
 /**
@@ -75,14 +77,19 @@ export function Table<T>({ columns, rows, rowKey, empty, minWidth = 560, mobile 
           ))}
         </ul>
       )}
-      <div className={cn(mobile === "cards" && "hidden sm:block")}>
+      <div className={cn("min-w-0", mobile === "cards" && "hidden sm:block")}>
         {labels && <p className="mb-1 text-caption text-text-tertiary sm:hidden">{labels.scrollHint} →</p>}
-        <div className="relative -mx-4 overflow-x-auto [mask-image:linear-gradient(to_right,black_92%,transparent)] sm:[mask-image:none]">
-          <table className="w-full text-body" style={{ minWidth }}>
-            <thead className="sticky top-0 bg-bg-surface">
-              <tr className="border-b border-border-subtle text-label text-text-tertiary">
+        <div className="overflow-x-auto">
+          <table className={cn("w-full text-body", columns.some((c) => c.width) && "table-fixed")} style={{ minWidth: columns.some((c) => c.width) ? undefined : minWidth }}>
+            {columns.some((c) => c.width) && (
+              <colgroup>
+                {columns.map((c) => <col key={c.key} style={{ width: c.width }} />)}
+              </colgroup>
+            )}
+            <thead>
+              <tr className="text-caption text-text-tertiary">
                 {columns.map((c, i) => (
-                  <th key={c.key} scope="col" className={cn(dense ? "px-1.5" : "px-4", "py-2 font-medium", align(c), c.headerWrap ? "whitespace-normal" : (c.numeric || c.nowrap) && "whitespace-nowrap", i === 0 && "sticky left-0 z-10 bg-bg-surface shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:static sm:shadow-none", c.className)}>
+                  <th key={c.key} scope="col" className={cn(dense ? "px-2" : "px-3", "sticky top-0 z-20 border-b border-border-subtle bg-bg-surface py-2 font-medium", align(c), c.headerWrap ? "whitespace-normal" : "whitespace-nowrap", i === 0 && "left-0 z-30 sm:static", c.className)}>
                     {c.header}
                   </th>
                 ))}
@@ -90,17 +97,17 @@ export function Table<T>({ columns, rows, rowKey, empty, minWidth = 560, mobile 
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={rowKey(r)} className="h-[52px] border-b border-border-subtle last:border-0 hover:bg-bg-raised">
+                <tr key={rowKey(r)} className="group h-11 hover:bg-bg-raised">
                   {columns.map((c, i) => (
                     <td
                       key={c.key}
                       className={cn(
-                        dense ? "px-1.5" : "px-4",
-                        "py-3",
+                        dense ? "px-2" : "px-3",
+                        "border-b border-border-subtle py-2 align-middle",
                         align(c),
-                        c.numeric && "num text-numSm tabular-nums",
+                        c.numeric && "num text-numSm",
                         (c.numeric || c.nowrap) && "whitespace-nowrap",
-                        i === 0 && "sticky left-0 z-10 bg-bg-surface shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:static sm:shadow-none",
+                        i === 0 && "sticky left-0 z-10 bg-bg-surface group-hover:bg-bg-raised sm:static",
                         c.className,
                       )}
                     >

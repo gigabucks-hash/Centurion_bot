@@ -34,8 +34,8 @@ export function McpPanel() {
   }
 
   return (
-    <section data-testid="mcp-panel" className="rounded-lg border border-border-default bg-bg-surface p-4 lg:col-span-2">
-      <h2 className="flex items-center gap-2 text-titleSm"><Bot size={16} aria-hidden /> {t("mcp.title")}</h2>
+    <section data-testid="mcp-panel" className="rounded-md border border-border-subtle bg-bg-surface p-4 lg:col-span-2">
+      <h2 className="flex items-center gap-2 text-[15px] font-medium"><Bot size={16} strokeWidth={1.75} aria-hidden /> {t("mcp.title")}</h2>
       <p className="mt-2 text-body text-text-secondary">{t("mcp.body")}</p>
       <p className="mt-2 text-caption text-text-tertiary">{t("mcp.tokenHint")}</p>
       <div className="mt-3 flex items-center gap-3">
@@ -47,7 +47,7 @@ export function McpPanel() {
         <ul className="mt-2 max-h-48 overflow-auto text-caption">
           {audit.map((row) => (
             <li key={`${row.at}-${row.tool}`} className="flex justify-between gap-3 border-t border-border-subtle py-1">
-              <span className="num">{row.tool}</span>
+              <span className="font-mono">{row.tool}</span>
               <span className={row.ok ? "text-semantic-profit" : "text-semantic-loss"}>{row.code}</span>
               <span className="num text-text-tertiary">{row.at.slice(11, 19)}</span>
             </li>

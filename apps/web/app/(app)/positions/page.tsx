@@ -5,6 +5,7 @@ import { getApi } from "@/lib/api";
 import { listAllStrategies, modesOf } from "@/lib/mode";
 import { safeSymbol } from "@/lib/untrusted";
 import { PageHeader } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { PositionsBoard } from "@/components/positions/PositionsBoard";
 import { getT } from "@/lib/i18n/server";
 
@@ -27,7 +28,7 @@ async function Body() {
 
 export default function PositionsPage() {
   return (
-    <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-bg-surface" />}>
+    <Suspense fallback={<PageSkeleton variant="table" />}>
       <Body />
     </Suspense>
   );

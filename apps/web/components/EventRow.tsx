@@ -22,7 +22,7 @@ export const EventRow = memo(function EventRow({ e, strategyName, fresh, as: Tag
       <span className="num pt-0.5 text-numSm text-text-tertiary">{f.time(e.ts)}</span>
       <span className={cn("mt-1.5 h-2.5 w-2.5 rounded-full", m.dot)} aria-hidden />
       <span className="min-w-0">
-        <span className="flex flex-wrap items-center gap-x-2 text-overline uppercase tracking-wide text-text-tertiary">
+        <span className="flex flex-wrap items-center gap-x-2 text-caption text-text-tertiary">
           <span>{t(`actor.${e.actor}`)} · {t(`kind.${e.kind}`)}</span>
           {/* Per-strategy mode: every feed row says which mode its strategy runs in. */}
           <ModeBadge mode={mode} className="px-1.5 py-0 text-[10px] leading-4" />

@@ -34,7 +34,7 @@ export function Dialog({ open, onClose, title, children, accent, labelledBy = "d
     };
   }, [open, onClose, initialFocusRef]);
   if (!open) return null;
-  const bar = { real: "bg-mode-real", practice: "bg-mode-practice stripes-practice", warning: "bg-semantic-warning" };
+  const bar = { real: "bg-semantic-loss", practice: "bg-border-strong", warning: "bg-semantic-warning" };
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
       <button aria-label={t("common.closeDialog")} className="absolute inset-0 bg-scrim-sheet" onClick={onClose} tabIndex={-1} />

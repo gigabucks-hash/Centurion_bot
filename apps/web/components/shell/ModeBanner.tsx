@@ -3,9 +3,8 @@ import { cn } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 
 /**
- * Persistent, non-dismissable mode strip (SPEC §1). Per-strategy mode (contracts 1.1.6): while every strategy runs in
- * Paper it is the same Paper strip as before; once any strategy runs in Real it switches to the Real treatment with
- * the "{real_count} Real · {paper_count} Paper" summary so Real is never out of sight.
+ * Persistent, non-dismissable mode strip (SPEC §1). One line, no pattern fill. While every strategy runs in
+ * Paper it is the Paper line; once any strategy runs in Real the line names both counts so Real stays visible.
  */
 export function ModeBanner({ realCount, paperCount }: { realCount: number; paperCount: number }) {
   const t = useT();
@@ -14,13 +13,20 @@ export function ModeBanner({ realCount, paperCount }: { realCount: number; paper
     <div
       role="status"
       className={cn(
-        "flex h-8 items-center px-4 text-label font-semibold",
-        real ? "bg-mode-real text-mode-onReal" : "stripes-practice bg-mode-practiceContainer text-mode-practice",
+        "flex h-7 items-center gap-3 border-b px-4 text-caption",
+        real ? "border-semantic-loss bg-bg-chrome text-semantic-loss" : "border-border-subtle bg-bg-chrome text-text-secondary",
       )}
     >
-      {real ? <span>● {t.ux("strategy.list.summary", { real_count: realCount, paper_count: paperCount })}</span> : <span>{t("mode.bannerPractice")}</span>}
-      {/* UX G8 §3.11: honesty marker, always in the first viewport. text.tertiary on bg.sunken = 5.06 light / 7.04 dark. */}
-      <span data-testid="example-data" className="ml-auto shrink-0 rounded-full border border-dashed border-border-default bg-bg-sunken px-2 py-0.5 text-overline uppercase tracking-wide text-text-tertiary">
+      {real ? (
+        <span className="inline-flex min-w-0 items-center gap-2 font-medium">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-semantic-loss" aria-hidden />
+          <span className="truncate">{t.ux("strategy.list.summary", { real_count: realCount, paper_count: paperCount })}</span>
+        </span>
+      ) : (
+        <span className="truncate">{t("mode.bannerPractice")}</span>
+      )}
+      {/* UX G8 §3.11: honesty marker, always in the first viewport. */}
+      <span data-testid="example-data" className="ml-auto shrink-0 text-caption text-text-tertiary">
         {t("common.exampleData")}
       </span>
     </div>
