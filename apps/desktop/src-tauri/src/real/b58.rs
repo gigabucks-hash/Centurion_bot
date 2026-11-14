@@ -26,7 +26,6 @@ pub fn decode(s: &str) -> Result<Vec<u8>, ()> {
     Ok(out)
 }
 
-#[cfg(test)]
 pub fn encode(bytes: &[u8]) -> String {
     let zeros = bytes.iter().take_while(|b| **b == 0).count();
     let mut digits: Vec<u8> = Vec::new();

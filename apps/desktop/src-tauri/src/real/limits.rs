@@ -86,6 +86,14 @@ pub enum ChangeKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Spend {
+    pub at_ms: u64,
+    pub lamports: u64,
+    pub mint: String,
+    pub open: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RealBook {
     pub enabled: bool,
     pub wallet: String,
@@ -95,6 +103,22 @@ pub struct RealBook {
     pub buys_paused: bool,
     /// Strategy ids the owner marked for Real. Paper strategies are not in this set.
     pub real_strategies: Vec<String>,
+    /// Nonce inside the enable message that was signed. Empty while Real is off.
+    #[serde(default)]
+    pub enable_nonce: String,
+    /// Public signature of that enable message. Never a private key.
+    #[serde(default)]
+    pub enable_signature: String,
+    #[serde(default)]
+    pub pending_enable_nonce: String,
+    #[serde(default)]
+    pub pending_limits_nonce: String,
+    /// Signatures already accepted. A replay of one of them is refused.
+    #[serde(default)]
+    pub used_signatures: Vec<String>,
+    /// SOL buys this book has recorded. Caps are computed from this, not from the window.
+    #[serde(default)]
+    pub spends: Vec<Spend>,
 }
 
 impl Default for RealBook {
@@ -107,6 +131,12 @@ impl Default for RealBook {
             strategies: BTreeMap::new(),
             buys_paused: false,
             real_strategies: Vec::new(),
+            enable_nonce: String::new(),
+            enable_signature: String::new(),
+            pending_enable_nonce: String::new(),
+            pending_limits_nonce: String::new(),
+            used_signatures: Vec::new(),
+            spends: Vec::new(),
         }
     }
 }
@@ -347,7 +377,7 @@ fn kind_word(k: ChangeKind) -> &'static str {
     }
 }
 
-pub fn limits_message(wallet: &str, scope: &str, old: &Knobs, new: &Knobs) -> String {
+pub fn limits_message(wallet: &str, scope: &str, old: &Knobs, new: &Knobs, nonce: &str) -> String {
     let kind = change_kind(old, new);
     format!(
         "Centurion Trade\naction: set-real-limits\nwallet: {wallet}\nscope: {scope}\n\
@@ -363,7 +393,8 @@ trail_pct: {r0} -> {r1}\n\
 max_hold_minutes: {h0} -> {h1}\n\
 take_profits: {a0} -> {a1}\n\
 filters: {b0} -> {b1}\n\
-kind: {kind}\n",
+kind: {kind}\n\
+nonce: {nonce}\n",
         t0 = old.trade_lamports,
         t1 = new.trade_lamports,
         d0 = old.daily_lamports,
@@ -389,11 +420,25 @@ kind: {kind}\n",
         b0 = filters_text(&old.filters),
         b1 = filters_text(&new.filters),
         kind = kind_word(kind),
+        nonce = nonce,
     )
 }
 
-pub fn enable_message(wallet: &str) -> String {
-    format!("Centurion Trade\naction: enable-real\nwallet: {wallet}\n")
+pub fn nonce_ok(nonce: &str) -> bool {
+    nonce.len() == 32
+        && nonce
+            .bytes()
+            .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+pub fn new_nonce() -> Result<String, LimitError> {
+    let mut raw = [0u8; 16];
+    getrandom::fill(&mut raw).map_err(|_| LimitError::Invalid)?;
+    Ok(raw.iter().map(|b| format!("{b:02x}")).collect())
+}
+
+pub fn enable_message(wallet: &str, nonce: &str) -> String {
+    format!("Centurion Trade\naction: enable-real\nwallet: {wallet}\nnonce: {nonce}\n")
 }
 
 pub fn verify_wallet(wallet: &str, message: &str, signature_b58: &str) -> Result<(), LimitError> {
@@ -473,11 +518,118 @@ impl RealBook {
             .unwrap_or_else(|| self.global.clone())
     }
 
+    pub fn arm_enable(&mut self, wallet: &str) -> Result<String, LimitError> {
+        if b58::decode_exact::<32>(wallet).is_err() {
+            return Err(LimitError::Invalid);
+        }
+        let nonce = new_nonce()?;
+        let message = enable_message(wallet, &nonce);
+        self.pending_enable_nonce = nonce;
+        Ok(message)
+    }
+
+    fn remember(&mut self, signature: &str) -> Result<(), LimitError> {
+        if self.used_signatures.iter().any(|s| s == signature) {
+            return Err(LimitError::BadSignature);
+        }
+        self.used_signatures.push(signature.to_owned());
+        if self.used_signatures.len() > 32 {
+            self.used_signatures.remove(0);
+        }
+        Ok(())
+    }
+
     pub fn enable(&mut self, wallet: &str, signature_b58: &str) -> Result<(), LimitError> {
-        check_sig(wallet, &enable_message(wallet), signature_b58)?;
+        if !nonce_ok(&self.pending_enable_nonce) {
+            return Err(LimitError::NeedsSignature);
+        }
+        let nonce = self.pending_enable_nonce.clone();
+        check_sig(wallet, &enable_message(wallet, &nonce), signature_b58)?;
+        self.remember(signature_b58)?;
+        self.enable_nonce = nonce;
+        self.enable_signature = signature_b58.to_owned();
+        self.pending_enable_nonce.clear();
         self.wallet = wallet.to_owned();
         self.enabled = true;
         Ok(())
+    }
+
+    pub fn signature_still_enables(&self) -> bool {
+        self.enabled
+            && nonce_ok(&self.enable_nonce)
+            && !self.enable_signature.is_empty()
+            && check_sig(
+                &self.wallet,
+                &enable_message(&self.wallet, &self.enable_nonce),
+                &self.enable_signature,
+            )
+            .is_ok()
+    }
+
+    pub fn arm_limits(&mut self, scope: &str, new: &Knobs) -> Result<String, LimitError> {
+        if !self.enabled || self.wallet.is_empty() {
+            return Err(LimitError::NeedsSignature);
+        }
+        validate(new)?;
+        let old = self.scope_knobs(scope)?;
+        let nonce = new_nonce()?;
+        let message = limits_message(&self.wallet, scope, &old, new, &nonce);
+        self.pending_limits_nonce = nonce;
+        Ok(message)
+    }
+
+    fn scope_knobs(&self, scope: &str) -> Result<Knobs, LimitError> {
+        if scope == "global" {
+            return Ok(self.global.clone());
+        }
+        let id = scope.strip_prefix("strategy:").ok_or(LimitError::Invalid)?;
+        if id.is_empty() {
+            return Err(LimitError::Invalid);
+        }
+        Ok(self
+            .strategies
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| self.global.clone()))
+    }
+
+    pub fn note_buy(&mut self, now_ms: u64, lamports: u64, mint: &str) {
+        self.spends.push(Spend {
+            at_ms: now_ms,
+            lamports,
+            mint: mint.to_owned(),
+            open: true,
+        });
+    }
+
+    pub fn note_sell(&mut self, mint: &str) {
+        if let Some(row) = self
+            .spends
+            .iter_mut()
+            .rev()
+            .find(|s| s.open && s.mint == mint)
+        {
+            row.open = false;
+        }
+    }
+
+    pub fn spent_today(&self, now_ms: u64) -> u64 {
+        let day = now_ms.saturating_sub(now_ms % 86_400_000);
+        self.spends
+            .iter()
+            .filter(|s| s.at_ms >= day)
+            .fold(0u64, |sum, s| sum.saturating_add(s.lamports))
+    }
+
+    pub fn capital_used(&self) -> u64 {
+        self.spends
+            .iter()
+            .filter(|s| s.open)
+            .fold(0u64, |sum, s| sum.saturating_add(s.lamports))
+    }
+
+    pub fn open_count(&self) -> u32 {
+        self.spends.iter().filter(|s| s.open).count() as u32
     }
 
     pub fn apply(
@@ -487,26 +639,17 @@ impl RealBook {
         signature_b58: Option<&str>,
     ) -> Result<ChangeKind, LimitError> {
         validate(&new)?;
-        let old = if scope == "global" {
-            self.global.clone()
-        } else {
-            let id = scope.strip_prefix("strategy:").ok_or(LimitError::Invalid)?;
-            if id.is_empty() {
-                return Err(LimitError::Invalid);
-            }
-            self.strategies
-                .get(id)
-                .cloned()
-                .unwrap_or_else(|| self.global.clone())
-        };
+        let old = self.scope_knobs(scope)?;
         let kind = change_kind(&old, &new);
         if kind == ChangeKind::Loosen {
             let sig = signature_b58.ok_or(LimitError::NeedsSignature)?;
-            if self.wallet.is_empty() {
+            if self.wallet.is_empty() || !nonce_ok(&self.pending_limits_nonce) {
                 return Err(LimitError::NeedsSignature);
             }
-            let msg = limits_message(&self.wallet, scope, &old, &new);
+            let msg = limits_message(&self.wallet, scope, &old, &new, &self.pending_limits_nonce);
             check_sig(&self.wallet, &msg, sig)?;
+            self.remember(sig)?;
+            self.pending_limits_nonce.clear();
         }
         if scope == "global" {
             self.global = new;
@@ -601,16 +744,44 @@ pub fn rpc_url_ok(url: &str) -> bool {
     {
         return false;
     }
-    let host = rest.split('/').next().unwrap_or("");
-    if host.is_empty()
+    let hostport = rest.split('/').next().unwrap_or("");
+    if hostport.is_empty()
         || rest.contains('/') && rest.split_once('/').is_some_and(|(_, p)| !p.is_empty())
     {
+        return false;
+    }
+    let host = host_only(hostport);
+    if host.is_empty() || blocked_literal(host) {
         return false;
     }
     if scheme == "https" {
         return true;
     }
-    scheme == "http" && (host.starts_with("127.0.0.1") || host.starts_with("localhost"))
+    scheme == "http" && (host == "127.0.0.1" || host == "localhost" || host == "::1")
+}
+
+fn host_only(hostport: &str) -> &str {
+    if let Some(rest) = hostport.strip_prefix('[') {
+        return rest.split(']').next().unwrap_or("");
+    }
+    hostport.split(':').next().unwrap_or(hostport)
+}
+
+/// IP literals that must not be an RPC target (metadata, unspecified, link-local, multicast).
+fn blocked_literal(host: &str) -> bool {
+    if let Ok(ip) = host.parse::<std::net::Ipv4Addr>() {
+        let o = ip.octets();
+        return o[0] == 0 || o[0] >= 224 || (o[0] == 169 && o[1] == 254);
+    }
+    if let Ok(ip) = host.parse::<std::net::Ipv6Addr>() {
+        if let Some(v4) = ip.to_ipv4_mapped() {
+            return blocked_literal(&v4.to_string());
+        }
+        let s = ip.segments();
+        let link_local = (s[0] & 0xffc0) == 0xfe80;
+        return ip.is_unspecified() || ip.is_multicast() || link_local;
+    }
+    false
 }
 
 #[cfg(test)]
@@ -661,11 +832,15 @@ mod tests {
     fn tighten_is_instant_and_loosen_needs_the_wallet() {
         let mut book = RealBook::default();
         let seed = [7u8; 32];
-        let msg = enable_message("placeholder");
-        let _ = msg;
-        let enable = enable_message_for(&seed);
+        let enable = enable_message_for(&mut book, &seed);
         book.enable(&enable.0, &enable.1).unwrap();
         assert!(book.enabled);
+        assert!(book.signature_still_enables());
+        assert_eq!(
+            book.enable(&enable.0, &enable.1),
+            Err(LimitError::NeedsSignature),
+            "the enable signature cannot be replayed"
+        );
 
         let mut tight = book.global.clone();
         tight.trade_lamports = 20_000_000;
@@ -682,24 +857,34 @@ mod tests {
             book.apply("global", loose.clone(), None),
             Err(LimitError::NeedsSignature)
         );
-        let msg = limits_message(&book.wallet, "global", &book.global, &loose);
+        let msg = book.arm_limits("global", &loose).unwrap();
         let sk = SigningKey::from_bytes(&seed);
         let sig = b58::encode(&sk.sign(msg.as_bytes()).to_bytes());
         assert_eq!(
-            book.apply("global", loose, Some(&sig)).unwrap(),
+            book.apply("global", loose.clone(), Some(&sig)).unwrap(),
             ChangeKind::Loosen
         );
         assert_eq!(book.global.trade_lamports, 1_000_000_000);
+        let mut back = book.global.clone();
+        back.trade_lamports = 20_000_000;
+        book.apply("global", back, None).unwrap();
+        assert_eq!(
+            book.apply("global", loose, Some(&sig)),
+            Err(LimitError::NeedsSignature),
+            "the loosen signature cannot be replayed"
+        );
+        assert_eq!(book.global.trade_lamports, 20_000_000);
 
         let stored = serde_json::to_string(&book).unwrap();
         assert!(!stored.to_lowercase().contains("private"));
         assert!(!stored.contains("secret"));
     }
 
-    fn enable_message_for(seed: &[u8; 32]) -> (String, String) {
+    fn enable_message_for(book: &mut RealBook, seed: &[u8; 32]) -> (String, String) {
         let sk = SigningKey::from_bytes(seed);
         let wallet = b58::encode(sk.verifying_key().as_bytes());
-        let sig = b58::encode(&sk.sign(enable_message(&wallet).as_bytes()).to_bytes());
+        let msg = book.arm_enable(&wallet).unwrap();
+        let sig = b58::encode(&sk.sign(msg.as_bytes()).to_bytes());
         (wallet, sig)
     }
 
@@ -707,7 +892,7 @@ mod tests {
     fn guard_risk_stop_and_caps_veto_buys_sells_still_pass() {
         let mut book = RealBook::default();
         assert_eq!(book.admit_buy(None, &blank()), Err(BuyRefuse::RealOff));
-        let (w, s) = enable_message_for(&[9u8; 32]);
+        let (w, s) = enable_message_for(&mut book, &[9u8; 32]);
         book.enable(&w, &s).unwrap();
         assert!(book.admit_buy(None, &blank()).is_ok());
         book.buys_paused = true;
@@ -733,12 +918,22 @@ mod tests {
         let old = Knobs::default();
         let mut new = old.clone();
         new.trade_lamports = 1_000_000_000;
-        let msg = limits_message("Wallet111", "global", &old, &new);
+        let nonce = "ab".repeat(16);
+        let msg = limits_message("Wallet111", "global", &old, &new, &nonce);
         assert!(msg.starts_with(
             "Centurion Trade\naction: set-real-limits\nwallet: Wallet111\nscope: global\n"
         ));
         assert!(msg.contains("trade_lamports: 50000000 -> 1000000000\n"));
         assert!(msg.contains("kind: loosen\n"));
+        assert!(msg.ends_with(&format!("nonce: {nonce}\n")));
+        assert_eq!(
+            enable_message("Wallet111", &nonce),
+            format!("Centurion Trade\naction: enable-real\nwallet: Wallet111\nnonce: {nonce}\n")
+        );
+        assert!(!rpc_url_ok("http://127.0.0.1.evil.com"));
+        assert!(!rpc_url_ok("https://169.254.169.254"));
+        assert!(rpc_url_ok("http://127.0.0.1:8899"));
+        assert!(rpc_url_ok("https://10.0.0.5"));
         assert!(msg.contains("take_profits: [{\"gain_pct\":100,\"sell_pct\":100}] -> [{\"gain_pct\":100,\"sell_pct\":100}]\n"));
     }
 

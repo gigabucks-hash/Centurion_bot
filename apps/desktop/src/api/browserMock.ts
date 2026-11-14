@@ -29,7 +29,7 @@ import type {
   Tone,
 } from "./contract";
 import { CONTRACTS_VERSION, EVT, type ApprovalRejectReason } from "./contract";
-import { DEFAULT_KNOBS, diffKnobs, fromWire, limitsMessage, toWire, type RealStatus, type WireKnobs } from "../real/limits";
+import { DEFAULT_KNOBS, diffKnobs, enableMessage, fromWire, limitsMessage, toWire, type RealStatus, type WireKnobs } from "../real/limits";
 let lastResetMs: number | null = null;
 let buysPaused = false;
 let realBook: RealStatus = {
@@ -480,11 +480,11 @@ export const browserMockAdapter: CoreApi = {
     return realBook;
   },
   async realEnableMessage(wallet) {
-    return `Centurion Trade\naction: enable-real\nwallet: ${wallet}\n`;
+    return enableMessage(wallet, "0".repeat(32));
   },
   async realLimitsMessage(scope, knobs: WireKnobs) {
     const old = fromWire(scope.startsWith("strategy:") ? realBook.strategies[scope.slice(9)] ?? realBook.global : realBook.global);
-    return limitsMessage(realBook.wallet || "wallet", scope, old, fromWire(knobs));
+    return limitsMessage(realBook.wallet || "wallet", scope, old, fromWire(knobs), "0".repeat(32));
   },
   async realEnable() {
     throw new Error("Sign with your wallet in the installed Centurion Trade app. This preview does not enable mainnet trading.");

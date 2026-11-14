@@ -974,10 +974,14 @@ fn real_path() -> Option<std::path::PathBuf> {
 }
 
 fn load_real_book() -> crate::real::RealBook {
-    real_path()
+    let mut book: crate::real::RealBook = real_path()
         .and_then(|p| std::fs::read_to_string(p).ok())
         .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    if book.enabled && !book.signature_still_enables() {
+        book.enabled = false;
+    }
+    book
 }
 
 fn save_real_book(book: &crate::real::RealBook) -> Result<(), String> {
@@ -1014,35 +1018,26 @@ pub fn real_status() -> crate::real::RealBook {
     real_book().lock().map(|b| b.clone()).unwrap_or_default()
 }
 
-/// The exact enable message the wallet must sign.
+/// The exact enable message the wallet must sign. A fresh nonce is stored so the signature cannot be replayed.
 #[tauri::command]
-pub fn real_enable_message(wallet: String) -> String {
-    crate::real::enable_message(wallet.trim())
+pub fn real_enable_message(wallet: String) -> AppResult<String> {
+    let mut book = real_book()
+        .lock()
+        .map_err(|_| AppError::Invalid("real book".into()))?;
+    let msg = book.arm_enable(wallet.trim()).map_err(book_err)?;
+    save_real_book(&book).map_err(AppError::Invalid)?;
+    Ok(msg)
 }
 
 /// The exact limits message the wallet must sign before a looser setting is stored.
 #[tauri::command]
 pub fn real_limits_message(scope: String, knobs: crate::real::Knobs) -> Result<String, AppError> {
-    let book = real_book()
+    let mut book = real_book()
         .lock()
         .map_err(|_| AppError::Invalid("real book".into()))?;
-    let old = if scope == "global" {
-        book.global.clone()
-    } else {
-        let id = scope
-            .strip_prefix("strategy:")
-            .ok_or_else(|| AppError::Invalid("scope".into()))?;
-        book.strategies
-            .get(id)
-            .cloned()
-            .unwrap_or_else(|| book.global.clone())
-    };
-    Ok(crate::real::limits_message(
-        &book.wallet,
-        &scope,
-        &old,
-        &knobs,
-    ))
+    let msg = book.arm_limits(&scope, &knobs).map_err(book_err)?;
+    save_real_book(&book).map_err(AppError::Invalid)?;
+    Ok(msg)
 }
 
 #[tauri::command]
@@ -1124,6 +1119,265 @@ pub struct RealSwapRequest {
     pub capital_used: u64,
 }
 
+struct Hold {
+    message: Option<Vec<u8>>,
+    lamports: u64,
+    mint: String,
+    buy: bool,
+    tip: u64,
+    strategy_id: Option<String>,
+    at: std::time::Instant,
+    min_out: u64,
+    fee: u64,
+    input_mint: [u8; 32],
+    output_mint: [u8; 32],
+}
+
+fn holds() -> &'static std::sync::Mutex<Vec<Hold>> {
+    use std::sync::{Mutex, OnceLock};
+    static HOLDS: OnceLock<Mutex<Vec<Hold>>> = OnceLock::new();
+    HOLDS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+fn now_ms() -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn http_client() -> AppResult<reqwest::Client> {
+    reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|_| AppError::Invalid("network".into()))
+}
+
+async fn rpc_call(
+    client: &reqwest::Client,
+    url: &str,
+    method: &str,
+    params: serde_json::Value,
+) -> AppResult<serde_json::Value> {
+    let body = serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params});
+    let v: serde_json::Value = client
+        .post(url)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|_| AppError::Invalid("network".into()))?
+        .json()
+        .await
+        .map_err(|_| AppError::Invalid("rpc".into()))?;
+    if v.get("error").is_some() {
+        return Err(AppError::Invalid("rpc".into()));
+    }
+    v.get("result")
+        .cloned()
+        .ok_or_else(|| AppError::Invalid("rpc".into()))
+}
+
+fn acct_from_rpc(v: &serde_json::Value) -> Option<crate::real::chain::Acct> {
+    let owner = crate::real::b58::decode_exact::<32>(v.get("owner")?.as_str()?).ok()?;
+    let lamports = v.get("lamports")?.as_u64()?;
+    let encoded = v.get("data")?.as_array()?.first()?.as_str()?;
+    let data = crate::real::b64::decode(encoded).ok()?;
+    Some(crate::real::chain::Acct {
+        lamports,
+        owner,
+        data,
+    })
+}
+
+async fn guard_output_mint(client: &reqwest::Client, rpc: &str, mint: &str) -> AppResult<()> {
+    let result = rpc_call(
+        client,
+        rpc,
+        "getAccountInfo",
+        serde_json::json!([mint, {"encoding": "base64"}]),
+    )
+    .await?;
+    let acct = result
+        .get("value")
+        .and_then(acct_from_rpc)
+        .ok_or_else(|| AppError::Invalid("guard".into()))?;
+    let view = crate::real::chain::parse_mint(&acct.owner, &acct.data)
+        .map_err(|_| AppError::Invalid("guard".into()))?;
+    crate::real::chain::guard_buy(&view).map_err(|_| AppError::Invalid("guard".into()))
+}
+
+struct Prove<'a> {
+    raw: &'a [u8],
+    signed_b64: &'a str,
+    owner: &'a [u8; 32],
+    tip: u64,
+    buy: bool,
+    input_mint: [u8; 32],
+    output_mint: [u8; 32],
+    min_out: u64,
+    sol_budget: u64,
+}
+
+async fn prove_swap(client: &reqwest::Client, rpc: &str, swap: Prove<'_>) -> AppResult<()> {
+    let Prove {
+        raw,
+        signed_b64,
+        owner,
+        tip,
+        buy,
+        input_mint,
+        output_mint,
+        min_out,
+        sol_budget,
+    } = swap;
+    let ids =
+        crate::real::lookup_table_keys(raw).map_err(|_| AppError::Invalid("transaction".into()))?;
+    let mut owned: Vec<([u8; 32], Vec<u8>)> = Vec::new();
+    for id in ids {
+        let result = rpc_call(
+            client,
+            rpc,
+            "getAccountInfo",
+            serde_json::json!([crate::real::b58::encode(&id), {"encoding": "base64"}]),
+        )
+        .await?;
+        let acct = result
+            .get("value")
+            .and_then(acct_from_rpc)
+            .ok_or_else(|| AppError::Invalid("transaction".into()))?;
+        owned.push((id, acct.data));
+    }
+    let refs: Vec<([u8; 32], &[u8])> = owned.iter().map(|(k, d)| (*k, d.as_slice())).collect();
+    vet_with_rpc_tables(raw, owner, tip, &refs)?;
+    let keys = crate::real::expanded_keys(raw, &refs)
+        .map_err(|_| AppError::Invalid("transaction".into()))?;
+    let addresses: Vec<String> = keys.iter().map(|k| crate::real::b58::encode(k)).collect();
+    let mut pre = Vec::with_capacity(addresses.len());
+    for chunk in addresses.chunks(100) {
+        let result = rpc_call(
+            client,
+            rpc,
+            "getMultipleAccounts",
+            serde_json::json!([chunk, {"encoding": "base64"}]),
+        )
+        .await?;
+        let rows = result
+            .get("value")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| AppError::Invalid("simulation".into()))?;
+        if rows.len() != chunk.len() {
+            return Err(AppError::Invalid("simulation".into()));
+        }
+        for row in rows {
+            pre.push(if row.is_null() {
+                None
+            } else {
+                Some(acct_from_rpc(row).ok_or_else(|| AppError::Invalid("simulation".into()))?)
+            });
+        }
+    }
+    let sim = rpc_call(
+        client,
+        rpc,
+        "simulateTransaction",
+        serde_json::json!([
+            signed_b64,
+            {
+                "encoding": "base64",
+                "sigVerify": false,
+                "replaceRecentBlockhash": true,
+                "innerInstructions": true,
+                "accounts": {"encoding": "base64", "addresses": addresses}
+            }
+        ]),
+    )
+    .await?;
+    let value = sim
+        .get("value")
+        .ok_or_else(|| AppError::Invalid("simulation".into()))?;
+    if value.get("err").map(|e| !e.is_null()).unwrap_or(true) {
+        return Err(AppError::Invalid("simulation".into()));
+    }
+    let posted = value
+        .get("accounts")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| AppError::Invalid("simulation".into()))?;
+    if posted.len() != pre.len() {
+        return Err(AppError::Invalid("simulation".into()));
+    }
+    let mut post = Vec::with_capacity(posted.len());
+    for row in posted {
+        post.push(if row.is_null() {
+            None
+        } else {
+            Some(acct_from_rpc(row).ok_or_else(|| AppError::Invalid("simulation".into()))?)
+        });
+    }
+    let mut inner = Vec::new();
+    if let Some(groups) = value.get("innerInstructions").and_then(|v| v.as_array()) {
+        for group in groups {
+            let Some(ixs) = group.get("instructions").and_then(|v| v.as_array()) else {
+                continue;
+            };
+            for ix in ixs {
+                let program = ix
+                    .get("programIdIndex")
+                    .and_then(|v| v.as_u64())
+                    .ok_or_else(|| AppError::Invalid("simulation".into()))?
+                    as usize;
+                let accounts = ix
+                    .get("accounts")
+                    .and_then(|v| v.as_array())
+                    .map(|rows| {
+                        rows.iter()
+                            .filter_map(|n| n.as_u64().map(|n| n as usize))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let encoded = ix.get("data").and_then(|v| v.as_str()).unwrap_or("");
+                let data = if encoded.is_empty() {
+                    Vec::new()
+                } else {
+                    crate::real::b58::decode(encoded)
+                        .map_err(|_| AppError::Invalid("simulation".into()))?
+                };
+                inner.push(crate::real::ResolvedIx {
+                    program,
+                    accounts,
+                    data,
+                });
+            }
+        }
+    }
+    let side = if buy {
+        crate::real::chain::Side::Buy {
+            output_mint,
+            min_out,
+            max_sol_spent: sol_budget,
+        }
+    } else {
+        crate::real::chain::Side::Sell {
+            input_mint,
+            min_out,
+            fee_lamports: sol_budget,
+        }
+    };
+    crate::real::chain::check_simulation(&keys, &pre, &post, owner, tip, side, &inner)
+        .map_err(|_| AppError::Invalid("simulation".into()))
+}
+
+fn release_hold(message_missing_only: bool, mint: &str, at_hint: std::time::Instant) {
+    if let Ok(mut hs) = holds().lock() {
+        if let Some(i) = hs.iter().position(|h| {
+            h.mint == mint && h.at == at_hint && (!message_missing_only || h.message.is_none())
+        }) {
+            hs.remove(i);
+        }
+    }
+}
+
 /// Build an unsigned mainnet swap for the owner's wallet, after Guard, Risk and the limits.
 #[tauri::command]
 pub async fn real_prepare_swap(req: RealSwapRequest) -> AppResult<String> {
@@ -1139,87 +1393,210 @@ pub async fn real_prepare_swap(req: RealSwapRequest) -> AppResult<String> {
         spent_today,
         capital_used,
     } = req;
-    let wallet = {
+    if crate::real::quote_url(&input_mint, &output_mint, amount, slippage_bps).is_err() {
+        return Err(AppError::Invalid("mint".into()));
+    }
+    // The window may send these. They are not consulted.
+    let _ = (guard_pass, risk_veto);
+    let buying = input_mint == crate::real::WSOL;
+    let selling = output_mint == crate::real::WSOL;
+    if !buying && !selling {
+        return Err(AppError::Invalid(
+            "swap must be between SOL and a token".into(),
+        ));
+    }
+    let rpc_for_guard = {
         let book = real_book()
             .lock()
             .map_err(|_| AppError::Invalid("real book".into()))?;
-        let check = crate::real::BuyCheck {
-            guard_pass,
-            risk_veto,
-            open_positions,
-            spent_today,
-            capital_used,
-            trade_lamports: amount,
-            slippage_bps,
-            mcap_usd: None,
-            liquidity_usd: None,
-            volume_24h_usd: None,
-            top10_pct: None,
-            holders: None,
-            age_minutes: None,
-            lp_burn_pct: None,
-        };
-        book.admit_buy(strategy_id.as_deref(), &check)
-            .map_err(|e| AppError::Invalid(format!("{e:?}")))?;
+        book.rpc_url.clone()
+    };
+    let client = http_client()?;
+    if buying {
+        guard_output_mint(&client, &rpc_for_guard, &output_mint).await?;
+    }
+    let started = std::time::Instant::now();
+    let (wallet, tip, rpc_url) = {
+        let book = real_book()
+            .lock()
+            .map_err(|_| AppError::Invalid("real book".into()))?;
+        let mut hs = holds()
+            .lock()
+            .map_err(|_| AppError::Invalid("real book".into()))?;
+        hs.retain(|h| h.at.elapsed() < std::time::Duration::from_secs(120));
+        let pending_sol = hs
+            .iter()
+            .filter(|h| h.buy)
+            .fold(0u64, |sum, h| sum.saturating_add(h.lamports));
+        let pending_open = hs.iter().filter(|h| h.buy).count() as i64
+            - hs.iter().filter(|h| !h.buy).count() as i64;
+        let open = (i64::from(book.open_count()) + pending_open).max(0) as u32;
+        let spent = book.spent_today(now_ms()).saturating_add(pending_sol);
+        let used = book.capital_used().saturating_add(pending_sol);
+        if buying {
+            let check = crate::real::BuyCheck {
+                guard_pass: true,
+                risk_veto: false,
+                open_positions: open_positions.max(open),
+                spent_today: spent_today.max(spent),
+                capital_used: capital_used.max(used),
+                trade_lamports: amount,
+                slippage_bps,
+                mcap_usd: None,
+                liquidity_usd: None,
+                volume_24h_usd: None,
+                top10_pct: None,
+                holders: None,
+                age_minutes: None,
+                lp_burn_pct: None,
+            };
+            book.admit_buy(strategy_id.as_deref(), &check)
+                .map_err(|e| AppError::Invalid(format!("{e:?}")))?;
+        } else if !book.enabled {
+            return Err(AppError::Invalid("real is off".into()));
+        }
         let knobs = book.effective(strategy_id.as_deref());
         if slippage_bps > knobs.slippage_bps {
             return Err(AppError::Invalid("slippage".into()));
         }
-        book.wallet.clone()
+        hs.push(Hold {
+            message: None,
+            lamports: if buying { amount } else { 0 },
+            mint: if buying {
+                output_mint.clone()
+            } else {
+                input_mint.clone()
+            },
+            buy: buying,
+            tip: knobs.tip_lamports,
+            strategy_id: strategy_id.clone(),
+            at: started,
+            min_out: 0,
+            fee: 0,
+            input_mint: [0u8; 32],
+            output_mint: [0u8; 32],
+        });
+        (
+            book.wallet.clone(),
+            knobs.tip_lamports,
+            book.rpc_url.clone(),
+        )
     };
-    let url = crate::real::quote_url(&input_mint, &output_mint, amount, slippage_bps);
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|e| AppError::Invalid(e.to_string()))?;
-    let quote: serde_json::Value = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| AppError::Invalid(e.to_string()))?
-        .json()
-        .await
-        .map_err(|e| AppError::Invalid(e.to_string()))?;
-    if quote.get("error").is_some() {
-        return Err(AppError::Invalid("quote".into()));
+    let url = crate::real::quote_url(&input_mint, &output_mint, amount, slippage_bps)
+        .map_err(|_| AppError::Invalid("mint".into()))?;
+    let quote = async {
+        let quote: serde_json::Value = client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|_| AppError::Invalid("quote".into()))?
+            .json()
+            .await
+            .map_err(|_| AppError::Invalid("quote".into()))?;
+        if quote.get("error").is_some()
+            || !crate::real::quote_matches(&quote, &input_mint, &output_mint, amount, slippage_bps)
+        {
+            return Err(AppError::Invalid("quote".into()));
+        }
+        let min_out = quote
+            .get("otherAmountThreshold")
+            .and_then(|v| v.as_str())
+            .unwrap_or("0")
+            .parse::<u64>()
+            .unwrap_or(0);
+        let swap_body = serde_json::json!({
+            "quoteResponse": quote,
+            "userPublicKey": wallet,
+            "wrapAndUnwrapSol": true,
+            "dynamicComputeUnitLimit": true
+        });
+        let swap: serde_json::Value = client
+            .post(crate::real::JUPITER_SWAP)
+            .json(&swap_body)
+            .send()
+            .await
+            .map_err(|_| AppError::Invalid("swap".into()))?
+            .json()
+            .await
+            .map_err(|_| AppError::Invalid("swap".into()))?;
+        let b64 = crate::real::swap_tx_b64(&swap.to_string())
+            .ok_or_else(|| AppError::Invalid("swap".into()))?;
+        let raw = b64_decode(&b64)?;
+        let owner = crate::real::b58::decode_exact::<32>(&wallet)
+            .map_err(|_| AppError::Invalid("wallet".into()))?;
+        let input_key = crate::real::b58::decode_exact::<32>(&input_mint)
+            .map_err(|_| AppError::Invalid("mint".into()))?;
+        let output_key = crate::real::b58::decode_exact::<32>(&output_mint)
+            .map_err(|_| AppError::Invalid("mint".into()))?;
+        if crate::real::tx::fee_payer(&raw).map_err(|_| AppError::Invalid("transaction".into()))?
+            != owner
+        {
+            return Err(AppError::Invalid(
+                "fee payer is not the owner wallet".into(),
+            ));
+        }
+        let fee = crate::real::network_fee(&raw);
+        let budget = if buying {
+            amount.saturating_add(fee).saturating_add(tip)
+        } else {
+            fee.saturating_add(tip)
+        };
+        prove_swap(
+            &client,
+            &rpc_url,
+            Prove {
+                raw: &raw,
+                signed_b64: &b64,
+                owner: &owner,
+                tip,
+                buy: buying,
+                input_mint: input_key,
+                output_mint: output_key,
+                min_out,
+                sol_budget: budget,
+            },
+        )
+        .await?;
+        let message = crate::real::message_bytes(&raw)
+            .map_err(|_| AppError::Invalid("transaction".into()))?;
+        Ok::<(String, Vec<u8>, u64, u64, [u8; 32], [u8; 32]), AppError>((
+            b64, message, min_out, fee, input_key, output_key,
+        ))
     }
-    let swap_body = serde_json::json!({
-        "quoteResponse": quote,
-        "userPublicKey": wallet,
-        "wrapAndUnwrapSol": true,
-        "dynamicComputeUnitLimit": true
-    });
-    let swap: serde_json::Value = client
-        .post(crate::real::JUPITER_SWAP)
-        .json(&swap_body)
-        .send()
-        .await
-        .map_err(|e| AppError::Invalid(e.to_string()))?
-        .json()
-        .await
-        .map_err(|e| AppError::Invalid(e.to_string()))?;
-    let b64 = crate::real::swap_tx_b64(&swap.to_string())
-        .ok_or_else(|| AppError::Invalid("swap".into()))?;
-    let raw = b64_decode(&b64)?;
-    let tip = real_book()
-        .lock()
-        .map(|b| b.effective(strategy_id.as_deref()).tip_lamports)
-        .unwrap_or(0);
-    let owner = crate::real::b58::decode_exact::<32>(&wallet)
-        .map_err(|_| AppError::Invalid("wallet".into()))?;
-    vet_with_rpc(&raw, &owner, tip)?;
-    if crate::real::tx::fee_payer(&raw).map_err(|_| AppError::Invalid("transaction".into()))?
-        != owner
-    {
-        return Err(AppError::Invalid(
-            "fee payer is not the owner wallet".into(),
-        ));
+    .await;
+    let (b64, message, min_out, fee, input_key, output_key) = match quote {
+        Ok(v) => v,
+        Err(e) => {
+            release_hold(
+                true,
+                if buying { &output_mint } else { &input_mint },
+                started,
+            );
+            return Err(e);
+        }
+    };
+    if let Ok(mut hs) = holds().lock() {
+        if let Some(h) = hs
+            .iter_mut()
+            .find(|h| h.at == started && h.message.is_none())
+        {
+            h.message = Some(message);
+            h.min_out = min_out;
+            h.fee = fee;
+            h.input_mint = input_key;
+            h.output_mint = output_key;
+        }
     }
     Ok(b64)
 }
 
-fn vet_with_rpc(raw: &[u8], owner: &[u8; 32], tip: u64) -> AppResult<()> {
-    match crate::real::vet(raw, owner, tip, &[]) {
+fn vet_with_rpc_tables(
+    raw: &[u8],
+    owner: &[u8; 32],
+    tip: u64,
+    tables: &[([u8; 32], &[u8])],
+) -> AppResult<()> {
+    match crate::real::vet(raw, owner, tip, tables) {
         Ok(()) => Ok(()),
         Err(crate::real::TxRefuse::Unresolved) => Err(AppError::Invalid(
             "transaction uses an account table this build will not guess".into(),
@@ -1250,31 +1627,111 @@ pub async fn real_submit(signed_b64: String) -> AppResult<String> {
     let raw = b64_decode(signed_b64.trim())?;
     let owner = crate::real::b58::decode_exact::<32>(&book.wallet)
         .map_err(|_| AppError::Invalid("wallet".into()))?;
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|e| AppError::Invalid(e.to_string()))?;
-    vet_with_rpc(&raw, &owner, book.global.tip_lamports)?;
+    let message =
+        crate::real::message_bytes(&raw).map_err(|_| AppError::Invalid("transaction".into()))?;
+    let hold = {
+        let mut hs = holds()
+            .lock()
+            .map_err(|_| AppError::Invalid("real book".into()))?;
+        let pos = hs.iter().position(|h| {
+            h.message.as_ref() == Some(&message)
+                && h.at.elapsed() < std::time::Duration::from_secs(120)
+        });
+        match pos {
+            Some(i) => hs.remove(i),
+            None => return Err(AppError::Invalid("transaction was not prepared".into())),
+        }
+    };
+    let tip = book
+        .effective(hold.strategy_id.as_deref())
+        .tip_lamports
+        .min(hold.tip);
+    if crate::real::tx::fee_payer(&raw).map_err(|_| AppError::Invalid("transaction".into()))?
+        != owner
+    {
+        return Err(AppError::Invalid(
+            "fee payer is not the owner wallet".into(),
+        ));
+    }
+    let client = http_client()?;
+    let budget = if hold.buy {
+        hold.lamports.saturating_add(hold.fee).saturating_add(tip)
+    } else {
+        hold.fee.saturating_add(tip)
+    };
+    prove_swap(
+        &client,
+        &book.rpc_url,
+        Prove {
+            raw: &raw,
+            signed_b64: signed_b64.trim(),
+            owner: &owner,
+            tip,
+            buy: hold.buy,
+            input_mint: hold.input_mint,
+            output_mint: hold.output_mint,
+            min_out: hold.min_out,
+            sol_budget: budget,
+        },
+    )
+    .await?;
+    record_fill(&hold, true)?;
     let body = serde_json::json!({
         "jsonrpc": "2.0",
         "id": 1,
         "method": "sendTransaction",
         "params": [signed_b64.trim(), {"encoding": "base64", "skipPreflight": false}]
     });
-    let v: serde_json::Value = client
-        .post(&book.rpc_url)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| AppError::Invalid(e.to_string()))?
-        .json()
-        .await
-        .map_err(|e| AppError::Invalid(e.to_string()))?;
-    if let Some(err) = v.get("error") {
-        return Err(AppError::Invalid(err.to_string()));
+    let sent = async {
+        let v: serde_json::Value = client
+            .post(&book.rpc_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|_| AppError::Invalid("network".into()))?
+            .json()
+            .await
+            .map_err(|_| AppError::Invalid("rpc".into()))?;
+        if let Some(err) = v.get("error") {
+            return Err(AppError::Invalid(err.to_string()));
+        }
+        v.get("result")
+            .and_then(|r| r.as_str())
+            .map(|s| s.to_owned())
+            .ok_or_else(|| AppError::Invalid("rpc".into()))
     }
-    v.get("result")
-        .and_then(|r| r.as_str())
-        .map(|s| s.to_owned())
-        .ok_or_else(|| AppError::Invalid("rpc".into()))
+    .await;
+    if sent.is_err() {
+        let _ = record_fill(&hold, false);
+    }
+    sent
+}
+
+fn record_fill(hold: &Hold, commit: bool) -> AppResult<()> {
+    let mut live = real_book()
+        .lock()
+        .map_err(|_| AppError::Invalid("real book".into()))?;
+    if commit {
+        if hold.buy {
+            live.note_buy(now_ms(), hold.lamports, &hold.mint);
+        } else {
+            live.note_sell(&hold.mint);
+        }
+    } else if hold.buy {
+        if let Some(i) = live
+            .spends
+            .iter()
+            .rposition(|s| s.open && s.mint == hold.mint && s.lamports == hold.lamports)
+        {
+            live.spends.remove(i);
+        }
+    } else if let Some(row) = live
+        .spends
+        .iter_mut()
+        .rev()
+        .find(|s| !s.open && s.mint == hold.mint)
+    {
+        row.open = true;
+    }
+    save_real_book(&live).map_err(AppError::Invalid)
 }

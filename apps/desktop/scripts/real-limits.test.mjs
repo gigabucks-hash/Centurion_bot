@@ -52,11 +52,15 @@ test("tightening applies with no signature; loosening is classified and signed",
   const looser = { ...DEFAULT_KNOBS, tradeLamports: solToLamports("1"), dailyLamports: solToLamports("3") };
   const l = diffKnobs(DEFAULT_KNOBS, looser);
   assert.equal(l.kind, "loosen");
-  const msg = limitsMessage("Wallet111", "global", DEFAULT_KNOBS, looser);
+  const nonce = "ab".repeat(16);
+  const msg = limitsMessage("Wallet111", "global", DEFAULT_KNOBS, looser, nonce);
   assert.match(msg, /^Centurion Trade\naction: set-real-limits\n/);
   assert.match(msg, /trade_lamports: 50000000 -> 1000000000/);
-  assert.match(msg, /kind: loosen/);
-  assert.equal(enableMessage("Wallet111"), "Centurion Trade\naction: enable-real\nwallet: Wallet111\n");
+  assert.match(msg, /kind: loosen\n/);
+  assert.match(msg, new RegExp(`nonce: ${nonce}\\n$`));
+  assert.equal(enableMessage("Wallet111", nonce), `Centurion Trade\naction: enable-real\nwallet: Wallet111\nnonce: ${nonce}\n`);
+  assert.equal(rpcUrlOk("https://169.254.169.254"), false);
+  assert.equal(rpcUrlOk("http://127.0.0.1.evil.com"), false);
   assert.doesNotMatch(msg, /private|secret key/i);
 });
 

@@ -249,7 +249,7 @@ export function diffKnobs(oldK: RealKnobs, newK: RealKnobs): { kind: LimitChange
 }
 
 /** Exact bytes the wallet signs. Both the dialog and the Rust checker build this string. */
-export function limitsMessage(wallet: string, scope: string, oldK: RealKnobs, newK: RealKnobs): string {
+export function limitsMessage(wallet: string, scope: string, oldK: RealKnobs, newK: RealKnobs, nonce: string): string {
   const d = diffKnobs(oldK, newK);
   const body = [
     ["trade_lamports", oldK.tradeLamports, newK.tradeLamports],
@@ -265,11 +265,17 @@ export function limitsMessage(wallet: string, scope: string, oldK: RealKnobs, ne
     ["take_profits", tpText(oldK.takeProfits), tpText(newK.takeProfits)],
     ["filters", filtersText(oldK.filters), filtersText(newK.filters)],
   ].map(([name, a, b]) => `${name}: ${a} -> ${b}`).join("\n");
-  return `Centurion Trade\naction: set-real-limits\nwallet: ${wallet}\nscope: ${scope}\n${body}\nkind: ${d.kind}\n`;
+  const n = /^[0-9a-f]{32}$/.test(nonce) ? nonce : "";
+  return `Centurion Trade\naction: set-real-limits\nwallet: ${wallet}\nscope: ${scope}\n${body}\nkind: ${d.kind}\nnonce: ${n}\n`;
 }
 
-export function enableMessage(wallet: string): string {
-  return `Centurion Trade\naction: enable-real\nwallet: ${wallet}\n`;
+export function nonceOk(nonce: string): boolean {
+  return /^[0-9a-f]{32}$/.test(nonce);
+}
+
+export function enableMessage(wallet: string, nonce: string): string {
+  const n = nonceOk(nonce) ? nonce : "";
+  return `Centurion Trade\naction: enable-real\nwallet: ${wallet}\nnonce: ${n}\n`;
 }
 
 export type BuyRefuse =
@@ -446,7 +452,23 @@ export function rpcUrlOk(url: string): boolean {
   }
   if (u.username || u.password || u.search || u.hash) return false;
   if (u.pathname !== "" && u.pathname !== "/") return false;
+  if (blockedLiteral(u.hostname)) return false;
   if (u.protocol === "https:") return true;
   if (u.protocol !== "http:") return false;
-  return u.hostname === "127.0.0.1" || u.hostname === "localhost";
+  return u.hostname === "127.0.0.1" || u.hostname === "localhost" || u.hostname === "::1";
+}
+
+/** Metadata, unspecified, link-local and multicast literals. Private LAN addresses stay allowed. */
+function blockedLiteral(host: string): boolean {
+  const v4 = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(host);
+  if (v4) {
+    const a = Number(v4[1]);
+    const b = Number(v4[2]);
+    return a === 0 || a >= 224 || (a === 169 && b === 254);
+  }
+  if (!host.includes(":")) return false;
+  const h = host.toLowerCase();
+  if (h === "::" || h.startsWith("fe80:") || h.startsWith("ff")) return true;
+  const mapped = /ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(h);
+  return mapped ? blockedLiteral(mapped[1]!) : false;
 }
