@@ -2,7 +2,7 @@
  * Loading skeletons (Server Components, no JS). Shapes mirror the real layouts so swapping in content does not
  * shift the page (CLS). `aria-busy` + a visually hidden label announce loading once.
  */
-const bar = "animate-pulse rounded-md bg-bg-raised motion-reduce:animate-none";
+const bar = "skeleton motion-reduce:animate-none";
 
 export function PageSkeleton({ variant = "table", label = "Loading…" }: { variant?: "dashboard" | "table" | "list" | "form" | "detail" | "auth"; label?: string }) {
   return (

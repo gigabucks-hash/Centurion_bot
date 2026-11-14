@@ -32,7 +32,7 @@ const COLS = {
   5: "md:grid-cols-6 xl:grid-cols-5",
 } as const;
 
-const CELL = "flex min-w-0 flex-col bg-bg-surface p-4";
+const CELL = "flex h-full min-h-[96px] min-w-0 flex-col justify-center bg-bg-surface px-4 py-3";
 
 /**
  * G1-blue KPI strip (UX G3 §3.4): ONE bordered container — cells are separated by 1 px `border.subtle`
@@ -64,18 +64,16 @@ export function StatStrip({ items, columns = 4, className, label }: {
           : columns === 3 && i === 2 ? "col-span-2 sm:col-span-1" : "";
         const body = (
           <>
-            <span className="flex items-center gap-1.5 text-overline uppercase tracking-wide text-text-tertiary">{item.icon}<span>{item.label}</span></span>
+            <span className="flex items-center gap-1.5 text-caption text-text-tertiary">{item.icon}<span>{item.label}</span></span>
             <span
               className={cn(
-                "num mt-1.5 min-w-0 whitespace-normal",
-                // 5 cells: caption size only on phones (2 columns), full size from sm up (2 then 3 then 5 columns).
-                "text-numSm sm:text-numLg",
+                "num mt-1 min-w-0 text-[22px] leading-7 font-semibold tracking-tight",
                 TONE[item.tone ?? "neutral"],
               )}
             >
               {item.value}
             </span>
-            {item.hint && <span className="mt-1 text-caption text-text-tertiary">{item.hint}</span>}
+            {item.hint && <span className="mt-1 line-clamp-1 text-caption text-text-tertiary">{item.hint}</span>}
           </>
         );
         return item.href ? (

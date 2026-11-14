@@ -48,7 +48,7 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
         title={<span className="inline-flex items-center gap-3"><CoinAvatar mint={coin.mint} logoHash={coin.logoHash} symbol={coin.untrusted.symbol} size="lg" eager />{t("trail.title", { symbol: coin.untrusted.symbol })}</span>}
         subtitle={
           <span className="flex flex-wrap items-center gap-2">
-            <span className="num text-caption" title={coin.mint}>{shortMint(coin.mint)}</span>
+            <span className="font-mono text-caption text-text-tertiary" title={coin.mint}>{shortMint(coin.mint)}</span>
             <Badge>{coin.launchpad}</Badge>
             <Badge>{coin.venue}</Badge>
             {notTradeable && <NotTradeableChip label={t("screener.notTradeable")} />}
@@ -107,7 +107,7 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
             {ordered.map((e) => (
               <li key={e.id} className="mb-5 ml-5 last:mb-0">
                 <span className={`absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-bg-surface ${eventKindMeta[e.kind].dot}`} aria-hidden />
-                <div className="flex flex-wrap items-center gap-2 text-overline uppercase tracking-wide text-text-tertiary">
+                <div className="flex flex-wrap items-center gap-2 text-caption text-text-tertiary">
                   <span>{t(`actor.${e.actor}`)} · {t(`kind.${e.kind}`)}</span>
                   <span className="num normal-case">{Number.isFinite(e.ts) ? f.time(e.ts) : "—"}</span>
                   {e.rev != null && <span className="normal-case">rev {e.rev}</span>}

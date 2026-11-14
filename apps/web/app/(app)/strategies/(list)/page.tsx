@@ -8,8 +8,9 @@ import { listAllStrategies } from "@/lib/mode";
 import type { Strategy, TradingMode } from "@/lib/types";
 import { cn } from "@/components/ui";
 
-import { Badge, Card, EmptyState, PageHeader, Pnl, Sparkline } from "@/components/ui";
-import { ApprovalModeBadge, StatusBadge, StrategyModeChips } from "@/components/domain";
+import { Card, EmptyState, PageHeader, Pnl, Sparkline } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
+import { StatusBadge, StrategyModeChips } from "@/components/domain";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { Funnel } from "@/components/Funnel";
 import { StrategyStatusActions } from "@/components/strategy/StrategyStatusActions";
@@ -42,8 +43,14 @@ async function List({ all, filter }: { all: Strategy[]; filter: Filter }) {
           <Card
             key={s.id}
             className={s.status === "archived" ? "opacity-60" : undefined}
-            title={<span className="flex flex-wrap items-center gap-2">{s.name} <StrategyModeChips mode={s.mode} realLocked={s.realLocked} realLockedReason={s.realLockedReason} short /> <StatusBadge status={s.status} /> <ApprovalModeBadge mode={s.settings.approvalMode} /></span>}
-            subtitle={`${t(`approvalMode.${s.settings.approvalMode}`)} (${t("approvalMode.perStrategy").toLowerCase()}) · ${t("strategies.rev", { rev: s.rev })}`}
+            title={s.name}
+            subtitle={
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <StatusBadge status={s.status} />
+                <StrategyModeChips mode={s.mode} realLocked={s.realLocked} realLockedReason={s.realLockedReason} />
+                <span>{t(`approvalMode.${s.settings.approvalMode}`)} · {t("strategies.rev", { rev: s.rev })}</span>
+              </span>
+            }
             action={<Sparkline values={s.pnlSpark} label={t("overview.trend", { name: s.name })} />}
           >
             <dl className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 text-caption sm:grid-cols-4">
@@ -53,13 +60,15 @@ async function List({ all, filter }: { all: Strategy[]; filter: Filter }) {
               <div><dt className="text-text-tertiary">{t("strategies.avgHold")}</dt><dd className="num text-numSm">{s.trades ? f.duration(s.avgHoldSeconds) : "—"}</dd></div>
             </dl>
             {s.status === "draft" ? <p className="mb-2 text-caption text-text-tertiary">{t("strategies.draftNote")}</p> : <Funnel funnel={s.funnel} />}
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              {s.settings.screener.streams.map((st) => <Badge key={st}>{st === "curve" ? t("builder.bonding") : t("builder.graduated")}</Badge>)}
-              <Badge tone="brand">{t("strategies.exit", { plan })}</Badge>
-              <Badge>{t("strategies.perTrade", { amount_lamports: f.amount(s.settings.sizing.tradeSol) })}</Badge>
-              <Badge>{t("strategies.open", { n: s.openPositions ?? "—", max: s.settings.sizing.maxOpen })}</Badge>
-              <Badge tone="guard">{t("strategies.guard", { preset: t(`guardPreset.${s.settings.guard.preset}`) })}</Badge>
-            </div>
+            <p className="mt-3 text-caption text-text-secondary">
+              {[
+                s.settings.screener.streams.map((st) => (st === "curve" ? t("builder.bonding") : t("builder.graduated"))).join(", "),
+                t("strategies.exit", { plan }),
+                t("strategies.perTrade", { amount_lamports: f.amount(s.settings.sizing.tradeSol) }),
+                t("strategies.open", { n: s.openPositions ?? "—", max: s.settings.sizing.maxOpen }),
+                t("strategies.guard", { preset: t(`guardPreset.${s.settings.guard.preset}`) }),
+              ].join(" · ")}
+            </p>
             {s.funnel.rejections.length > 0 && (
               <details className="mt-3 text-caption">
                 <summary className="cursor-pointer text-text-secondary hover:text-text-primary">{t("strategies.rejections")}</summary>
@@ -87,7 +96,7 @@ async function Header({ all, filter }: { all: Strategy[]; filter: Filter }) {
   const t = await getT();
   const live = all.filter((s) => s.status !== "archived");
   const real = live.filter((s) => s.mode === "real").length;
-  const chip = (on: boolean) => cn("inline-flex min-h-8 items-center rounded-full border px-3 text-caption", on ? "border-brand-primary bg-brand-primaryContainer text-brand-onPrimaryContainer" : "border-border-default text-text-secondary hover:text-text-primary");
+  const chip = (on: boolean) => cn("chip hover:text-text-primary", on && "chip-on");
   // D3: the UX catalog's strategy.list.filter.* keys are not in @centurion/i18n yet, so use the
   // app's own mode labels plus the live counts instead of rendering the raw key.
   const filters: { id: Filter; label: string; href: string }[] = [
@@ -102,7 +111,7 @@ async function Header({ all, filter }: { all: Strategy[]; filter: Filter }) {
       subtitle={`${t("strategies.subtitle")} · ${t.ux("strategy.list.summary", { real_count: real, paper_count: live.length - real })}`}
       actions={
         <>
-          <Link href="/strategies/new" className="inline-flex h-10 items-center gap-1 rounded-md bg-brand-primary px-4 text-label font-medium text-text-onAccent hover:bg-brand-primaryHover"><Plus size={14} /> {t("overview.newStrategy")}</Link>
+          <Link href="/strategies/new" className="inline-flex h-8 items-center gap-1 rounded-md bg-brand-primary px-2.5 text-label font-medium text-text-onAccent hover:bg-brand-primaryHover"><Plus size={14} strokeWidth={1.75} /> {t("overview.newStrategy")}</Link>
         </>
       }
     />
@@ -130,7 +139,7 @@ async function Page({ searchParams }: { searchParams: PageProps<"/strategies">["
 
 export default function StrategiesPage(props: PageProps<"/strategies">) {
   return (
-    <Suspense fallback={<div className="h-96 animate-pulse rounded-lg bg-bg-surface" />}>
+    <Suspense fallback={<PageSkeleton variant="table" />}>
       <Page searchParams={props.searchParams} />
     </Suspense>
   );

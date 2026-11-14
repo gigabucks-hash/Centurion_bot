@@ -6,6 +6,7 @@ body {
   background: var(--color-bg-canvas);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
 
 :focus-visible {

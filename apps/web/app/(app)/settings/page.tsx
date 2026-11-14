@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { TradingControls } from "@/components/settings/TradingControls";
 import { getApi } from "@/lib/api";
@@ -31,7 +32,7 @@ async function Body() {
 
 export default function SettingsPage() {
   return (
-    <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-bg-surface" />}>
+    <Suspense fallback={<PageSkeleton variant="form" />}>
       <Body />
     </Suspense>
   );

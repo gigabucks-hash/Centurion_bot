@@ -4,6 +4,15 @@ import { useFmt, useT } from "@/lib/i18n/client";
 import type { TradingMode } from "@/lib/types";
 import { isUnknownMoney, pnlDisplay, PNL_TEXT_CLASS } from "@/lib/pnl";
 
+/** 2 dp for |SOL| ≥ 0.01. Returns null when the helper's own precision should stand. */
+function twoDp(sol: number | string | null | undefined, sign: string, locale: "en" | "id"): string | null {
+  if (typeof sol !== "number" && typeof sol !== "string") return null;
+  const n = typeof sol === "number" ? sol : Number(sol);
+  if (!Number.isFinite(n) || Math.abs(n) < 0.01) return null;
+  const body = new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(n));
+  return `${sign}${body}`;
+}
+
 /**
  * Shared PnL (T-15) rendered straight from @centurion/i18n `pnlSol()` / `pnlPct()` output ({text, tone, arrow, sign}):
  * exact zero → "0.00" neutral, no arrow, no sign; any non-zero → ▲/▼ + +/− + profit/loss tone, tiny values
@@ -24,9 +33,13 @@ export function Pnl({ sol, pct, lamports, className, unit = false, wrapUnit = fa
   }
   const paper = (mode ?? f.mode) === "practice";
   const d = pnlDisplay(lamports != null ? { lamports } : sol != null ? { sol } : { pct: pct ?? 0 }, f.locale, { paper, unit: lamports != null || sol != null ? unit : undefined });
-  // Unit suffix comes from the package as "…\u00A0paper SOL": render it one step smaller so hero numbers (28 px) keep
-  // their digits readable inside a KPI cell instead of overflowing the divider. No re-formatting, no re-rounding.
-  const [main, ...rest] = d.text.split("\u00A0");
+  // Unit suffix comes from the package as "…\u00A0paper SOL": render it one step smaller so hero numbers keep
+  // their digits readable inside a KPI cell. Tone, arrow and sign still come from pnlDisplay. Values at least
+  // 0.01 SOL are shown at 2 decimals so a column does not mix 2 dp and 4 dp; smaller amounts keep the helper's
+  // extra places so a real position never prints as a flat zero.
+  const [rawMain, ...rest] = d.text.split("\u00A0");
+  const fixed = lamports == null && pct === undefined ? twoDp(sol, d.sign, f.locale) : null;
+  const main = fixed ?? rawMain;
   const unitText = rest.join("\u00A0");
   const number = (
     <>

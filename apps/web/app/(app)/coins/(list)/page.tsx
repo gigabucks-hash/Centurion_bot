@@ -8,6 +8,7 @@ import type { CoinSummary } from "@/lib/types";
 import { shortMint } from "@/lib/format";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { Badge, Card, EmptyState, PageHeader, Pnl, Table, cn, type Tone } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { NotTradeableChip } from "@/components/NotTradeable";
 import { CoinsVirtualList } from "@/components/CoinsVirtualList";
 import { Mcap } from "@/components/Mcap";
@@ -38,7 +39,7 @@ async function List({ searchParams }: { searchParams: PageProps<"/coins">["searc
     .filter((c) => !q || c.symbol.toLowerCase().includes(q) || c.mint.toLowerCase().startsWith(q) || c.strategyName.toLowerCase().includes(q))
     .filter((c) => (only ? c.screenerState === "UNSUPPORTED_QUOTE_MINT" : status === "passed" ? c.status !== "rejected" : status === "rejected" ? c.status === "rejected" : true));
   const nt = (c: CoinSummary) => c.screenerState === "UNSUPPORTED_QUOTE_MINT";
-  const chip = (active: boolean) => cn("inline-flex min-h-8 items-center rounded-full border px-3 text-caption", active ? "border-brand-primary bg-brand-primaryContainer text-brand-onPrimaryContainer" : "border-border-default text-text-secondary hover:text-text-primary");
+  const chip = (active: boolean) => cn("chip hover:text-text-primary", active && "chip-on");
   return (
     <>
     <PageHeader title={t("screener.title")} subtitle={`${t("coins.subtitle")} ${t("screener.legend")}`} />
@@ -59,8 +60,8 @@ async function List({ searchParams }: { searchParams: PageProps<"/coins">["searc
         mobile="cards"
         labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
         columns={[
-          { key: "sym", header: t("screener.colCoin"), cell: (c) => <Link href={`/coins/${c.mint}`} className={cn("tap gap-2 font-semibold hover:underline", nt(c) ? "text-text-tertiary" : "text-brand-primary")}><CoinAvatar mint={c.mint} logoHash={c.logoHash} symbol={c.symbol} notTradeable={nt(c)} />${c.symbol}</Link> },
-          { key: "mint", header: t("coins.colMint"), cell: (c) => <span className="num text-caption text-text-secondary">{shortMint(c.mint)}</span> },
+          { key: "sym", header: t("screener.colCoin"), nowrap: true, cell: (c) => <Link href={`/coins/${c.mint}`} className={cn("tap gap-2 font-medium hover:underline", nt(c) ? "text-text-tertiary" : "text-text-primary")}><CoinAvatar mint={c.mint} logoHash={c.logoHash} symbol={c.symbol} notTradeable={nt(c)} />${c.symbol}</Link> },
+          { key: "mint", header: t("coins.colMint"), cell: (c) => <span className="font-mono text-caption text-text-tertiary">{shortMint(c.mint)}</span> },
           { key: "strat", header: t("coins.colStrategy"), cell: (c) => <span className="inline-flex items-center gap-2">{c.strategyName} <ModeBadge mode={c.mode} /></span> },
           { key: "status", header: t("screener.colStatus"), mobile: "status", nowrap: true, cell: (c) => (nt(c) ? <NotTradeableChip label={t("screener.notTradeable")} /> : <Badge tone={statusTone[c.status]}>{c.status === "rejected" ? t("screener.statusRejected") : t(`coins.status.${c.status}`)}</Badge>) },
           { key: "pnl", header: t("coins.colPnl"), numeric: true, mobile: "primary", cell: (c) => (c.pnlSol != null && !nt(c) ? <Pnl sol={c.pnlSol} mode={c.mode} /> : <span className="text-text-tertiary">—</span>) },
@@ -76,7 +77,7 @@ async function List({ searchParams }: { searchParams: PageProps<"/coins">["searc
 export default function CoinsPage(props: PageProps<"/coins">) {
   return (
     <>
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-lg bg-bg-surface" />}>
+      <Suspense fallback={<PageSkeleton variant="table" />}>
         <List searchParams={props.searchParams} />
       </Suspense>
     </>

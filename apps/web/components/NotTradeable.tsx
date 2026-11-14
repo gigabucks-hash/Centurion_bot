@@ -7,7 +7,7 @@ import { cn } from "@/components/ui";
  */
 export function NotTradeableChip({ label, className }: { label: string; className?: string }) {
   return (
-    <span data-not-tradeable className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-border-default bg-bg-sunken px-2 py-0.5 text-caption text-text-tertiary", className)}>
+    <span data-not-tradeable className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-dashed border-border-default bg-bg-sunken px-1.5 py-px text-caption text-text-tertiary", className)}>
       <Ban size={12} aria-hidden /> {label}
     </span>
   );

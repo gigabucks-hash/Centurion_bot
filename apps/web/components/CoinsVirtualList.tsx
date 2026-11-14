@@ -28,8 +28,8 @@ const Row = memo(function Row({ c }: { c: CoinSummary }) {
   const nt = c.screenerState === "UNSUPPORTED_QUOTE_MINT";
   return (
     <div role="row" className="grid min-h-12 grid-cols-[minmax(5rem,1fr)_auto_auto] items-center gap-3 border-b border-border-subtle px-1 py-2 sm:grid-cols-[8rem_8rem_minmax(0,1fr)_8rem_7rem_6rem_5rem]">
-      <span role="cell"><Link href={`/coins/${c.mint}`} className={cn("inline-flex min-h-11 items-center gap-2 font-semibold hover:underline", nt ? "text-text-tertiary" : "text-brand-primary")}><CoinAvatar mint={c.mint} logoHash={c.logoHash} symbol={c.symbol} notTradeable={nt} />${safeText(c.symbol, 16)}</Link></span>
-      <span role="cell" className="num hidden text-caption text-text-secondary sm:block">{shortMint(c.mint)}</span>
+      <span role="cell"><Link href={`/coins/${c.mint}`} className={cn("inline-flex min-h-11 items-center gap-2 font-medium hover:underline", nt ? "text-text-tertiary" : "text-text-primary")}><CoinAvatar mint={c.mint} logoHash={c.logoHash} symbol={c.symbol} notTradeable={nt} />${safeText(c.symbol, 16)}</Link></span>
+      <span role="cell" className="hidden font-mono text-caption text-text-tertiary sm:block">{shortMint(c.mint)}</span>
       <span role="cell" className="hidden min-w-0 items-center gap-2 text-text-secondary sm:flex"><span className="truncate">{c.strategyName}</span> <ModeBadge mode={c.mode} /></span>
       <span role="cell" className="whitespace-nowrap">{nt ? <NotTradeableChip label={t("screener.notTradeable")} /> : <Badge tone={statusTone[c.status]}>{c.status === "rejected" ? t("screener.statusRejected") : t(`coins.status.${c.status}`)}</Badge>}</span>
       <span role="cell" className="num whitespace-nowrap text-right">{c.pnlSol != null && !nt ? <Pnl sol={c.pnlSol} mode={c.mode} /> : <span className="text-text-tertiary">—</span>}</span>

@@ -168,7 +168,7 @@ export function SettingsPanel({ signedInWith, practiceKnown = true, localMode = 
 
       {localMode ? <McpPanel /> : null}
       {localMode ? <LocalRealPanel /> : (
-        <section data-mode="real" className="rounded-lg border border-mode-real/50 bg-bg-surface p-4" aria-labelledby="trading-wallet-h">
+        <section data-mode="real" className="rounded-md border border-semantic-loss/40 bg-bg-surface p-4" aria-labelledby="trading-wallet-h">
           <h2 id="trading-wallet-h" className="flex items-center gap-2 text-titleSm text-mode-real"><Wallet size={16} aria-hidden /> {t.ux("settings.wallet.title")}</h2>
           <p className="mt-2 text-body">{t.ux("settings.wallet.not_connected")}</p>
           <p className="mt-1 text-caption text-text-secondary">{t.ux("settings.wallet.separate_note")}</p>

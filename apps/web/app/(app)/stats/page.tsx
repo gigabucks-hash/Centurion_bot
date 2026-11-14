@@ -7,6 +7,7 @@ import { PortfolioModeTabs } from "@/components/PortfolioModeTabs";
 import type { ExitReasonStat } from "@/lib/types";
 
 import { Card, EmptyState, PageHeader, Pnl, StatStrip, Table } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { ExitCountChart, ExitPnlChart } from "@/components/charts/ExitCharts";
 import { StatsFilters } from "@/components/StatsFilters";
 import { getT, getFmt } from "@/lib/i18n/server";
@@ -82,7 +83,7 @@ async function StatsBody({ searchParams }: { searchParams: PageProps<"/stats">["
 export default function StatsPage(props: PageProps<"/stats">) {
   return (
     <>
-      <Suspense fallback={<div className="h-96 animate-pulse rounded-lg bg-bg-surface" />}>
+      <Suspense fallback={<PageSkeleton variant="dashboard" />}>
         <StatsBody searchParams={props.searchParams} />
       </Suspense>
     </>

@@ -8,6 +8,7 @@ import { parsePnlWindow, pnlReportFromSummary, sameLamports } from "@/lib/pnl-re
 import { shortMint } from "@/lib/format";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { Card, EmptyState, PageHeader, Pnl, StatStrip, Table } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { PnlReport } from "@/components/PnlReport";
 import { PnlFilters } from "@/components/PnlFilters";
 import { PortfolioModeTabs } from "@/components/PortfolioModeTabs";
@@ -240,7 +241,7 @@ async function Report({ searchParams }: { searchParams: PageProps<"/pnl">["searc
 
 export default function PnlReportPage({ searchParams }: PageProps<"/pnl">) {
   return (
-    <Suspense fallback={<div className="h-96 animate-pulse rounded-lg bg-bg-surface" />}>
+    <Suspense fallback={<PageSkeleton variant="table" />}>
       <Report searchParams={searchParams} />
     </Suspense>
   );

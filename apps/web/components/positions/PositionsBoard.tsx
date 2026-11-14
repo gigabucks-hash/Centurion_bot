@@ -137,23 +137,33 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <Card>
           <p className="mb-1 text-caption text-text-tertiary sm:hidden">{t("table.scrollHint")} →</p>
-          <div className="relative -mx-4 overflow-x-auto [mask-image:linear-gradient(to_right,black_90%,transparent)] sm:[mask-image:none]">
-            <table className="w-full min-w-[720px] text-body">
+          <div className="min-w-0 overflow-x-auto">
+            <table className="w-full table-fixed text-body">
+              <colgroup>
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "11%" }} />
+              </colgroup>
               <thead>
-                <tr className="border-b border-border-subtle text-left text-label text-text-tertiary">
-                  <th scope="col" className="sticky left-0 z-10 bg-bg-surface px-4 py-2 font-medium shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:shadow-none">{t("positions.colCoin")}</th>
-                  <th scope="col" className="px-4 py-2 font-medium">{t("positions.colStrategy")}</th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colSize", { unit })}</th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colPrice")}</th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colPnlSol", { unit })}</th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colPnlPct")}</th>
-                  <th scope="col" className="whitespace-nowrap px-4 py-2 text-right font-medium">{t("positions.colHold")}</th>
-                  <th scope="col" className="relative px-4 py-2"><span className="sr-only">{t("positions.sell")}</span></th>
+                <tr className="text-left text-caption text-text-tertiary">
+                  <th scope="col" className="sticky top-0 left-0 z-30 border-b border-border-subtle bg-bg-surface px-2 py-2 font-medium sm:left-auto">{t("positions.colCoin")}</th>
+                  <th scope="col" className="sticky top-0 z-20 border-b border-border-subtle bg-bg-surface px-2 py-2 font-medium">{t("positions.colStrategy")}</th>
+                  <th scope="col" className="sticky top-0 z-20 border-b border-border-subtle bg-bg-surface px-2 py-2 text-right font-medium whitespace-normal">{t("positions.colSize", { unit })}</th>
+                  <th scope="col" className="sticky top-0 z-20 border-b border-border-subtle bg-bg-surface px-2 py-2 text-right font-medium whitespace-nowrap">{t("positions.colPrice")}</th>
+                  <th scope="col" className="sticky top-0 z-20 border-b border-border-subtle bg-bg-surface px-2 py-2 text-right font-medium whitespace-normal">{t("positions.colPnlSol", { unit })}</th>
+                  <th scope="col" className="sticky top-0 z-20 border-b border-border-subtle bg-bg-surface px-2 py-2 text-right font-medium whitespace-nowrap">{t("positions.colPnlPct")}</th>
+                  <th scope="col" className="sticky top-0 z-20 border-b border-border-subtle bg-bg-surface px-2 py-2 text-right font-medium whitespace-nowrap">{t("positions.colHold")}</th>
+                  <th scope="col" className="sticky top-0 z-20 border-b border-border-subtle bg-bg-surface px-2 py-2"><span className="sr-only">{t("positions.sell")}</span></th>
                 </tr>
               </thead>
               <VirtualTbody
                 count={view.length}
-                rowHeight={52}
+                rowHeight={44}
                 colSpan={8}
                 render={(i) => {
                   const r = view[i];
@@ -221,18 +231,18 @@ const PositionRow = memo(function PositionRow({ r, focused, holdS, onFocus, onSe
     <tr
       onClick={() => onFocus(r.key)}
       aria-selected={focused}
-      className={cn("h-[52px] cursor-pointer border-b border-border-subtle last:border-0 hover:bg-bg-raised", focused && "bg-brand-primaryContainer/40")}
+      className={cn("group h-11 cursor-pointer hover:bg-bg-raised", focused && "bg-bg-raised")}
     >
-      <th scope="row" className="sticky left-0 z-10 bg-bg-surface px-4 text-left font-semibold shadow-[10px_0_10px_-10px_rgba(0,0,0,0.5)] sm:shadow-none">
-        <Link href={`/coins/${r.mint}`} className="inline-flex min-h-11 items-center gap-2 hover:underline"><CoinAvatar mint={r.mint} logoHash={r.logoHash} symbol={r.symbol} />{r.symbol}</Link>
+      <th scope="row" className={cn("sticky left-0 z-10 border-b border-border-subtle bg-bg-surface px-2 text-left font-medium group-hover:bg-bg-raised sm:static", focused && "bg-bg-raised")}>
+        <Link href={`/coins/${r.mint}`} className="inline-flex min-h-11 items-center gap-2 truncate hover:underline"><CoinAvatar mint={r.mint} logoHash={r.logoHash} symbol={r.symbol} />{r.symbol}</Link>
       </th>
-      <td className="whitespace-nowrap px-4 text-text-secondary"><span className="inline-flex items-center gap-2">{r.strategyName} <ModeBadge mode={r.mode} /></span></td>
-      <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.sol(r.solIn * remaining, { unit: false })}</td>
-      <td className="num whitespace-nowrap px-4 text-right text-numSm text-text-secondary">{(r.priceUnknown || r.markUnknown) ? "—" : f.usd(r.entryPriceUsd)} → {(r.priceUnknown || r.markUnknown) ? "—" : f.usd(r.nowPriceUsd)}</td>
-      <td className="whitespace-nowrap px-4 text-right"><Pnl sol={r.markUnknown ? null : r.pnlSol * remaining} mode={r.mode} /></td>
-      <td className="whitespace-nowrap px-4 text-right"><Pnl pct={r.markUnknown ? null : r.pnlPct} mode={r.mode} /></td>
-      <td className="num whitespace-nowrap px-4 text-right text-numSm">{f.duration(holdS)}</td>
-      <td className="px-4 text-right">
+      <td className="border-b border-border-subtle px-2 text-text-secondary"><span className="block truncate">{r.strategyName}</span><ModeBadge mode={r.mode} /></td>
+      <td className="num border-b border-border-subtle px-2 text-right text-numSm whitespace-nowrap">{f.sol(r.solIn * remaining, { unit: false })}</td>
+      <td className="num border-b border-border-subtle px-2 text-right text-caption whitespace-normal text-text-secondary">{(r.priceUnknown || r.markUnknown) ? "—" : <>{f.usd(r.entryPriceUsd)}<span className="text-text-tertiary"> → </span>{f.usd(r.nowPriceUsd)}</>}</td>
+      <td className="border-b border-border-subtle px-2 text-right whitespace-nowrap"><Pnl sol={r.markUnknown ? null : r.pnlSol * remaining} mode={r.mode} /></td>
+      <td className="border-b border-border-subtle px-2 text-right whitespace-nowrap"><Pnl pct={r.markUnknown ? null : r.pnlPct} mode={r.mode} /></td>
+      <td className="num border-b border-border-subtle px-2 text-right text-numSm whitespace-nowrap">{f.duration(holdS)}</td>
+      <td className="border-b border-border-subtle px-2 text-right">
         <Button size="sm" variant="secondary" className="min-h-11 whitespace-nowrap" disabled={!!r.screenerState} onClick={(e) => { e.stopPropagation(); onSell(r.key); }}>
           {t("positions.sell")} <kbd className="num hidden text-caption opacity-70 lg:inline">⇧X</kbd>
         </Button>

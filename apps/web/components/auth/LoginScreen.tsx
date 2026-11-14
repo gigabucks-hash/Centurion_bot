@@ -92,14 +92,13 @@ export function LoginScreen({ realWallet = false, localPaper = false }: { realWa
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <section className="hidden flex-col border-r border-border-subtle bg-bg-surface p-10 lg:flex">
-        <Wordmark height={72} />
+        <Wordmark height={36} />
         <h1 className="mt-auto text-display text-text-primary">{t("walletLogin.hero")}</h1>
         <ul className="mt-6 flex flex-col gap-2 text-body text-text-secondary">
           {(["walletLogin.v1", "walletLogin.v2", "walletLogin.v3"] as const).map((k) => (
             <li key={k} className="flex gap-2"><Check size={16} className="mt-0.5 text-semantic-profit" aria-hidden /> {t(k)}</li>
           ))}
         </ul>
-        <FauxDashboard />
       </section>
 
       <section className="flex flex-col items-center justify-center p-4 sm:p-10">
@@ -565,19 +564,3 @@ function MockPanel({ scenario, setScenario }: { scenario: Scenario; setScenario:
   );
 }
 
-function FauxDashboard() {
-  return (
-    <svg aria-hidden viewBox="0 0 420 180" className="mt-10 w-full max-w-lg">
-      <rect x="1" y="1" width="418" height="178" rx="16" fill="var(--color-bg-surface)" stroke="var(--color-border-subtle)" />
-      <rect x="20" y="22" width="86" height="52" rx="10" fill="var(--color-brand-primaryContainer)" />
-      <rect x="118" y="22" width="86" height="52" rx="10" fill="var(--color-semantic-profitContainer)" />
-      <rect x="216" y="22" width="86" height="52" rx="10" fill="var(--color-semantic-infoContainer)" />
-      <rect x="314" y="22" width="86" height="52" rx="10" fill="var(--color-brand-primary)" />
-      <path d="M28 128c28-30 48-28 70-6 16 16 30 8 46-14 22-30 48-26 70 6" fill="none" stroke="var(--color-brand-primary)" strokeWidth="3" strokeLinecap="round" />
-      <rect x="250" y="96" width="18" height="48" rx="4" fill="var(--color-semantic-profit)" />
-      <rect x="276" y="112" width="18" height="32" rx="4" fill="var(--color-semantic-loss)" />
-      <rect x="302" y="88" width="18" height="56" rx="4" fill="var(--color-brand-primary)" />
-      <rect x="328" y="104" width="18" height="40" rx="4" fill="var(--color-text-tertiary)" />
-    </svg>
-  );
-}

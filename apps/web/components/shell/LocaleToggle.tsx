@@ -14,7 +14,7 @@ export function LocaleToggle() {
     document.documentElement.lang = locale;
   }, [locale]);
   return (
-    <div role="radiogroup" aria-label={t("common.language")} className="inline-flex rounded-full border border-border-default p-0.5">
+    <div role="radiogroup" aria-label={t("common.language")} className="inline-flex rounded-md border border-border-subtle p-0.5">
       {LOCALES.map((l) => (
         <button
           key={l}
@@ -26,7 +26,7 @@ export function LocaleToggle() {
             await fetch("/api/locale", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ locale: l }) });
             router.refresh();
           }}
-          className={cn("h-7 min-w-9 rounded-full px-2 text-caption font-semibold uppercase", locale === l ? "bg-bg-raised text-text-primary" : "text-text-tertiary hover:text-text-primary")}
+          className={cn("h-6 min-w-8 rounded-sm px-1.5 text-caption font-medium uppercase", locale === l ? "bg-bg-surface text-text-primary" : "text-text-tertiary hover:text-text-primary")}
         >
           {l}
         </button>
