@@ -133,8 +133,12 @@ mod tests {
             serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
         let csp = &conf["app"]["security"]["csp"];
         assert_eq!(
-            csp["img-src"], "'self' data:",
-            "static CSP: no remote image origin"
+            csp["img-src"], "'self' data: https://static.datapi.jup.ag",
+            "static CSP: images only from this app and the Jupiter token-icon host"
+        );
+        assert_eq!(
+            csp["connect-src"], "ipc: http://ipc.localhost",
+            "the window does not fetch market APIs; the app process does"
         );
         assert_eq!(
             csp["font-src"], "'self'",

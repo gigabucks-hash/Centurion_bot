@@ -15,7 +15,8 @@ cat > "$tmp/tsconfig.json" <<JSON
     "typeRoots": ["$desk/node_modules/@types"],
     "paths": {
       "@centurion/contracts/wire": ["$tmp/packages/contracts/src/wire/index.ts"],
-      "@centurion/i18n/*": ["$root/packages/i18n/*"]
+      "@centurion/i18n/*": ["$root/packages/i18n/*"],
+      "@explore/*": ["$root/packages/explore/src/*"]
     }
   },
   "include": ["$desk/src", "$tmp/packages/contracts/src/wire"]

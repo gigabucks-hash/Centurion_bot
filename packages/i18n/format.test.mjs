@@ -93,6 +93,17 @@ test('market cap: compact USD / SOL, null → em dash', () => {
   assert.equal(formatMcapSol('8400000000000', 'en'), `8.4K${NB}SOL`); assert.equal(formatMcapSol(null, 'en'), DASH);
   assert.match(formatMcapUsd('1234567.89', 'id'), /^\$1,2\s?jt$/);
 });
+test('USD is a leading $ in both locales, never US$', async () => {
+  const { formatUsd } = await import('./format.mjs');
+  for (const loc of ['en', 'id']) {
+    for (const text of [formatUsd(1234.5, loc), formatUsd(-3.5, loc), formatMcapUsd(3_500_000, loc), formatMcapUsd(-3_500_000, loc)]) {
+      assert.equal(text.includes('US$'), false, text);
+      assert.match(text, /^-?\$/);
+    }
+  }
+  assert.equal(formatMcapUsd(3_500_000, 'en'), '$3.5M');
+  assert.match(formatMcapUsd(3_500_000, 'id'), /^\$3,5\sjt$/);
+});
 test('1.1.5 mcapView: indicative note depends on mcap_source', () => {
   const c = { market_cap_lamports: '8400000000000', mcap_usd: '1234567.89', mcap_as_of: 'x' };
   assert.deepEqual(mcapView({ ...c, mcap_source: 'curve' }, 'en').tooltipKeys, ['mcap.as_of', 'mcap.usd_indicative']);

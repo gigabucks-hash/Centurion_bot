@@ -580,3 +580,29 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
   background: transparent;
 }
 .entries-paused { border-radius: 6px; }
+
+/* Explore: full-window discovery. Text tabs, no pills. Gold is the active mark only. */
+.explore { min-height: 0; display: flex; flex-direction: column; background: var(--color-bg-canvas); }
+.explore-bar, .explore-filters { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); flex-wrap: wrap; }
+.explore-bar { border-bottom: 1px solid var(--color-border-subtle); }
+.explore-tabs { display: flex; gap: 0; }
+.explore button.ghost, .explore th button {
+  background: transparent; border-color: transparent; border-radius: 0;
+  min-height: 24px; padding: 0 var(--space-2); color: var(--color-text-tertiary);
+}
+.explore-tab.on, .explore th button.on, .explore-toggle[aria-pressed="true"] {
+  color: var(--color-text-primary);
+  box-shadow: inset 0 -2px 0 var(--color-brand-primary);
+}
+.explore-note { margin: 0; padding: 0 var(--space-3) var(--space-2); }
+.explore-filters label { display: flex; flex-direction: column; gap: 2px; color: var(--color-text-tertiary); font-size: var(--d-small); }
+.explore-filters input { width: 8rem; }
+.explore-body { flex: 1; min-height: 0; display: flex; }
+.explore-scroll { flex: 1; min-width: 0; overflow: auto; }
+.explore-detail { width: 280px; flex: none; border-left: 1px solid var(--color-border-subtle); padding: var(--space-3); overflow: auto; }
+.explore-detail h2 { margin: 0 0 var(--space-1); font-size: var(--text-body); }
+.explore-detail p, .explore-detail dl { margin: var(--space-2) 0; }
+.explore-detail dl div { display: flex; justify-content: space-between; gap: var(--space-2); }
+.explore-icon { width: 24px; height: 24px; border-radius: 999px; vertical-align: middle; }
+table.explore-table td:nth-child(n+2), table.explore-table th:nth-child(n+2) { text-align: right; }
+table.explore-table td:first-child, table.explore-table th:first-child, table.explore-table td:last-child, table.explore-table th:last-child { text-align: left; }

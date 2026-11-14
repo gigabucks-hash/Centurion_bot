@@ -35,7 +35,7 @@ export function buildCsp(o: CspOptions): string {
     ["script-src", `'self' 'nonce-${o.nonce}' 'strict-dynamic' ${THEME_INIT_HASH}${o.dev ? " 'unsafe-eval'" : ""}`],
     ["style-src", `'self' 'nonce-${o.nonce}' ${LWC_ATTRIBUTION_STYLE_HASH}${google ? `${google}/gsi/style` : ""}`],
     ["style-src-attr", "'unsafe-inline'"],
-    ["img-src", "'self' data: blob: https://appleid.cdn-apple.com"],
+    ["img-src", "'self' data: blob: https://appleid.cdn-apple.com https://static.datapi.jup.ag"],
     ["font-src", "'self'"],
     ["connect-src", `'self'${api}${google}${o.dev ? " ws:" : ""}`],
     ["frame-src", google.trim() || "'none'"],

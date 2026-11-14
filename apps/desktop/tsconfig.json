@@ -16,7 +16,8 @@
     "resolveJsonModule": true,
     "paths": {
       "@centurion/contracts/wire": ["../../packages/contracts/src/wire/index.ts"],
-      "@centurion/i18n/*": ["../../packages/i18n/*"]
+      "@centurion/i18n/*": ["../../packages/i18n/*"],
+      "@explore/*": ["../../packages/explore/src/*"]
     }
   },
   "include": ["src", "../../packages/contracts/src/wire"]

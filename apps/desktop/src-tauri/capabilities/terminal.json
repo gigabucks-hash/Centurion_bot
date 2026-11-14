@@ -46,6 +46,7 @@
     "allow-real-prepare-sell-all",
     "allow-real-submit-many",
     "allow-real-set-fast-rpc",
+    "allow-explore-fetch",
     "updater:default",
     "process:allow-restart"
   ]
