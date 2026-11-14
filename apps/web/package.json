@@ -12,12 +12,15 @@
     "test": "node scripts/run-tests.mjs",
     "audit": "npm audit --audit-level=moderate",
     "audit:osv": "osv-scanner scan --lockfile package-lock.json",
-    "ci": "npm run lint && npm run typecheck && npm test && npm run build && npm run audit"
+    "ci": "npm run lint && npm run typecheck && npm test && npm run build && npm run audit",
+    "mcp": "node --experimental-strip-types mcp/stdio.ts",
+    "mcp:http": "node --experimental-strip-types mcp/http.ts"
   },
   "dependencies": {
     "@centurion/contracts": "file:../../packages/contracts",
     "@centurion/design-tokens": "file:../../packages/design-tokens",
     "@centurion/i18n": "file:../../packages/i18n",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@tanstack/react-virtual": "3.14.24",
     "clsx": "2.1.1",
     "lightweight-charts": "5.2.1",

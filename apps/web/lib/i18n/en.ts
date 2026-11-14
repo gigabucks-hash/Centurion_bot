@@ -192,6 +192,15 @@ export const en = {
     trail: "Trail % (0 = off)",
     hold: "Max hold minutes (0 = off)",
   },
+  mcp: {
+    title: "Agents on this computer",
+    body: "An agent can paper-trade and, after you turn Real on here, trade and change limits directly. It cannot see your key and it cannot send SOL to another wallet. Turn this off to stop every agent at once.",
+    on: "Agents on",
+    off: "Agents off",
+    audit: "Recent agent calls",
+    empty: "No agent calls yet.",
+    tokenHint: "The local token is in .local-web/mcp.token. It is not shown here and it is never saved in git.",
+  },
   conn: {
     connected: "Live",
     connecting: "Connecting…",
