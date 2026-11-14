@@ -661,7 +661,7 @@ pub struct Loopback {
 /// 128 random bits as 32 hex chars (OS CSPRNG).
 fn random_state() -> Result<String, String> {
     let mut b = [0u8; 16];
-    getrandom::getrandom(&mut b).map_err(|e| e.to_string())?;
+    getrandom::fill(&mut b).map_err(|e| e.to_string())?;
     Ok(b.iter().map(|x| format!("{x:02x}")).collect())
 }
 

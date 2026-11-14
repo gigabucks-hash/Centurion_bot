@@ -51,7 +51,7 @@ pub struct Pkce {
 impl Pkce {
     pub fn new() -> Result<Self, String> {
         let mut b = [0u8; 32];
-        getrandom::getrandom(&mut b).map_err(|e| e.to_string())?;
+        getrandom::fill(&mut b).map_err(|e| e.to_string())?;
         Ok(Self::from_verifier(b64url(&b)))
     }
     pub fn from_verifier(verifier: String) -> Self {
@@ -141,7 +141,7 @@ impl PendingLogins {
     /// Start a login: fresh `state` + PKCE; returns (state, challenge) for the browser URL.
     pub fn start(&self) -> Result<(String, String), String> {
         let mut b = [0u8; 16];
-        getrandom::getrandom(&mut b).map_err(|e| e.to_string())?;
+        getrandom::fill(&mut b).map_err(|e| e.to_string())?;
         let state = b64url(&b);
         let pkce = Pkce::new()?;
         let ch = pkce.challenge.clone();
