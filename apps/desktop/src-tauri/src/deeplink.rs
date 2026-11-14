@@ -11,8 +11,9 @@
 //!    checks it strictly and once; `auth::SessionManager::complete_exchange` posts `{code, code_verifier}` to
 //!    `/v1/auth/desktop/exchange` and stores the session in the OS keychain only.
 //!
-//! macOS / Windows scheme registration needs `tauri-plugin-deep-link` (not in the offline cache, needs review);
-//! there the loopback flow (`auth::Loopback`) stays the default (`CENTURION_AUTH_RETURN`).
+//! Windows scheme registration needs `tauri-plugin-deep-link` (not in the offline cache, needs review);
+//! until then the loopback flow (`auth::Loopback`) stays the default (`CENTURION_AUTH_RETURN`).
+//! macOS is not a supported target.
 use sha2::{Digest, Sha256};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};

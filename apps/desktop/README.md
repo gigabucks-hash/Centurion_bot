@@ -41,7 +41,7 @@ signing secrets and troubleshooting. macOS is not a target.
 | ↵ | Pop out the chart (only from a focused row, no dialog open) |
 | C | Toggle the centre tab Chart ↔ **Koin · screener** (WF-20 screener rows incl. not-tradeable) |
 | L | Activity window |
-| P | Approval popup (Linux only for now; disabled on Windows/macOS until W-NOFOCUS passes; 360×232, bottom-right; PRACTICE: Approve/Skip; REAL: Skip + "Buka untuk approve ↗") |
+| P | Approval popup (Linux only for now; disabled on Windows until W-NOFOCUS passes; macOS is not a target; 360×232, bottom-right; PRACTICE: Approve/Skip; REAL: Skip + "Buka untuk approve ↗") |
 | , | Settings |
 | Esc | Close |
 

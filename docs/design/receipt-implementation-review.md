@@ -122,10 +122,8 @@ Present already: `pnlRealized`, `pnlRealizedHeroHint`, `pnlClosed`, `pnlReceiptS
 | `practice_reset` | `pnlReceiptWhyPracticeReset` | The paper account was reset | Akun paper direset |
 | `stall` | `pnlReceiptWhyStall` | Price stalled on the exit rule | Harga mandek pada aturan keluar |
 
-Delivery: published in `packages/i18n` 0.4.12 — `arb/app_en.arb` + `app_id.arb` now carry all 25 keys
-(ARB 975 strings, EN/ID parity). Mobile still reads the vendored `apps/mobile/lib/l10n` copy, so the next
-mobile change copies both ARBs into `apps/mobile/lib/l10n/` and updates the two pins in
-`apps/mobile/tool/ci_check_vendored.sh:37-40` in the same change. One hand-edited copy fails the ARB gate.
+Delivery: published in `packages/i18n` 0.4.12 (`en.json` / `id.json`, EN/ID parity). The Flutter ARB
+export and the vendored `apps/mobile/lib/l10n` copy were removed with the mobile app.
 Do not re-add these keys to the package.
 
 Desktop has all 14 `pnl.receipt.why.*` keys in EN/ID (`apps/desktop/src/i18n/local.ts:106-119,222-235`).

@@ -367,8 +367,8 @@ and in the audit row. Same `Idempotency-Key` with a different `reject_reason` is
 { "decision": "reject", "token": "apt_Q2x...", "reject_reason": "price_moved" }
 -> 200 { "data": { "proposal_id": "3000...", "status": "rejected", "rev": 2, "reject_reason": "price_moved", "replayed": false }, ... }
 ```
-Flutter: `supabase.rpc('decide_approval', {p_approval_id, p_token, p_decision, p_expected_rev, p_idempotency_key, p_reject_reason})`
-returns `{proposal_id, status, rev, reject_reason, replayed, server_now}`; errors are SQLSTATE `P04xx` with `message` = error code.
+Web and the Windows desktop call the same SQL function through REST. The Flutter RPC client was removed.
+The function returns `{proposal_id, status, rev, reject_reason, replayed, server_now}`; errors are SQLSTATE `P04xx` with `message` = error code.
 No `client` / `p_client`: the channel comes from the JWT claim (`push` when the token was minted for a push).
 
 **Guard-change proposals (practice).** Decide like any approval, plus for `decision: "approve"` on a weakening

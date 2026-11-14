@@ -1,5 +1,9 @@
 name: desktop
 
+# Supported desktop product target: Windows (`windows-bundle` and the signed release job).
+# Ubuntu jobs verify the shell and, on main, produce unsigned Linux bundles.
+# There is no macOS runner and no macOS bundle.
+
 on:
   push:
     branches: [main]

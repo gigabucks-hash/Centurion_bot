@@ -1,5 +1,7 @@
 # QA plan v1 — paper trading end to end
 
+The Flutter mobile target recorded in this plan was removed. Current clients are the web app and the Windows desktop. macOS is not a desktop target. Rows below that name `flutter` or `apps/mobile` are the historical run, not a current gate.
+
 **Owner:** Product Tester · **For:** Apex Dev Lead · **Version:** 1.3 (7 Nov 2026, WIB)
 **Scope:** web paper surface against mock plus a local HTTP decoder harness. Paper only; no secrets, no deploy, no app-code change.
 **Branch under test:** `HEAD = origin/main = 025e488` plus the shared uncommitted web/backend fix tree (not included in the HEAD claim). The QA agent changed only this document.

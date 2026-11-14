@@ -1,5 +1,7 @@
 # Changelog — @centurion/design-tokens (Centurion Trade)
 
+The Flutter `tokens/app_tokens.dart` export was removed with the mobile app. `scripts/build.py` no longer writes it. CSS, Tailwind and Tauri outputs are unchanged. Entries below that mention Dart or `apps/mobile` describe that removed export.
+
 ## 0.3.4 — 3 Nov 2026 · surface chrome, sheet scrim, component shadows, onWarning (disetujui lead)
 Menambahkan 5 token yang dipakai mockup G1-blue v2 sehingga apps tidak perlu hard-code. Hanya penambahan; **tidak ada rename, penghapusan, atau perubahan nilai.**
 

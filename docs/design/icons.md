@@ -1,36 +1,29 @@
 # Icon system
 
-One icon family across mobile, web and desktop: **Lucide** — 24 px grid, 2 px stroke, round caps,
-outline only. Licence **ISC** (Lucide contributors): commercial use, modification and redistribution
-are allowed; only the copyright notice must stay. `flutter_lucide` (the Dart package) is MIT.
+One icon family across the web app and the Windows desktop: **Lucide** — 24 px grid, 2 px stroke,
+round caps, outline only. Licence **ISC** (Lucide contributors): commercial use, modification and
+redistribution are allowed; only the copyright notice must stay. The Flutter app and its
+`flutter_lucide` package were removed.
 
 | Platform | Package | Version |
 |---|---|---|
-| Mobile | `flutter_lucide` | `^1.67.0` |
 | Web | `lucide-react` | `1.67.0` |
-| Desktop | `lucide-react` | `1.67.0` |
+| Windows desktop | `lucide-react` | `1.67.0` |
 
-Keep the three versions in step: an icon added on one platform must exist on all of them.
-`flutter_lucide` ships a ~1 MB icon font that Flutter tree-shakes on release builds; the measured
-`lucide.ttf` inside a release APK is ~15 KB.
+Keep the two versions in step: an icon added on one client must exist on the other.
 
 ## Names that bite
 
-Lucide renamed a few icons, and the Dart package uses snake_case:
+Lucide renamed a few icons:
 
-| Wanted | Web / desktop | Flutter |
-|---|---|---|
-| home | `house` (not `home`) | `LucideIcons.house` |
-| bar chart | `chart-no-axes-column` (`bar-chart-3` is an alias) | `LucideIcons.chart_no_axes_column` |
-| filter | `list-filter` | `LucideIcons.list_filter` (there is no `filter`) |
-| fingerprint | `fingerprint-pattern` | `LucideIcons.fingerprint_pattern` (there is no `fingerprint`) |
+| Wanted | Web / desktop |
+|---|---|
+| home | `house` (not `home`) |
+| bar chart | `chart-no-axes-column` (`bar-chart-3` is an alias) |
+| filter | `list-filter` |
+| fingerprint | `fingerprint-pattern` |
 
 ## Navigation
-
-Mobile tabs (`apps/mobile/lib/core/widgets/app_icons.dart`): `house` Home, `bot` Bots,
-`activity` Activity, `shield` / `shield-check` Risk (active), `settings` Settings.
-Approvals are not a tab: the pending count rides as a badge on **Risk**, in `semantic.warning`
-with `onWarning` ink — not Material's red.
 
 Web (`apps/web/components/shell/nav.ts`): `layout-dashboard`, `workflow`, `square-check`, `wallet`,
 `activity`, `coins`, `chart-no-axes-column`, `settings`.
@@ -53,12 +46,11 @@ states (`apps/desktop/src/components/Icon.tsx`).
 
 - Sizes: 16 inline, 18 compact desktop rows, 20 controls, 24 page headers, 32 empty-state hero.
 - Stroke: Lucide's 2 at 20–24 px; 1.75 at 16 px; 1.5 at 32 px.
-- Colour comes from the text token — `currentColor` on web/desktop, `IconTheme` or a `TradeColors`
-  value in Flutter. Never pass a hex literal to an icon.
+- Colour comes from the text token — `currentColor` on web and desktop. Never pass a hex literal to an icon.
 - Do not swap the active nav icon for a filled variant: Lucide is outline only, and mixing families
   is what this file exists to prevent.
-- Hit area ≥ 44×44 mobile, ≥ 32×32 desktop, even when the glyph is 20.
-- Icon-only control needs a name (`aria-label`, or `Semantics`/`tooltip` in Flutter). Icon next to a
+- Hit area ≥ 40×40 on the web phone layout, ≥ 32×32 on desktop, even when the glyph is 20.
+- Icon-only control needs a name (`aria-label` or a tooltip). Icon next to a
   visible label is decorative: `aria-hidden` / `excludeFromSemantics`.
 - An icon never carries state alone — pair it with text or a token-coloured dot in the same row.
 

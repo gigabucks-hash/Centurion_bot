@@ -1,8 +1,8 @@
-//! Approval (proposal) model. One model for both clients:
-//! * Web: `POST /v1/approvals/{id}/decision` with `Idempotency-Key` + `expected_version`.
-//! * Flutter: Supabase RPC `decide_approval(p_approval_id, p_token, p_decision, p_expected_rev, p_client)`.
+//! Approval (proposal) model. Web and the Windows desktop share one model:
+//! `POST /v1/approvals/{id}/decision` with `Idempotency-Key` + `expected_version`.
+//! The Flutter client was removed.
 //!
-//! Both end in the SQL function `public.decide_approval` (supabase/migrations/0001_init.sql), which
+//! The route ends in the SQL function `public.decide_approval` (supabase/migrations/0001_init.sql), which
 //! implements exactly [`decide`]. The *backend* owns `expires_at`; the worker owns expiry
 //! transitions ([`expire`]); no DB trigger moves state.
 use serde::{Deserialize, Serialize};

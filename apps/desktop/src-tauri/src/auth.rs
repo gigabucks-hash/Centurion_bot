@@ -221,7 +221,7 @@ impl TokenStore for MemoryStore {
     }
 }
 
-/// OS keychain (macOS Keychain, Windows Credential Manager, Secret Service), service `com.centuriontrade.app`,
+/// OS keychain (Windows Credential Manager, Linux Secret Service), service `com.centuriontrade.app`,
 /// account `siws-session`, value = the session JSON.
 #[cfg(feature = "keychain")]
 pub struct KeychainStore;
@@ -872,15 +872,13 @@ pub fn open_system_browser(url: &str) -> Result<(), String> {
     {
         return Err("refusing to open a non-https URL".into());
     }
-    #[cfg(target_os = "macos")]
-    let mut cmd = std::process::Command::new("open");
     #[cfg(target_os = "windows")]
     let mut cmd = {
         let mut c = std::process::Command::new("rundll32");
         c.arg("url.dll,FileProtocolHandler");
         c
     };
-    #[cfg(all(unix, not(target_os = "macos")))]
+    #[cfg(not(target_os = "windows"))]
     let mut cmd = std::process::Command::new("xdg-open");
     cmd.arg(url)
         .stdin(std::process::Stdio::null())

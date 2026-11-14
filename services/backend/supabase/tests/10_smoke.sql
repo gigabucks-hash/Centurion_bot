@@ -207,7 +207,7 @@ select pg_temp.expect_error($$select * from public.siws_nonces$$, 'client reads 
 select pg_temp.expect_error($$select * from public.email_otps$$, 'client reads otp hashes');
 select pg_temp.expect_error($$select * from public.approval_tokens$$, 'client reads token hashes');
 select pg_temp.expect_error($$select public.issue_approval_token('30000000-0000-0000-0000-00000000000e','00000000-0000-0000-0000-00000000000a','web')$$, 'client mints token');
--- decide_approval (same path as REST + Flutter RPC)
+-- decide_approval (same path as REST). The Flutter client was removed.
 select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e','apt_wrong','approve',1)$$, 'bad token');
 select pg_temp.expect_error($$select public.decide_approval('30000000-0000-0000-0000-00000000000e',(select token from tok),'approve',7)$$, 'stale expected_rev');
 do $$ declare r jsonb; r2 jsonb; begin

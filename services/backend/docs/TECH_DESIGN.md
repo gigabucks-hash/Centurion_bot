@@ -29,7 +29,7 @@ flowchart LR
   end
   SCR & GRD & ENT & EXE & EXIT --> EV
   EV --> RT[Supabase Realtime] --> Clients
-  EV --> SSE[Node/TS API: REST + SSE] --> Clients[Web / Flutter / Desktop]
+  EV --> SSE[Node/TS API: REST + SSE] --> Clients[Web / Windows desktop]
   MARK[mark price worker] --> BC[Realtime Broadcast marks:ws:mode] --> Clients
   SSE --> MCP[MCP server: OAuth 2.1 PKCE, read/trade]
 ```
@@ -140,7 +140,7 @@ under the frozen plan.
 - **Phase 2 (started): `services/backend/api`** — dependency-light Node/TS server (`node:http` + `pg`).
   Each request runs as role `authenticated` with the verified JWT claims (actor/via from the token, RLS
   applies); mutations go through the SQL functions (`close_position`, `decide_approval`) so REST and the
-  Flutter RPCs share one implementation of rev / idempotency / role checks; endpoints without SQL idempotency
+  REST and the SQL functions share one implementation of rev / idempotency / role checks; endpoints without SQL idempotency
   use the API store on `api_idempotency` (`idem.ts`). Every 409 carries `current` (SQL first, `withCurrent()`
   as the server-side guarantee). SSE: one shared service-role poller per (workspace, mode) reads `events` up to
   `events_safe_seq()`; each stream catches up as the user (RLS), then drains the shared queue de-duplicated by
@@ -247,8 +247,8 @@ sample).
 
 ## 15. Open questions (for Apex)
 Resolved in v1.1 (Apex, 2026-10-29): own vocabulary (CHANGELOG rename table); percentages/ratios stay
-JSON numbers, lamports and prices are strings; snake_case everywhere; Flutter owns the Dart error
-generator; practice 30 SOL, reset any time, once per 24 h, history archived.
+JSON numbers, lamports and prices are strings; snake_case everywhere; the Dart error
+generator left with the removed Flutter app; practice 30 SOL, reset any time, once per 24 h, history archived.
 
 Still open (Boss): Yellowstone provider; Telegram OIDC security-review sign-off.
 Deletion grace resolved: 7–30 days, default 7, decided by Apex as lead (migration 0004).
@@ -272,8 +272,8 @@ unless `TRADING_MODE=paper`.
 ### 16.2 Who signs: never the server
 - The server **never holds, derives, receives or stores private keys or seed phrases**. It builds an unsigned
   sell transaction (or a Jupiter/pump route description) and returns it to the client.
-- Signing happens outside the server: the Solana wallet-adapter in Web/Desktop (Phantom, Backpack, Solflare,
-  hardware wallets via the adapter) or Mobile Wallet Adapter on Flutter, or an external signer the user runs
+- Signing happens outside the server: the Solana wallet-adapter in the web app and the Windows desktop (Phantom, Backpack, Solflare,
+  hardware wallets via the adapter), or an external signer the user runs
   (e.g. a hardware wallet / custody API they own). The client submits the signed transaction itself, or hands
   the signed bytes back for relay only; the server verifies the signature matches the prepared message and the
   registered wallet before relaying.

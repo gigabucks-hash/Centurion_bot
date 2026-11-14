@@ -1,5 +1,7 @@
 # Bug hunt v2 — retest and focused audit
 
+The Flutter app paths in this report were removed with the mobile target. They are a historical audit, not a current build. macOS is not a desktop target.
+
 Date: 2026-11-06. Baseline: `main`, `HEAD = origin/main = 97faf0a` in `C:\cw\app`.
 Paper-only. No app fixes, staging, commits, pushes, deploys, or token/contracts changes.
 Owned deliverables: this file and `docs/qa/repro/v2/` only.

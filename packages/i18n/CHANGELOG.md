@@ -2,6 +2,8 @@
 
 Sumber: `ux-solbot/scripts/build_locales.py` (UX). Format: [Keep a Changelog](https://keepachangelog.com/), versi 0.x (setiap minor/patch boleh breaking; ditandai **BREAKING**). Waktu WIB.
 
+The Flutter ARB export (`arb/`) and `test/flutter/` were removed with the mobile app. Entries below that mention ARB, `flutter gen-l10n`, or `apps/mobile` describe that removed export. Web and desktop still use `en.json` and `id.json`.
+
 ## 0.4.12 · 6 Nov 2026 · publish receipt + markets keys ke ARB (+114, ARB-only)
 
 975 key ARB (+114, 0 dihapus, 0 rename). `arb/app_en.arb` + `arb/app_id.arb` = 975 key

@@ -39,8 +39,9 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 # Verify a wallet signature. The desktop never constructs or stores a signing key.
 ed25519-dalek = { version = "2", features = ["std"] }
 
-# Planned (Week 2): OS keychain for the backend session token. Off by default in the prototype.
-keyring = { version = "3", optional = true, features = ["apple-native", "windows-native", "sync-secret-service"] }
+# OS keychain for the backend session token. Windows Credential Manager and Linux Secret Service.
+# macOS Keychain (apple-native) is not enabled: macOS is not a supported target.
+keyring = { version = "3", optional = true, features = ["windows-native", "sync-secret-service"] }
 
 [features]
 # The keychain is on by default: the SIWS session (and nothing else) is stored there.
