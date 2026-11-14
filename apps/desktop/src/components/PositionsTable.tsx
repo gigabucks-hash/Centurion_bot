@@ -97,7 +97,7 @@ export function PositionsTable({ positions, cursorMint, onCursor, onFocusRow, on
               onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) onCursor(p.mint); }}
               onFocus={(e) => e.target === e.currentTarget && onFocusRow?.(p.mint)}>
               <td><span className="coin-sym"><CoinAvatar mint={p.mint} symbol={p.symbol} logoHash={p.logo_hash} size={24} notTradeable={nt} /><b>${p.symbol}</b></span> {nt && <NtChip compact title={t("positions.sell.not_tradeable_detail")} />}</td>
-              <td className="muted col-strategy">{p.strategy.replace(/^Mock · /, "")}</td>
+              <td className="muted col-strategy" title={p.strategy.replace(/^Mock · /, "")}>{p.strategy.replace(/^Mock · /, "")}</td>
               <td className="num">{solText(p.cost_lamports, lang, paper)}</td>
               <td className="num col-entry">{fmtPriceDec(p.entry_price_sol)} → {fmtPriceDec(p.last_price_sol)}</td>
               <td className={`num col-pnl ${sol ? TONE_CLASS[sol.tone] : "muted"}`}>{pnlText(sol)}</td>
@@ -140,7 +140,7 @@ export function PositionsBar({ p, now = Date.now(), onSell, sellLabel }: {
         <CoinAvatar mint={p.mint} symbol={p.symbol} logoHash={p.logo_hash} size={20} notTradeable={nt} />
         <b>${p.symbol}</b>
       </span>
-      <span className="dim">{p.strategy.replace(/^Mock · /, "")}</span>
+      <span className="dim strategy-name" title={p.strategy.replace(/^Mock · /, "")}>{p.strategy.replace(/^Mock · /, "")}</span>
       <span className="num dim">hold {fmtHold(now - p.opened_at_ms)}</span>
       <span className={`num bar-pnl ${pct ? TONE_CLASS[pct.tone] : "muted"}`} title={solText(p.cost_lamports, lang, paper)}>{pnlText(pct)}</span>
       {nt ? (

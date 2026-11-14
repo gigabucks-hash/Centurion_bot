@@ -31,12 +31,12 @@ export const fmtPriceDec = (d: DecimalString | null | undefined) => {
   const [i, f = ""] = d.split(".");
   return f ? `${i}.${f.slice(0, 6)}` : i;
 };
-/** Lamports → "0,2500 SOL"-style (BigInt, no float). */
-export const fmtSol = (l: Lamports | null | undefined, decimals = 4) => {
+/** Lamports → "0,25" (2 decimal places, BigInt, no float). */
+export const fmtSol = (l: Lamports | null | undefined) => {
   if (l == null) return "—";
-  const s = lamportsToSol(l, decimals);
+  const s = lamportsToSol(l, 2);
   const [i, f = ""] = s.split(".");
-  return `${i},${f.padEnd(Math.min(decimals, 2), "0")}`;
+  return `${i},${(f + "00").slice(0, 2)}`;
 };
 
 /** USD notional in the UI locale (compact): 48211 → "$48.2K" / "48,2 rb US$"-style via Intl. */

@@ -1,5 +1,7 @@
+import { Ban, Info } from "lucide-react";
 import type { Tradeability } from "../api";
 import { useT } from "../i18n";
+import { Icon } from "./Icon";
 
 /**
  * WF-20 neutral/disabled chip: text.tertiary on surface.sunken, dashed outline, ⊘ icon.
@@ -12,7 +14,7 @@ export function NtChip({ title, compact = false }: { title?: string; compact?: b
   return (
     <span className={`chip nt${compact ? " compact" : ""}`} title={title ?? label}>
       {/* The label is its own element so it can ellipsize (an inline-flex text node cannot). */}
-      <span aria-hidden>⊘</span>{compact ? <span className="sr-only">{label}</span> : <span className="nt-label">{label}</span>}
+      <Icon glyph={Ban} size={16} />{compact ? <span className="sr-only">{label}</span> : <span className="nt-label">{label}</span>}
     </span>
   );
 }
@@ -23,7 +25,7 @@ export function NtDetail({ trade, kind = "approve" }: { trade: Tradeability; kin
   const reason = trade.reason_code ?? "UNSUPPORTED_QUOTE_MINT";
   return (
     <div className="nt-info" role="note">
-      <span aria-hidden>ⓘ </span>
+      <Icon glyph={Info} size={16} />{" "}
       {kind === "sell" ? t("positions.sell.not_tradeable_detail") : reason === "UNSUPPORTED_QUOTE_MINT" ? t("screener.not_tradeable.detail") : t(`order.fail_reason.${reason.toLowerCase()}`, undefined, "order.fail_reason.unknown")}
     </div>
   );

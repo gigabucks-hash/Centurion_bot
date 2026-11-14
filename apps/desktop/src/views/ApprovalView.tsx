@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ExternalLink, X } from "lucide-react";
+import { Check, ExternalLink, FlaskConical, ShieldCheck, Timer, X } from "lucide-react";
 import { core, type PickView } from "../api";
 import { CoinAvatar } from "../components/CoinAvatar";
 import { Icon } from "../components/Icon";
@@ -87,7 +87,7 @@ export function ApprovalView() {
     <div className="popup" role="dialog" aria-modal="false" aria-labelledby="popup-title" data-active={active || undefined}>
       <div className="mode-strip" aria-hidden />
       <div className="popup-bar" data-tauri-drag-region>
-        <span className="mode-label" role="status">{mode === "practice" ? `◇ ${t("mode.practice.label")}` : `● ${t("mode.real.label")}`}</span>
+        <span className="mode-label" role="status"><Icon glyph={mode === "practice" ? FlaskConical : ShieldCheck} size={16} /> {mode === "practice" ? t("mode.practice.label") : t("mode.real.label")}</span>
         <MockTtlBadge sample={shown} />
         <span className="num" style={{ marginLeft: "auto" }}>{pending.length} menunggu</span>
       </div>
@@ -96,9 +96,9 @@ export function ApprovalView() {
           <div className="popup-head">
             <CoinAvatar mint={shown.mint} symbol={shown.symbol} logoHash={shown.logo_hash} size={32} notTradeable={nt} />
             <b id="popup-title">${shown.symbol}</b>
-            {nt ? <NtChip /> : <span className="chip">{shown.strategy.replace(/^Mock · /, "")}</span>}
+            {nt ? <NtChip /> : <span className="chip strategy-name" title={shown.strategy.replace(/^Mock · /, "")}>{shown.strategy.replace(/^Mock · /, "")}</span>}
             {isPending ? (
-              <span className={`num ${left < 120_000 ? "neg" : "muted"}`} style={{ marginLeft: "auto" }}>⏱ {fmtMmSs(left)}</span>
+              <span className="num muted" style={{ marginLeft: "auto" }}><Icon glyph={Timer} size={16} /> {fmtMmSs(left)}</span>
             ) : (
               <span className="muted" style={{ marginLeft: "auto" }}>{shown.status === "expired" ? t(`expire_reason.${shown.expired_reason ?? "timeout"}.badge`, undefined, "expire_reason.timeout.badge") : shown.status === "rejected" ? t("queue.tab.skipped") : t("queue.tab.approved")}</span>
             )}
@@ -112,7 +112,7 @@ export function ApprovalView() {
             ) : mode === "practice" ? (
               <button className="primary" disabled={!can} onClick={approve}><Icon glyph={Check} size={18} /> {t("queue.pick.approve")} <kbd>A</kbd></button>
             ) : (
-              <button className="real" disabled={!can} onClick={approve} title="Approve REAL hanya dari window utama (dialog + tahan 2,5 dtk)"><Icon glyph={ExternalLink} size={18} /> Buka untuk approve ↗</button>
+              <button className="real" disabled={!can} onClick={approve} title="Approve REAL hanya dari window utama (dialog + tahan 2,5 dtk)"><Icon glyph={ExternalLink} size={18} /> Buka untuk approve</button>
             )}
           </div>
           <div className="popup-foot">

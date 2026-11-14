@@ -271,7 +271,7 @@ export function TerminalView() {
         </section>
       </div>
       <div className="statusbar">
-        <span className={st.connected ? "pos" : "neg"}>● {st.connected ? t(transport === "http" ? "status.online_api" : "status.online_mock") : t("status.offline")}</span>
+        <span className="dim">{st.connected ? t(transport === "http" ? "status.online_api" : "status.online_mock") : t("status.offline")}</span>
         {st.sync && (
           <span className="dim num" title="watermark = seq resume cursor · gap = seq lompat (re-fetch via /events) · skew = server_now − jam lokal">
             contracts {st.contractsVersion} · seq {st.sync.watermark} · gap {st.sync.gaps_seen} · resync {st.sync.resyncs} (+{st.sync.recovered}) · dup {st.sync.duplicates} · skew {st.sync.skew_ms > 0 ? "+" : st.sync.skew_ms < 0 ? "\u2212" : ""}{Math.abs(st.sync.skew_ms / 1000).toFixed(1)}s
@@ -279,13 +279,13 @@ export function TerminalView() {
         )}
         <span className="dim">i18n {I18N_PACKAGE_VERSION} · {lang} · {runtime === "tauri" ? "desktop" : "preview"} · density: {st.settings.density} · popup: {!popupSupported ? "n/a (OS)" : st.settings.approval_popup ? "on" : "off"}</span>
         <span className="dim">global: focus {sc.focus_terminal}{sc.open_approvals ? ` · approvals ${sc.open_approvals}` : ""}</span>
-        {(err ?? st.lastError) ? <span className="neg status-error" role="status" title={err ?? st.lastError ?? undefined}>{err ?? st.lastError}</span>
-          : info && <span className="status-info status-error" role="status" title={info}>ⓘ {info}</span>}
+        {(err ?? st.lastError) ? <span className="dim status-error" role="status" title={err ?? st.lastError ?? undefined}>{err ?? st.lastError}</span>
+          : info && <span className="dim status-error" role="status" title={info}>{info}</span>}
       </div>
       {st.account.notice && <div className="account-banner" role="alert">{st.account.notice}</div>}
       {st.account.entries_paused && (
         // Notice, not an error: neutral strip, persists until cash recovers / Practice reset.
-        <div className="entries-paused" role="status" data-testid="entries-paused">ⓘ {errorMessage(st.account.entries_paused, lang)}</div>
+        <div className="entries-paused" role="status" data-testid="entries-paused">{errorMessage(st.account.entries_paused, lang)}</div>
       )}
       <ConflictToast />
       {qlTarget && <QuickLook target={qlTarget} onClose={() => setQl(null)} />}
