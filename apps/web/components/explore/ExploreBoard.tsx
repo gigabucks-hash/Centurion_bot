@@ -239,8 +239,8 @@ function Row({ row, tag, locale, age, copied, onCopy, t }: {
           {icon ? (
             // Remote icon is path-locked to static.datapi.jup.ag; next/image would add a second optimizer hop.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={icon} alt="" width={24} height={24} referrerPolicy="no-referrer" className="h-6 w-6 rounded-full" />
-          ) : <CoinAvatar mint={row.mint} symbol={row.symbol} size="sm" />}
+            <img src={icon} alt="" width={40} height={40} referrerPolicy="no-referrer" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+          ) : <CoinAvatar mint={row.mint} symbol={row.symbol} size="lg" />}
           <span className="min-w-0">
             <Link href={`/coins/${row.mint}`} className="font-medium text-text-primary hover:underline" title={row.name}>{`$${row.symbol}`}</Link>
             <span className="mt-0.5 flex items-center gap-1 text-text-tertiary">

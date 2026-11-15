@@ -444,12 +444,13 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 .coin-avatar.s20 { width: var(--coin-logo-size-sm); height: var(--coin-logo-size-sm); }
 .coin-avatar.s24 { width: var(--coin-logo-size-md); height: var(--coin-logo-size-md); }
 .coin-avatar.s32 { width: var(--coin-logo-size-lg); height: var(--coin-logo-size-lg); }
+.coin-avatar.s40 { width: 40px; height: 40px; }
 .coin-avatar img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 150ms; }
 .coin-avatar img.on { opacity: 1; }
 .coin-avatar.skeleton-dot { background: var(--color-skeleton-base); } /* static: no shimmer in lists */
 .coin-avatar.identicon { color: var(--color-identicon-fg); font-family: "Centurion Identicon", var(--font-sans); font-weight: 700; letter-spacing: 0; line-height: 1; user-select: none; }
-.coin-avatar.identicon.s20 { font-size: 8.4px; } .coin-avatar.identicon.s24 { font-size: 10px; } .coin-avatar.identicon.s32 { font-size: 13.4px; }
-.coin-avatar.identicon.one.s20 { font-size: 10px; } .coin-avatar.identicon.one.s24 { font-size: 12px; } .coin-avatar.identicon.one.s32 { font-size: 16px; }
+.coin-avatar.identicon.s20 { font-size: 8.4px; } .coin-avatar.identicon.s24 { font-size: 10px; } .coin-avatar.identicon.s32 { font-size: 13.4px; } .coin-avatar.identicon.s40 { font-size: 16.8px; }
+.coin-avatar.identicon.one.s20 { font-size: 10px; } .coin-avatar.identicon.one.s24 { font-size: 12px; } .coin-avatar.identicon.one.s32 { font-size: 16px; } .coin-avatar.identicon.one.s40 { font-size: 20px; }
 .coin-avatar.nt { filter: grayscale(1); opacity: var(--coin-logo-not-tradeable-opacity); box-shadow: none; outline: 1px dashed var(--color-text-tertiary); outline-offset: -1px; }
 .coin-sym { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .modal h3 .coin-sym { vertical-align: middle; margin-right: var(--space-1); }
@@ -603,6 +604,12 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 .explore-detail h2 { margin: 0 0 var(--space-1); font-size: var(--text-body); }
 .explore-detail p, .explore-detail dl { margin: var(--space-2) 0; }
 .explore-detail dl div { display: flex; justify-content: space-between; gap: var(--space-2); }
-.explore-icon { width: 24px; height: 24px; border-radius: 999px; vertical-align: middle; }
+.explore-icon { width: 40px; height: 40px; flex: none; object-fit: cover; border-radius: 999px; vertical-align: middle; }
+table.explore-table td { height: auto; vertical-align: middle; padding-top: 6px; padding-bottom: 6px; }
+.explore .coin-sym > span { min-width: 0; }
+.explore-name { display: inline-block; max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+@media (max-width: 720px) {
+  .explore-name { max-width: 8rem; }
+}
 table.explore-table td:nth-child(n+2), table.explore-table th:nth-child(n+2) { text-align: right; }
 table.explore-table td:first-child, table.explore-table th:first-child, table.explore-table td:last-child, table.explore-table th:last-child { text-align: left; }

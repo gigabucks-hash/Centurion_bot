@@ -210,10 +210,10 @@ function DesktopRow({ row, tag, lang, age, selected, copied, onSelect, onCopy, t
     <tr className={selected ? "cursor" : ""} onClick={onSelect}>
       <td>
         <span className="coin-sym">
-          {icon ? <img src={icon} alt="" width={24} height={24} referrerPolicy="no-referrer" className="explore-icon" /> : <CoinAvatar mint={row.mint} symbol={row.symbol} size={24} />}
+          {icon ? <img src={icon} alt="" width={40} height={40} referrerPolicy="no-referrer" className="explore-icon" /> : <CoinAvatar mint={row.mint} symbol={row.symbol} size={40} />}
           <span>
             <b>${row.symbol}</b>
-            <span className="dim"> {row.name}</span>
+            <span className="dim explore-name"> {row.name}</span>
             <button type="button" className="ghost" aria-label={t("explore.copy")} onClick={(e) => { e.stopPropagation(); onCopy(); }}><Copy size={12} aria-hidden />{copied ? t("explore.copied") : ""}</button>
           </span>
         </span>
