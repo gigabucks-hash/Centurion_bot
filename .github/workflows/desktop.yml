@@ -113,7 +113,7 @@ jobs:
       - run: npm run sync:tokens
       - name: tauri build (mock backend, unsigned)
         run: npx tauri build --bundles deb,appimage
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: desktop-linux-${{ github.sha }}
           path: |
@@ -146,7 +146,7 @@ jobs:
       - run: npm run sync:tokens
       - name: tauri build (mock backend, unsigned)
         run: npx tauri build --bundles nsis,msi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: desktop-windows-${{ github.sha }}
           path: |
