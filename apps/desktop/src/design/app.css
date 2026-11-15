@@ -59,6 +59,8 @@ button {
   transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
 }
 button:hover { border-color: var(--color-border-strong); }
+button.success:hover, button.primary:hover { background: var(--color-brand-primaryHover); border-color: var(--color-brand-primaryHover); }
+button.success:active, button.primary:active { background: var(--color-brand-primaryPressed); border-color: var(--color-brand-primaryPressed); }
 button:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
 button.success, button.primary { background: var(--color-brand-primary); border-color: var(--color-brand-primary); color: var(--color-text-onAccent); }
 button.ghost { background: transparent; border-color: transparent; color: var(--color-text-secondary); }
@@ -77,7 +79,7 @@ input, select {
 }
 input:focus-visible, select:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
 
-/* One hairline in Centurion gold. No cyan stripe, no diagonal banner. */
+/* One hairline in the theme accent. No second stripe, no diagonal banner. */
 .mode-strip { height: 2px; background: var(--color-brand-primary); }
 .mode-label {
   display: inline-flex; align-items: center; gap: var(--space-1);
@@ -191,6 +193,8 @@ table.positions tr.cursor td { background: var(--color-brand-primaryContainer); 
 table.positions td:nth-child(2) { text-align: left; }
 button.sm { min-height: var(--density-control-sm); padding: 0 var(--space-2); font-size: var(--text-caption); font-weight: 600; }
 button.real { background: var(--color-brand-primary); border-color: var(--color-brand-primary); color: var(--color-text-onAccent); }
+button.real:hover { background: var(--color-brand-primaryHover); border-color: var(--color-brand-primaryHover); }
+button.real:active { background: var(--color-brand-primaryPressed); border-color: var(--color-brand-primaryPressed); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 .exitbar { position: relative; display: inline-block; width: 72px; height: 6px; border-radius: var(--radius-full); background: var(--color-bg-sunken); border: 1px solid var(--color-border-subtle); vertical-align: middle; }
 .exitbar > i { position: absolute; top: 0; bottom: 0; border-radius: var(--radius-full); }
@@ -491,89 +495,10 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 .positions-bar .bar-pnl { margin-left: auto; flex: none; }
 .positions-bar button { flex: none; width: auto; min-height: 24px; padding: 0 var(--space-2); }
 
-/*
- * Terminal palette, same values as apps/web/app/theme.css.
- * Zinc surfaces, Centurion gold as the only accent. Green and red stay on PnL (.pos / .neg).
- */
+/* Colour lives in the synced design tokens. This only sets the native control scheme. */
 :root,
-[data-theme="dark"] {
-  color-scheme: dark;
-  --color-bg-canvas: #09090b;
-  --color-bg-surface: #111113;
-  --color-bg-raised: #18181b;
-  --color-bg-overlay: #1c1c1f;
-  --color-bg-sunken: #070708;
-  --color-bg-chrome: #0c0c0e;
-  --color-border-subtle: #27272a;
-  --color-border-default: #3f3f46;
-  --color-border-strong: #52525b;
-  --color-border-focus: #e0c36a;
-  --color-text-primary: #fafafa;
-  --color-text-secondary: #a1a1aa;
-  --color-text-tertiary: #94949e;
-  --color-text-disabled: #52525b;
-  --color-text-onAccent: #1a1408;
-  --color-brand-primary: #e0c36a;
-  --color-brand-primaryHover: #ebd48a;
-  --color-brand-primaryPressed: #c6a24e;
-  --color-brand-primaryContainer: #2a2418;
-  --color-brand-onPrimaryContainer: #f3e6c4;
-  --color-semantic-profit: #3dbe7a;
-  --color-semantic-profitContainer: #10261a;
-  --color-semantic-loss: #f07178;
-  --color-semantic-lossContainer: #2c1518;
-  --color-semantic-neutralPnl: #a1a1aa;
-  --color-mode-practice: #a1a1aa;
-  --color-mode-practiceContainer: #18181b;
-  --color-mode-real: #a1a1aa;
-  --color-mode-realContainer: #18181b;
-  --color-mode-onReal: #fafafa;
-  --shadow-card: none;
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 8px;
-}
-[data-theme="light"] {
-  color-scheme: light;
-  --color-bg-canvas: #f4f4f5;
-  --color-bg-surface: #ffffff;
-  --color-bg-raised: #fafafa;
-  --color-bg-overlay: #ffffff;
-  --color-bg-sunken: #f4f4f5;
-  --color-bg-chrome: #f7f7f8;
-  --color-border-subtle: #e4e4e7;
-  --color-border-default: #d4d4d8;
-  --color-border-strong: #71717a;
-  --color-border-focus: #6e5216;
-  --color-text-primary: #18181b;
-  --color-text-secondary: #3f3f46;
-  --color-text-tertiary: #52525b;
-  --color-text-disabled: #71717a;
-  --color-text-onAccent: #ffffff;
-  --color-brand-primary: #6e5216;
-  --color-brand-primaryHover: #5c430e;
-  --color-brand-primaryPressed: #3f2e0a;
-  --color-brand-primaryContainer: #f6f0e4;
-  --color-brand-onPrimaryContainer: #5c4310;
-  --color-semantic-profit: #067a4b;
-  --color-semantic-profitContainer: #e5f6ee;
-  --color-semantic-loss: #c0262d;
-  --color-semantic-lossContainer: #fdecec;
-  --color-semantic-neutralPnl: #3f3f46;
-  --color-mode-practice: #3f3f46;
-  --color-mode-practiceContainer: #f4f4f5;
-  --color-mode-real: #3f3f46;
-  --color-mode-realContainer: #f4f4f5;
-  --color-mode-onReal: #18181b;
-  --color-scrim-sheet: #18181b99;
-  --shadow-card: none;
-  --shadow-dialog: 0 12px 32px 0 rgba(24, 24, 27, 0.12);
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 8px;
-}
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
 .chip.lock, .badge-mock { border-radius: 6px; }
 .badge-mock, .chip.st-fail, .chip.verdict.v-fail {
   color: var(--color-text-secondary);
@@ -582,7 +507,7 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 }
 .entries-paused { border-radius: 6px; }
 
-/* Explore: full-window discovery. Text tabs, no pills. Gold is the active mark only. */
+/* Explore: full-window discovery. Text tabs, no pills. The accent is the active mark only. */
 .explore { min-height: 0; display: flex; flex-direction: column; background: var(--color-bg-canvas); }
 .explore-bar, .explore-filters { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); flex-wrap: wrap; }
 .explore-bar { border-bottom: 1px solid var(--color-border-subtle); }
