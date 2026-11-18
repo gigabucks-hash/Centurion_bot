@@ -12,9 +12,9 @@
 @import "@centurion/design-tokens/tailwind.theme.css" theme(static);
 
 @theme {
-  /* next/font self-hosts Inter + JetBrains Mono and exposes them as these variables. */
-  --font-sans: var(--font-inter), Inter, "SF Pro Text", Roboto, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), "JetBrains Mono", "SF Mono", "Roboto Mono", ui-monospace, monospace;
+  /* next/font/local self-hosts Schibsted Grotesk + Martian Mono from packages/design-tokens/fonts/ui. */
+  --font-sans: var(--font-schibsted), "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-martian), "Martian Mono", ui-monospace, monospace;
 }
 
 /*
@@ -78,7 +78,7 @@ body {
 @utility min-w-tap-touch { min-width: var(--spacing-control-lg); }
 
 /* Numbers: sans, tabular. Mono is reserved for addresses and hashes (font-mono). */
-@utility num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+@utility num { font-family: var(--font-mono); font-variant-numeric: tabular-nums slashed-zero; font-feature-settings: "tnum" 1, "zero" 1; }
 
 /* Inset hairline on coin marks. Pure black in light, pure white in dark. Does not change the 40px box. */
 .coin-logo {

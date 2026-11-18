@@ -164,9 +164,9 @@
 }
 
 :root {
-  --font-sans: Inter, 'SF Pro Text', Roboto, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Roboto Mono', ui-monospace, monospace;
-  --font-display: Sora, Inter, 'SF Pro Display', Roboto, system-ui, sans-serif;
+  --font-sans: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Martian Mono", ui-monospace, monospace;
+  --font-display: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
   --spacing: 4px;
   --coin-logo-size-sm: 20px;
   --coin-logo-size-md: 24px;

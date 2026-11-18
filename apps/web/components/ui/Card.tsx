@@ -15,7 +15,7 @@ export function Card({ title, subtitle, action, children, className, bodyClassNa
       {(title || action) && (
         <header className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-3">
           <div className="min-w-0">
-            <h2 className="truncate text-[15px] font-medium text-text-primary">{title}</h2>
+            <h2 className="truncate text-titleSm font-semibold tracking-[-0.02em] text-text-primary">{title}</h2>
             {subtitle && <div className="mt-0.5 text-caption text-text-tertiary">{subtitle}</div>}
           </div>
           {action}

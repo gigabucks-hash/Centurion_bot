@@ -14,6 +14,7 @@ body {
 h1,
 h2 {
   text-wrap: balance;
+  letter-spacing: -0.02em;
 }
 
 p {
@@ -23,6 +24,25 @@ p {
 :focus-visible {
   outline: 2px solid var(--color-border-focus);
   outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-brand-primary) 32%, transparent);
+  color: var(--color-text-primary);
+}
+
+html {
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+input,
+textarea {
+  caret-color: var(--color-brand-primary);
+}
+
+/* Number columns in Explore use the mono face. The name and the safety note stay in the UI face. */
+[data-testid="explore-table"] :is(th, td):not(:first-child):not(:last-child) {
+  font-family: var(--font-mono);
 }
 
 @media (prefers-reduced-motion: no-preference) {

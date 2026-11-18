@@ -93,7 +93,7 @@ export function LoginScreen({ realWallet = false, localPaper = false }: { realWa
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <section className="hidden flex-col border-r border-border-subtle bg-bg-surface p-10 lg:flex">
         <Wordmark height={36} />
-        <h1 className="mt-auto text-display text-text-primary">{t("walletLogin.hero")}</h1>
+        <h1 className="mt-auto max-w-[18ch] text-display tracking-[-0.02em] text-text-primary">{t("walletLogin.hero")}</h1>
         <ul className="mt-6 flex flex-col gap-2 text-body text-text-secondary">
           {(["walletLogin.v1", "walletLogin.v2", "walletLogin.v3"] as const).map((k) => (
             <li key={k} className="flex gap-2"><Check size={16} className="mt-0.5 text-semantic-profit" aria-hidden /> {t(k)}</li>
@@ -103,10 +103,10 @@ export function LoginScreen({ realWallet = false, localPaper = false }: { realWa
 
       <section className="flex flex-col items-center justify-center p-4 sm:p-10">
         <div className="mb-6 lg:hidden"><Wordmark height={40} /></div>
-        <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-surface p-6 shadow-card sm:p-8">
+        <div className="w-full max-w-md rounded-lg border border-border-subtle bg-bg-surface p-6 sm:p-8">
           {step === "choose" ? (
             <>
-              <h2 className="text-title">{t("walletLogin.heading")}</h2>
+              <h2 className="text-headline tracking-[-0.02em]">{t("walletLogin.heading")}</h2>
               <p className="mt-1 text-body text-text-secondary">{t("walletLogin.sub")}</p>
               {error && <ErrorBox text={error} />}
               <WalletFlow wallet={mockWallet} behaviour={behaviour} real={realWallet} onDone={() => router.push(afterLogin())} />

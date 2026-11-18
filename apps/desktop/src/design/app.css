@@ -2,11 +2,13 @@
  * App styles built ONLY on Centurion tokens (centurion-tokens.css, UX Phase 0).
  * Density: [data-density="compact"] = "Signal Terminal" (desktop default), "comfortable" = Calm Ledger.
  */
-@import "@fontsource/inter/latin-400.css";
-@import "@fontsource/inter/latin-500.css";
-@import "@fontsource/inter/latin-600.css";
-@import "@fontsource/jetbrains-mono/latin-400.css";
-@import "@fontsource/jetbrains-mono/latin-500.css";
+/* Same files as the web app: packages/design-tokens/fonts/ui. No network at runtime. */
+@font-face { font-family: "Schibsted Grotesk"; src: url("../../../../packages/design-tokens/fonts/ui/schibsted-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Schibsted Grotesk"; src: url("../../../../packages/design-tokens/fonts/ui/schibsted-grotesk-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Schibsted Grotesk"; src: url("../../../../packages/design-tokens/fonts/ui/schibsted-grotesk-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Schibsted Grotesk"; src: url("../../../../packages/design-tokens/fonts/ui/schibsted-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Martian Mono"; src: url("../../../../packages/design-tokens/fonts/ui/martian-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Martian Mono"; src: url("../../../../packages/design-tokens/fonts/ui/martian-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
 
 :root, [data-density="compact"] {
   --d-control: var(--density-control-md);   /* 32px compact; hit area stays >= 24px (WCAG 2.5.8) */
@@ -36,8 +38,11 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   user-select: none;
+  scrollbar-color: var(--color-border-strong) transparent;
 }
-/* Amounts stay in Inter with tabular figures. Mono is for addresses and hashes. */
+::selection { background: color-mix(in srgb, var(--color-brand-primary) 32%, transparent); color: var(--color-text-primary); }
+input, textarea { caret-color: var(--color-brand-primary); }
+/* Amounts use Martian Mono (tabular, slashed zero). Schibsted Grotesk carries the UI. */
 .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums slashed-zero; }
 .muted { color: var(--color-text-secondary); }
@@ -525,8 +530,8 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
   box-shadow: inset 0 -2px 0 var(--color-brand-primary);
 }
 .explore-title {
-  margin: 0; font-size: var(--text-titleSm); font-weight: 600; letter-spacing: -0.02em;
-  color: var(--color-text-primary); text-wrap: balance;
+  margin: 0; font-size: var(--text-title); font-weight: 600; letter-spacing: -0.02em;
+  color: var(--color-text-primary); text-wrap: balance; line-height: 1.25;
 }
 .explore-note { margin: 0; padding: 0 var(--space-3) var(--space-2); text-wrap: pretty; }
 .explore-filters label { display: flex; flex-direction: column; gap: 2px; color: var(--color-text-tertiary); font-size: var(--d-small); }

@@ -169,7 +169,7 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
     <section data-testid="explore-root" className="min-w-0">
       <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-balance text-title font-semibold tracking-tight">{t("explore.title")}</h1>
+          <h1 className="text-balance text-headline font-semibold tracking-[-0.02em]">{t("explore.title")}</h1>
           <p className="mt-1 max-w-3xl text-pretty text-caption text-text-secondary">{t("explore.readonly")}</p>
         </div>
         <p className="tabular-nums text-caption text-text-tertiary" role="status">{updated}{feed && !switching ? ` · ${t("explore.count", { count: rows.length })}` : ""}</p>

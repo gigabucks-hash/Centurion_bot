@@ -19,8 +19,6 @@
     "typecheck:pinned": "scripts/tsc-pinned.sh"
   },
   "dependencies": {
-    "@fontsource/inter": "^5.0.0",
-    "@fontsource/jetbrains-mono": "^5.0.0",
     "@tauri-apps/api": "^2.9.0",
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-updater": "^2.14.1",

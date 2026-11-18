@@ -41,12 +41,11 @@ function SideNav({ pending }: { pending: number }) {
             href={href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "relative flex h-8 items-center gap-2 rounded-md px-2 text-label transition duration-fast",
-              active ? "bg-bg-raised text-text-primary" : "text-text-secondary hover:bg-bg-raised hover:text-text-primary",
+              "flex h-9 items-center gap-2 rounded-md px-2 text-label transition-colors duration-fast ease-out motion-reduce:transition-none",
+              active ? "bg-bg-raised font-medium text-text-primary" : "text-text-secondary hover:bg-bg-raised hover:text-text-primary",
             )}
           >
-            {active && <span className="absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full bg-brand-primary" aria-hidden />}
-            <Icon size={16} strokeWidth={1.75} aria-hidden />
+            <Icon size={16} strokeWidth={active ? 2 : 1.75} className={active ? "text-brand-primary" : undefined} aria-hidden />
             <span className="flex-1">{t(label)}</span>
             {href === "/approvals" && pending > 0 && <span className="num grid h-4 min-w-4 place-items-center rounded-sm bg-semantic-loss px-1 text-[10px] text-text-onAccent" aria-label={t("nav.pending", { n: pending })}>{pending}</span>}
           </Link>
@@ -114,7 +113,7 @@ function SearchBox() {
         router.push(`/coins?q=${encodeURIComponent(String(q ?? ""))}`);
       }}
     >
-      <label className="flex h-8 w-56 items-center gap-2 rounded-md border border-border-subtle bg-bg-sunken px-2.5 text-caption text-text-tertiary focus-within:border-border-focus">
+      <label className="flex h-8 w-56 items-center gap-2 rounded-md border border-border-subtle bg-bg-sunken px-2.5 text-caption text-text-tertiary transition-[border-color] duration-fast ease-out focus-within:border-border-focus motion-reduce:transition-none">
         <Search size={14} strokeWidth={1.75} aria-hidden />
         <input id="global-search" name="q" placeholder={t("nav.search")} className="w-full bg-transparent text-body text-text-primary outline-none placeholder:text-text-tertiary" aria-label={t("nav.searchLabel")} />
       </label>

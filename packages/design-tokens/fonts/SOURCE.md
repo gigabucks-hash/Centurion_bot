@@ -10,3 +10,14 @@
   Web and desktop use this file for those initials. The Flutter font bundle was removed with the mobile app.
 - Sora (display) tetap di `/workspace/ux-solbot/visual/g1-blue/fonts/` (lihat `SOURCE.md` di sana); belum ada di paket ini.
 - Verifikasi: `sha256sum fonts/Inter-Bold.ttf`.
+
+## UI faces (`fonts/ui/`)
+
+Self-hosted woff2, latin, SIL OFL 1.1. The web app loads them with `next/font/local`. The desktop shell uses the same files through `@font-face`. Nothing is fetched at runtime.
+
+| Face | Role | License file |
+|---|---|---|
+| Schibsted Grotesk 400/500/600/700 | UI, headings, labels | `ui/OFL-schibsted.txt` |
+| Martian Mono 400/500 | Addresses, hashes, tabular prices | `ui/OFL-martian.txt` |
+
+Identicon initials stay on Inter Bold. That file is a measured drawing, not the UI voice.
