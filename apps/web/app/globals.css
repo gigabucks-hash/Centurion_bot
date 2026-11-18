@@ -7,11 +7,28 @@ body {
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 :focus-visible {
   outline: 2px solid var(--color-border-focus);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pressable:active:not(:disabled) {
+    scale: 0.96;
+  }
 }
 
 /*

@@ -80,6 +80,15 @@ body {
 /* Numbers: sans, tabular. Mono is reserved for addresses and hashes (font-mono). */
 @utility num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
+/* Inset hairline on coin marks. Pure black in light, pure white in dark. Does not change the 40px box. */
+.coin-logo {
+  outline: 1px solid oklch(1 0 0 / 0.1);
+  outline-offset: -1px;
+}
+[data-theme="light"] .coin-logo {
+  outline-color: oklch(0 0 0 / 0.1);
+}
+
 /* Filter control shared by coins, strategies and presets. */
 @utility chip {
   display: inline-flex;

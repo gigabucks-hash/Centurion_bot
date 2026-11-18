@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy } from "lucide-react";
 import { CoinAvatar } from "@/components/CoinAvatar";
 import { formatMcapUsd } from "@centurion/i18n/format";
@@ -80,6 +80,8 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
   const [sorts, setSorts] = useState<Partial<Record<ExploreSection, { sort: SortKey; dir: SortDir }>>>({});
   const sort = sorts[section] ?? defaultSort(section);
   const [copied, setCopied] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
+  const firstPull = useRef(true);
   const setSort = (next: { sort: SortKey; dir: SortDir } | ((cur: { sort: SortKey; dir: SortDir }) => { sort: SortKey; dir: SortDir })) => {
     setSorts((prev) => {
       const cur = prev[section] ?? defaultSort(section);
@@ -89,7 +91,10 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
 
   useEffect(() => {
     let alive = true;
-    const pull = () => {
+    const isSwitch = !firstPull.current;
+    firstPull.current = false;
+    const pull = (markSwitch: boolean) => {
+      if (markSwitch) setSwitching(true);
       fetch(`/api/explore?section=${section}&window=${span}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error("http"))))
         .then((body) => {
@@ -98,11 +103,14 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
         .catch(() => {
           if (!alive) return;
           setFeed((prev) => prev && prev.section === section ? { ...prev, stale: prev.rows.length > 0, error: prev.rows.length ? prev.error ?? "unavailable" : "unavailable" } : coerceFeed({ section, window: span, error: "unavailable", rows: [] }));
+        })
+        .finally(() => {
+          if (alive && markSwitch) setSwitching(false);
         });
     };
-    pull();
-    const id = window.setInterval(() => { if (document.visibilityState !== "hidden") pull(); }, REFRESH_MS);
-    const onVis = () => { if (document.visibilityState === "visible") pull(); };
+    pull(isSwitch);
+    const id = window.setInterval(() => { if (document.visibilityState !== "hidden") pull(false); }, REFRESH_MS);
+    const onVis = () => { if (document.visibilityState === "visible") pull(false); };
     document.addEventListener("visibilitychange", onVis);
     const clock = window.setInterval(() => setNow(Date.now()), 1000);
     return () => {
@@ -148,9 +156,10 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
     }).catch(() => {});
   };
   const head = (key: SortKey, label: string, align = "right") => (
-    <th className={align === "left" ? "text-left" : "text-right"} aria-sort={sort.sort === key ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
-      <button type="button" className="font-medium text-text-tertiary hover:text-text-primary" onClick={() => setSort((s) => s.sort === key ? { sort: key, dir: s.dir === "asc" ? "desc" : "asc" } : { sort: key, dir: key === "symbol" || key === "age" ? "asc" : "desc" })}>
-        {label}{sort.sort === key ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
+    <th className={`px-2 py-2 ${align === "left" ? "text-left" : "text-right"}`} aria-sort={sort.sort === key ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button type="button" className="inline-flex items-center gap-1 font-medium text-text-tertiary transition-colors duration-100 ease-out hover:text-text-primary motion-reduce:transition-none" onClick={() => setSort((s) => s.sort === key ? { sort: key, dir: s.dir === "asc" ? "desc" : "asc" } : { sort: key, dir: key === "symbol" || key === "age" ? "asc" : "desc" })}>
+        {label}
+        <span className="inline-block w-3 text-center tabular-nums" aria-hidden="true">{sort.sort === key ? (sort.dir === "asc" ? "↑" : "↓") : ""}</span>
       </button>
     </th>
   );
@@ -158,46 +167,46 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
 
   return (
     <section data-testid="explore-root" className="min-w-0">
-      <header className="mb-3 flex flex-wrap items-end justify-between gap-3">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-title font-semibold tracking-tight">{t("explore.title")}</h1>
-          <p className="mt-1 max-w-3xl text-caption text-text-secondary">{t("explore.readonly")}</p>
+          <h1 className="text-balance text-title font-semibold tracking-tight">{t("explore.title")}</h1>
+          <p className="mt-1 max-w-3xl text-pretty text-caption text-text-secondary">{t("explore.readonly")}</p>
         </div>
-        <p className="tabular-nums text-caption text-text-tertiary" role="status">{updated}{feed ? ` · ${t("explore.count", { count: rows.length })}` : ""}</p>
+        <p className="tabular-nums text-caption text-text-tertiary" role="status">{updated}{feed && !switching ? ` · ${t("explore.count", { count: rows.length })}` : ""}</p>
       </header>
-      <div className="mb-2 flex flex-wrap items-center gap-4 border-b border-border-subtle">
+      <div className="mb-3 flex flex-wrap items-center gap-4 border-b border-border-subtle">
         <div role="tablist" aria-label={t("explore.tablist")} className="flex gap-1">
           {SECTIONS.map((s) => (
-            <button key={s} type="button" role="tab" aria-selected={s === section} data-testid={`explore-tab-${s}`} className={`border-b-2 px-2 py-1.5 text-label ${s === section ? "border-brand-primary text-text-primary" : "border-transparent text-text-tertiary hover:text-text-primary"}`} onClick={() => go(s, span)}>
+            <button key={s} type="button" role="tab" aria-selected={s === section} data-testid={`explore-tab-${s}`} className={`border-b-2 px-2.5 py-2 text-label transition-colors duration-100 ease-out motion-reduce:transition-none ${s === section ? "border-brand-primary text-text-primary" : "border-transparent text-text-tertiary hover:text-text-primary"}`} onClick={() => go(s, span)}>
               {t(TAB[s])}
             </button>
           ))}
         </div>
-        <div role="group" aria-label={t("explore.windowLabel")} className="ml-auto flex">
+        <div role="group" aria-label={t("explore.windowLabel")} className="ml-auto flex gap-0.5">
           {WINDOWS.map((w) => (
-            <button key={w} type="button" aria-pressed={w === span} className={`px-2 py-1.5 text-caption tabular-nums ${w === span ? "text-brand-primary" : "text-text-tertiary hover:text-text-primary"}`} onClick={() => go(section, w)}>
+            <button key={w} type="button" aria-pressed={w === span} className={`rounded-md px-2 py-1.5 text-caption tabular-nums transition-colors duration-100 ease-out motion-reduce:transition-none ${w === span ? "bg-bg-raised text-brand-primary" : "text-text-tertiary hover:bg-bg-surface hover:text-text-primary"}`} onClick={() => go(section, w)}>
               {t(WIN[w])}
             </button>
           ))}
         </div>
       </div>
-      <p className="mb-2 text-caption text-text-tertiary">{feed?.unsupported ? t("explore.unsupported") : t(NOTE[section])}</p>
-      <div className="mb-3 flex flex-wrap items-end gap-3">
-        <label className="text-caption text-text-tertiary">{t("explore.filter.minLiq")}
-          <input value={minLiq} onChange={(e) => setMinLiq(e.target.value)} inputMode="decimal" className="mt-1 block h-8 w-32 border border-border-subtle bg-bg-sunken px-2 text-body text-text-primary" />
+      <p className="mb-3 text-pretty text-caption text-text-tertiary">{feed?.unsupported ? t("explore.unsupported") : t(NOTE[section])}</p>
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-caption text-text-tertiary">{t("explore.filter.minLiq")}
+          <input value={minLiq} onChange={(e) => setMinLiq(e.target.value)} inputMode="decimal" className="h-8 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body tabular-nums text-text-primary transition-[border-color] duration-150 ease-out motion-reduce:transition-none" />
         </label>
-        <label className="text-caption text-text-tertiary">{t("explore.filter.minMcap")}
-          <input value={minMcap} onChange={(e) => setMinMcap(e.target.value)} inputMode="decimal" className="mt-1 block h-8 w-32 border border-border-subtle bg-bg-sunken px-2 text-body text-text-primary" />
+        <label className="flex flex-col gap-1 text-caption text-text-tertiary">{t("explore.filter.minMcap")}
+          <input value={minMcap} onChange={(e) => setMinMcap(e.target.value)} inputMode="decimal" className="h-8 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body tabular-nums text-text-primary transition-[border-color] duration-150 ease-out motion-reduce:transition-none" />
         </label>
-        <label className="text-caption text-text-tertiary">{t("explore.filter.maxAge")}
-          <input value={maxAge} onChange={(e) => setMaxAge(e.target.value)} inputMode="numeric" className="mt-1 block h-8 w-32 border border-border-subtle bg-bg-sunken px-2 text-body text-text-primary" />
+        <label className="flex flex-col gap-1 text-caption text-text-tertiary">{t("explore.filter.maxAge")}
+          <input value={maxAge} onChange={(e) => setMaxAge(e.target.value)} inputMode="numeric" className="h-8 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body tabular-nums text-text-primary transition-[border-color] duration-150 ease-out motion-reduce:transition-none" />
         </label>
-        {(minLiq || minMcap || maxAge) && <button type="button" className="text-caption text-text-secondary hover:text-text-primary" onClick={() => { setMinLiq(""); setMinMcap(""); setMaxAge(""); }}>{t("explore.clear")}</button>}
+        {(minLiq || minMcap || maxAge) && <button type="button" className="rounded-sm px-2 py-1 text-caption text-text-secondary transition-colors duration-100 ease-out hover:bg-bg-surface hover:text-text-primary motion-reduce:transition-none" onClick={() => { setMinLiq(""); setMinMcap(""); setMaxAge(""); }}>{t("explore.clear")}</button>}
       </div>
       {feed?.error === "rate_limit" && <p className="mb-2 text-caption text-text-secondary" role="status">{t("explore.rate")}</p>}
       {feed?.stale && feed.error !== "rate_limit" && <p className="mb-2 text-caption text-text-secondary" role="status">{t("explore.stale")}</p>}
-      <div className="overflow-x-auto border border-border-subtle">
-        <table data-testid="explore-table" className="w-full min-w-[1080px] border-collapse text-caption">
+      <div className="overflow-x-auto rounded-lg border border-border-subtle">
+        <table data-testid="explore-table" className="w-full min-w-[1080px] border-collapse text-caption" aria-busy={switching || !feed || undefined}>
           <thead className="bg-bg-surface text-text-tertiary">
             <tr>
               {head("symbol", t("explore.col.token"), "left")}
@@ -208,13 +217,17 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
               {head("txns", t("explore.col.txns"))}
               {head("holders", t("explore.col.holders"))}
               {head("change", t("explore.col.change"))}
-              <th className="px-2 py-1.5 text-left font-medium">{t("explore.col.safety")}</th>
+              <th className="px-2 py-2 text-left font-medium">{t("explore.col.safety")}</th>
             </tr>
           </thead>
           <tbody>
-            {!feed && <tr><td colSpan={9} className="px-3 py-6 text-text-tertiary">{t("explore.loading")}</td></tr>}
-            {feed && rows.length === 0 && <tr><td colSpan={9} className="px-3 py-6 text-text-secondary">{feed.rows.length ? t("explore.emptyFiltered") : t("explore.empty")}</td></tr>}
-            {rows.map((r) => <Row key={r.mint} row={r} tag={tag} locale={locale} age={age(r.createdAt)} copied={copied === r.mint} onCopy={() => copy(r.mint)} t={t} />)}
+            {(!feed || switching) && <LoadingRows label={t("explore.loading")} />}
+            {feed && !switching && rows.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-3 py-16 text-center text-pretty text-body text-text-secondary">{feed.rows.length ? t("explore.emptyFiltered") : t("explore.empty")}</td>
+              </tr>
+            )}
+            {feed && !switching && rows.map((r) => <Row key={r.mint} row={r} tag={tag} locale={locale} age={age(r.createdAt)} copied={copied === r.mint} onCopy={() => copy(r.mint)} t={t} />)}
           </tbody>
         </table>
       </div>
@@ -233,38 +246,56 @@ function Row({ row, tag, locale, age, copied, onCopy, t }: {
 }) {
   const icon = safeIcon(row.icon);
   return (
-    <tr className="border-t border-border-subtle hover:bg-bg-surface">
-      <td className="px-2 py-1.5">
-        <span className="flex items-center gap-2">
+    <tr className="border-t border-border-subtle transition-colors duration-100 ease-out hover:bg-bg-surface motion-reduce:transition-none">
+      <td className="px-2 py-2">
+        <span className="flex items-center gap-2.5">
           {icon ? (
             // Remote icon is path-locked to static.datapi.jup.ag; next/image would add a second optimizer hop.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={icon} alt="" width={40} height={40} referrerPolicy="no-referrer" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+            <img src={icon} alt="" width={40} height={40} referrerPolicy="no-referrer" className="coin-logo h-10 w-10 shrink-0 rounded-full object-cover" />
           ) : <CoinAvatar mint={row.mint} symbol={row.symbol} size="lg" />}
           <span className="min-w-0">
             <Link href={`/coins/${row.mint}`} className="font-medium text-text-primary hover:underline" title={row.name}>{`$${row.symbol}`}</Link>
             <span className="mt-0.5 flex items-center gap-1 text-text-tertiary">
               <span className="max-w-32 truncate">{row.name}</span>
-              <button type="button" className="inline-flex items-center text-text-tertiary hover:text-text-primary" aria-label={t("explore.copy")} onClick={onCopy}>
-                <Copy size={12} aria-hidden />
-                {copied && <span className="ml-1">{t("explore.copied")}</span>}
+              <button type="button" className="inline-flex size-8 items-center justify-center rounded-sm text-text-tertiary transition-colors duration-100 ease-out hover:bg-bg-raised hover:text-text-primary motion-reduce:transition-none" aria-label={t("explore.copy")} onClick={onCopy}>
+                <Copy size={14} aria-hidden />
               </button>
+              {copied && <span className="text-caption text-text-secondary" role="status">{t("explore.copied")}</span>}
             </span>
           </span>
         </span>
       </td>
-      <td className="px-2 py-1.5 text-right tabular-nums text-text-secondary">{age}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{money(row.liquidityUsd, locale)}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{money(row.mcapUsd, locale)}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{money(row.volumeUsd, locale)}</td>
-      <td className="px-2 py-1.5 text-right tabular-nums">
+      <td className="px-2 py-2 text-right tabular-nums text-text-secondary">{age}</td>
+      <td className="px-2 py-2 text-right tabular-nums">{money(row.liquidityUsd, locale)}</td>
+      <td className="px-2 py-2 text-right tabular-nums">{money(row.mcapUsd, locale)}</td>
+      <td className="px-2 py-2 text-right tabular-nums">{money(row.volumeUsd, locale)}</td>
+      <td className="px-2 py-2 text-right tabular-nums">
         <div>{row.txns == null ? "—" : row.txns.toLocaleString(tag)}</div>
         {row.buys != null && row.sells != null && <div className="text-text-tertiary"><span className="text-semantic-profit">{row.buys.toLocaleString(tag)}</span>/<span className="text-semantic-loss">{row.sells.toLocaleString(tag)}</span></div>}
       </td>
-      <td className="px-2 py-1.5 text-right tabular-nums">{row.holders == null ? "—" : row.holders.toLocaleString(tag)}</td>
-      <td className={`px-2 py-1.5 text-right tabular-nums ${tone(row.changePct)}`}>{signed(row.changePct, tag)}</td>
-      <td className="px-2 py-1.5 text-left text-text-tertiary">
+      <td className="px-2 py-2 text-right tabular-nums">{row.holders == null ? "—" : row.holders.toLocaleString(tag)}</td>
+      <td className={`px-2 py-2 text-right tabular-nums ${tone(row.changePct)}`}>{signed(row.changePct, tag)}</td>
+      <td className="px-2 py-2 text-left text-text-tertiary">
         <Safety row={row} t={t} tag={tag} />
+      </td>
+    </tr>
+  );
+}
+
+function LoadingRows({ label }: { label: string }) {
+  return (
+    <tr>
+      <td colSpan={9} className="px-3 py-2">
+        <span className="sr-only">{label}</span>
+        <span className="flex flex-col gap-3 py-2" aria-hidden="true">
+          {Array.from({ length: 8 }, (_, i) => (
+            <span key={i} className="flex items-center gap-3">
+              <span className="skeleton skeleton--circle h-10 w-10 shrink-0" />
+              <span className="skeleton skeleton--text h-3 w-48 max-w-full" />
+            </span>
+          ))}
+        </span>
       </td>
     </tr>
   );

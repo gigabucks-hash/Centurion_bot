@@ -119,7 +119,7 @@ export function ExploreView({ queued, onOpenQueue }: { queued: ReadonlySet<strin
   return (
     <section className="explore" data-testid="explore-root">
       <header className="explore-bar">
-        <strong>{t("explore.title")}</strong>
+        <h1 className="explore-title">{t("explore.title")}</h1>
         <div role="tablist" aria-label={t("explore.tablist")} className="explore-tabs">
           {SECTIONS.map((s) => (
             <button key={s} type="button" role="tab" aria-selected={s === section} data-testid={`explore-tab-${s}`} className={`ghost explore-tab${s === section ? " on" : ""}`} onClick={() => setSection(s)}>{t(`explore.tab.${s}`)}</button>
@@ -158,8 +158,15 @@ export function ExploreView({ queued, onOpenQueue }: { queued: ReadonlySet<strin
               </tr>
             </thead>
             <tbody>
-              {!feed && <tr><td colSpan={9} className="dim">{t("explore.loading")}</td></tr>}
-              {feed && rows.length === 0 && <tr><td colSpan={9} className="dim">{feed.rows.length ? t("explore.emptyFiltered") : t("explore.empty")}</td></tr>}
+              {!feed && (
+                <tr>
+                  <td colSpan={9}>
+                    <span className="sr-only">{t("explore.loading")}</span>
+                    <span className="explore-skel" aria-hidden="true">{Array.from({ length: 8 }, (_, i) => <i key={i} />)}</span>
+                  </td>
+                </tr>
+              )}
+              {feed && rows.length === 0 && <tr><td colSpan={9} className="explore-empty dim">{feed.rows.length ? t("explore.emptyFiltered") : t("explore.empty")}</td></tr>}
               {rows.map((r) => (
                 <DesktopRow key={r.mint} row={r} tag={tag} lang={lang} age={age(r.createdAt)} selected={r.mint === sel} copied={copied === r.mint} onSelect={() => setSel(r.mint)} onCopy={() => copy(r.mint)} t={t} />
               ))}
@@ -214,7 +221,7 @@ function DesktopRow({ row, tag, lang, age, selected, copied, onSelect, onCopy, t
           <span>
             <b>${row.symbol}</b>
             <span className="dim explore-name"> {row.name}</span>
-            <button type="button" className="ghost" aria-label={t("explore.copy")} onClick={(e) => { e.stopPropagation(); onCopy(); }}><Copy size={12} aria-hidden />{copied ? t("explore.copied") : ""}</button>
+            <button type="button" className="ghost explore-copy" aria-label={t("explore.copy")} onClick={(e) => { e.stopPropagation(); onCopy(); }}><Copy size={14} aria-hidden />{copied ? <span role="status">{t("explore.copied")}</span> : null}</button>
           </span>
         </span>
       </td>
