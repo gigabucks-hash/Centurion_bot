@@ -2,11 +2,13 @@
  * App styles built ONLY on Centurion tokens (centurion-tokens.css, UX Phase 0).
  * Density: [data-density="compact"] = "Signal Terminal" (desktop default), "comfortable" = Calm Ledger.
  */
-@import "@fontsource/inter/latin-400.css";
-@import "@fontsource/inter/latin-500.css";
-@import "@fontsource/inter/latin-600.css";
-@import "@fontsource/jetbrains-mono/latin-400.css";
-@import "@fontsource/jetbrains-mono/latin-500.css";
+/* Same files as the web app: packages/design-tokens/fonts/ui. No network at runtime. */
+@font-face { font-family: "Schibsted Grotesk"; src: url("../../../../packages/design-tokens/fonts/ui/schibsted-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Schibsted Grotesk"; src: url("../../../../packages/design-tokens/fonts/ui/schibsted-grotesk-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Schibsted Grotesk"; src: url("../../../../packages/design-tokens/fonts/ui/schibsted-grotesk-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Schibsted Grotesk"; src: url("../../../../packages/design-tokens/fonts/ui/schibsted-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Martian Mono"; src: url("../../../../packages/design-tokens/fonts/ui/martian-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Martian Mono"; src: url("../../../../packages/design-tokens/fonts/ui/martian-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
 
 :root, [data-density="compact"] {
   --d-control: var(--density-control-md);   /* 32px compact; hit area stays >= 24px (WCAG 2.5.8) */
@@ -36,8 +38,11 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   user-select: none;
+  scrollbar-color: var(--color-border-strong) transparent;
 }
-/* Amounts stay in Inter with tabular figures. Mono is for addresses and hashes. */
+::selection { background: color-mix(in srgb, var(--color-brand-primary) 32%, transparent); color: var(--color-text-primary); }
+input, textarea { caret-color: var(--color-brand-primary); }
+/* Amounts use Martian Mono (tabular, slashed zero). Schibsted Grotesk carries the UI. */
 .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums slashed-zero; }
 .muted { color: var(--color-text-secondary); }
@@ -56,9 +61,11 @@ button {
   border-radius: var(--radius-sm);
   padding: 0 var(--space-3);
   cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
+  transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard), scale 150ms var(--ease-standard);
 }
 button:hover { border-color: var(--color-border-strong); }
+button.success:hover, button.primary:hover { background: var(--color-brand-primaryHover); border-color: var(--color-brand-primaryHover); }
+button.success:active, button.primary:active { background: var(--color-brand-primaryPressed); border-color: var(--color-brand-primaryPressed); scale: 0.96; }
 button:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
 button.success, button.primary { background: var(--color-brand-primary); border-color: var(--color-brand-primary); color: var(--color-text-onAccent); }
 button.ghost { background: transparent; border-color: transparent; color: var(--color-text-secondary); }
@@ -77,7 +84,7 @@ input, select {
 }
 input:focus-visible, select:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
 
-/* One hairline in Centurion gold. No cyan stripe, no diagonal banner. */
+/* One hairline in the theme accent. No second stripe, no diagonal banner. */
 .mode-strip { height: 2px; background: var(--color-brand-primary); }
 .mode-label {
   display: inline-flex; align-items: center; gap: var(--space-1);
@@ -144,6 +151,7 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--color-borde
 table.positions { width: 100%; border-collapse: collapse; font-size: var(--d-small); }
 table.positions th { position: sticky; top: 0; z-index: 2; background: var(--color-bg-surface); color: var(--color-text-tertiary); font-weight: 500; }
 table.positions th, table.positions td { padding: var(--d-row-pad) var(--space-3); text-align: right; border-bottom: 1px solid var(--color-border-subtle); }
+table.positions td { transition: background-color var(--duration-fast) var(--ease-standard); }
 table.positions th:first-child, table.positions td:first-child { text-align: left; }
 table.positions tr:hover td { background: var(--color-bg-surface); }
 table.positions tr.cursor td { background: var(--color-bg-raised); }
@@ -191,6 +199,8 @@ table.positions tr.cursor td { background: var(--color-brand-primaryContainer); 
 table.positions td:nth-child(2) { text-align: left; }
 button.sm { min-height: var(--density-control-sm); padding: 0 var(--space-2); font-size: var(--text-caption); font-weight: 600; }
 button.real { background: var(--color-brand-primary); border-color: var(--color-brand-primary); color: var(--color-text-onAccent); }
+button.real:hover { background: var(--color-brand-primaryHover); border-color: var(--color-brand-primaryHover); }
+button.real:active { background: var(--color-brand-primaryPressed); border-color: var(--color-brand-primaryPressed); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 .exitbar { position: relative; display: inline-block; width: 72px; height: 6px; border-radius: var(--radius-full); background: var(--color-bg-sunken); border: 1px solid var(--color-border-subtle); vertical-align: middle; }
 .exitbar > i { position: absolute; top: 0; bottom: 0; border-radius: var(--radius-full); }
@@ -219,7 +229,10 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .popup-foot { border-top: 1px solid var(--color-border-subtle); padding-top: 4px; font-size: var(--text-caption); line-height: var(--text-caption--line-height); }
 .popup-foot .row { display: flex; }
 .popup .empty { flex: 1; display: grid; place-items: center; color: var(--color-text-tertiary); }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  button.success:active, button.primary:active { scale: 1; }
+}
 @media (forced-colors: active) {
   .popup, button { border: 1px solid ButtonText; }
   .mode-strip, .timerbar > i, .exitbar > i.fill { forced-color-adjust: none; }
@@ -444,12 +457,13 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 .coin-avatar.s20 { width: var(--coin-logo-size-sm); height: var(--coin-logo-size-sm); }
 .coin-avatar.s24 { width: var(--coin-logo-size-md); height: var(--coin-logo-size-md); }
 .coin-avatar.s32 { width: var(--coin-logo-size-lg); height: var(--coin-logo-size-lg); }
+.coin-avatar.s40 { width: 40px; height: 40px; }
 .coin-avatar img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 150ms; }
 .coin-avatar img.on { opacity: 1; }
 .coin-avatar.skeleton-dot { background: var(--color-skeleton-base); } /* static: no shimmer in lists */
 .coin-avatar.identicon { color: var(--color-identicon-fg); font-family: "Centurion Identicon", var(--font-sans); font-weight: 700; letter-spacing: 0; line-height: 1; user-select: none; }
-.coin-avatar.identicon.s20 { font-size: 8.4px; } .coin-avatar.identicon.s24 { font-size: 10px; } .coin-avatar.identicon.s32 { font-size: 13.4px; }
-.coin-avatar.identicon.one.s20 { font-size: 10px; } .coin-avatar.identicon.one.s24 { font-size: 12px; } .coin-avatar.identicon.one.s32 { font-size: 16px; }
+.coin-avatar.identicon.s20 { font-size: 8.4px; } .coin-avatar.identicon.s24 { font-size: 10px; } .coin-avatar.identicon.s32 { font-size: 13.4px; } .coin-avatar.identicon.s40 { font-size: 16.8px; }
+.coin-avatar.identicon.one.s20 { font-size: 10px; } .coin-avatar.identicon.one.s24 { font-size: 12px; } .coin-avatar.identicon.one.s32 { font-size: 16px; } .coin-avatar.identicon.one.s40 { font-size: 20px; }
 .coin-avatar.nt { filter: grayscale(1); opacity: var(--coin-logo-not-tradeable-opacity); box-shadow: none; outline: 1px dashed var(--color-text-tertiary); outline-offset: -1px; }
 .coin-sym { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .modal h3 .coin-sym { vertical-align: middle; margin-right: var(--space-1); }
@@ -490,89 +504,10 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
 .positions-bar .bar-pnl { margin-left: auto; flex: none; }
 .positions-bar button { flex: none; width: auto; min-height: 24px; padding: 0 var(--space-2); }
 
-/*
- * Terminal palette, same values as apps/web/app/theme.css.
- * Zinc surfaces, Centurion gold as the only accent. Green and red stay on PnL (.pos / .neg).
- */
+/* Colour lives in the synced design tokens. This only sets the native control scheme. */
 :root,
-[data-theme="dark"] {
-  color-scheme: dark;
-  --color-bg-canvas: #09090b;
-  --color-bg-surface: #111113;
-  --color-bg-raised: #18181b;
-  --color-bg-overlay: #1c1c1f;
-  --color-bg-sunken: #070708;
-  --color-bg-chrome: #0c0c0e;
-  --color-border-subtle: #27272a;
-  --color-border-default: #3f3f46;
-  --color-border-strong: #52525b;
-  --color-border-focus: #e0c36a;
-  --color-text-primary: #fafafa;
-  --color-text-secondary: #a1a1aa;
-  --color-text-tertiary: #94949e;
-  --color-text-disabled: #52525b;
-  --color-text-onAccent: #1a1408;
-  --color-brand-primary: #e0c36a;
-  --color-brand-primaryHover: #ebd48a;
-  --color-brand-primaryPressed: #c6a24e;
-  --color-brand-primaryContainer: #2a2418;
-  --color-brand-onPrimaryContainer: #f3e6c4;
-  --color-semantic-profit: #3dbe7a;
-  --color-semantic-profitContainer: #10261a;
-  --color-semantic-loss: #f07178;
-  --color-semantic-lossContainer: #2c1518;
-  --color-semantic-neutralPnl: #a1a1aa;
-  --color-mode-practice: #a1a1aa;
-  --color-mode-practiceContainer: #18181b;
-  --color-mode-real: #a1a1aa;
-  --color-mode-realContainer: #18181b;
-  --color-mode-onReal: #fafafa;
-  --shadow-card: none;
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 8px;
-}
-[data-theme="light"] {
-  color-scheme: light;
-  --color-bg-canvas: #f4f4f5;
-  --color-bg-surface: #ffffff;
-  --color-bg-raised: #fafafa;
-  --color-bg-overlay: #ffffff;
-  --color-bg-sunken: #f4f4f5;
-  --color-bg-chrome: #f7f7f8;
-  --color-border-subtle: #e4e4e7;
-  --color-border-default: #d4d4d8;
-  --color-border-strong: #71717a;
-  --color-border-focus: #6e5216;
-  --color-text-primary: #18181b;
-  --color-text-secondary: #3f3f46;
-  --color-text-tertiary: #52525b;
-  --color-text-disabled: #71717a;
-  --color-text-onAccent: #ffffff;
-  --color-brand-primary: #6e5216;
-  --color-brand-primaryHover: #5c430e;
-  --color-brand-primaryPressed: #3f2e0a;
-  --color-brand-primaryContainer: #f6f0e4;
-  --color-brand-onPrimaryContainer: #5c4310;
-  --color-semantic-profit: #067a4b;
-  --color-semantic-profitContainer: #e5f6ee;
-  --color-semantic-loss: #c0262d;
-  --color-semantic-lossContainer: #fdecec;
-  --color-semantic-neutralPnl: #3f3f46;
-  --color-mode-practice: #3f3f46;
-  --color-mode-practiceContainer: #f4f4f5;
-  --color-mode-real: #3f3f46;
-  --color-mode-realContainer: #f4f4f5;
-  --color-mode-onReal: #18181b;
-  --color-scrim-sheet: #18181b99;
-  --shadow-card: none;
-  --shadow-dialog: 0 12px 32px 0 rgba(24, 24, 27, 0.12);
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 8px;
-}
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
 .chip.lock, .badge-mock { border-radius: 6px; }
 .badge-mock, .chip.st-fail, .chip.verdict.v-fail {
   color: var(--color-text-secondary);
@@ -580,3 +515,50 @@ table.positions td.col-pnl, table.positions td.col-pnl-pct { overflow: visible; 
   background: transparent;
 }
 .entries-paused { border-radius: 6px; }
+
+/* Explore: full-window discovery. Text tabs, no pills. The accent is the active mark only. */
+.explore { min-height: 0; display: flex; flex-direction: column; background: var(--color-bg-canvas); }
+.explore-bar, .explore-filters { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); flex-wrap: wrap; }
+.explore-bar { border-bottom: 1px solid var(--color-border-subtle); }
+.explore-tabs { display: flex; gap: 0; }
+.explore button.ghost, .explore th button {
+  background: transparent; border-color: transparent; border-radius: 0;
+  min-height: 24px; padding: 0 var(--space-2); color: var(--color-text-tertiary);
+}
+.explore-tab.on, .explore th button.on, .explore-toggle[aria-pressed="true"] {
+  color: var(--color-text-primary);
+  box-shadow: inset 0 -2px 0 var(--color-brand-primary);
+}
+.explore-title {
+  margin: 0; font-size: var(--text-title); font-weight: 600; letter-spacing: -0.02em;
+  color: var(--color-text-primary); text-wrap: balance; line-height: 1.25;
+}
+.explore-note { margin: 0; padding: 0 var(--space-3) var(--space-2); text-wrap: pretty; }
+.explore-filters label { display: flex; flex-direction: column; gap: 2px; color: var(--color-text-tertiary); font-size: var(--d-small); }
+.explore-filters input { width: 8rem; }
+.explore-body { flex: 1; min-height: 0; display: flex; }
+.explore-scroll { flex: 1; min-width: 0; overflow: auto; }
+.explore-detail { width: 280px; flex: none; border-left: 1px solid var(--color-border-subtle); padding: var(--space-3); overflow: auto; }
+.explore-detail h2 { margin: 0 0 var(--space-1); font-size: var(--text-body); }
+.explore-detail p, .explore-detail dl { margin: var(--space-2) 0; }
+.explore-detail dl div { display: flex; justify-content: space-between; gap: var(--space-2); }
+.explore-icon {
+  width: 40px; height: 40px; flex: none; object-fit: cover; border-radius: 999px; vertical-align: middle;
+  outline: 1px solid oklch(1 0 0 / 0.1); outline-offset: -1px;
+}
+[data-theme="light"] .explore-icon { outline-color: oklch(0 0 0 / 0.1); }
+.explore button.explore-copy { min-width: 32px; min-height: 32px; padding: 0; }
+.explore-empty { padding: 48px 16px; text-align: center; }
+.explore-skel { display: flex; flex-direction: column; gap: 12px; padding: 12px 0; }
+.explore-skel i {
+  display: block; height: 12px; width: min(240px, 40%); border-radius: var(--radius-sm);
+  background: var(--color-skeleton-base);
+}
+table.explore-table td { height: auto; vertical-align: middle; padding-top: 8px; padding-bottom: 8px; }
+.explore .coin-sym > span { min-width: 0; }
+.explore-name { display: inline-block; max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+@media (max-width: 720px) {
+  .explore-name { max-width: 8rem; }
+}
+table.explore-table td:nth-child(n+2), table.explore-table th:nth-child(n+2) { text-align: right; }
+table.explore-table td:first-child, table.explore-table th:first-child, table.explore-table td:last-child, table.explore-table th:last-child { text-align: left; }

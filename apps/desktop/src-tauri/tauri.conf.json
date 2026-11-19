@@ -29,7 +29,7 @@
         "default-src": "'self'",
         "script-src": "'self'",
         "style-src": "'self' 'unsafe-inline'",
-        "img-src": "'self' data:",
+        "img-src": "'self' data: https://static.datapi.jup.ag",
         "font-src": "'self'",
         "connect-src": "ipc: http://ipc.localhost",
         "object-src": "'none'",

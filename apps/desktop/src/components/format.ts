@@ -1,3 +1,4 @@
+import { formatMcapUsd } from "@centurion/i18n/format.mjs";
 import { lamportsToSol, type DecimalString, type Lamports } from "../api";
 /** WebKitGTK may report navigator.language = "C" (POSIX locale) which Intl rejects. */
 export const safeLocale = (() => {
@@ -39,6 +40,5 @@ export const fmtSol = (l: Lamports | null | undefined) => {
   return `${i},${(f + "00").slice(0, 2)}`;
 };
 
-/** USD notional in the UI locale (compact): 48211 → "$48.2K" / "48,2 rb US$"-style via Intl. */
-export const fmtUsdLocale = (n: number, lang: "id" | "en") =>
-  new Intl.NumberFormat(lang === "en" ? "en-US" : "id-ID", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1, currencyDisplay: "narrowSymbol" }).format(n);
+/** Compact USD in the UI locale: "$48.2K" (en) / "$48,2 rb" (id). Always a leading "$". */
+export const fmtUsdLocale = (n: number, lang: "id" | "en") => formatMcapUsd(n, lang);

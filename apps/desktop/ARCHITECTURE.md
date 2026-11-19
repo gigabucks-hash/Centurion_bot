@@ -170,7 +170,7 @@
 | TypeScript 5.9, Vite 8, @vitejs/plugin-react | Apache-2.0 / MIT |
 | zustand 5 | MIT |
 | lightweight-charts 5 | Apache-2.0 — **keep the TradingView attribution logo** (licence NOTICE requirement) |
-| @fontsource/inter, @fontsource/jetbrains-mono (latin subsets) | OFL-1.1 |
+| Schibsted Grotesk + Martian Mono (`packages/design-tokens/fonts/ui`, latin woff2) | OFL-1.1 |
 | @tauri-apps/api, Tauri plugins | MIT / Apache-2.0 |
 
 - Density: **Compact "Signal Terminal" is the desktop default**; Comfortable is optional (Settings).

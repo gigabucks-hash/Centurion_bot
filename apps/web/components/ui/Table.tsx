@@ -97,7 +97,7 @@ export function Table<T>({ columns, rows, rowKey, empty, minWidth = 560, mobile 
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={rowKey(r)} className="group h-11 hover:bg-bg-raised">
+                <tr key={rowKey(r)} className="group h-11 transition-colors duration-100 ease-out hover:bg-bg-raised motion-reduce:transition-none">
                   {columns.map((c, i) => (
                     <td
                       key={c.key}

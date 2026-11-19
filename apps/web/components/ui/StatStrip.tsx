@@ -77,7 +77,7 @@ export function StatStrip({ items, columns = 4, className, label }: {
           </>
         );
         return item.href ? (
-          <Link key={i} href={item.href} className={cn(CELL, span, "transition duration-fast hover:bg-bg-raised focus-visible:outline-2")}>{body}</Link>
+          <Link key={i} href={item.href} className={cn(CELL, span, "transition-colors duration-fast ease-out hover:bg-bg-raised focus-visible:outline-2 motion-reduce:transition-none")}>{body}</Link>
         ) : (
           <div key={i} className={cn(CELL, span)}>{body}</div>
         );

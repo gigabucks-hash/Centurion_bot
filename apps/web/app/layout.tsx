@@ -4,13 +4,10 @@ import { APP_DESCRIPTION, APP_NAME, APP_TITLE, BRAND_COLORS } from "@/lib/brand"
 import { siteUrl } from "@/lib/site-url";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, localeFromCookie, type Locale } from "@/lib/i18n/core";
 import { ThemeSync } from "@/components/shell/ThemeSync";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/client";
 import { THEME_INIT } from "@/lib/security/theme-init";
+import { mono, sans } from "./fonts/ui";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains", display: "swap" });
 
 // Rebrand (Boss 2026-10-29): Centurion Trade. Private app → robots noindex; OG/Twitter for shared links only.
 export const metadata: Metadata = {
@@ -37,7 +34,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const fallback: Locale = process.env.CENTURION_LOCAL === "1" && process.env.DATA_SOURCE !== "http" ? "id" : DEFAULT_LOCALE;
   const locale = localeFromCookie((await cookies()).get(LOCALE_COOKIE)?.value, fallback);
   return (
-    <html lang={locale} data-theme="dark" className={`${inter.variable} ${mono.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang={locale} data-theme="dark" className={`${sans.variable} ${mono.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         {/* Theme before first paint: plain text child (no dangerouslySetInnerHTML), allowed by its CSP hash. */}
         <script>{THEME_INIT}</script>

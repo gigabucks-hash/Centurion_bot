@@ -12,7 +12,7 @@ The approved logo is the source. Vectors are traced or outlined from it. No thir
 | App icons | `apps/web/public/brand/mark-*.png`, `apps/web/app/favicon.ico`, `apps/web/app/apple-icon.png`, `apps/desktop/src-tauri/icons/` | Renders of `brand/icon.svg` at the sizes each target asks for | Same helmet tile |
 | Cinzel | `brand/fonts/Cinzel-wght.ttf` | [The Cinzel Project](https://github.com/NDISCOVER/Cinzel), via [Google Fonts](https://fonts.google.com/specimen/Cinzel) | SIL Open Font License 1.1. Full text: `brand/fonts/OFL-Cinzel.txt`. Copyright 2020 The Cinzel Project Authors. |
 | UI icons | `lucide-react` | https://lucide.dev | ISC |
-| Inter and JetBrains Mono | `next/font` and `packages/design-tokens/fonts` | `packages/design-tokens/fonts/SOURCE.md` | SIL Open Font License 1.1 |
+| Schibsted Grotesk and Martian Mono | `next/font/local` and `packages/design-tokens/fonts/ui` | `packages/design-tokens/fonts/SOURCE.md` | SIL Open Font License 1.1 |
 | Colour tokens | `packages/design-tokens` | `src/tokens.json` | Project source. Contrast: `packages/design-tokens/tokens/contrast-report.md` |
 
 Logo gold `#E7C56A` on the dark canvas is about 11:1. The light-mode gold-brown `#7A4E12` on the light canvas is about 6.7:1. Those two are used for small labels. TRADE on a light ground is `#1A140C`, not gold, because gold on cream fails contrast.

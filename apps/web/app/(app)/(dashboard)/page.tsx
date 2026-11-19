@@ -92,7 +92,7 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
           <Card
             title={t("overview.strategies")}
             action={
-              <Link href="/strategies/new" className="inline-flex h-8 items-center gap-1 rounded-md bg-brand-primary px-2.5 text-label font-medium text-text-onAccent hover:bg-brand-primaryHover">
+              <Link href="/strategies/new" className="pressable inline-flex h-8 items-center gap-1 rounded-md bg-brand-primary px-2.5 text-label font-medium text-text-onAccent transition-[background-color,scale] duration-fast ease-out hover:bg-brand-primaryHover motion-reduce:transition-none">
                 <Plus size={14} strokeWidth={1.75} /> {t("overview.newStrategy")}
               </Link>
             }

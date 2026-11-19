@@ -20,7 +20,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@explore/*": ["../../packages/explore/src/*"]
     }
   },
   "include": [

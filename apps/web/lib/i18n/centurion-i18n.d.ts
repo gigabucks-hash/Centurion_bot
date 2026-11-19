@@ -42,6 +42,6 @@ declare module "@centurion/i18n/format" {
   /** i18n 0.4.7 (1.1.5): true only when next has a quote_id different from prev's. */
   export function quoteChanged(prev: { quote_id?: string | null } | null | undefined, next: { quote_id?: string | null } | null | undefined): boolean;
   /** i18n 0.4.5: market cap formatters (indicative USD, compact SOL); null → DASH. */
-  export function formatMcapUsd(usd: string | null | undefined, loc: string): string;
+  export function formatMcapUsd(usd: string | number | null | undefined, loc: string): string;
   export function formatMcapSol(lamports: string | null | undefined, loc: string): string;
 }

@@ -11,6 +11,7 @@ mod deeplink;
 mod errmap;
 mod error;
 mod events;
+mod explore;
 mod hotkeys;
 mod keychain;
 mod keys;
@@ -173,6 +174,7 @@ pub fn run() {
             commands::real_prepare_sell_all,
             commands::real_submit_many,
             commands::real_set_fast_rpc,
+            commands::explore_fetch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Centurion Trade");

@@ -1,7 +1,7 @@
 /* GENERATED SUBSET of @centurion/design-tokens 0.3.4 tokens/tauri.css by scripts/sync-tokens.mjs — do not edit.
    Only: 23 approved tokens (0.3.4 chrome/scrim/shadows/onWarning + coin logo). No G1-blue palette. */
 :root, [data-theme="dark"] {
-  --color-bg-chrome: #0D0F15;
+  --color-bg-chrome: #101013;
   --color-semantic-onWarning: #1A1203;
   --color-scrim-sheet: #00000099;
   --coin-logo-ring: rgba(255, 255, 255, 0.12);
@@ -9,7 +9,7 @@
   --shadow-dialog: 0 16px 40px 0px rgba(0,0,0,0.5);
 }
 [data-theme="light"] {
-  --color-bg-chrome: #FFFFFF;
+  --color-bg-chrome: #F5F7FB;
   --color-semantic-onWarning: #FFFFFF;
   --color-scrim-sheet: #0F142061;
   --coin-logo-ring: rgba(15, 20, 32, 0.1);

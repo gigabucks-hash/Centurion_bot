@@ -1,0 +1,8 @@
+{
+  "name": "picomatch",
+  "version": "4.0.8-centurion.1",
+  "private": true,
+  "description": "Small glob-to-regex stand-in for @parcel/watcher. It does not compile extglobs, so the repeated-extglob ReDoS in picomatch <= 4.0.7 does not apply. Upstream has no patched release. The file: path in apps/web/package.json is relative to node_modules/@parcel/watcher, which is how npm applies a nested override.",
+  "license": "MIT",
+  "main": "index.js"
+}

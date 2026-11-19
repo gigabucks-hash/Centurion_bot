@@ -4,152 +4,152 @@ Matriks penuh: setiap token teks × setiap surface (canvas, surface, raised, ove
 Dikecualikan: `text.disabled` (SC 1.4.3 exempt), `border.subtle`/`border.default` (dekoratif — pemisah, bukan batas kontrol; kontrol interaktif wajib pakai `border.strong`).
 
 ## dark
-Checks: 153 · terendah relatif target: `brand.primary` on `bg.overlay` = 4.82 (target 4.5)
+Checks: 153 · terendah relatif target: `mode.onPracticeContainer` on `mode.practiceStripe` = 5.07 (target 4.5)
 
 | Kind | Foreground | Background | Ratio | Target | Result |
 |---|---|---|---|---|---|
-| text | `text.primary` #ECEEF4 | `bg.canvas` #0A0B10 | 16.95 | 4.5 | PASS |
-| text | `text.primary` #ECEEF4 | `bg.surface` #12141B | 15.86 | 4.5 | PASS |
-| text | `text.primary` #ECEEF4 | `bg.raised` #191C25 | 14.67 | 4.5 | PASS |
-| text | `text.primary` #ECEEF4 | `bg.overlay` #20242F | 13.36 | 4.5 | PASS |
-| text | `text.primary` #ECEEF4 | `bg.sunken` #07080C | 17.26 | 4.5 | PASS |
-| text | `text.primary` #ECEEF4 | `bg.chrome` #0D0F15 | 16.51 | 4.5 | PASS |
-| text | `text.secondary` #A9B0C0 | `bg.canvas` #0A0B10 | 9.04 | 4.5 | PASS |
-| text | `text.secondary` #A9B0C0 | `bg.surface` #12141B | 8.46 | 4.5 | PASS |
-| text | `text.secondary` #A9B0C0 | `bg.raised` #191C25 | 7.83 | 4.5 | PASS |
-| text | `text.secondary` #A9B0C0 | `bg.overlay` #20242F | 7.13 | 4.5 | PASS |
-| text | `text.secondary` #A9B0C0 | `bg.sunken` #07080C | 9.21 | 4.5 | PASS |
-| text | `text.secondary` #A9B0C0 | `bg.chrome` #0D0F15 | 8.81 | 4.5 | PASS |
-| text | `text.tertiary` #9299AD | `bg.canvas` #0A0B10 | 6.91 | 4.5 | PASS |
-| text | `text.tertiary` #9299AD | `bg.surface` #12141B | 6.47 | 4.5 | PASS |
-| text | `text.tertiary` #9299AD | `bg.raised` #191C25 | 5.98 | 4.5 | PASS |
-| text | `text.tertiary` #9299AD | `bg.overlay` #20242F | 5.45 | 4.5 | PASS |
-| text | `text.tertiary` #9299AD | `bg.sunken` #07080C | 7.04 | 4.5 | PASS |
-| text | `text.tertiary` #9299AD | `bg.chrome` #0D0F15 | 6.73 | 4.5 | PASS |
-| text | `brand.primary` #4F8CFF | `bg.canvas` #0A0B10 | 6.11 | 4.5 | PASS |
-| text | `brand.primary` #4F8CFF | `bg.surface` #12141B | 5.72 | 4.5 | PASS |
-| text | `brand.primary` #4F8CFF | `bg.raised` #191C25 | 5.29 | 4.5 | PASS |
-| text | `brand.primary` #4F8CFF | `bg.overlay` #20242F | 4.82 | 4.5 | PASS |
-| text | `brand.primary` #4F8CFF | `bg.sunken` #07080C | 6.22 | 4.5 | PASS |
-| text | `brand.primary` #4F8CFF | `bg.chrome` #0D0F15 | 5.95 | 4.5 | PASS |
-| text | `semantic.profit` #3DD68C | `bg.canvas` #0A0B10 | 10.48 | 4.5 | PASS |
-| text | `semantic.profit` #3DD68C | `bg.surface` #12141B | 9.81 | 4.5 | PASS |
-| text | `semantic.profit` #3DD68C | `bg.raised` #191C25 | 9.07 | 4.5 | PASS |
-| text | `semantic.profit` #3DD68C | `bg.overlay` #20242F | 8.26 | 4.5 | PASS |
-| text | `semantic.profit` #3DD68C | `bg.sunken` #07080C | 10.67 | 4.5 | PASS |
-| text | `semantic.profit` #3DD68C | `bg.chrome` #0D0F15 | 10.21 | 4.5 | PASS |
-| text | `semantic.loss` #FF7A7A | `bg.canvas` #0A0B10 | 7.79 | 4.5 | PASS |
-| text | `semantic.loss` #FF7A7A | `bg.surface` #12141B | 7.29 | 4.5 | PASS |
-| text | `semantic.loss` #FF7A7A | `bg.raised` #191C25 | 6.74 | 4.5 | PASS |
-| text | `semantic.loss` #FF7A7A | `bg.overlay` #20242F | 6.14 | 4.5 | PASS |
-| text | `semantic.loss` #FF7A7A | `bg.sunken` #07080C | 7.93 | 4.5 | PASS |
-| text | `semantic.loss` #FF7A7A | `bg.chrome` #0D0F15 | 7.59 | 4.5 | PASS |
-| text | `semantic.warning` #F5C04E | `bg.canvas` #0A0B10 | 11.73 | 4.5 | PASS |
-| text | `semantic.warning` #F5C04E | `bg.surface` #12141B | 10.98 | 4.5 | PASS |
-| text | `semantic.warning` #F5C04E | `bg.raised` #191C25 | 10.15 | 4.5 | PASS |
-| text | `semantic.warning` #F5C04E | `bg.overlay` #20242F | 9.25 | 4.5 | PASS |
-| text | `semantic.warning` #F5C04E | `bg.sunken` #07080C | 11.95 | 4.5 | PASS |
-| text | `semantic.warning` #F5C04E | `bg.chrome` #0D0F15 | 11.43 | 4.5 | PASS |
-| text | `semantic.guard` #E57A12 | `bg.canvas` #0A0B10 | 6.67 | 4.5 | PASS |
-| text | `semantic.guard` #E57A12 | `bg.surface` #12141B | 6.24 | 4.5 | PASS |
-| text | `semantic.guard` #E57A12 | `bg.raised` #191C25 | 5.77 | 4.5 | PASS |
-| text | `semantic.guard` #E57A12 | `bg.overlay` #20242F | 5.26 | 4.5 | PASS |
-| text | `semantic.guard` #E57A12 | `bg.sunken` #07080C | 6.79 | 4.5 | PASS |
-| text | `semantic.guard` #E57A12 | `bg.chrome` #0D0F15 | 6.50 | 4.5 | PASS |
-| text | `semantic.info` #7AA7FF | `bg.canvas` #0A0B10 | 8.24 | 4.5 | PASS |
-| text | `semantic.info` #7AA7FF | `bg.surface` #12141B | 7.71 | 4.5 | PASS |
-| text | `semantic.info` #7AA7FF | `bg.raised` #191C25 | 7.13 | 4.5 | PASS |
-| text | `semantic.info` #7AA7FF | `bg.overlay` #20242F | 6.49 | 4.5 | PASS |
-| text | `semantic.info` #7AA7FF | `bg.sunken` #07080C | 8.39 | 4.5 | PASS |
-| text | `semantic.info` #7AA7FF | `bg.chrome` #0D0F15 | 8.03 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #A9B3C7 | `bg.canvas` #0A0B10 | 9.32 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #A9B3C7 | `bg.surface` #12141B | 8.72 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #A9B3C7 | `bg.raised` #191C25 | 8.07 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #A9B3C7 | `bg.overlay` #20242F | 7.35 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #A9B3C7 | `bg.sunken` #07080C | 9.49 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #A9B3C7 | `bg.chrome` #0D0F15 | 9.09 | 4.5 | PASS |
-| text | `mode.practice` #3FD0E0 | `bg.canvas` #0A0B10 | 10.59 | 4.5 | PASS |
-| text | `mode.practice` #3FD0E0 | `bg.surface` #12141B | 9.91 | 4.5 | PASS |
-| text | `mode.practice` #3FD0E0 | `bg.raised` #191C25 | 9.16 | 4.5 | PASS |
-| text | `mode.practice` #3FD0E0 | `bg.overlay` #20242F | 8.35 | 4.5 | PASS |
-| text | `mode.practice` #3FD0E0 | `bg.sunken` #07080C | 10.78 | 4.5 | PASS |
-| text | `mode.practice` #3FD0E0 | `bg.chrome` #0D0F15 | 10.32 | 4.5 | PASS |
-| text | `mode.real` #FF7DC4 | `bg.canvas` #0A0B10 | 8.41 | 4.5 | PASS |
-| text | `mode.real` #FF7DC4 | `bg.surface` #12141B | 7.87 | 4.5 | PASS |
-| text | `mode.real` #FF7DC4 | `bg.raised` #191C25 | 7.28 | 4.5 | PASS |
-| text | `mode.real` #FF7DC4 | `bg.overlay` #20242F | 6.63 | 4.5 | PASS |
-| text | `mode.real` #FF7DC4 | `bg.sunken` #07080C | 8.56 | 4.5 | PASS |
-| text | `mode.real` #FF7DC4 | `bg.chrome` #0D0F15 | 8.19 | 4.5 | PASS |
-| non-text | `border.strong` #6C7590 | `bg.canvas` #0A0B10 | 4.29 | 3.0 | PASS |
-| non-text | `border.strong` #6C7590 | `bg.surface` #12141B | 4.02 | 3.0 | PASS |
-| non-text | `border.strong` #6C7590 | `bg.raised` #191C25 | 3.71 | 3.0 | PASS |
-| non-text | `border.strong` #6C7590 | `bg.overlay` #20242F | 3.38 | 3.0 | PASS |
-| non-text | `border.strong` #6C7590 | `bg.sunken` #07080C | 4.37 | 3.0 | PASS |
-| non-text | `border.strong` #6C7590 | `bg.chrome` #0D0F15 | 4.18 | 3.0 | PASS |
-| non-text | `border.focus` #8AB4FF | `bg.canvas` #0A0B10 | 9.41 | 3.0 | PASS |
-| non-text | `border.focus` #8AB4FF | `bg.surface` #12141B | 8.81 | 3.0 | PASS |
-| non-text | `border.focus` #8AB4FF | `bg.raised` #191C25 | 8.15 | 3.0 | PASS |
-| non-text | `border.focus` #8AB4FF | `bg.overlay` #20242F | 7.42 | 3.0 | PASS |
-| non-text | `border.focus` #8AB4FF | `bg.sunken` #07080C | 9.58 | 3.0 | PASS |
-| non-text | `border.focus` #8AB4FF | `bg.chrome` #0D0F15 | 9.17 | 3.0 | PASS |
-| non-text | `brand.primary` #4F8CFF | `bg.canvas` #0A0B10 | 6.11 | 3.0 | PASS |
-| non-text | `brand.primary` #4F8CFF | `bg.surface` #12141B | 5.72 | 3.0 | PASS |
-| non-text | `brand.primary` #4F8CFF | `bg.raised` #191C25 | 5.29 | 3.0 | PASS |
-| non-text | `brand.primary` #4F8CFF | `bg.overlay` #20242F | 4.82 | 3.0 | PASS |
-| non-text | `brand.primary` #4F8CFF | `bg.sunken` #07080C | 6.22 | 3.0 | PASS |
-| non-text | `brand.primary` #4F8CFF | `bg.chrome` #0D0F15 | 5.95 | 3.0 | PASS |
-| non-text | `semantic.profit` #3DD68C | `bg.canvas` #0A0B10 | 10.48 | 3.0 | PASS |
-| non-text | `semantic.profit` #3DD68C | `bg.surface` #12141B | 9.81 | 3.0 | PASS |
-| non-text | `semantic.profit` #3DD68C | `bg.raised` #191C25 | 9.07 | 3.0 | PASS |
-| non-text | `semantic.profit` #3DD68C | `bg.overlay` #20242F | 8.26 | 3.0 | PASS |
-| non-text | `semantic.profit` #3DD68C | `bg.sunken` #07080C | 10.67 | 3.0 | PASS |
-| non-text | `semantic.profit` #3DD68C | `bg.chrome` #0D0F15 | 10.21 | 3.0 | PASS |
-| non-text | `semantic.loss` #FF7A7A | `bg.canvas` #0A0B10 | 7.79 | 3.0 | PASS |
-| non-text | `semantic.loss` #FF7A7A | `bg.surface` #12141B | 7.29 | 3.0 | PASS |
-| non-text | `semantic.loss` #FF7A7A | `bg.raised` #191C25 | 6.74 | 3.0 | PASS |
-| non-text | `semantic.loss` #FF7A7A | `bg.overlay` #20242F | 6.14 | 3.0 | PASS |
-| non-text | `semantic.loss` #FF7A7A | `bg.sunken` #07080C | 7.93 | 3.0 | PASS |
-| non-text | `semantic.loss` #FF7A7A | `bg.chrome` #0D0F15 | 7.59 | 3.0 | PASS |
-| non-text | `semantic.warning` #F5C04E | `bg.canvas` #0A0B10 | 11.73 | 3.0 | PASS |
-| non-text | `semantic.warning` #F5C04E | `bg.surface` #12141B | 10.98 | 3.0 | PASS |
-| non-text | `semantic.warning` #F5C04E | `bg.raised` #191C25 | 10.15 | 3.0 | PASS |
-| non-text | `semantic.warning` #F5C04E | `bg.overlay` #20242F | 9.25 | 3.0 | PASS |
-| non-text | `semantic.warning` #F5C04E | `bg.sunken` #07080C | 11.95 | 3.0 | PASS |
-| non-text | `semantic.warning` #F5C04E | `bg.chrome` #0D0F15 | 11.43 | 3.0 | PASS |
-| non-text | `semantic.guard` #E57A12 | `bg.canvas` #0A0B10 | 6.67 | 3.0 | PASS |
-| non-text | `semantic.guard` #E57A12 | `bg.surface` #12141B | 6.24 | 3.0 | PASS |
-| non-text | `semantic.guard` #E57A12 | `bg.raised` #191C25 | 5.77 | 3.0 | PASS |
-| non-text | `semantic.guard` #E57A12 | `bg.overlay` #20242F | 5.26 | 3.0 | PASS |
-| non-text | `semantic.guard` #E57A12 | `bg.sunken` #07080C | 6.79 | 3.0 | PASS |
-| non-text | `semantic.guard` #E57A12 | `bg.chrome` #0D0F15 | 6.50 | 3.0 | PASS |
-| non-text | `semantic.info` #7AA7FF | `bg.canvas` #0A0B10 | 8.24 | 3.0 | PASS |
-| non-text | `semantic.info` #7AA7FF | `bg.surface` #12141B | 7.71 | 3.0 | PASS |
-| non-text | `semantic.info` #7AA7FF | `bg.raised` #191C25 | 7.13 | 3.0 | PASS |
-| non-text | `semantic.info` #7AA7FF | `bg.overlay` #20242F | 6.49 | 3.0 | PASS |
-| non-text | `semantic.info` #7AA7FF | `bg.sunken` #07080C | 8.39 | 3.0 | PASS |
-| non-text | `semantic.info` #7AA7FF | `bg.chrome` #0D0F15 | 8.03 | 3.0 | PASS |
-| non-text | `mode.practice` #3FD0E0 | `bg.canvas` #0A0B10 | 10.59 | 3.0 | PASS |
-| non-text | `mode.practice` #3FD0E0 | `bg.surface` #12141B | 9.91 | 3.0 | PASS |
-| non-text | `mode.practice` #3FD0E0 | `bg.raised` #191C25 | 9.16 | 3.0 | PASS |
-| non-text | `mode.practice` #3FD0E0 | `bg.overlay` #20242F | 8.35 | 3.0 | PASS |
-| non-text | `mode.practice` #3FD0E0 | `bg.sunken` #07080C | 10.78 | 3.0 | PASS |
-| non-text | `mode.practice` #3FD0E0 | `bg.chrome` #0D0F15 | 10.32 | 3.0 | PASS |
-| non-text | `mode.real` #FF7DC4 | `bg.canvas` #0A0B10 | 8.41 | 3.0 | PASS |
-| non-text | `mode.real` #FF7DC4 | `bg.surface` #12141B | 7.87 | 3.0 | PASS |
-| non-text | `mode.real` #FF7DC4 | `bg.raised` #191C25 | 7.28 | 3.0 | PASS |
-| non-text | `mode.real` #FF7DC4 | `bg.overlay` #20242F | 6.63 | 3.0 | PASS |
-| non-text | `mode.real` #FF7DC4 | `bg.sunken` #07080C | 8.56 | 3.0 | PASS |
-| non-text | `mode.real` #FF7DC4 | `bg.chrome` #0D0F15 | 8.19 | 3.0 | PASS |
-| pair | `brand.onPrimaryContainer` #D4E2FF | `brand.primaryContainer` #0F2246 | 12.05 | 4.5 | PASS |
-| pair | `text.onAccent` #06080D | `brand.primary` #4F8CFF | 6.23 | 4.5 | PASS |
-| pair | `text.onAccent` #06080D | `semantic.profit` #3DD68C | 10.68 | 4.5 | PASS |
-| pair | `text.onAccent` #06080D | `semantic.loss` #FF7A7A | 7.93 | 4.5 | PASS |
+| text | `text.primary` #F4F4F5 | `bg.canvas` #0B0B0D | 17.89 | 4.5 | PASS |
+| text | `text.primary` #F4F4F5 | `bg.surface` #141417 | 16.73 | 4.5 | PASS |
+| text | `text.primary` #F4F4F5 | `bg.raised` #1C1C21 | 15.44 | 4.5 | PASS |
+| text | `text.primary` #F4F4F5 | `bg.overlay` #24242A | 14.04 | 4.5 | PASS |
+| text | `text.primary` #F4F4F5 | `bg.sunken` #070709 | 18.31 | 4.5 | PASS |
+| text | `text.primary` #F4F4F5 | `bg.chrome` #101013 | 17.28 | 4.5 | PASS |
+| text | `text.secondary` #C4C4CC | `bg.canvas` #0B0B0D | 11.34 | 4.5 | PASS |
+| text | `text.secondary` #C4C4CC | `bg.surface` #141417 | 10.61 | 4.5 | PASS |
+| text | `text.secondary` #C4C4CC | `bg.raised` #1C1C21 | 9.79 | 4.5 | PASS |
+| text | `text.secondary` #C4C4CC | `bg.overlay` #24242A | 8.90 | 4.5 | PASS |
+| text | `text.secondary` #C4C4CC | `bg.sunken` #070709 | 11.61 | 4.5 | PASS |
+| text | `text.secondary` #C4C4CC | `bg.chrome` #101013 | 10.96 | 4.5 | PASS |
+| text | `text.tertiary` #A1A1AA | `bg.canvas` #0B0B0D | 7.67 | 4.5 | PASS |
+| text | `text.tertiary` #A1A1AA | `bg.surface` #141417 | 7.17 | 4.5 | PASS |
+| text | `text.tertiary` #A1A1AA | `bg.raised` #1C1C21 | 6.62 | 4.5 | PASS |
+| text | `text.tertiary` #A1A1AA | `bg.overlay` #24242A | 6.02 | 4.5 | PASS |
+| text | `text.tertiary` #A1A1AA | `bg.sunken` #070709 | 7.85 | 4.5 | PASS |
+| text | `text.tertiary` #A1A1AA | `bg.chrome` #101013 | 7.41 | 4.5 | PASS |
+| text | `brand.primary` #FF7A1A | `bg.canvas` #0B0B0D | 7.54 | 4.5 | PASS |
+| text | `brand.primary` #FF7A1A | `bg.surface` #141417 | 7.05 | 4.5 | PASS |
+| text | `brand.primary` #FF7A1A | `bg.raised` #1C1C21 | 6.51 | 4.5 | PASS |
+| text | `brand.primary` #FF7A1A | `bg.overlay` #24242A | 5.92 | 4.5 | PASS |
+| text | `brand.primary` #FF7A1A | `bg.sunken` #070709 | 7.72 | 4.5 | PASS |
+| text | `brand.primary` #FF7A1A | `bg.chrome` #101013 | 7.28 | 4.5 | PASS |
+| text | `semantic.profit` #3DD68C | `bg.canvas` #0B0B0D | 10.48 | 4.5 | PASS |
+| text | `semantic.profit` #3DD68C | `bg.surface` #141417 | 9.80 | 4.5 | PASS |
+| text | `semantic.profit` #3DD68C | `bg.raised` #1C1C21 | 9.05 | 4.5 | PASS |
+| text | `semantic.profit` #3DD68C | `bg.overlay` #24242A | 8.23 | 4.5 | PASS |
+| text | `semantic.profit` #3DD68C | `bg.sunken` #070709 | 10.73 | 4.5 | PASS |
+| text | `semantic.profit` #3DD68C | `bg.chrome` #101013 | 10.13 | 4.5 | PASS |
+| text | `semantic.loss` #FF7A7A | `bg.canvas` #0B0B0D | 7.79 | 4.5 | PASS |
+| text | `semantic.loss` #FF7A7A | `bg.surface` #141417 | 7.28 | 4.5 | PASS |
+| text | `semantic.loss` #FF7A7A | `bg.raised` #1C1C21 | 6.72 | 4.5 | PASS |
+| text | `semantic.loss` #FF7A7A | `bg.overlay` #24242A | 6.11 | 4.5 | PASS |
+| text | `semantic.loss` #FF7A7A | `bg.sunken` #070709 | 7.97 | 4.5 | PASS |
+| text | `semantic.loss` #FF7A7A | `bg.chrome` #101013 | 7.52 | 4.5 | PASS |
+| text | `semantic.warning` #F5C04E | `bg.canvas` #0B0B0D | 11.74 | 4.5 | PASS |
+| text | `semantic.warning` #F5C04E | `bg.surface` #141417 | 10.97 | 4.5 | PASS |
+| text | `semantic.warning` #F5C04E | `bg.raised` #1C1C21 | 10.13 | 4.5 | PASS |
+| text | `semantic.warning` #F5C04E | `bg.overlay` #24242A | 9.21 | 4.5 | PASS |
+| text | `semantic.warning` #F5C04E | `bg.sunken` #070709 | 12.01 | 4.5 | PASS |
+| text | `semantic.warning` #F5C04E | `bg.chrome` #101013 | 11.34 | 4.5 | PASS |
+| text | `semantic.guard` #C4B5FD | `bg.canvas` #0B0B0D | 10.65 | 4.5 | PASS |
+| text | `semantic.guard` #C4B5FD | `bg.surface` #141417 | 9.96 | 4.5 | PASS |
+| text | `semantic.guard` #C4B5FD | `bg.raised` #1C1C21 | 9.19 | 4.5 | PASS |
+| text | `semantic.guard` #C4B5FD | `bg.overlay` #24242A | 8.36 | 4.5 | PASS |
+| text | `semantic.guard` #C4B5FD | `bg.sunken` #070709 | 10.90 | 4.5 | PASS |
+| text | `semantic.guard` #C4B5FD | `bg.chrome` #101013 | 10.29 | 4.5 | PASS |
+| text | `semantic.info` #7AA7FF | `bg.canvas` #0B0B0D | 8.24 | 4.5 | PASS |
+| text | `semantic.info` #7AA7FF | `bg.surface` #141417 | 7.70 | 4.5 | PASS |
+| text | `semantic.info` #7AA7FF | `bg.raised` #1C1C21 | 7.11 | 4.5 | PASS |
+| text | `semantic.info` #7AA7FF | `bg.overlay` #24242A | 6.47 | 4.5 | PASS |
+| text | `semantic.info` #7AA7FF | `bg.sunken` #070709 | 8.43 | 4.5 | PASS |
+| text | `semantic.info` #7AA7FF | `bg.chrome` #101013 | 7.96 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #A9B3C7 | `bg.canvas` #0B0B0D | 9.33 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #A9B3C7 | `bg.surface` #141417 | 8.72 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #A9B3C7 | `bg.raised` #1C1C21 | 8.05 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #A9B3C7 | `bg.overlay` #24242A | 7.32 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #A9B3C7 | `bg.sunken` #070709 | 9.55 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #A9B3C7 | `bg.chrome` #101013 | 9.01 | 4.5 | PASS |
+| text | `mode.practice` #3FD0E0 | `bg.canvas` #0B0B0D | 10.59 | 4.5 | PASS |
+| text | `mode.practice` #3FD0E0 | `bg.surface` #141417 | 9.90 | 4.5 | PASS |
+| text | `mode.practice` #3FD0E0 | `bg.raised` #1C1C21 | 9.14 | 4.5 | PASS |
+| text | `mode.practice` #3FD0E0 | `bg.overlay` #24242A | 8.31 | 4.5 | PASS |
+| text | `mode.practice` #3FD0E0 | `bg.sunken` #070709 | 10.84 | 4.5 | PASS |
+| text | `mode.practice` #3FD0E0 | `bg.chrome` #101013 | 10.23 | 4.5 | PASS |
+| text | `mode.real` #FF7DC4 | `bg.canvas` #0B0B0D | 8.41 | 4.5 | PASS |
+| text | `mode.real` #FF7DC4 | `bg.surface` #141417 | 7.86 | 4.5 | PASS |
+| text | `mode.real` #FF7DC4 | `bg.raised` #1C1C21 | 7.26 | 4.5 | PASS |
+| text | `mode.real` #FF7DC4 | `bg.overlay` #24242A | 6.60 | 4.5 | PASS |
+| text | `mode.real` #FF7DC4 | `bg.sunken` #070709 | 8.61 | 4.5 | PASS |
+| text | `mode.real` #FF7DC4 | `bg.chrome` #101013 | 8.12 | 4.5 | PASS |
+| non-text | `border.strong` #8B8B98 | `bg.canvas` #0B0B0D | 5.85 | 3.0 | PASS |
+| non-text | `border.strong` #8B8B98 | `bg.surface` #141417 | 5.47 | 3.0 | PASS |
+| non-text | `border.strong` #8B8B98 | `bg.raised` #1C1C21 | 5.05 | 3.0 | PASS |
+| non-text | `border.strong` #8B8B98 | `bg.overlay` #24242A | 4.59 | 3.0 | PASS |
+| non-text | `border.strong` #8B8B98 | `bg.sunken` #070709 | 5.98 | 3.0 | PASS |
+| non-text | `border.strong` #8B8B98 | `bg.chrome` #101013 | 5.65 | 3.0 | PASS |
+| non-text | `border.focus` #FFB07A | `bg.canvas` #0B0B0D | 11.00 | 3.0 | PASS |
+| non-text | `border.focus` #FFB07A | `bg.surface` #141417 | 10.28 | 3.0 | PASS |
+| non-text | `border.focus` #FFB07A | `bg.raised` #1C1C21 | 9.49 | 3.0 | PASS |
+| non-text | `border.focus` #FFB07A | `bg.overlay` #24242A | 8.63 | 3.0 | PASS |
+| non-text | `border.focus` #FFB07A | `bg.sunken` #070709 | 11.26 | 3.0 | PASS |
+| non-text | `border.focus` #FFB07A | `bg.chrome` #101013 | 10.62 | 3.0 | PASS |
+| non-text | `brand.primary` #FF7A1A | `bg.canvas` #0B0B0D | 7.54 | 3.0 | PASS |
+| non-text | `brand.primary` #FF7A1A | `bg.surface` #141417 | 7.05 | 3.0 | PASS |
+| non-text | `brand.primary` #FF7A1A | `bg.raised` #1C1C21 | 6.51 | 3.0 | PASS |
+| non-text | `brand.primary` #FF7A1A | `bg.overlay` #24242A | 5.92 | 3.0 | PASS |
+| non-text | `brand.primary` #FF7A1A | `bg.sunken` #070709 | 7.72 | 3.0 | PASS |
+| non-text | `brand.primary` #FF7A1A | `bg.chrome` #101013 | 7.28 | 3.0 | PASS |
+| non-text | `semantic.profit` #3DD68C | `bg.canvas` #0B0B0D | 10.48 | 3.0 | PASS |
+| non-text | `semantic.profit` #3DD68C | `bg.surface` #141417 | 9.80 | 3.0 | PASS |
+| non-text | `semantic.profit` #3DD68C | `bg.raised` #1C1C21 | 9.05 | 3.0 | PASS |
+| non-text | `semantic.profit` #3DD68C | `bg.overlay` #24242A | 8.23 | 3.0 | PASS |
+| non-text | `semantic.profit` #3DD68C | `bg.sunken` #070709 | 10.73 | 3.0 | PASS |
+| non-text | `semantic.profit` #3DD68C | `bg.chrome` #101013 | 10.13 | 3.0 | PASS |
+| non-text | `semantic.loss` #FF7A7A | `bg.canvas` #0B0B0D | 7.79 | 3.0 | PASS |
+| non-text | `semantic.loss` #FF7A7A | `bg.surface` #141417 | 7.28 | 3.0 | PASS |
+| non-text | `semantic.loss` #FF7A7A | `bg.raised` #1C1C21 | 6.72 | 3.0 | PASS |
+| non-text | `semantic.loss` #FF7A7A | `bg.overlay` #24242A | 6.11 | 3.0 | PASS |
+| non-text | `semantic.loss` #FF7A7A | `bg.sunken` #070709 | 7.97 | 3.0 | PASS |
+| non-text | `semantic.loss` #FF7A7A | `bg.chrome` #101013 | 7.52 | 3.0 | PASS |
+| non-text | `semantic.warning` #F5C04E | `bg.canvas` #0B0B0D | 11.74 | 3.0 | PASS |
+| non-text | `semantic.warning` #F5C04E | `bg.surface` #141417 | 10.97 | 3.0 | PASS |
+| non-text | `semantic.warning` #F5C04E | `bg.raised` #1C1C21 | 10.13 | 3.0 | PASS |
+| non-text | `semantic.warning` #F5C04E | `bg.overlay` #24242A | 9.21 | 3.0 | PASS |
+| non-text | `semantic.warning` #F5C04E | `bg.sunken` #070709 | 12.01 | 3.0 | PASS |
+| non-text | `semantic.warning` #F5C04E | `bg.chrome` #101013 | 11.34 | 3.0 | PASS |
+| non-text | `semantic.guard` #C4B5FD | `bg.canvas` #0B0B0D | 10.65 | 3.0 | PASS |
+| non-text | `semantic.guard` #C4B5FD | `bg.surface` #141417 | 9.96 | 3.0 | PASS |
+| non-text | `semantic.guard` #C4B5FD | `bg.raised` #1C1C21 | 9.19 | 3.0 | PASS |
+| non-text | `semantic.guard` #C4B5FD | `bg.overlay` #24242A | 8.36 | 3.0 | PASS |
+| non-text | `semantic.guard` #C4B5FD | `bg.sunken` #070709 | 10.90 | 3.0 | PASS |
+| non-text | `semantic.guard` #C4B5FD | `bg.chrome` #101013 | 10.29 | 3.0 | PASS |
+| non-text | `semantic.info` #7AA7FF | `bg.canvas` #0B0B0D | 8.24 | 3.0 | PASS |
+| non-text | `semantic.info` #7AA7FF | `bg.surface` #141417 | 7.70 | 3.0 | PASS |
+| non-text | `semantic.info` #7AA7FF | `bg.raised` #1C1C21 | 7.11 | 3.0 | PASS |
+| non-text | `semantic.info` #7AA7FF | `bg.overlay` #24242A | 6.47 | 3.0 | PASS |
+| non-text | `semantic.info` #7AA7FF | `bg.sunken` #070709 | 8.43 | 3.0 | PASS |
+| non-text | `semantic.info` #7AA7FF | `bg.chrome` #101013 | 7.96 | 3.0 | PASS |
+| non-text | `mode.practice` #3FD0E0 | `bg.canvas` #0B0B0D | 10.59 | 3.0 | PASS |
+| non-text | `mode.practice` #3FD0E0 | `bg.surface` #141417 | 9.90 | 3.0 | PASS |
+| non-text | `mode.practice` #3FD0E0 | `bg.raised` #1C1C21 | 9.14 | 3.0 | PASS |
+| non-text | `mode.practice` #3FD0E0 | `bg.overlay` #24242A | 8.31 | 3.0 | PASS |
+| non-text | `mode.practice` #3FD0E0 | `bg.sunken` #070709 | 10.84 | 3.0 | PASS |
+| non-text | `mode.practice` #3FD0E0 | `bg.chrome` #101013 | 10.23 | 3.0 | PASS |
+| non-text | `mode.real` #FF7DC4 | `bg.canvas` #0B0B0D | 8.41 | 3.0 | PASS |
+| non-text | `mode.real` #FF7DC4 | `bg.surface` #141417 | 7.86 | 3.0 | PASS |
+| non-text | `mode.real` #FF7DC4 | `bg.raised` #1C1C21 | 7.26 | 3.0 | PASS |
+| non-text | `mode.real` #FF7DC4 | `bg.overlay` #24242A | 6.60 | 3.0 | PASS |
+| non-text | `mode.real` #FF7DC4 | `bg.sunken` #070709 | 8.61 | 3.0 | PASS |
+| non-text | `mode.real` #FF7DC4 | `bg.chrome` #101013 | 8.12 | 3.0 | PASS |
+| pair | `brand.onPrimaryContainer` #FFE1C7 | `brand.primaryContainer` #3A220F | 11.90 | 4.5 | PASS |
+| pair | `text.onAccent` #140A05 | `brand.primary` #FF7A1A | 7.49 | 4.5 | PASS |
+| pair | `text.onAccent` #140A05 | `semantic.profit` #3DD68C | 10.41 | 4.5 | PASS |
+| pair | `text.onAccent` #140A05 | `semantic.loss` #FF7A7A | 7.73 | 4.5 | PASS |
 | pair | `semantic.profit` #3DD68C | `semantic.profitContainer` #0F2E22 | 7.81 | 4.5 | PASS |
 | pair | `semantic.loss` #FF7A7A | `semantic.lossContainer` #3A1518 | 6.40 | 4.5 | PASS |
 | pair | `semantic.warning` #F5C04E | `semantic.warningContainer` #33270C | 8.73 | 4.5 | PASS |
-| pair | `semantic.guard` #E57A12 | `semantic.guardContainer` #361C08 | 5.37 | 4.5 | PASS |
+| pair | `semantic.guard` #C4B5FD | `semantic.guardContainer` #2A2140 | 8.18 | 4.5 | PASS |
 | pair | `semantic.onWarning` #1A1203 | `semantic.warning` #F5C04E | 11.07 | 4.5 | PASS |
-| pair | `semantic.onWarning` #1A1203 | `semantic.guard` #E57A12 | 6.29 | 4.5 | PASS |
+| pair | `semantic.onWarning` #1A1203 | `semantic.guard` #C4B5FD | 10.05 | 4.5 | PASS |
 | pair | `semantic.info` #7AA7FF | `semantic.infoContainer` #0F2140 | 6.71 | 4.5 | PASS |
 | pair | `mode.onPractice` #04161A | `mode.practice` #3FD0E0 | 9.97 | 4.5 | PASS |
 | pair | `mode.onReal` #1E0716 | `mode.real` #FF7DC4 | 8.19 | 4.5 | PASS |
@@ -157,150 +157,150 @@ Checks: 153 · terendah relatif target: `brand.primary` on `bg.overlay` = 4.82 (
 | pair | `mode.onPracticeContainer` #3FD0E0 | `mode.practiceContainer` #0C2C33 | 7.94 | 4.5 | PASS |
 | pair | `mode.onPracticeContainer` #3FD0E0 | `mode.practiceStripe` #164D56 | 5.07 | 4.5 | PASS |
 | pair | `mode.real` #FF7DC4 | `mode.realContainer` #3A1030 | 6.93 | 4.5 | PASS |
-| pair | `text.primary` #ECEEF4 | `brand.primaryContainer` #0F2246 | 13.53 | 4.5 | PASS |
-| pair | `inverse.onSurface` #12141B | `inverse.surface` #ECEEF4 | 15.86 | 4.5 | PASS |
-| pair | `inverse.primary` #1F5FD1 | `inverse.surface` #ECEEF4 | 5.01 | 4.5 | PASS |
+| pair | `text.primary` #F4F4F5 | `brand.primaryContainer` #3A220F | 13.50 | 4.5 | PASS |
+| pair | `inverse.onSurface` #141417 | `inverse.surface` #F4F4F5 | 16.73 | 4.5 | PASS |
+| pair | `inverse.primary` #1D4ED8 | `inverse.surface` #F4F4F5 | 6.10 | 4.5 | PASS |
 | pair | `semantic.info` #7AA7FF | `semantic.infoContainer` #0F2140 | 6.71 | 4.5 | PASS |
 
 ## light
-Checks: 153 · terendah relatif target: `semantic.guard` on `bg.sunken` = 4.68 (target 4.5)
+Checks: 153 · terendah relatif target: `brand.primary` on `bg.raised` = 4.52 (target 4.5)
 
 | Kind | Foreground | Background | Ratio | Target | Result |
 |---|---|---|---|---|---|
-| text | `text.primary` #0F1420 | `bg.canvas` #F6F7FA | 17.18 | 4.5 | PASS |
-| text | `text.primary` #0F1420 | `bg.surface` #FFFFFF | 18.40 | 4.5 | PASS |
-| text | `text.primary` #0F1420 | `bg.raised` #FFFFFF | 18.40 | 4.5 | PASS |
+| text | `text.primary` #0F1420 | `bg.canvas` #FFFFFF | 18.40 | 4.5 | PASS |
+| text | `text.primary` #0F1420 | `bg.surface` #F5F7FB | 17.16 | 4.5 | PASS |
+| text | `text.primary` #0F1420 | `bg.raised` #EBF0F8 | 16.08 | 4.5 | PASS |
 | text | `text.primary` #0F1420 | `bg.overlay` #FFFFFF | 18.40 | 4.5 | PASS |
-| text | `text.primary` #0F1420 | `bg.sunken` #EEF0F5 | 16.14 | 4.5 | PASS |
-| text | `text.primary` #0F1420 | `bg.chrome` #FFFFFF | 18.40 | 4.5 | PASS |
-| text | `text.secondary` #3D475C | `bg.canvas` #F6F7FA | 8.70 | 4.5 | PASS |
-| text | `text.secondary` #3D475C | `bg.surface` #FFFFFF | 9.32 | 4.5 | PASS |
-| text | `text.secondary` #3D475C | `bg.raised` #FFFFFF | 9.32 | 4.5 | PASS |
+| text | `text.primary` #0F1420 | `bg.sunken` #EBF0F8 | 16.08 | 4.5 | PASS |
+| text | `text.primary` #0F1420 | `bg.chrome` #F5F7FB | 17.16 | 4.5 | PASS |
+| text | `text.secondary` #3D475C | `bg.canvas` #FFFFFF | 9.32 | 4.5 | PASS |
+| text | `text.secondary` #3D475C | `bg.surface` #F5F7FB | 8.69 | 4.5 | PASS |
+| text | `text.secondary` #3D475C | `bg.raised` #EBF0F8 | 8.14 | 4.5 | PASS |
 | text | `text.secondary` #3D475C | `bg.overlay` #FFFFFF | 9.32 | 4.5 | PASS |
-| text | `text.secondary` #3D475C | `bg.sunken` #EEF0F5 | 8.17 | 4.5 | PASS |
-| text | `text.secondary` #3D475C | `bg.chrome` #FFFFFF | 9.32 | 4.5 | PASS |
-| text | `text.tertiary` #5B667D | `bg.canvas` #F6F7FA | 5.38 | 4.5 | PASS |
-| text | `text.tertiary` #5B667D | `bg.surface` #FFFFFF | 5.77 | 4.5 | PASS |
-| text | `text.tertiary` #5B667D | `bg.raised` #FFFFFF | 5.77 | 4.5 | PASS |
+| text | `text.secondary` #3D475C | `bg.sunken` #EBF0F8 | 8.14 | 4.5 | PASS |
+| text | `text.secondary` #3D475C | `bg.chrome` #F5F7FB | 8.69 | 4.5 | PASS |
+| text | `text.tertiary` #5B667D | `bg.canvas` #FFFFFF | 5.77 | 4.5 | PASS |
+| text | `text.tertiary` #5B667D | `bg.surface` #F5F7FB | 5.38 | 4.5 | PASS |
+| text | `text.tertiary` #5B667D | `bg.raised` #EBF0F8 | 5.04 | 4.5 | PASS |
 | text | `text.tertiary` #5B667D | `bg.overlay` #FFFFFF | 5.77 | 4.5 | PASS |
-| text | `text.tertiary` #5B667D | `bg.sunken` #EEF0F5 | 5.06 | 4.5 | PASS |
-| text | `text.tertiary` #5B667D | `bg.chrome` #FFFFFF | 5.77 | 4.5 | PASS |
-| text | `brand.primary` #2456D6 | `bg.canvas` #F6F7FA | 5.80 | 4.5 | PASS |
-| text | `brand.primary` #2456D6 | `bg.surface` #FFFFFF | 6.22 | 4.5 | PASS |
-| text | `brand.primary` #2456D6 | `bg.raised` #FFFFFF | 6.22 | 4.5 | PASS |
-| text | `brand.primary` #2456D6 | `bg.overlay` #FFFFFF | 6.22 | 4.5 | PASS |
-| text | `brand.primary` #2456D6 | `bg.sunken` #EEF0F5 | 5.45 | 4.5 | PASS |
-| text | `brand.primary` #2456D6 | `bg.chrome` #FFFFFF | 6.22 | 4.5 | PASS |
-| text | `semantic.profit` #067A4B | `bg.canvas` #F6F7FA | 5.04 | 4.5 | PASS |
-| text | `semantic.profit` #067A4B | `bg.surface` #FFFFFF | 5.39 | 4.5 | PASS |
-| text | `semantic.profit` #067A4B | `bg.raised` #FFFFFF | 5.39 | 4.5 | PASS |
+| text | `text.tertiary` #5B667D | `bg.sunken` #EBF0F8 | 5.04 | 4.5 | PASS |
+| text | `text.tertiary` #5B667D | `bg.chrome` #F5F7FB | 5.38 | 4.5 | PASS |
+| text | `brand.primary` #2563EB | `bg.canvas` #FFFFFF | 5.17 | 4.5 | PASS |
+| text | `brand.primary` #2563EB | `bg.surface` #F5F7FB | 4.82 | 4.5 | PASS |
+| text | `brand.primary` #2563EB | `bg.raised` #EBF0F8 | 4.52 | 4.5 | PASS |
+| text | `brand.primary` #2563EB | `bg.overlay` #FFFFFF | 5.17 | 4.5 | PASS |
+| text | `brand.primary` #2563EB | `bg.sunken` #EBF0F8 | 4.52 | 4.5 | PASS |
+| text | `brand.primary` #2563EB | `bg.chrome` #F5F7FB | 4.82 | 4.5 | PASS |
+| text | `semantic.profit` #067A4B | `bg.canvas` #FFFFFF | 5.39 | 4.5 | PASS |
+| text | `semantic.profit` #067A4B | `bg.surface` #F5F7FB | 5.03 | 4.5 | PASS |
+| text | `semantic.profit` #067A4B | `bg.raised` #EBF0F8 | 4.71 | 4.5 | PASS |
 | text | `semantic.profit` #067A4B | `bg.overlay` #FFFFFF | 5.39 | 4.5 | PASS |
-| text | `semantic.profit` #067A4B | `bg.sunken` #EEF0F5 | 4.73 | 4.5 | PASS |
-| text | `semantic.profit` #067A4B | `bg.chrome` #FFFFFF | 5.39 | 4.5 | PASS |
-| text | `semantic.loss` #C0262D | `bg.canvas` #F6F7FA | 5.51 | 4.5 | PASS |
-| text | `semantic.loss` #C0262D | `bg.surface` #FFFFFF | 5.90 | 4.5 | PASS |
-| text | `semantic.loss` #C0262D | `bg.raised` #FFFFFF | 5.90 | 4.5 | PASS |
+| text | `semantic.profit` #067A4B | `bg.sunken` #EBF0F8 | 4.71 | 4.5 | PASS |
+| text | `semantic.profit` #067A4B | `bg.chrome` #F5F7FB | 5.03 | 4.5 | PASS |
+| text | `semantic.loss` #C0262D | `bg.canvas` #FFFFFF | 5.90 | 4.5 | PASS |
+| text | `semantic.loss` #C0262D | `bg.surface` #F5F7FB | 5.51 | 4.5 | PASS |
+| text | `semantic.loss` #C0262D | `bg.raised` #EBF0F8 | 5.16 | 4.5 | PASS |
 | text | `semantic.loss` #C0262D | `bg.overlay` #FFFFFF | 5.90 | 4.5 | PASS |
-| text | `semantic.loss` #C0262D | `bg.sunken` #EEF0F5 | 5.18 | 4.5 | PASS |
-| text | `semantic.loss` #C0262D | `bg.chrome` #FFFFFF | 5.90 | 4.5 | PASS |
-| text | `semantic.warning` #8A5A00 | `bg.canvas` #F6F7FA | 5.53 | 4.5 | PASS |
-| text | `semantic.warning` #8A5A00 | `bg.surface` #FFFFFF | 5.93 | 4.5 | PASS |
-| text | `semantic.warning` #8A5A00 | `bg.raised` #FFFFFF | 5.93 | 4.5 | PASS |
+| text | `semantic.loss` #C0262D | `bg.sunken` #EBF0F8 | 5.16 | 4.5 | PASS |
+| text | `semantic.loss` #C0262D | `bg.chrome` #F5F7FB | 5.51 | 4.5 | PASS |
+| text | `semantic.warning` #8A5A00 | `bg.canvas` #FFFFFF | 5.93 | 4.5 | PASS |
+| text | `semantic.warning` #8A5A00 | `bg.surface` #F5F7FB | 5.53 | 4.5 | PASS |
+| text | `semantic.warning` #8A5A00 | `bg.raised` #EBF0F8 | 5.18 | 4.5 | PASS |
 | text | `semantic.warning` #8A5A00 | `bg.overlay` #FFFFFF | 5.93 | 4.5 | PASS |
-| text | `semantic.warning` #8A5A00 | `bg.sunken` #EEF0F5 | 5.20 | 4.5 | PASS |
-| text | `semantic.warning` #8A5A00 | `bg.chrome` #FFFFFF | 5.93 | 4.5 | PASS |
-| text | `semantic.guard` #A85400 | `bg.canvas` #F6F7FA | 4.98 | 4.5 | PASS |
-| text | `semantic.guard` #A85400 | `bg.surface` #FFFFFF | 5.34 | 4.5 | PASS |
-| text | `semantic.guard` #A85400 | `bg.raised` #FFFFFF | 5.34 | 4.5 | PASS |
+| text | `semantic.warning` #8A5A00 | `bg.sunken` #EBF0F8 | 5.18 | 4.5 | PASS |
+| text | `semantic.warning` #8A5A00 | `bg.chrome` #F5F7FB | 5.53 | 4.5 | PASS |
+| text | `semantic.guard` #A85400 | `bg.canvas` #FFFFFF | 5.34 | 4.5 | PASS |
+| text | `semantic.guard` #A85400 | `bg.surface` #F5F7FB | 4.98 | 4.5 | PASS |
+| text | `semantic.guard` #A85400 | `bg.raised` #EBF0F8 | 4.67 | 4.5 | PASS |
 | text | `semantic.guard` #A85400 | `bg.overlay` #FFFFFF | 5.34 | 4.5 | PASS |
-| text | `semantic.guard` #A85400 | `bg.sunken` #EEF0F5 | 4.68 | 4.5 | PASS |
-| text | `semantic.guard` #A85400 | `bg.chrome` #FFFFFF | 5.34 | 4.5 | PASS |
-| text | `semantic.info` #1F5FCC | `bg.canvas` #F6F7FA | 5.50 | 4.5 | PASS |
-| text | `semantic.info` #1F5FCC | `bg.surface` #FFFFFF | 5.89 | 4.5 | PASS |
-| text | `semantic.info` #1F5FCC | `bg.raised` #FFFFFF | 5.89 | 4.5 | PASS |
-| text | `semantic.info` #1F5FCC | `bg.overlay` #FFFFFF | 5.89 | 4.5 | PASS |
-| text | `semantic.info` #1F5FCC | `bg.sunken` #EEF0F5 | 5.16 | 4.5 | PASS |
-| text | `semantic.info` #1F5FCC | `bg.chrome` #FFFFFF | 5.89 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #3D475C | `bg.canvas` #F6F7FA | 8.70 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #3D475C | `bg.surface` #FFFFFF | 9.32 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #3D475C | `bg.raised` #FFFFFF | 9.32 | 4.5 | PASS |
+| text | `semantic.guard` #A85400 | `bg.sunken` #EBF0F8 | 4.67 | 4.5 | PASS |
+| text | `semantic.guard` #A85400 | `bg.chrome` #F5F7FB | 4.98 | 4.5 | PASS |
+| text | `semantic.info` #0F766E | `bg.canvas` #FFFFFF | 5.47 | 4.5 | PASS |
+| text | `semantic.info` #0F766E | `bg.surface` #F5F7FB | 5.10 | 4.5 | PASS |
+| text | `semantic.info` #0F766E | `bg.raised` #EBF0F8 | 4.78 | 4.5 | PASS |
+| text | `semantic.info` #0F766E | `bg.overlay` #FFFFFF | 5.47 | 4.5 | PASS |
+| text | `semantic.info` #0F766E | `bg.sunken` #EBF0F8 | 4.78 | 4.5 | PASS |
+| text | `semantic.info` #0F766E | `bg.chrome` #F5F7FB | 5.10 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #3D475C | `bg.canvas` #FFFFFF | 9.32 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #3D475C | `bg.surface` #F5F7FB | 8.69 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #3D475C | `bg.raised` #EBF0F8 | 8.14 | 4.5 | PASS |
 | text | `semantic.neutralPnl` #3D475C | `bg.overlay` #FFFFFF | 9.32 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #3D475C | `bg.sunken` #EEF0F5 | 8.17 | 4.5 | PASS |
-| text | `semantic.neutralPnl` #3D475C | `bg.chrome` #FFFFFF | 9.32 | 4.5 | PASS |
-| text | `mode.practice` #0B7285 | `bg.canvas` #F6F7FA | 5.21 | 4.5 | PASS |
-| text | `mode.practice` #0B7285 | `bg.surface` #FFFFFF | 5.59 | 4.5 | PASS |
-| text | `mode.practice` #0B7285 | `bg.raised` #FFFFFF | 5.59 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #3D475C | `bg.sunken` #EBF0F8 | 8.14 | 4.5 | PASS |
+| text | `semantic.neutralPnl` #3D475C | `bg.chrome` #F5F7FB | 8.69 | 4.5 | PASS |
+| text | `mode.practice` #0B7285 | `bg.canvas` #FFFFFF | 5.59 | 4.5 | PASS |
+| text | `mode.practice` #0B7285 | `bg.surface` #F5F7FB | 5.21 | 4.5 | PASS |
+| text | `mode.practice` #0B7285 | `bg.raised` #EBF0F8 | 4.88 | 4.5 | PASS |
 | text | `mode.practice` #0B7285 | `bg.overlay` #FFFFFF | 5.59 | 4.5 | PASS |
-| text | `mode.practice` #0B7285 | `bg.sunken` #EEF0F5 | 4.90 | 4.5 | PASS |
-| text | `mode.practice` #0B7285 | `bg.chrome` #FFFFFF | 5.59 | 4.5 | PASS |
-| text | `mode.real` #B8226F | `bg.canvas` #F6F7FA | 5.61 | 4.5 | PASS |
-| text | `mode.real` #B8226F | `bg.surface` #FFFFFF | 6.01 | 4.5 | PASS |
-| text | `mode.real` #B8226F | `bg.raised` #FFFFFF | 6.01 | 4.5 | PASS |
+| text | `mode.practice` #0B7285 | `bg.sunken` #EBF0F8 | 4.88 | 4.5 | PASS |
+| text | `mode.practice` #0B7285 | `bg.chrome` #F5F7FB | 5.21 | 4.5 | PASS |
+| text | `mode.real` #B8226F | `bg.canvas` #FFFFFF | 6.01 | 4.5 | PASS |
+| text | `mode.real` #B8226F | `bg.surface` #F5F7FB | 5.60 | 4.5 | PASS |
+| text | `mode.real` #B8226F | `bg.raised` #EBF0F8 | 5.25 | 4.5 | PASS |
 | text | `mode.real` #B8226F | `bg.overlay` #FFFFFF | 6.01 | 4.5 | PASS |
-| text | `mode.real` #B8226F | `bg.sunken` #EEF0F5 | 5.27 | 4.5 | PASS |
-| text | `mode.real` #B8226F | `bg.chrome` #FFFFFF | 6.01 | 4.5 | PASS |
-| non-text | `border.strong` #7D879B | `bg.canvas` #F6F7FA | 3.37 | 3.0 | PASS |
-| non-text | `border.strong` #7D879B | `bg.surface` #FFFFFF | 3.61 | 3.0 | PASS |
-| non-text | `border.strong` #7D879B | `bg.raised` #FFFFFF | 3.61 | 3.0 | PASS |
-| non-text | `border.strong` #7D879B | `bg.overlay` #FFFFFF | 3.61 | 3.0 | PASS |
-| non-text | `border.strong` #7D879B | `bg.sunken` #EEF0F5 | 3.17 | 3.0 | PASS |
-| non-text | `border.strong` #7D879B | `bg.chrome` #FFFFFF | 3.61 | 3.0 | PASS |
-| non-text | `border.focus` #2456D6 | `bg.canvas` #F6F7FA | 5.80 | 3.0 | PASS |
-| non-text | `border.focus` #2456D6 | `bg.surface` #FFFFFF | 6.22 | 3.0 | PASS |
-| non-text | `border.focus` #2456D6 | `bg.raised` #FFFFFF | 6.22 | 3.0 | PASS |
-| non-text | `border.focus` #2456D6 | `bg.overlay` #FFFFFF | 6.22 | 3.0 | PASS |
-| non-text | `border.focus` #2456D6 | `bg.sunken` #EEF0F5 | 5.45 | 3.0 | PASS |
-| non-text | `border.focus` #2456D6 | `bg.chrome` #FFFFFF | 6.22 | 3.0 | PASS |
-| non-text | `brand.primary` #2456D6 | `bg.canvas` #F6F7FA | 5.80 | 3.0 | PASS |
-| non-text | `brand.primary` #2456D6 | `bg.surface` #FFFFFF | 6.22 | 3.0 | PASS |
-| non-text | `brand.primary` #2456D6 | `bg.raised` #FFFFFF | 6.22 | 3.0 | PASS |
-| non-text | `brand.primary` #2456D6 | `bg.overlay` #FFFFFF | 6.22 | 3.0 | PASS |
-| non-text | `brand.primary` #2456D6 | `bg.sunken` #EEF0F5 | 5.45 | 3.0 | PASS |
-| non-text | `brand.primary` #2456D6 | `bg.chrome` #FFFFFF | 6.22 | 3.0 | PASS |
-| non-text | `semantic.profit` #067A4B | `bg.canvas` #F6F7FA | 5.04 | 3.0 | PASS |
-| non-text | `semantic.profit` #067A4B | `bg.surface` #FFFFFF | 5.39 | 3.0 | PASS |
-| non-text | `semantic.profit` #067A4B | `bg.raised` #FFFFFF | 5.39 | 3.0 | PASS |
+| text | `mode.real` #B8226F | `bg.sunken` #EBF0F8 | 5.25 | 4.5 | PASS |
+| text | `mode.real` #B8226F | `bg.chrome` #F5F7FB | 5.60 | 4.5 | PASS |
+| non-text | `border.strong` #5C677C | `bg.canvas` #FFFFFF | 5.70 | 3.0 | PASS |
+| non-text | `border.strong` #5C677C | `bg.surface` #F5F7FB | 5.31 | 3.0 | PASS |
+| non-text | `border.strong` #5C677C | `bg.raised` #EBF0F8 | 4.98 | 3.0 | PASS |
+| non-text | `border.strong` #5C677C | `bg.overlay` #FFFFFF | 5.70 | 3.0 | PASS |
+| non-text | `border.strong` #5C677C | `bg.sunken` #EBF0F8 | 4.98 | 3.0 | PASS |
+| non-text | `border.strong` #5C677C | `bg.chrome` #F5F7FB | 5.31 | 3.0 | PASS |
+| non-text | `border.focus` #2563EB | `bg.canvas` #FFFFFF | 5.17 | 3.0 | PASS |
+| non-text | `border.focus` #2563EB | `bg.surface` #F5F7FB | 4.82 | 3.0 | PASS |
+| non-text | `border.focus` #2563EB | `bg.raised` #EBF0F8 | 4.52 | 3.0 | PASS |
+| non-text | `border.focus` #2563EB | `bg.overlay` #FFFFFF | 5.17 | 3.0 | PASS |
+| non-text | `border.focus` #2563EB | `bg.sunken` #EBF0F8 | 4.52 | 3.0 | PASS |
+| non-text | `border.focus` #2563EB | `bg.chrome` #F5F7FB | 4.82 | 3.0 | PASS |
+| non-text | `brand.primary` #2563EB | `bg.canvas` #FFFFFF | 5.17 | 3.0 | PASS |
+| non-text | `brand.primary` #2563EB | `bg.surface` #F5F7FB | 4.82 | 3.0 | PASS |
+| non-text | `brand.primary` #2563EB | `bg.raised` #EBF0F8 | 4.52 | 3.0 | PASS |
+| non-text | `brand.primary` #2563EB | `bg.overlay` #FFFFFF | 5.17 | 3.0 | PASS |
+| non-text | `brand.primary` #2563EB | `bg.sunken` #EBF0F8 | 4.52 | 3.0 | PASS |
+| non-text | `brand.primary` #2563EB | `bg.chrome` #F5F7FB | 4.82 | 3.0 | PASS |
+| non-text | `semantic.profit` #067A4B | `bg.canvas` #FFFFFF | 5.39 | 3.0 | PASS |
+| non-text | `semantic.profit` #067A4B | `bg.surface` #F5F7FB | 5.03 | 3.0 | PASS |
+| non-text | `semantic.profit` #067A4B | `bg.raised` #EBF0F8 | 4.71 | 3.0 | PASS |
 | non-text | `semantic.profit` #067A4B | `bg.overlay` #FFFFFF | 5.39 | 3.0 | PASS |
-| non-text | `semantic.profit` #067A4B | `bg.sunken` #EEF0F5 | 4.73 | 3.0 | PASS |
-| non-text | `semantic.profit` #067A4B | `bg.chrome` #FFFFFF | 5.39 | 3.0 | PASS |
-| non-text | `semantic.loss` #C0262D | `bg.canvas` #F6F7FA | 5.51 | 3.0 | PASS |
-| non-text | `semantic.loss` #C0262D | `bg.surface` #FFFFFF | 5.90 | 3.0 | PASS |
-| non-text | `semantic.loss` #C0262D | `bg.raised` #FFFFFF | 5.90 | 3.0 | PASS |
+| non-text | `semantic.profit` #067A4B | `bg.sunken` #EBF0F8 | 4.71 | 3.0 | PASS |
+| non-text | `semantic.profit` #067A4B | `bg.chrome` #F5F7FB | 5.03 | 3.0 | PASS |
+| non-text | `semantic.loss` #C0262D | `bg.canvas` #FFFFFF | 5.90 | 3.0 | PASS |
+| non-text | `semantic.loss` #C0262D | `bg.surface` #F5F7FB | 5.51 | 3.0 | PASS |
+| non-text | `semantic.loss` #C0262D | `bg.raised` #EBF0F8 | 5.16 | 3.0 | PASS |
 | non-text | `semantic.loss` #C0262D | `bg.overlay` #FFFFFF | 5.90 | 3.0 | PASS |
-| non-text | `semantic.loss` #C0262D | `bg.sunken` #EEF0F5 | 5.18 | 3.0 | PASS |
-| non-text | `semantic.loss` #C0262D | `bg.chrome` #FFFFFF | 5.90 | 3.0 | PASS |
-| non-text | `semantic.warning` #8A5A00 | `bg.canvas` #F6F7FA | 5.53 | 3.0 | PASS |
-| non-text | `semantic.warning` #8A5A00 | `bg.surface` #FFFFFF | 5.93 | 3.0 | PASS |
-| non-text | `semantic.warning` #8A5A00 | `bg.raised` #FFFFFF | 5.93 | 3.0 | PASS |
+| non-text | `semantic.loss` #C0262D | `bg.sunken` #EBF0F8 | 5.16 | 3.0 | PASS |
+| non-text | `semantic.loss` #C0262D | `bg.chrome` #F5F7FB | 5.51 | 3.0 | PASS |
+| non-text | `semantic.warning` #8A5A00 | `bg.canvas` #FFFFFF | 5.93 | 3.0 | PASS |
+| non-text | `semantic.warning` #8A5A00 | `bg.surface` #F5F7FB | 5.53 | 3.0 | PASS |
+| non-text | `semantic.warning` #8A5A00 | `bg.raised` #EBF0F8 | 5.18 | 3.0 | PASS |
 | non-text | `semantic.warning` #8A5A00 | `bg.overlay` #FFFFFF | 5.93 | 3.0 | PASS |
-| non-text | `semantic.warning` #8A5A00 | `bg.sunken` #EEF0F5 | 5.20 | 3.0 | PASS |
-| non-text | `semantic.warning` #8A5A00 | `bg.chrome` #FFFFFF | 5.93 | 3.0 | PASS |
-| non-text | `semantic.guard` #A85400 | `bg.canvas` #F6F7FA | 4.98 | 3.0 | PASS |
-| non-text | `semantic.guard` #A85400 | `bg.surface` #FFFFFF | 5.34 | 3.0 | PASS |
-| non-text | `semantic.guard` #A85400 | `bg.raised` #FFFFFF | 5.34 | 3.0 | PASS |
+| non-text | `semantic.warning` #8A5A00 | `bg.sunken` #EBF0F8 | 5.18 | 3.0 | PASS |
+| non-text | `semantic.warning` #8A5A00 | `bg.chrome` #F5F7FB | 5.53 | 3.0 | PASS |
+| non-text | `semantic.guard` #A85400 | `bg.canvas` #FFFFFF | 5.34 | 3.0 | PASS |
+| non-text | `semantic.guard` #A85400 | `bg.surface` #F5F7FB | 4.98 | 3.0 | PASS |
+| non-text | `semantic.guard` #A85400 | `bg.raised` #EBF0F8 | 4.67 | 3.0 | PASS |
 | non-text | `semantic.guard` #A85400 | `bg.overlay` #FFFFFF | 5.34 | 3.0 | PASS |
-| non-text | `semantic.guard` #A85400 | `bg.sunken` #EEF0F5 | 4.68 | 3.0 | PASS |
-| non-text | `semantic.guard` #A85400 | `bg.chrome` #FFFFFF | 5.34 | 3.0 | PASS |
-| non-text | `semantic.info` #1F5FCC | `bg.canvas` #F6F7FA | 5.50 | 3.0 | PASS |
-| non-text | `semantic.info` #1F5FCC | `bg.surface` #FFFFFF | 5.89 | 3.0 | PASS |
-| non-text | `semantic.info` #1F5FCC | `bg.raised` #FFFFFF | 5.89 | 3.0 | PASS |
-| non-text | `semantic.info` #1F5FCC | `bg.overlay` #FFFFFF | 5.89 | 3.0 | PASS |
-| non-text | `semantic.info` #1F5FCC | `bg.sunken` #EEF0F5 | 5.16 | 3.0 | PASS |
-| non-text | `semantic.info` #1F5FCC | `bg.chrome` #FFFFFF | 5.89 | 3.0 | PASS |
-| non-text | `mode.practice` #0B7285 | `bg.canvas` #F6F7FA | 5.21 | 3.0 | PASS |
-| non-text | `mode.practice` #0B7285 | `bg.surface` #FFFFFF | 5.59 | 3.0 | PASS |
-| non-text | `mode.practice` #0B7285 | `bg.raised` #FFFFFF | 5.59 | 3.0 | PASS |
+| non-text | `semantic.guard` #A85400 | `bg.sunken` #EBF0F8 | 4.67 | 3.0 | PASS |
+| non-text | `semantic.guard` #A85400 | `bg.chrome` #F5F7FB | 4.98 | 3.0 | PASS |
+| non-text | `semantic.info` #0F766E | `bg.canvas` #FFFFFF | 5.47 | 3.0 | PASS |
+| non-text | `semantic.info` #0F766E | `bg.surface` #F5F7FB | 5.10 | 3.0 | PASS |
+| non-text | `semantic.info` #0F766E | `bg.raised` #EBF0F8 | 4.78 | 3.0 | PASS |
+| non-text | `semantic.info` #0F766E | `bg.overlay` #FFFFFF | 5.47 | 3.0 | PASS |
+| non-text | `semantic.info` #0F766E | `bg.sunken` #EBF0F8 | 4.78 | 3.0 | PASS |
+| non-text | `semantic.info` #0F766E | `bg.chrome` #F5F7FB | 5.10 | 3.0 | PASS |
+| non-text | `mode.practice` #0B7285 | `bg.canvas` #FFFFFF | 5.59 | 3.0 | PASS |
+| non-text | `mode.practice` #0B7285 | `bg.surface` #F5F7FB | 5.21 | 3.0 | PASS |
+| non-text | `mode.practice` #0B7285 | `bg.raised` #EBF0F8 | 4.88 | 3.0 | PASS |
 | non-text | `mode.practice` #0B7285 | `bg.overlay` #FFFFFF | 5.59 | 3.0 | PASS |
-| non-text | `mode.practice` #0B7285 | `bg.sunken` #EEF0F5 | 4.90 | 3.0 | PASS |
-| non-text | `mode.practice` #0B7285 | `bg.chrome` #FFFFFF | 5.59 | 3.0 | PASS |
-| non-text | `mode.real` #B8226F | `bg.canvas` #F6F7FA | 5.61 | 3.0 | PASS |
-| non-text | `mode.real` #B8226F | `bg.surface` #FFFFFF | 6.01 | 3.0 | PASS |
-| non-text | `mode.real` #B8226F | `bg.raised` #FFFFFF | 6.01 | 3.0 | PASS |
+| non-text | `mode.practice` #0B7285 | `bg.sunken` #EBF0F8 | 4.88 | 3.0 | PASS |
+| non-text | `mode.practice` #0B7285 | `bg.chrome` #F5F7FB | 5.21 | 3.0 | PASS |
+| non-text | `mode.real` #B8226F | `bg.canvas` #FFFFFF | 6.01 | 3.0 | PASS |
+| non-text | `mode.real` #B8226F | `bg.surface` #F5F7FB | 5.60 | 3.0 | PASS |
+| non-text | `mode.real` #B8226F | `bg.raised` #EBF0F8 | 5.25 | 3.0 | PASS |
 | non-text | `mode.real` #B8226F | `bg.overlay` #FFFFFF | 6.01 | 3.0 | PASS |
-| non-text | `mode.real` #B8226F | `bg.sunken` #EEF0F5 | 5.27 | 3.0 | PASS |
-| non-text | `mode.real` #B8226F | `bg.chrome` #FFFFFF | 6.01 | 3.0 | PASS |
-| pair | `brand.onPrimaryContainer` #0E2A66 | `brand.primaryContainer` #E1EBFF | 11.37 | 4.5 | PASS |
-| pair | `text.onAccent` #FFFFFF | `brand.primary` #2456D6 | 6.22 | 4.5 | PASS |
+| non-text | `mode.real` #B8226F | `bg.sunken` #EBF0F8 | 5.25 | 3.0 | PASS |
+| non-text | `mode.real` #B8226F | `bg.chrome` #F5F7FB | 5.60 | 3.0 | PASS |
+| pair | `brand.onPrimaryContainer` #1E3A8A | `brand.primaryContainer` #E4ECFC | 8.73 | 4.5 | PASS |
+| pair | `text.onAccent` #FFFFFF | `brand.primary` #2563EB | 5.17 | 4.5 | PASS |
 | pair | `text.onAccent` #FFFFFF | `semantic.profit` #067A4B | 5.39 | 4.5 | PASS |
 | pair | `text.onAccent` #FFFFFF | `semantic.loss` #C0262D | 5.90 | 4.5 | PASS |
 | pair | `semantic.profit` #067A4B | `semantic.profitContainer` #DDF5EA | 4.71 | 4.5 | PASS |
@@ -309,29 +309,29 @@ Checks: 153 · terendah relatif target: `semantic.guard` on `bg.sunken` = 4.68 (
 | pair | `semantic.guard` #A85400 | `semantic.guardContainer` #FFF1E6 | 4.82 | 4.5 | PASS |
 | pair | `semantic.onWarning` #FFFFFF | `semantic.warning` #8A5A00 | 5.93 | 4.5 | PASS |
 | pair | `semantic.onWarning` #FFFFFF | `semantic.guard` #A85400 | 5.34 | 4.5 | PASS |
-| pair | `semantic.info` #1F5FCC | `semantic.infoContainer` #E2EDFF | 4.99 | 4.5 | PASS |
+| pair | `semantic.info` #0F766E | `semantic.infoContainer` #D7F3EF | 4.68 | 4.5 | PASS |
 | pair | `mode.onPractice` #FFFFFF | `mode.practice` #0B7285 | 5.59 | 4.5 | PASS |
 | pair | `mode.onReal` #FFFFFF | `mode.real` #B8226F | 6.01 | 4.5 | PASS |
 | pair | `mode.practice` #0B7285 | `mode.practiceContainer` #DDF4F7 | 4.88 | 4.5 | PASS |
 | pair | `mode.onPracticeContainer` #064E5B | `mode.practiceContainer` #DDF4F7 | 8.16 | 4.5 | PASS |
 | pair | `mode.onPracticeContainer` #064E5B | `mode.practiceStripe` #CDEBF0 | 7.44 | 4.5 | PASS |
 | pair | `mode.real` #B8226F | `mode.realContainer` #FBE3F0 | 4.96 | 4.5 | PASS |
-| pair | `text.primary` #0F1420 | `brand.primaryContainer` #E1EBFF | 15.36 | 4.5 | PASS |
-| pair | `inverse.onSurface` #ECEEF4 | `inverse.surface` #191C25 | 14.67 | 4.5 | PASS |
-| pair | `inverse.primary` #6E9FFF | `inverse.surface` #191C25 | 6.54 | 4.5 | PASS |
-| pair | `semantic.info` #1F5FCC | `semantic.infoContainer` #E2EDFF | 4.99 | 4.5 | PASS |
+| pair | `text.primary` #0F1420 | `brand.primaryContainer` #E4ECFC | 15.51 | 4.5 | PASS |
+| pair | `inverse.onSurface` #F4F4F5 | `inverse.surface` #141417 | 16.73 | 4.5 | PASS |
+| pair | `inverse.primary` #FF7A1A | `inverse.surface` #141417 | 7.05 | 4.5 | PASS |
+| pair | `semantic.info` #0F766E | `semantic.infoContainer` #D7F3EF | 4.68 | 4.5 | PASS |
 
 Total FAIL: 0
 
 ## Skeleton visibility (decorative, floor 1.15:1)
 | theme | surface | ratio | ok |
 |---|---|---|---|
-| dark | `bg.canvas` | 1.43 | PASS |
-| dark | `bg.surface` | 1.34 | PASS |
-| dark | `bg.raised` | 1.24 | PASS |
-| light | `bg.canvas` | 1.20 | PASS |
-| light | `bg.surface` | 1.29 | PASS |
-| light | `bg.raised` | 1.29 | PASS |
+| dark | `bg.canvas` | 1.55 | PASS |
+| dark | `bg.surface` | 1.45 | PASS |
+| dark | `bg.raised` | 1.34 | PASS |
+| light | `bg.canvas` | 1.36 | PASS |
+| light | `bg.surface` | 1.26 | PASS |
+| light | `bg.raised` | 1.18 | PASS |
 
 ## Identicon (coin.identicon.fg on palette, text ≥ 4.5:1)
 | idx | bg | ratio | ok |
@@ -352,49 +352,49 @@ Total FAIL: 0
 ## Accent distinctness (ΔE2000 ≥ 20 vs mode, PnL, guard, warning)
 | theme | pair | ΔE00 | ok |
 |---|---|---|---|
-| dark | `brand.primary` vs `mode.practice` | 30.6 | PASS |
-| dark | `brand.primary` vs `mode.real` | 36.0 | PASS |
-| dark | `brand.primary` vs `semantic.profit` | 50.5 | PASS |
-| dark | `brand.primary` vs `semantic.loss` | 42.0 | PASS |
-| dark | `brand.primary` vs `semantic.guard` | 52.5 | PASS |
-| dark | `brand.primary` vs `semantic.warning` | 59.4 | PASS |
-| light | `brand.primary` vs `mode.practice` | 22.3 | PASS |
-| light | `brand.primary` vs `mode.real` | 32.4 | PASS |
-| light | `brand.primary` vs `semantic.profit` | 46.8 | PASS |
-| light | `brand.primary` vs `semantic.loss` | 42.5 | PASS |
-| light | `brand.primary` vs `semantic.guard` | 51.5 | PASS |
-| light | `brand.primary` vs `semantic.warning` | 54.6 | PASS |
+| dark | `brand.primary` vs `mode.practice` | 51.8 | PASS |
+| dark | `brand.primary` vs `mode.real` | 40.5 | PASS |
+| dark | `brand.primary` vs `semantic.profit` | 58.8 | PASS |
+| dark | `brand.primary` vs `semantic.loss` | 21.6 | PASS |
+| dark | `brand.primary` vs `semantic.guard` | 45.5 | PASS |
+| dark | `brand.primary` vs `semantic.warning` | 23.6 | PASS |
+| light | `brand.primary` vs `mode.practice` | 22.1 | PASS |
+| light | `brand.primary` vs `mode.real` | 33.9 | PASS |
+| light | `brand.primary` vs `semantic.profit` | 47.0 | PASS |
+| light | `brand.primary` vs `semantic.loss` | 43.4 | PASS |
+| light | `brand.primary` vs `semantic.guard` | 51.8 | PASS |
+| light | `brand.primary` vs `semantic.warning` | 55.1 | PASS |
 
 ## Guard distinctness (ΔE2000 ≥ 20 vs PnL, mode, accent; vs warning: dark ≥ 20, light documented floor 8)
 | theme | pair | ΔE00 | min | ok |
 |---|---|---|---|---|
-| dark | `semantic.guard` vs `mode.practice` | 50.4 | 20 | PASS |
-| dark | `semantic.guard` vs `mode.real` | 43.4 | 20 | PASS |
-| dark | `semantic.guard` vs `semantic.profit` | 54.2 | 20 | PASS |
-| dark | `semantic.guard` vs `semantic.loss` | 24.7 | 20 | PASS |
-| dark | `semantic.guard` vs `brand.primary` | 52.5 | 20 | PASS |
-| dark | `semantic.guard` vs `semantic.warning` | 21.4 | 20 | PASS |
+| dark | `semantic.guard` vs `mode.practice` | 32.1 | 20 | PASS |
+| dark | `semantic.guard` vs `mode.real` | 22.2 | 20 | PASS |
+| dark | `semantic.guard` vs `semantic.profit` | 44.1 | 20 | PASS |
+| dark | `semantic.guard` vs `semantic.loss` | 32.6 | 20 | PASS |
+| dark | `semantic.guard` vs `brand.primary` | 45.5 | 20 | PASS |
+| dark | `semantic.guard` vs `semantic.warning` | 51.5 | 20 | PASS |
 | light | `semantic.guard` vs `mode.practice` | 43.4 | 20 | PASS |
 | light | `semantic.guard` vs `mode.real` | 38.5 | 20 | PASS |
 | light | `semantic.guard` vs `semantic.profit` | 46.4 | 20 | PASS |
 | light | `semantic.guard` vs `semantic.loss` | 20.5 | 20 | PASS |
-| light | `semantic.guard` vs `brand.primary` | 51.5 | 20 | PASS |
+| light | `semantic.guard` vs `brand.primary` | 51.8 | 20 | PASS |
 | light | `semantic.guard` vs `semantic.warning` | 10.1 | 8 | PASS |
 
 ## Mode treatments (strip ≥ 3:1 vs canvas/surface; badge label ≥ 4.5:1 on both stripe bands)
 | theme | check | ratio | min | ok |
 |---|---|---|---|---|
 | dark | `mode.practice` strip on `bg.canvas` | 10.59 | 3.0 | PASS |
-| dark | `mode.practice` strip on `bg.surface` | 9.91 | 3.0 | PASS |
+| dark | `mode.practice` strip on `bg.surface` | 9.90 | 3.0 | PASS |
 | dark | `mode.real` strip on `bg.canvas` | 8.41 | 3.0 | PASS |
-| dark | `mode.real` strip on `bg.surface` | 7.87 | 3.0 | PASS |
+| dark | `mode.real` strip on `bg.surface` | 7.86 | 3.0 | PASS |
 | dark | `mode.onPracticeContainer` on `mode.practiceContainer` | 7.94 | 4.5 | PASS |
 | dark | `mode.onPracticeContainer` on `mode.practiceStripe` | 5.07 | 4.5 | PASS |
 | dark | `mode.onReal` on `mode.real` (badge) | 8.19 | 4.5 | PASS |
-| light | `mode.practice` strip on `bg.canvas` | 5.21 | 3.0 | PASS |
-| light | `mode.practice` strip on `bg.surface` | 5.59 | 3.0 | PASS |
-| light | `mode.real` strip on `bg.canvas` | 5.61 | 3.0 | PASS |
-| light | `mode.real` strip on `bg.surface` | 6.01 | 3.0 | PASS |
+| light | `mode.practice` strip on `bg.canvas` | 5.59 | 3.0 | PASS |
+| light | `mode.practice` strip on `bg.surface` | 5.21 | 3.0 | PASS |
+| light | `mode.real` strip on `bg.canvas` | 6.01 | 3.0 | PASS |
+| light | `mode.real` strip on `bg.surface` | 5.60 | 3.0 | PASS |
 | light | `mode.onPracticeContainer` on `mode.practiceContainer` | 8.16 | 4.5 | PASS |
 | light | `mode.onPracticeContainer` on `mode.practiceStripe` | 7.44 | 4.5 | PASS |
 | light | `mode.onReal` on `mode.real` (badge) | 6.01 | 4.5 | PASS |

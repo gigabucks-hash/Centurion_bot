@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { fetchRaw } from "../../packages/explore/src/load.ts";
 
 // Tauri expects a fixed port in dev and a static bundle in dist/.
 const host = process.env.TAURI_DEV_HOST;
@@ -8,11 +9,35 @@ const host = process.env.TAURI_DEV_HOST;
 const contractsWire = fileURLToPath(new URL("../../packages/contracts/src/wire/index.ts", import.meta.url));
 // UX copy catalog + formatters (@centurion/i18n 0.4.2): en/id ICU JSON + format.mjs.
 const i18nPkg = fileURLToPath(new URL("../../packages/i18n", import.meta.url));
+const exploreSrc = fileURLToPath(new URL("../../packages/explore/src", import.meta.url));
+
+/** Dev preview only. The installed app fetches through the desktop process, not this middleware. */
+function exploreDev(): Plugin {
+  return {
+    name: "explore-dev",
+    configureServer(server) {
+      server.middlewares.use("/__explore", (req, res) => {
+        const q = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
+        void fetchRaw(q.get("section") ?? "", q.get("window") ?? "").then(
+          (raw) => {
+            res.setHeader("content-type", "application/json; charset=utf-8");
+            res.setHeader("cache-control", "no-store");
+            res.end(JSON.stringify(raw));
+          },
+          () => {
+            res.statusCode = 500;
+            res.end('{"error":"unavailable","parts":[]}');
+          },
+        );
+      });
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), exploreDev()],
   clearScreen: false,
-  resolve: { alias: { "@centurion/contracts/wire": contractsWire, "@centurion/i18n": i18nPkg } },
+  resolve: { alias: { "@centurion/contracts/wire": contractsWire, "@centurion/i18n": i18nPkg, "@explore": exploreSrc } },
   server: {
     port: 1420,
     strictPort: true,

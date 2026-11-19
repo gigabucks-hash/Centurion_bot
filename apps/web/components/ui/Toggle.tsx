@@ -25,8 +25,8 @@ export function Toggle({ checked, onChange, label, hint, disabled, warnWhenOff }
         warnWhenOff && !checked && "bg-semantic-warningContainer",
       )}
     >
-      <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition duration-fast", checked ? "bg-brand-primary" : "bg-border-default")}>
-        <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-bg-surface shadow-e1 transition-all duration-fast", checked ? "left-4.5" : "left-0.5")} />
+      <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors duration-fast ease-out motion-reduce:transition-none", checked ? "bg-brand-primary" : "bg-border-default")}>
+        <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-bg-surface shadow-e1 transition-[left] duration-fast ease-out motion-reduce:transition-none", checked ? "left-4.5" : "left-0.5")} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-body text-text-primary">{label}</span>

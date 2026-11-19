@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-explore-fetch"
+description = "Enables the explore_fetch command without any pre-configured scope."
+commands.allow = ["explore_fetch"]
+
+[[permission]]
+identifier = "deny-explore-fetch"
+description = "Denies the explore_fetch command without any pre-configured scope."
+commands.deny = ["explore_fetch"]

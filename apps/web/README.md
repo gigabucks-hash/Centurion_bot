@@ -28,7 +28,7 @@ browser drops the `Secure` session cookie and every app route redirects to `/log
 ## Design tokens (UX Phase 0 → Tailwind v4)
 Source: `/workspace/ux-solbot/tokens/tokens.css` + `tailwind.config.tokens.js`. The v3 preset is ported to a v4 `@theme` block in `app/theme.css`. The default palette is reset, so only semantic names exist:
 - Colours: `bg-bg-{canvas,surface,raised,overlay,inset}`, `text-text-{primary,secondary,tertiary,disabled,onAccent}`, `border-border-{subtle,default,strong,focus}`, `*-brand-primary[Hover|Pressed|Container]`, `*-semantic-{profit,loss,neutralPnl,warning,guard,info}[Container]`, `*-mode-{practice,real}[Container]`, `text-mode-on{Practice,Real}`, plus `*-mode-accent` which follows the nearest `[data-mode]`
-- Type: `text-{display,headline,title,titleSm,bodyLg,body,label,caption,overline,numLg,numMd,numSm}`, `font-sans` (Inter), `font-mono` (JetBrains Mono), `num` utility (mono + tabular)
+- Type: `text-{display,headline,title,titleSm,bodyLg,body,label,caption,overline,numLg,numMd,numSm}`, `font-sans` (Schibsted Grotesk), `font-mono` (Martian Mono), `num` utility (mono + tabular)
 - Radius `rounded-{xs..xl}`, shadow `shadow-e0..e4`, motion `duration-{instant,fast,base,slow}` + `ease-standard…`, tap sizes `min-h-tap` (40) / `min-h-tap-touch` (48), `stripes-practice`
 - Themes: dark is the default. Light comes from `[data-theme="light"]`, with a `prefers-color-scheme` fallback. The theme toggle sits in the top bar and is saved in localStorage `centurion_theme` (UI preference only, never the trading mode)
 

@@ -12,7 +12,7 @@ import type { LogoSize } from "@centurion/contracts/wire";
 export const MOCK_ORIGIN = "https://logo.mock.invalid";
 /** = contracts 1.1.6 `LOGO_SIZES` (checked by wire.check.ts and scripts/coin-avatar.test.mjs). */
 export const PROXY_SIZES = [48, 64, 96, 128, 192] as const satisfies readonly LogoSize[];
-export type AvatarPx = 20 | 24 | 32;
+export type AvatarPx = 20 | 24 | 32 | 40;
 
 const HASH = /^[A-Za-z0-9_-]{8,128}$/;
 const MINT = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
