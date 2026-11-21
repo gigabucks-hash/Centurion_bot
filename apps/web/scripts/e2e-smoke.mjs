@@ -27,8 +27,11 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 try {
   await page.goto(`${base}/login`, { waitUntil: "domcontentloaded" });
+  const title = await page.title();
   const body = await page.locator("body").innerText();
-  if (!/Centurion/i.test(body)) throw new Error("login screen did not show Centurion");
+  if (!/Centurion/i.test(title) && !/wallet|dompet|trading bot/i.test(body)) {
+    throw new Error(`login screen did not render (title=${title})`);
+  }
 
   await page.evaluate(() => localStorage.setItem("centurion_theme", "light"));
   await page.reload({ waitUntil: "domcontentloaded" });

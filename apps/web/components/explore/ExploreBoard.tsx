@@ -258,7 +258,7 @@ function Row({ row, tag, locale, age, copied, onCopy, t }: {
             <Link href={`/coins/${row.mint}`} className="font-medium text-text-primary hover:underline" title={row.name}>{`$${row.symbol}`}</Link>
             <span className="mt-0.5 flex items-center gap-1 text-text-tertiary">
               <span className="max-w-32 truncate">{row.name}</span>
-              <button type="button" className="inline-flex size-8 items-center justify-center rounded-sm text-text-tertiary transition-colors duration-100 ease-out hover:bg-bg-raised hover:text-text-primary motion-reduce:transition-none" aria-label={t("explore.copy")} onClick={onCopy}>
+              <button type="button" className="inline-flex size-10 items-center justify-center rounded-sm text-text-tertiary transition-colors duration-100 ease-out hover:bg-bg-raised hover:text-text-primary motion-reduce:transition-none" aria-label={t("explore.copy")} onClick={onCopy}>
                 <Copy size={14} aria-hidden />
               </button>
               {copied && <span className="text-caption text-text-secondary" role="status">{t("explore.copied")}</span>}

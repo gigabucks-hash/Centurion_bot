@@ -9,7 +9,15 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
+
+@media (pointer: fine) {
+  html { overscroll-behavior: none; }
+}
+
+[role="dialog"] { overscroll-behavior: contain; }
 
 h1,
 h2 {

@@ -236,7 +236,7 @@ export function LocalRealPanel() {
   const field = (key: keyof Draft, label: string) => (
     <label key={key} className="block min-w-0 flex-1">
       <span className="text-caption text-text-secondary">{label}</span>
-      <input value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} inputMode="decimal" className="num mt-1 h-10 w-full rounded-md border border-border-default bg-bg-sunken px-3 text-body" />
+      <input value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} inputMode="decimal" autoComplete="off" spellCheck={false} className="num mt-1 h-10 w-full rounded-md border border-border-default bg-bg-sunken px-3 text-body" />
     </label>
   );
 
@@ -279,7 +279,7 @@ export function LocalRealPanel() {
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="block min-w-0 flex-1">
           <span className="text-caption text-text-secondary">{t("localReal.rpc")}</span>
-          <input value={rpc} onChange={(e) => setRpc(e.target.value)} className="num mt-1 h-10 w-full rounded-md border border-border-default bg-bg-sunken px-3 text-body" />
+          <input value={rpc} onChange={(e) => setRpc(e.target.value)} type="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="https://api.mainnet-beta.solana.com" className="num mt-1 h-10 w-full rounded-md border border-border-default bg-bg-sunken px-3 text-body" />
         </label>
         <Button type="button" variant="secondary" onClick={saveRpc}>{t("localReal.saveRpc")}</Button>
       </div>

@@ -214,10 +214,10 @@ export function AppShell({ children, sessionKeeper = true, modes, realCount, pap
         {more && (
           <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t("nav.more")}>
             <button className="absolute inset-0 bg-scrim-sheet" aria-label={t("common.close")} onClick={() => setMore(false)} />
-            <div className="absolute inset-x-0 bottom-0 rounded-t-xl border-t border-border-default bg-bg-overlay p-4 shadow-dialog">
+            <div className="absolute inset-x-0 bottom-0 overscroll-contain rounded-t-xl border-t border-border-default bg-bg-overlay p-4 shadow-dialog">
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-titleSm">{t("nav.more")}</span>
-                <button onClick={() => setMore(false)} aria-label={t("common.close")} className="grid h-10 w-10 place-items-center rounded-full text-text-secondary hover:bg-bg-raised"><X size={18} /></button>
+                <button type="button" onClick={() => setMore(false)} aria-label={t("common.close")} className="grid h-10 w-10 place-items-center rounded-full text-text-secondary hover:bg-bg-raised"><X size={18} aria-hidden /></button>
               </div>
               <div className="flex flex-col gap-1" onClick={() => setMore(false)}>
                 <SideNav pending={pending} />
