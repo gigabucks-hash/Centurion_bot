@@ -224,7 +224,7 @@ export const en = {
   conn: {
     connected: "Live",
     connecting: "Connecting…",
-    disconnected: "Offline",
+    disconnected: "Offline · example data",
     title: "Realtime stream: {state}",
     // N-16
     lost: "Lost connection to server · Data may be delayed. Retrying…",
@@ -917,7 +917,7 @@ export const en = {
     empty: "No tokens in this window.",
     emptyFiltered: "No tokens match these filters.",
     clear: "Clear filters",
-    filter: { minLiq: "Min liquidity", minMcap: "Min market cap", maxAge: "Max age (minutes)" },
+    filter: { minLiq: "Min liquidity", minMcap: "Min market cap", maxAge: "Max age", phLiq: "USD", phMcap: "USD", phAge: "minutes" },
     col: { token: "Token", age: "Age", liq: "Liquidity", mcap: "Market cap", volume: "Volume", txns: "Txns", holders: "Holders", change: "Change", safety: "Safety" },
     copy: "Copy address",
     copied: "Copied",

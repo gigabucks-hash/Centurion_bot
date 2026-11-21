@@ -35,7 +35,8 @@ body {
   font-family: var(--font-sans);
   font-size: var(--d-text);
   line-height: 1.35;
-  font-variant-numeric: tabular-nums;
+  /* Proportional figures in prose. .num and .mono keep tabular digits. */
+  font-variant-numeric: normal;
   -webkit-font-smoothing: antialiased;
   user-select: none;
   scrollbar-color: var(--color-border-strong) transparent;

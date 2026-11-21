@@ -193,13 +193,13 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
       <p className="mb-3 text-pretty text-caption text-text-tertiary">{feed?.unsupported ? t("explore.unsupported") : t(NOTE[section])}</p>
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-caption text-text-tertiary">{t("explore.filter.minLiq")}
-          <input value={minLiq} onChange={(e) => setMinLiq(e.target.value)} inputMode="decimal" className="h-8 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body tabular-nums text-text-primary transition-[border-color] duration-150 ease-out motion-reduce:transition-none" />
+          <input value={minLiq} onChange={(e) => setMinLiq(e.target.value)} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder={t("explore.filter.phLiq")} aria-label={t("explore.filter.minLiq")} className="h-9 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body text-text-primary transition-[border-color] duration-150 ease-out placeholder:text-text-tertiary motion-reduce:transition-none" />
         </label>
         <label className="flex flex-col gap-1 text-caption text-text-tertiary">{t("explore.filter.minMcap")}
-          <input value={minMcap} onChange={(e) => setMinMcap(e.target.value)} inputMode="decimal" className="h-8 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body tabular-nums text-text-primary transition-[border-color] duration-150 ease-out motion-reduce:transition-none" />
+          <input value={minMcap} onChange={(e) => setMinMcap(e.target.value)} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder={t("explore.filter.phMcap")} aria-label={t("explore.filter.minMcap")} className="h-9 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body text-text-primary transition-[border-color] duration-150 ease-out placeholder:text-text-tertiary motion-reduce:transition-none" />
         </label>
         <label className="flex flex-col gap-1 text-caption text-text-tertiary">{t("explore.filter.maxAge")}
-          <input value={maxAge} onChange={(e) => setMaxAge(e.target.value)} inputMode="numeric" className="h-8 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body tabular-nums text-text-primary transition-[border-color] duration-150 ease-out motion-reduce:transition-none" />
+          <input value={maxAge} onChange={(e) => setMaxAge(e.target.value)} inputMode="numeric" autoComplete="off" spellCheck={false} placeholder={t("explore.filter.phAge")} aria-label={t("explore.filter.maxAge")} className="h-9 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body text-text-primary transition-[border-color] duration-150 ease-out placeholder:text-text-tertiary motion-reduce:transition-none" />
         </label>
         {(minLiq || minMcap || maxAge) && <button type="button" className="rounded-sm px-2 py-1 text-caption text-text-secondary transition-colors duration-100 ease-out hover:bg-bg-surface hover:text-text-primary motion-reduce:transition-none" onClick={() => { setMinLiq(""); setMinMcap(""); setMaxAge(""); }}>{t("explore.clear")}</button>}
       </div>
@@ -257,7 +257,7 @@ function Row({ row, tag, locale, age, copied, onCopy, t }: {
           <span className="min-w-0">
             <Link href={`/coins/${row.mint}`} className="font-medium text-text-primary hover:underline" title={row.name}>{`$${row.symbol}`}</Link>
             <span className="mt-0.5 flex items-center gap-1 text-text-tertiary">
-              <span className="max-w-32 truncate">{row.name}</span>
+              <span className="max-w-48 truncate" title={row.name}>{row.name}</span>
               <button type="button" className="inline-flex size-10 items-center justify-center rounded-sm text-text-tertiary transition-colors duration-100 ease-out hover:bg-bg-raised hover:text-text-primary motion-reduce:transition-none" aria-label={t("explore.copy")} onClick={onCopy}>
                 <Copy size={14} aria-hidden />
               </button>
@@ -308,5 +308,6 @@ function Safety({ row, t, tag }: { row: ExploreRow; t: (key: MessageKey, vars?: 
   if (row.lpBurned != null) bits.push(t(row.lpBurned ? "explore.safety.lpOn" : "explore.safety.lpOff"));
   if (row.top10Pct != null) bits.push(t("explore.safety.top10", { pct: new Intl.NumberFormat(tag, { maximumFractionDigits: 1 }).format(row.top10Pct) }));
   if (!bits.length) return <>—</>;
-  return <span>{bits.join(" · ")}</span>;
+  const text = bits.join(" · ");
+  return <span className="block max-w-56 truncate" title={text}>{text}</span>;
 }

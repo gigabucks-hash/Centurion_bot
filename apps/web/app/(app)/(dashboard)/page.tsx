@@ -101,17 +101,18 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
               rows={strategies.filter((s) => s.status !== "archived")}
               rowKey={(s) => s.id}
               mobile="cards"
+              minWidth={1080}
               labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
               columns={[
-                { key: "name", header: t("overview.colName"), nowrap: true, width: "18%", cell: (s) => <Link href={`/strategies/${s.id}/edit`} className="tap block truncate font-medium text-text-primary hover:underline" title={s.name}>{s.name}</Link> },
-                { key: "mode", header: t.ux("strategy.mode.label"), headerWrap: true, mobile: "status", nowrap: true, width: "12%", cell: (s) => <StrategyModeChips mode={s.mode} realLocked={s.realLocked} realLockedReason={s.realLockedReason} short /> },
-                { key: "status", header: t("overview.colStatus"), mobile: "status", nowrap: true, width: "11%", cell: (s) => <StatusBadge status={s.status} /> },
-                { key: "ap", header: t("overview.colApproval"), headerWrap: true, mobile: "status", nowrap: true, width: "13%", cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
-                { key: "pnl", header: `${t("overview.colPnl")} · ${unit}`, headerWrap: true, numeric: true, mobile: "primary", width: "12%", cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} mode={s.mode} />) },
-                { key: "wr", header: t("overview.colWin"), numeric: true, width: "8%", cell: (s) => (s.trades ? f.pct((s.wins / s.trades) * 100, 0, false) : "—") },
-                { key: "dd", header: t("overview.colDd"), numeric: true, width: "8%", cell: (s) => (s.trades ? f.pct(-s.maxDrawdownPct) : "—") },
-                { key: "hold", header: t("overview.colHold"), headerWrap: true, numeric: true, width: "9%", cell: (s) => (s.trades ? f.duration(s.avgHoldSeconds) : "—") },
-                { key: "spark", header: <span className="sr-only">{t("overview.colTrend")}</span>, align: "right", nowrap: true, width: "9%", cell: (s) => <Sparkline values={s.pnlSpark} width={64} label={t("overview.trend", { name: s.name })} /> },
+                { key: "name", header: t("overview.colName"), className: "min-w-44", cell: (s) => <Link href={`/strategies/${s.id}/edit`} className="tap block max-w-64 truncate font-medium text-text-primary hover:underline" title={s.name}>{s.name}</Link> },
+                { key: "mode", header: t.ux("strategy.mode.label"), mobile: "status", nowrap: true, cell: (s) => <StrategyModeChips mode={s.mode} realLocked={s.realLocked} realLockedReason={s.realLockedReason} short /> },
+                { key: "status", header: t("overview.colStatus"), mobile: "status", nowrap: true, cell: (s) => <StatusBadge status={s.status} /> },
+                { key: "ap", header: t("overview.colApproval"), mobile: "status", nowrap: true, cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
+                { key: "pnl", header: `${t("overview.colPnl")} · ${unit}`, numeric: true, mobile: "primary", cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} mode={s.mode} />) },
+                { key: "wr", header: t("overview.colWin"), numeric: true, cell: (s) => (s.trades ? f.pct((s.wins / s.trades) * 100, 0, false) : "—") },
+                { key: "dd", header: t("overview.colDd"), numeric: true, cell: (s) => (s.trades ? f.pct(-s.maxDrawdownPct) : "—") },
+                { key: "hold", header: t("overview.colHold"), numeric: true, cell: (s) => (s.trades ? f.duration(s.avgHoldSeconds) : "—") },
+                { key: "spark", header: <span className="sr-only">{t("overview.colTrend")}</span>, align: "right", nowrap: true, cell: (s) => <Sparkline values={s.pnlSpark} width={72} label={t("overview.trend", { name: s.name })} /> },
               ]}
             />
             <p className="mt-3 text-caption text-text-tertiary">{t("overview.approvalNote")}</p>

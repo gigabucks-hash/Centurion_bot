@@ -166,7 +166,7 @@ export const id: PartialMessages = {
     s3body: "Sakelar agen lokal mati. Setelah dinyalakan, dan hanya setelah Real ditandatangani, agen di komputer ini bisa trading di dalam batas tanpa bertanya tiap kali. Agen tetap tidak bisa menarik dana.",
   },
   conn: {
-    connected: "Live", connecting: "Menghubungkan…", disconnected: "Offline", title: "Stream realtime: {state}",
+    connected: "Live", connecting: "Menghubungkan…", disconnected: "Offline · data contoh", title: "Stream realtime: {state}",
     // N-16
     lost: "Koneksi ke server terputus · Data mungkin tertunda. Mencoba lagi…",
   },
@@ -364,7 +364,7 @@ export const id: PartialMessages = {
     empty: "Tidak ada token di jendela ini.",
     emptyFiltered: "Tidak ada token yang cocok dengan filter ini.",
     clear: "Hapus filter",
-    filter: { minLiq: "Likuiditas min", minMcap: "Market cap min", maxAge: "Umur maks (menit)" },
+    filter: { minLiq: "Likuiditas min", minMcap: "Market cap min", maxAge: "Umur maks", phLiq: "USD", phMcap: "USD", phAge: "menit" },
     col: { token: "Token", age: "Umur", liq: "Likuiditas", mcap: "Market cap", volume: "Volume", txns: "Txns", holders: "Holder", change: "Perubahan", safety: "Keamanan" },
     copy: "Salin alamat",
     copied: "Tersalin",

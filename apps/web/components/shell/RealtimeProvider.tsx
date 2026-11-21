@@ -23,7 +23,7 @@ const MAX = 200;
  */
 export function RealtimeProvider({ modes, children }: { modes: TradingMode[]; children: ReactNode }) {
   const modesKey = modes.join(",");
-  const [status, setStatus] = useState<ConnectionState>("connecting");
+  const [status, setStatus] = useState<ConnectionState>("disconnected");
   const [events, setEvents] = useState<TradeEvent[]>([]);
   const [paused, setPaused] = useState(false);
   const [marks, setMarks] = useState<ReadonlyMap<string, MarkMessage>>(new Map());

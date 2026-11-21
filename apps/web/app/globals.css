@@ -6,7 +6,9 @@ body {
   background: var(--color-bg-canvas);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
-  font-variant-numeric: tabular-nums;
+  /* Proportional figures for prose. Tabular figures live on .num and table cells.
+     Schibsted Grotesk's tnum period is a full digit wide, which reads as a space before "." */
+  font-variant-numeric: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
