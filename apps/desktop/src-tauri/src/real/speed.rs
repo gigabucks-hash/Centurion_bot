@@ -375,6 +375,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn custom_fee_spends_the_cap_and_auto_stays_under_it() {
         assert_eq!(fee_mode(0, 75), FeeMode::Off);
         assert_eq!(fee_mode(1_000, 75), FeeMode::Auto);
@@ -385,6 +386,7 @@ mod tests {
         assert_eq!(chosen_fee_lamports(&samples, 75, 55_000, 0), 0);
     }
 
+    #[test]
     fn jito_and_fast_rpc_stay_off() {
         assert!(jito_url(false, 10_000).is_none());
         assert!(jito_url(true, 0).is_none());

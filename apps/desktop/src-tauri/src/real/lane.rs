@@ -406,17 +406,7 @@ pub async fn broadcast(
         .ok_or_else(|| "rpc".to_string())?;
     let send_us = started.elapsed().as_micros() as u64;
     let confirm_started = Instant::now();
-    confirm_many(
-        client,
-        rpcs,
-        &sig,
-        expiry_height,
-        signed_b64,
-        simulated,
-        jito,
-        tip,
-    )
-    .await?;
+    confirm_many(client, rpcs, &sig, expiry_height, signed_b64, simulated).await?;
     Ok((
         sig,
         StageUs {
@@ -484,8 +474,6 @@ async fn confirm_many(
     expiry_height: u64,
     signed_b64: &str,
     simulated: bool,
-    jito: bool,
-    tip: u64,
 ) -> Result<(), String> {
     let primary = rpcs.first().cloned().unwrap_or_default();
     let ws = ws_url(&primary);
@@ -512,7 +500,7 @@ async fn confirm_many(
             tokio::time::sleep(Duration::from_millis(400)).await;
         }
         if last_send.elapsed() >= Duration::from_secs(2) {
-            let _ = fan_send(client, rpcs, jito, tip, signed_b64, simulated).await;
+            let _ = fan_send(client, rpcs, false, 0, signed_b64, simulated).await;
             last_send = Instant::now();
         }
         for rpc in rpcs {
