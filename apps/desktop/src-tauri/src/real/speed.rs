@@ -358,10 +358,7 @@ mod tests {
 
     #[test]
     fn send_list_is_keyless_and_puts_the_owner_first() {
-        let urls = send_endpoints(
-            "https://rpc.example",
-            "https://api.mainnet-beta.solana.com",
-        );
+        let urls = send_endpoints("https://rpc.example", "https://api.mainnet-beta.solana.com");
         assert_eq!(urls[0], "https://rpc.example");
         assert_eq!(urls[1], "https://api.mainnet-beta.solana.com");
         assert!(urls.iter().any(|u| u.contains("publicnode.com")));
@@ -369,7 +366,9 @@ mod tests {
             urls.iter().filter(|u| u.contains("mainnet-beta")).count(),
             1
         );
-        assert!(urls.iter().all(|u| !u.contains("api-key") && !u.contains("helius")));
+        assert!(urls
+            .iter()
+            .all(|u| !u.contains("api-key") && !u.contains("helius")));
         assert_eq!(
             send_endpoints("https://api.mainnet-beta.solana.com", ""),
             send_endpoints("https://api.mainnet-beta.solana.com", "  ")

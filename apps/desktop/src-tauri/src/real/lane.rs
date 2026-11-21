@@ -432,7 +432,8 @@ pub async fn broadcast(
 /// One `getSlot` with a short timeout. `None` means that endpoint did not answer.
 pub async fn probe_ms(url: &str) -> Option<u64> {
     let started = Instant::now();
-    let body = json!({"jsonrpc":"2.0","id":1,"method":"getSlot","params":[{"commitment":"processed"}]});
+    let body =
+        json!({"jsonrpc":"2.0","id":1,"method":"getSlot","params":[{"commitment":"processed"}]});
     let res = http()
         .post(url)
         .timeout(Duration::from_secs(2))
