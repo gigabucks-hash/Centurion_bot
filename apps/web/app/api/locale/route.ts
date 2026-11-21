@@ -7,6 +7,6 @@ export async function POST(request: Request) {
   const p = LocaleBody.safeParse(await request.json().catch(() => ({})));
   if (!p.success || !isLocale(p.data.locale)) return Response.json({ error: "locale must be en|id" }, { status: 400 });
   const body = p.data;
-  (await cookies()).set(LOCALE_COOKIE, body.locale, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+  (await cookies()).set(LOCALE_COOKIE, body.locale, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
   return Response.json({ locale: body.locale });
 }

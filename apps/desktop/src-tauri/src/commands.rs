@@ -990,10 +990,30 @@ fn save_real_book(book: &crate::real::RealBook) -> Result<(), String> {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
     let text = serde_json::to_string_pretty(book).map_err(|e| e.to_string())?;
-    if text.to_lowercase().contains("private_key") {
+    if book_has_secret(&text) {
         return Err("refusing to store a key".into());
     }
-    std::fs::write(path, text).map_err(|e| e.to_string())
+    std::fs::write(&path, &text).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
+
+fn book_has_secret(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    [
+        "\"private_key\"",
+        "\"privatekey\"",
+        "\"secret_key\"",
+        "\"secretkey\"",
+        "\"mnemonic\"",
+        "\"seed_phrase\"",
+    ]
+    .iter()
+    .any(|key| lower.contains(key))
 }
 
 fn real_book() -> &'static std::sync::Mutex<crate::real::RealBook> {

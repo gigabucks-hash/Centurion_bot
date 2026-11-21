@@ -5,7 +5,10 @@
  * them in httpOnly cookies). Nothing here is a real credential.
  */
 import { sessionWalletAllowed } from "@/lib/local/access";
+import { accessSession, sessions as st, type Family } from "./session-memory";
 import { WireError } from "./store";
+
+export { accessSession };
 
 export const ACCESS_TTL_S = 900;
 export const REFRESH_TTL_S = 30 * 24 * 3600;
@@ -22,9 +25,6 @@ export interface Session {
   address: string;
 }
 
-interface Family { address: string; userId: string; revoked: boolean; current: string; refreshExp: number }
-const g = globalThis as unknown as { __centurionSessions?: { families: Map<string, Family>; refresh: Map<string, string>; access: Map<string, { sid: string; exp: number }> } };
-const st = (g.__centurionSessions ??= { families: new Map(), refresh: new Map(), access: new Map() });
 const rand = (n = 32) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => (b % 36).toString(36)).join("");
 
 function mint(sid: string, f: Family, now: number): Session {
@@ -68,10 +68,3 @@ export function logoutSession(refreshToken: string | undefined) {
   return { revoked: true as const };
 }
 
-/** Access-token check used by the mock BFF: valid, unexpired and the family is not revoked. */
-export function accessSession(accessToken: string | undefined, now = Date.now()) {
-  const a = accessToken ? st.access.get(accessToken) : undefined;
-  const f = a ? st.families.get(a.sid) : undefined;
-  if (!a || !f || f.revoked || now > a.exp) return null;
-  return { session_id: a.sid, address: f.address, expires_at: new Date(a.exp).toISOString() };
-}

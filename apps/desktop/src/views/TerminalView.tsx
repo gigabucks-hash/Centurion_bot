@@ -23,6 +23,7 @@ import { isBlocked } from "../components/NotTradeable";
 import { ScreenerTable } from "../components/ScreenerTable";
 import { ExploreView } from "../components/ExploreView";
 import { errorMessage, errorText, I18N_PACKAGE_VERSION, solText, useLang, useT } from "../i18n";
+import { FirstRun } from "../components/FirstRun";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { pendingSorted, useTerm } from "../state/store";
 
@@ -325,6 +326,7 @@ export function TerminalView() {
       )}
       {settingsOpen && <SettingsDialog onClose={() => { setSettingsOpen(false); setSettingsFocus(null); }} focusStrategyId={settingsFocus} />}
       {pnlOpen && <PnlReportDialog onClose={() => setPnlOpen(false)} onViewBot={viewBot} />}
+      <FirstRun />
     </div>
   );
 }

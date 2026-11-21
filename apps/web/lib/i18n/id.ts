@@ -150,6 +150,21 @@ export const id: PartialMessages = {
     empty: "Belum ada panggilan agen.",
     tokenHint: "Token lokal ada di .local-web/mcp.token. Tidak ditampilkan di sini dan tidak pernah disimpan di git.",
   },
+  onboard: {
+    title: "Cara Centurion trading",
+    step: "Langkah {n} dari {total}",
+    next: "Lanjut",
+    back: "Kembali",
+    done: "Mulai dengan kertas",
+    again: "Cara kerja",
+    close: "Tutup",
+    s1title: "Kertas nyala. Real mati.",
+    s1body: "Komputer ini bisa latihan dengan SOL kertas sekarang. Real SOL tetap mati sampai Anda menandatangani dengan Phantom di Pengaturan. Tidak ada yang mengekspor kunci atau mengirim koin ke wallet lain.",
+    s2title: "Stop menjeda pembelian baru.",
+    s2body: "Stop membiarkan posisi terbuka mengikuti rencana keluarnya. Jual semua tetap menjual semuanya. RPC publik adalah bawaan. Tempel RPC Anda sendiri di Pengaturan bila perlu.",
+    s3title: "Agen mati sampai Anda menyalakannya.",
+    s3body: "Sakelar agen lokal mati. Setelah dinyalakan, dan hanya setelah Real ditandatangani, agen di komputer ini bisa trading di dalam batas tanpa bertanya tiap kali. Agen tetap tidak bisa menarik dana.",
+  },
   conn: {
     connected: "Live", connecting: "Menghubungkan…", disconnected: "Offline", title: "Stream realtime: {state}",
     // N-16

@@ -18,6 +18,12 @@ export class WireError extends Error {
 }
 const wireErr = (code: ErrorCode, details?: Record<string, unknown>, extra?: Record<string, unknown>) => new WireError(code, details, extra);
 
+/** Same map as lib/mock/trading.ts. Imported here it would cycle through WireError. */
+function buysPausedNow(ws = "ws_mock"): boolean {
+  const book = (globalThis as unknown as { __centurionTrading?: Map<string, { buysPaused?: boolean }> }).__centurionTrading;
+  return book?.get(ws)?.buysPaused === true;
+}
+
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 export const PICK_TTL_MS = 10 * MIN;
@@ -474,6 +480,9 @@ export function decideApproval(id: string, d: ApprovalDecision, now = Date.now()
     a.decidedAt = now;
     return { ...a };
   }
+
+  // Stop pauses new buys. Sells, skips, and guard changes still go through.
+  if (a.kind === "buy_pick" && buysPausedNow()) throw wireErr("BUYS_PAUSED");
 
   // approve
   const c = d.confirmation;

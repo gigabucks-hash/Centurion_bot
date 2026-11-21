@@ -12,7 +12,8 @@ export async function POST(request: Request) {
   const allowed = ["google", "apple", "telegram", "email_otp", "wallet_siws"];
   if (!body.method || !allowed.includes(body.method)) return Response.json({ error: "Unknown method" }, { status: 400 });
   const c = await cookies();
-  c.set("centurion_session", `mock:${body.method}`, { path: "/", httpOnly: true, sameSite: "lax" });
+  const secure = process.env.NODE_ENV === "production" && process.env.CENTURION_INSECURE_COOKIES !== "1";
+  c.set("centurion_session", `mock:${body.method}`, { path: "/", httpOnly: true, sameSite: "lax", secure });
   c.delete("centurion_mode"); // retired global mode cookie (per-strategy mode since contracts 1.1.6)
   return Response.json({ ok: true, isNewAccount: true });
 }

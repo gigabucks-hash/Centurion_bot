@@ -18,7 +18,7 @@ concurrency:
 jobs:
   web:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: apps/web
@@ -38,6 +38,14 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Browser for the key-flow smoke
+        run: npx --yes playwright@1.65.0 install chromium --with-deps
+      - name: Login, theme, and auth-gate smoke
+        run: |
+          npm run start &
+          echo $! > /tmp/centurion-web.pid
+          node scripts/e2e-smoke.mjs
+          kill "$(cat /tmp/centurion-web.pid)" || true
       - name: No secrets in the client bundle
         run: |
           ! grep -rEl '(sk_live|sk_test|service_role|-----BEGIN|SUPABASE_SERVICE|OWNER_WALLETS|JWT_SECRET|srt_[A-Za-z0-9]{8,})' .next/static
@@ -77,3 +85,12 @@ jobs:
       - name: Container logs on failure
         if: failure()
         run: docker logs web || true
+      - name: Save the web image
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+        run: docker save centurion-web:ci | gzip > "$RUNNER_TEMP/centurion-web.tar.gz"
+      - uses: actions/upload-artifact@v4
+        if: success() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+        with:
+          name: centurion-trade-web
+          path: ${{ runner.temp }}/centurion-web.tar.gz
+          retention-days: 14

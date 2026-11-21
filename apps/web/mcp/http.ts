@@ -18,7 +18,9 @@ const httpServer = createServer(async (req, res) => {
   const loopback = remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
   const host = Array.isArray(req.headers.host) ? req.headers.host[0] : req.headers.host ?? "";
   const origin = Array.isArray(req.headers.origin) ? req.headers.origin[0] : req.headers.origin;
-  if (!loopback || !loopbackHost(host) || (origin && !loopbackOrigin(origin))) {
+  const siteHeader = req.headers["sec-fetch-site"];
+  const site = Array.isArray(siteHeader) ? siteHeader[0] : siteHeader;
+  if (!loopback || !loopbackHost(host) || (origin && !loopbackOrigin(origin)) || (site && site !== "same-origin" && site !== "none")) {
     res.writeHead(403).end("localhost only");
     return;
   }

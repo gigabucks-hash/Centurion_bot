@@ -13,6 +13,10 @@ description = "QA repro fixtures (fake ids only)"
 paths = ['''docs/qa/repro/.*''']
 
 [[allowlists]]
+description = "Removed mobile tree. The hit is a sha256 pin of a vendored Dart file, not a credential."
+paths = ['''apps/mobile/tool/ci_check_vendored\.sh''']
+
+[[allowlists]]
 description = "Unit-test fixtures: fake JWT, idempotency keys, on-chain public keys"
 regexTarget = "line"
 regexes = [

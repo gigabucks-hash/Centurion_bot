@@ -41,6 +41,11 @@ fn main() {
             "auth_status",
             "auth_login",
             "auth_logout",
+            "connection_status",
+            "save_connection",
+            "set_strategy_mode",
+            "get_pnl_report",
+            "get_pnl_page",
             "explore_fetch",
         ]),
     ))

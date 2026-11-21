@@ -18,12 +18,15 @@ export function applyMark(p: OpenPosition, m: MarkMessage | undefined): OpenPosi
   const hasUsd = !hasSol && Number.isFinite(markUsd) && markUsd > 0 && p.nowPriceUsd > 0;
   const ratio = hasSol ? markSol / (baseSol as number) : hasUsd ? markUsd / p.nowPriceUsd : null;
   if (ratio == null) return p;
-  const value = p.solIn * (1 + p.pnlPct / 100) * ratio;
-  const pnlSol = value - p.solIn;
+  // soldPct is the share already closed. Marks move only the coins still open.
+  const openShare = Math.min(1, Math.max(0, 1 - (p.soldPct ?? 0) / 100));
+  const cost = p.solIn * openShare;
+  const value = cost * (1 + p.pnlPct / 100) * ratio;
+  const pnlSol = value - cost;
   return {
     ...p,
     ...(hasSol ? { nowPriceSol: markSol } : { nowPriceUsd: markUsd }),
     pnlSol,
-    pnlPct: p.solIn > 0 ? (pnlSol / p.solIn) * 100 : p.pnlPct,
+    pnlPct: cost > 0 ? (pnlSol / cost) * 100 : p.pnlPct,
   };
 }

@@ -131,12 +131,12 @@ function switchFile(): string | null {
 
 export function mcpEnabled(): boolean {
   const file = switchFile();
-  if (!file || !existsSync(file)) return true;
+  if (!file || !existsSync(file)) return false;
   try {
     const raw = JSON.parse(readFileSync(file, "utf8")) as { enabled?: unknown };
-    return raw.enabled !== false;
+    return raw.enabled === true;
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -146,6 +146,11 @@ export function setMcpEnabled(enabled: boolean) {
   if (!dir || !file) return;
   mkdirSync(dir, { recursive: true });
   writeFileSync(file, `${JSON.stringify({ enabled })}\n`, { mode: 0o600 });
+}
+
+/** The on/off switch is not an MCP tool, so the route records it itself. */
+export function recordMcpSwitch(enabled: boolean, now = Date.now()) {
+  appendAudit({ at: new Date(now).toISOString(), tool: "mcp_set_enabled", ok: true, code: enabled ? "on" : "off" });
 }
 
 function auditFile(): string | null {

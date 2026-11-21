@@ -3,20 +3,23 @@ import { useEffect, useState } from "react";
 import { Bot } from "lucide-react";
 import { Button } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
+import { openOnboarding } from "@/components/shell/Onboarding";
 
 interface AuditRow { at: string; tool: string; ok: boolean; code: string }
 
 export function McpPanel() {
   const t = useT();
-  const [enabled, setEnabled] = useState(true);
+  const [enabled, setEnabled] = useState(false);
+  const [ready, setReady] = useState(false);
   const [audit, setAudit] = useState<AuditRow[]>([]);
 
   async function load() {
     const res = await fetch("/api/local/mcp");
     if (!res.ok) return;
     const json = await res.json() as { data?: { mcp_enabled?: boolean; audit?: AuditRow[] } };
-    setEnabled(json.data?.mcp_enabled !== false);
+    setEnabled(json.data?.mcp_enabled === true);
     setAudit(json.data?.audit ?? []);
+    setReady(true);
   }
 
   useEffect(() => {
@@ -40,7 +43,8 @@ export function McpPanel() {
       <p className="mt-2 text-caption text-text-tertiary">{t("mcp.tokenHint")}</p>
       <div className="mt-3 flex items-center gap-3">
         <span className="text-label" role="status">{enabled ? t("mcp.on") : t("mcp.off")}</span>
-        <Button type="button" variant={enabled ? "danger" : "primary"} onClick={toggle}>{enabled ? t("mcp.off") : t("mcp.on")}</Button>
+        <Button type="button" variant={enabled ? "danger" : "primary"} onClick={toggle} disabled={!ready} aria-pressed={enabled}>{enabled ? t("mcp.off") : t("mcp.on")}</Button>
+        <Button type="button" variant="ghost" onClick={openOnboarding}>{t("onboard.again")}</Button>
       </div>
       <h3 className="mt-4 text-label">{t("mcp.audit")}</h3>
       {audit.length === 0 ? <p className="mt-1 text-caption text-text-tertiary">{t("mcp.empty")}</p> : (

@@ -12,6 +12,7 @@ import { gateView, HOLD_MS, type Line } from "./strategyGate";
 import { RealMoneySection } from "./RealMoneySection";
 import { UpdateSection } from "./UpdateSection";
 import { ConnectionSection } from "./ConnectionSection";
+import { openOnboarding } from "./FirstRun";
 import type { StrategyView } from "../api";
 
 /** Wire strategy status → @centurion/i18n `strategy.status.*` (unknown → raw value never shown: "—"). */
@@ -232,7 +233,8 @@ export function SettingsDialog({ onClose, focusStrategyId }: { onClose: () => vo
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal">
-        <h3><Icon glyph={SettingsGlyph} size={20} /> Pengaturan desktop</h3>
+        <h3><Icon glyph={SettingsGlyph} size={20} /> {t("desktop.settings.title")}</h3>
+        <button type="button" className="sm" onClick={() => { onClose(); openOnboarding(); }}>{t("desktop.onboard.again")}</button>
         <label>
           <div className="muted">Tema</div>
           <select value={cfg.theme} onChange={(e) => setCfg({ ...cfg, theme: e.target.value as Settings["theme"] })}>
