@@ -42,6 +42,7 @@ export const tauriAdapter: CoreApi = {
   realApply: (scope, knobs: WireKnobs, signature) => invoke<RealStatus>("real_apply", { scope, knobs, signature }),
   realSetRpc: (url) => invoke<RealStatus>("real_set_rpc", { url }),
   realSetFastRpc: (url) => invoke<RealStatus>("real_set_fast_rpc", { url }),
+  realSpeedStatus: (probe) => invoke("real_speed_status", { probe }),
   realSetStrategies: (ids) => invoke<RealStatus>("real_set_strategies", { ids }),
   realSign: (kind, payload) => invoke<string>("real_sign", { kind, payload }),
   on: async (event, cb) => {

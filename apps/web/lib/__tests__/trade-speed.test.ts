@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CONFIRM_COMMITMENT,
+  chosenFeeLamports,
   claimSell,
   cuLimitFromSim,
+  feeMode,
   jitoOn,
   predictBaseline,
   predictFast,
@@ -12,6 +14,7 @@ import {
   rpcInUse,
   sellAllParallel,
   sendConfig,
+  sendEndpoints,
   stageTotal,
 } from "../local/trade-speed";
 
@@ -29,6 +32,16 @@ test("priority fee stays inside the cap and the compute limit comes from the sim
   assert.equal(sendConfig(false).skipPreflight, false);
   assert.equal(sendConfig(true).maxRetries, 0);
   assert.equal(CONFIRM_COMMITMENT, "confirmed");
+  assert.equal(feeMode(0, 75), "off");
+  assert.equal(feeMode(1_000, 75), "auto");
+  assert.equal(feeMode(1_000, 100), "custom");
+  assert.equal(chosenFeeLamports([100, 400, 900], 50, 55_000, 1_000), 22);
+  assert.equal(chosenFeeLamports([100, 400, 900], 100, 55_000, 1_000), 1_000);
+  const urls = sendEndpoints("https://rpc.example", "https://api.mainnet-beta.solana.com");
+  assert.equal(urls[0], "https://rpc.example");
+  assert.equal(urls.filter((u) => u.includes("mainnet-beta")).length, 1);
+  assert.ok(urls.some((u) => u.includes("publicnode.com")));
+  assert.ok(urls.every((u) => !u.includes("api-key") && !u.includes("helius")));
 });
 
 test("the warm path is shorter than the serialized path, and a second sell is refused", async () => {

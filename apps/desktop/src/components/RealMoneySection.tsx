@@ -12,6 +12,7 @@ import {
   type RealStatus,
 } from "../real/limits";
 import { useHotkeys } from "../hooks/useHotkeys";
+import type { SpeedStatus } from "../real/speed";
 import { useTerm } from "../state/store";
 
 const empty = (): RealStatus => ({
@@ -126,6 +127,8 @@ export function RealMoneySection() {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [speed, setSpeed] = useState<SpeedStatus | null>(null);
+  const [probing, setProbing] = useState(false);
 
   const load = async () => {
     const s = await core.realStatus().catch(() => empty());
@@ -138,6 +141,9 @@ export function RealMoneySection() {
     setDraft(draftFrom(fromWire(wire)));
   };
   useEffect(() => { void load(); }, [scope]);
+  useEffect(() => {
+    void core.realSpeedStatus(false).then(setSpeed).catch(() => setSpeed(null));
+  }, [status?.rpc_url, status?.fast_rpc_url]);
 
   const current = () => {
     if (!status) return DEFAULT_KNOBS;
@@ -276,6 +282,42 @@ export function RealMoneySection() {
         <input className="mono" value={fastRpc} onChange={(e) => setFastRpc(e.target.value.trim())} placeholder="Leave empty. A paid RPC is not required." />
       </label>
       <button className="sm" onClick={saveFast}>Save faster RPC</button>
+      <div className="dim" style={{ fontSize: "var(--d-small)" }}>
+        Sends go to your RPC and to free public RPCs at the same time (no API key). A priority fee and a Jito tip are network fees inside the swap. Both stay off until you set them. Phantom still signs each swap.
+      </div>
+      <label>
+        <div className="muted">Priority fee</div>
+        <select
+          value={Number(draft.priority.replace(/\D/g, "") || "0") <= 0 ? "off" : Number(draft.percentile) >= 100 ? "custom" : "auto"}
+          onChange={(e) => {
+            const mode = e.target.value;
+            if (mode === "off") setDraft({ ...draft, priority: "0" });
+            else if (mode === "custom") setDraft({ ...draft, percentile: "100", priority: draft.priority === "0" ? "100000" : draft.priority });
+            else setDraft({ ...draft, percentile: "75", priority: draft.priority === "0" ? "100000" : draft.priority });
+          }}
+        >
+          <option value="off">Off (no priority fee)</option>
+          <option value="auto">Auto (recent fees, never above the cap)</option>
+          <option value="custom">Custom (spend the cap)</option>
+        </select>
+      </label>
+      <div data-testid="speed-panel">
+        <div className="muted">Latency</div>
+        <p className="dim" style={{ fontSize: "var(--d-small)" }}>
+          {speed?.last
+            ? `Last swap: quote ${speed.last.quote_ms} ms · sign ${speed.last.sign_ms} ms · send ${speed.last.send_ms} ms · confirm ${speed.last.confirm_ms} ms`
+            : `No swap yet. Warm estimate on free endpoints: quote ${speed?.estimate.quote_ms ?? 24} ms, send ${speed?.estimate.send_ms ?? 40} ms, confirm ${speed?.estimate.confirm_ms ?? 50} ms. Sign time is Phantom.`}
+        </p>
+        <ul className="dim" style={{ fontSize: "var(--d-small)", margin: "4px 0 8px", paddingLeft: 16 }}>
+          {(speed?.endpoints ?? []).map((row) => (
+            <li key={row.url} className="mono">{row.role} · {row.ms == null ? "not checked" : `${row.ms} ms`} · {row.url}</li>
+          ))}
+        </ul>
+        <button className="sm" disabled={probing} onClick={() => {
+          setProbing(true);
+          void core.realSpeedStatus(true).then(setSpeed).catch((e) => setErr(e instanceof Error ? e.message : String(e))).finally(() => setProbing(false));
+        }}>{probing ? "Checking…" : "Check RPC latency"}</button>
+      </div>
       <label>
         <div className="muted">Edit limits for</div>
         <select value={scope} onChange={(e) => setScope(e.target.value)}>

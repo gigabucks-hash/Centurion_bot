@@ -506,6 +506,21 @@ export const browserMockAdapter: CoreApi = {
     realBook = { ...realBook, rpc_url: url };
     return realBook;
   },
+  async realSpeedStatus() {
+    return {
+      endpoints: [
+        { url: realBook.rpc_url, role: "owner", ms: null },
+        { url: "https://solana-rpc.publicnode.com", role: "public", ms: null },
+      ],
+      fee_mode: Number(realBook.global.priority_fee_lamports) <= 0 ? "off" : Number(realBook.global.priority_fee_percentile) >= 100 ? "custom" : "auto",
+      jito: !!realBook.global.jito_enabled && Number(realBook.global.tip_lamports) > 0,
+      tip_lamports: Number(realBook.global.tip_lamports),
+      priority_cap: Number(realBook.global.priority_fee_lamports),
+      percentile: realBook.global.priority_fee_percentile ?? 75,
+      last: null,
+      estimate: { quote_ms: 24, sign_ms: 0, send_ms: 40, confirm_ms: 50 },
+    };
+  },
   async realSetFastRpc(url) {
     realBook = { ...realBook, fast_rpc_url: url };
     return realBook;

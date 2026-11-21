@@ -37,6 +37,7 @@ fn main() {
             "real_prepare_sell_all",
             "real_submit_many",
             "real_set_fast_rpc",
+            "real_speed_status",
             "patch_strategy",
             "auth_status",
             "auth_login",

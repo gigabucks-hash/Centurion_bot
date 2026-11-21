@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-real-speed-status"
+description = "Enables the real_speed_status command without any pre-configured scope."
+commands.allow = ["real_speed_status"]
+
+[[permission]]
+identifier = "deny-real-speed-status"
+description = "Denies the real_speed_status command without any pre-configured scope."
+commands.deny = ["real_speed_status"]

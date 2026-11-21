@@ -12,6 +12,7 @@ import {
   solToLamports,
   type RealKnobs,
 } from "@/lib/local/real-limits";
+import { sendEndpoints } from "@/lib/local/trade-speed";
 
 type Status = {
   enabled: boolean;
@@ -42,7 +43,7 @@ const emptyKnobs = (): RealKnobs => ({
   },
 });
 
-type Draft = { trade: string; daily: string; cap: string; positions: string; slippage: string; stop: string; trail: string; hold: string; percentile: string; jito: string };
+type Draft = { trade: string; daily: string; cap: string; positions: string; slippage: string; stop: string; trail: string; hold: string; percentile: string; priority: string; jito: string };
 
 function draftFrom(k: RealKnobs): Draft {
   return {
@@ -52,6 +53,7 @@ function draftFrom(k: RealKnobs): Draft {
     positions: String(k.maxPositions),
     slippage: String(k.slippageBps / 100),
     percentile: String(k.priorityFeePercentile),
+    priority: k.priorityFeeLamports,
     jito: k.jitoEnabled ? "1" : "0",
     stop: String(k.stopLossPct),
     trail: String(k.trailPct),
@@ -73,6 +75,7 @@ function knobsFrom(d: Draft, base: RealKnobs): RealKnobs | null {
     capLamports: cap,
     maxPositions: n(d.positions),
     slippageBps: Math.round(n(d.slippage) * 100),
+    priorityFeeLamports: d.priority.replace(/\D/g, "") || "0",
     priorityFeePercentile: Math.round(n(d.percentile)),
     jitoEnabled: d.jito === "1",
     stopLossPct: n(d.stop),
@@ -265,6 +268,24 @@ export function LocalRealPanel() {
         <summary className="cursor-pointer text-label text-text-secondary">{t("localReal.more")}</summary>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row">
           {field("slippage", t("localReal.slippage"))}
+          <label className="block min-w-0 flex-1">
+            <span className="text-caption text-text-secondary">{t("localReal.feeMode")}</span>
+            <select
+              value={Number(draft.priority.replace(/\D/g, "") || "0") <= 0 ? "off" : Number(draft.percentile) >= 100 ? "custom" : "auto"}
+              onChange={(e) => {
+                const mode = e.target.value;
+                if (mode === "off") setDraft({ ...draft, priority: "0" });
+                else if (mode === "custom") setDraft({ ...draft, percentile: "100", priority: draft.priority === "0" ? "100000" : draft.priority });
+                else setDraft({ ...draft, percentile: "75", priority: draft.priority === "0" ? "100000" : draft.priority });
+              }}
+              className="mt-1 h-10 w-full rounded-md border border-border-default bg-bg-sunken px-2 text-body"
+            >
+              <option value="off">{t("localReal.feeOff")}</option>
+              <option value="auto">{t("localReal.feeAuto")}</option>
+              <option value="custom">{t("localReal.feeCustom")}</option>
+            </select>
+          </label>
+          {field("priority", t("localReal.priority"))}
           {field("percentile", t("localReal.percentile"))}
           {field("jito", t("localReal.jito"))}
           {field("stop", t("localReal.stop"))}
@@ -282,6 +303,14 @@ export function LocalRealPanel() {
           <input value={rpc} onChange={(e) => setRpc(e.target.value)} type="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="https://api.mainnet-beta.solana.com" className="num mt-1 h-10 w-full rounded-md border border-border-default bg-bg-sunken px-3 text-body" />
         </label>
         <Button type="button" variant="secondary" onClick={saveRpc}>{t("localReal.saveRpc")}</Button>
+      </div>
+      <div className="mt-4 rounded-md border border-border-subtle bg-bg-sunken p-3" data-testid="speed-panel">
+        <h3 className="text-label text-text-primary">{t("localReal.speedTitle")}</h3>
+        <p className="mt-1 text-caption text-text-secondary">{t("localReal.speedBody")}</p>
+        <p className="mt-2 text-caption text-text-tertiary">{t("localReal.speedEstimate")}</p>
+        <ul className="mt-2 space-y-1 text-caption text-text-tertiary">
+          {sendEndpoints(rpc, "").map((url) => <li key={url} className="num truncate">{url}</li>)}
+        </ul>
       </div>
       <label className="mt-3 block">
         <span className="text-caption text-text-secondary">{t("localReal.strategies")}</span>

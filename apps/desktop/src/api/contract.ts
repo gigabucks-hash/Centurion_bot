@@ -474,6 +474,7 @@ export interface CoreApi {
   realApply(scope: string, knobs: import("../real/limits").WireKnobs, signature: string | null): Promise<import("../real/limits").RealStatus>;
   realSetRpc(url: string): Promise<import("../real/limits").RealStatus>;
   realSetFastRpc(url: string): Promise<import("../real/limits").RealStatus>;
+  realSpeedStatus(probe: boolean): Promise<import("../real/speed").SpeedStatus>;
   realSetStrategies(ids: string[]): Promise<import("../real/limits").RealStatus>;
   /** Installed app only: open the system browser so the owner's wallet can sign. */
   realSign(kind: "message" | "transaction", payload: string): Promise<string>;

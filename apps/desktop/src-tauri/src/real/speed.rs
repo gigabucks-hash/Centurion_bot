@@ -16,7 +16,14 @@ pub const QUOTE_TTL: Duration = Duration::from_millis(1_500);
 pub const BLOCKHASH_TTL: Duration = Duration::from_secs(20);
 
 /// Public Jito transaction endpoint. Used only when the owner turns Jito on. Off by default.
+/// The tip is a fee inside the swap, paid to Jito's validator tip accounts, not a transfer to another wallet.
 pub const JITO_TX: &str = "https://mainnet.block-engine.jito.wtf/api/v1/transactions";
+
+/// Keyless public Solana RPCs. The owner's own URL is tried as well. None of these need an API key.
+pub const FREE_PUBLIC_RPCS: &[&str] = &[
+    "https://api.mainnet-beta.solana.com",
+    "https://solana-rpc.publicnode.com",
+];
 
 /// Default percentile of recent prioritization fees. The lamport cap defaults to 0, so this spends nothing
 /// until the owner raises the priority-fee cap.
@@ -180,12 +187,63 @@ pub fn quote_fresh(fetched: Instant, now: Instant) -> bool {
     now.saturating_duration_since(fetched) < QUOTE_TTL
 }
 
-/// The fast RPC is an optional hook. Empty means off: the owner's normal RPC is used.
+/// The fast RPC is an optional hook. Empty means off: the owner's normal RPC is used for reads.
 pub fn rpc_in_use<'a>(primary: &'a str, fast: &'a str) -> &'a str {
     if fast.is_empty() {
         primary
     } else {
         fast
+    }
+}
+
+/// Every URL a signed swap is sent to. The owner's RPC is first, then the optional extra, then the
+/// keyless public list. Duplicates are dropped. Reads (quote simulation) stay on `rpc_in_use`.
+pub fn send_endpoints(primary: &str, extra: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for url in [primary, extra]
+        .into_iter()
+        .chain(FREE_PUBLIC_RPCS.iter().copied())
+    {
+        let url = url.trim();
+        if url.is_empty() || out.iter().any(|have| have == url) {
+            continue;
+        }
+        out.push(url.to_owned());
+    }
+    out
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FeeMode {
+    Off,
+    Auto,
+    Custom,
+}
+
+/// Cap 0 spends nothing. Percentile 100 spends the cap exactly (custom). Anything else is the
+/// percentile of recent fees, never above the cap (auto).
+pub fn fee_mode(cap: u64, percentile: u8) -> FeeMode {
+    if cap == 0 {
+        FeeMode::Off
+    } else if percentile >= 100 {
+        FeeMode::Custom
+    } else {
+        FeeMode::Auto
+    }
+}
+
+/// Lamports of priority fee to write into the transaction.
+pub fn chosen_fee_lamports(samples: &[u64], percentile: u8, cu: u32, cap: u64) -> u64 {
+    match fee_mode(cap, percentile) {
+        FeeMode::Off => 0,
+        FeeMode::Custom => cap,
+        FeeMode::Auto => {
+            if samples.is_empty() || cu == 0 {
+                0
+            } else {
+                priority_fee_lamports(percentile_u64(samples, percentile), cu, cap)
+            }
+        }
     }
 }
 
@@ -299,6 +357,35 @@ mod tests {
     }
 
     #[test]
+    fn send_list_is_keyless_and_puts_the_owner_first() {
+        let urls = send_endpoints(
+            "https://rpc.example",
+            "https://api.mainnet-beta.solana.com",
+        );
+        assert_eq!(urls[0], "https://rpc.example");
+        assert_eq!(urls[1], "https://api.mainnet-beta.solana.com");
+        assert!(urls.iter().any(|u| u.contains("publicnode.com")));
+        assert_eq!(
+            urls.iter().filter(|u| u.contains("mainnet-beta")).count(),
+            1
+        );
+        assert!(urls.iter().all(|u| !u.contains("api-key") && !u.contains("helius")));
+        assert_eq!(
+            send_endpoints("https://api.mainnet-beta.solana.com", ""),
+            send_endpoints("https://api.mainnet-beta.solana.com", "  ")
+        );
+    }
+
+    fn custom_fee_spends_the_cap_and_auto_stays_under_it() {
+        assert_eq!(fee_mode(0, 75), FeeMode::Off);
+        assert_eq!(fee_mode(1_000, 75), FeeMode::Auto);
+        assert_eq!(fee_mode(1_000, 100), FeeMode::Custom);
+        let samples = [100u64, 400, 900];
+        assert_eq!(chosen_fee_lamports(&samples, 50, 55_000, 1_000), 22);
+        assert_eq!(chosen_fee_lamports(&samples, 100, 55_000, 1_000), 1_000);
+        assert_eq!(chosen_fee_lamports(&samples, 75, 55_000, 0), 0);
+    }
+
     fn jito_and_fast_rpc_stay_off() {
         assert!(jito_url(false, 10_000).is_none());
         assert!(jito_url(true, 0).is_none());

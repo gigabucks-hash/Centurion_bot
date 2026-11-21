@@ -174,6 +174,7 @@ pub fn run() {
             commands::real_prepare_sell_all,
             commands::real_submit_many,
             commands::real_set_fast_rpc,
+            commands::real_speed_status,
             commands::explore_fetch,
         ])
         .run(tauri::generate_context!())

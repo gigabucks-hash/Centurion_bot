@@ -11,9 +11,9 @@ use tokio_tungstenite::tungstenite::Message;
 
 use super::b64;
 use super::speed::{
-    blockhash_fresh, cu_limit_from_sim, jito_url, micro_lamports_per_cu, percentile_u64,
-    prioritization_fee_field, priority_fee_lamports, quote_fresh, send_config, swap_body, ws_url,
-    StageUs, CONFIRM_COMMITMENT,
+    blockhash_fresh, chosen_fee_lamports, cu_limit_from_sim, fee_mode, jito_url,
+    micro_lamports_per_cu, prioritization_fee_field, priority_fee_lamports, quote_fresh,
+    send_config, swap_body, ws_url, FeeMode, StageUs, CONFIRM_COMMITMENT,
 };
 use super::tx::{self, patch_compute_budget, TxRefuse};
 use super::{quote_url, JUPITER_QUOTE, JUPITER_SWAP};
@@ -331,23 +331,23 @@ fn apply_budget(
     } else {
         existing_limit.unwrap_or(0)
     };
-    let micro = percentile_u64(samples, percentile);
-    let desired = if samples.is_empty() {
-        let current = match (spans.price_at, existing_limit) {
-            (Some(at), Some(limit)) => {
-                let price = raw
-                    .get(at..at + 8)
-                    .map(|b| u64::from_le_bytes(b.try_into().unwrap_or([0; 8])))
-                    .unwrap_or(0);
-                priority_fee_lamports(price, limit, u64::MAX)
-            }
-            _ => 0,
-        };
-        current.min(cap)
-    } else if cu == 0 {
-        0
-    } else {
-        priority_fee_lamports(micro, cu, cap)
+    let desired = match fee_mode(cap, percentile) {
+        FeeMode::Off => 0,
+        FeeMode::Custom => cap,
+        FeeMode::Auto if samples.is_empty() => {
+            let current = match (spans.price_at, existing_limit) {
+                (Some(at), Some(limit)) => {
+                    let price = raw
+                        .get(at..at + 8)
+                        .map(|b| u64::from_le_bytes(b.try_into().unwrap_or([0; 8])))
+                        .unwrap_or(0);
+                    priority_fee_lamports(price, limit, u64::MAX)
+                }
+                _ => 0,
+            };
+            current.min(cap)
+        }
+        FeeMode::Auto => chosen_fee_lamports(samples, percentile, cu, cap),
     };
     let price = if cu == 0 {
         None
@@ -389,22 +389,34 @@ fn fee_lamports_of(raw: &[u8], cap: u64) -> u64 {
 }
 
 pub async fn broadcast(
-    rpc: &str,
+    rpcs: &[String],
     jito: bool,
     tip: u64,
     signed_b64: &str,
     simulated: bool,
     expiry_height: u64,
 ) -> Result<(String, StageUs), String> {
+    if rpcs.is_empty() {
+        return Err("rpc".into());
+    }
     let client = http();
     let started = Instant::now();
-    let sig = send_once(client, rpc, signed_b64, simulated).await?;
-    if let Some(url) = jito_url(jito, tip) {
-        let _ = send_once(client, url, signed_b64, true).await;
-    }
+    let sig = fan_send(client, rpcs, jito, tip, signed_b64, simulated)
+        .await
+        .ok_or_else(|| "rpc".to_string())?;
     let send_us = started.elapsed().as_micros() as u64;
     let confirm_started = Instant::now();
-    confirm(client, rpc, &sig, expiry_height, signed_b64, simulated).await?;
+    confirm_many(
+        client,
+        rpcs,
+        &sig,
+        expiry_height,
+        signed_b64,
+        simulated,
+        jito,
+        tip,
+    )
+    .await?;
     Ok((
         sig,
         StageUs {
@@ -417,21 +429,72 @@ pub async fn broadcast(
     ))
 }
 
-async fn confirm(
+/// One `getSlot` with a short timeout. `None` means that endpoint did not answer.
+pub async fn probe_ms(url: &str) -> Option<u64> {
+    let started = Instant::now();
+    let body = json!({"jsonrpc":"2.0","id":1,"method":"getSlot","params":[{"commitment":"processed"}]});
+    let res = http()
+        .post(url)
+        .timeout(Duration::from_secs(2))
+        .json(&body)
+        .send()
+        .await
+        .ok()?;
+    if !res.status().is_success() {
+        return None;
+    }
+    Some(started.elapsed().as_millis() as u64)
+}
+
+async fn fan_send(
     client: &reqwest::Client,
-    rpc: &str,
+    rpcs: &[String],
+    jito: bool,
+    tip: u64,
+    signed_b64: &str,
+    simulated: bool,
+) -> Option<String> {
+    let mut set = tokio::task::JoinSet::new();
+    for rpc in rpcs {
+        let client = client.clone();
+        let rpc = rpc.clone();
+        let tx = signed_b64.to_owned();
+        set.spawn(async move { send_once(&client, &rpc, &tx, simulated).await });
+    }
+    if let Some(url) = jito_url(jito, tip) {
+        let client = client.clone();
+        let url = url.to_owned();
+        let tx = signed_b64.to_owned();
+        set.spawn(async move { send_once(&client, &url, &tx, true).await });
+    }
+    while let Some(joined) = set.join_next().await {
+        if let Ok(Ok(s)) = joined {
+            set.abort_all();
+            return Some(s);
+        }
+    }
+    None
+}
+
+async fn confirm_many(
+    client: &reqwest::Client,
+    rpcs: &[String],
     sig: &str,
     expiry_height: u64,
     signed_b64: &str,
     simulated: bool,
+    jito: bool,
+    tip: u64,
 ) -> Result<(), String> {
-    let ws = ws_url(rpc);
+    let primary = rpcs.first().cloned().unwrap_or_default();
+    let ws = ws_url(&primary);
     let sig_owned = sig.to_owned();
     let mut watch = tokio::spawn(async move {
         let Some(url) = ws else { return false };
         watch_signature(&url, &sig_owned).await
     });
     let mut ws_open = true;
+    let mut last_send = Instant::now();
     let deadline = Instant::now() + Duration::from_secs(45);
     loop {
         if ws_open {
@@ -442,17 +505,22 @@ async fn confirm(
                         return Ok(());
                     }
                 }
-                _ = tokio::time::sleep(Duration::from_millis(350)) => {}
+                _ = tokio::time::sleep(Duration::from_millis(400)) => {}
             }
         } else {
-            tokio::time::sleep(Duration::from_millis(350)).await;
+            tokio::time::sleep(Duration::from_millis(400)).await;
         }
-        let _ = send_once(client, rpc, signed_b64, simulated).await;
-        if status_confirmed(client, rpc, sig).await {
-            return Ok(());
+        if last_send.elapsed() >= Duration::from_secs(2) {
+            let _ = fan_send(client, rpcs, jito, tip, signed_b64, simulated).await;
+            last_send = Instant::now();
+        }
+        for rpc in rpcs {
+            if status_confirmed(client, rpc, sig).await {
+                return Ok(());
+            }
         }
         if expiry_height > 0 {
-            if let Ok(height) = block_height(client, rpc).await {
+            if let Ok(height) = block_height(client, &primary).await {
                 if height > expiry_height {
                     return Err("blockhash expired".into());
                 }
@@ -505,14 +573,21 @@ async fn send_once(
     signed_b64: &str,
     simulated: bool,
 ) -> Result<String, String> {
-    let v = rpc_call(
-        client,
-        rpc,
-        "sendTransaction",
-        json!([signed_b64, send_config(simulated)]),
-    )
-    .await
-    .map_err(|_| "rpc".to_string())?;
+    let body = json!({"jsonrpc":"2.0","id":1,"method":"sendTransaction","params":[signed_b64, send_config(simulated)]});
+    let v: Value = client
+        .post(rpc)
+        .timeout(Duration::from_secs(4))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|_| "rpc".to_string())?
+        .json()
+        .await
+        .map_err(|_| "rpc".to_string())?;
+    if v.get("error").is_some() {
+        return Err("rpc".into());
+    }
+    let v = v.get("result").cloned().unwrap_or(Value::Null);
     v.as_str()
         .map(|s| s.to_owned())
         .ok_or_else(|| "rpc".to_string())
@@ -998,7 +1073,8 @@ mod tests {
         assert!(quote_at < swap_at);
         assert!(names.iter().any(|n| n == "getLatestBlockhash"));
         assert!(names.iter().any(|n| n == "getRecentPrioritizationFees"));
-        let (sig, stages) = broadcast(&format!("{base}/rpc"), false, 0, &built.b64, true, 42)
+        let rpcs = vec![format!("{base}/rpc")];
+        let (sig, stages) = broadcast(&rpcs, false, 0, &built.b64, true, 42)
             .await
             .unwrap();
         assert_eq!(sig, "sig111");
