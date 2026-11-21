@@ -13,6 +13,7 @@ function seen(): boolean {
 
 export function openOnboarding() {
   try { localStorage.removeItem(KEY); } catch { /* private mode */ }
+  delete document.documentElement.dataset.onboarded;
   window.dispatchEvent(new Event(SYNC));
 }
 
@@ -39,6 +40,7 @@ export function Onboarding() {
 
   function finish() {
     try { localStorage.setItem(KEY, "1"); } catch { /* private mode */ }
+    document.documentElement.dataset.onboarded = "1";
     window.dispatchEvent(new Event(SYNC));
   }
 
@@ -67,7 +69,7 @@ export function Onboarding() {
   const last = step === STEPS.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center overscroll-contain p-4" role="presentation">
+    <div data-onboard-root className="fixed inset-0 z-50 grid place-items-center overscroll-contain p-4" role="presentation">
       <button type="button" className="absolute inset-0 bg-scrim-sheet" aria-label={t("onboard.close")} onClick={finish} />
       <div
         ref={panelRef}

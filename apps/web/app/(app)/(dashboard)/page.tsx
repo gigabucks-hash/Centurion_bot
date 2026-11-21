@@ -87,37 +87,38 @@ async function Overview({ searchParams }: { searchParams: Promise<Record<string,
         ]}
       />
 
+      <Card
+        className="mt-4"
+        title={t("overview.strategies")}
+        action={
+          <Link href="/strategies/new" className="pressable inline-flex h-8 items-center gap-1 rounded-md bg-brand-primary px-2.5 text-label font-medium text-text-onAccent transition-[background-color,scale] duration-fast ease-out hover:bg-brand-primaryHover motion-reduce:transition-none">
+            <Plus size={14} strokeWidth={1.75} /> {t("overview.newStrategy")}
+          </Link>
+        }
+      >
+        <Table<Strategy>
+          rows={strategies.filter((s) => s.status !== "archived")}
+          rowKey={(s) => s.id}
+          mobile="cards"
+          minWidth={960}
+          labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
+          columns={[
+            { key: "name", header: t("overview.colName"), className: "min-w-44", cell: (s) => <Link href={`/strategies/${s.id}/edit`} className="tap block max-w-64 truncate font-medium text-text-primary hover:underline" title={s.name}>{s.name}</Link> },
+            { key: "mode", header: t.ux("strategy.mode.label"), mobile: "status", nowrap: true, cell: (s) => <StrategyModeChips mode={s.mode} realLocked={s.realLocked} realLockedReason={s.realLockedReason} short /> },
+            { key: "status", header: t("overview.colStatus"), mobile: "status", nowrap: true, cell: (s) => <StatusBadge status={s.status} /> },
+            { key: "ap", header: t("overview.colApproval"), mobile: "status", nowrap: true, cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
+            { key: "pnl", header: `${t("overview.colPnl")} · ${unit}`, numeric: true, mobile: "primary", className: "min-w-24", cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} mode={s.mode} />) },
+            { key: "wr", header: t("overview.colWin"), numeric: true, className: "min-w-16", cell: (s) => (s.trades ? f.pct((s.wins / s.trades) * 100, 0, false) : "—") },
+            { key: "dd", header: t("overview.colDd"), numeric: true, className: "min-w-20", cell: (s) => (s.trades ? f.pct(-s.maxDrawdownPct) : "—") },
+            { key: "hold", header: t("overview.colHold"), numeric: true, className: "min-w-24", cell: (s) => (s.trades ? f.duration(s.avgHoldSeconds) : "—") },
+            { key: "spark", header: <span className="sr-only">{t("overview.colTrend")}</span>, align: "right", nowrap: true, cell: (s) => <Sparkline values={s.pnlSpark} width={56} label={t("overview.trend", { name: s.name })} /> },
+          ]}
+        />
+        <p className="mt-3 text-caption text-text-tertiary">{t("overview.approvalNote")}</p>
+      </Card>
+
       <div className="mt-4 grid gap-4 xl:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
-          <Card
-            title={t("overview.strategies")}
-            action={
-              <Link href="/strategies/new" className="pressable inline-flex h-8 items-center gap-1 rounded-md bg-brand-primary px-2.5 text-label font-medium text-text-onAccent transition-[background-color,scale] duration-fast ease-out hover:bg-brand-primaryHover motion-reduce:transition-none">
-                <Plus size={14} strokeWidth={1.75} /> {t("overview.newStrategy")}
-              </Link>
-            }
-          >
-            <Table<Strategy>
-              rows={strategies.filter((s) => s.status !== "archived")}
-              rowKey={(s) => s.id}
-              mobile="cards"
-              minWidth={1080}
-              labels={{ expand: t("table.expand"), scrollHint: t("table.scrollHint") }}
-              columns={[
-                { key: "name", header: t("overview.colName"), className: "min-w-44", cell: (s) => <Link href={`/strategies/${s.id}/edit`} className="tap block max-w-64 truncate font-medium text-text-primary hover:underline" title={s.name}>{s.name}</Link> },
-                { key: "mode", header: t.ux("strategy.mode.label"), mobile: "status", nowrap: true, cell: (s) => <StrategyModeChips mode={s.mode} realLocked={s.realLocked} realLockedReason={s.realLockedReason} short /> },
-                { key: "status", header: t("overview.colStatus"), mobile: "status", nowrap: true, cell: (s) => <StatusBadge status={s.status} /> },
-                { key: "ap", header: t("overview.colApproval"), mobile: "status", nowrap: true, cell: (s) => (s.status === "draft" ? "—" : <ApprovalModeBadge mode={s.settings.approvalMode} />) },
-                { key: "pnl", header: `${t("overview.colPnl")} · ${unit}`, numeric: true, mobile: "primary", cell: (s) => (s.status === "draft" ? "—" : <Pnl sol={s.realizedPnlSol} mode={s.mode} />) },
-                { key: "wr", header: t("overview.colWin"), numeric: true, cell: (s) => (s.trades ? f.pct((s.wins / s.trades) * 100, 0, false) : "—") },
-                { key: "dd", header: t("overview.colDd"), numeric: true, cell: (s) => (s.trades ? f.pct(-s.maxDrawdownPct) : "—") },
-                { key: "hold", header: t("overview.colHold"), numeric: true, cell: (s) => (s.trades ? f.duration(s.avgHoldSeconds) : "—") },
-                { key: "spark", header: <span className="sr-only">{t("overview.colTrend")}</span>, align: "right", nowrap: true, cell: (s) => <Sparkline values={s.pnlSpark} width={72} label={t("overview.trend", { name: s.name })} /> },
-              ]}
-            />
-            <p className="mt-3 text-caption text-text-tertiary">{t("overview.approvalNote")}</p>
-          </Card>
-
           {trail && (
             <Card
               title={<span className="inline-flex items-center gap-2"><CoinAvatar mint={trail.coin.mint} logoHash={trail.coin.logoHash} symbol={trail.coin.untrusted.symbol} size="md" />{t("overview.coinTrail", { symbol: trail.coin.untrusted.symbol, strategy: trail.strategyName })}</span>}

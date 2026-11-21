@@ -21,6 +21,9 @@ body {
 
 [role="dialog"] { overscroll-behavior: contain; }
 
+/* Returning visitors already stored the flag. Hide the wizard before React hydrates so it does not flash. */
+html[data-onboarded="1"] [data-onboard-root] { display: none; }
+
 h1,
 h2 {
   text-wrap: balance;
