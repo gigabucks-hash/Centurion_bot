@@ -95,7 +95,7 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
       <Card title={t("trail.trail")} className="mt-4"><CoinTrailSteps trail={trail} /></Card>
 
       <Card title={notTradeable ? t("notTradeable.chartReadonly") : t("trail.price")} subtitle={notTradeable ? t("notTradeable.chartNote") : t("trail.priceNote")} className="mt-4">
-        <MarketChart mint={coin.mint} events={ordered} fallback={trail.prices} />
+        <MarketChart mint={coin.mint} symbol={coin.untrusted.symbol} events={ordered} fallback={trail.prices} />
         {pos && (
           <p className="num mt-2 text-caption text-text-secondary">
             {t("trail.entryExit", { entry: entryLabel })}{exitLabel !== "—" ? t("trail.exitAt", { exit: exitLabel }) : ""}

@@ -12,6 +12,7 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
+import { formatPrice, visibleRange } from "@explore/candles";
 import { core, EVT, type MarketBody, type TickView } from "../api";
 import { useLang } from "../i18n";
 import { useTerm } from "../state/store";
@@ -22,7 +23,7 @@ const BUCKET_SEC = 5;
 /** Candles from the core snapshot, then live 5s candles built from pushed (batched) ticks. */
 const TFS = ["1m", "5m", "15m", "1h", "4h", "1d"] as const;
 
-export function PriceChart({ mint }: { mint: string | null }) {
+export function PriceChart({ mint, symbol }: { mint: string | null; symbol?: string }) {
   const lang = useLang();
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -43,16 +44,18 @@ export function PriceChart({ mint }: { mint: string | null }) {
       autoSize: true,
       localization: {
         locale: safeLocale,
-        timeFormatter: (t: number) => new Date(t * 1000).toLocaleTimeString(safeLocale, { hour12: false }),
+        priceFormatter: formatPrice,
+        timeFormatter: (t: number) => new Date(t * 1000).toLocaleTimeString(safeLocale, { hour: "2-digit", minute: "2-digit", hour12: false }),
       },
       layout: { background: { type: ColorType.Solid, color: v("--color-bg-canvas") }, textColor: v("--color-text-secondary"), fontFamily: v("--font-mono") },
       grid: { vertLines: { color: v("--color-border-subtle") }, horzLines: { color: v("--color-border-subtle") } },
       timeScale: {
         timeVisible: true,
-        secondsVisible: true,
-        // Show local time instead of UTC on the axis.
+        secondsVisible: false,
+        barSpacing: 8,
+        rightOffset: 2,
         tickMarkFormatter: (t: number) =>
-          new Date(t * 1000).toLocaleTimeString(safeLocale, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }),
+          new Date(t * 1000).toLocaleTimeString(safeLocale, { hour: "2-digit", minute: "2-digit", hour12: false }),
       },
       rightPriceScale: { borderColor: v("--color-border-default") },
     });
@@ -64,10 +67,10 @@ export function PriceChart({ mint }: { mint: string | null }) {
       wickUpColor: up,
       wickDownColor: down,
       borderVisible: false,
-      priceFormat: { type: "price", precision: 8, minMove: 1e-8 },
+      priceFormat: { type: "custom", minMove: 1e-12, formatter: formatPrice },
     });
-    const volume = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "vol" });
-    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    const volume = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "vol", lastValueVisible: false, priceLineVisible: false });
+    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false });
     chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: 0.22 } });
     chartRef.current = chart;
     seriesRef.current = series;
@@ -149,7 +152,9 @@ export function PriceChart({ mint }: { mint: string | null }) {
         markers.sort((a, b) => Number(a.time) - Number(b.time));
         if (marksRef.current) marksRef.current.setMarkers(markers);
         else marksRef.current = createSeriesMarkers(series, markers);
-        chartRef.current?.timeScale().fitContent();
+        const range = visibleRange(market.candles.length, host.current?.clientWidth || 960);
+        chartRef.current?.timeScale().setVisibleLogicalRange(range);
+        host.current?.setAttribute("data-bars", String(market.candles.length));
         return;
       }
       await paintLocal();
@@ -178,6 +183,9 @@ export function PriceChart({ mint }: { mint: string | null }) {
 
   return (
     <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div data-chart-label style={{ padding: "4px 8px 0", color: "var(--color-text-secondary)", fontSize: 12 }}>
+        {[symbol ? `$${symbol}` : null, market?.pair, tf, currency.toUpperCase(), market?.ok ? "GeckoTerminal" : null].filter(Boolean).join(" · ")}
+      </div>
       <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "4px 8px" }}>
         {TFS.map((item) => (
           <button key={item} type="button" className={item === tf ? "sm primary" : "sm"} onClick={() => setTf(item)}>{item}</button>

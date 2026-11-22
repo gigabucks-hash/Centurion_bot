@@ -17,6 +17,7 @@ import {
 import type { PricePoint, TradeEvent } from "@/lib/types";
 import { useT } from "@/lib/i18n/client";
 import { readToken, tokenVar } from "@/lib/theme";
+import { formatPrice, visibleRange } from "@explore/candles";
 import { PriceChart } from "./PriceChart";
 
 const TFS = ["1m", "5m", "15m", "1h", "4h", "1d"] as const;
@@ -36,6 +37,7 @@ interface ChartBody {
   reason: string;
   candles: Candle[];
   pool: string | null;
+  pair: string | null;
   solSide: "base" | "quote" | null;
   currency: "usd" | "sol";
   attribution: string | null;
@@ -49,7 +51,7 @@ function markOf(e: TradeEvent): "Entry" | "TP" | "SL" | "Exit" | null {
   return "Exit";
 }
 
-export function MarketChart({ mint, events, fallback }: { mint: string; events: TradeEvent[]; fallback: PricePoint[] }) {
+export function MarketChart({ mint, events, fallback, symbol }: { mint: string; events: TradeEvent[]; fallback: PricePoint[]; symbol?: string }) {
   const t = useT();
   const [tf, setTf] = useState<Tf>("5m");
   const [currency, setCurrency] = useState<"usd" | "sol">("usd");
@@ -59,8 +61,7 @@ export function MarketChart({ mint, events, fallback }: { mint: string; events: 
 
   useEffect(() => {
     let stop = false;
-    const pull = () => {
-      if (document.visibilityState === "hidden") return;
+      const pull = () => {
       const q = new URLSearchParams({ mint, tf, currency });
       void fetch(`/api/market/candles?${q}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
@@ -101,14 +102,15 @@ export function MarketChart({ mint, events, fallback }: { mint: string; events: 
       },
       grid: { vertLines: { color: c(tokenVar.borderSubtle) }, horzLines: { color: c(tokenVar.borderSubtle) } },
       rightPriceScale: { borderColor: c(tokenVar.borderSubtle), scaleMargins: { top: 0.08, bottom: 0.22 } },
-      timeScale: { borderColor: c(tokenVar.borderSubtle), timeVisible: tf !== "1d", secondsVisible: false },
+      localization: { priceFormatter: formatPrice },
+      timeScale: { borderColor: c(tokenVar.borderSubtle), timeVisible: tf !== "1d", secondsVisible: false, barSpacing: 8, rightOffset: 2 },
     });
     const series = chart.addSeries(CandlestickSeries, {
       upColor: up, downColor: down, wickUpColor: up, wickDownColor: down, borderVisible: false,
-      priceFormat: { type: "price", precision: currency === "sol" ? 8 : 6, minMove: currency === "sol" ? 1e-8 : 1e-6 },
+      priceFormat: { type: "custom", minMove: 1e-12, formatter: formatPrice },
     });
-    const volume = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "vol" });
-    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    const volume = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "vol", lastValueVisible: false, priceLineVisible: false });
+    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false });
     series.setData(candles.map((bar) => ({ time: bar.time as UTCTimestamp, open: bar.open, high: bar.high, low: bar.low, close: bar.close })));
     volume.setData(candles.map((bar) => ({
       time: bar.time as UTCTimestamp,
@@ -130,7 +132,9 @@ export function MarketChart({ mint, events, fallback }: { mint: string; events: 
       }];
     }).sort((a, b) => Number(a.time) - Number(b.time));
     createSeriesMarkers(series, markers);
-    chart.timeScale().fitContent();
+    chart.timeScale().applyOptions({ barSpacing: 8, rightOffset: 2 });
+    chart.timeScale().setVisibleLogicalRange(visibleRange(candles.length, node.clientWidth || 960));
+    node.dataset.bars = String(candles.length);
     const mo = new MutationObserver(() => {
       const nextUp = readToken(tokenVar.brand);
       const nextDown = readToken(tokenVar.loss);
@@ -163,6 +167,9 @@ export function MarketChart({ mint, events, fallback }: { mint: string; events: 
           ))}
         </div>
       </div>
+      <p className="mb-2 text-caption text-text-secondary">
+        {[symbol ? `$${symbol}` : null, body?.pair, tf, currency.toUpperCase(), "GeckoTerminal"].filter(Boolean).join(" · ")}
+      </p>
       {candles.length > 0 ? <div ref={setNode} className="h-[360px] w-full" role="img" aria-label={t("trail.marketChart")} /> : phase === "loading" ? (
         <p className="py-16 text-center text-caption text-text-tertiary" role="status">{t("trail.marketLoading")}</p>
       ) : (

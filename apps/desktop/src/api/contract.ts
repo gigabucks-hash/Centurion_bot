@@ -195,6 +195,7 @@ export interface MarketBody {
   reason: string;
   candles: MarketCandle[];
   pool: string | null;
+  pair: string | null;
   solSide: "base" | "quote" | null;
   currency: "usd" | "sol";
   attribution: string | null;

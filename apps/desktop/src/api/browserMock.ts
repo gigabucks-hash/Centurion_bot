@@ -301,7 +301,7 @@ let started = false;
 function start() {
   if (started) return;
   started = true;
-  log("system", "system.notice", "info", null, null, "Browser mock engine started (no Rust, no network)");
+  log("system", "system.notice", "info", null, null, "Paper ledger on this computer. Prices and candles are the live public market.");
   spawnSignal();
   setInterval(spawnSignal, 9000);
   setInterval(tickAll, 1000);

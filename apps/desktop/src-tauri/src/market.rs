@@ -15,6 +15,7 @@ pub(crate) struct Pool {
     address: String,
     base: String,
     quote: String,
+    pair: String,
 }
 
 struct Gate {
@@ -137,10 +138,19 @@ pub(crate) fn pick_pool(v: &Value, mint: &str) -> Option<Pool> {
         }
         let reserve = num(row.pointer("/attributes/reserve_in_usd"));
         let volume = num(row.pointer("/attributes/volume_usd/h24"));
+        let pair = row
+            .pointer("/attributes/name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("")
+            .chars()
+            .filter(|c| !c.is_control())
+            .take(48)
+            .collect::<String>();
         let pool = Pool {
             address: address.to_owned(),
             base,
             quote,
+            pair,
         };
         let replace = match &best {
             None => true,
@@ -242,7 +252,7 @@ async fn note_fail(url: &str) {
 }
 
 pub async fn load(mint: &str, tf: &str, currency: &str) -> Value {
-    let empty = |reason: &str| json!({"ok": false, "reason": reason, "candles": [], "pool": null, "solSide": null, "currency": "usd", "attribution": null});
+    let empty = |reason: &str| json!({"ok": false, "reason": reason, "candles": [], "pool": null, "pair": null, "solSide": null, "currency": "usd", "attribution": null});
     if !is_valid_mint(mint) {
         return empty("unavailable");
     }
@@ -259,6 +269,7 @@ pub async fn load(mint: &str, tf: &str, currency: &str) -> Value {
                 address: p.address.clone(),
                 base: p.base.clone(),
                 quote: p.quote.clone(),
+                pair: p.pair.clone(),
             })
     };
     let pool = if let Some(pool) = pool {
@@ -283,6 +294,7 @@ pub async fn load(mint: &str, tf: &str, currency: &str) -> Value {
                     address: pool.address.clone(),
                     base: pool.base.clone(),
                     quote: pool.quote.clone(),
+                    pair: pool.pair.clone(),
                 },
                 now,
             ),
@@ -324,13 +336,14 @@ pub async fn load(mint: &str, tf: &str, currency: &str) -> Value {
         pool.address
     );
     if candles.is_empty() {
-        return json!({"ok": false, "reason": "unavailable", "candles": [], "pool": pool.address, "solSide": side, "currency": "usd", "attribution": attribution});
+        return json!({"ok": false, "reason": "unavailable", "candles": [], "pool": pool.address, "pair": pool.pair, "solSide": side, "currency": "usd", "attribution": attribution});
     }
     let out = json!({
         "ok": true,
         "reason": "ok",
         "candles": candles,
         "pool": pool.address,
+        "pair": pool.pair,
         "solSide": side,
         "currency": if use_sol { "sol" } else { "usd" },
         "attribution": attribution,

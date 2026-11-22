@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 import { SECURITY_HEADERS } from "./lib/security/csp";
 
 const nextConfig: NextConfig = {
+  // Dev resources (including hydration) are blocked for any host other than the one in the URL bar.
+  // Screenshots and local checks use 127.0.0.1; the app also answers on localhost.
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   // SECURITY (PERF_SECURITY.md §CSP): a per-request nonce CSP needs every document rendered per request, and
   // "PPR is incompatible with nonce-based CSP" (static shell scripts carry no nonce; verified on the prod build:
   // 14 blocked scripts, no hydration). This is a private, signed-in, per-user app, so static shells / CDN caching

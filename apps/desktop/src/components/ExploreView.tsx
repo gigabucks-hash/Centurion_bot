@@ -188,7 +188,7 @@ export function ExploreView({ queued, onOpenQueue }: { queued: ReadonlySet<strin
             {queued.has(selected.mint) ? (
               <button type="button" onClick={() => onOpenQueue(selected.mint)}>{t("explore.detail.queue")}</button>
             ) : <p className="dim">{t("explore.detail.noQueue")}</p>}
-            <button type="button" className="ghost" onClick={() => { useTerm.getState().setCursor(selected.mint); window.dispatchEvent(new CustomEvent("centurion-show-chart", { detail: selected.mint })); void core.openChartWindow(selected.mint); }}>{t("explore.detail.chart")}</button>
+            <button type="button" className="ghost" onClick={() => { useTerm.getState().setCursor(selected.mint); window.dispatchEvent(new CustomEvent("centurion-show-chart", { detail: { mint: selected.mint, symbol: selected.symbol } })); void core.openChartWindow(selected.mint); }}>{t("explore.detail.chart")}</button>
           </aside>
         )}
       </div>

@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { allowedUrl } from "../../../../packages/explore/src/hosts.ts";
 import {
+  formatPrice,
+  visibleRange,
   attributionUrl,
   cachedPool,
   clearPoolCache,
@@ -84,6 +86,11 @@ test("the deepest pool for this mint wins, and SOL quote only when the other sid
   const candles = parseOhlcv(barsBody());
   assert.deepEqual(candles.map((c) => c.time), [100, 200]);
   assert.equal(candles[0].close, 1.5);
+  assert.equal(formatPrice(211.89891591), "211.90");
+  assert.equal(formatPrice(0.000005123), "0.0₅5123");
+  assert.equal(formatPrice(0.045).startsWith("0.045"), true);
+  assert.equal(visibleRange(300, 960).from, 180);
+  assert.equal(visibleRange(300, 400).from, 300 - 50);
 });
 
 test("a cached pool is not fetched again, a 429 backs off, and a miss is an empty chart", async () => {
@@ -108,7 +115,7 @@ test("a cached pool is not fetched again, a 429 backs off, and a miss is an empt
   assert.equal(during.ok, false);
 
   clearPoolCache();
-  rememberPool(MINT, { address: POOL, base: MINT, quote: WSOL, reserveUsd: 1, volumeUsd: 1 }, NOW);
+  rememberPool(MINT, { address: POOL, base: MINT, quote: WSOL, pair: "MINT / SOL", reserveUsd: 1, volumeUsd: 1 }, NOW);
   const emptyBars = net(() => ({ status: 200, json: { data: { attributes: { ohlcv_list: [] } } } }));
   const fallback = await loadMarketCandles(MINT, "1d", "usd", emptyBars.partial);
   assert.equal(fallback.ok, false);

@@ -5,7 +5,7 @@
  */
 import { geckoPath } from "./hosts";
 import { getJson, type Net } from "./load";
-import { isMint } from "./sanitize";
+import { isMint, safeText } from "./sanitize";
 
 export const GECKO = "https://api.geckoterminal.com";
 export const WSOL = "So11111111111111111111111111111111111111112";
@@ -32,8 +32,39 @@ export interface PoolPick {
   address: string;
   base: string;
   quote: string;
+  /** Pool name from GeckoTerminal, plain text, e.g. "BONK / SOL". */
+  pair: string;
   reserveUsd: number;
   volumeUsd: number;
+}
+
+export const VISIBLE_BARS = 120;
+
+const SUB = "₀₁₂₃₄₅₆₇₈₉";
+
+/** Axis label. Large prices keep two decimals. Tiny prices use a subscript zero count: 0.0₅5123. */
+export function formatPrice(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  const sign = value < 0 ? "−" : "";
+  const abs = Math.abs(value);
+  if (abs === 0) return "0";
+  if (abs >= 100) return sign + abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (abs >= 1) return sign + abs.toLocaleString("en-US", { maximumSignificantDigits: 4 });
+  const exp = Math.floor(Math.log10(abs));
+  const zeros = -exp - 1;
+  if (zeros >= 3) {
+    const mantissa = (abs / 10 ** exp).toPrecision(4).replace(".", "").replace(/0+$/, "");
+    const sub = String(zeros).split("").map((d) => SUB[Number(d)] ?? "").join("");
+    return `${sign}0.0${sub}${mantissa}`;
+  }
+  return sign + abs.toPrecision(4);
+}
+
+/** About 120 bars on a wide chart. A narrow pane shows fewer so each candle stays about 8px. */
+export function visibleRange(count: number, width = 960): { from: number; to: number } {
+  const fit = Math.max(40, Math.min(VISIBLE_BARS, Math.floor(width / 8)));
+  const to = Math.max(count, 1);
+  return { from: Math.max(0, to - fit), to };
 }
 
 export interface MarketCandle {
@@ -50,6 +81,7 @@ export interface MarketChart {
   reason: "ok" | "rate" | "unavailable";
   candles: MarketCandle[];
   pool: string | null;
+  pair: string | null;
   /** Which side of the pool is the mint, when the other side is SOL. */
   solSide: "base" | "quote" | null;
   currency: CandleQuote;
@@ -117,7 +149,7 @@ export function pickPool(json: unknown, mint: string): PoolPick | null {
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
     const rec = row as {
-      attributes?: { address?: unknown; reserve_in_usd?: unknown; volume_usd?: { h24?: unknown } };
+      attributes?: { address?: unknown; name?: unknown; reserve_in_usd?: unknown; volume_usd?: { h24?: unknown } };
       relationships?: { base_token?: { data?: { id?: unknown } }; quote_token?: { data?: { id?: unknown } } };
     };
     const address = rec.attributes?.address;
@@ -129,6 +161,7 @@ export function pickPool(json: unknown, mint: string): PoolPick | null {
       address,
       base,
       quote,
+      pair: safeText(rec.attributes?.name, 48),
       reserveUsd: num(rec.attributes?.reserve_in_usd),
       volumeUsd: num(rec.attributes?.volume_usd?.h24),
     };
@@ -166,7 +199,7 @@ export function parseOhlcv(json: unknown): MarketCandle[] {
 
 export async function loadMarketCandles(mint: string, tf: Timeframe, quote: CandleQuote, partial?: Partial<Net>): Promise<MarketChart> {
   const empty = (reason: MarketChart["reason"]): MarketChart => ({
-    ok: false, reason, candles: [], pool: null, solSide: null, currency: "usd", attribution: null,
+    ok: false, reason, candles: [], pool: null, pair: null, solSide: null, currency: "usd", attribution: null,
   });
   if (!isMint(mint) || !isTimeframe(tf)) return empty("unavailable");
   const net: Partial<Net> = partial ?? {};
@@ -190,13 +223,14 @@ export async function loadMarketCandles(mint: string, tf: Timeframe, quote: Cand
   if (bars.kind === "rate") rate = true;
   const candles = bars.json ? parseOhlcv(bars.json) : [];
   if (candles.length === 0) {
-    return { ...empty(rate ? "rate" : "unavailable"), pool: pool.address, solSide: side, attribution: attributionUrl(pool.address) };
+    return { ...empty(rate ? "rate" : "unavailable"), pool: pool.address, pair: pool.pair || null, solSide: side, attribution: attributionUrl(pool.address) };
   }
   return {
     ok: true,
     reason: "ok",
     candles,
     pool: pool.address,
+    pair: pool.pair || null,
     solSide: side,
     currency,
     attribution: attributionUrl(pool.address),

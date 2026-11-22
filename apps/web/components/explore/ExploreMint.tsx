@@ -65,7 +65,7 @@ export function ExploreMint({ mint }: { mint: string }) {
         </dl>
       )}
       <div className="mt-4 rounded-lg border border-border-subtle bg-bg-surface p-3">
-        <MarketChart mint={mint} events={[]} fallback={[]} />
+        <MarketChart mint={mint} symbol={row?.symbol} events={[]} fallback={[]} />
       </div>
       <Link href="/approvals" className="mt-4 inline-flex text-label text-brand-primary hover:underline">{t("explore.detail.approvals")}</Link>
     </article>
