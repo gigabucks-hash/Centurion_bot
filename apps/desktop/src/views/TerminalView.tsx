@@ -66,6 +66,16 @@ export function TerminalView() {
   // Center panel: chart (default) or WF-20 "Koin · screener" (C key / tab).
   const [center, setCenter] = useState<"chart" | "coins">(() => (new URLSearchParams(location.search).get("tab") === "coins" ? "coins" : "chart"));
   const [exploreOn, setExploreOn] = useState(() => new URLSearchParams(location.search).get("tab") === "explore");
+  useEffect(() => {
+    const show = (e: Event) => {
+      const mint = (e as CustomEvent<string>).detail;
+      if (mint) useTerm.getState().setCursor(mint);
+      setExploreOn(false);
+      setCenter("chart");
+    };
+    window.addEventListener("centurion-show-chart", show);
+    return () => window.removeEventListener("centurion-show-chart", show);
+  }, []);
   const [coinSel, setCoinSel] = useState<string | null>(null);
   const t = useT();
   const lang = useLang();
