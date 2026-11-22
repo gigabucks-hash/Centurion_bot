@@ -68,6 +68,9 @@ function sseAdapter(kind: "mock" | "sse", baseUrl: string, o: RealtimeOptions): 
       h.onStatus("connecting");
       let wm: Watermark = initialWatermark(o.afterSeq);
       let es: EventSource | null = null;
+      const giveUp = setTimeout(() => {
+        if (!closed) h.onStatus("disconnected");
+      }, 2_500);
       let watchdog: ReturnType<typeof setTimeout> | undefined;
       let reopen: ReturnType<typeof setTimeout> | undefined;
       let closed = false;
@@ -148,6 +151,7 @@ function sseAdapter(kind: "mock" | "sse", baseUrl: string, o: RealtimeOptions): 
           es = source;
           source.onopen = () => {
             if (closed || es !== source) return;
+            clearTimeout(giveUp);
             h.onStatus("connected");
             arm();
           };
@@ -155,7 +159,7 @@ function sseAdapter(kind: "mock" | "sse", baseUrl: string, o: RealtimeOptions): 
             if (closed || es !== source) return;
             // Do NOT let the browser reconnect with its own Last-Event-ID: that cursor may sit past safe_seq.
             // Close it and reopen ourselves with the watermark-derived after_seq.
-            h.onStatus("connecting");
+            h.onStatus("disconnected");
             source.close();
             es = null;
             clearTimeout(watchdog);
@@ -205,6 +209,7 @@ function sseAdapter(kind: "mock" | "sse", baseUrl: string, o: RealtimeOptions): 
       void open();
       return () => {
         closed = true;
+        clearTimeout(giveUp);
         clearTimeout(watchdog);
         clearTimeout(reopen);
         es?.close();

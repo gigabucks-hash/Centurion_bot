@@ -301,7 +301,7 @@ let started = false;
 function start() {
   if (started) return;
   started = true;
-  log("system", "system.notice", "info", null, null, "Browser mock engine started (no Rust, no network)");
+  log("system", "system.notice", "info", null, null, "Paper ledger on this computer. Prices and candles are the live public market.");
   spawnSignal();
   setInterval(spawnSignal, 9000);
   setInterval(tickAll, 1000);
@@ -505,6 +505,27 @@ export const browserMockAdapter: CoreApi = {
   async realSetRpc(url) {
     realBook = { ...realBook, rpc_url: url };
     return realBook;
+  },
+  async marketCandles(mint, timeframe, currency) {
+    const q = new URLSearchParams({ mint, tf: timeframe, currency });
+    const r = await fetch(`/__market?${q}`);
+    if (!r.ok) return { ok: false, reason: "unavailable", candles: [], pool: null, solSide: null, currency: "usd" as const, attribution: null };
+    return r.json();
+  },
+  async realSpeedStatus() {
+    return {
+      endpoints: [
+        { url: realBook.rpc_url, role: "owner", ms: null },
+        { url: "https://solana-rpc.publicnode.com", role: "public", ms: null },
+      ],
+      fee_mode: Number(realBook.global.priority_fee_lamports) <= 0 ? "off" : Number(realBook.global.priority_fee_percentile) >= 100 ? "custom" : "auto",
+      jito: !!realBook.global.jito_enabled && Number(realBook.global.tip_lamports) > 0,
+      tip_lamports: Number(realBook.global.tip_lamports),
+      priority_cap: Number(realBook.global.priority_fee_lamports),
+      percentile: realBook.global.priority_fee_percentile ?? 75,
+      last: null,
+      estimate: { quote_ms: 24, sign_ms: 0, send_ms: 40, confirm_ms: 50 },
+    };
   },
   async realSetFastRpc(url) {
     realBook = { ...realBook, fast_rpc_url: url };

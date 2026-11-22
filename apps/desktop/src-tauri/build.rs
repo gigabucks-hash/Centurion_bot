@@ -37,11 +37,18 @@ fn main() {
             "real_prepare_sell_all",
             "real_submit_many",
             "real_set_fast_rpc",
+            "real_speed_status",
             "patch_strategy",
             "auth_status",
             "auth_login",
             "auth_logout",
+            "connection_status",
+            "save_connection",
+            "set_strategy_mode",
+            "get_pnl_report",
+            "get_pnl_page",
             "explore_fetch",
+            "market_candles",
         ]),
     ))
     .expect("failed to run tauri-build");

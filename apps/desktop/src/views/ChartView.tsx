@@ -24,7 +24,7 @@ export function ChartView({ mint }: { mint: string }) {
         <span className="mono dim">{mint}</span>
         {pos && <span className={`num ${TONE_CLASS[pnlPercent(pos.pnl_pct, lang)!.tone]}`} style={{ marginLeft: "auto" }}>{pnlText(pnlPercent(pos.pnl_pct, lang))}</span>}
       </ModeChrome>
-      <div style={{ display: "flex", minHeight: 0 }}><PriceChart mint={mint} /></div>
+      <div style={{ display: "flex", minHeight: 0 }}><PriceChart mint={mint} symbol={sym} /></div>
       <div />
     </div>
   );

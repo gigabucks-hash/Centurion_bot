@@ -16,6 +16,8 @@ export function ThemeSync() {
       const mode = resolveTheme(choice, mq.matches);
       document.documentElement.dataset.theme = mode;
       document.documentElement.dataset.themeChoice = choice === "light" || choice === "dark" ? choice : "system";
+      const canvas = getComputedStyle(document.documentElement).getPropertyValue("--color-bg-canvas").trim();
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", canvas || (mode === "light" ? "#FFFFFF" : "#0B0B0D"));
     };
     apply();
     mq.addEventListener("change", apply);

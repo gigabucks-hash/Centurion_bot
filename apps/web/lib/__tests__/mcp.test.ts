@@ -7,7 +7,7 @@ import path from "node:path";
 import { b58encode } from "../auth/wallet.ts";
 import { trails } from "../mock/data.ts";
 import { localWriteAllowed, bearerMatches, loopbackHost } from "../local/http-guard.ts";
-import { auditOk, mcpCall, setMcpEnabled } from "../local/mcp.ts";
+import { auditOk, mcpCall, mcpEnabled, recordMcpSwitch, setMcpEnabled } from "../local/mcp.ts";
 import { armEnable, defaultBook, enableReal, writeBook } from "../local/real-book.ts";
 
 function enableSignedBook() {
@@ -58,8 +58,20 @@ test("MCP tool list covers operation and does not offer key export or a transfer
   assert.equal(/tauri/i.test(text), false);
 });
 
+test("agents stay off until the switch file says on, and the switch is audited", () => {
+  withLocal(() => {
+    assert.equal(mcpEnabled(), false);
+    assert.equal(mcpCall("centurion_paper_buy", { mint: MINT, symbol: "SOL", sol: 0.01 }).error, "mcp_disabled");
+    setMcpEnabled(true);
+    recordMcpSwitch(true, 1_700_000_000_000);
+    assert.equal(mcpEnabled(), true);
+    assert.equal(auditOk(), true);
+  });
+});
+
 test("paper buy and sell-all work; real buy waits until Real is on; loosen applies with no extra signature", () => {
   withLocal(() => {
+    setMcpEnabled(true);
     const known = trails[0]!.coin.mint;
     const scores = mcpCall("centurion_team_scores", { mint: known });
     assert.equal(scores.found, true);
@@ -94,6 +106,7 @@ test("paper buy and sell-all work; real buy waits until Real is on; loosen appli
 
 test("real caps use integer lamports, a second sell is refused, and bad numbers are rejected", () => {
   withLocal(() => {
+    setMcpEnabled(true);
     enableSignedBook();
     assert.equal(mcpCall("centurion_real_buy", { mint: MINT, symbol: "SO\u202eL", sol: Number.NaN }).error, "invalid");
     assert.equal(mcpCall("centurion_real_buy", { mint: MINT, symbol: "SOL", sol: -1 }).error, "invalid");

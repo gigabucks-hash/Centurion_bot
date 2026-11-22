@@ -23,6 +23,7 @@ import { isBlocked } from "../components/NotTradeable";
 import { ScreenerTable } from "../components/ScreenerTable";
 import { ExploreView } from "../components/ExploreView";
 import { errorMessage, errorText, I18N_PACKAGE_VERSION, solText, useLang, useT } from "../i18n";
+import { FirstRun } from "../components/FirstRun";
 import { useHotkeys } from "../hooks/useHotkeys";
 import { pendingSorted, useTerm } from "../state/store";
 
@@ -65,6 +66,20 @@ export function TerminalView() {
   // Center panel: chart (default) or WF-20 "Koin · screener" (C key / tab).
   const [center, setCenter] = useState<"chart" | "coins">(() => (new URLSearchParams(location.search).get("tab") === "coins" ? "coins" : "chart"));
   const [exploreOn, setExploreOn] = useState(() => new URLSearchParams(location.search).get("tab") === "explore");
+  const [picked, setPicked] = useState<{ mint: string; symbol: string } | null>(null);
+  useEffect(() => {
+    const show = (e: Event) => {
+      const detail = (e as CustomEvent<string | { mint?: string; symbol?: string }>).detail;
+      const mint = typeof detail === "string" ? detail : detail?.mint ?? "";
+      const symbol = typeof detail === "string" ? "" : detail?.symbol ?? "";
+      if (mint) useTerm.getState().setCursor(mint);
+      if (mint && symbol) setPicked({ mint, symbol });
+      setExploreOn(false);
+      setCenter("chart");
+    };
+    window.addEventListener("centurion-show-chart", show);
+    return () => window.removeEventListener("centurion-show-chart", show);
+  }, []);
   const [coinSel, setCoinSel] = useState<string | null>(null);
   const t = useT();
   const lang = useLang();
@@ -85,7 +100,7 @@ export function TerminalView() {
   const cursorSig: PickView | undefined = pending.find((s) => s.mint === st.cursorMint) ?? pending[0];
   const cursorPos: PositionView | undefined = st.positions.find((p) => p.mint === st.cursorMint) ?? st.positions[0];
   const chartMint = st.cursorMint ?? cursorSig?.mint ?? null;
-  const chartSym = st.signals.find((s) => s.mint === chartMint)?.symbol ?? st.positions.find((p) => p.mint === chartMint)?.symbol;
+  const chartSym = (picked?.mint === chartMint ? picked.symbol : "") || st.signals.find((s) => s.mint === chartMint)?.symbol || st.positions.find((p) => p.mint === chartMint)?.symbol;
   const chartLogo = useCoinLogo(chartMint);
 
   // REAL SOL: approve always goes through dialog + hold 2.5 s (UX); Practice approves directly.
@@ -200,7 +215,7 @@ export function TerminalView() {
   return (
     <div className="window">
       <ModeChrome title="Terminal" stop>
-        <span className="chip">src: {st.source}</span>
+        <span className="chip">{st.source === "mock" ? "paper" : `src: ${st.source}`}</span>
         <span className="balance-cards" title={`practice_epoch ${st.account.epoch ?? "—"} · as_of_seq ${st.account.as_of_seq ?? "—"}`}>
           <span className="balance-card"><span className="dim">Cash</span><b className="num">{solText(st.account.cash_lamports, lang, paper)}</b></span>
           <span className="balance-card"><span className="dim">Equity</span><b className="num">{solText(st.account.equity_lamports, lang, paper)}</b></span>
@@ -251,7 +266,7 @@ export function TerminalView() {
             {center === "chart" && <button className="ghost" onClick={() => chartMint && run(() => core.openChartWindow(chartMint))}><Icon glyph={ExternalLink} size={16} /> Detach</button>}
           </header>
           {center === "chart" ? (
-            <PriceChart mint={chartMint} />
+            <PriceChart mint={chartMint} symbol={chartSym} />
           ) : (
             <div className={`coins-split${coin ? " with-detail" : ""}`}>
               <div className="body"><ScreenerTable coins={st.screened} selected={coinSel} onSelect={setCoinSel} onOpenQueue={openQueue} /></div>
@@ -325,6 +340,7 @@ export function TerminalView() {
       )}
       {settingsOpen && <SettingsDialog onClose={() => { setSettingsOpen(false); setSettingsFocus(null); }} focusStrategyId={settingsFocus} />}
       {pnlOpen && <PnlReportDialog onClose={() => setPnlOpen(false)} onViewBot={viewBot} />}
+      <FirstRun />
     </div>
   );
 }

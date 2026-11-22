@@ -181,6 +181,26 @@ export interface TickView {
   time: number;
   price_sol: DecimalString;
 }
+export interface MarketCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface MarketBody {
+  ok: boolean;
+  reason: string;
+  candles: MarketCandle[];
+  pool: string | null;
+  pair: string | null;
+  solSide: "base" | "quote" | null;
+  currency: "usd" | "sol";
+  attribution: string | null;
+}
+
 export interface CandleView {
   time: number;
   open: DecimalString;
@@ -432,6 +452,7 @@ export interface SaveConnectionResult { saved: boolean; restart_required: boolea
 export interface CoreApi {
   snapshot(): Promise<Snapshot>;
   candles(mint: string): Promise<CandleView[]>;
+  marketCandles(mint: string, timeframe: string, currency: "usd" | "sol"): Promise<MarketBody>;
   approveSignal(id: string): Promise<void>;
   approveMany(ids: string[]): Promise<void>;
   skipSignal(id: string): Promise<void>;
@@ -474,6 +495,7 @@ export interface CoreApi {
   realApply(scope: string, knobs: import("../real/limits").WireKnobs, signature: string | null): Promise<import("../real/limits").RealStatus>;
   realSetRpc(url: string): Promise<import("../real/limits").RealStatus>;
   realSetFastRpc(url: string): Promise<import("../real/limits").RealStatus>;
+  realSpeedStatus(probe: boolean): Promise<import("../real/speed").SpeedStatus>;
   realSetStrategies(ids: string[]): Promise<import("../real/limits").RealStatus>;
   /** Installed app only: open the system browser so the owner's wallet can sign. */
   realSign(kind: "message" | "transaction", payload: string): Promise<string>;

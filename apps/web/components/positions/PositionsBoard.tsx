@@ -134,21 +134,11 @@ export function PositionsBoard({ initial }: { initial: OpenPosition[] }) {
           <span>{t("positions.summary", { open: t.ux("positions.open_count", { count: x.n }), cost: fmtFor(x.mode).sol(x.cost) })} · <Pnl sol={x.unreal} unit mode={x.mode} /></span>
         </p>
       ))}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+      <div className="grid grid-cols-1 gap-4 min-[1680px]:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <Card>
           <p className="mb-1 text-caption text-text-tertiary sm:hidden">{t("table.scrollHint")} →</p>
           <div className="min-w-0 overflow-x-auto">
-            <table className="w-full table-fixed text-body">
-              <colgroup>
-                <col style={{ width: "13%" }} />
-                <col style={{ width: "18%" }} />
-                <col style={{ width: "11%" }} />
-                <col style={{ width: "16%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "9%" }} />
-                <col style={{ width: "11%" }} />
-              </colgroup>
+            <table className="w-full min-w-[960px] text-body">
               <thead>
                 <tr className="text-left text-caption text-text-tertiary">
                   <th scope="col" className="sticky top-0 left-0 z-30 border-b border-border-subtle bg-bg-surface px-2 py-2 font-medium sm:left-auto">{t("positions.colCoin")}</th>
@@ -238,7 +228,7 @@ const PositionRow = memo(function PositionRow({ r, focused, holdS, onFocus, onSe
       </th>
       <td className="border-b border-border-subtle px-2 text-text-secondary"><span className="block truncate">{r.strategyName}</span><ModeBadge mode={r.mode} /></td>
       <td className="num border-b border-border-subtle px-2 text-right text-numSm whitespace-nowrap">{f.sol(r.solIn * remaining, { unit: false })}</td>
-      <td className="num border-b border-border-subtle px-2 text-right text-caption whitespace-normal text-text-secondary">{(r.priceUnknown || r.markUnknown) ? "—" : <>{f.usd(r.entryPriceUsd)}<span className="text-text-tertiary"> → </span>{f.usd(r.nowPriceUsd)}</>}</td>
+      <td className="num border-b border-border-subtle px-3 text-right text-caption whitespace-nowrap text-text-secondary">{(r.priceUnknown || r.markUnknown) ? "—" : <>{f.usd(r.entryPriceUsd)}<span className="text-text-tertiary"> → </span>{f.usd(r.nowPriceUsd)}</>}</td>
       <td className="border-b border-border-subtle px-2 text-right whitespace-nowrap"><Pnl sol={r.markUnknown ? null : r.pnlSol * remaining} mode={r.mode} /></td>
       <td className="border-b border-border-subtle px-2 text-right whitespace-nowrap"><Pnl pct={r.markUnknown ? null : r.pnlPct} mode={r.mode} /></td>
       <td className="num border-b border-border-subtle px-2 text-right text-numSm whitespace-nowrap">{f.duration(holdS)}</td>

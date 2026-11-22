@@ -52,7 +52,7 @@ export function CoinDetail({ coin, pick, onOpenQueue, onSkip }: {
       </dl>
       {nt && <div className="dim note">{t("screener.detail.chart_note")}</div>}
       <div className={`mini-chart${nt ? " readonly" : ""}`} aria-hidden={nt || undefined}>
-        <PriceChart mint={coin.mint} />
+        <PriceChart mint={coin.mint} symbol={coin.symbol} />
       </div>
       {nt ? (
         <div className="detail-actions">

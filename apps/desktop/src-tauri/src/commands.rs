@@ -990,10 +990,30 @@ fn save_real_book(book: &crate::real::RealBook) -> Result<(), String> {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     }
     let text = serde_json::to_string_pretty(book).map_err(|e| e.to_string())?;
-    if text.to_lowercase().contains("private_key") {
+    if book_has_secret(&text) {
         return Err("refusing to store a key".into());
     }
-    std::fs::write(path, text).map_err(|e| e.to_string())
+    std::fs::write(&path, &text).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
+
+fn book_has_secret(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    [
+        "\"private_key\"",
+        "\"privatekey\"",
+        "\"secret_key\"",
+        "\"secretkey\"",
+        "\"mnemonic\"",
+        "\"seed_phrase\"",
+    ]
+    .iter()
+    .any(|key| lower.contains(key))
 }
 
 fn real_book() -> &'static std::sync::Mutex<crate::real::RealBook> {
@@ -1094,6 +1114,103 @@ pub fn real_set_fast_rpc(url: String) -> AppResult<crate::real::RealBook> {
     crate::real::lane::use_endpoint(&book.rpc_url, &book.fast_rpc_url, &book.wallet);
     save_real_book(&book).map_err(AppError::Invalid)?;
     Ok(book.clone())
+}
+
+fn last_trade() -> &'static std::sync::Mutex<Option<crate::real::speed::StageUs>> {
+    static LAST: std::sync::OnceLock<std::sync::Mutex<Option<crate::real::speed::StageUs>>> =
+        std::sync::OnceLock::new();
+    LAST.get_or_init(|| std::sync::Mutex::new(None))
+}
+
+#[derive(serde::Serialize)]
+pub struct SpeedEndpoint {
+    pub url: String,
+    pub role: &'static str,
+    pub ms: Option<u64>,
+}
+
+#[derive(serde::Serialize)]
+pub struct SpeedLatency {
+    pub quote_ms: u64,
+    pub sign_ms: u64,
+    pub send_ms: u64,
+    pub confirm_ms: u64,
+}
+
+#[derive(serde::Serialize)]
+pub struct SpeedStatus {
+    pub endpoints: Vec<SpeedEndpoint>,
+    pub fee_mode: &'static str,
+    pub jito: bool,
+    pub tip_lamports: u64,
+    pub priority_cap: u64,
+    pub percentile: u8,
+    pub last: Option<SpeedLatency>,
+    pub estimate: SpeedLatency,
+}
+
+fn latency_ms(s: crate::real::speed::StageUs) -> SpeedLatency {
+    SpeedLatency {
+        quote_ms: s.quote / 1_000,
+        sign_ms: s.sign / 1_000,
+        send_ms: s.send / 1_000,
+        confirm_ms: s.confirm / 1_000,
+    }
+}
+
+/// Free RPC list, fee mode, and the last swap's timings. `probe` measures each endpoint once.
+#[tauri::command]
+pub async fn real_speed_status(probe: bool) -> AppResult<SpeedStatus> {
+    let book = real_book()
+        .lock()
+        .map_err(|_| AppError::Invalid("real book".into()))?
+        .clone();
+    let urls = crate::real::speed::send_endpoints(&book.rpc_url, &book.fast_rpc_url);
+    let knobs = &book.global;
+    let fee_mode = match crate::real::speed::fee_mode(
+        knobs.priority_fee_lamports,
+        knobs.priority_fee_percentile,
+    ) {
+        crate::real::speed::FeeMode::Off => "off",
+        crate::real::speed::FeeMode::Custom => "custom",
+        crate::real::speed::FeeMode::Auto => "auto",
+    };
+    let mut endpoints = Vec::with_capacity(urls.len());
+    for url in urls {
+        let role = if url == book.rpc_url {
+            "owner"
+        } else if !book.fast_rpc_url.is_empty() && url == book.fast_rpc_url {
+            "extra"
+        } else {
+            "public"
+        };
+        let ms = if probe {
+            crate::real::lane::probe_ms(&url).await
+        } else {
+            None
+        };
+        endpoints.push(SpeedEndpoint { url, role, ms });
+    }
+    let last = last_trade()
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().copied())
+        .map(latency_ms);
+    Ok(SpeedStatus {
+        endpoints,
+        fee_mode,
+        jito: knobs.jito_enabled && knobs.tip_lamports > 0,
+        tip_lamports: knobs.tip_lamports,
+        priority_cap: knobs.priority_fee_lamports,
+        percentile: knobs.priority_fee_percentile,
+        last,
+        estimate: SpeedLatency {
+            quote_ms: 24,
+            sign_ms: 0,
+            send_ms: 40,
+            confirm_ms: 50,
+        },
+    })
 }
 
 #[tauri::command]
@@ -1751,6 +1868,7 @@ pub async fn real_submit(signed_b64: String) -> AppResult<String> {
     }
     let client = crate::real::lane::http();
     let rpc = crate::real::speed::rpc_in_use(&book.rpc_url, &book.fast_rpc_url).to_owned();
+    let rpcs = crate::real::speed::send_endpoints(&book.rpc_url, &book.fast_rpc_url);
     let budget = if hold.buy {
         hold.lamports.saturating_add(hold.fee).saturating_add(tip)
     } else {
@@ -1778,7 +1896,7 @@ pub async fn real_submit(signed_b64: String) -> AppResult<String> {
         .map(|t| t.elapsed().as_micros() as u64)
         .unwrap_or(0);
     let sent = crate::real::lane::broadcast(
-        &rpc,
+        &rpcs,
         hold.jito,
         tip,
         signed_b64.trim(),
@@ -1787,17 +1905,17 @@ pub async fn real_submit(signed_b64: String) -> AppResult<String> {
     )
     .await
     .map(|(sig, stages)| {
-        log::info!(
-            "{}",
-            crate::real::speed::StageUs {
-                quote: hold.quote_us,
-                build: hold.build_us,
-                sign: sign_us,
-                send: stages.send,
-                confirm: stages.confirm,
-            }
-            .log_line()
-        );
+        let line = crate::real::speed::StageUs {
+            quote: hold.quote_us,
+            build: hold.build_us,
+            sign: sign_us,
+            send: stages.send,
+            confirm: stages.confirm,
+        };
+        if let Ok(mut slot) = last_trade().lock() {
+            *slot = Some(line);
+        }
+        log::info!("{}", line.log_line());
         sig
     })
     .map_err(AppError::Invalid);
@@ -1875,6 +1993,16 @@ pub async fn real_submit_many(signed: Vec<String>) -> AppResult<String> {
 #[tauri::command]
 pub async fn explore_fetch(section: String, window: String) -> serde_json::Value {
     crate::explore::fetch(&section, &window).await
+}
+
+/// Free GeckoTerminal candles. The webview is not allowed to call that host itself.
+#[tauri::command]
+pub async fn market_candles(
+    mint: String,
+    timeframe: String,
+    currency: String,
+) -> serde_json::Value {
+    crate::market::load(&mint, &timeframe, &currency).await
 }
 
 fn record_fill(hold: &Hold, commit: bool) -> AppResult<()> {

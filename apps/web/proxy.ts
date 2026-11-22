@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCsp, newNonce, SECURITY_HEADERS } from "@/lib/security/csp";
 import { gate } from "@/lib/auth/gate";
+import { mockCookieGrantsAccess } from "@/lib/auth/mock-access";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/auth/cookies";
 
 /**
@@ -10,7 +11,8 @@ import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/auth/cookies";
  * Also the private-app gate (lib/auth/gate.ts). Prefetches are NOT skipped, so they are gated too.
  */
 export function proxy(request: NextRequest) {
-  const g = gate(request.nextUrl.pathname, request.nextUrl.search, { access: request.cookies.has(ACCESS_COOKIE), refresh: request.cookies.has(REFRESH_COOKIE) });
+  const access = mockCookieGrantsAccess(request.cookies.get(ACCESS_COOKIE)?.value, process.env.DATA_SOURCE);
+  const g = gate(request.nextUrl.pathname, request.nextUrl.search, { access, refresh: request.cookies.has(REFRESH_COOKIE) });
   if (g.kind === "unauthorized") {
     const ts = new Date().toISOString();
     return withSecurity(Response.json({ error: { code: "UNAUTHENTICATED", message: "Sign in required", reason: "access_missing", server_now: ts }, server_now: ts }, { status: 401 }));

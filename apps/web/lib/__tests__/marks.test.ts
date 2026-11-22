@@ -69,6 +69,12 @@ test("A mark never applies to another mint or a non-positive price", () => {
   assert.equal(nan.nowPriceSol, 0.000015);
 });
 
+test("A partial sell marks only the coins still open", () => {
+  const next = applyMark(row({ solIn: 1, pnlPct: 0, pnlSol: 0, soldPct: 50 }), mark({ price_sol: "0.000030" }));
+  assert.ok(Math.abs(next.pnlSol - 0.5) < 1e-12, String(next.pnlSol));
+  assert.ok(Math.abs(next.pnlPct - 100) < 1e-9);
+});
+
 test("No baseline at all: the row is left alone (no invented number)", () => {
   const next = applyMark(row({ nowPriceSol: null, nowPriceUsd: 0 }), mark({ price_sol: "2", price_usd: "300" }));
   assert.equal(next.pnlPct, 0);

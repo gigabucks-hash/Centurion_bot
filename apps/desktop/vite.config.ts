@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { isTimeframe, loadMarketCandles, type CandleQuote } from "../../packages/explore/src/candles.ts";
 import { fetchRaw } from "../../packages/explore/src/load.ts";
 
 // Tauri expects a fixed port in dev and a static bundle in dist/.
@@ -16,6 +17,28 @@ function exploreDev(): Plugin {
   return {
     name: "explore-dev",
     configureServer(server) {
+      server.middlewares.use("/__market", (req, res) => {
+        const q = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
+        const tf = q.get("tf") ?? "5m";
+        const currency: CandleQuote = q.get("currency") === "sol" ? "sol" : "usd";
+        const mint = q.get("mint") ?? "";
+        if (!isTimeframe(tf)) {
+          res.statusCode = 400;
+          res.end('{"ok":false,"reason":"unavailable","candles":[]}');
+          return;
+        }
+        void loadMarketCandles(mint, tf, currency).then(
+          (body) => {
+            res.setHeader("content-type", "application/json; charset=utf-8");
+            res.setHeader("cache-control", "no-store");
+            res.end(JSON.stringify(body));
+          },
+          () => {
+            res.statusCode = 500;
+            res.end('{"ok":false,"reason":"unavailable","candles":[]}');
+          },
+        );
+      });
       server.middlewares.use("/__explore", (req, res) => {
         const q = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
         void fetchRaw(q.get("section") ?? "", q.get("window") ?? "").then(

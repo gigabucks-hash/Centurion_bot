@@ -2,6 +2,24 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 // Workspace trading state (Stop buying): optimistic rev + wire mapping.
+test("Stop refuses a new buy approval and still allows a skip", async () => {
+  const store = await import("../mock/store.ts");
+  const { getTradingState, pauseBuys, resumeBuys } = await import("../mock/trading.ts");
+  const before = getTradingState();
+  if (!before.buysPaused) pauseBuys(before.rev);
+  try {
+    const pick = store.listApprovals("practice").find((a) => a.status === "pending" && a.kind === "buy_pick" && !a.screenerState);
+    assert.ok(pick, "seeded buy pick");
+    assert.throws(() => store.decideApproval(pick!.id, { action: "approve" }), (e: { code?: string }) => e.code === "BUYS_PAUSED");
+    assert.equal(store.getApproval(pick!.id)?.status, "pending");
+    store.decideApproval(pick!.id, { action: "skip", reason: "other" });
+    assert.equal(store.getApproval(pick!.id)?.status, "rejected");
+  } finally {
+    const now = getTradingState();
+    if (now.buysPaused) resumeBuys(now.rev);
+  }
+});
+
 test("pause sets state and bumps rev; resume clears it", async () => {
   const { getTradingState, pauseBuys, resumeBuys } = await import("../mock/trading.ts");
   const ws = "ws_test_pause_resume";

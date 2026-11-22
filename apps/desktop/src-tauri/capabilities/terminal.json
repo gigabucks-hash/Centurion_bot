@@ -29,6 +29,11 @@
     "allow-auth-status",
     "allow-auth-login",
     "allow-auth-logout",
+    "allow-connection-status",
+    "allow-save-connection",
+    "allow-set-strategy-mode",
+    "allow-get-pnl-report",
+    "allow-get-pnl-page",
     "allow-patch-strategy",
     "allow-stop-trading",
     "allow-resume-buys",
@@ -46,7 +51,9 @@
     "allow-real-prepare-sell-all",
     "allow-real-submit-many",
     "allow-real-set-fast-rpc",
+    "allow-real-speed-status",
     "allow-explore-fetch",
+    "allow-market-candles",
     "updater:default",
     "process:allow-restart"
   ]

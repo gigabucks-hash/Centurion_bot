@@ -8,6 +8,40 @@ export const CONFIRM_COMMITMENT = "confirmed";
 export const DEFAULT_FEE_PERCENTILE = 75;
 export const QUOTE_TTL_MS = 1_500;
 
+/** Keyless public Solana RPCs. The owner's URL is added in front. None of these take an API key. */
+export const FREE_PUBLIC_RPCS = [
+  "https://api.mainnet-beta.solana.com",
+  "https://solana-rpc.publicnode.com",
+] as const;
+
+export type FeeMode = "off" | "auto" | "custom";
+
+/** Cap 0 spends nothing. Percentile 100 spends the cap (custom). Otherwise the percentile, capped. */
+export function feeMode(cap: number, percentile: number): FeeMode {
+  if (cap <= 0) return "off";
+  if (percentile >= 100) return "custom";
+  return "auto";
+}
+
+export function sendEndpoints(primary: string, extra: string): string[] {
+  const out: string[] = [];
+  for (const raw of [primary, extra, ...FREE_PUBLIC_RPCS]) {
+    const url = raw.trim();
+    if (!url || out.includes(url)) continue;
+    out.push(url);
+  }
+  return out;
+}
+
+/** Lamports written into the swap. Custom ignores the sample and spends the cap. */
+export function chosenFeeLamports(samples: number[], pct: number, cu: number, cap: number): number {
+  const mode = feeMode(cap, pct);
+  if (mode === "off") return 0;
+  if (mode === "custom") return cap;
+  if (samples.length === 0 || cu <= 0) return 0;
+  return priorityFeeLamports(percentile(samples, pct), cu, cap);
+}
+
 const inflight = new Set<string>();
 
 export function claimSell(key: string): boolean {

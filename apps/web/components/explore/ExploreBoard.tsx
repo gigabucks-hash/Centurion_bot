@@ -65,6 +65,33 @@ function parseNum(raw: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+function FilterField({ label, unit, value, onChange, numeric }: {
+  label: string;
+  unit: string;
+  value: string;
+  onChange: (v: string) => void;
+  numeric: "decimal" | "numeric";
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-caption text-text-tertiary">
+      {label}
+      <span className="relative block">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          inputMode={numeric}
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="0"
+          aria-label={`${label}, ${unit}`}
+          className="h-9 w-40 rounded-sm border border-border-subtle bg-bg-sunken pr-16 pl-2 text-body text-text-primary transition-[border-color] duration-150 ease-out placeholder:text-text-tertiary motion-reduce:transition-none"
+        />
+        <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-caption text-text-tertiary" aria-hidden="true">{unit}</span>
+      </span>
+    </label>
+  );
+}
+
 /** GMGN-style discovery table. Read-only: the only navigation is the existing coin page. */
 export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
   const t = useT();
@@ -192,15 +219,9 @@ export function ExploreBoard({ initial }: { initial: ExploreFeed }) {
       </div>
       <p className="mb-3 text-pretty text-caption text-text-tertiary">{feed?.unsupported ? t("explore.unsupported") : t(NOTE[section])}</p>
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-caption text-text-tertiary">{t("explore.filter.minLiq")}
-          <input value={minLiq} onChange={(e) => setMinLiq(e.target.value)} inputMode="decimal" className="h-8 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body tabular-nums text-text-primary transition-[border-color] duration-150 ease-out motion-reduce:transition-none" />
-        </label>
-        <label className="flex flex-col gap-1 text-caption text-text-tertiary">{t("explore.filter.minMcap")}
-          <input value={minMcap} onChange={(e) => setMinMcap(e.target.value)} inputMode="decimal" className="h-8 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body tabular-nums text-text-primary transition-[border-color] duration-150 ease-out motion-reduce:transition-none" />
-        </label>
-        <label className="flex flex-col gap-1 text-caption text-text-tertiary">{t("explore.filter.maxAge")}
-          <input value={maxAge} onChange={(e) => setMaxAge(e.target.value)} inputMode="numeric" className="h-8 w-36 rounded-sm border border-border-subtle bg-bg-sunken px-2 text-body tabular-nums text-text-primary transition-[border-color] duration-150 ease-out motion-reduce:transition-none" />
-        </label>
+        <FilterField label={t("explore.filter.minLiq")} unit={t("explore.filter.phLiq")} value={minLiq} onChange={setMinLiq} numeric="decimal" />
+        <FilterField label={t("explore.filter.minMcap")} unit={t("explore.filter.phMcap")} value={minMcap} onChange={setMinMcap} numeric="decimal" />
+        <FilterField label={t("explore.filter.maxAge")} unit={t("explore.filter.phAge")} value={maxAge} onChange={setMaxAge} numeric="numeric" />
         {(minLiq || minMcap || maxAge) && <button type="button" className="rounded-sm px-2 py-1 text-caption text-text-secondary transition-colors duration-100 ease-out hover:bg-bg-surface hover:text-text-primary motion-reduce:transition-none" onClick={() => { setMinLiq(""); setMinMcap(""); setMaxAge(""); }}>{t("explore.clear")}</button>}
       </div>
       {feed?.error === "rate_limit" && <p className="mb-2 text-caption text-text-secondary" role="status">{t("explore.rate")}</p>}
@@ -256,9 +277,9 @@ function Row({ row, tag, locale, age, copied, onCopy, t }: {
           ) : <CoinAvatar mint={row.mint} symbol={row.symbol} size="lg" />}
           <span className="min-w-0">
             <Link href={`/coins/${row.mint}`} className="font-medium text-text-primary hover:underline" title={row.name}>{`$${row.symbol}`}</Link>
-            <span className="mt-0.5 flex items-center gap-1 text-text-tertiary">
-              <span className="max-w-32 truncate">{row.name}</span>
-              <button type="button" className="inline-flex size-8 items-center justify-center rounded-sm text-text-tertiary transition-colors duration-100 ease-out hover:bg-bg-raised hover:text-text-primary motion-reduce:transition-none" aria-label={t("explore.copy")} onClick={onCopy}>
+              <span className="mt-0.5 flex items-center gap-1 text-text-tertiary">
+              <span className="block max-w-44 truncate" title={row.name}>{row.name}</span>
+              <button type="button" className="inline-flex size-10 items-center justify-center rounded-sm text-text-tertiary transition-colors duration-100 ease-out hover:bg-bg-raised hover:text-text-primary motion-reduce:transition-none" aria-label={t("explore.copy")} onClick={onCopy}>
                 <Copy size={14} aria-hidden />
               </button>
               {copied && <span className="text-caption text-text-secondary" role="status">{t("explore.copied")}</span>}
@@ -276,7 +297,7 @@ function Row({ row, tag, locale, age, copied, onCopy, t }: {
       </td>
       <td className="px-2 py-2 text-right tabular-nums">{row.holders == null ? "—" : row.holders.toLocaleString(tag)}</td>
       <td className={`px-2 py-2 text-right tabular-nums ${tone(row.changePct)}`}>{signed(row.changePct, tag)}</td>
-      <td className="px-2 py-2 text-left text-text-tertiary">
+      <td className="max-w-56 px-3 py-2 text-left whitespace-nowrap text-text-tertiary">
         <Safety row={row} t={t} tag={tag} />
       </td>
     </tr>
@@ -308,5 +329,6 @@ function Safety({ row, t, tag }: { row: ExploreRow; t: (key: MessageKey, vars?: 
   if (row.lpBurned != null) bits.push(t(row.lpBurned ? "explore.safety.lpOn" : "explore.safety.lpOff"));
   if (row.top10Pct != null) bits.push(t("explore.safety.top10", { pct: new Intl.NumberFormat(tag, { maximumFractionDigits: 1 }).format(row.top10Pct) }));
   if (!bits.length) return <>—</>;
-  return <span>{bits.join(" · ")}</span>;
+  const text = bits.join(" · ");
+  return <span className="block max-w-56 truncate whitespace-nowrap" title={text}>{text}</span>;
 }

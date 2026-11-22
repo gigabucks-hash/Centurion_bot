@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { ACCESS_COOKIE } from "@/lib/auth/cookies";
 import { bearerMatches, localWriteAllowed } from "@/lib/local/http-guard";
 import { loopbackRequest } from "@/lib/local/paths";
-import { ensureMcpToken, mcpCall, mcpEnabled, mcpStatus, readAudit, readMcpToken, setMcpEnabled } from "@/lib/local/mcp";
+import { ensureMcpToken, mcpCall, mcpEnabled, mcpStatus, readAudit, readMcpToken, recordMcpSwitch, setMcpEnabled } from "@/lib/local/mcp";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +45,9 @@ export async function POST(req: Request) {
     return Response.json({ error: "invalid" }, { status: 400 });
   }
   if (body.action === "set_enabled") {
-    setMcpEnabled(body.enabled === true);
+    const enabled = body.enabled === true;
+    setMcpEnabled(enabled);
+    recordMcpSwitch(enabled);
     return Response.json({ data: { mcp_enabled: mcpEnabled() } });
   }
   const tool = typeof body.tool === "string" ? body.tool : "";

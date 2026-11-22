@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-market-candles"
+description = "Enables the market_candles command without any pre-configured scope."
+commands.allow = ["market_candles"]
+
+[[permission]]
+identifier = "deny-market-candles"
+description = "Denies the market_candles command without any pre-configured scope."
+commands.deny = ["market_candles"]

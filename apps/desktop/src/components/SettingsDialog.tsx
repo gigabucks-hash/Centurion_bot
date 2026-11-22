@@ -12,6 +12,7 @@ import { gateView, HOLD_MS, type Line } from "./strategyGate";
 import { RealMoneySection } from "./RealMoneySection";
 import { UpdateSection } from "./UpdateSection";
 import { ConnectionSection } from "./ConnectionSection";
+import { openOnboarding } from "./FirstRun";
 import type { StrategyView } from "../api";
 
 /** Wire strategy status → @centurion/i18n `strategy.status.*` (unknown → raw value never shown: "—"). */
@@ -232,13 +233,14 @@ export function SettingsDialog({ onClose, focusStrategyId }: { onClose: () => vo
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal">
-        <h3><Icon glyph={SettingsGlyph} size={20} /> Pengaturan desktop</h3>
+        <h3><Icon glyph={SettingsGlyph} size={20} /> {t("desktop.settings.title")}</h3>
+        <button type="button" className="sm" onClick={() => { onClose(); openOnboarding(); }}>{t("desktop.onboard.again")}</button>
         <label>
-          <div className="muted">Tema</div>
+          <div className="muted">{t("desktop.settings.theme")}</div>
           <select value={cfg.theme} onChange={(e) => setCfg({ ...cfg, theme: e.target.value as Settings["theme"] })}>
-            <option value="dark">Dark (default)</option>
-            <option value="light">Light</option>
-            <option value="system">Ikuti OS</option>
+            <option value="dark">{t("desktop.settings.theme.dark")}</option>
+            <option value="light">{t("desktop.settings.theme.light")}</option>
+            <option value="system">{t("desktop.settings.theme.system")}</option>
           </select>
         </label>
         <label>
@@ -249,17 +251,17 @@ export function SettingsDialog({ onClose, focusStrategyId }: { onClose: () => vo
           </select>
         </label>
         <label>
-          <div className="muted">Density</div>
+          <div className="muted">{t("desktop.settings.density")}</div>
           <select value={cfg.density} onChange={(e) => setCfg({ ...cfg, density: e.target.value as Settings["density"] })}>
-            <option value="compact">Compact · Signal Terminal (default desktop)</option>
-            <option value="comfortable">Comfortable · Calm Ledger</option>
+            <option value="compact">{t("desktop.settings.density.compact")}</option>
+            <option value="comfortable">{t("desktop.settings.density.comfortable")}</option>
           </select>
         </label>
         <label className="toggle-row" aria-disabled={!popupSupported || undefined} style={popupSupported ? undefined : { opacity: 0.6 }}>
           <span>
-            <div>Popup approval selalu di atas{popupSupported ? "" : " (tidak tersedia)"}</div>
+            <div>{popupSupported ? t("desktop.settings.popup") : t("desktop.settings.popup.unavailable")}</div>
             <div className="dim" style={{ fontSize: "var(--d-small)" }}>
-              {popupSupported ? "Window kecil di atas app lain; muncul saat ada pick baru. Approve/Skip saja, tanpa Sell." : POPUP_DISABLED_REASON}
+              {popupSupported ? t("desktop.settings.popup.on") : POPUP_DISABLED_REASON}
             </div>
           </span>
           <input
@@ -270,20 +272,22 @@ export function SettingsDialog({ onClose, focusStrategyId }: { onClose: () => vo
           />
         </label>
         <label>
-          <div className="muted">Global shortcut: fokus terminal</div>
-          <input className="mono" value={sc.focus_terminal} onChange={(e) => setCfg({ ...cfg, shortcuts: { ...sc, focus_terminal: e.target.value } })} />
+          <div className="muted">{t("desktop.settings.shortcut.focus")}</div>
+          <input className="mono" spellCheck={false} autoComplete="off" value={sc.focus_terminal} onChange={(e) => setCfg({ ...cfg, shortcuts: { ...sc, focus_terminal: e.target.value } })} />
         </label>
         <label>
-          <div className="muted">Global shortcut: buka approval queue</div>
+          <div className="muted">{t("desktop.settings.shortcut.queue")}</div>
           <input
             className="mono"
+            spellCheck={false}
+            autoComplete="off"
             value={sc.open_approvals ?? ""}
             placeholder="(off)"
             onChange={(e) => setCfg({ ...cfg, shortcuts: { ...sc, open_approvals: e.target.value.trim() ? e.target.value : null } })}
           />
         </label>
         <div className="dim" style={{ marginTop: 8, fontSize: "var(--d-small)" }}>
-          Global shortcut hanya membuka UI — tidak pernah approve, skip, atau sell langsung.
+          {t("desktop.settings.shortcut.note")}
         </div>
         <RealMoneySection />
         <StrategiesSection focusStrategyId={focusStrategyId} />
@@ -294,7 +298,7 @@ export function SettingsDialog({ onClose, focusStrategyId }: { onClose: () => vo
         {err && <div className="neg" style={{ marginTop: 8 }}>{err}</div>}
         <div className="actions">
           <button autoFocus onClick={onClose}>{t("common.action.cancel")}</button>
-          <button className="primary" onClick={save}>Simpan</button>
+          <button className="primary" onClick={save}>{t("desktop.settings.save")}</button>
         </div>
       </div>
     </div>

@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { accessSession, issueSession, logoutSession, refreshSession, ACCESS_TTL_S } from "../mock/session";
 import { WireError } from "../mock/store";
-import { gate, safeNext } from "../auth/gate";
+import { authGateOn, gate, safeNext } from "../auth/gate";
+import { mockCookieGrantsAccess } from "../auth/mock-access";
 import { MOCK_OWNER_WALLET } from "../auth/allowlist";
 import { NonceBody, VerifyBody } from "../auth/schemas";
 
@@ -35,6 +36,16 @@ test("session: owner removed from OWNER_WALLETS → refresh 403 wallet_not_allow
   assert.deepEqual(logoutSession(s2.refresh_token), { revoked: true });
   assert.throws(() => refreshSession(s2.refresh_token), reason("UNAUTHENTICATED", "refresh_revoked"));
   assert.throws(() => refreshSession(undefined), reason("UNAUTHENTICATED", "refresh_invalid"));
+});
+
+test("production ignores the auth-gate bypass; a fake mock cookie does not grant access", () => {
+  assert.equal(authGateOn({ NODE_ENV: "production", CENTURION_AUTH_GATE: "0" }), true);
+  assert.equal(authGateOn({ NODE_ENV: "development", CENTURION_AUTH_GATE: "0" }), false);
+  assert.equal(mockCookieGrantsAccess(undefined, undefined), false);
+  assert.equal(mockCookieGrantsAccess("not-a-session", undefined), false);
+  assert.equal(mockCookieGrantsAccess("not-a-session", "http"), true);
+  const s = issueSession(MOCK_OWNER_WALLET);
+  assert.equal(mockCookieGrantsAccess(s.access_token, undefined), true);
 });
 
 test("gate: pages redirect without cookies, APIs 401, auth routes public, off switch", () => {

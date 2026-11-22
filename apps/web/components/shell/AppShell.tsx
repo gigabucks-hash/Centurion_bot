@@ -14,6 +14,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { LocaleToggle } from "./LocaleToggle";
 import { useT } from "@/lib/i18n/client";
 import { logout, useSessionKeeper } from "@/lib/auth/session-client";
+import { Onboarding } from "./Onboarding";
 
 function Brand({ height = 36 }: { height?: number }) {
   return (
@@ -69,7 +70,7 @@ function BottomNav({ pending, onMore }: { pending: number; onMore: () => void })
           {href === "/approvals" && pending > 0 && <span className="num absolute top-1 right-[22%] rounded-full bg-semantic-loss px-1.5 text-overline text-bg-canvas">{pending}</span>}
         </Link>
       ))}
-      <button onClick={onMore} className="flex min-h-tap-touch flex-col items-center justify-center gap-0.5 text-caption text-text-secondary">
+      <button type="button" onClick={onMore} aria-label={t("nav.more")} className="flex min-h-tap-touch flex-col items-center justify-center gap-0.5 text-caption text-text-secondary">
         <span className="grid h-7 w-12 place-items-center"><MoreHorizontal size={16} strokeWidth={1.75} aria-hidden /></span>
         {t("nav.more")}
       </button>
@@ -170,6 +171,7 @@ export function AppShell({ children, sessionKeeper = true, modes, realCount, pap
     <RealtimeProvider modes={modes}>
       {/* Mode accent tokens: Paper unless a strategy runs in Real (per-item chips carry each item's own mode). */}
       <div data-mode={real ? "real" : "practice"} className="flex min-h-screen flex-col">
+        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-bg-overlay focus:px-3 focus:py-2">{t("nav.main")}</a>
         <div className="sticky top-0 z-40">
           <ModeBanner realCount={realCount} paperCount={paperCount} />
           <header className="chrome-bar flex h-12 items-center gap-3 border-b border-border-subtle px-4">
@@ -202,19 +204,20 @@ export function AppShell({ children, sessionKeeper = true, modes, realCount, pap
               <p className="mt-auto border-t border-border-subtle px-2 pt-3 text-caption text-text-tertiary">{t("nav.workspaceNote")}</p>
             </div>
           </aside>
-          <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 pt-4 pb-24 sm:px-6 lg:pb-8">
+          <main id="main" className="mx-auto w-full min-w-0 max-w-7xl flex-1 px-4 pt-4 pb-24 sm:px-6 lg:pb-8">
             {children}
           </main>
         </div>
 
         <BottomNav pending={pending} onMore={() => setMore(true)} />
+        <Onboarding />
         {more && (
           <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t("nav.more")}>
             <button className="absolute inset-0 bg-scrim-sheet" aria-label={t("common.close")} onClick={() => setMore(false)} />
-            <div className="absolute inset-x-0 bottom-0 rounded-t-xl border-t border-border-default bg-bg-overlay p-4 shadow-dialog">
+            <div className="absolute inset-x-0 bottom-0 overscroll-contain rounded-t-xl border-t border-border-default bg-bg-overlay p-4 shadow-dialog">
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-titleSm">{t("nav.more")}</span>
-                <button onClick={() => setMore(false)} aria-label={t("common.close")} className="grid h-10 w-10 place-items-center rounded-full text-text-secondary hover:bg-bg-raised"><X size={18} /></button>
+                <button type="button" onClick={() => setMore(false)} aria-label={t("common.close")} className="grid h-10 w-10 place-items-center rounded-full text-text-secondary hover:bg-bg-raised"><X size={18} aria-hidden /></button>
               </div>
               <div className="flex flex-col gap-1" onClick={() => setMore(false)}>
                 <SideNav pending={pending} />

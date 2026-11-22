@@ -7,6 +7,7 @@ import { CoinAvatar } from "@/components/CoinAvatar";
 import { formatMcapUsd } from "@centurion/i18n/format";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { coerceFeed, safeIcon, type ExploreRow } from "@explore/index";
+import { MarketChart } from "@/components/charts/MarketChart";
 
 /** Read-only mint page when the screener has not seen the coin. No buy control. */
 export function ExploreMint({ mint }: { mint: string }) {
@@ -30,7 +31,7 @@ export function ExploreMint({ mint }: { mint: string }) {
   const usd = (n: number | null) => formatMcapUsd(n, locale);
   const icon = safeIcon(row?.icon);
   return (
-    <article className="mx-auto max-w-xl">
+    <article className="mx-auto max-w-5xl">
       <Link href="/explore" className="mb-3 inline-flex items-center gap-1 text-caption text-text-secondary hover:text-text-primary">
         <ArrowLeft size={14} aria-hidden /> {t("explore.detail.back")}
       </Link>
@@ -63,6 +64,9 @@ export function ExploreMint({ mint }: { mint: string }) {
           ))}
         </dl>
       )}
+      <div className="mt-4 rounded-lg border border-border-subtle bg-bg-surface p-3">
+        <MarketChart mint={mint} symbol={row?.symbol} events={[]} fallback={[]} />
+      </div>
       <Link href="/approvals" className="mt-4 inline-flex text-label text-brand-primary hover:underline">{t("explore.detail.approvals")}</Link>
     </article>
   );

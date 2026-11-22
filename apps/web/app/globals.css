@@ -6,10 +6,23 @@ body {
   background: var(--color-bg-canvas);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
-  font-variant-numeric: tabular-nums;
+  /* Proportional figures for prose. Tabular figures live on .num and table cells.
+     Schibsted Grotesk's tnum period is a full digit wide, which reads as a space before "." */
+  font-variant-numeric: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
+
+@media (pointer: fine) {
+  html { overscroll-behavior: none; }
+}
+
+[role="dialog"] { overscroll-behavior: contain; }
+
+/* Returning visitors already stored the flag. Hide the wizard before React hydrates so it does not flash. */
+html[data-onboarded="1"] [data-onboard-root] { display: none; }
 
 h1,
 h2 {
