@@ -134,7 +134,6 @@ export function MarketChart({ mint, events, fallback, symbol }: { mint: string; 
     createSeriesMarkers(series, markers);
     chart.timeScale().applyOptions({ barSpacing: 8, rightOffset: 2 });
     chart.timeScale().setVisibleLogicalRange(visibleRange(candles.length, node.clientWidth || 960));
-    node.dataset.bars = String(candles.length);
     const mo = new MutationObserver(() => {
       const nextUp = readToken(tokenVar.brand);
       const nextDown = readToken(tokenVar.loss);
@@ -170,7 +169,7 @@ export function MarketChart({ mint, events, fallback, symbol }: { mint: string; 
       <p className="mb-2 text-caption text-text-secondary">
         {[symbol ? `$${symbol}` : null, body?.pair, tf, currency.toUpperCase(), "GeckoTerminal"].filter(Boolean).join(" · ")}
       </p>
-      {candles.length > 0 ? <div ref={setNode} className="h-[360px] w-full" role="img" aria-label={t("trail.marketChart")} /> : phase === "loading" ? (
+      {candles.length > 0 ? <div ref={setNode} data-bars={candles.length} className="h-[360px] w-full" role="img" aria-label={t("trail.marketChart")} /> : phase === "loading" ? (
         <p className="py-16 text-center text-caption text-text-tertiary" role="status">{t("trail.marketLoading")}</p>
       ) : (
         <>
