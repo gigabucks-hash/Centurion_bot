@@ -4,7 +4,6 @@ import {
   ColorType,
   createChart,
   createSeriesMarkers,
-  HistogramSeries,
   type CandlestickData,
   type IChartApi,
   type ISeriesApi,
@@ -13,8 +12,10 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { formatPrice, visibleRange } from "@explore/candles";
-import { core, EVT, type MarketBody, type TickView } from "../api";
-import { useLang } from "../i18n";
+import { ChartStudio, type ChartLabels } from "./ChartStudio";
+import { core, EVT, runtime, type MarketBody, type TickView } from "../api";
+import { browserChartStore } from "@explore/chartFile";
+import { useLang, useT } from "../i18n";
 import { useTerm } from "../state/store";
 import { safeLocale } from "./format";
 
@@ -25,10 +26,14 @@ const TFS = ["1m", "5m", "15m", "1h", "4h", "1d"] as const;
 
 export function PriceChart({ mint, symbol }: { mint: string | null; symbol?: string }) {
   const lang = useLang();
+  const t = useT();
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const [live, setLive] = useState<{ chart: IChartApi; series: ISeriesApi<"Candlestick"> } | null>(null);
+  const notes = useState(() => runtime === "tauri"
+    ? { read: () => core.chartNotesLoad(), write: (body: string) => core.chartNotesSave(body) }
+    : browserChartStore())[0];
   const marksRef = useRef<{ setMarkers: (markers: SeriesMarker<Time>[]) => void } | null>(null);
   const [tf, setTf] = useState<(typeof TFS)[number]>("5m");
   const [currency, setCurrency] = useState<"usd" | "sol">("usd");
@@ -69,12 +74,10 @@ export function PriceChart({ mint, symbol }: { mint: string | null; symbol?: str
       borderVisible: false,
       priceFormat: { type: "custom", minMove: 1e-12, formatter: formatPrice },
     });
-    const volume = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "vol", lastValueVisible: false, priceLineVisible: false });
-    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false });
-    chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: 0.22 } });
+    chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } });
     chartRef.current = chart;
     seriesRef.current = series;
-    volumeRef.current = volume;
+    setLive({ chart, series });
     // Re-read token colors when the theme attribute flips (dark <-> light).
     const applyTheme = () => {
       const c = getComputedStyle(document.documentElement);
@@ -91,7 +94,7 @@ export function PriceChart({ mint, symbol }: { mint: string | null; symbol?: str
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
-      volumeRef.current = null;
+      setLive(null);
     };
   }, []);
 
@@ -124,7 +127,6 @@ export function PriceChart({ mint, symbol }: { mint: string | null; symbol?: str
       if (disposed) return;
       const data = candles.map((c) => ({ time: c.time as UTCTimestamp, open: Number(c.open), high: Number(c.high), low: Number(c.low), close: Number(c.close) }));
       series.setData(data);
-      volumeRef.current?.setData([]);
       last = data[data.length - 1] ?? null;
       chartRef.current?.timeScale().fitContent();
     };
@@ -133,7 +135,6 @@ export function PriceChart({ mint, symbol }: { mint: string | null; symbol?: str
         const up = getComputedStyle(document.documentElement).getPropertyValue("--color-brand-primary").trim();
         const down = getComputedStyle(document.documentElement).getPropertyValue("--color-semantic-loss").trim();
         series.setData(market.candles.map((c) => ({ time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
-        volumeRef.current?.setData(market.candles.map((c) => ({ time: c.time as UTCTimestamp, value: c.volume, color: c.close >= c.open ? up : down })));
         const times = market.candles.map((c) => c.time);
         const snap = (sec: number) => times.reduce((best, t0) => (Math.abs(t0 - sec) < Math.abs(best - sec) ? t0 : best), times[0]);
         const st = useTerm.getState();
@@ -195,7 +196,19 @@ export function PriceChart({ mint, symbol }: { mint: string | null; symbol?: str
         <button type="button" className={currency === "sol" ? "sm primary" : "sm"} disabled={market != null && market.solSide == null} onClick={() => setCurrency("sol")}>SOL</button>
       </div>
       {mint && market && !market.ok && <div className="dim" style={{ padding: "0 8px 4px" }}>{note}</div>}
-      <div ref={host} className="chart-host" style={{ flex: 1, minHeight: 0 }} />
+      <div style={{ flex: 1, minHeight: 280, display: "flex" }}>
+        <ChartStudio
+          hostRef={(node) => { host.current = node; }}
+          chart={live?.chart ?? null}
+          candle={live?.series ?? null}
+          bars={market?.ok ? market.candles : []}
+          mint={mint ?? ""}
+          timeframe={tf}
+          store={notes}
+          height="100%"
+          text={(key) => t(`chart.studio.${key}` as `chart.studio.${keyof ChartLabels}`)}
+        />
+      </div>
       {market?.attribution && <a className="dim" href={market.attribution} target="_blank" rel="noreferrer" style={{ padding: "2px 8px" }}>{by}</a>}
       {!mint && <div className="empty" style={{ position: "absolute", inset: 0 }}>Pilih token</div>}
     </div>

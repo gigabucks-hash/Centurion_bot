@@ -40,6 +40,14 @@ jobs:
       - run: npm run build
       - name: Browser for the key-flow smoke
         run: npx --yes playwright@1.65.0 install chromium --with-deps
+      - name: Chart indicators, drawing, and reload
+        run: |
+          CENTURION_AUTH_GATE=0 npx next dev -p 3111 &
+          echo $! > /tmp/centurion-chart.pid
+          node scripts/chart-studio.mjs
+          kill "$(cat /tmp/centurion-chart.pid)" || true
+        env:
+          E2E_BASE: http://127.0.0.1:3111
       - name: Login, theme, and auth-gate smoke
         run: |
           npm run start &

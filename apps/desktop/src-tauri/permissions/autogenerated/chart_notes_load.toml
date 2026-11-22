@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-chart-notes-load"
+description = "Enables the chart_notes_load command without any pre-configured scope."
+commands.allow = ["chart_notes_load"]
+
+[[permission]]
+identifier = "deny-chart-notes-load"
+description = "Denies the chart_notes_load command without any pre-configured scope."
+commands.deny = ["chart_notes_load"]

@@ -5,3 +5,6 @@ export * from "./parse";
 export * from "./query";
 export * from "./load";
 export * from "./candles";
+export * from "./indicators";
+export * from "./drawings";
+export * from "./chartFile";

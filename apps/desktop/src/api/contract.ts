@@ -453,6 +453,9 @@ export interface CoreApi {
   snapshot(): Promise<Snapshot>;
   candles(mint: string): Promise<CandleView[]>;
   marketCandles(mint: string, timeframe: string, currency: "usd" | "sol"): Promise<MarketBody>;
+  /** Indicator settings and drawings saved on this computer. */
+  chartNotesLoad(): Promise<string>;
+  chartNotesSave(body: string): Promise<void>;
   approveSignal(id: string): Promise<void>;
   approveMany(ids: string[]): Promise<void>;
   skipSignal(id: string): Promise<void>;

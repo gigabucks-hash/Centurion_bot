@@ -509,8 +509,14 @@ export const browserMockAdapter: CoreApi = {
   async marketCandles(mint, timeframe, currency) {
     const q = new URLSearchParams({ mint, tf: timeframe, currency });
     const r = await fetch(`/__market?${q}`);
-    if (!r.ok) return { ok: false, reason: "unavailable", candles: [], pool: null, solSide: null, currency: "usd" as const, attribution: null };
+    if (!r.ok) return { ok: false, reason: "unavailable", candles: [], pool: null, pair: null, solSide: null, currency: "usd" as const, attribution: null };
     return r.json();
+  },
+  async chartNotesLoad() {
+    try { return localStorage.getItem("centurion.chart.v1") ?? "{}"; } catch { return "{}"; }
+  },
+  async chartNotesSave(body) {
+    try { localStorage.setItem("centurion.chart.v1", body); } catch { /* private mode */ }
   },
   async realSpeedStatus() {
     return {

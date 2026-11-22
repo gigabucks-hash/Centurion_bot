@@ -1995,6 +1995,17 @@ pub async fn explore_fetch(section: String, window: String) -> serde_json::Value
     crate::explore::fetch(&section, &window).await
 }
 
+/// Indicator settings and drawings. Local file only. No network.
+#[tauri::command]
+pub fn chart_notes_load() -> String {
+    crate::config::load_chart()
+}
+
+#[tauri::command]
+pub fn chart_notes_save(body: String) -> Result<(), String> {
+    crate::config::save_chart(&body)
+}
+
 /// Free GeckoTerminal candles. The webview is not allowed to call that host itself.
 #[tauri::command]
 pub async fn market_candles(
