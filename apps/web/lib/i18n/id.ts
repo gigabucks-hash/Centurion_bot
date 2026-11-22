@@ -150,6 +150,7 @@ export const id: PartialMessages = {
     hold: "Tahan maksimal (menit, 0 = mati)",
   },
   trail: {
+    marketLoading: "Memuat candle pasar…",
     marketNote: "Data pasar tidak tersedia. Menampilkan isian di komputer ini.",
     marketBy: "Candle dari GeckoTerminal",
     marketUsd: "USD",

@@ -54,6 +54,7 @@ export function MarketChart({ mint, events, fallback }: { mint: string; events: 
   const [tf, setTf] = useState<Tf>("5m");
   const [currency, setCurrency] = useState<"usd" | "sol">("usd");
   const [body, setBody] = useState<ChartBody | null>(null);
+  const [phase, setPhase] = useState<"loading" | "ready" | "down">("loading");
   const [node, setNode] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -63,8 +64,12 @@ export function MarketChart({ mint, events, fallback }: { mint: string; events: 
       const q = new URLSearchParams({ mint, tf, currency });
       void fetch(`/api/market/candles?${q}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((json: ChartBody | null) => { if (!stop && json) setBody(json); })
-        .catch(() => { if (!stop) setBody(null); });
+        .then((json: ChartBody | null) => {
+          if (stop) return;
+          setBody(json);
+          setPhase(json?.ok ? "ready" : "down");
+        })
+        .catch(() => { if (!stop) setPhase("down"); });
     };
     pull();
     const id = window.setInterval(pull, tf === "1m" ? 20_000 : 60_000);
@@ -158,7 +163,9 @@ export function MarketChart({ mint, events, fallback }: { mint: string; events: 
           ))}
         </div>
       </div>
-      {candles.length > 0 ? <div ref={setNode} className="h-[360px] w-full" role="img" aria-label={t("trail.marketChart")} /> : (
+      {candles.length > 0 ? <div ref={setNode} className="h-[360px] w-full" role="img" aria-label={t("trail.marketChart")} /> : phase === "loading" ? (
+        <p className="py-16 text-center text-caption text-text-tertiary" role="status">{t("trail.marketLoading")}</p>
+      ) : (
         <>
           <p className="mb-2 text-caption text-text-secondary" role="status">{t("trail.marketNote")}</p>
           {fallback.length > 1 ? <PriceChart prices={fallback} events={events} /> : <p className="text-body text-text-secondary">{t("trail.noPrice")}</p>}

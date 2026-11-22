@@ -7,7 +7,7 @@ import { CoinAvatar } from "@/components/CoinAvatar";
 import { formatMcapUsd } from "@centurion/i18n/format";
 import { useLocale, useT } from "@/lib/i18n/client";
 import { coerceFeed, safeIcon, type ExploreRow } from "@explore/index";
-import { MarketChart } from "@/components/charts/MarketChartLazy";
+import { MarketChart } from "@/components/charts/MarketChart";
 
 /** Read-only mint page when the screener has not seen the coin. No buy control. */
 export function ExploreMint({ mint }: { mint: string }) {

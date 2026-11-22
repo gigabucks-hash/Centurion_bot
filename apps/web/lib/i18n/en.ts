@@ -648,6 +648,7 @@ export const en = {
     price: "Price",
     priceNote: "Mock price series · ▲ buy, ▼ take-profit / exit · times in WIB",
     noPrice: "No price data.",
+    marketLoading: "Loading market candles…",
     marketNote: "Market data unavailable. Showing fills from this computer.",
     marketBy: "Candles by GeckoTerminal",
     marketUsd: "USD",

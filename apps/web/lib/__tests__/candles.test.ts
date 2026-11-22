@@ -13,9 +13,9 @@ import {
   rememberPool,
   solSide,
   WSOL,
-  type Net,
   type PoolPick,
 } from "../../../../packages/explore/src/candles.ts";
+import type { Net } from "../../../../packages/explore/src/load.ts";
 
 const MINT = "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump";
 const POOL = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
@@ -51,7 +51,7 @@ function net(handler: (url: string) => { status: number; json: unknown }): { cal
     now: () => NOW,
     cache: new Map(),
     inflight: new Map(),
-    fetch: async (url) => {
+    fetch: async (url: string | URL | Request) => {
       calls.push(String(url));
       const hit = handler(String(url));
       return new Response(JSON.stringify(hit.json), { status: hit.status, headers: { "content-type": "application/json" } });

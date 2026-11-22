@@ -11,7 +11,7 @@ const GECKO: &str = "https://api.geckoterminal.com";
 const WSOL: &str = "So11111111111111111111111111111111111111112";
 const POOL_TTL_MS: u64 = 10 * 60_000;
 
-struct Pool {
+pub(crate) struct Pool {
     address: String,
     base: String,
     quote: String,
@@ -47,7 +47,7 @@ fn client() -> &'static reqwest::Client {
     })
 }
 
-pub fn market_url_ok(raw: &str) -> bool {
+pub(crate) fn market_url_ok(raw: &str) -> bool {
     if raw.contains("..") {
         return false;
     }
@@ -119,7 +119,7 @@ fn mint_of(v: Option<&Value>) -> String {
     }
 }
 
-pub fn pick_pool(v: &Value, mint: &str) -> Option<Pool> {
+pub(crate) fn pick_pool(v: &Value, mint: &str) -> Option<Pool> {
     let rows = v.get("data")?.as_array()?;
     let mut best: Option<(Pool, f64, f64)> = None;
     for row in rows {
@@ -153,7 +153,7 @@ pub fn pick_pool(v: &Value, mint: &str) -> Option<Pool> {
     best.map(|(pool, _, _)| pool)
 }
 
-pub fn parse_ohlcv(v: &Value) -> Vec<Value> {
+pub(crate) fn parse_ohlcv(v: &Value) -> Vec<Value> {
     let Some(list) = v
         .pointer("/data/attributes/ohlcv_list")
         .and_then(|x| x.as_array())

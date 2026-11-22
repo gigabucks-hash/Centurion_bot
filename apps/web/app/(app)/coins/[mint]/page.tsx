@@ -16,7 +16,7 @@ import { eventKindMeta, ModeBadge } from "@/components/domain";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
 import { EventTitle } from "@/components/EventTitle";
-import { MarketChart } from "@/components/charts/MarketChartLazy";
+import { MarketChart } from "@/components/charts/MarketChart";
 import { CoinAvatar } from "@/components/CoinAvatar";
 import { ExploreMint } from "@/components/explore/ExploreMint";
 import { isMint } from "@/lib/identicon";
