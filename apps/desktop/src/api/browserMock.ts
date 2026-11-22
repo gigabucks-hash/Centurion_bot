@@ -506,6 +506,12 @@ export const browserMockAdapter: CoreApi = {
     realBook = { ...realBook, rpc_url: url };
     return realBook;
   },
+  async marketCandles(mint, timeframe, currency) {
+    const q = new URLSearchParams({ mint, tf: timeframe, currency });
+    const r = await fetch(`/__market?${q}`);
+    if (!r.ok) return { ok: false, reason: "unavailable", candles: [], pool: null, solSide: null, currency: "usd" as const, attribution: null };
+    return r.json();
+  },
   async realSpeedStatus() {
     return {
       endpoints: [

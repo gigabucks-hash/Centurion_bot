@@ -12,6 +12,7 @@ export const GECKO_HOST = "api.geckoterminal.com";
 const HOSTS = new Set([JUPITER_HOST, GECKO_HOST]);
 
 export function allowedUrl(raw: string): boolean {
+  if (raw.includes("..")) return false;
   let u: URL;
   try {
     u = new URL(raw);
@@ -25,7 +26,18 @@ export function allowedUrl(raw: string): boolean {
   if (u.pathname.includes("..") || u.pathname.includes("//")) return false;
   if (/swap|order|quote|send|transfer/i.test(u.pathname)) return false;
   if (u.hostname === JUPITER_HOST) return u.pathname.startsWith("/tokens/v2/");
-  return u.hostname === GECKO_HOST && u.pathname === "/api/v2/networks/solana/new_pools";
+  return u.hostname === GECKO_HOST && geckoPath(u.pathname);
+}
+
+const ADDR = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+/** New pools, one token's pools, or one pool's OHLCV. Nothing else on this host. */
+export function geckoPath(path: string): boolean {
+  if (path === "/api/v2/networks/solana/new_pools") return true;
+  const pools = /^\/api\/v2\/networks\/solana\/tokens\/([^/]+)\/pools$/.exec(path);
+  if (pools) return ADDR.test(pools[1]);
+  const bars = /^\/api\/v2\/networks\/solana\/pools\/([^/]+)\/ohlcv\/(minute|hour|day)$/.exec(path);
+  return bars != null && ADDR.test(bars[1]);
 }
 
 const JUPITER_INTERVAL: Partial<Record<ExploreWindow, string>> = {

@@ -1,24 +1,39 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CandlestickSeries,
   ColorType,
   createChart,
+  createSeriesMarkers,
+  HistogramSeries,
   type CandlestickData,
   type IChartApi,
   type ISeriesApi,
+  type SeriesMarker,
+  type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { core, EVT, type TickView } from "../api";
+import { core, EVT, type MarketBody, type TickView } from "../api";
+import { useLang } from "../i18n";
 import { useTerm } from "../state/store";
 import { safeLocale } from "./format";
 
 const BUCKET_SEC = 5;
 
 /** Candles from the core snapshot, then live 5s candles built from pushed (batched) ticks. */
+const TFS = ["1m", "5m", "15m", "1h", "4h", "1d"] as const;
+
 export function PriceChart({ mint }: { mint: string | null }) {
+  const lang = useLang();
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const marksRef = useRef<{ setMarkers: (markers: SeriesMarker<Time>[]) => void } | null>(null);
+  const [tf, setTf] = useState<(typeof TFS)[number]>("5m");
+  const [currency, setCurrency] = useState<"usd" | "sol">("usd");
+  const [market, setMarket] = useState<MarketBody | null>(null);
+  const note = lang === "id" ? "Data pasar tidak tersedia. Menampilkan isian di komputer ini." : "Market data unavailable. Showing fills from this computer.";
+  const by = lang === "id" ? "Candle dari GeckoTerminal" : "Candles by GeckoTerminal";
 
   useEffect(() => {
     if (!host.current) return;
@@ -41,16 +56,22 @@ export function PriceChart({ mint }: { mint: string | null }) {
       },
       rightPriceScale: { borderColor: v("--color-border-default") },
     });
+    const up = v("--color-brand-primary") || v("--color-semantic-profit");
+    const down = v("--color-semantic-loss");
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: v("--color-semantic-profit"),
-      downColor: v("--color-semantic-loss"),
-      wickUpColor: v("--color-semantic-profit"),
-      wickDownColor: v("--color-semantic-loss"),
+      upColor: up,
+      downColor: down,
+      wickUpColor: up,
+      wickDownColor: down,
       borderVisible: false,
-      priceFormat: { type: "price", precision: 9, minMove: 1e-9 },
+      priceFormat: { type: "price", precision: 8, minMove: 1e-8 },
     });
+    const volume = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "vol" });
+    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: 0.22 } });
     chartRef.current = chart;
     seriesRef.current = series;
+    volumeRef.current = volume;
     // Re-read token colors when the theme attribute flips (dark <-> light).
     const applyTheme = () => {
       const c = getComputedStyle(document.documentElement);
@@ -67,8 +88,27 @@ export function PriceChart({ mint }: { mint: string | null }) {
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      volumeRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!mint) return;
+    let stop = false;
+    const pull = () => {
+      if (document.visibilityState === "hidden") return;
+      void core.marketCandles(mint, tf, currency).then((body) => { if (!stop) setMarket(body); }).catch(() => { if (!stop) setMarket(null); });
+    };
+    pull();
+    const id = window.setInterval(pull, tf === "1m" ? 20_000 : 60_000);
+    const onVis = () => { if (document.visibilityState === "visible") pull(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      stop = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [mint, tf, currency]);
 
   useEffect(() => {
     const series = seriesRef.current;
@@ -76,14 +116,43 @@ export function PriceChart({ mint }: { mint: string | null }) {
     let last: CandlestickData<UTCTimestamp> | null = null;
     let disposed = false;
     let unsub: (() => void) | undefined;
-    (async () => {
+    const paintLocal = async () => {
       const candles = await core.candles(mint);
       if (disposed) return;
-      // Decimal strings → numbers for the chart only (display; never used for amounts).
       const data = candles.map((c) => ({ time: c.time as UTCTimestamp, open: Number(c.open), high: Number(c.high), low: Number(c.low), close: Number(c.close) }));
       series.setData(data);
+      volumeRef.current?.setData([]);
       last = data[data.length - 1] ?? null;
-      chartRef.current?.timeScale().scrollToRealTime();
+      chartRef.current?.timeScale().fitContent();
+    };
+    (async () => {
+      if (market?.ok && market.candles.length > 0) {
+        const up = getComputedStyle(document.documentElement).getPropertyValue("--color-brand-primary").trim();
+        const down = getComputedStyle(document.documentElement).getPropertyValue("--color-semantic-loss").trim();
+        series.setData(market.candles.map((c) => ({ time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })));
+        volumeRef.current?.setData(market.candles.map((c) => ({ time: c.time as UTCTimestamp, value: c.volume, color: c.close >= c.open ? up : down })));
+        const times = market.candles.map((c) => c.time);
+        const snap = (sec: number) => times.reduce((best, t0) => (Math.abs(t0 - sec) < Math.abs(best - sec) ? t0 : best), times[0]);
+        const st = useTerm.getState();
+        const markers: SeriesMarker<Time>[] = [];
+        for (const p of st.positions) {
+          if (p.mint !== mint) continue;
+          markers.push({ time: snap(Math.floor(p.opened_at_ms / 1000)) as UTCTimestamp, position: "belowBar", shape: "arrowUp", color: up, text: "Entry" });
+        }
+        for (const a of st.activity) {
+          if (a.mint !== mint) continue;
+          const kind = a.kind.toLowerCase();
+          const label = kind.includes("profit") ? "TP" : kind.includes("loss") || kind.includes("stop") || kind.includes("trail") ? "SL" : kind.includes("sold") || kind.includes("closed") || kind.includes("exit") ? "Exit" : null;
+          if (!label) continue;
+          markers.push({ time: snap(Math.floor(a.ts_ms / 1000)) as UTCTimestamp, position: "aboveBar", shape: "arrowDown", color: label === "SL" ? down : up, text: label });
+        }
+        markers.sort((a, b) => Number(a.time) - Number(b.time));
+        if (marksRef.current) marksRef.current.setMarkers(markers);
+        else marksRef.current = createSeriesMarkers(series, markers);
+        chartRef.current?.timeScale().fitContent();
+        return;
+      }
+      await paintLocal();
       unsub = await core.on<TickView[]>(EVT.ticks, (batch) => {
         for (const tv of batch) {
           if (tv.mint !== mint) continue;
@@ -105,11 +174,21 @@ export function PriceChart({ mint }: { mint: string | null }) {
       // The chart may already be disposed (unmount order), so only reset a live series.
       if (seriesRef.current === series) series.setData([]);
     };
-  }, [mint]);
+  }, [mint, market]);
 
   return (
-    <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
-      <div ref={host} className="chart-host" />
+    <div style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "4px 8px" }}>
+        {TFS.map((item) => (
+          <button key={item} type="button" className={item === tf ? "sm primary" : "sm"} onClick={() => setTf(item)}>{item}</button>
+        ))}
+        <span style={{ marginLeft: "auto" }} />
+        <button type="button" className={currency === "usd" ? "sm primary" : "sm"} onClick={() => setCurrency("usd")}>USD</button>
+        <button type="button" className={currency === "sol" ? "sm primary" : "sm"} disabled={market != null && market.solSide == null} onClick={() => setCurrency("sol")}>SOL</button>
+      </div>
+      {mint && market && !market.ok && <div className="dim" style={{ padding: "0 8px 4px" }}>{note}</div>}
+      <div ref={host} className="chart-host" style={{ flex: 1, minHeight: 0 }} />
+      {market?.attribution && <a className="dim" href={market.attribution} target="_blank" rel="noreferrer" style={{ padding: "2px 8px" }}>{by}</a>}
       {!mint && <div className="empty" style={{ position: "absolute", inset: 0 }}>Pilih token</div>}
     </div>
   );

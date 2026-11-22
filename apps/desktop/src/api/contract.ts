@@ -181,6 +181,25 @@ export interface TickView {
   time: number;
   price_sol: DecimalString;
 }
+export interface MarketCandle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface MarketBody {
+  ok: boolean;
+  reason: string;
+  candles: MarketCandle[];
+  pool: string | null;
+  solSide: "base" | "quote" | null;
+  currency: "usd" | "sol";
+  attribution: string | null;
+}
+
 export interface CandleView {
   time: number;
   open: DecimalString;
@@ -432,6 +451,7 @@ export interface SaveConnectionResult { saved: boolean; restart_required: boolea
 export interface CoreApi {
   snapshot(): Promise<Snapshot>;
   candles(mint: string): Promise<CandleView[]>;
+  marketCandles(mint: string, timeframe: string, currency: "usd" | "sol"): Promise<MarketBody>;
   approveSignal(id: string): Promise<void>;
   approveMany(ids: string[]): Promise<void>;
   skipSignal(id: string): Promise<void>;

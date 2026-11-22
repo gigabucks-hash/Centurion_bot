@@ -1995,6 +1995,16 @@ pub async fn explore_fetch(section: String, window: String) -> serde_json::Value
     crate::explore::fetch(&section, &window).await
 }
 
+/// Free GeckoTerminal candles. The webview is not allowed to call that host itself.
+#[tauri::command]
+pub async fn market_candles(
+    mint: String,
+    timeframe: String,
+    currency: String,
+) -> serde_json::Value {
+    crate::market::load(&mint, &timeframe, &currency).await
+}
+
 fn record_fill(hold: &Hold, commit: bool) -> AppResult<()> {
     let mut live = real_book()
         .lock()

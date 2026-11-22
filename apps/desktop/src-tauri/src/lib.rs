@@ -16,6 +16,7 @@ mod hotkeys;
 mod keychain;
 mod keys;
 mod logo;
+mod market;
 mod model;
 mod notify;
 mod real;
@@ -176,6 +177,7 @@ pub fn run() {
             commands::real_set_fast_rpc,
             commands::real_speed_status,
             commands::explore_fetch,
+            commands::market_candles,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Centurion Trade");

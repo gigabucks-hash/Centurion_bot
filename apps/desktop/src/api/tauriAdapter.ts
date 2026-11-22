@@ -7,6 +7,7 @@ import type { RealStatus, WireKnobs } from "../real/limits";
 export const tauriAdapter: CoreApi = {
   snapshot: () => invoke<Snapshot>("get_snapshot"),
   candles: (mint) => invoke<CandleView[]>("get_candles", { mint }),
+  marketCandles: (mint, timeframe, currency) => invoke("market_candles", { mint, timeframe, currency }),
   approveSignal: (id) => invoke<void>("approve_signal", { id }),
   approveMany: (ids) => invoke<void>("approve_many", { ids }),
   skipSignal: (id) => invoke<void>("skip_signal", { id }),

@@ -53,6 +53,7 @@
     "allow-real-set-fast-rpc",
     "allow-real-speed-status",
     "allow-explore-fetch",
+    "allow-market-candles",
     "updater:default",
     "process:allow-restart"
   ]

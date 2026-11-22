@@ -4,3 +4,4 @@ export * from "./hosts";
 export * from "./parse";
 export * from "./query";
 export * from "./load";
+export * from "./candles";

@@ -16,7 +16,7 @@ import { eventKindMeta, ModeBadge } from "@/components/domain";
 import { getT, getFmt } from "@/lib/i18n/server";
 import { CoinTrailSteps } from "@/components/CoinTrailSteps";
 import { EventTitle } from "@/components/EventTitle";
-import { PriceChart } from "@/components/charts/PriceChartLazy";
+import { MarketChart } from "@/components/charts/MarketChartLazy";
 import { CoinAvatar } from "@/components/CoinAvatar";
 import { ExploreMint } from "@/components/explore/ExploreMint";
 import { isMint } from "@/lib/identicon";
@@ -95,7 +95,7 @@ function Trail({ trail, t, f }: { trail: CoinTrail; t: T; f: Fmt }) {
       <Card title={t("trail.trail")} className="mt-4"><CoinTrailSteps trail={trail} /></Card>
 
       <Card title={notTradeable ? t("notTradeable.chartReadonly") : t("trail.price")} subtitle={notTradeable ? t("notTradeable.chartNote") : t("trail.priceNote")} className="mt-4">
-        {trail.prices.length > 1 ? <PriceChart prices={trail.prices} events={ordered} /> : <p className="text-body text-text-secondary">{t("trail.noPrice")}</p>}
+        <MarketChart mint={coin.mint} events={ordered} fallback={trail.prices} />
         {pos && (
           <p className="num mt-2 text-caption text-text-secondary">
             {t("trail.entryExit", { entry: entryLabel })}{exitLabel !== "—" ? t("trail.exitAt", { exit: exitLabel }) : ""}

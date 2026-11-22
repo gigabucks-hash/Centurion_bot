@@ -149,6 +149,14 @@ export const id: PartialMessages = {
     trail: "Trail % (0 = mati)",
     hold: "Tahan maksimal (menit, 0 = mati)",
   },
+  trail: {
+    marketNote: "Data pasar tidak tersedia. Menampilkan isian di komputer ini.",
+    marketBy: "Candle dari GeckoTerminal",
+    marketUsd: "USD",
+    marketSol: "SOL",
+    marketQuote: "Mata uang kuotasi",
+    marketChart: "Grafik candle dengan volume dan penanda transaksi",
+  },
   mcp: {
     title: "Agen di komputer ini",
     body: "Agen bisa trading kertas dan, setelah Real dinyalakan di sini, trading serta mengubah batas langsung. Agen tidak bisa melihat kunci dan tidak bisa mengirim SOL ke wallet lain. Matikan ini untuk menghentikan semua agen sekaligus.",
