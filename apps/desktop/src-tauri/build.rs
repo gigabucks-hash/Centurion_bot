@@ -49,6 +49,8 @@ fn main() {
             "get_pnl_page",
             "explore_fetch",
             "market_candles",
+            "chart_notes_load",
+            "chart_notes_save",
         ]),
     ))
     .expect("failed to run tauri-build");

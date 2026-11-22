@@ -18,6 +18,8 @@ use std::sync::Mutex;
 /// Bundle identifier from `tauri.conf.json`; asserted by a test so the two never drift.
 pub const APP_ID: &str = "com.centuriontrade.app";
 pub const FILE: &str = "connection.json";
+const CHART_FILE: &str = "chart.json";
+const CHART_MAX: usize = 400_000;
 /// Dev-launcher overrides. A set backend env var always wins over the saved file.
 pub const ENV_BACKEND: &str = "CENTURION_BACKEND";
 pub const ENV_LOGIN_URL: &str = "CENTURION_LOGIN_URL";
@@ -150,6 +152,42 @@ impl Connection {
     }
 }
 
+/// `{config dir}/{APP_ID}/chart.json`, beside the connection file. Drawings and indicator settings.
+pub fn chart_path() -> Option<PathBuf> {
+    path().map(|p| p.with_file_name(CHART_FILE))
+}
+
+pub fn load_chart() -> String {
+    let Some(p) = chart_path() else {
+        return "{}".to_string();
+    };
+    match std::fs::read_to_string(&p) {
+        Ok(body) if body.len() <= CHART_MAX => body,
+        _ => "{}".to_string(),
+    }
+}
+
+pub fn save_chart(body: &str) -> Result<(), String> {
+    if body.len() > CHART_MAX {
+        return Err("chart notes are too large".to_string());
+    }
+    let value: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+    if !value.is_object() {
+        return Err("chart notes must be an object".to_string());
+    }
+    let p = chart_path().ok_or_else(|| "no config directory".to_string())?;
+    if let Some(dir) = p.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
+    }
+    let tmp = p.with_extension("json.tmp");
+    std::fs::write(&tmp, body).map_err(|e| format!("write {}: {e}", tmp.display()))?;
+    if std::fs::rename(&tmp, &p).is_err() {
+        let _ = std::fs::remove_file(&p);
+        std::fs::rename(&tmp, &p).map_err(|e| format!("replace {}: {e}", p.display()))?;
+    }
+    Ok(())
+}
+
 /// `{config dir}/{APP_ID}/connection.json` — the same file `app.path().app_config_dir()` names.
 pub fn path() -> Option<PathBuf> {
     // Windows uses %APPDATA%. Every other supported host (Linux CI, and a local Linux shell)
@@ -268,6 +306,12 @@ pub fn save(conn: &Connection) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chart_notes_reject_a_list_and_a_huge_body() {
+        assert!(save_chart("[]").is_err());
+        assert!(save_chart(&format!("{{\"pad\":\"{}\"}}", "x".repeat(CHART_MAX))).is_err());
+    }
 
     #[test]
     fn app_id_matches_the_tauri_bundle_identifier() {

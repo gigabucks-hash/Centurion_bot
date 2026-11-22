@@ -157,6 +157,14 @@ export const id: PartialMessages = {
     marketSol: "SOL",
     marketQuote: "Mata uang kuotasi",
     marketChart: "Grafik candle dengan volume dan penanda transaksi",
+    studio: {
+      indicators: "Indikator", sma: "SMA", ema: "EMA", bb: "Bollinger Band", vwap: "VWAP", volume: "Volume", rsi: "RSI", macd: "MACD", stoch: "Stochastic RSI",
+      period: "Periode", mult: "Kelipatan", fast: "Cepat", slow: "Lambat", signal: "Sinyal", k: "%K", d: "%D",
+      trend: "Garis tren", hline: "Garis datar", hray: "Sinar datar", vline: "Garis tegak", rect: "Persegi", fib: "Fibonacci", measure: "Ukur",
+      select: "Pilih", magnet: "Magnet", lock: "Kunci", delete: "Hapus", clear: "Hapus semua",
+      fullscreen: "Layar penuh", exitFullscreen: "Keluar layar penuh",
+      open: "O", high: "H", low: "L", close: "C", vol: "V",
+    },
   },
   mcp: {
     title: "Agen di komputer ini",

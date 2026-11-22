@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-chart-notes-save"
+description = "Enables the chart_notes_save command without any pre-configured scope."
+commands.allow = ["chart_notes_save"]
+
+[[permission]]
+identifier = "deny-chart-notes-save"
+description = "Denies the chart_notes_save command without any pre-configured scope."
+commands.deny = ["chart_notes_save"]

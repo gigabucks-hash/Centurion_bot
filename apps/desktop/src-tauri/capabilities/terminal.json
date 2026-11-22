@@ -54,6 +54,8 @@
     "allow-real-speed-status",
     "allow-explore-fetch",
     "allow-market-candles",
+    "allow-chart-notes-load",
+    "allow-chart-notes-save",
     "updater:default",
     "process:allow-restart"
   ]

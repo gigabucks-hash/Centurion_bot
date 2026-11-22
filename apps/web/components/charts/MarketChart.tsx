@@ -9,11 +9,13 @@ import {
   ColorType,
   createChart,
   createSeriesMarkers,
-  HistogramSeries,
+  type IChartApi,
+  type ISeriesApi,
   type SeriesMarker,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
+import { ChartStudio, type ChartLabels } from "./ChartStudio";
 import type { PricePoint, TradeEvent } from "@/lib/types";
 import { useT } from "@/lib/i18n/client";
 import { readToken, tokenVar } from "@/lib/theme";
@@ -58,6 +60,8 @@ export function MarketChart({ mint, events, fallback, symbol }: { mint: string; 
   const [body, setBody] = useState<ChartBody | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "down">("loading");
   const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const [api, setApi] = useState<IChartApi | null>(null);
+  const [series, setSeries] = useState<ISeriesApi<"Candlestick"> | null>(null);
 
   useEffect(() => {
     let stop = false;
@@ -101,7 +105,7 @@ export function MarketChart({ mint, events, fallback, symbol }: { mint: string; 
         attributionLogo: true,
       },
       grid: { vertLines: { color: c(tokenVar.borderSubtle) }, horzLines: { color: c(tokenVar.borderSubtle) } },
-      rightPriceScale: { borderColor: c(tokenVar.borderSubtle), scaleMargins: { top: 0.08, bottom: 0.22 } },
+      rightPriceScale: { borderColor: c(tokenVar.borderSubtle), scaleMargins: { top: 0.08, bottom: 0.08 } },
       localization: { priceFormatter: formatPrice },
       timeScale: { borderColor: c(tokenVar.borderSubtle), timeVisible: tf !== "1d", secondsVisible: false, barSpacing: 8, rightOffset: 2 },
     });
@@ -109,14 +113,7 @@ export function MarketChart({ mint, events, fallback, symbol }: { mint: string; 
       upColor: up, downColor: down, wickUpColor: up, wickDownColor: down, borderVisible: false,
       priceFormat: { type: "custom", minMove: 1e-12, formatter: formatPrice },
     });
-    const volume = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "vol", lastValueVisible: false, priceLineVisible: false });
-    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false });
     series.setData(candles.map((bar) => ({ time: bar.time as UTCTimestamp, open: bar.open, high: bar.high, low: bar.low, close: bar.close })));
-    volume.setData(candles.map((bar) => ({
-      time: bar.time as UTCTimestamp,
-      value: bar.volume,
-      color: bar.close >= bar.open ? up : down,
-    })));
     const times = candles.map((bar) => bar.time);
     const snap = (sec: number) => times.reduce((best, t0) => (Math.abs(t0 - sec) < Math.abs(best - sec) ? t0 : best), times[0]);
     const markers: SeriesMarker<Time>[] = events.flatMap((e) => {
@@ -144,8 +141,15 @@ export function MarketChart({ mint, events, fallback, symbol }: { mint: string; 
       series.applyOptions({ upColor: nextUp, downColor: nextDown, wickUpColor: nextUp, wickDownColor: nextDown });
     });
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    // The chart instance exists only after this node is on screen.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setApi(chart);
+    setSeries(series);
+    /* eslint-enable react-hooks/set-state-in-effect */
     return () => {
       mo.disconnect();
+      setApi(null);
+      setSeries(null);
       chart.remove();
     };
     // candles is body.candles when the chart is live, so it changes only with the fetch.
@@ -169,7 +173,11 @@ export function MarketChart({ mint, events, fallback, symbol }: { mint: string; 
       <p className="mb-2 text-caption text-text-secondary">
         {[symbol ? `$${symbol}` : null, body?.pair, tf, currency.toUpperCase(), "GeckoTerminal"].filter(Boolean).join(" · ")}
       </p>
-      {candles.length > 0 ? <div ref={setNode} data-bars={candles.length} className="h-[360px] w-full" role="img" aria-label={t("trail.marketChart")} /> : phase === "loading" ? (
+      {candles.length > 0 ? (
+        <div role="img" aria-label={t("trail.marketChart")}>
+          <ChartStudio hostRef={setNode} chart={api} candle={series} bars={candles} mint={mint} timeframe={tf} text={(key) => t(`trail.studio.${key}` as `trail.studio.${keyof ChartLabels}`)} />
+        </div>
+      ) : phase === "loading" ? (
         <p className="py-16 text-center text-caption text-text-tertiary" role="status">{t("trail.marketLoading")}</p>
       ) : (
         <>

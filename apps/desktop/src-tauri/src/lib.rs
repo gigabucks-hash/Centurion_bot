@@ -178,6 +178,8 @@ pub fn run() {
             commands::real_speed_status,
             commands::explore_fetch,
             commands::market_candles,
+            commands::chart_notes_load,
+            commands::chart_notes_save,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Centurion Trade");
