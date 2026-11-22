@@ -2,6 +2,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
+import { Wordmark } from "./Wordmark";
 
 const KEY = "centurion.onboarded.v1";
 const SYNC = "centurion-onboard-sync";
@@ -79,7 +80,8 @@ export function Onboarding() {
         onKeyDown={onKeyDown}
         className="relative w-full max-w-md overscroll-contain rounded-lg border border-border-default bg-bg-overlay p-5 shadow-dialog"
       >
-        <p className="text-caption text-text-tertiary">{t("onboard.step", { n: step + 1, total: STEPS.length })}</p>
+        <Wordmark height={32} />
+        <p className="mt-4 text-caption text-text-tertiary">{t("onboard.step", { n: step + 1, total: STEPS.length })}</p>
         <h2 id={titleId} className="mt-1 text-titleSm text-text-primary">{t(`onboard.${id}title` as "onboard.s1title")}</h2>
         <p className="mt-2 text-body text-text-secondary">{t(`onboard.${id}body` as "onboard.s1body")}</p>
         <div className="mt-5 flex items-center justify-between gap-2">

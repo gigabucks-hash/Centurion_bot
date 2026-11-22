@@ -103,7 +103,12 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--color-borde
   border-bottom: 1px solid var(--color-border-subtle);
   min-width: 0; white-space: nowrap; overflow: hidden;
 }
-.titlebar .brand { font-weight: var(--text-titleSm--font-weight); }
+.titlebar .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: var(--text-titleSm--font-weight); }
+.brand-lockup { display: inline-flex; align-items: center; line-height: 0; }
+.brand-lockup img { height: 100%; width: auto; }
+.brand-lockup-light { display: none; }
+[data-theme="light"] .brand-lockup-dark { display: none; }
+[data-theme="light"] .brand-lockup-light { display: block; }
 .statusbar {
   display: flex; gap: var(--space-3); align-items: center;
   padding: 2px var(--space-3); font-size: var(--d-small);

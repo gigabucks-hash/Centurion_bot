@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-/** Helmet mark rendered from brand/icon.svg. /icon/32 is the small favicon PNG. */
+/** App icon rendered from brand/icon.svg. /icon/32 is the small favicon PNG. */
 const FILES: Record<string, string> = {
   "32": "mark-32.png",
   "192": "mark-192.png",

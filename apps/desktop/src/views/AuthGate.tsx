@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { core, EVT, type AuthView } from "../api";
 import { errorEntry, errorMessage, useLang, useT } from "../i18n";
+import { BrandLockup } from "../components/BrandLockup";
 import { shortMint } from "../components/format";
 
 /**
@@ -57,7 +58,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
   return (
     <main className="auth-gate" data-auth={a.state}>
-      <section>{body}{err && <p className="neg">{err}</p>}</section>
+      <section><BrandLockup height={36} />{body}{err && <p className="neg">{err}</p>}</section>
     </main>
   );
 }
