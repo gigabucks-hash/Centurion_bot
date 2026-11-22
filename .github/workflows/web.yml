@@ -96,7 +96,7 @@ jobs:
       - name: Save the web image
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
         run: docker save centurion-web:ci | gzip > "$RUNNER_TEMP/centurion-web.tar.gz"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: success() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
         with:
           name: centurion-trade-web
