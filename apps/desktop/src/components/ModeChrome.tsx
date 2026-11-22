@@ -19,7 +19,7 @@ export function ModeChrome({ title, children, stop }: { title: string; children?
           {mode === "practice" ? t("mode.practice.label") : t("mode.real.label")}
         </span>
         <span className="brand" data-tauri-drag-region>
-          <BrandLockup height={18} word={false} />
+          <BrandLockup mark={22} word={false} />
           {t("app.name")}
         </span>
         <span className="dim" data-tauri-drag-region>{title}</span>

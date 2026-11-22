@@ -58,7 +58,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
   return (
     <main className="auth-gate" data-auth={a.state}>
-      <section><BrandLockup height={36} />{body}{err && <p className="neg">{err}</p>}</section>
+      <section><BrandLockup mark={28} />{body}{err && <p className="neg">{err}</p>}</section>
     </main>
   );
 }
