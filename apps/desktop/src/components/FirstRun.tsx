@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useT } from "../i18n";
+import { BrandLockup } from "./BrandLockup";
 
 const KEY = "centurion.onboarded.v1";
 const OPEN = "centurion-onboarding";
@@ -46,7 +47,8 @@ export function FirstRun() {
   return (
     <div className="modal-backdrop" style={{ zIndex: 80 }} role="presentation">
       <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="modal" style={{ maxWidth: 440 }}>
-        <p className="dim">{t("desktop.onboard.step", { n: step + 1, total: STEPS.length })}</p>
+        <BrandLockup mark={28} />
+        <p className="dim" style={{ marginTop: 12 }}>{t("desktop.onboard.step", { n: step + 1, total: STEPS.length })}</p>
         <h3 id={titleId}>{t(`desktop.onboard.${id}title`)}</h3>
         <p>{t(`desktop.onboard.${id}body`)}</p>
         <div className="row" style={{ justifyContent: "space-between", marginTop: 16 }}>

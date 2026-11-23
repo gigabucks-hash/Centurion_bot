@@ -42,7 +42,7 @@ Centurion Trade is a paper-trading terminal for Solana tokens, with an opt-in Re
 | `packages/contracts` | Shared wire contract and `errors.json` (`1.1.6`). |
 | `packages/design-tokens` | Shared colour and type tokens (`0.3.4`). |
 | `packages/i18n` | English and Indonesian copy (`0.4.12`). |
-| `brand` | Official logo: wordmarks, helmet mark, Cinzel (OFL). |
+| `brand` | Official logo: the helmet mark and the wordmarks. |
 | `docs/design` | Design notes, the logo reference, and the social preview. |
 | `docs/release` | Desktop release notes and the local web guide. |
 
@@ -51,7 +51,7 @@ Centurion Trade is a paper-trading terminal for Solana tokens, with an opt-in Re
 - Node 22.18+ and TypeScript for the API, the web app, and the desktop UI.
 - Rust 1.90 for the engine and the desktop shell.
 - Postgres 17 locally, or Supabase for the SQL. The one-click Windows web launcher does not need Postgres.
-- Icons in the product UI: Lucide. The brand mark is the approved helmet, redrawn as SVG.
+- Icons in the product UI: Lucide. The brand mark is the helmet, drawn as SVG.
 
 ## Run and test
 

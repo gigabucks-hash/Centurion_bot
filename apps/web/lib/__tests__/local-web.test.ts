@@ -122,14 +122,21 @@ test("local real defaults, tighten now, loosen only with a Phantom signature, no
   }
 });
 
-test("wordmarks are outlined vectors and the light TRADE line is dark", async () => {
+test("wordmarks are outlined vectors in the theme colours", async () => {
   const { readFileSync } = await import("node:fs");
   const path = await import("node:path");
   const { fileURLToPath } = await import("node:url");
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
   const dark = readFileSync(path.join(root, "brand/wordmark-on-dark.svg"), "utf8");
   const light = readFileSync(path.join(root, "brand/wordmark-on-light.svg"), "utf8");
+  const mark = readFileSync(path.join(root, "brand/mark.svg"), "utf8");
   assert.equal(dark.includes("<text"), false);
-  assert.equal(light.includes("#1A140C"), true);
-  assert.equal(/tauri/i.test(dark + light), false);
+  assert.equal(light.includes("<text"), false);
+  assert.equal(mark.includes("<text"), false);
+  assert.equal(dark.includes("#FF7A1A"), true);
+  assert.equal(light.includes("#2563EB"), true);
+  assert.equal(light.includes("#0B0B0D"), true);
+  assert.equal(mark.includes("currentColor"), true);
+  assert.equal((mark.match(/<path /g) ?? []).length <= 3, true);
+  assert.equal(/tauri/i.test(dark + light + mark), false);
 });

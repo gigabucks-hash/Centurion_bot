@@ -1,38 +1,65 @@
 #!/usr/bin/env python3
-"""Build Centurion Trade logo SVGs from the approved reference.
+"""Build the Centurion Trade mark and lockups.
 
-Text is outlined from Cinzel (OFL-1.1, Natanael Gama) so the files do not
-depend on a font being installed. The helmet is an original vector galea
-matching the approved lockup: gold bowl, red-to-orange crest, purple lining.
+The helmet is a hand-drawn geometric galea (side profile, solid fill): a
+crescent crest, a visor slit, and a cheek opening. It is not a trace.
+"Centurion" is outlined from Schibsted Grotesk and "TRADE" from Martian Mono
+so the files do not depend on a font being installed. Both faces are OFL.
 """
 from __future__ import annotations
 
-import math
-import shutil
 from pathlib import Path
 
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
-from fontTools.varLib.instancer import instantiateVariableFont
 
 ROOT = Path(__file__).resolve().parent
-FONT_PATH = ROOT / "fonts" / "Cinzel-wght.ttf"
-OUT = ROOT
+REPO = ROOT.parent
+UI = REPO / "packages" / "design-tokens" / "fonts" / "ui"
+SANS = UI / "schibsted-grotesk-latin-600-normal.woff2"
+MONO = UI / "martian-mono-latin-500-normal.woff2"
 
-GOLD = ("#F6E2A8", "#E0BE62", "#A9782C")
-TRADE_DARK = "#1A140C"
-LINE_DARK = "#6E5316"
-BG = "#0C0C0E"
-BG_LIGHT = "#F6F3EC"
+ORANGE = "#FF7A1A"
+BLUE = "#2563EB"
+INK = "#0B0B0D"
+PAPER = "#FFFFFF"
+NAME_ON_DARK = "#F4F4F5"
+# viewBox of the hand-drawn mark. Crest, then the helmet: rounded dome,
+# a visor notch that opens through the face guard, an angled cheek, and a neck flare.
+MARK_BOX = (100, 126)
+
+MARK_PATHS = (
+    "M50.6 0.6C55.1 0.3 60.5 0.6 65.0 1.3C69.5 2.0 73.3 3.0 77.4 4.7"
+    "C81.5 6.4 86.1 8.9 89.7 11.5L99.6 19.2L86.0 23.8"
+    "C81.8 25.8 79.3 30.4 75.4 30.8C71.5 31.2 66.4 27.0 62.4 26.1"
+    "C58.4 25.2 55.2 25.3 51.5 25.5C47.8 25.7 43.7 26.4 40.4 27.4"
+    "C37.1 28.3 35.0 29.1 31.6 31.2C28.2 33.4 23.3 37.1 20.3 40.3"
+    "C17.3 43.5 15.3 46.6 13.5 50.3C11.7 53.9 10.2 57.5 9.2 62.2"
+    "L7.7 78.6L3.0 68.4C1.9 64.7 1.1 60.9 0.9 56.5C0.7 52.1 0.7 47.1 1.7 42.3"
+    "C2.7 37.4 5.1 31.4 7.1 27.4C9.1 23.3 10.6 21.2 13.7 18.0"
+    "C16.8 14.8 21.6 10.8 25.6 8.3C29.6 5.8 33.6 4.3 37.8 3.0"
+    "C42.0 1.7 46.1 0.9 50.6 0.6Z",
+    "M47.0 35.7C49.9 35.4 52.8 35.4 55.6 35.7C58.4 36.0 60.9 36.5 63.7 37.6"
+    "C66.5 38.7 70.2 40.8 72.4 42.3L77.1 46.7L42.5 63.9L41.7 65.2L55.6 61.2"
+    "C62.7 58.8 78.3 44.8 84.4 50.5L92.3 95.5L85.9 92.2"
+    "C84.3 88.9 86.8 79.2 82.7 75.6C78.6 71.9 65.0 71.2 61.1 70.3"
+    "C57.2 69.4 59.6 70.0 59.2 70.1C58.8 70.2 58.6 70.0 58.8 71.1"
+    "C59.0 72.1 59.6 74.9 60.5 76.4C61.4 77.9 61.1 78.9 64.1 80.3"
+    "C67.1 81.7 75.7 80.2 78.6 84.7C81.5 89.2 80.0 101.0 81.4 107.4"
+    "L86.8 123.4L73.5 120.4C69.0 118.7 63.5 115.5 60.0 113.0"
+    "C56.5 110.5 54.8 108.8 52.4 105.1C50.0 101.4 48.1 94.3 45.9 91.1"
+    "L39.1 86.0L41.7 94.7C41.9 97.9 42.4 103.7 40.2 105.3"
+    "C38.0 106.9 32.9 104.3 28.4 104.5L13.2 106.6L19.2 97.2"
+    "C20.6 94.7 21.0 93.5 21.4 91.5C21.8 89.5 22.3 88.3 21.8 84.9"
+    "C21.3 81.5 18.8 74.7 18.2 70.9C17.6 67.1 17.9 65.2 18.4 62.2"
+    "C18.9 59.2 20.3 55.2 21.4 52.7C22.5 50.2 23.3 49.1 24.8 47.3"
+    "C26.3 45.5 28.1 43.6 30.3 42.0C32.5 40.4 35.4 38.8 38.2 37.8"
+    "C41.0 36.8 44.1 36.1 47.0 35.7Z",
+)
 
 
-def font_at(weight: float) -> TTFont:
-    font = TTFont(FONT_PATH)
-    return instantiateVariableFont(font, {"wght": weight}, inplace=False)
-
-
-def text_svg(font: TTFont, text: str, size: float, tracking: float = 0.0) -> tuple[str, float, float]:
-    """Return (svg fragment, width, height) with baseline at y=0 and y growing down."""
+def text_svg(font: TTFont, text: str, size: float, tracking: float = 0.0) -> tuple[str, float, float, float]:
+    """Outlined glyphs. Baseline at y=0, y grows down. Returns path, width, ascent, descent."""
     glyph_set = font.getGlyphSet()
     cmap = font.getBestCmap()
     upem = font["head"].unitsPerEm
@@ -48,206 +75,106 @@ def text_svg(font: TTFont, text: str, size: float, tracking: float = 0.0) -> tup
         commands = pen.getCommands()
         if commands:
             parts.append(
-                f'<g transform="translate({x:.3f} 0) scale({scale:.6f} {-scale:.6f})"><path d="{commands}"/></g>'
+                f'<path d="{commands}" transform="translate({x:.2f} 0) scale({scale:.5f} {-scale:.5f})"/>'
             )
         x += glyph_set[name].width * scale + tracking
-    body = "\n".join(parts)
-    return body, x, ascent + descent
+    return "".join(parts), x - (tracking if text else 0), ascent, descent
 
 
-def helmet(uid: str) -> str:
-    """Profile galea facing right. Box is about 0 0 300 340."""
-    # Filled crest: a fan whose base sits on the crown.
-    # Bristle lines are clipped to that fan so they read as horsehair, not a comb.
-    return f"""
-<g id="{uid}">
-  <defs>
-    <linearGradient id="{uid}-gold" x1="0.15" y1="0" x2="0.9" y2="1">
-      <stop offset="0" stop-color="#FFF4D0"/>
-      <stop offset="0.4" stop-color="#E4C56A"/>
-      <stop offset="1" stop-color="#8D6118"/>
-    </linearGradient>
-    <linearGradient id="{uid}-crest" x1="0" y1="0.2" x2="1" y2="0.6">
-      <stop offset="0" stop-color="#7A1230"/>
-      <stop offset="0.45" stop-color="#D3262E"/>
-      <stop offset="1" stop-color="#F0B03A"/>
-    </linearGradient>
-    <radialGradient id="{uid}-rivet" cx="0.35" cy="0.32" r="0.8">
-      <stop offset="0" stop-color="#FFF8DE"/>
-      <stop offset="1" stop-color="#9A6820"/>
-    </radialGradient>
-    <linearGradient id="{uid}-purple" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#4C227C"/>
-      <stop offset="1" stop-color="#160828"/>
-    </linearGradient>
-    <clipPath id="{uid}-fan">
-      <path d="M118 132
-               C70 96 48 48 78 22
-               C112 2 176 8 196 40
-               C210 62 188 96 160 118
-               C146 128 130 136 118 132 Z"/>
-    </clipPath>
-  </defs>
-  <g clip-path="url(#{uid}-fan)">
-    <path d="M118 132 C70 96 48 48 78 22 C112 2 176 8 196 40 C210 62 188 96 160 118 C146 128 130 136 118 132 Z" fill="url(#{uid}-crest)"/>
-    <g stroke="#2A0A14" stroke-width="1.15" opacity="0.35">
-      {"".join(f'<line x1="150" y1="120" x2="{78 + i * 4.2:.1f}" y2="{18 + (i - 14) ** 2 * 0.22:.1f}"/>' for i in range(28))}
-    </g>
-  </g>
-  <path d="M78 214 C58 228 56 256 82 272 C108 288 136 276 140 254 C142 238 124 222 104 214 Z" fill="url(#{uid}-gold)"/>
-  <path d="M108 150
-           C92 176 96 214 122 238
-           C146 260 184 258 198 232
-           C210 210 206 176 184 154
-           C164 134 128 128 108 150 Z" fill="url(#{uid}-gold)"/>
-  <path d="M176 162
-           C158 178 154 214 170 242
-           C184 264 214 268 226 246
-           C238 224 232 186 210 166
-           C196 154 186 152 176 162 Z" fill="url(#{uid}-purple)"/>
-  <path d="M148 176
-           C138 204 146 246 172 266
-           C194 282 220 270 224 246
-           C228 220 214 188 192 170
-           C176 158 158 160 148 176 Z" fill="url(#{uid}-gold)"/>
-  <path d="M168 140 C198 132 232 148 246 170 C228 154 196 148 174 156 C166 148 164 142 168 140 Z" fill="#F3D78A"/>
-  <path d="M196 178 C206 198 204 222 190 236 C204 224 212 202 206 182 C202 172 198 172 196 178 Z" fill="#2A1246"/>
-  <circle cx="128" cy="176" r="6" fill="url(#{uid}-rivet)"/>
-  <circle cx="188" cy="188" r="5.5" fill="url(#{uid}-rivet)"/>
-  <circle cx="178" cy="232" r="5" fill="url(#{uid}-rivet)"/>
-  <path d="M118 158 C142 140 170 136 196 150" fill="none" stroke="#FFF6D4" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
-</g>
-"""
+def mark_group(fill: str) -> str:
+    paths = "".join(f'<path fill="{fill}" fill-rule="evenodd" d="{d}"/>' for d in MARK_PATHS)
+    return paths
 
 
-def mix(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> str:
-    c = tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
-    return f"#{c[0]:02X}{c[1]:02X}{c[2]:02X}"
+def mark_svg(fill: str) -> str:
+    w, h = MARK_BOX
+    label = "Centurion Trade" if fill != "currentColor" else "Centurion"
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" fill="none" role="img" aria-label="{label}">'
+        f"{mark_group(fill)}</svg>\n"
+    )
 
 
-def gold_defs(uid: str) -> str:
-    return f"""
-    <linearGradient id="{uid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="{GOLD[0]}"/>
-      <stop offset="0.48" stop-color="{GOLD[1]}"/>
-      <stop offset="1" stop-color="{GOLD[2]}"/>
-    </linearGradient>
-    """
-
-
-def helmet_markup() -> str:
-    raw = (ROOT / "helmet.svg").read_text()
-    start = raw.find("<svg")
-    start = raw.find(">", start) + 1
-    return raw[start:raw.rfind("</svg>")].strip()
-
-
-def wordmark(trade_fill: str, line_fill: str) -> str:
-    font = font_at(680)
-    name, name_w, name_h = text_svg(font, "CENTURION", 168, tracking=-1.2)
-    small = font_at(620)
-    trade, trade_w, trade_h = text_svg(small, "TRADE", 64, tracking=18)
-    helm_h = 320
-    helm_w = helm_h * (312 / 370)
-    gap = 36
+def wordmark(mark_fill: str, name_fill: str, trade_fill: str) -> str:
+    sans = TTFont(SANS)
+    mono = TTFont(MONO)
+    name, name_w, name_asc, name_desc = text_svg(sans, "Centurion", 86, tracking=-0.8)
+    trade, trade_w, trade_asc, trade_desc = text_svg(mono, "TRADE", 22, tracking=3.2)
+    helm_h = 148
+    helm_w = helm_h * (MARK_BOX[0] / MARK_BOX[1])
+    gap = 22
     text_x = helm_w + gap
-    # Vertically center the two text lines against the helmet.
-    block_h = name_h + 28 + trade_h
-    name_y = (helm_h - block_h) / 2 + 132  # baseline offset: ascent of 168px Cinzel is ~132
-    # text_svg places baseline at 0, glyphs extend upward (negative y) and a little down.
-    ascent = 132
-    trade_ascent = 50
-    name_baseline = (helm_h - (ascent + 22 + trade_ascent)) / 2 + ascent
-    trade_baseline = name_baseline + 22 + trade_ascent
-    trade_x = text_x + (name_w - trade_w) / 2
-    line_y = trade_baseline - trade_ascent * 0.42
-    line_w = 92
-    pad = 8
-    width = text_x + name_w + pad
+    # Two lines, optically centered on the helmet.
+    block = name_asc + name_desc + 10 + trade_asc + trade_desc
+    name_base = (helm_h - block) / 2 + name_asc
+    trade_base = name_base + name_desc + 10 + trade_asc
+    width = text_x + max(name_w, trade_w) + 4
     height = helm_h
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.0f} {height:.0f}" fill="none" role="img" aria-label="Centurion Trade">
-  <defs>
-    {gold_defs("g")}
-  </defs>
-  <svg x="0" y="{(height - helm_h) / 2:.1f}" width="{helm_w:.1f}" height="{helm_h:.1f}" viewBox="0 0 312 370">{helmet_markup()}</svg>
-  <g fill="url(#g)" transform="translate({text_x:.1f} {name_baseline:.1f})">{name}</g>
-  <line x1="{trade_x - line_w - 16:.1f}" y1="{line_y:.1f}" x2="{trade_x - 14:.1f}" y2="{line_y:.1f}" stroke="{line_fill}" stroke-width="3" stroke-linecap="round"/>
-  <line x1="{trade_x + trade_w + 14:.1f}" y1="{line_y:.1f}" x2="{trade_x + trade_w + line_w + 16:.1f}" y2="{line_y:.1f}" stroke="{line_fill}" stroke-width="3" stroke-linecap="round"/>
-  <g fill="{trade_fill}" transform="translate({trade_x:.1f} {trade_baseline:.1f})">{trade}</g>
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.0f} {height:.0f}" fill="none" role="img" aria-label="Centurion Trade">
+  <svg x="0" y="0" width="{helm_w:.1f}" height="{helm_h:.0f}" viewBox="0 0 {MARK_BOX[0]} {MARK_BOX[1]}">{mark_group(mark_fill)}</svg>
+  <g fill="{name_fill}" transform="translate({text_x:.1f} {name_base:.1f})">{name}</g>
+  <g fill="{trade_fill}" transform="translate({text_x:.1f} {trade_base:.1f})">{trade}</g>
 </svg>
-"""
+'''
 
 
-def mark_svg() -> str:
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 312 370" role="img" aria-label="Centurion Trade">
-  {helmet_markup()}
-</svg>
-"""
-
-
-def icon_svg(pad_ratio: float) -> str:
+def icon_svg(pad: float, rounded: bool) -> str:
     side = 512
-    margin = side * pad_ratio
+    margin = side * pad
     avail = side - margin * 2
     helm_h = avail
-    helm_w = avail * (312 / 370)
+    helm_w = avail * (MARK_BOX[0] / MARK_BOX[1])
     if helm_w > avail:
         helm_w = avail
-        helm_h = avail * (370 / 312)
+        helm_h = avail * (MARK_BOX[1] / MARK_BOX[0])
     x = (side - helm_w) / 2
     y = (side - helm_h) / 2
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{side}" height="{side}" viewBox="0 0 {side} {side}" role="img" aria-label="Centurion Trade">
-  <rect width="{side}" height="{side}" fill="{BG}"/>
-  <svg x="{x:.1f}" y="{y:.1f}" width="{helm_w:.1f}" height="{helm_h:.1f}" viewBox="0 0 312 370">{helmet_markup()}</svg>
+    radius = 112 if rounded else 0
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{side}" height="{side}" viewBox="0 0 {side} {side}" role="img" aria-label="Centurion Trade">
+  <rect width="{side}" height="{side}" rx="{radius}" fill="{INK}"/>
+  <svg x="{x:.1f}" y="{y:.1f}" width="{helm_w:.1f}" height="{helm_h:.1f}" viewBox="0 0 {MARK_BOX[0]} {MARK_BOX[1]}">{mark_group(ORANGE)}</svg>
 </svg>
-"""
+'''
 
 
 def banner(width: int, height: int, light: bool) -> str:
     import re
-    bg = BG_LIGHT if light else BG
-    trade = TRADE_DARK if light else "#FFFFFF"
-    line = LINE_DARK if light else "#E0BE62"
-    glow = "rgba(212,168,75,0.18)" if not light else "rgba(166,120,44,0.12)"
-    inner = wordmark(trade, line)
+
+    bg = PAPER if light else INK
+    inner = wordmark(BLUE if light else ORANGE, INK if light else NAME_ON_DARK, BLUE if light else ORANGE)
     match = re.search(r'viewBox="0 0 ([0-9.]+) ([0-9.]+)"', inner)
     vw, vh = float(match.group(1)), float(match.group(2))
     body = inner.split(">", 1)[1].rsplit("</svg>", 1)[0]
-    target_w = width * 0.86
-    scale = target_w / vw
-    target_h = vh * scale
+    target_h = height * 0.46
+    scale = target_h / vh
+    target_w = vw * scale
+    if target_w > width * 0.86:
+        target_w = width * 0.86
+        scale = target_w / vw
+        target_h = vh * scale
     x = (width - target_w) / 2
     y = (height - target_h) / 2
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="Centurion Trade">
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="Centurion Trade">
   <rect width="{width}" height="{height}" fill="{bg}"/>
-  <defs>
-    <radialGradient id="glow" cx="50%" cy="50%" r="42%">
-      <stop offset="0" stop-color="{glow}"/>
-      <stop offset="1" stop-color="{bg}" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="{width}" height="{height}" fill="url(#glow)"/>
   <svg x="{x:.1f}" y="{y:.1f}" width="{target_w:.1f}" height="{target_h:.1f}" viewBox="0 0 {vw:.0f} {vh:.0f}">{body}</svg>
 </svg>
-"""
+'''
 
 
 def main() -> None:
-    dark = wordmark("#FFFFFF", "#E0BE62")
-    light = wordmark(TRADE_DARK, LINE_DARK)
-    (OUT / "wordmark-on-dark.svg").write_text(dark)
-    (OUT / "wordmark-on-light.svg").write_text(light)
-    (OUT / "mark.svg").write_text(mark_svg())
-    (OUT / "icon.svg").write_text(icon_svg(0.12))
-    (OUT / "icon-maskable.svg").write_text(icon_svg(0.22))
-    (OUT / "readme-banner-dark.svg").write_text(banner(1280, 400, False))
-    (OUT / "readme-banner-light.svg").write_text(banner(1280, 400, True))
-    (OUT / "social-preview.svg").write_text(banner(1280, 640, False))
+    (ROOT / "mark.svg").write_text(mark_svg("currentColor"))
+    (ROOT / "mark-on-dark.svg").write_text(mark_svg(ORANGE))
+    (ROOT / "mark-on-light.svg").write_text(mark_svg(BLUE))
+    (ROOT / "wordmark-on-dark.svg").write_text(wordmark(ORANGE, NAME_ON_DARK, ORANGE))
+    (ROOT / "wordmark-on-light.svg").write_text(wordmark(BLUE, INK, BLUE))
+    (ROOT / "wordmark.svg").write_text(wordmark("currentColor", "currentColor", "currentColor"))
+    (ROOT / "icon.svg").write_text(icon_svg(0.16, True))
+    (ROOT / "icon-maskable.svg").write_text(icon_svg(0.28, False))
+    (ROOT / "readme-banner-dark.svg").write_text(banner(1280, 400, False))
+    (ROOT / "readme-banner-light.svg").write_text(banner(1280, 400, True))
+    (ROOT / "social-preview.svg").write_text(banner(1280, 640, False))
+    (ROOT / "og.svg").write_text(banner(1200, 630, False))
     print("wrote svgs")
-    # Print wordmark viewBox by reading the tag
-    for name in ("wordmark-on-dark.svg", "mark.svg"):
-        first = (OUT / name).read_text().split(">", 1)[0]
-        print(name, first[-80:])
 
 
 if __name__ == "__main__":

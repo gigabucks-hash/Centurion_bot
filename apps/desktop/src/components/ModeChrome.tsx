@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { FlaskConical, ShieldCheck } from "lucide-react";
 import { useT } from "../i18n";
 import { useTerm } from "../state/store";
+import { BrandLockup } from "./BrandLockup";
 import { Icon } from "./Icon";
 import { StopControl } from "./StopControl";
 
@@ -17,7 +18,10 @@ export function ModeChrome({ title, children, stop }: { title: string; children?
           <Icon glyph={mode === "practice" ? FlaskConical : ShieldCheck} size={16} />
           {mode === "practice" ? t("mode.practice.label") : t("mode.real.label")}
         </span>
-        <span className="brand" data-tauri-drag-region>{t("app.name")}</span>
+        <span className="brand" data-tauri-drag-region>
+          <BrandLockup mark={22} word={false} />
+          {t("app.name")}
+        </span>
         <span className="dim" data-tauri-drag-region>{title}</span>
         {stop && <StopControl />}
         {children}

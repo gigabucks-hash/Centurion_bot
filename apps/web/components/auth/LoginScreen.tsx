@@ -92,7 +92,7 @@ export function LoginScreen({ realWallet = false, localPaper = false }: { realWa
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <section className="hidden flex-col border-r border-border-subtle bg-bg-surface p-10 lg:flex">
-        <Wordmark height={36} />
+        <Wordmark mark={32} />
         <h1 className="mt-auto max-w-[18ch] text-display tracking-[-0.02em] text-text-primary">{t("walletLogin.hero")}</h1>
         <ul className="mt-6 flex flex-col gap-2 text-body text-text-secondary">
           {(["walletLogin.v1", "walletLogin.v2", "walletLogin.v3"] as const).map((k) => (
@@ -102,7 +102,7 @@ export function LoginScreen({ realWallet = false, localPaper = false }: { realWa
       </section>
 
       <section className="flex flex-col items-center justify-center p-4 sm:p-10">
-        <div className="mb-6 lg:hidden"><Wordmark height={40} /></div>
+        <div className="mb-6 lg:hidden"><Wordmark mark={28} /></div>
         <div className="w-full max-w-md rounded-lg border border-border-subtle bg-bg-surface p-6 sm:p-8">
           {step === "choose" ? (
             <>

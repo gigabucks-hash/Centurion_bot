@@ -16,10 +16,10 @@ import { useT } from "@/lib/i18n/client";
 import { logout, useSessionKeeper } from "@/lib/auth/session-client";
 import { Onboarding } from "./Onboarding";
 
-function Brand({ height = 36 }: { height?: number }) {
+function Brand({ mark = 24 }: { mark?: number }) {
   return (
     <Link href="/" className="flex items-center text-text-primary" aria-label="Centurion Trade">
-      <Wordmark height={height} />
+      <Wordmark mark={mark} />
     </Link>
   );
 }
@@ -175,7 +175,7 @@ export function AppShell({ children, sessionKeeper = true, modes, realCount, pap
         <div className="sticky top-0 z-40">
           <ModeBanner realCount={realCount} paperCount={paperCount} />
           <header className="chrome-bar flex h-12 items-center gap-3 border-b border-border-subtle px-4">
-            <span className="lg:hidden"><Brand height={26} /></span>
+            <span className="lg:hidden"><Brand mark={22} /></span>
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
               <SearchBox />
               <ConnectionDot />
@@ -197,7 +197,7 @@ export function AppShell({ children, sessionKeeper = true, modes, realCount, pap
           {/* QA-14: the column background stretches with the content; the nav inside stays sticky. */}
           <aside className="hidden w-56 shrink-0 border-r border-border-subtle bg-bg-chrome lg:block">
             <div className="sticky top-[var(--shell-top)] flex h-[calc(100dvh-var(--shell-top))] flex-col px-3 py-4">
-              <Brand height={28} />
+              <Brand mark={24} />
               <div className="mt-5">
                 <SideNav pending={pending} />
               </div>

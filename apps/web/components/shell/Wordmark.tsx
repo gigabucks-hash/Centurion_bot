@@ -1,15 +1,20 @@
 /**
- * Approved Centurion Trade lockup. Dark and light files differ only in the
- * TRADE line so it stays readable. The helmet and CENTURION stay gold.
+ * Helmet plus Centurion, with TRADE large enough to read.
+ * The mark swaps with the theme. The words are the UI faces, not an image.
  */
-/** Static SVGs swapped by theme. The image optimizer does not apply. */
-export function Wordmark({ height = 36 }: { height?: number }) {
+export function Wordmark({ mark = 24 }: { mark?: number }) {
+  const name = Math.max(14, Math.round(mark * 0.62));
+  const trade = Math.max(9, Math.round(mark * 0.38));
   return (
-    <span className="brand-wordmark" style={{ height }}>
+    <span className="brand-wordmark">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/brand/wordmark-on-dark.svg" alt="Centurion Trade" className="brand-wordmark-dark" />
+      <img src="/brand/mark-on-dark.svg" alt="" className="brand-wordmark-dark" style={{ height: mark }} />
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/brand/wordmark-on-light.svg" alt="" className="brand-wordmark-light" />
+      <img src="/brand/mark-on-light.svg" alt="" className="brand-wordmark-light" style={{ height: mark }} />
+      <span className="brand-wordmark-type">
+        <span className="brand-wordmark-name" style={{ fontSize: name }}>Centurion</span>
+        <span className="brand-wordmark-trade" style={{ fontSize: trade }}>TRADE</span>
+      </span>
     </span>
   );
 }

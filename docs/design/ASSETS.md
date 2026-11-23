@@ -1,22 +1,22 @@
 # Assets shipped with Centurion Trade
 
-The approved logo is the source. Vectors are traced or outlined from it. No third-party photographs or other brand logos are embedded.
+The helmet is an original drawing: a geometric side-profile galea, solid fill, a few paths. No trace, no embedded photograph, no third-party logo.
 
 | Asset | Where | Source | License |
 |---|---|---|---|
-| Approved raster | `docs/design/centurion-logo-reference.jpg` | Owner-supplied lockup | Project asset. Kept for traceability. |
-| Helmet mark | `brand/helmet.svg`, `brand/mark.svg`, `brand/icon.svg` | Vector trace of the helmet in the approved raster (VTracer), then placed on a dark tile for icons | Project asset, derived from the reference above |
-| Wordmarks | `brand/wordmark-on-dark.svg`, `brand/wordmark-on-light.svg` | Same helmet, plus **CENTURION** and **TRADE** outlined from Cinzel | See Cinzel below. Light variant uses a dark TRADE line so it reads on a light ground. Gold helmet and CENTURION stay. |
-| README banners | `brand/readme-banner-dark.svg`, `brand/readme-banner-light.svg` | Wordmark on a flat dark or warm light ground | Same as the wordmarks |
+| Mark | `brand/mark.svg` | Hand-drawn helmet. `fill="currentColor"` so a host can tint it. | Project asset |
+| Themed marks | `brand/mark-on-dark.svg`, `brand/mark-on-light.svg` | Same drawing. Dark is orange `#FF7A1A`. Light is blue `#2563EB`. | Project asset |
+| Wordmarks | `brand/wordmark.svg`, `brand/wordmark-on-dark.svg`, `brand/wordmark-on-light.svg` | The mark, plus **Centurion** outlined from Schibsted Grotesk and a small **TRADE** outlined from Martian Mono. The plain file uses `currentColor`. | See the UI fonts below |
+| README banners | `brand/readme-banner-dark.svg`, `brand/readme-banner-light.svg` | Wordmark on `#0B0B0D` or `#FFFFFF` | Same as the wordmarks |
 | Social preview | `docs/design/social-preview.png` (1280×640) | Render of `brand/social-preview.svg` | Same as the wordmarks. Set it manually in GitHub Settings → Social preview. |
-| App icons | `apps/web/public/brand/mark-*.png`, `apps/web/app/favicon.ico`, `apps/web/app/apple-icon.png`, `apps/desktop/src-tauri/icons/` | Renders of `brand/icon.svg` at the sizes each target asks for | Same helmet tile |
-| Cinzel | `brand/fonts/Cinzel-wght.ttf` | [The Cinzel Project](https://github.com/NDISCOVER/Cinzel), via [Google Fonts](https://fonts.google.com/specimen/Cinzel) | SIL Open Font License 1.1. Full text: `brand/fonts/OFL-Cinzel.txt`. Copyright 2020 The Cinzel Project Authors. |
+| App icon | `brand/icon.svg`, `brand/icon-maskable.svg` | Orange mark on a `#0B0B0D` tile. The app icon is a rounded square. The maskable tile is a full-bleed square with a larger margin. | Same helmet |
+| Raster icons | `apps/web/public/brand/mark-*.png`, `apps/web/public/icon.svg`, `apps/web/app/favicon.ico`, `apps/web/app/apple-icon.png`, `apps/web/app/opengraph-image.png`, `apps/web/app/twitter-image.png`, `apps/desktop/src-tauri/icons/` | Renders of the icon and the social preview. 16, 24, 32 and 48 are the 64px helmet snapped to the pixel grid (`brand/small_icons.py`), with the crest gap and the eye kept open. | Same helmet tile |
 | UI icons | `lucide-react` | https://lucide.dev | ISC |
-| Schibsted Grotesk and Martian Mono | `next/font/local` and `packages/design-tokens/fonts/ui` | `packages/design-tokens/fonts/SOURCE.md` | SIL Open Font License 1.1 |
+| Schibsted Grotesk and Martian Mono | `next/font/local` and `packages/design-tokens/fonts/ui` | `packages/design-tokens/fonts/SOURCE.md` | SIL Open Font License 1.1. The wordmark outlines these faces and does not embed the font files. |
 | Colour tokens | `packages/design-tokens` | `src/tokens.json` | Project source. Contrast: `packages/design-tokens/tokens/contrast-report.md` |
 
-Logo gold `#E7C56A` on the dark canvas is about 11:1. The light-mode gold-brown `#7A4E12` on the light canvas is about 6.7:1. Those two are used for small labels. TRADE on a light ground is `#1A140C`, not gold, because gold on cream fails contrast.
+The mark uses the theme accent: orange `#FF7A1A` on the dark canvas `#0B0B0D`, blue `#2563EB` on white. Rebuild the vectors with `brand/build_logo.py`.
 
 Phantom is named in sign-in copy because the owner connects that browser extension. The app does not ship the Phantom logo. Solana is named in product copy. The app does not ship the Solana logo.
 
-There is no `LICENSE` file for the repository as a whole. The font license above covers only Cinzel.
+There is no `LICENSE` file for the repository as a whole. The font license covers Schibsted Grotesk and Martian Mono.
